@@ -254,9 +254,13 @@ describe.skipIf(!sqliteAvailable)("managed catalog host intents over real HTTP",
     );
     expect(descriptorResponse.status).toBe(200);
     const descriptor = (await descriptorResponse.json()) as {
-      capabilities?: { catalogMutations?: { versions?: number[] } };
+      capabilities?: {
+        catalogMutations?: { versions?: number[] };
+        flatThreadReorder?: { versions?: number[] };
+      };
     };
     expect(descriptor.capabilities?.catalogMutations?.versions).toEqual([1]);
+    expect(descriptor.capabilities?.flatThreadReorder?.versions).toEqual([1]);
 
     const legacy = await postCommand(info, operatorToken, "/api/projects/command", {
       kind: "add-existing",
@@ -438,6 +442,185 @@ describe.skipIf(!sqliteAvailable)("managed catalog host intents over real HTTP",
     } finally {
       ws.close();
     }
+  });
+
+  it("durably moves flat order across projects and replays the frozen receipt after later moves", async () => {
+    getSqlite().prepare("UPDATE threads SET sort_order = 5 WHERE id = 'q1'").run();
+    const beforeRows = dbGetThreads();
+    const outsideRange = getSqlite().prepare("SELECT * FROM threads WHERE id = 't1'").get();
+    const command = {
+      kind: "reorder-flat",
+      projectId: "p2",
+      targetThreadId: "t2",
+      placement: "before",
+    };
+    const commandId = "catalog-flat-reorder-1";
+    const { ws, read } = await openPairedSocket(info, operatorToken);
+    try {
+      await read();
+      const accepted = await postCommand(
+        info,
+        operatorToken,
+        "/api/threads/q1/command",
+        command,
+        commandId,
+      );
+      expect(accepted).toEqual({ status: 200, body: { ok: true } });
+      expect(dbGetThreads().map((thread) => thread.id)).toEqual([
+        "t1",
+        "q1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+      ]);
+      expect(receiptRow(commandId)?.state).toBe("completed");
+      expect(getSqlite().prepare("SELECT * FROM threads WHERE id = 't1'").get()).toEqual(
+        outsideRange,
+      );
+      for (const before of beforeRows)
+        expect(dbGetThreads().find((thread) => thread.id === before.id)).toEqual(before);
+      const broadcast = await waitForEventType(read, "remote-threads-changed");
+      expect([...(broadcast.threadIds as string[])].sort()).toEqual(["q1", "t2"]);
+      expect(dispatchThreadCommand).not.toHaveBeenCalled();
+
+      // Another client moves the target. Reapplying the first relative intent
+      // would now move q1 again; replay must return its frozen result instead.
+      expect(
+        (
+          await postCommand(
+            info,
+            operatorToken,
+            "/api/threads/t2/command",
+            {
+              kind: "reorder-flat",
+              projectId: "p1",
+              targetThreadId: "t5",
+              placement: "after",
+            },
+            "catalog-flat-concurrent-1",
+          )
+        ).status,
+      ).toBe(200);
+      const laterOrder = ["t1", "q1", "t3", "t4", "t5", "t2"];
+      expect(dbGetThreads().map((thread) => thread.id)).toEqual(laterOrder);
+      const frozenReceipt = receiptRow(commandId);
+      expect(
+        await postCommand(info, operatorToken, "/api/threads/q1/command", command, commandId),
+      ).toEqual(accepted);
+      expect(dbGetThreads().map((thread) => thread.id)).toEqual(laterOrder);
+      expect(receiptRow(commandId)).toEqual(frozenReceipt);
+      const changedBody = await postCommand(
+        info,
+        operatorToken,
+        "/api/threads/q1/command",
+        { ...command, placement: "after" },
+        commandId,
+      );
+      expect(changedBody.status).toBe(409);
+      expect(changedBody.body).toMatchObject({ error: { code: "command_id_conflict" } });
+
+      const otherToken = await exchangePairingUrl(
+        server.issueIndependentPairingUrl("Other flat operator"),
+        ["session:operate"],
+      );
+      const otherPrincipal = await postCommand(
+        info,
+        otherToken,
+        "/api/threads/q1/command",
+        command,
+        commandId,
+      );
+      expect(otherPrincipal.status).toBe(409);
+      expect(otherPrincipal.body).toMatchObject({ error: { code: "command_id_conflict" } });
+      const otherRoute = await postCommand(
+        info,
+        operatorToken,
+        "/api/threads/t5/command",
+        command,
+        commandId,
+      );
+      expect(otherRoute.status).toBe(409);
+      expect(otherRoute.body).toMatchObject({ error: { code: "command_id_conflict" } });
+      expect(dbGetThreads().map((thread) => thread.id)).toEqual(laterOrder);
+
+      // A real SQLite close/reopen plus a real host snapshot, with no renderer
+      // persistence involved, proves the accepted ordering survives reload.
+      closeDatabase();
+      initDatabase(join(dir, "state.sqlite"));
+      const snapshotResponse = await fetch(new URL("/api/snapshot", info.httpBaseUrl), {
+        headers: { authorization: `Bearer ${operatorToken}` },
+      });
+      expect(snapshotResponse.status).toBe(200);
+      const snapshot = (await snapshotResponse.json()) as { threads: Thread[] };
+      expect(snapshot.threads.map((thread) => thread.id)).toEqual(laterOrder);
+      for (const before of beforeRows)
+        expect(snapshot.threads.find((thread) => thread.id === before.id)).toEqual(before);
+      expect(receiptRow(commandId)).toEqual(frozenReceipt);
+    } finally {
+      ws.close();
+    }
+  });
+
+  it("requires flat command receipts and refuses wrong source projects or missing targets before writes", async () => {
+    const before = getSqlite().prepare("SELECT * FROM threads ORDER BY id").all();
+    const command = {
+      kind: "reorder-flat",
+      projectId: "p2",
+      targetThreadId: "t1",
+      placement: "before",
+    };
+    const noReceipt = await postCommand(info, operatorToken, "/api/threads/q1/command", command);
+    expect(noReceipt.status).toBe(400);
+    expect(noReceipt.body).toMatchObject({ error: { code: "command_id_required" } });
+    const wrongProject = await postCommand(
+      info,
+      operatorToken,
+      "/api/threads/q1/command",
+      { ...command, projectId: "p1" },
+      "catalog-flat-source-mismatch-1",
+    );
+    expect(wrongProject.status).toBe(409);
+    expect(wrongProject.body).toMatchObject({ error: { code: "thread_project_mismatch" } });
+    expect(receiptRow("catalog-flat-source-mismatch-1")?.state).toBe("failed");
+    const missingTarget = await postCommand(
+      info,
+      operatorToken,
+      "/api/threads/q1/command",
+      { ...command, targetThreadId: "missing" },
+      "catalog-flat-target-missing-1",
+    );
+    expect(missingTarget.status).toBe(404);
+    expect(missingTarget.body).toMatchObject({ error: { code: "thread_not_found" } });
+    expect(receiptRow("catalog-flat-target-missing-1")?.state).toBe("failed");
+    const readerToken = await exchangePairingUrl(server.issueIndependentPairingUrl("Flat reader"), [
+      "session:read",
+    ]);
+    const noScope = await postCommand(
+      info,
+      readerToken,
+      "/api/threads/q1/command",
+      command,
+      "catalog-flat-reader-1",
+    );
+    expect(noScope.status).toBe(403);
+    expect(receiptRow("catalog-flat-reader-1")).toBeUndefined();
+    // A supplied scope cannot smuggle cross-project behavior into the old kind.
+    const projectOnly = await postCommand(
+      info,
+      operatorToken,
+      "/api/threads/q1/command",
+      {
+        ...command,
+        kind: "reorder",
+        threadIds: ["q1"],
+        scope: "catalog",
+      },
+      "catalog-default-target-mismatch-1",
+    );
+    expect(projectOnly.status).toBe(409);
+    expect(projectOnly.body).toMatchObject({ error: { code: "thread_project_mismatch" } });
+    expect(getSqlite().prepare("SELECT * FROM threads ORDER BY id").all()).toEqual(before);
   });
 
   it("refuses cross-project, duplicate, anchor, and unknown thread reorder targets before any effect", async () => {
@@ -807,51 +990,54 @@ describe.skipIf(!sqliteAvailable)("managed catalog host intents over real HTTP",
     expect(fresh.body).toEqual({ ok: true });
   });
 
-  it("classifies a post-commit change-listener failure as uncertain on the thread route", async () => {
-    const commandId = "catalog-thread-listener-fault-1";
-    const unsubscribe = onProjectThreadDataChanged(() => {
-      throw new Error("post-commit project/thread change listener failure");
-    });
-    let response: { status: number; body: Record<string, unknown> };
-    try {
-      response = await postCommand(
+  it.each(["reorder", "reorder-flat"] as const)(
+    "classifies a post-commit change-listener failure as uncertain for %s on the thread route",
+    async (kind) => {
+      const commandId = "catalog-thread-listener-fault-1";
+      const unsubscribe = onProjectThreadDataChanged(() => {
+        throw new Error("post-commit project/thread change listener failure");
+      });
+      let response: { status: number; body: Record<string, unknown> };
+      try {
+        response = await postCommand(
+          info,
+          operatorToken,
+          "/api/threads/t4/command",
+          {
+            kind,
+            projectId: "p1",
+            ...(kind === "reorder" ? { threadIds: ["t4"] } : {}),
+            targetThreadId: "t1",
+            placement: "before",
+          },
+          commandId,
+        );
+      } finally {
+        unsubscribe();
+      }
+      expect(threadOrder("p1")).toEqual(["t4", "t1", "t2", "t3", "t5"]);
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ error: { code: "command_outcome_uncertain" } });
+      expect(receiptRow(commandId)?.state).toBe("uncertain");
+
+      const retry = await postCommand(
         info,
         operatorToken,
         "/api/threads/t4/command",
         {
-          kind: "reorder",
+          kind,
           projectId: "p1",
-          threadIds: ["t4"],
+          ...(kind === "reorder" ? { threadIds: ["t4"] } : {}),
           targetThreadId: "t1",
           placement: "before",
         },
         commandId,
       );
-    } finally {
-      unsubscribe();
-    }
-    expect(threadOrder("p1")).toEqual(["t4", "t1", "t2", "t3", "t5"]);
-    expect(response.status).toBe(409);
-    expect(response.body).toMatchObject({ error: { code: "command_outcome_uncertain" } });
-    expect(receiptRow(commandId)?.state).toBe("uncertain");
-
-    const retry = await postCommand(
-      info,
-      operatorToken,
-      "/api/threads/t4/command",
-      {
-        kind: "reorder",
-        projectId: "p1",
-        threadIds: ["t4"],
-        targetThreadId: "t1",
-        placement: "before",
-      },
-      commandId,
-    );
-    expect(retry.status).toBe(409);
-    expect(retry.body).toMatchObject({ error: { code: "command_outcome_uncertain" } });
-    expect(threadOrder("p1")).toEqual(["t4", "t1", "t2", "t3", "t5"]);
-  });
+      expect(retry.status).toBe(409);
+      expect(retry.body).toMatchObject({ error: { code: "command_outcome_uncertain" } });
+      expect(threadOrder("p1")).toEqual(["t4", "t1", "t2", "t3", "t5"]);
+    },
+  );
 
   it("classifies a post-commit mirror-callback failure as uncertain while the broadcast still lands", async () => {
     onProjectsChanged.mockImplementation(() => {

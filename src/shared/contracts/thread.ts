@@ -712,6 +712,18 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     targetThreadId: z.string().min(1),
     placement: catalogReorderPlacementSchema,
   }),
+  // Flat Manual order over the host's complete thread catalog, without
+  // changing project membership. Separate from project-only `reorder` so an
+  // older host rejects the unknown kind instead of stripping an optional
+  // scope and reporting success for a different move. Gate on
+  // capabilities.flatThreadReorder v1; the source must still match projectId.
+  z.object({
+    kind: z.literal("reorder-flat"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    targetThreadId: z.string().min(1),
+    placement: catalogReorderPlacementSchema,
+  }),
   // Single-column nullable workspace assignment (`null` clears). The host
   // writes only `workspace_id`; status, session, sort order, group, and config
   // are untouched.

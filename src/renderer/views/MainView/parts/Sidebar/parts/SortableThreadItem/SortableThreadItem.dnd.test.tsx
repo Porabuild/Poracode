@@ -104,6 +104,7 @@ type SortableSnapshot = {
   index: number;
   type: string;
   accept: string[];
+  acceptsLockedThread: boolean;
 };
 
 /**
@@ -135,7 +136,19 @@ function SortableRegistryProbe(props: {
             type?: string;
           }
         | undefined;
-      const accept = (droppable as { accept?: readonly string[] } | undefined)?.accept;
+      const accept = (
+        droppable as
+          | {
+              accept?:
+                | readonly string[]
+                | ((source: { type: string; data: { sortDisabled: boolean } }) => boolean);
+            }
+          | undefined
+      )?.accept;
+      const accepts = (type: string, sortDisabled = false): boolean =>
+        typeof accept === "function"
+          ? accept({ type, data: { sortDisabled } })
+          : accept?.includes(type) === true;
       return {
         registered: draggable != null,
         hasElement: draggableRecord?.element != null,
@@ -143,7 +156,8 @@ function SortableRegistryProbe(props: {
         disabled: Boolean(draggableRecord?.disabled),
         index: Number(draggableRecord?.index ?? -1),
         type: String(draggableRecord?.type ?? ""),
-        accept: accept == null ? [] : [...accept],
+        accept: ["thread", "worktree-group"].filter((type) => accepts(type)),
+        acceptsLockedThread: accepts("thread", true),
       };
     };
     return () => {
@@ -240,6 +254,7 @@ describe("SortableThreadItem drag registration accessibility", () => {
       disabled: false,
       type: "thread",
       accept: ["thread", "worktree-group"],
+      acceptsLockedThread: false,
     });
 
     fireEvent.keyDown(row, { key: " ", code: "Space" });

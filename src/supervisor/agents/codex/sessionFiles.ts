@@ -62,6 +62,10 @@ export interface CodexRolloutMeta {
   cwd?: string;
   originator?: string;
   source?: string;
+  /** `session_meta.payload.timestamp`. */
+  startedAt?: string;
+  /** Spawned by another thread (`source: { subagent }` or `thread_source: "subagent"`). */
+  subagent?: true;
 }
 
 export function parseCodexRolloutMeta(
@@ -81,19 +85,27 @@ export function parseCodexRolloutMeta(
         id?: string;
         cwd?: string;
         originator?: string;
-        source?: string;
+        source?: unknown;
+        thread_source?: string;
+        timestamp?: string;
       };
     };
     if (parsed.type !== "session_meta" || !parsed.payload?.id) {
       return undefined;
     }
+    const { source } = parsed.payload;
+    const subagent =
+      parsed.payload.thread_source === "subagent" ||
+      (typeof source === "object" && source !== null && "subagent" in source);
     return {
       id: parsed.payload.id,
       path,
       ...(updatedAt !== undefined ? { updatedAt } : {}),
       ...(parsed.payload.cwd ? { cwd: parsed.payload.cwd } : {}),
       ...(parsed.payload.originator ? { originator: parsed.payload.originator } : {}),
-      ...(parsed.payload.source ? { source: parsed.payload.source } : {}),
+      ...(typeof source === "string" && source ? { source } : {}),
+      ...(parsed.payload.timestamp ? { startedAt: parsed.payload.timestamp } : {}),
+      ...(subagent ? { subagent: true as const } : {}),
     };
   } catch {
     return {

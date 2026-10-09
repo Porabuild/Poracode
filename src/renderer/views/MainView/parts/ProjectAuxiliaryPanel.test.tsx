@@ -2,12 +2,14 @@ import { act, render, renderHook, waitFor } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { I18nProvider } from "@lingui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Thread } from "@/shared/contracts";
+import type { Project, Thread } from "@/shared/contracts";
+import { deleteProject } from "@/renderer/actions/projectActions";
+import { closeExitedShell } from "@/renderer/actions/terminalTabActions";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { i18n } from "@/renderer/i18n/i18n";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -26,24 +28,22 @@ vi.mock("@/renderer/state/gitRefresh", () => ({
   ),
 }));
 
+interface CapturedRightPanelProps {
+  activeTab: string;
+  projectName?: string;
+  docksContent?: ReactElement;
+  docksHeaderActions?: ReactElement;
+  notesContent?: ReactElement<{ projectId: string }>;
+  onBackSubagent?: () => void;
+  onCloseSubagent?: () => void;
+}
+
 const unifiedRightPanelProps = vi.hoisted(() => ({
-  current: null as {
-    activeTab: string;
-    docksContent?: ReactElement;
-    docksHeaderActions?: ReactElement;
-    onBackSubagent?: () => void;
-    onCloseSubagent?: () => void;
-  } | null,
+  current: null as CapturedRightPanelProps | null,
 }));
 
 vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
-  UnifiedRightPanel: (props: {
-    activeTab: string;
-    docksContent?: ReactElement;
-    docksHeaderActions?: ReactElement;
-    onBackSubagent?: () => void;
-    onCloseSubagent?: () => void;
-  }) => {
+  UnifiedRightPanel: (props: CapturedRightPanelProps) => {
     unifiedRightPanelProps.current = props;
     return null;
   },
@@ -72,6 +72,15 @@ function makeThread(id: string, projectId: string, worktreePath: string): Thread
 const threadA = makeThread("thread-a", "project-a", "/worktree-a");
 const threadB = makeThread("thread-b", "project-b", "/worktree-b");
 const threadC = makeThread("thread-c", "project-c", "/worktree-c");
+
+function makeProject(id: string): Project {
+  return {
+    id,
+    name: `Project ${id}`,
+    location: { kind: "windows", path: `C:\\${id}` },
+    createdAt: "2026-08-01T00:00:00.000Z",
+  };
+}
 
 function focusThread(threadId: string): void {
   useAppStore.setState({
@@ -131,6 +140,7 @@ describe("ProjectAuxiliaryPanel", () => {
       gitReviewAsPanel: true,
       rightPanelFollowsThread: true,
       rightPanelTab: "git",
+      rightPanelSplit: null,
       filesPanelContext: null,
       browserPanelOpen: false,
       usagePanelOpen: false,
@@ -422,6 +432,89 @@ describe("ProjectAuxiliaryPanel", () => {
 
     await waitFor(() => {
       expect(unifiedRightPanelProps.current?.activeTab).not.toBe("ports");
+    });
+  });
+  describe("when the last terminal shell exits on Home", () => {
+    // Notes on Home has no project of its own, so it takes the terminal's.
+    function openProjectBTerminalOnHome() {
+      resetDevTerminalStore();
+      useAppStore.setState({
+        view: { kind: "home" },
+        threads: [],
+        projects: [makeProject("project-a"), makeProject("project-b")],
+      });
+      usePanelStore.setState({ gitReviewContext: null, notesPanelOpen: true });
+      const store = useDevTerminalStore.getState();
+      const tab = store.addTab("project-b", "Shell");
+      store.openPanel("project-b");
+      return tab;
+    }
+
+    function renderPanel() {
+      render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal visible />
+        </I18nProvider>,
+      );
+    }
+
+    function shownNotes() {
+      const props = unifiedRightPanelProps.current;
+      return {
+        activeTab: props?.activeTab,
+        projectName: props?.projectName,
+        projectId: props?.notesContent?.props.projectId,
+      };
+    }
+
+    const projectBNotes = {
+      activeTab: "notes",
+      projectName: "Project project-b",
+      projectId: "project-b",
+    };
+
+    it("keeps Notes on the terminal's project when it was in front of the terminal", () => {
+      const tab = openProjectBTerminalOnHome();
+      usePanelStore.setState({ rightPanelTab: "notes" });
+      renderPanel();
+      expect(shownNotes()).toEqual(projectBNotes);
+
+      act(() => closeExitedShell(tab.id));
+
+      expect(shownNotes()).toEqual(projectBNotes);
+    });
+
+    it("keeps Notes on the terminal's project when it takes over from the terminal's split", () => {
+      const tab = openProjectBTerminalOnHome();
+      usePanelStore.setState({
+        rightPanelTab: "terminal",
+        rightPanelSplit: { tab: "notes", placement: "bottom" },
+      });
+      renderPanel();
+      expect(unifiedRightPanelProps.current?.notesContent?.props.projectId).toBe("project-b");
+
+      act(() => closeExitedShell(tab.id));
+
+      expect(usePanelStore.getState().rightPanelSplit).toBeNull();
+      expect(shownNotes()).toEqual(projectBNotes);
+    });
+
+    it("moves Notes off the terminal's project when that project is removed", async () => {
+      const tab = openProjectBTerminalOnHome();
+      usePanelStore.setState({ rightPanelTab: "notes" });
+      renderPanel();
+      act(() => closeExitedShell(tab.id));
+      expect(shownNotes()).toEqual(projectBNotes);
+
+      await act(async () => deleteProject("project-b"));
+
+      // Notes edits are saved under the project the panel renders.
+      expect(useDevTerminalStore.getState().activeProjectId).toBeNull();
+      expect(shownNotes()).toEqual({
+        activeTab: "notes",
+        projectName: "Project project-a",
+        projectId: "project-a",
+      });
     });
   });
 });

@@ -11,7 +11,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { closeAllPanels } from "@/renderer/actions/panelActions";
+import { removeTerminalTab } from "@/renderer/actions/terminalTabActions";
 import {
   clearEagerShellStart,
   startDeferredPanelShell,
@@ -41,7 +41,6 @@ export function DevTerminalPanel(props: {
   const activeWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
   const activeTabId = useDevTerminalStore((s) => s.activeTabId);
   const focusRequestId = useDevTerminalStore((s) => s.focusRequestId);
-  const removeTab = useDevTerminalStore((s) => s.removeTab);
   const setActiveTab = useDevTerminalStore((s) => s.setActiveTab);
   const addTab = useDevTerminalStore((s) => s.addTab);
   const splitTabAction = useDevTerminalStore((s) => s.splitTab);
@@ -133,6 +132,8 @@ export function DevTerminalPanel(props: {
     // action should replace its PTY; remounting the panel must not create an
     // unrelated interactive shell in the action-owned tab.
     if (owningTab.id === terminalId && owningTab.runActionId) return;
+    // The split now fills this tab, so its exited main shell must not start again.
+    if (owningTab.id === terminalId && owningTab.mainExited) return;
     const project = projects.find((p) => p.id === owningTab.projectId);
     if (!project) return;
     const location = owningTab.worktreePath
@@ -149,29 +150,24 @@ export function DevTerminalPanel(props: {
   }
 
   function handleCloseTab(tab: DevTerminalTab) {
-    const remaining = tabs.filter((other) => other.id !== tab.id);
     if (tab.splitId) {
       void readBridge()
         .closeThread({ threadId: tab.splitId })
         .catch(() => undefined);
       clearEagerShellStart(tab.splitId);
     }
-    removeTab(tab.id);
     void readBridge()
       .closeThread({ threadId: tab.id })
       .catch(() => undefined);
     clearEagerShellStart(tab.id);
 
-    const remainingInContext = remaining.filter((other) => {
-      if (other.projectId !== tab.projectId) return false;
-      if (activeWorktreePath) return other.worktreePath === activeWorktreePath;
-      return !other.worktreePath;
-    });
-    if (remainingInContext.length === 0) {
-      if (!isBottom && !isMobile) closeAllPanels();
-      useDevTerminalStore.getState().closePanel();
+    if (
+      removeTerminalTab(tab, {
+        panelShowsTab: true,
+        position: isMobile ? "bottom" : terminalPosition,
+      })
+    )
       onEmpty?.();
-    }
   }
 
   function handleAddTab() {
@@ -191,6 +187,11 @@ export function DevTerminalPanel(props: {
   }
 
   function handleCloseSplit(tab: DevTerminalTab) {
+    // With the main shell gone, the split is all that is left of the tab.
+    if (tab.mainExited) {
+      handleCloseTab(tab);
+      return;
+    }
     const splitId = closeSplitAction(tab.id);
     if (splitId) {
       void readBridge()
@@ -201,7 +202,7 @@ export function DevTerminalPanel(props: {
   }
 
   function getTabContextItems(tab: DevTerminalTab) {
-    if (!isBottom) return [];
+    if (!isBottom || tab.mainExited) return [];
 
     if (tab.splitId) {
       return [{ id: "close-split", label: t`Close Split`, icon: <Columns2 className="size-4" /> }];

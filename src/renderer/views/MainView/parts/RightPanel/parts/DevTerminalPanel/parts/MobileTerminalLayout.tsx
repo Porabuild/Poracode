@@ -27,6 +27,9 @@ export function MobileTerminalLayout(props: {
   const { t } = useLingui();
   const keyboardOffset = useKeyboardOffset();
   const runningTabs = useDevTerminalStore((state) => state.runningTabs);
+  const activeTerminalId = props.activeTab?.mainExited
+    ? props.activeTab.splitId
+    : props.activeTab?.id;
   const style = {
     ...props.fadeStyle,
     "--m-terminal-keyboard-offset": `${keyboardOffset}px`,
@@ -51,7 +54,7 @@ export function MobileTerminalLayout(props: {
       </div>
 
       <div className="m-terminal-page__dock">
-        {props.activeTab ? <MobileTerminalAccessory terminalId={props.activeTab.id} /> : null}
+        {activeTerminalId ? <MobileTerminalAccessory terminalId={activeTerminalId} /> : null}
         <Tabs
           className="min-w-0 w-full"
           variant="secondary"

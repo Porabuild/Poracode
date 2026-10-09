@@ -96,11 +96,12 @@ export function TerminalSurfaces(props: {
     frame = requestAnimationFrame(() => {
       settledFrame = requestAnimationFrame(() => {
         if (requestId !== latestFocusRequestRef.current) return;
-        terminalRefs.current.get(selectedTabId)?.refit();
-        if (props.allowSplit !== false && activeTab?.splitId) {
+        if (!activeTab?.mainExited) terminalRefs.current.get(selectedTabId)?.refit();
+        if (activeTab?.splitId && (props.allowSplit !== false || activeTab.mainExited)) {
           terminalRefs.current.get(activeTab.splitId)?.refit();
         }
-        terminalRefs.current.get(selectedTabId)?.focus();
+        const focusId = activeTab?.mainExited ? activeTab.splitId : selectedTabId;
+        if (focusId) terminalRefs.current.get(focusId)?.focus();
       });
     });
 
@@ -108,7 +109,14 @@ export function TerminalSurfaces(props: {
       if (frame !== 0) cancelAnimationFrame(frame);
       if (settledFrame !== 0) cancelAnimationFrame(settledFrame);
     };
-  }, [activeTab?.splitId, activeTabId, focusRequestId, props.allowSplit, selectedTabId]);
+  }, [
+    activeTab?.mainExited,
+    activeTab?.splitId,
+    activeTabId,
+    focusRequestId,
+    props.allowSplit,
+    selectedTabId,
+  ]);
 
   function handleResizeStart(e: React.MouseEvent) {
     e.preventDefault();
@@ -159,7 +167,7 @@ export function TerminalSurfaces(props: {
     setSplitPercent(clamped);
   }
 
-  function surfaceProps(tab: DevTerminalTab) {
+  function surfaceProps(terminalId: string, runActionId?: string) {
     const mobileProps = props.mobile
       ? {
           preferDomRenderer: true,
@@ -171,17 +179,17 @@ export function TerminalSurfaces(props: {
       : {};
     if (watchTerminal) {
       return {
-        outputSource: (listener: TerminalFeedListener) => watchTerminal(tab.id, listener),
-        initialScrollback: tab.runActionId
-          ? useThreadOutputStore.getState().readTail(tab.id, 100_000)
+        outputSource: (listener: TerminalFeedListener) => watchTerminal(terminalId, listener),
+        initialScrollback: runActionId
+          ? useThreadOutputStore.getState().readTail(terminalId, 100_000)
           : "",
         preferDomRenderer: true,
         ...mobileProps,
       };
     }
     return {
-      ...(tab.runActionId
-        ? { initialScrollback: useThreadOutputStore.getState().readTail(tab.id, 100_000) }
+      ...(runActionId
+        ? { initialScrollback: useThreadOutputStore.getState().readTail(terminalId, 100_000) }
         : {}),
       ...mobileProps,
     };
@@ -210,12 +218,15 @@ export function TerminalSurfaces(props: {
     }
   }
 
-  if (props.allowSplit !== false && activeTab?.splitId) {
+  if (activeTab?.splitId && (props.allowSplit !== false || activeTab.mainExited)) {
+    // Keep the exited main mounted but hidden so the surviving split keeps its screen.
+    // Compact layout also displays that survivor, without offering a split control.
+    const mainHidden = activeTab.mainExited ? "hidden" : "";
     return (
       <div ref={containerRef} className="flex h-full min-h-0 w-full">
         <div
           ref={firstPaneRef}
-          className="relative h-full min-h-0 min-w-0 overflow-hidden"
+          className={`relative h-full min-h-0 min-w-0 overflow-hidden ${mainHidden}`}
           style={{ flexBasis: `${splitPercent}%`, flexGrow: 0, flexShrink: 0 }}
         >
           {tabs.map((tab) => (
@@ -233,7 +244,7 @@ export function TerminalSurfaces(props: {
                 onActivity={() => markTabActive(tab.id)}
                 onBell={() => markTabActive(tab.id)}
                 onTitleChange={(title) => updateTabTitle(tab.id, title)}
-                {...surfaceProps(tab)}
+                {...surfaceProps(tab.id, tab.runActionId)}
                 {...(onTerminalResize
                   ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
                   : {})}
@@ -242,7 +253,7 @@ export function TerminalSurfaces(props: {
           ))}
         </div>
         <div
-          className="poracode-pane-divider"
+          className={`poracode-pane-divider ${mainHidden}`}
           onMouseDown={handleResizeStart}
           onKeyDown={handleResizeKeyDown}
           role="separator"
@@ -271,14 +282,7 @@ export function TerminalSurfaces(props: {
                   onActivity={() => markTabActive(tab.id)}
                   onBell={() => markTabActive(tab.id)}
                   onTitleChange={(title) => updateTabTitle(tab.splitId!, title)}
-                  {...(watchTerminal
-                    ? {
-                        outputSource: (listener: TerminalFeedListener) =>
-                          watchTerminal(tab.splitId!, listener),
-                        initialScrollback: "",
-                        preferDomRenderer: true,
-                      }
-                    : {})}
+                  {...surfaceProps(tab.splitId!)}
                   {...(onTerminalResize
                     ? { onTerminalResize: (size) => onTerminalResize(tab.splitId!, size) }
                     : {})}
@@ -313,7 +317,7 @@ export function TerminalSurfaces(props: {
             onActivity={() => markTabActive(tab.id)}
             onBell={() => markTabActive(tab.id)}
             onTitleChange={(title) => updateTabTitle(tab.id, title)}
-            {...surfaceProps(tab)}
+            {...surfaceProps(tab.id, tab.runActionId)}
             {...(onTerminalResize
               ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
               : {})}

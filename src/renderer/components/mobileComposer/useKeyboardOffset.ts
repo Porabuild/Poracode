@@ -89,7 +89,7 @@ function readGeometry(
 
   return {
     baselineExtent,
-    liftOffset: platform === "android" ? 0 : roundedOffset(layoutHeight - visualBottom),
+    liftOffset: layoutResizedForKeyboard ? 0 : roundedOffset(layoutHeight - visualBottom),
     layoutHeight,
     layoutResizeOffset,
     layoutResizedForKeyboard,
@@ -106,10 +106,10 @@ function readGeometry(
  *
  * iOS shrinks only the visual viewport when the keyboard opens; the layout
  * viewport stays full-height, so bottom chrome needs a manual lift.
- * Android WebView resizes the layout viewport for the keyboard, but it can
- * emit an early visual-viewport-only frame during the keyboard animation. Keep
- * Android lift at 0 and use the offset only as a visibility signal there, so
- * the composer does not chase that transient frame.
+ * Android browsers and installed PWAs can shrink only the visual viewport,
+ * which also needs the measured lift. Once the layout viewport resizes, stop
+ * lifting even if the visual viewport undershoots during the animation. Native
+ * mobile apps own their keyboard geometry outside this web hook.
  */
 export function useKeyboardGeometry(): KeyboardGeometry {
   const [geometry, setGeometry] = useState<KeyboardGeometry>({

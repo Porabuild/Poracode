@@ -66,6 +66,7 @@ vi.mock("./parts/BottomTerminalLayout", () => ({
     projectTabs: DevTerminalTab[];
     activeScopeLabel: string | undefined;
     handleCloseTab: (tab: DevTerminalTab) => void;
+    handleCloseSplit: (tab: DevTerminalTab) => void;
     watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
     onTerminalResize: (terminalId: string, size: { cols: number; rows: number }) => void;
   }) => {
@@ -76,6 +77,9 @@ vi.mock("./parts/BottomTerminalLayout", () => ({
         <span>{props.activeScopeLabel}</span>
         <button type="button" onClick={() => props.handleCloseTab(props.projectTabs[0]!)}>
           close bottom tab
+        </button>
+        <button type="button" onClick={() => props.handleCloseSplit(props.projectTabs[0]!)}>
+          close bottom split
         </button>
       </>
     );
@@ -169,6 +173,36 @@ describe("DevTerminalPanel", () => {
     expect(useDevTerminalStore.getState().isOpen).toBe(false);
     expect(usePanelStore.getState().gitReviewContext).toEqual({ projectId: project.id });
     expect(usePanelStore.getState().filesPanelContext?.projectId).toBe(project.id);
+  });
+
+  it("does not respawn the exited main shell of a split tab when the panel remounts", async () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    useDevTerminalStore.setState({
+      tabs: [{ ...tab, splitId: "shell:split", mainExited: true }],
+    });
+    render(<DevTerminalPanel hideHeader />);
+
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 80, rows: 24 });
+    layouts.bottomOnTerminalResize?.("shell:split", { cols: 80, rows: 24 });
+
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(1));
+    expect(bridge.startShell).toHaveBeenCalledWith(
+      expect.objectContaining({ shellId: "shell:split" }),
+    );
+  });
+
+  it("closes the whole tab when its split closes after the main shell exited", () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    useDevTerminalStore.setState({
+      tabs: [{ ...tab, splitId: "shell:split", mainExited: true }],
+    });
+    render(<DevTerminalPanel hideHeader />);
+
+    fireEvent.click(screen.getByRole("button", { name: "close bottom split" }));
+
+    expect(useDevTerminalStore.getState().tabs).toEqual([]);
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:split" });
   });
 
   it("connects a remote bottom terminal to its project's server feed", () => {

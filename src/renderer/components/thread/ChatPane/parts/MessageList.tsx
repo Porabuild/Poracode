@@ -103,12 +103,17 @@ interface MessageListProps {
    */
   suppressInlineTurnAnchorId?: string | null;
   /**
-   * Lets the chat Find controller drive the virtualizer to scroll a matched
-   * row into the rendered window before highlighting it. Registered with the
-   * live handler on mount, null on unmount.
+   * Lets the chat Find controller and the sticky prompt drive the virtualizer
+   * to scroll a row into the rendered window. Registered with the live
+   * handler on mount, null on unmount.
    */
   registerScrollToIndex?: (
-    handler: ((index: number, options?: { align?: "start" | "center" | "end" }) => void) | null,
+    handler:
+      | ((
+          index: number,
+          options?: { align?: "start" | "center" | "end"; animated?: boolean },
+        ) => void)
+      | null,
   ) => void;
 }
 
@@ -258,7 +263,7 @@ export function MessageList({
       if (index < 0 || index >= entries.length) return;
       const align = options?.align ?? "center";
       void listRef.current?.scrollToIndex({
-        animated: false,
+        animated: options?.animated ?? false,
         index,
         viewPosition: align === "start" ? 0 : align === "end" ? 1 : 0.5,
       });

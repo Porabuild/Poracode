@@ -83,6 +83,31 @@ export function reorderThreadBlockInProject(
   });
 }
 
+/**
+ * Moves the source thread next to the target in the whole thread array, so
+ * the two can belong to different projects. Each project's own order is the
+ * same as `reorderThreadsInProject` would give.
+ */
+export function reorderThreadsAcrossProjects(
+  threads: Thread[],
+  sourceId: string,
+  targetId: string,
+  placement: ReorderPlacement,
+): Thread[] {
+  const ids = threads.map((thread) => thread.id);
+  const reorderedIds = reorderIds(ids, sourceId, targetId, placement);
+
+  if (reorderedIds === ids) {
+    return threads;
+  }
+
+  const threadsById = new Map(threads.map((thread) => [thread.id, thread]));
+  return reorderedIds.flatMap((id) => {
+    const thread = threadsById.get(id);
+    return thread ? [thread] : [];
+  });
+}
+
 export function reorderThreadsInProject(
   threads: Thread[],
   sourceId: string,

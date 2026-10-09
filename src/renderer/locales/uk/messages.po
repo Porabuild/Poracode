@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— означає автоматичну заливку або некоректний колір."
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
@@ -128,6 +132,11 @@ msgstr "{0, plural, one {# використання} few {# використан
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "{0, plural, one {edit} other {edits}}"
 msgstr "{0, plural, one {правка} few {правки} many {правок} other {правки}}"
+
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{0, plural, one {Import # session} other {Import # sessions}}"
+msgstr "{0, plural, one {Імпортувати # сесію} few {Імпортувати # сесії} many {Імпортувати # сесій} other {Імпортувати # сесії}}"
 
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/GroupSummarySection.tsx
@@ -506,6 +515,10 @@ msgstr "Збій хука {hook}"
 msgid "{hours}h ago"
 msgstr "{hours}год тому"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}}"
+msgstr "{imported, plural, one {Імпортовано # сесію.} few {Імпортовано # сесії.} many {Імпортовано # сесій.} other {Імпортовано # сесії.}}"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# агент готовий} few {# агенти готові} many {# агентів готові} other {# агента готові}}"
@@ -842,6 +855,10 @@ msgstr "Про програму"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "Над полем введення"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Accent"
+msgstr "Акцент"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -1186,6 +1203,7 @@ msgstr "Оголосіть власний базовий URL, наприклад
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1355,6 +1373,10 @@ msgstr "Усі облікові записи"
 msgid "All agent apps"
 msgstr "Усі застосунки агентів"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All agents"
+msgstr "Усі агенти"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "All candidate sessions, worktrees, and branches will be removed."
@@ -1372,6 +1394,10 @@ msgstr "Усі рівні зусиль"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
 msgstr "Усі файли"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All folders"
+msgstr "Усі папки"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
@@ -1863,6 +1889,7 @@ msgid "Auto-show terminal panel"
 msgstr "Автоматично показувати панель термінала"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "Автоматично"
 
@@ -1971,6 +1998,10 @@ msgstr "Назад до плагінів"
 msgid "Back to Thread Info"
 msgstr "Назад до інформації про потік"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Background"
+msgstr "Тло"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
 msgstr "Фоновий процес несподівано завершився"
@@ -2078,6 +2109,10 @@ msgstr "Додати сторінку в закладки"
 msgid "Bookmarks"
 msgstr "Закладки"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Border"
+msgstr "Межа"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "Знизу"
@@ -2150,6 +2185,10 @@ msgstr "Гілки"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Повернути на панель"
+
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Bring conversations you started in an agent CLI into Poracode. Transcript files are read, never modified."
+msgstr "Перенесіть у Poracode розмови, розпочаті в CLI агента. Файли транскриптів лише читаються й ніколи не змінюються."
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -2371,6 +2410,7 @@ msgstr "Цей вибір моделі не можна використовув�
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -2448,6 +2488,14 @@ msgstr "Змінити"
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "Change context size to {contextLabel}?"
 msgstr "Змінити розмір контексту на {contextLabel}?"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Change home"
+msgstr "Змінити каталог"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Change profile home?"
+msgstr "Змінити каталог профілю?"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
@@ -2574,6 +2622,10 @@ msgstr "Перевірити наявність оновлень"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Перевір мій нещодавній прогрес і дай одну конкретну рекомендацію щодо наступного кроку."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "Перевірте палітру «{invalidPaletteName}» на некоректні кольори."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2649,6 +2701,10 @@ msgstr "Виберіть батьківську папку"
 msgid "Choose a photo"
 msgstr "Вибрати фото"
 
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Choose a project for sessions whose folder no longer exists."
+msgstr "Виберіть проєкт для сесій, папка яких більше не існує."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "Оберіть зображення іконки проєкту"
@@ -2669,6 +2725,10 @@ msgstr "Виберіть щонайменше двох кандидатів і �
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "Виберіть автоматично або вкажіть виявлену оболонку для нових терміналів."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+msgid "Choose color for {label}"
+msgstr "Вибрати колір для {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2896,6 +2956,7 @@ msgstr "Клонування…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "Закрити"
 
@@ -3154,6 +3215,11 @@ msgstr "Код скопійовано. "
 msgid "Codex"
 msgstr "Codex"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex {0} profile saved."
+msgstr "Профіль Codex {0} збережено."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes."
 msgstr "Codex не може стиснути розмову, поки виконується хід. Надішліть /compact ще раз, коли він завершиться."
@@ -3161,6 +3227,18 @@ msgstr "Codex не може стиснути розмову, поки викон
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex не вдалося стиснути розмову: {detail}"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex profile home directory"
+msgstr "Домашній каталог профілю Codex"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex profile name"
+msgstr "Назва профілю Codex"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Codex запускає цей профіль із CODEX_HOME, що вказує на каталог нижче. Натисніть «Увійти» вище, щоб увійти в окремий обліковий запис цього профілю."
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
@@ -3412,6 +3490,11 @@ msgstr "Завершено"
 msgid "Composer"
 msgstr "Поле вводу"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Composer background"
+msgstr "Тло поля введення"
+
 #: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
@@ -3650,6 +3733,11 @@ msgstr "Консоль"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
 msgstr "Містить конфіденційні значення; додайте вручну"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Content background"
+msgstr "Тло вмісту"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
@@ -3900,6 +3988,10 @@ msgstr "Не вдалося витягнути контекст."
 msgid "Could not generate commit message: {detail}"
 msgstr "Не вдалося згенерувати повідомлення коміту: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Could not import this theme. Use a version 1 theme JSON file under 32 KB with a name and valid light and dark palettes."
+msgstr "Не вдалося імпортувати тему. Використовуйте JSON-файл теми версії 1 розміром менше 32 КБ з назвою та коректними світлою й темною палітрами."
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -4057,6 +4149,10 @@ msgstr "Створіть другий обліковий запис Cursor із 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Створіть корисний розпорядок одним клацанням і змінюйте його будь-коли."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Create custom theme"
+msgstr "Створити власну тему"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -4389,6 +4485,10 @@ msgstr "Власне контекстне вікно"
 msgid "custom path"
 msgstr "власний шлях"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "Власна тема"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "Перебирати режим дозволів"
@@ -4415,6 +4515,8 @@ msgstr "Щодня"
 msgid "Daily brief"
 msgstr "Щоденний огляд"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "Темна"
@@ -4506,6 +4608,7 @@ msgstr "Делегуйте роботу іншим ШІ-агентам."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -4599,6 +4702,14 @@ msgstr "Видалити навичку"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
 #~ msgstr "Видалити завдання"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete theme"
+msgstr "Видалити тему"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete this custom theme? If it is active, Poracode will use the default theme."
+msgstr "Видалити цю власну тему? Якщо вона активна, Poracode застосує типову тему."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete thread"
@@ -5061,7 +5172,6 @@ msgstr "готово"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5070,6 +5180,10 @@ msgstr "Завершено"
 #: src/renderer/notifications.ts
 msgid "Done · Waiting for your input"
 msgstr "Готово · Очікується ваш ввід"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
+msgid "Done ({doneCount})"
+msgstr "Завершено ({doneCount})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Download image"
@@ -5237,6 +5351,10 @@ msgstr "Редагувати теги для {label}"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Edit task"
 #~ msgstr "Редагувати завдання"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Edit theme"
+msgstr "Редагувати тему"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
@@ -5421,6 +5539,10 @@ msgstr "Введіть безпечну URL-адресу репозиторію 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "Введіть розмір, наприклад 512k або 1m."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Enter a theme name and valid hex colors in both palettes."
+msgstr "Введіть назву теми та коректні HEX-кольори в обох палітрах."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -5749,6 +5871,10 @@ msgstr "Явні вибори, записані з попередніх деле
 msgid "Export MCP servers"
 msgstr "Експортувати сервери MCP"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Export theme"
+msgstr "Експортувати тему"
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "External"
@@ -5844,6 +5970,10 @@ msgstr "Не вдалося записати метадані гілки, що �
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #~ msgid "Failed to update goal"
 #~ msgstr "Не вдалося оновити мету"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Fallback project"
+msgstr "Резервний проєкт"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay.ts
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -6121,6 +6251,7 @@ msgstr "Встановити фокус на адресний рядок бра�
 msgid "Focus window"
 msgstr "Перейти до вікна"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
 msgstr "Папка"
@@ -6128,6 +6259,10 @@ msgstr "Папка"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Ім'я папки"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Folder no longer exists — imports into the project chosen above."
+msgstr "Папка більше не існує — імпорт у проєкт, вибраний вище."
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "Folder on the server"
@@ -6516,6 +6651,10 @@ msgstr "Опис мети"
 msgid "Goals set"
 msgstr "Встановлено цілей"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "Добрий контраст"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "Зрозуміло"
@@ -6586,7 +6725,7 @@ msgstr "Заголовки"
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Допоможи мені створити розклад. Запитай відсутні деталі, а потім створи його за допомогою елементів керування розкладами Poracode."
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "HEX-колір"
 
@@ -6681,6 +6820,10 @@ msgstr "Історія"
 msgid "Home"
 msgstr "Головна"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Home directory"
+msgstr "Домашній каталог"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
@@ -6769,7 +6912,7 @@ msgstr "https://example.com/mcp"
 msgid "https://github.com/owner/repo.git"
 msgstr "https://github.com/owner/repo.git"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "Відтінок"
 
@@ -6812,6 +6955,10 @@ msgstr "Шлях до файлу ідентифікації"
 msgid "Idle"
 msgstr "Очікування"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "If the folder no longer exists, import into"
+msgstr "Якщо папка більше не існує, імпортувати в"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Ignored an unrecognized field in plugin.json."
 msgstr "Невідоме поле в plugin.json проігноровано."
@@ -6831,6 +6978,11 @@ msgstr "Попередній перегляд зображення"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Зображення"
+
+#. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Import"
+msgstr "Імпорт"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
@@ -6881,6 +7033,14 @@ msgstr "Спосіб імпорту"
 msgid "Import selected"
 msgstr "Імпортувати вибрані"
 
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Import sessions"
+msgstr "Імпорт сесій"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Import theme"
+msgstr "Імпортувати тему"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "Імпортувати до {destinationProjectName}"
@@ -6892,6 +7052,10 @@ msgstr "Імпортувати глобально"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Import to Project"
 #~ msgstr "Імпортувати до проєкту"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Imported"
+msgstr "Імпортовано"
 
 #: src/renderer/components/providers/devin/personasPanel.tsx
 #~ msgid "Imported (.claude)"
@@ -6911,6 +7075,14 @@ msgstr "Імпортовано навичок: {0}."
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "Імпортовано 1 навичку."
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+msgid "Imported from an existing CLI session — text only, tool calls are not shown."
+msgstr "Імпортовано з наявної сесії CLI — лише текст, виклики інструментів не показано."
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Imported session"
+msgstr "Імпортована сесія"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -7492,6 +7664,8 @@ msgstr "токенів за весь час"
 msgid "Lifetime tokens"
 msgstr "Токенів за весь час"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "Світла"
@@ -7798,6 +7972,10 @@ msgstr "Worktree та гілки кандидатів, які не перемо�
 #: src/renderer/components/common/effortLabel.ts
 msgid "Low"
 msgstr "Низький"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "Низький контраст"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -8591,11 +8769,16 @@ msgstr "Muse Code"
 msgid "Mute microphone"
 msgstr "Вимкнути мікрофон"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "My theme"
+msgstr "Моя тема"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
@@ -8717,6 +8900,10 @@ msgstr "Новий каталог конфігурації профілю Claude
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New code"
 msgstr "Новий код"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "New Codex profile home directory"
+msgstr "Домашній каталог нового профілю Codex"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"
@@ -8895,6 +9082,10 @@ msgstr "Наступний нещодавно переглянутий чат"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Next run {0}"
 msgstr "Наступний запуск: {0}"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Next sent message"
+msgstr "Наступне надіслане повідомлення"
 
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
@@ -9082,6 +9273,10 @@ msgstr "У цій області не знайдено зовнішніх нав
 msgid "No file checkpoint is stored for this message."
 msgstr "Для цього повідомлення не збережено контрольну точку файлів."
 
+#: src/mobile/views/MobileFileEditor.tsx
+#~ msgid "No file selected."
+#~ msgstr "Файл не вибрано."
+
 #. placeholder {0}: tree.searchQuery
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
@@ -9110,6 +9305,10 @@ msgstr "На цьому сервері ще немає середовищ, що 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "No icons found"
 msgstr "Іконок не знайдено"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No importable sessions found on this computer."
+msgstr "На цьому комп'ютері не знайдено сесій для імпорту."
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
@@ -9190,6 +9389,10 @@ msgstr "Повідомлень поки немає"
 #: src/renderer/components/composer/voiceError.ts
 msgid "No microphone found."
 msgstr "Мікрофон не знайдено."
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "No model is available for {agent}. Check the agent in Settings."
+msgstr "Для {agent} немає доступної моделі. Перевірте агента в налаштуваннях."
 
 #: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
@@ -9317,6 +9520,14 @@ msgstr "Для цього треду ще немає runtime-елементів.
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "Ще немає підключених серверів."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions could be imported."
+msgstr "Не вдалося імпортувати жодної сесії."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions match the current filters."
+msgstr "Немає сесій, що відповідають поточним фільтрам."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -10169,6 +10380,10 @@ msgstr "URL для сполучення"
 msgid "Pairing…"
 msgstr "Підключення…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Palette mode"
+msgstr "Режим палітри"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
@@ -10803,6 +11018,10 @@ msgstr "Попередній нещодавно переглянутий чат"
 msgid "Previous runs"
 msgstr "Попередні запуски"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Previous sent message"
+msgstr "Попереднє надіслане повідомлення"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Попередня вкладка"
@@ -10861,6 +11080,10 @@ msgstr "Профіль {displayName} додано."
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Profile API key"
 #~ msgstr "Ключ API профілю"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Profile home"
+msgstr "Каталог профілю"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
@@ -11269,6 +11492,10 @@ msgstr "Перевищено ліміт запитів · повтор чере�
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Rate limited. Try again shortly."
 msgstr "Перевищено ліміт запитів. Спробуйте ще раз невдовзі."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "Значення для непрозорих поверхонь теми. Для тексту прагніть контрасту не нижче 4,5:1."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
@@ -11745,6 +11972,10 @@ msgstr "Видалити worktree?"
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "Під час видалення {profileName} збережений API-ключ буде стерто. Треди, що використовують цей профіль, більше не знайдуть свого агента."
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
+msgstr "Видалення {profileName} прибере профіль із Poracode. Його домашній каталог і облікові дані Codex у ньому залишаться на диску."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
@@ -12276,6 +12507,10 @@ msgstr "Запустіть {loginCommandDisplay}, щоб увійти."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "Запустити новий потік на {0}."
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "Запускайте другий обліковий запис Codex із власного CODEX_HOME. Кожен профіль входить окремо та зберігає власні сесії."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -12415,11 +12650,12 @@ msgstr "Той самий вхід, що й у Devin"
 msgid "Same provider order on all machines"
 msgstr "Однаковий порядок провайдерів на всіх комп’ютерах"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
-msgstr "Насиченість та яркість"
+msgstr "Насиченість та яскравість"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
@@ -12440,6 +12676,10 @@ msgstr "Зберегти"
 msgid "Save {0} credentials."
 msgstr "Зберегти облікові дані {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Save and apply"
+msgstr "Зберегти й застосувати"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Save changes"
@@ -12448,6 +12688,10 @@ msgstr "Зберегти зміни"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Зберегти профіль Claude"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Save Codex profile"
+msgstr "Зберегти профіль Codex"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Save Cursor GUI runtime"
@@ -12612,6 +12856,10 @@ msgstr "Множник швидкості прокручування буфер�
 msgid "Scroll to bottom"
 msgstr "Прокрутити вниз"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "Прокрутити до промпту: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"
@@ -12736,6 +12984,10 @@ msgstr "Пошук runtime-елементів…"
 msgid "Search scheduled tasks"
 msgstr "Пошук запланованих завдань"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search sessions"
+msgstr "Пошук сесій"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
 msgstr "Шукати налаштування"
@@ -12768,6 +13020,10 @@ msgstr "Пошук тредів"
 msgid "Search Threads"
 msgstr "Пошук тредів"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search titles, messages and folders"
+msgstr "Шукати в заголовках, повідомленнях і папках"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
 msgstr "Пошук…"
@@ -12779,6 +13035,10 @@ msgstr "Пошук..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
 msgstr "Пошук…"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "Другорядний текст"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
@@ -12831,6 +13091,7 @@ msgid "Select account"
 msgstr "Вибрати акаунт"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "Вибрати все"
@@ -12842,6 +13103,10 @@ msgstr "Вибрати всі MCP-сервери"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "Вибрати всі MCP-сервери з {providerLabel}"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Select all sessions"
+msgstr "Вибрати всі сесії"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all skills"
@@ -12891,6 +13156,11 @@ msgstr "Вибрати…"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Selected project"
 #~ msgstr "Вибраний проєкт"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Selected sidebar row"
+msgstr "Вибраний рядок бічної панелі"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Send"
@@ -13273,6 +13543,10 @@ msgstr "Показано {0, plural, one {# навичку} few {# навичк�
 msgid "Showing the first 4,000 entries."
 msgstr "Показано перші 4 000 записів."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Showing the most recent sessions — narrow the filters to see more."
+msgstr "Показано найновіші сесії — уточніть фільтри, щоб побачити більше."
+
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
 msgstr "Показується на бічній панелі та в селекторі моделей."
@@ -13285,6 +13559,11 @@ msgstr "Показується поруч із назвою проєкту."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Sidebar"
 #~ msgstr "Бічна панель"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Sidebar background"
+msgstr "Тло бічної панелі"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
@@ -14032,6 +14311,11 @@ msgstr "Підтримка:"
 msgid "Supports Fast mode"
 msgstr "Підтримує швидкий режим"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Surface"
+msgstr "Поверхня"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Поміняти місцями нотатки та завдання"
@@ -14342,6 +14626,19 @@ msgstr "Вкладки термінала"
 msgid "Test microphone"
 msgstr "Перевірити мікрофон"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text color"
+msgstr "Колір тексту"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "Контраст тексту"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text on accent"
+msgstr "Текст на акцентному кольорі"
+
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "That combination isn’t available"
 msgstr "Ця комбінація недоступна"
@@ -14415,6 +14712,10 @@ msgstr "Не вдалося відновити контрольну точку."
 msgid "the chosen folder"
 msgstr "обрана папка"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "The custom theme limit has been reached. Delete a theme before adding another."
+msgstr "Досягнуто ліміту власних тем. Видаліть тему, перш ніж додати нову."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
@@ -14453,6 +14754,7 @@ msgid "The desktop's own server reconnected before the history read completed."
 msgstr "Власний сервер робочого столу перепідключився до завершення читання історії."
 
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Власний сервер робочого столу відхилив зміну."
 
@@ -14713,6 +15015,10 @@ msgstr "Збережена конфігурація недійсна. Збере
 msgid "the target provider"
 msgstr "цільовий провайдер"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "The thread keeps its provider session, so your next message continues where you left off."
+msgstr "Тред зберігає сесію провайдера, тож ваше наступне повідомлення продовжить розмову з того місця, де ви зупинилися."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Сесія треду недоступна для повідомлень у черзі."
@@ -14762,6 +15068,10 @@ msgstr "Тема"
 msgid "Theme and chat font size"
 msgstr "Тема и размер шрифта чата"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Theme name"
+msgstr "Назва теми"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
 msgstr "Ці ШІ-помічники виконуються на цьому хості для його проєктів. Зміни застосовуються до хоста, а не до цього комп'ютера."
@@ -14796,6 +15106,10 @@ msgstr "Ці сервери надходять із плагінів. Увімк
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Міркування"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support importing sessions."
+msgstr "Цей агент не підтримує імпорт сесій."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This agent does not support the selected model options. Choose different options and try again."
@@ -14836,6 +15150,10 @@ msgstr "Код спливає за {countdown}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This code has expired."
 msgstr "Термін дії коду сплив."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again."
+msgstr "Ця сесія Codex відкрита в іншому застосунку Codex (Codex Desktop або CLI). Закрийте її там і спробуйте ще раз."
 
 #: src/renderer/utils/machineLabels.ts
 msgid "This computer"
@@ -14969,6 +15287,10 @@ msgstr "Налаштування Poracode цього плагіна проігн
 msgid "This plugin's skills could not be read."
 msgstr "Не вдалося прочитати навички цього плагіна."
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "Цей профіль уже має треди. Їхні сесії залишаються в поточному домашньому каталозі, тож після його зміни їх не вдасться відновити."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
 msgstr "Цей профіль не може запуститися з поточним входом і конфігурацією. Перевірте налаштування профілю та спробуйте ще раз."
@@ -15062,9 +15384,17 @@ msgstr "Щоб Poracode міг перевірити цей сервер, спо�
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "Цей сервер працює на цьому комп'ютері й недоступний для проєктів WSL."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session changed on disk. Refresh the list and try again."
+msgstr "Ця сесія змінилася на диску. Оновіть список і спробуйте ще раз."
+
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "Ця сесія не оголосила жодних налаштувань."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session is already being imported."
+msgstr "Ця сесія вже імпортується."
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -15098,6 +15428,10 @@ msgstr "Цей тред змінив провайдера без передав�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "Цей тред було створено як розгалуження без передавання контексту: {agent} запущено без інструмента read_thread із Poracode, тому він не може прочитати початкову розмову. Знову увімкніть інструмент MCP app-controls або стисло опишіть потрібний контекст."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This transcript is not in the agent's session store."
+msgstr "Цей транскрипт не перебуває у сховищі сесій агента."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
@@ -15613,6 +15947,10 @@ msgstr "Не вдалося оновити статус {agentLabel}."
 msgid "Unable to refresh Claude profiles."
 msgstr "Не вдалося оновити профілі Claude."
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Unable to refresh Codex profiles."
+msgstr "Не вдалося оновити профілі Codex."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -15842,6 +16180,10 @@ msgstr "Видалити {name}"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Невідомо"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Unknown folder"
+msgstr "Невідома папка"
 
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"
@@ -16185,6 +16527,10 @@ msgstr "Використання невідоме"
 msgid "Usage: /goal edit <objective>"
 msgstr "Використання: /goal edit <objective>"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
+msgstr "Використовуйте кольори #rgb або #rrggbb. Залиште необов’язкові кольори порожніми для автоматичного розрахунку."
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "Скористайтеся +, щоб створити пару безпосередньо або підключитися до віддаленого комп’ютера через SSH."
@@ -16234,6 +16580,10 @@ msgstr "Для оновлення пакетів лише для терміна�
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "Використати сесію"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Use sidebar background for the docked sidebar"
+msgstr "Використовувати тло бічної панелі для закріпленої панелі"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."

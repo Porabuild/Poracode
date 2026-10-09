@@ -52,6 +52,9 @@ export const REMOTE_PROCEDURE_ROUTES = {
  * any unclassified fall-through or missing justification.
  */
 export const NON_ROUTER_PROJECT_PROCEDURES = {
+  listImportableSessions: "local-shell: enumerates transcripts on the host filesystem",
+  importSessionTranscript: "local-shell: imports a transcript from the host filesystem",
+
   // Native dialogs, clipboard, and local files
   pickFolder: "local-shell: native folder dialog on this machine",
   pickFiles: "local-shell: native file dialog on this machine",

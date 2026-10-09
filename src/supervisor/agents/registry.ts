@@ -21,7 +21,7 @@ import type { AgentAdapter } from "./base";
 import { createClaudeAdapter, createClaudeProfileAdapter } from "./claude";
 import { createCommandCodeAdapter } from "./commandcode";
 import { createCopilotAdapter } from "./copilot";
-import { createCodexAdapter } from "./codex";
+import { createCodexAdapter, createCodexProfileAdapter } from "./codex";
 import { createCursorAdapter, createCursorProfileAdapter } from "./cursor";
 import { createFactoryAdapter, createFactoryAcpRegistryAdapter } from "./factory";
 import { createGeminiAdapter } from "./gemini";
@@ -131,6 +131,7 @@ export function buildAgentRegistryEntries(
     (instance: AgentInstanceConfig, context: AgentProfileFactoryContext) => AgentAdapter
   > = {
     claude: createClaudeProfileAdapter,
+    codex: createCodexProfileAdapter,
     cursor: createCursorProfileAdapter,
     devin: createDevinProfileAdapter,
   };

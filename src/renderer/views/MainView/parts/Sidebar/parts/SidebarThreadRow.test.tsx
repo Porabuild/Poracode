@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { SidebarRow } from "./sidebarProjectRows";
+import { isSidebarGroupCollapsed, type SidebarRow } from "./sidebarProjectRows";
 import { SidebarThreadRow } from "./SidebarThreadRow";
 
 const threadActions = vi.hoisted(() => ({
@@ -43,18 +44,31 @@ function makeThread(id: string, overrides: Partial<Thread> = {}): Thread {
   };
 }
 
+const DONE_KEY = "done:project-1";
+
+const isDoneCollapsed = () =>
+  isSidebarGroupCollapsed(useSidebarUiStore.getState().collapsedWorktrees, DONE_KEY);
+
 function renderDoneRow(options?: {
   hasProtectedDoneThreads?: boolean;
   doneThreads?: Thread[];
   allThreads?: Thread[];
+  collapsed?: boolean;
 }) {
   const doneThreads = options?.doneThreads ?? [makeThread("done-1"), makeThread("done-2")];
   const row: Extract<SidebarRow, { kind: "section-label" }> = {
     kind: "section-label",
     key: "done-label",
-    label: { id: "Done", message: "Done" },
+    label: {
+      id: "Done ({doneCount})",
+      message: "Done ({doneCount})",
+      values: { doneCount: doneThreads.length },
+    },
     doneThreads,
     hasProtectedDoneThreads: options?.hasProtectedDoneThreads ?? false,
+    collapseKey: DONE_KEY,
+    collapsed: options?.collapsed ?? true,
+    doneCount: doneThreads.length,
   };
   useAppStore.setState({ threads: options?.allThreads ?? doneThreads });
   render(
@@ -66,6 +80,51 @@ function renderDoneRow(options?: {
     />,
   );
 }
+
+describe("SidebarThreadRow Done section toggle", () => {
+  beforeEach(() => {
+    useSidebarUiStore.setState({ collapsedWorktrees: {} });
+    useSharedSettings.setState({ threadRemoveAction: "archive" });
+  });
+
+  it("shows the done count on a header that reports its collapsed state", () => {
+    renderDoneRow();
+
+    expect(screen.getByRole("button", { name: "Done (2)" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  it("reports an expanded section", () => {
+    renderDoneRow({ collapsed: false });
+
+    expect(screen.getByRole("button", { name: "Done (2)" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
+  it("opens and closes the section from its header", () => {
+    renderDoneRow();
+    const toggle = screen.getByRole("button", { name: "Done (2)" });
+
+    fireEvent.click(toggle);
+    expect(isDoneCollapsed()).toBe(false);
+
+    fireEvent.click(toggle);
+    expect(isDoneCollapsed()).toBe(true);
+  });
+
+  it("opens the archive confirmation without toggling the section", () => {
+    renderDoneRow();
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive done threads" }));
+
+    expect(screen.getByText("All threads in Done will be archived.")).toBeInTheDocument();
+    expect(isDoneCollapsed()).toBe(true);
+  });
+});
 
 describe("SidebarThreadRow Done section action", () => {
   beforeEach(() => {
@@ -186,6 +245,6 @@ describe("SidebarThreadRow Done section action", () => {
   it("hides the action when Done contains only protected experiment candidates", () => {
     renderDoneRow({ hasProtectedDoneThreads: true, doneThreads: [] });
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive done threads" })).not.toBeInTheDocument();
   });
 });

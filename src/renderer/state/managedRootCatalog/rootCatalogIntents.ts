@@ -1,8 +1,11 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { ProjectDraftConfig, RemoteThreadCommand } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import type { CatalogReorderPlacement } from "@/shared/catalogOrder";
 import { useAppStore } from "@/renderer/state/appStore";
+import { i18n } from "@/renderer/i18n/i18n";
+import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import {
   isApplyingHostOriginatedManagedRootMutation,
   managedRootOwner,
@@ -12,6 +15,7 @@ import {
 import { refreshManagedRootCatalogSoon, resyncManagedRootCatalogOrder } from "./rootCatalogAdapter";
 import { beginManagedRootOrderIntentFor } from "./managedRootOrderFence";
 import { pinManagedRootThread } from "./rootCatalogStore";
+import { managedRootSupportsFlatThreadReorder } from "./rootLaunchMetadataCapability";
 
 /**
  * Semantic root intents whose host commands only touch one field/order class
@@ -53,25 +57,60 @@ export function dispatchManagedRootProjectReorder(
   return true;
 }
 
-/** Relative thread-block move over the host's complete project order. */
+/**
+ * Relative move over the host's project order by default. `catalog` is the
+ * flat Manual list: negotiate its distinct command before optimistic paint.
+ */
 export function dispatchManagedRootThreadReorder(
   threadId: string,
   targetThreadId: string,
   placement: CatalogReorderPlacement,
+  scope: "project" | "catalog" = "project",
 ): boolean {
   const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
   const owner = managedRootOwner(thread ?? { id: threadId });
   if (!owner || !thread || isApplyingHostOriginatedManagedRootMutation()) return false;
   const release = pinManagedRootThread(threadId);
   const settleOrderIntent = beginManagedRootOrderIntentFor("threads");
-  void sendManagedRootThreadCommand({
-    kind: "reorder",
+  const coordinates = {
     threadId,
     projectId: thread.projectId,
-    threadIds: [threadId],
     targetThreadId,
     placement,
-  })
+  };
+  const command: RemoteThreadCommand =
+    scope === "catalog"
+      ? { kind: "reorder-flat", ...coordinates }
+      : { kind: "reorder", ...coordinates, threadIds: [threadId] };
+  const activation = readManagedLoopbackActivation();
+  void (async () => {
+    if (scope === "catalog") {
+      const supported = await managedRootSupportsFlatThreadReorder();
+      const state = useAppStore.getState();
+      const source = state.threads.find((candidate) => candidate.id === threadId);
+      const target = state.threads.find((candidate) => candidate.id === targetThreadId);
+      if (
+        !supported ||
+        !activation ||
+        readManagedLoopbackActivation() !== activation ||
+        !source ||
+        source.projectId !== thread.projectId ||
+        !managedRootOwner(source) ||
+        !target ||
+        !managedRootOwner(target)
+      ) {
+        throw new Error(i18n._(msg`The desktop's own server refused the change.`));
+      }
+      // The send wrapper captures its client synchronously before its first
+      // await. Capture under the checked activation before store listeners
+      // can retire it during optimistic paint.
+      const pending = sendManagedRootThreadCommand(command);
+      state.reorderThreadsAcrossProjects(threadId, targetThreadId, placement);
+      await pending;
+      return;
+    }
+    await sendManagedRootThreadCommand(command);
+  })()
     .then(() => {
       settleOrderIntent();
       refreshManagedRootCatalogSoon();

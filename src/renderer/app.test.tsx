@@ -455,6 +455,7 @@ vi.mock("./state/sharedSettingsStore", () => ({
 }));
 
 import { App, installUpdateStatusSync, STARTUP_RECOVERY_TIMEOUT_MS } from "./app";
+import { emitRemoteTerminalExited } from "./state/remoteTerminalFeed";
 
 describe("App", () => {
   const originalHasHydrated = useAppStore.persist.hasHydrated;
@@ -1030,6 +1031,26 @@ describe("App", () => {
     expect(useDevTerminalStore.getState().runningTabs[tab.id]).toBeUndefined();
   });
 
+  it("closes a shell tab when its shell exits", () => {
+    const tab = useDevTerminalStore.getState().addTab("project-1", "Shell");
+
+    supervisorEventListeners.at(-1)?.({
+      type: "thread-exited",
+      threadId: tab.id,
+      exitCode: 0,
+    });
+
+    expect(useDevTerminalStore.getState().tabs).toEqual([]);
+  });
+
+  it("closes a remote project's shell tab when its shell exits", () => {
+    const tab = useDevTerminalStore.getState().addTab("remote:d1:project:p1", "Shell");
+
+    emitRemoteTerminalExited("d1", tab.id, 0);
+
+    expect(useDevTerminalStore.getState().tabs).toEqual([]);
+  });
+
   it("retains action output until its terminal tab is removed", () => {
     const tab = useDevTerminalStore.getState().addTab("project-1", "Dev", undefined, "dev");
     useThreadOutputStore.getState().appendOutput(tab.id, "finished output");
@@ -1420,7 +1441,7 @@ describe("App", () => {
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("queues launch for the selected stored thread on launch even without a session ref", async () => {
+  it("queues launch for the selected stored terminal thread on launch even without a session ref", async () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
@@ -1444,6 +1465,7 @@ describe("App", () => {
           projectId: "project-1",
           title: "Persisted thread",
           agentKind: "codex",
+          presentationMode: "terminal",
           config: {
             model: "gpt-5.4",
           },
@@ -1538,7 +1560,7 @@ describe("App", () => {
     resolveRuntimeItems({ items: [], nextCursor: null });
   });
 
-  it("queues launch for the selected thread after persisted state hydrates", async () => {
+  it("queues launch for the selected terminal thread after persisted state hydrates", async () => {
     let hydrated = false;
     let onHydrate: ((state: ReturnType<typeof useAppStore.getState>) => void) | undefined;
     let onFinishHydration: ((state: ReturnType<typeof useAppStore.getState>) => void) | undefined;
@@ -1581,6 +1603,7 @@ describe("App", () => {
             projectId: "project-1",
             title: "Persisted thread",
             agentKind: "codex",
+            presentationMode: "terminal",
             config: {
               model: "gpt-5.4",
             },

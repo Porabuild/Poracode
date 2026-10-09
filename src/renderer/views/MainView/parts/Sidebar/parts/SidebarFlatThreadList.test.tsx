@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
@@ -47,13 +47,17 @@ vi.mock("./MobileQuickCompose", () => ({
 }));
 
 vi.mock("./SidebarThreadRow", () => ({
-  SeeMoreThreadsButton: () => <button type="button">see-more</button>,
+  SeeMoreThreadsButton: (props: { onPress: () => void }) => (
+    <button type="button" onClick={props.onPress}>
+      see-more
+    </button>
+  ),
   SidebarThreadRow: (props: {
-    row: { key: string };
+    row: { key: string; sortDisabled?: boolean };
     project: { name: string };
     projectTag?: React.ReactNode;
   }) => (
-    <div data-testid="row">
+    <div data-testid="row" data-sort-disabled={String(props.row.sortDisabled ?? false)}>
       {props.row.key} in {props.project.name}
       {props.projectTag}
     </div>
@@ -143,7 +147,11 @@ describe("SidebarFlatThreadList", () => {
       workspaces: [{ id: "w1", name: "Side Hustle" }],
     } as never);
     useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
-    useSidebarUiStore.setState({ flatListProjectFilter: null });
+    useSidebarUiStore.setState({
+      flatListProjectFilter: null,
+      collapsedWorktrees: {},
+      threadListLimits: {},
+    });
     newThreadCalls.length = 0;
   });
 
@@ -176,6 +184,87 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText(`new-thread:${HOME_PROJECT_ID}`)).toBeInTheDocument();
     expect(screen.getByText(/thread:h1 in Home/)).toBeInTheDocument();
     expect(screen.getByText(/thread:p1 in Poracode/)).toBeInTheDocument();
+  });
+
+  it("shows manual order across projects with starred threads first and lets live rows reorder", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": false } });
+    useAppStore.setState({
+      projects: [homeProject, localProject, secondLocalProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-04T10:00:00.000Z", { done: true }),
+        makeThread("p2", "local-1", "2026-08-03T10:00:00.000Z"),
+        makeThread("s2", "local-2", "2026-08-02T10:00:00.000Z", { starred: true }),
+      ],
+    });
+
+    const { container } = render(<SidebarFlatThreadList sortMode="manual" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(rows.map((row) => row.textContent?.split(" in ")[0])).toEqual([
+      "thread:s2",
+      "thread:p1",
+      "thread:p2",
+      "done-label",
+      "thread:s1",
+    ]);
+    expect(rows.map((row) => row.dataset.sortDisabled)).toEqual([
+      "false",
+      "false",
+      "false",
+      "false",
+      "true",
+    ]);
+    // Done is pinned below the scrolling rows, as in the date modes.
+    const scroller = container.querySelector(".overflow-y-auto");
+    expect(scroller?.contains(screen.getByText(/^thread:p2 in/))).toBe(true);
+    expect(scroller?.contains(screen.getByText(/^done-label in/))).toBe(false);
+  });
+
+  it("locks remote mirror rows in manual order and keeps them in the stored order", () => {
+    useRemoteServersStore.setState({
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [homeProject, localProject, unreachableRemoteProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("r1", "remote-1", "2026-08-03T10:00:00.000Z", {
+          remoteServerId: "desktop-1",
+        }),
+        makeThread("p2", "local-1", "2026-08-02T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="manual" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(
+      rows.map((row) => [row.textContent?.split(" in ")[0], row.dataset.sortDisabled]),
+    ).toEqual([
+      ["thread:p1", "false"],
+      ["thread:r1", "true"],
+      ["thread:p2", "false"],
+    ]);
+  });
+
+  it("keeps date order and locks reordering outside manual order", () => {
+    useAppStore.setState({
+      projects: [homeProject, localProject, secondLocalProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(rows.map((row) => row.textContent?.split(" in ")[0])).toEqual([
+      "thread:s1",
+      "thread:p1",
+    ]);
+    expect(rows.map((row) => row.dataset.sortDisabled)).toEqual(["true", "true"]);
   });
 
   it("keeps Home threads and the new-thread row when the only workspace project is unreachable", () => {
@@ -506,6 +595,53 @@ describe("SidebarFlatThreadList", () => {
     // while the thread rows scroll underneath it.
     expect(scroller.contains(head)).toBe(false);
     expect(scroller).toHaveTextContent("thread:p1");
+  });
+
+  it("pins the Done section below the scrolling rows", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": false } });
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("d1", "local-1", "2026-08-01T09:00:00.000Z", { done: true }),
+      ],
+    });
+
+    const { container } = render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const scroller = container.querySelector(".overflow-y-auto");
+    if (!scroller) throw new Error("expected the scroll container");
+    const doneHeader = screen.getByText(/^done-label in/);
+    const doneRow = screen.getByText(/^thread:d1 in/);
+    // The Done header and its rows live after (below) the main scroll
+    // container, so the header stays put while the active rows scroll.
+    expect(scroller).toHaveTextContent("thread:p1");
+    expect(scroller.contains(doneHeader)).toBe(false);
+    expect(scroller.contains(doneRow)).toBe(false);
+    expect(
+      scroller.compareDocumentPosition(doneHeader) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Only the done rows scroll inside the pinned section; its header stays put.
+    expect(doneHeader.closest(".overflow-y-auto")).toBeNull();
+    expect(doneRow.closest(".overflow-y-auto")).not.toBeNull();
+  });
+
+  it("pages the pinned Done section without paging the main list", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": false } });
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        ...Array.from({ length: 21 }, (_, i) =>
+          makeThread(`d${i}`, "local-1", "2026-08-01T09:00:00.000Z", { done: true }),
+        ),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+    fireEvent.click(screen.getByRole("button", { name: "see-more" }));
+
+    expect(useSidebarUiStore.getState().threadListLimits).toEqual({ "__flat__:done": 40 });
   });
 
   it("keeps the new-thread control as a full row when only one project is visible", () => {

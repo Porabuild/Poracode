@@ -12,6 +12,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/contracts";
+import { localizeCatalogMessage } from "@/shared/messages";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
@@ -34,10 +35,12 @@ import { ThinkingAnimationVisibility } from "@/renderer/thinkingAnimator";
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix
- * from IPC rejections so users see the supervisor's actual message verbatim.
+ * from IPC rejections; static supervisor catalog messages are translated.
  */
 function stripIpcInvokeFraming(message: string): string {
-  return message.replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/, "");
+  return localizeCatalogMessage(
+    message.replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/, ""),
+  );
 }
 
 function formatLaunchError(error: unknown, fallbackMessage: string): string {

@@ -1,5 +1,3 @@
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { collectClaude, type HostPort, type UsageSnapshot } from "@poracode/agents-usage";
 import {
   claudeProfileKind,
@@ -10,6 +8,7 @@ import type { SharedSettings } from "@/shared/settings";
 import { refreshRejectedClaudeToken, resolveClaudeToken } from "../../runtime/claudeCredentials";
 import { scanClaudeCost } from "../../runtime/usageCostScanner";
 import type { UsageProfileSource } from "../../runtime/usageProfileTypes";
+import { resolveNativeTildePath } from "../base/sessionFs";
 
 /**
  * Claude-specific usage collection: per-profile (CLAUDE_CONFIG_DIR-scoped)
@@ -50,13 +49,6 @@ export function isClaudeUsageProvider(id: string): boolean {
  */
 export function shouldPreserveClaudeAuthMiss(snap: UsageSnapshot): boolean {
   return snap.status === "auth-missing" && isClaudeUsageProvider(snap.providerId);
-}
-
-function resolveNativeTildePath(rawPath: string): string {
-  const trimmed = rawPath.trim();
-  if (trimmed === "~") return homedir();
-  if (trimmed.startsWith("~/")) return join(homedir(), trimmed.slice(2));
-  return trimmed;
 }
 
 /** Enabled Claude profile instances as usage providers, keyed by provider id. */

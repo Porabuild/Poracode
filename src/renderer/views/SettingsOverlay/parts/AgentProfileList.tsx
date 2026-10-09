@@ -58,8 +58,11 @@ export function AgentProfileList(props: {
 
   const trimmedName = newName.trim();
   const isDuplicate = isDuplicateProfileName(trimmedName, driverInstances);
+  // The id `addProfile` will allocate, so a derived default matches what is
+  // actually persisted.
+  const draftId = uniqueProfileId(trimmedName, agentInstances);
   const fieldPlaceholder = support.field.placeholderFor
-    ? support.field.placeholderFor(newName)
+    ? support.field.placeholderFor(newName, draftId)
     : support.field.placeholder
       ? t(support.field.placeholder)
       : "";
@@ -100,7 +103,7 @@ export function AgentProfileList(props: {
           id,
           displayName,
           field: support.field.placeholderFor
-            ? newField.trim() || fieldPlaceholder
+            ? newField.trim() || support.field.placeholderFor(displayName, id)
             : newField.trim(),
         }),
       );

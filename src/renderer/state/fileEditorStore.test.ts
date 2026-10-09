@@ -786,3 +786,188 @@ describe("fileEditorStore media reload and SVG preview", () => {
     expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
   });
 });
+
+describe("fileEditorStore image viewer buffers", () => {
+  const originalPoracode = window.poracode;
+  const rootContext: FileEditorRootContext = {
+    projectId: "p1",
+    projectName: "Project",
+    projectLocation: { kind: "posix", path: "/repo" },
+    rootLabel: "Project",
+  };
+
+  function viewerBuffer(path: string, modifiedAtMs: number) {
+    return {
+      path,
+      status: "binary" as const,
+      modifiedAtMs,
+      content: "",
+      savedContent: "",
+      sizeBytes: 10,
+      lineEnding: "lf" as const,
+      hasBom: false,
+      isDirty: false,
+      isLoading: false,
+    };
+  }
+
+  function mockReadProjectFile(read: PoracodeBridge["readProjectFile"]) {
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: { readProjectFile: read },
+    });
+  }
+
+  beforeEach(() => {
+    useFileEditorStore.setState({
+      rootContext,
+      overlayMode: "modal",
+      tabs: [],
+      activePath: null,
+      previewTab: null,
+      markdownPreviewPath: null,
+      buffers: {},
+      refreshToken: 0,
+      pendingReveal: null,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: originalPoracode,
+    });
+  });
+
+  it("keeps the size of an image the editor can't open", async () => {
+    const read = vi.fn<PoracodeBridge["readProjectFile"]>(async () => ({
+      path: "logo.png",
+      status: "too_large",
+      modifiedAtMs: 5,
+      sizeBytes: 2_000_000,
+    }));
+    mockReadProjectFile(read);
+
+    await useFileEditorStore.getState().openFile("logo.png");
+
+    expect(useFileEditorStore.getState().buffers["logo.png"]).toMatchObject({
+      status: "too_large",
+      modifiedAtMs: 5,
+      sizeBytes: 2_000_000,
+    });
+    expect(await useFileEditorStore.getState().openFile("logo.png")).toMatchObject({
+      status: "too_large",
+      sizeBytes: 2_000_000,
+    });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an external image's size through the shared file-read normalization", async () => {
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: {
+        readExternalFile: vi.fn<PoracodeBridge["readExternalFile"]>(async () => ({
+          path: "/outside/logo.png",
+          status: "too_large",
+          modifiedAtMs: 5,
+          sizeBytes: 2_000_000,
+        })),
+      },
+    });
+
+    await useFileEditorStore.getState().openFile("/outside/logo.png");
+
+    expect(useFileEditorStore.getState().buffers["/outside/logo.png"]).toMatchObject({
+      status: "too_large",
+      sizeBytes: 2_000_000,
+    });
+  });
+
+  it("refreshes an open image when the file changes on disk", async () => {
+    const read = vi.fn<PoracodeBridge["readProjectFile"]>(async () => ({
+      path: "logo.png",
+      status: "binary",
+      modifiedAtMs: 9,
+      sizeBytes: 12,
+    }));
+    mockReadProjectFile(read);
+    useFileEditorStore.setState({
+      tabs: ["logo.png", "notes.bin"],
+      buffers: {
+        "logo.png": viewerBuffer("logo.png", 1),
+        "notes.bin": { ...viewerBuffer("notes.bin", 1), status: "binary" },
+      },
+    });
+
+    await useFileEditorStore.getState().refreshOpenBuffers();
+
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledWith({
+      projectLocation: rootContext.projectLocation,
+      path: "logo.png",
+    });
+    expect(useFileEditorStore.getState().buffers["logo.png"]).toMatchObject({
+      modifiedAtMs: 9,
+      sizeBytes: 12,
+    });
+  });
+
+  it("leaves an unchanged image buffer untouched", async () => {
+    mockReadProjectFile(async () => ({
+      path: "logo.png",
+      status: "binary",
+      modifiedAtMs: 1,
+      sizeBytes: 10,
+    }));
+    const buffer = viewerBuffer("logo.png", 1);
+    useFileEditorStore.setState({ tabs: ["logo.png"], buffers: { "logo.png": buffer } });
+
+    await useFileEditorStore.getState().refreshOpenBuffers();
+
+    expect(useFileEditorStore.getState().buffers["logo.png"]).toBe(buffer);
+  });
+
+  it("refreshes image size metadata even if the mtime is unchanged", async () => {
+    mockReadProjectFile(async () => ({
+      path: "logo.png",
+      status: "binary",
+      modifiedAtMs: 1,
+      sizeBytes: 12,
+    }));
+    useFileEditorStore.setState({
+      tabs: ["logo.png"],
+      buffers: { "logo.png": viewerBuffer("logo.png", 1) },
+    });
+
+    await useFileEditorStore.getState().refreshOpenBuffers();
+
+    expect(useFileEditorStore.getState().buffers["logo.png"]?.sizeBytes).toBe(12);
+  });
+
+  it("does not overwrite a reopened image buffer with a stale refresh", async () => {
+    let finishRead!: (result: Awaited<ReturnType<PoracodeBridge["readProjectFile"]>>) => void;
+    mockReadProjectFile(
+      () =>
+        new Promise((resolve) => {
+          finishRead = resolve;
+        }),
+    );
+    useFileEditorStore.setState({
+      tabs: ["logo.png"],
+      buffers: { "logo.png": viewerBuffer("logo.png", 1) },
+    });
+    const pending = useFileEditorStore.getState().refreshOpenBuffers();
+    const reopened = viewerBuffer("logo.png", 7);
+    const buffers = { "logo.png": reopened };
+    useFileEditorStore.setState({ buffers });
+    finishRead({ path: "logo.png", status: "binary", modifiedAtMs: 9, sizeBytes: 12 });
+
+    await pending;
+
+    expect(useFileEditorStore.getState().buffers).toBe(buffers);
+    expect(useFileEditorStore.getState().buffers["logo.png"]).toBe(reopened);
+  });
+});

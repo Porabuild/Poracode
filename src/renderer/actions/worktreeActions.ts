@@ -146,7 +146,7 @@ export function dismissWorktreeUi(worktreePath: string): void {
   const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
   void closeThreads(removedTabIds);
 
-  if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
+  if (termStore.activeWorktreePath === worktreePath) {
     termStore.closePanel();
   }
 

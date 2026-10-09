@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— は自動設定の塗りつぶし、または無効な色を示します。"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
@@ -128,6 +132,11 @@ msgstr "{0, plural, other {# 回}}"
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "{0, plural, one {edit} other {edits}}"
 msgstr "{0, plural, one {件の編集} other {件の編集}}"
+
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{0, plural, one {Import # session} other {Import # sessions}}"
+msgstr "{0, plural, one {#件のセッションをインポート} other {#件のセッションをインポート}}"
 
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/GroupSummarySection.tsx
@@ -506,6 +515,10 @@ msgstr "{hook}フックが失敗しました"
 msgid "{hours}h ago"
 msgstr "{hours}時間前"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}}"
+msgstr "{imported, plural, one {#件のセッションをインポートしました。} other {#件のセッションをインポートしました。}}"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {#エージェントの準備ができています} other {#エージェントの準備ができています}}"
@@ -841,6 +854,10 @@ msgstr "バージョン情報"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "コンポーザーの上"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Accent"
+msgstr "アクセント"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
@@ -1185,6 +1202,7 @@ msgstr "カスタムのベースURLを通知します（例: リバースプロ�
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1354,6 +1372,10 @@ msgstr "すべてのアカウント"
 msgid "All agent apps"
 msgstr "すべてのエージェントアプリ"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All agents"
+msgstr "すべてのエージェント"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "All candidate sessions, worktrees, and branches will be removed."
@@ -1371,6 +1393,10 @@ msgstr "すべての推論レベル"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
 msgstr "すべてのファイル"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All folders"
+msgstr "すべてのフォルダー"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
@@ -1862,6 +1888,7 @@ msgid "Auto-show terminal panel"
 msgstr "端末パネルの自動表示"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "自動"
 
@@ -1970,6 +1997,10 @@ msgstr "プラグインに戻る"
 msgid "Back to Thread Info"
 msgstr "スレッド情報に戻る"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Background"
+msgstr "背景"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
 msgstr "バックグラウンドプロセスが予期せず終了しました"
@@ -2077,6 +2108,10 @@ msgstr "このページをブックマーク"
 msgid "Bookmarks"
 msgstr "ブックマーク"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Border"
+msgstr "境界線"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "下"
@@ -2149,6 +2184,10 @@ msgstr "ブランチ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "パネルに戻す"
+
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Bring conversations you started in an agent CLI into Poracode. Transcript files are read, never modified."
+msgstr "エージェントの CLI で始めた会話を Poracode に取り込みます。トランスクリプトファイルは読み取るだけで、変更しません。"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -2370,6 +2409,7 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -2447,6 +2487,14 @@ msgstr "変更"
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "Change context size to {contextLabel}?"
 msgstr "コンテキストサイズを {contextLabel} に変更しますか?"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Change home"
+msgstr "ホームを変更"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Change profile home?"
+msgstr "プロファイルのホームを変更しますか？"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
@@ -2573,6 +2621,10 @@ msgstr "アップデートをチェックする"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "最近の進捗を確認し、次に何をすべきか具体的な提案を1つしてください。"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "{invalidPaletteName}パレットに無効な色がないか確認してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2648,6 +2700,10 @@ msgstr "親フォルダーを選択"
 msgid "Choose a photo"
 msgstr "写真を選択"
 
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Choose a project for sessions whose folder no longer exists."
+msgstr "フォルダーが存在しなくなったセッションのインポート先プロジェクトを選択してください。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "プロジェクトアイコンの画像を選択"
@@ -2668,6 +2724,10 @@ msgstr "候補を 2 つ以上選択し、プロンプトを入力してくださ
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "自動で選択するか、新しいターミナルで検出されたシェルを指定します。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+msgid "Choose color for {label}"
+msgstr "{label} の色を選択"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2895,6 +2955,7 @@ msgstr "クローン作成中…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "閉じる"
 
@@ -3153,6 +3214,11 @@ msgstr "コードがコピーされました。"
 msgid "Codex"
 msgstr "Codex"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex {0} profile saved."
+msgstr "Codex {0} プロファイルが保存されました。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes."
 msgstr "ターンの実行中は Codex が会話を圧縮できません。完了後にもう一度 /compact を送信してください。"
@@ -3160,6 +3226,18 @@ msgstr "ターンの実行中は Codex が会話を圧縮できません。完�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex は会話を圧縮できませんでした: {detail}"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex profile home directory"
+msgstr "Codex プロファイルのホームディレクトリ"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex profile name"
+msgstr "Codex プロファイル名"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Codex はこのプロファイルを、CODEX_HOME を下記のディレクトリに設定して実行します。上の「ログイン」で、このプロファイルを専用のアカウントにサインインさせてください。"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
@@ -3411,6 +3489,11 @@ msgstr "完了"
 msgid "Composer"
 msgstr "コンポーザー"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Composer background"
+msgstr "入力欄の背景"
+
 #: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Composer controls"
@@ -3649,6 +3732,11 @@ msgstr "コンソール"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
 msgstr "機密値が含まれています。手動で追加してください"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Content background"
+msgstr "コンテンツの背景"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
@@ -3899,6 +3987,10 @@ msgstr "コンテキストを抽出できませんでした。"
 msgid "Could not generate commit message: {detail}"
 msgstr "コミットメッセージを生成できませんでした:{detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Could not import this theme. Use a version 1 theme JSON file under 32 KB with a name and valid light and dark palettes."
+msgstr "このテーマをインポートできませんでした。名前と有効なライト・ダークパレットを含む、32 KB未満のバージョン1のテーマJSONファイルを使用してください。"
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -4056,6 +4148,10 @@ msgstr "独自のユーザー API キーで 2 つ目の Cursor アカウント�
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "ワンクリックで便利なルーティンを作成し、いつでも調整できます。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Create custom theme"
+msgstr "カスタムテーマを作成"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -4388,6 +4484,10 @@ msgstr "カスタムコンテキストウィンドウ"
 msgid "custom path"
 msgstr "カスタムパス"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "カスタムテーマ"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "許可モードを切り替え"
@@ -4414,6 +4514,8 @@ msgstr "毎日"
 msgid "Daily brief"
 msgstr "デイリーブリーフ"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "ダーク"
@@ -4505,6 +4607,7 @@ msgstr "他の AI エージェントに作業を委任します。"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -4598,6 +4701,14 @@ msgstr "スキルを削除"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
 #~ msgstr "タスクを削除"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete theme"
+msgstr "テーマを削除"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete this custom theme? If it is active, Poracode will use the default theme."
+msgstr "このカスタムテーマを削除しますか？使用中の場合、Poracodeは標準テーマに戻ります。"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete thread"
@@ -5060,7 +5171,6 @@ msgstr "完了しました"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5069,6 +5179,10 @@ msgstr "完了"
 #: src/renderer/notifications.ts
 msgid "Done · Waiting for your input"
 msgstr "完了 · 入力を待っています"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
+msgid "Done ({doneCount})"
+msgstr "完了 ({doneCount})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Download image"
@@ -5236,6 +5350,10 @@ msgstr "{label}のタグを編集"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Edit task"
 #~ msgstr "タスクを編集"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Edit theme"
+msgstr "テーマを編集"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
@@ -5420,6 +5538,10 @@ msgstr "HTTPS、HTTP、SSH、Git、FTP、FTPS、または scp 構文を使用し
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "512k や 1m のようなサイズを入力してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Enter a theme name and valid hex colors in both palettes."
+msgstr "テーマ名と、両方のパレットに有効な16進数の色を入力してください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -5748,6 +5870,10 @@ msgstr "過去の委任から記録された明示的な選択です。上のル
 msgid "Export MCP servers"
 msgstr "MCPサーバーをエクスポート"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Export theme"
+msgstr "テーマをエクスポート"
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "External"
@@ -5843,6 +5969,10 @@ msgstr "所有権付きブランチのメタデータを記録できませんで
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #~ msgid "Failed to update goal"
 #~ msgstr "目標を更新できませんでした"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Fallback project"
+msgstr "代替プロジェクト"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay.ts
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -6120,6 +6250,7 @@ msgstr "組み込みブラウザのアドレスバーをフォーカス"
 msgid "Focus window"
 msgstr "ウィンドウに切り替え"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
 msgstr "フォルダ"
@@ -6127,6 +6258,10 @@ msgstr "フォルダ"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "フォルダ名"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Folder no longer exists — imports into the project chosen above."
+msgstr "フォルダーが存在しません — 上で選んだプロジェクトにインポートします。"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "Folder on the server"
@@ -6515,6 +6650,10 @@ msgstr "目標の内容"
 msgid "Goals set"
 msgstr "設定した目標数"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "十分なコントラスト"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "了解"
@@ -6585,7 +6724,7 @@ msgstr "ヘッダー"
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "スケジュール作成を手伝ってください。不足している詳細を確認し、Poracodeのスケジュール操作を使って作成してください。"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "16進カラー"
 
@@ -6680,6 +6819,10 @@ msgstr "履歴"
 msgid "Home"
 msgstr "ホーム"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Home directory"
+msgstr "ホームディレクトリ"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
@@ -6768,7 +6911,7 @@ msgstr "https://example.com/mcp"
 msgid "https://github.com/owner/repo.git"
 msgstr "https://github.com/owner/repo.git"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "色相"
 
@@ -6811,6 +6954,10 @@ msgstr "秘密鍵ファイルのパス"
 msgid "Idle"
 msgstr "アイドル状態"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "If the folder no longer exists, import into"
+msgstr "フォルダーが存在しない場合のインポート先"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Ignored an unrecognized field in plugin.json."
 msgstr "plugin.json の不明なフィールドを無視しました。"
@@ -6830,6 +6977,11 @@ msgstr "画像プレビュー"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "画像"
+
+#. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Import"
+msgstr "インポート"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
@@ -6880,6 +7032,14 @@ msgstr "インポート方法"
 msgid "Import selected"
 msgstr "選択項目をインポート"
 
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Import sessions"
+msgstr "セッションをインポート"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Import theme"
+msgstr "テーマをインポート"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "{destinationProjectName} にインポート"
@@ -6891,6 +7051,10 @@ msgstr "グローバルにインポート"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Import to Project"
 #~ msgstr "プロジェクトにインポート"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Imported"
+msgstr "インポート済み"
 
 #: src/renderer/components/providers/devin/personasPanel.tsx
 #~ msgid "Imported (.claude)"
@@ -6910,6 +7074,14 @@ msgstr "{0} 個のスキルをインポートしました。"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "1 個のスキルをインポートしました。"
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+msgid "Imported from an existing CLI session — text only, tool calls are not shown."
+msgstr "既存の CLI セッションからインポートしました — テキストのみで、ツール呼び出しは表示されません。"
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Imported session"
+msgstr "インポートしたセッション"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -7491,6 +7663,8 @@ msgstr "累計トークン"
 msgid "Lifetime tokens"
 msgstr "累計トークン"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "ライト"
@@ -7797,6 +7971,10 @@ msgstr "敗者のワークツリーとブランチは削除されます。セッ
 #: src/renderer/components/common/effortLabel.ts
 msgid "Low"
 msgstr "低"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "低いコントラスト"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -8589,11 +8767,16 @@ msgstr "Muse Code"
 msgid "Mute microphone"
 msgstr "マイクをミュート"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "My theme"
+msgstr "マイテーマ"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
@@ -8715,6 +8898,10 @@ msgstr "新しい Claude プロファイル設定ディレクトリ"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New code"
 msgstr "新しいコード"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "New Codex profile home directory"
+msgstr "新しい Codex プロファイルのホームディレクトリ"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"
@@ -8893,6 +9080,10 @@ msgstr "次の最近表示したチャット"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Next run {0}"
 msgstr "次回の実行: {0}"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Next sent message"
+msgstr "次の送信済みメッセージ"
 
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
@@ -9080,6 +9271,10 @@ msgstr "このスコープには外部スキルが見つかりませんでした
 msgid "No file checkpoint is stored for this message."
 msgstr "このメッセージにはファイル チェックポイントは保存されません。"
 
+#: src/mobile/views/MobileFileEditor.tsx
+#~ msgid "No file selected."
+#~ msgstr "ファイルが選択されていません。"
+
 #. placeholder {0}: tree.searchQuery
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
@@ -9108,6 +9303,10 @@ msgstr "このサーバーにはまだホスト所有環境がありません。
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "No icons found"
 msgstr "アイコンが見つかりません"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No importable sessions found on this computer."
+msgstr "このコンピューターにインポート可能なセッションが見つかりません。"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
@@ -9188,6 +9387,10 @@ msgstr "まだメッセージはありません"
 #: src/renderer/components/composer/voiceError.ts
 msgid "No microphone found."
 msgstr "マイクが見つかりません。"
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "No model is available for {agent}. Check the agent in Settings."
+msgstr "{agent} で利用できるモデルがありません。設定でエージェントを確認してください。"
 
 #: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
@@ -9315,6 +9518,14 @@ msgstr "このスレッドにはランタイム アイテムがまだありま�
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "接続済みのサーバーはまだありません。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions could be imported."
+msgstr "セッションをインポートできませんでした。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions match the current filters."
+msgstr "現在のフィルターに一致するセッションはありません。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -10167,6 +10378,10 @@ msgstr "ペアリング URL"
 msgid "Pairing…"
 msgstr "ペアリング中…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Palette mode"
+msgstr "パレットのモード"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
@@ -10801,6 +11016,10 @@ msgstr "前の最近表示したチャット"
 msgid "Previous runs"
 msgstr "過去の実行"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Previous sent message"
+msgstr "前の送信済みメッセージ"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "前のタブ"
@@ -10859,6 +11078,10 @@ msgstr "プロファイル {displayName} を追加しました。"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Profile API key"
 #~ msgstr "プロファイルのAPIキー"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Profile home"
+msgstr "プロファイルのホーム"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
@@ -11267,6 +11490,10 @@ msgstr "レート制限あり · {retry}後に再試行"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Rate limited. Try again shortly."
 msgstr "レート制限あり。しばらくしてからもう一度お試しください。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "テーマの不透明な面での比率です。文字は4.5:1以上を目安にしてください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
@@ -11743,6 +11970,10 @@ msgstr "ワークツリーを削除しますか?"
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "{profileName} を削除すると、保存されたAPIキーも削除されます。このプロファイルを使用しているスレッドはエージェントを見つけられなくなります。"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
+msgstr "{profileName} を削除すると Poracode から取り除かれます。ホームディレクトリとその中の Codex 認証情報はディスクに残ります。"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
@@ -12274,6 +12505,10 @@ msgstr "{loginCommandDisplay}を実行してサインインします。"
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "{0} で新しいスレッドを実行します。"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "独自の CODEX_HOME から 2 つ目の Codex アカウントを実行します。各プロファイルは個別にサインインし、独自のセッションを保持します。"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -12413,11 +12648,12 @@ msgstr "Devin と同じログイン"
 msgid "Same provider order on all machines"
 msgstr "すべてのマシンで同じプロバイダー順序"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "彩度と明度"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
@@ -12438,6 +12674,10 @@ msgstr "保存"
 msgid "Save {0} credentials."
 msgstr "{0}資格情報を保存します。"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Save and apply"
+msgstr "保存して適用"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Save changes"
@@ -12446,6 +12686,10 @@ msgstr "変更を保存"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude プロフィールを保存"
+
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Save Codex profile"
+msgstr "Codex プロファイルを保存"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Save Cursor GUI runtime"
@@ -12610,6 +12854,10 @@ msgstr "端末のスクロールバック バッファのスクロール速度�
 msgid "Scroll to bottom"
 msgstr "一番下までスクロール"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "プロンプトまでスクロール: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"
@@ -12734,6 +12982,10 @@ msgstr "ランタイム項目を検索…"
 msgid "Search scheduled tasks"
 msgstr "スケジュールタスクを検索"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search sessions"
+msgstr "セッションを検索"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
 msgstr "設定を検索"
@@ -12766,6 +13018,10 @@ msgstr "スレッドを検索する"
 msgid "Search Threads"
 msgstr "スレッドの検索"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search titles, messages and folders"
+msgstr "タイトル、メッセージ、フォルダーを検索"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
 msgstr "検索…"
@@ -12777,6 +13033,10 @@ msgstr "検索中..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
 msgstr "検索中…"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "補助テキスト"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
@@ -12829,6 +13089,7 @@ msgid "Select account"
 msgstr "アカウントの選択"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "すべて選択"
@@ -12840,6 +13101,10 @@ msgstr "すべての MCP サーバーを選択"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "{providerLabel} のすべての MCP サーバーを選択"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Select all sessions"
+msgstr "すべてのセッションを選択"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all skills"
@@ -12889,6 +13154,11 @@ msgstr "選択…"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Selected project"
 #~ msgstr "選択したプロジェクト"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Selected sidebar row"
+msgstr "サイドバーの選択行"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Send"
@@ -13271,6 +13541,10 @@ msgstr "{0, plural, other {# 件のスキル}}を表示中"
 msgid "Showing the first 4,000 entries."
 msgstr "最初の4,000件を表示しています。"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Showing the most recent sessions — narrow the filters to see more."
+msgstr "最新のセッションを表示しています — さらに表示するにはフィルターを絞り込んでください。"
+
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
 msgstr "サイドバーとモデルセレクターに表示されます。"
@@ -13283,6 +13557,11 @@ msgstr "プロジェクト名の横に表示されます。"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Sidebar"
 #~ msgstr "サイドバー"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Sidebar background"
+msgstr "サイドバーの背景"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
@@ -14030,6 +14309,11 @@ msgstr "サポート:"
 msgid "Supports Fast mode"
 msgstr "高速モードに対応"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Surface"
+msgstr "サーフェス"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "メモやToDoを交換する"
@@ -14340,6 +14624,19 @@ msgstr "ターミナルタブ"
 msgid "Test microphone"
 msgstr "マイクをテスト"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text color"
+msgstr "文字色"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "文字のコントラスト"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text on accent"
+msgstr "アクセント上の文字"
+
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "That combination isn’t available"
 msgstr "この組み合わせは利用できません"
@@ -14413,6 +14710,10 @@ msgstr "チェックポイントを復元できませんでした。"
 msgid "the chosen folder"
 msgstr "選択したフォルダー"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "The custom theme limit has been reached. Delete a theme before adding another."
+msgstr "カスタムテーマの上限に達しました。新しいテーマを追加する前にテーマを削除してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
@@ -14451,6 +14752,7 @@ msgid "The desktop's own server reconnected before the history read completed."
 msgstr "デスクトップ自身のサーバーが履歴の読み取り完了前に再接続されました。"
 
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "デスクトップ自身のサーバーが変更を拒否しました。"
 
@@ -14711,6 +15013,10 @@ msgstr "保存済みの設定は無効です。保存済みの値は保持され
 msgid "the target provider"
 msgstr "対象プロバイダー"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "The thread keeps its provider session, so your next message continues where you left off."
+msgstr "スレッドはプロバイダーのセッションを保持するため、次のメッセージは中断したところから続きます。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "キューに入ったフォローアップにはスレッドセッションを利用できません。"
@@ -14760,6 +15066,10 @@ msgstr "テーマ"
 msgid "Theme and chat font size"
 msgstr "テーマとチャットのフォントサイズ"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Theme name"
+msgstr "テーマ名"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
 msgstr "これらの AI ヘルパーは、このホスト上でそのプロジェクトのために実行されます。変更はこのデスクトップではなくホストに適用されます。"
@@ -14794,6 +15104,10 @@ msgstr "これらのサーバーはプラグインが提供します。プラグ
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "思考中"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support importing sessions."
+msgstr "このエージェントはセッションのインポートに対応していません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This agent does not support the selected model options. Choose different options and try again."
@@ -14834,6 +15148,10 @@ msgstr "このコードは {countdown} で期限切れになります"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This code has expired."
 msgstr "このコードは期限切れです。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again."
+msgstr "この Codex セッションは別の Codex アプリ（Codex Desktop または CLI）で開かれています。そちらで閉じてから再試行してください。"
 
 #: src/renderer/utils/machineLabels.ts
 msgid "This computer"
@@ -14967,6 +15285,10 @@ msgstr "このプラグインの Poracode 設定は無効なため無視され�
 msgid "This plugin's skills could not be read."
 msgstr "このプラグインのスキルを読み取れませんでした。"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "このプロファイルにはすでにスレッドがあります。セッションは現在のホームディレクトリに残るため、変更後は再開できなくなります。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
 msgstr "このプロファイルは現在のログインと設定では起動できません。プロファイル設定を確認して再試行してください。"
@@ -15060,9 +15382,17 @@ msgstr "Poracode が確認するには、事前にこのサーバーでの認証
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "このサーバーはこのコンピューターで動作するため、WSL プロジェクトでは利用できません。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session changed on disk. Refresh the list and try again."
+msgstr "このセッションはディスク上で変更されました。一覧を更新して再試行してください。"
+
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "このセッションは設定を何も公開していません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session is already being imported."
+msgstr "このセッションはすでにインポート中です。"
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -15096,6 +15426,10 @@ msgstr "このスレッドはコンテキストを引き継がずにプロバイ
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "このスレッドはコンテキストを引き継がずにフォークされました。{agent} は Poracode の read_thread ツールなしで起動したため、元の会話を読み取れません。app-controls の MCP ツールを再度有効にするか、必要な内容を要約してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This transcript is not in the agent's session store."
+msgstr "このトランスクリプトはエージェントのセッション保存場所にありません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
@@ -15611,6 +15945,10 @@ msgstr "{agentLabel}ステータスを更新できません。"
 msgid "Unable to refresh Claude profiles."
 msgstr "Claude プロファイルを更新できません。"
 
+#: src/renderer/components/providers/codex/profileSettings.tsx
+msgid "Unable to refresh Codex profiles."
+msgstr "Codex プロファイルを更新できません。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
@@ -15840,6 +16178,10 @@ msgstr "{name}をアンインストール"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "不明"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Unknown folder"
+msgstr "不明なフォルダー"
 
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"
@@ -16183,6 +16525,10 @@ msgstr "使用量不明"
 msgid "Usage: /goal edit <objective>"
 msgstr "使用法: /goal edit <objective>"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
+msgstr "#rgbまたは#rrggbb形式の色を使用してください。任意の色を空欄にすると自動的に算出されます。"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "「+」を使用して直接ペアリングするか、SSH 経由でリモートマシンに接続します。"
@@ -16232,6 +16578,10 @@ msgstr "ターミナル専用パッケージの更新には OpenCode CLI を使�
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "セッションを使用する"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Use sidebar background for the docked sidebar"
+msgstr "固定サイドバーにサイドバーの背景を使用"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."

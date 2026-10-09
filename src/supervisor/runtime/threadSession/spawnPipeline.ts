@@ -760,15 +760,20 @@ export class SpawnPipeline {
           payload.agentKind,
           payload.providerSwitch.handoffItemId,
         );
-        if (initialPrompt.length > 0) {
-          optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
-            payload.threadId,
-            initialPrompt,
-            payload.segments,
-            payload.userMessageItemId,
-          );
-          this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
-        }
+      }
+      // Provider-switch input follows the handoff divider, once the provider
+      // session has opened. Fresh and resumed GUI prompts admitted above keep
+      // their existing canonical row; reuse the client's id on this delayed
+      // path too, so every explicit prompt is shown and sent exactly once.
+      // A prompt-less reopen paints nothing and starts no turn.
+      if (optimisticUserMessageItemId === undefined && initialPrompt.length > 0) {
+        optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
+          payload.threadId,
+          initialPrompt,
+          payload.segments,
+          payload.userMessageItemId,
+        );
+        this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
       }
       if (transcriptHandoffLost || handoffMentionUnresolved) {
         ctx.runtimeEventRouter.append(payload.threadId, {

@@ -5,6 +5,7 @@ import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
 import { baseAgentKind, agentProfileKind, type AgentInstanceConfigMap } from "@/shared/contracts";
 import { USAGE_PROFILE_SUPPORT } from "./usageProfileRegistry";
 import { i18n } from "@/renderer/i18n/i18n";
+import { getProviderManifest } from "./providerManifest";
 export { isClaudeUsageProvider } from "./claude/usageProfileSupport";
 
 /**
@@ -154,7 +155,21 @@ function profileUsageProviders(
   for (const instance of Object.values(agentInstances)) {
     if (instance.enabled === false) continue;
     const support = supportByDriver.get(instance.driver);
-    if (!support || !support.accepts(instance)) continue;
+    if (!support || !support.accepts(instance)) {
+      try {
+        const label = getProviderManifest(instance.driver)?.profileUsageLabel?.(instance);
+        if (label) {
+          profiles.push({
+            id: agentProfileKind(instance.driver, instance.id),
+            label,
+            ...rendererMeta(instance.driver),
+          });
+        }
+      } catch {
+        // Invalid provider-owned profile configuration is not usage eligible.
+      }
+      continue;
+    }
     const profile = instance.displayName ?? instance.id;
     const provider = support.labelPrefix;
     const id = support.providerId

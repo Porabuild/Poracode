@@ -692,6 +692,36 @@ requirements: usage-secret custody (Gate 2.5) and the native release gates
 remain open; the desktop remote-access writer above was the last settings
 writer outside the authority and is integrated as of the correction pass.
 
+| Boundary                                          | Version location                                                                                                           | What must trigger a review                                                                                                                                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SQLite application database                       | `src/main/db/migrations.ts` (`DATABASE_MIGRATIONS`, `LATEST_SCHEMA_VERSION`)                                               | Any table, column, index, constraint, stored JSON meaning, or data repair. Append a migration; never rewrite published history.                                                                    |
+| Supervisor agent-status cache                     | `src/supervisor/runtime/agentStatusService.ts` (`STATUS_CACHE_VERSION`)                                                    | Any `AgentStatus`, capability, auth, runtime-routing, detection, or derived provider result that can make a cached status stale.                                                                   |
+| Renderer agent-status cache                       | `src/renderer/state/agentStatusesStore.ts` (Zustand `version`)                                                             | The same changes as the supervisor status cache. This is a second persisted copy; audit and usually bump both together.                                                                            |
+| Provider usage cache                              | `src/supervisor/runtime/usageService.ts` (`USAGE_CACHE_VERSION`)                                                           | Snapshot shape or changed semantics of a cached usage result.                                                                                                                                      |
+| Claude fast-mode cache                            | `src/supervisor/agents/claude/fastModeCacheCore.ts` (`CACHE_VERSION`)                                                      | Account keying or availability semantics/shape.                                                                                                                                                    |
+| ACP registry icon index                           | `src/supervisor/agents/acpRegistryIcons.ts` (`ICON_INDEX_VERSION`)                                                         | Index shape, filename derivation, normalization, or cache-validity rules.                                                                                                                          |
+| ACP registry extracted-artifact layout            | `src/supervisor/agents/acpRegistryInstallDir.ts` (`ACP_REGISTRY_INSTALL_LAYOUT_VERSION`)                                   | Anything that makes an already-extracted `acp-registry/<id>/<version>/bin` install invalid (mode bits, file placement). Teach `repairAcpRegistryInstallLayouts` the previous generation.           |
+| Managed skill manifest                            | `src/supervisor/skills/SkillsService.ts` (`SkillManifest.version` and `.poracode-skill.json` parsing/writes)               | Manifest fields, projection/copy semantics, hashing, or ownership rules.                                                                                                                           |
+| Custom theme documents and settings records       | `src/shared/customThemes.ts` (`CUSTOM_THEME_VERSION`, `themeDocumentSchema`)                                               | Palette fields, custom id namespace, or document shape. Keep settings records, renderer cache/bootstrap and JSON import/export aligned; validate each record independently.                        |
+| Keybindings file                                  | `src/shared/keybindings.ts` (`keybindingsFileSchema.version`) and `src/main/keybindingsFile.ts`                            | File shape, command identity, or default-binding migrations. Keep renderer writers in `src/renderer/commands/keybindingStore.ts` aligned.                                                          |
+| Legacy Lightcode import marker                    | `src/main/legacyDataMigration.ts` (`MIGRATION_VERSION`, marker/request filenames)                                          | Import scope or behavior that must run again for already-migrated users.                                                                                                                           |
+| Experiment persisted store                        | `src/shared/contracts/experiment.ts` (`EXPERIMENT_STORE_VERSION`)                                                          | Experiment schema/meaning. Keep `src/renderer/state/experimentStore.ts`, `src/main/db/sync.ts`, and remote experiment ownership aligned.                                                           |
+| Main renderer app store                           | `src/renderer/state/appStore.ts` (Zustand `version`)                                                                       | Persisted projects, threads, view, or group-layout shape/semantics. Keep `src/renderer/state/dbStorage.ts` fallback reconstruction aligned.                                                        |
+| Other renderer stores                             | `src/renderer/state/threadTodoDockStore.ts`, `sidebarUiStore.ts`, and `workspaceStore.ts` (Zustand `version`)              | Any field included by `partialize`, its meaning, defaults, or storage location. Add a `migrate` function when retaining data.                                                                      |
+| Remote-server renderer store                      | `src/renderer/state/remoteServersStore.ts` (Zustand persist; currently implicit version `0`)                               | Durable server identity, token, projected projects, or `partialize` shape. Add an explicit version and migration before an incompatible change.                                                    |
+| Shared settings and other unversioned JSON stores | `src/shared/settings.ts`, `src/main/sharedSettingsFile.ts`, remote auth/identity/push stores, MCP OAuth, and usage secrets | These normalize or validate instead of carrying a version. Any incompatible change still requires an explicit migration, tolerant parser, or introduction of a version field plus legacy handling. |
+
+Custom themes use authoring format `version: 1` in `src/shared/customThemes.ts`.
+Settings files and the renderer's `poracode-shared-settings` cache store the same
+validated palette records; exported JSON omits the local installation id. Legacy
+settings/cache shapes remain valid and normalize to an empty theme list. Invalid,
+duplicate or unsupported records are discarded individually, and missing selected
+themes clear overrides to the base palette. The pre-paint reader and React provider
+use the same derivation; `poracode-boot` retains its existing appearance/background
+shape. Theme preferences remain device-local and are excluded from remote settings,
+so no IPC/remote protocol or database version changes are needed. Regression tests
+start from released settings and cache shapes and cover export/import round trips.
+
 ## Wire protocols and deployed artifacts
 
 | Boundary                                       | Version location                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Coupled producers/consumers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -2950,3 +2980,39 @@ legacy documents/defaults, local-only projection, permission scope, CSS escaping
 prewarm and live terminal changes without replacing the PTY surface. The editable
 font picker uses the same single-family validator and escaped CSS stack for installed
 suggestions and typed names; it introduces no stored or wire shape changes.
+
+## v2 integration with master (October 2026)
+
+The merged thread config adds optional `importedFrom` metadata and profile settings
+remain validated by their provider. Old configs remain readable without the new
+field. The remote allowlist excludes local session-import filesystem operations;
+there is no new remote route. The two new supervisor procedure names are additive;
+older peers reject unknown names, so the reviewed procedure-map fingerprint
+changes while client-host hop 17 stays compatible. Additive profile/custom-theme fields keep their
+existing schema versions and defaults. Regenerated native bindings and contract
+hashes describe the combined schema under remote protocol 13, binding format 2,
+generator 4 and native manifest 5; no codec semantics changed. Existing versioned
+cache invalidations and profile account identity checks remain in effect.
+
+The bounded IPC sender and its transport-only helpers now live in
+`src/shared/ipc/transport`, used by the main host, backend and supervisor. Old
+supervisor imports re-export the same implementation for source compatibility.
+Queue limits, canonical flow accounting, private payload custody, deadlines and
+wire formats are unchanged; this source move requires no protocol bump.
+
+Flat Manual thread ordering adds the distinct `reorder-flat` command and optional
+`flatThreadReorder` capability version 1 on the existing receipt-guarded thread
+route. Callers negotiate before optimistic paint; absent capability refuses the
+move. Older peers reject the unknown command by name, and existing `reorder`
+keeps its project-only validation. The host changes existing ordering keys only,
+keeps source-project membership checks, and replays a frozen acknowledgement
+under the existing command ID/body receipt contract. This is an additive wire
+extension: protocol 13, hop 17, SQL 57, binding format 2, generator 4 and native
+manifest 5 retain their versions. Native bindings and source hashes regenerate;
+route/procedure inventories and native UI dispositions are unchanged.
+
+GUI draft restoration delays checkpoint eligibility until text and attachments
+are restored together, preventing a fast thread switch from saving a transient
+empty attachment list. Existing draft storage version and saved content remain
+compatible; the regression begins with an existing populated draft and checks
+late-picker completion, persistence and reload.

@@ -50,6 +50,7 @@ import {
 } from "../composer/MentionInput";
 import { useThreadMentionItems } from "../composer/useThreadMentionItems";
 import {
+  attachmentsFromPaths,
   storableAttachment,
   useAttachments,
   type SaveClipboardImage,
@@ -111,6 +112,7 @@ import { ComposerActionDocks } from "@/renderer/components/mobileComposer/Compos
 import { ComposerCompactSummary } from "@/renderer/components/mobileComposer/ComposerCompactSummary";
 import { ComposerInfoChips } from "@/renderer/components/mobileComposer/ComposerInfoChips";
 import { revertedPromptToDraft, useRevertedPromptStore } from "./revertedPrompt";
+import { usePromptRecall } from "./usePromptRecall";
 
 type ThreadComposerSectionProps = {
   threadId: string;
@@ -325,6 +327,26 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   if (composerSessionRef.current.threadId !== thread.id) {
     composerSessionRef.current = { threadId: thread.id };
   }
+  const composerMountedRef = useRef(false);
+  useEffect(() => {
+    composerMountedRef.current = true;
+    return () => {
+      composerMountedRef.current = false;
+    };
+  }, []);
+  // A file pick/upload can resolve after this reused composer has moved to
+  // another thread (or unmounted). Attach only while the originating thread is
+  // still shown; otherwise park the files in that thread's saved draft so they
+  // never leak into the thread the user switched to.
+  function attachPickedFiles(originThreadId: string, paths: string[]) {
+    if (composerMountedRef.current && composerSessionRef.current.threadId === originThreadId) {
+      attachments.addFiles(paths);
+      return;
+    }
+    useAppStore
+      .getState()
+      .appendThreadDraftAttachments(originThreadId, attachmentsFromPaths(paths));
+  }
   const preparedThreadIdRef = useRef<string | null>(null);
   const restoredThreadIdRef = useRef<string | null>(null);
   const pendingPickedAttachments = useBrowserAttachInbox((s) => s.itemsByThread[thread.id]);
@@ -510,21 +532,29 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !usesTerminalPresentation &&
     thread.sessionRef !== undefined &&
     thread.status === "working";
+  // A stored GUI thread may have no live host session until its next prompt.
+  // The submit action owns that resume; reconnecting still blocks submission.
+  const canResumeServerInput =
+    !usesTerminalPresentation &&
+    thread.status === "inactive" &&
+    (thread.sessionRef !== undefined || thread.canResumeWithConfig);
   const canSubmitServerInput =
     isServerControlled &&
     !isConnecting &&
-    thread.sessionRef !== undefined &&
-    (thread.status === "idle" ||
-      thread.status === "needs_reply" ||
-      (!usesTerminalPresentation && thread.status === "needs_approval") ||
-      thread.status === "error" ||
-      canQueueServerInput);
+    (canResumeServerInput ||
+      (thread.sessionRef !== undefined &&
+        (thread.status === "idle" ||
+          thread.status === "needs_reply" ||
+          (!usesTerminalPresentation && thread.status === "needs_approval") ||
+          thread.status === "error" ||
+          canQueueServerInput)));
   const canSubmitTerminalInput =
     usesTerminalPresentation &&
     isTerminalInput &&
     thread.status !== "inactive" &&
     thread.status !== "launching";
-  const showServerComposer = isServerControlled && thread.status !== "inactive";
+  const showServerComposer =
+    isServerControlled && (thread.status !== "inactive" || canResumeServerInput);
   const showTerminalComposer =
     usesTerminalPresentation &&
     isTerminalInput &&
@@ -707,6 +737,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     });
   }
 
+  const handlePromptRecallKey = usePromptRecall({
+    threadId: thread.id,
+    mentionRef,
+    attachments,
+    availableCommands,
+    skillCommandsResolved,
+  });
+
   useEffect(() => {
     setSlashActiveIndex(0);
   }, [slashQuery]);
@@ -739,7 +777,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     const composer = mentionRef.current;
     if (!composer || !revertedContent) return;
     const draft = revertedPromptToDraft(revertedContent, availableCommands);
-    composer.restoreFromSegments(draft.segments);
+    const previousAttachments = attachments.getAttachments().map(storableAttachment);
+    // Undoable, so Ctrl+Z brings back whatever the user had typed and attached
+    // before the revert.
+    composer.restoreFromSegments(draft.segments, {
+      undoable: {
+        undo: () => attachments.swap(draft.attachments, previousAttachments),
+        redo: () => attachments.swap(previousAttachments, draft.attachments),
+      },
+    });
     latestSegmentsRef.current = draft.segments;
     attachments.restore(draft.attachments);
     useRevertedPromptStore.getState().consume(thread.id);
@@ -769,16 +815,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       setComposerCollapsed(compactLayout || collapseTerminalComposerSetting);
     }
     if (restoredThreadIdRef.current === thread.id || !editorMounted) return;
-    restoredThreadIdRef.current = thread.id;
+    // Restoring text synchronously calls onTextChange. Keep checkpoints
+    // disarmed until both text and attachments have been restored.
     const saved = useAppStore.getState().threadDraftContents[thread.id];
-    if (!saved) return;
-    if (saved.segments.length > 0) {
+    if (saved && saved.segments.length > 0) {
       mentionRef.current?.restoreFromSegments(saved.segments);
       latestSegmentsRef.current = saved.segments;
     }
-    if (saved.attachments.length > 0) {
+    if (saved && saved.attachments.length > 0) {
       attachments.restore(saved.attachments);
     }
+    restoredThreadIdRef.current = thread.id;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/restore is keyed to the active thread and editor mount; attachment/editor methods are read from this render
   }, [editorMounted, thread.id]);
 
@@ -1177,6 +1224,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             return true;
                           }
 
+                          if (!usesTerminalPresentation && handlePromptRecallKey(e)) return true;
+
                           if (showTerminalComposer) {
                             if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
                               e.preventDefault();
@@ -1278,13 +1327,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               }}
                               showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
                               onPickFiles={() => {
+                                const originThreadId = thread.id;
                                 void (
                                   props.pickFiles
                                     ? props.pickFiles()
                                     : readBridge().pickFiles({ attachmentThreadId: thread.id })
                                 )
                                   .then((paths) => {
-                                    if (paths) attachments.addFiles(paths);
+                                    if (paths) attachPickedFiles(originThreadId, paths);
                                   })
                                   .catch((error: unknown) => toast.danger(friendlyError(error)));
                               }}

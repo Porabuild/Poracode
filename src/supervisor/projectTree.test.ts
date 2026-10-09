@@ -123,6 +123,28 @@ describe("ProjectTreeService", () => {
     });
 
     expect(result.status).toBe("binary");
+    expect(result.sizeBytes).toBe(3);
+  });
+
+  it("reports the size of files too large to edit", async () => {
+    writeFileSync(join(tempDir, "large.txt"), Buffer.alloc(1_000_001));
+
+    const projectResult = await service.readProjectFile({
+      projectLocation: location,
+      path: "large.txt",
+    });
+    const absoluteResult = await service.readAbsoluteFile({
+      projectLocation: location,
+      absolutePath: join(tempDir, "large.txt"),
+    });
+    const externalResult = await service.readExternalFile({
+      projectLocation: location,
+      absolutePath: join(tempDir, "large.txt"),
+    });
+
+    expect(projectResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
+    expect(absoluteResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
+    expect(externalResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
   });
 
   it("returns stat-only media metadata regardless of text cap and refuses media symlink escapes", async () => {
@@ -130,7 +152,10 @@ describe("ProjectTreeService", () => {
     writeFileSync(join(tempDir, "large.mp4"), Buffer.alloc(1_000_001, 1));
     for (const path of ["small.png", "large.mp4"]) {
       const result = await service.readProjectFile({ projectLocation: location, path });
-      expect(result.status).toBe("binary");
+      expect(result).toMatchObject({
+        status: "binary",
+        sizeBytes: path === "small.png" ? 21 : 1_000_001,
+      });
       expect(result).not.toHaveProperty("content");
       expect(result).not.toHaveProperty("contentBase64");
     }
@@ -455,6 +480,18 @@ class ContainmentBridgeClient {
     return normTarget;
   }
 
+  async stat(location: { linuxPath: string }, paths: string[]) {
+    return {
+      stats: paths.map((path) => {
+        const target = this.resolveOrEscape(location.linuxPath, path);
+        const file = this.files.get(target);
+        return file
+          ? { path, exists: true, isFile: true, size: file.content.length, mtimeMs: file.mtimeMs }
+          : { path, exists: false, code: "ENOENT" };
+      }),
+    };
+  }
+
   async readFile(
     location: { linuxPath: string },
     absolutePath: string,
@@ -531,6 +568,31 @@ describe("ProjectTreeService WSL external files", () => {
     // The bridge must be anchored at the file's own directory, not the project
     // root — otherwise its containment check rejects the path.
     expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.poracode/worktrees/repo/branch");
+  });
+
+  it("reports the size of binary and oversized files on WSL", async () => {
+    const projectRoot = "/home/user/work/repo";
+    bridge.files.set(`${projectRoot}/icon.png`, {
+      content: Buffer.from([0x89, 0x00, 0x50]),
+      mtimeMs: 1000,
+    });
+    bridge.files.set(`${projectRoot}/clip.png`, {
+      content: Buffer.alloc(1_000_001),
+      mtimeMs: 1000,
+    });
+
+    const binary = await service.readProjectFile({
+      projectLocation: makeWslLocation(projectRoot),
+      path: "icon.png",
+    });
+    const tooLarge = await service.readProjectFile({
+      projectLocation: makeWslLocation(projectRoot),
+      path: "clip.png",
+    });
+
+    expect(binary).toMatchObject({ status: "binary", sizeBytes: 3 });
+    expect(tooLarge).toMatchObject({ status: "binary", sizeBytes: 1_000_001 });
+    expect(bridge.reads).toHaveLength(0);
   });
 
   it("writeExternalFile saves a path outside the project root on WSL", async () => {

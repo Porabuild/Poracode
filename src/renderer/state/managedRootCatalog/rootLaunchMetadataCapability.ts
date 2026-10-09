@@ -1,5 +1,6 @@
 import {
   hostSupportsExperiments,
+  hostSupportsFlatThreadReorder,
   hostSupportsProjectCommandResults,
   hostSupportsThreadLaunchMetadata,
 } from "@/shared/remote/protocol";
@@ -23,6 +24,9 @@ import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopback
  * `prNumber` on a `start` body.
  * `projectCommandResults` (v1): the bounded `result: "bounded"` project-command
  * response mode (canonical row acknowledgement instead of the full list).
+ * `flatThreadReorder` (v1): `reorder-flat` moves a thread in the complete
+ * host catalog without changing project membership. Absent means refusal
+ * before optimistic paint, while project-only reorder stays unchanged.
  * `experiments` (v1): the host composes the experiment authority
  * (`GET /api/experiments` and the three command kinds). Absent means the
  * caller must refuse truthfully BEFORE any local mutation — never fall back to
@@ -31,12 +35,14 @@ import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopback
 interface ManagedRootDescriptorVerdicts {
   readonly threadLaunchMetadata: boolean;
   readonly projectCommandResults: boolean;
+  readonly flatThreadReorder: boolean;
   readonly experiments: boolean;
 }
 
 const UNSUPPORTED: ManagedRootDescriptorVerdicts = {
   threadLaunchMetadata: false,
   projectCommandResults: false,
+  flatThreadReorder: false,
   experiments: false,
 };
 
@@ -67,6 +73,9 @@ async function managedRootDescriptorVerdicts(): Promise<ManagedRootDescriptorVer
             projectCommandResults: hostSupportsProjectCommandResults(
               descriptor.capabilities?.projectCommandResults,
             ),
+            flatThreadReorder: hostSupportsFlatThreadReorder(
+              descriptor.capabilities?.flatThreadReorder,
+            ),
             experiments: hostSupportsExperiments(descriptor.capabilities?.experiments),
           };
         } catch {
@@ -90,6 +99,10 @@ export async function managedRootSupportsThreadLaunchMetadata(): Promise<boolean
 
 export async function managedRootSupportsProjectCommandResults(): Promise<boolean> {
   return (await managedRootDescriptorVerdicts()).projectCommandResults;
+}
+
+export async function managedRootSupportsFlatThreadReorder(): Promise<boolean> {
+  return (await managedRootDescriptorVerdicts()).flatThreadReorder;
 }
 
 /**

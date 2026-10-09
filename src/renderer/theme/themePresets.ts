@@ -14,6 +14,8 @@
  * add a theme, append one `THEME_SPECS` entry.
  */
 
+import type { CustomTheme } from "@/shared/customThemes";
+
 import { buildVariant, type ThemeSpec, type ThemeVariantVars } from "./themeTokens";
 
 export interface AppThemeSpec {
@@ -371,16 +373,16 @@ export const THEME_SPECS: AppThemeSpec[] = [
   },
 ];
 
-export const APP_THEME_PRESETS: AppThemePreset[] = THEME_SPECS.map((spec) => ({
-  id: spec.id,
-  label: spec.label,
-  light: buildVariant(spec.light, "light"),
-  dark: buildVariant(spec.dark, "dark"),
-}));
+export const APP_THEME_PRESETS: AppThemePreset[] = THEME_SPECS.map(buildThemePreset);
 
 const PRESETS_BY_ID = new Map(APP_THEME_PRESETS.map((entry) => [entry.id, entry]));
 
-export function getThemePreset(id: string): AppThemePreset {
+export function getThemePreset(
+  id: string,
+  customThemes: readonly CustomTheme[] = [],
+): AppThemePreset {
+  const custom = customThemes.find((theme) => theme.id === id);
+  if (custom) return buildThemePreset(custom);
   const currentId = id === "lightcode-legacy" ? "poracode-legacy" : id;
   return PRESETS_BY_ID.get(currentId) ?? PRESETS_BY_ID.get(DEFAULT_THEME_ID)!;
 }
@@ -390,3 +392,12 @@ export const APP_THEME_OPTIONS = APP_THEME_PRESETS.map((entry) => ({
   id: entry.id,
   label: entry.label,
 }));
+
+export function buildThemePreset(spec: AppThemeSpec): AppThemePreset {
+  return {
+    id: spec.id,
+    label: spec.label,
+    light: buildVariant(spec.light, "light"),
+    dark: buildVariant(spec.dark, "dark"),
+  };
+}

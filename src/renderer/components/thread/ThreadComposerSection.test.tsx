@@ -1,11 +1,20 @@
 import { keyDownAt } from "@/renderer/testUtils/keyboard";
-import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
+import {
+  composerDraftStorage,
+  createComposerDraftStorage,
+} from "@/renderer/state/composerDraftStorage";
+import type { DraftContent } from "@/renderer/state/slices/types";
 import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentStatus, GitStatusResult, Thread } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  CanonicalContentBlock,
+  GitStatusResult,
+  Thread,
+} from "@/shared/contracts";
 import "@/renderer/components/providers/bootstrap";
 import * as skills from "@/renderer/components/skills/useSkills";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -152,7 +161,7 @@ vi.mock("./ThreadComposer", () => ({
           stop
         </button>
       ) : null}
-      <button type="button" onClick={props.onSubmit}>
+      <button type="button" data-submit-disabled={props.submitDisabled} onClick={props.onSubmit}>
         send
       </button>
     </div>
@@ -402,6 +411,7 @@ describe("ThreadComposerSection", () => {
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
+    pickFiles?: () => Promise<string[] | null>;
   }) {
     const thread = opts?.thread ?? guiThread;
     const agentStatus = opts?.agentStatus ?? codexGuiStatus;
@@ -428,6 +438,7 @@ describe("ThreadComposerSection", () => {
           ? { onOpenProjectRelativePath: opts.onOpenProjectRelativePath }
           : {})}
         {...(opts?.saveClipboardImage ? { saveClipboardImage: opts.saveClipboardImage } : {})}
+        {...(opts?.pickFiles ? { pickFiles: opts.pickFiles } : {})}
         onTodoDockCollapsedChange={() => undefined}
       />
     );
@@ -441,6 +452,7 @@ describe("ThreadComposerSection", () => {
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
+    pickFiles?: () => Promise<string[] | null>;
   }) {
     const onSubmitInput =
       opts?.onSubmitInput ??
@@ -448,6 +460,128 @@ describe("ThreadComposerSection", () => {
     const result = render(composerElement({ ...opts, onSubmitInput }));
     return { ...result, onSubmitInput };
   }
+
+  describe.each([
+    ["a stored session", { ...guiThread, status: "inactive", canResumeWithConfig: false }],
+    ["configuration only", { ...guiThread, status: "inactive", sessionRef: undefined }],
+  ] as const)("inactive GUI resume with %s", (_source, thread) => {
+    it("enables the editor and submits through the canonical runtime action", async () => {
+      render(composerElement({ thread }));
+      const input = screen.getByRole("textbox");
+      const send = screen.getByRole("button", { name: "send" });
+      expect(input).toHaveAttribute("contenteditable", "true");
+      expect(send).toHaveAttribute("data-submit-disabled", "true");
+      typeComposerText(input, "resume this thread");
+      expect(send).toHaveAttribute("data-submit-disabled", "false");
+      fireEvent.click(send);
+
+      await waitFor(() =>
+        expect(runtimeActions.submitThreadInput).toHaveBeenCalledExactlyOnceWith(
+          thread.id,
+          "resume this thread",
+          [{ kind: "text", content: "resume this thread" }],
+          { clientContext: undefined },
+        ),
+      );
+      expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+      expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+      expect(input).toBeEmptyDOMElement();
+    });
+
+    it.each(["authentication", "connection"] as const)(
+      "blocks submission while awaiting %s",
+      async (guard) => {
+        if (guard === "connection") {
+          useAppStore.setState({ connectingThreadIds: { [thread.id]: "connection-1" } });
+        }
+        render(
+          composerElement({
+            thread,
+            agentStatus: {
+              ...codexGuiStatus,
+              authState: guard === "authentication" ? "missing" : "authenticated",
+            },
+          }),
+        );
+        const input = screen.getByRole("textbox");
+        typeComposerText(input, "keep this draft");
+        const send = screen.getByRole("button", { name: "send" });
+        expect(send).toHaveAttribute("data-submit-disabled", "true");
+        fireEvent.click(send);
+        fireEvent.keyDown(input, { key: "Enter" });
+        await act(async () => Promise.resolve());
+
+        expect(runtimeActions.submitThreadInput).not.toHaveBeenCalled();
+        expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+        expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+        expect(input).toHaveTextContent("keep this draft");
+      },
+    );
+
+    it("blocks another submit until the resume send settles", async () => {
+      let finishSubmit!: () => void;
+      runtimeActions.submitThreadInput.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          finishSubmit = resolve;
+        }),
+      );
+      render(composerElement({ thread }));
+      const input = screen.getByRole("textbox");
+      const send = screen.getByRole("button", { name: "send" });
+      typeComposerText(input, "first prompt");
+      fireEvent.click(send);
+      await waitFor(() => expect(runtimeActions.submitThreadInput).toHaveBeenCalledTimes(1));
+
+      typeComposerText(input, "next prompt");
+      expect(send).toHaveAttribute("data-submit-disabled", "true");
+      fireEvent.click(send);
+      fireEvent.keyDown(input, { key: "Enter" });
+      await act(async () => Promise.resolve());
+      expect(runtimeActions.submitThreadInput).toHaveBeenCalledTimes(1);
+      expect(input).toHaveTextContent("next prompt");
+      expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+      expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+
+      await act(async () => finishSubmit());
+      expect(send).toHaveAttribute("data-submit-disabled", "false");
+      fireEvent.click(send);
+      await waitFor(() => expect(runtimeActions.submitThreadInput).toHaveBeenCalledTimes(2));
+      expect(runtimeActions.submitThreadInput).toHaveBeenNthCalledWith(
+        2,
+        thread.id,
+        "next prompt",
+        [{ kind: "text", content: "next prompt" }],
+        { clientContext: undefined },
+      );
+    });
+  });
+
+  it.each([
+    [
+      "a GUI thread without a session or config resume",
+      { ...guiThread, status: "inactive", sessionRef: undefined, canResumeWithConfig: false },
+      codexGuiStatus,
+    ],
+    [
+      "a terminal thread with resume metadata",
+      { ...terminalThread, status: "inactive" },
+      claudeTerminalStatus,
+    ],
+  ] as const)("keeps %s disabled", async (_label, thread, agentStatus) => {
+    render(composerElement({ thread, agentStatus }));
+    const input = screen.getByRole("textbox");
+    expect(input).toHaveAttribute("contenteditable", "false");
+    expect(input).toHaveAttribute("aria-disabled", "true");
+    typeComposerText(input, "should not resume");
+    const send = screen.getByRole("button", { name: "send" });
+    expect(send).toHaveAttribute("data-submit-disabled", "true");
+    fireEvent.click(send);
+    await act(async () => Promise.resolve());
+
+    expect(runtimeActions.submitThreadInput).not.toHaveBeenCalled();
+    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+    expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+  });
 
   describe.each([
     ["GUI", guiThread, codexGuiStatus],
@@ -1222,6 +1356,62 @@ describe("ThreadComposerSection", () => {
     );
   });
 
+  it.each([
+    { action: "undo", keys: ["z"], prompt: "draft a", image: "a.png", otherImage: "b.png" },
+    { action: "redo", keys: ["z", "y"], prompt: "prompt b", image: "b.png", otherImage: "a.png" },
+  ])(
+    "sends the text and image of the same draft after a revert and $action",
+    async ({ keys, prompt, image, otherImage }) => {
+      useAppStore.setState({
+        threadDraftContents: {
+          [guiThread.id]: {
+            segments: [{ kind: "text", content: "draft a" }],
+            attachments: [
+              {
+                id: "draft-a-image",
+                path: "C:\\attachments\\a.png",
+                name: "a.png",
+                mimeType: "image/png",
+                isImage: true,
+              },
+            ],
+          },
+        },
+      });
+      const { onSubmitInput } = renderComposer();
+      const input = screen.getByRole("textbox");
+      await waitFor(() => expect(input).toHaveTextContent("draft a"));
+
+      act(() => {
+        useRevertedPromptStore.getState().restore(guiThread.id, [
+          { kind: "text", text: "prompt b" },
+          {
+            kind: "image",
+            path: "C:\\attachments\\b.png",
+            mimeType: "image/png",
+            dataUrl: "",
+            source: "attachment",
+          },
+        ]);
+      });
+      await waitFor(() => expect(input).toHaveTextContent("prompt b"));
+      expect(screen.getByAltText("b.png")).toBeInTheDocument();
+
+      for (const key of keys) fireEvent.keyDown(input, { key, ctrlKey: true });
+      expect(input).toHaveTextContent(prompt);
+      expect(screen.getByAltText(image)).toBeInTheDocument();
+      expect(screen.queryByAltText(otherImage)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() =>
+        expect(onSubmitInput).toHaveBeenCalledWith(prompt, [
+          { kind: "attachment", path: `C:\\attachments\\${image}`, mimeType: "image/png" },
+          { kind: "text", content: prompt },
+        ]),
+      );
+    },
+  );
+
   it("keeps a reverted prompt until its target thread is shown", async () => {
     const { rerender } = renderComposer();
     act(() => {
@@ -1432,6 +1622,161 @@ describe("ThreadComposerSection", () => {
     }
   });
 
+  describe("asynchronous file picks", () => {
+    function deferredPicker() {
+      const resolvers: Array<(paths: string[] | null) => void> = [];
+      const pickFiles = vi.fn<() => Promise<string[] | null>>(
+        () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve);
+          }),
+      );
+      return { pickFiles, resolvers };
+    }
+
+    function startPick() {
+      const props = composerAddMenuSpy.mock.lastCall?.[0] as { onPickFiles?: () => void };
+      act(() => props.onPickFiles?.());
+    }
+
+    async function finishPick(
+      resolve: ((paths: string[] | null) => void) | undefined,
+      paths: string[] | null = ["C:\\attachments\\thread-gui-idle\\private-A.txt"],
+    ) {
+      expect(resolve).toBeTypeOf("function");
+      await act(async () => {
+        resolve?.(paths);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    }
+
+    it("attaches a file picked in the same thread", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      renderComposer({ pickFiles });
+      startPick();
+      await finishPick(resolvers[0]);
+      expect(screen.getByText("private-A.txt")).toBeInTheDocument();
+    });
+
+    it("keeps an upload that finishes after switching threads out of the new thread", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      const { rerender } = renderComposer({ pickFiles });
+      startPick();
+      rerender(composerElement({ thread: secondGuiThread, pickFiles }));
+      await finishPick(resolvers[0]);
+
+      expect(screen.queryByText("private-A.txt")).toBeNull();
+      expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]).toBeUndefined();
+      expect(
+        useAppStore.getState().threadDraftContents[guiThread.id]?.attachments.map((a) => a.name),
+      ).toEqual(["private-A.txt"]);
+
+      // The file reappears with the thread it was picked for.
+      rerender(composerElement({ pickFiles }));
+      expect(await screen.findByText("private-A.txt")).toBeInTheDocument();
+    });
+
+    it("attaches to the originating thread when the user returns before the upload finishes", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      const { rerender } = renderComposer({ pickFiles });
+      startPick();
+      rerender(composerElement({ thread: secondGuiThread, pickFiles }));
+      rerender(composerElement({ pickFiles }));
+      await finishPick(resolvers[0]);
+
+      expect(screen.getByText("private-A.txt")).toBeInTheDocument();
+      expect(
+        useAppStore.getState().threadDraftContents[guiThread.id]?.attachments.map((a) => a.name),
+      ).toEqual(["private-A.txt"]);
+
+      rerender(composerElement({ thread: secondGuiThread, pickFiles }));
+      expect(screen.queryByText("private-A.txt")).toBeNull();
+    });
+
+    it("persists concurrent late picks with the origin draft and preserves the active draft", async () => {
+      const originDraft: DraftContent = {
+        segments: [{ kind: "text", content: "origin note" }],
+        attachments: [
+          {
+            id: "existing",
+            path: "C:\\attachments\\existing.txt",
+            name: "existing.txt",
+            isImage: false,
+            mimeType: "text/plain",
+          },
+        ],
+      };
+      const activeDraft: DraftContent = {
+        segments: [{ kind: "text", content: "active note" }],
+        attachments: [],
+      };
+      useAppStore.getState().saveThreadDraftContent(guiThread.id, originDraft);
+      useAppStore.getState().saveThreadDraftContent(secondGuiThread.id, activeDraft);
+      const { pickFiles, resolvers } = deferredPicker();
+      const { rerender } = renderComposer({ pickFiles });
+      expect(screen.getByText("existing.txt")).toBeInTheDocument();
+      startPick();
+      startPick();
+      expect(pickFiles).toHaveBeenCalledTimes(2);
+      rerender(composerElement({ thread: secondGuiThread, pickFiles }));
+      await finishPick(resolvers[1], ["C:\\attachments\\private-B.txt"]);
+      await finishPick(resolvers[0]);
+
+      const savedDraft = useAppStore.getState().threadDraftContents[guiThread.id];
+      expect(savedDraft?.segments).toEqual(originDraft.segments);
+      expect(savedDraft?.attachments[0]).toEqual(originDraft.attachments[0]);
+      expect(savedDraft?.attachments.map(({ name }) => name)).toEqual([
+        "existing.txt",
+        "private-B.txt",
+        "private-A.txt",
+      ]);
+      expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]).toEqual(activeDraft);
+      expect(screen.getByRole("textbox")).toHaveTextContent("active note");
+      expect(screen.queryByText("private-A.txt")).toBeNull();
+      expect(screen.queryByText("private-B.txt")).toBeNull();
+
+      composerDraftStorage()?.flush();
+      const reloadedDrafts = createComposerDraftStorage(localStorage, window).load("thread");
+      expect(reloadedDrafts[guiThread.id]).toEqual(savedDraft);
+      expect(reloadedDrafts[secondGuiThread.id]).toEqual(activeDraft);
+      await act(() => useAppStore.setState({ threadDraftContents: reloadedDrafts }));
+      rerender(composerElement({ pickFiles }));
+      expect(screen.getByRole("textbox")).toHaveTextContent("origin note");
+      for (const name of ["existing.txt", "private-A.txt", "private-B.txt"]) {
+        expect(screen.getByText(name)).toBeInTheDocument();
+      }
+    });
+
+    it.each([
+      { label: "cancelled", paths: null },
+      { label: "empty", paths: [] },
+    ])("does not create a late draft for a $label pick", async ({ paths }) => {
+      const { pickFiles, resolvers } = deferredPicker();
+      const { rerender } = renderComposer({ pickFiles });
+      startPick();
+      expect(pickFiles).toHaveBeenCalledTimes(1);
+      rerender(composerElement({ thread: secondGuiThread, pickFiles }));
+      await finishPick(resolvers[0], paths);
+      composerDraftStorage()?.flush();
+
+      expect(useAppStore.getState().threadDraftContents).toEqual({});
+      expect(createComposerDraftStorage(localStorage, window).load("thread")).toEqual({});
+    });
+
+    it("saves an upload that finishes after the composer unmounts to its thread draft", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      const { unmount } = renderComposer({ pickFiles });
+      startPick();
+      unmount();
+      await finishPick(resolvers[0]);
+
+      expect(
+        useAppStore.getState().threadDraftContents[guiThread.id]?.attachments.map((a) => a.name),
+      ).toEqual(["private-A.txt"]);
+    });
+  });
+
   it("focuses the reused composer when the desktop switches threads", async () => {
     const { rerender } = renderComposer();
     const input = screen.getByRole("textbox");
@@ -1584,6 +1929,148 @@ describe("ThreadComposerSection", () => {
     unmount();
 
     expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+  });
+
+  describe("prompt recall", () => {
+    function seedPrompts(threadId: string, contents: CanonicalContentBlock[][]) {
+      const items = contents.map((content, index) => ({
+        id: `user-${index}`,
+        type: "user_message" as const,
+        state: "completed" as const,
+        streams: {},
+        payload: { content },
+      }));
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadId]: items.map((item) => item.id) },
+        runtimeItemsByIdByThread: {
+          [threadId]: Object.fromEntries(items.map((item) => [item.id, item])),
+        },
+      });
+    }
+
+    function seedTextPrompts(threadId: string, texts: string[]) {
+      seedPrompts(
+        threadId,
+        texts.map((text) => [{ kind: "text", text }]),
+      );
+    }
+
+    function press(editor: HTMLElement, key: "ArrowUp" | "ArrowDown") {
+      fireEvent.keyDown(editor, { key });
+    }
+
+    it("steps through the thread's prompts with Up and Down from an empty composer", () => {
+      seedTextPrompts(guiThread.id, ["first", "second"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      expect(input.textContent).toBe("second");
+      press(input, "ArrowUp");
+      expect(input.textContent).toBe("first");
+      press(input, "ArrowDown");
+      expect(input.textContent).toBe("second");
+      press(input, "ArrowDown");
+      expect(input.textContent).toBe("");
+    });
+
+    it("leaves Up to the caret when the composer has a draft", () => {
+      seedTextPrompts(guiThread.id, ["sent before"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+      typeComposerText(input, "half-written");
+
+      press(input, "ArrowUp");
+
+      expect(input.textContent).toBe("half-written");
+    });
+
+    it("stops browsing once the recalled prompt is edited", () => {
+      seedTextPrompts(guiThread.id, ["first", "second"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      typeComposerText(input, "second, edited");
+      press(input, "ArrowUp");
+
+      expect(input.textContent).toBe("second, edited");
+    });
+
+    it("moves through a multi-line prompt before stepping to the next one", () => {
+      seedTextPrompts(guiThread.id, ["older", "line one\nline two"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      expect(input.textContent).toBe("line oneline two");
+      // The caret lands on the first line, so Down belongs to the editor.
+      press(input, "ArrowDown");
+      expect(input.textContent).toBe("line oneline two");
+      press(input, "ArrowUp");
+      expect(input.textContent).toBe("older");
+    });
+
+    it("restores a recalled prompt's attachments for resend", async () => {
+      seedPrompts(guiThread.id, [
+        [
+          { kind: "text", text: "see this" },
+          {
+            kind: "image",
+            path: "C:\\tmp\\shot",
+            mimeType: "image/png",
+            dataUrl: "",
+            source: "attachment",
+          },
+        ],
+      ]);
+      const { onSubmitInput } = renderComposer();
+
+      press(screen.getByRole("textbox"), "ArrowUp");
+      fireEvent.click(screen.getByText("send"));
+
+      await waitFor(() => {
+        expect(onSubmitInput).toHaveBeenCalledWith("see this", [
+          { kind: "attachment", path: "C:\\tmp\\shot", mimeType: "image/png" },
+          { kind: "text", content: "see this" },
+        ]);
+      });
+    });
+
+    it("keeps its place when a new prompt lands while browsing", () => {
+      seedTextPrompts(guiThread.id, ["first", "second"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      act(() => seedTextPrompts(guiThread.id, ["first", "second", "queued follow-up"]));
+      press(input, "ArrowUp");
+
+      expect(input.textContent).toBe("first");
+    });
+
+    it("leaves the arrows to terminal threads", () => {
+      seedTextPrompts(terminalThread.id, ["sent before"]);
+      renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+
+      expect(input.textContent).toBe("");
+    });
+
+    it("ends browsing when the user leaves the thread", () => {
+      seedTextPrompts(guiThread.id, ["first", "second"]);
+      const { rerender } = renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      rerender(composerElement({ thread: secondGuiThread }));
+      rerender(composerElement());
+      press(screen.getByRole("textbox"), "ArrowUp");
+
+      expect(screen.getByRole("textbox").textContent).toBe("second");
+    });
   });
 
   it("does not re-save an in-flight terminal send as a stale draft when navigating away", async () => {
@@ -2979,7 +3466,8 @@ describe("ThreadComposerSection", () => {
     expect(screen.queryByRole("button", { name: "Allow" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deny" })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Scope B" } });
+    fireEvent.click(screen.getByRole("button", { name: /Scope$/u }));
+    fireEvent.click(await screen.findByRole("option", { name: "Scope B" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Confirm" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 

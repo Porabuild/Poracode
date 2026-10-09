@@ -29,6 +29,20 @@ export function isLocalPdfFileUrl(url: URL): boolean {
   }
 }
 
+// Chromium's built-in PDF viewer is a component extension. Showing a PDF loads
+// its index.html in a subframe, which then loads the document stream in a
+// nested chrome-extension:// frame. Blocking that frame leaves an empty viewer.
+const PDF_VIEWER_EXTENSION_ID = "mhjfbmdgcfjbbpaeojofohoefgiehjai";
+
+export function isPdfViewerFrameUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "chrome-extension:" && parsed.host === PDF_VIEWER_EXTENSION_ID;
+  } catch {
+    return false;
+  }
+}
+
 export function isNavigationUrlAllowed(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -138,7 +152,10 @@ export function installNavigationGuards(
       event.preventDefault();
     }
   };
-  const onWillFrameNavigate = (event: Electron.Event & { url: string }): void => {
+  const onWillFrameNavigate = (
+    event: Electron.Event & { url: string; isMainFrame: boolean },
+  ): void => {
+    if (!event.isMainFrame && isPdfViewerFrameUrl(event.url)) return;
     if (!isNavigationUrlAllowed(event.url)) {
       event.preventDefault();
     }

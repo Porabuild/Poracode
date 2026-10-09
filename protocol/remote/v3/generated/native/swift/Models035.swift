@@ -1,10 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public struct RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DCommandRequestU2DOptionU2D2_fb9831156a: Codable, Sendable, RemoteModelMetadata {
   public var agentInstanceId: RemoteField<String> = .missing
   public var agentKind: String
   public var clientContext: RemoteField<ProcedureensureThreadRunningRequestU2DClientContext_ee890c7da4> = .missing
-  public var config: ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0
+  public var config: ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429
   public var focus: RemoteField<Bool> = .missing
   public var groupId: RemoteField<String> = .missing
   public var groupName: RemoteField<String> = .missing
@@ -29,7 +29,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f: Codable, Sen
     .init(wireName: "agentInstanceId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 120, minItems: nil, maxItems: nil, pattern: "^[a-z0-9][a-z0-9_\\-:.]*$", format: nil, semanticValidatorIds: []),
     .init(wireName: "agentKind", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "clientContext", typeName: "ProcedureensureThreadRunningRequestU2DClientContext_ee890c7da4", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "config", typeName: "ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "config", typeName: "ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "focus", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "groupId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "groupName", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -214,9 +214,9 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de: Codable, Sen
   }
 }
 
-public enum RoutethreadU2DCommandRequest_358820f0dc: Codable, Sendable {
+public enum RoutethreadU2DCommandRequest_cb1e50de65: Codable, Sendable {
   case option1(RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043)
-  case option2(RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f)
+  case option2(RoutethreadU2DCommandRequestU2DOptionU2D2_fb9831156a)
   case option3(RoutethreadU2DCommandRequestU2DOptionU2D3_21cd039cb3)
   case option4(RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180)
   case option5(RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0)
@@ -229,14 +229,15 @@ public enum RoutethreadU2DCommandRequest_358820f0dc: Codable, Sendable {
   case option12(RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23)
   case option13(RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a)
   case option14(RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9)
-  case option15(RoutethreadU2DCommandRequestU2DOptionU2D15_69af29ff38)
+  case option15(RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75)
+  case option16(RoutethreadU2DCommandRequestU2DOptionU2D16_69af29ff38)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, RoutethreadU2DCommandRequest_358820f0dc)] = []
+    var matches: [(Int, RoutethreadU2DCommandRequest_cb1e50de65)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("prepare-worktree")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043.self) {
       matches.append((1, .option1(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("start")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("start")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D2_fb9831156a.self) {
       matches.append((2, .option2(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("set-group")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D3_21cd039cb3.self) {
@@ -275,12 +276,15 @@ public enum RoutethreadU2DCommandRequest_358820f0dc: Codable, Sendable {
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("reorder")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9.self) {
       matches.append((14, .option14(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("set-workspace")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D15_69af29ff38.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("reorder-flat")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75.self) {
       matches.append((15, .option15(value)))
     }
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("set-workspace")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D16_69af29ff38.self) {
+      matches.append((16, .option16(value)))
+    }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched RoutethreadU2DCommandRequest_358820f0dc" : "Ambiguous union RoutethreadU2DCommandRequest_358820f0dc matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(RoutethreadU2DCommandRequest_358820f0dc.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched RoutethreadU2DCommandRequest_cb1e50de65" : "Ambiguous union RoutethreadU2DCommandRequest_cb1e50de65 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(RoutethreadU2DCommandRequest_cb1e50de65.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -302,6 +306,7 @@ public enum RoutethreadU2DCommandRequest_358820f0dc: Codable, Sendable {
     case .option13(let value): try container.encode(value)
     case .option14(let value): try container.encode(value)
     case .option15(let value): try container.encode(value)
+    case .option16(let value): try container.encode(value)
     }
   }
 }

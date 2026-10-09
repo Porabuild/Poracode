@@ -124,6 +124,21 @@ public struct ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment
   }
 }
 
+public struct ProcedureconnectThreadVoiceRequestU2DConfigU2DImportedFrom_3471186f13: Codable, Sendable, RemoteModelMetadata {
+  public var importedAt: String
+  public var path: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "importedAt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "path", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case importedAt = "importedAt"
+    case path = "path"
+  }
+}
+
 public enum ProcedureconnectThreadVoiceRequestU2DConfigU2DMode_01e21946e9: String, Codable, Sendable {
   case agent = "agent"
   case plan = "plan"

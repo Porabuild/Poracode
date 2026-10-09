@@ -2093,41 +2093,24 @@ describe("SupervisorRuntime thread input", () => {
   });
 
   it("settles a queued GUI startup stop when ACP closes during activate", async () => {
-    const emitted: Array<Record<string, unknown>> = [];
+    process.env.PORACODE_DATA_DIR = makeTempDir();
+    const emitted: SupervisorEvent[] = [];
     const runtime = makeRuntime((event) => {
-      emitted.push(event as Record<string, unknown>);
+      emitted.push(event);
     });
-    let resolveStructuredSession:
-      | ((session: {
-          launchOptions: Record<string, never>;
-          activate: () => Promise<void>;
-          openThread: () => Promise<string>;
-          startTurn: () => Promise<void>;
-          interruptTurn: () => Promise<void>;
-          setListener: (listener: { onUpdate(update: Record<string, unknown>): void }) => void;
-          dispose: () => Promise<void>;
-        }) => void)
-      | undefined;
-    const activate = vi
-      .fn<() => Promise<void>>()
-      .mockRejectedValue(new Error("ACP connection closed"));
+    let rejectActivation: ((error: Error) => void) | undefined;
+    const activate = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectActivation = reject;
+        }),
+    );
     const openThread = vi.fn<() => Promise<string>>().mockResolvedValue("session-1");
     const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const interruptTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const setListener =
       vi.fn<(listener: { onUpdate(update: Record<string, unknown>): void }) => void>();
     const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    const structuredSessionPromise = new Promise<{
-      launchOptions: Record<string, never>;
-      activate: () => Promise<void>;
-      openThread: () => Promise<string>;
-      startTurn: () => Promise<void>;
-      interruptTurn: () => Promise<void>;
-      setListener: (listener: { onUpdate(update: Record<string, unknown>): void }) => void;
-      dispose: () => Promise<void>;
-    }>((resolve) => {
-      resolveStructuredSession = resolve;
-    });
 
     const adapter = {
       kind: "generic-gui" as const,
@@ -2154,9 +2137,15 @@ describe("SupervisorRuntime thread input", () => {
       createInitialSessionRef: vi
         .fn<() => { providerSessionId: string; discoveredAt: string } | undefined>()
         .mockReturnValue(undefined),
-      createStructuredSession: vi.fn<() => Promise<Record<string, unknown>>>(
-        () => structuredSessionPromise,
-      ),
+      createStructuredSession: vi.fn<() => Promise<Record<string, unknown>>>().mockResolvedValue({
+        launchOptions: {},
+        activate,
+        openThread,
+        startTurn,
+        interruptTurn,
+        setListener,
+        dispose,
+      }),
     };
 
     (runtime as unknown as { adapters: Map<string, typeof adapter> }).adapters.set(
@@ -2175,33 +2164,82 @@ describe("SupervisorRuntime thread input", () => {
         model: "model-a",
       },
       prompt: "hi",
+      userMessageItemId: "user-gui-activate-stop",
       presentationMode: "gui",
       initialSize: {
         cols: 132,
         rows: 42,
       },
     });
-    await Promise.resolve();
-    await Promise.resolve();
+    try {
+      // Stop must race an in-flight activation, not an arbitrary number of
+      // preparation microtasks before the provider factory has run.
+      await vi.waitFor(() => expect(activate).toHaveBeenCalledTimes(1));
+      expect(adapter.createStructuredSession).toHaveBeenCalledTimes(1);
+      expect(dispose).not.toHaveBeenCalled();
+      expect(runtime.sessions.has("thread-gui-activate-stop")).toBe(false);
+      expect(runtime.hostResourceAdmission.usage().agentSessions).toEqual({
+        active: 0,
+        pending: 1,
+        retiring: 0,
+      });
+      expect(emitted.filter((event) => event.type === "thread-state")).toEqual([
+        expect.objectContaining({
+          threadId: "thread-gui-activate-stop",
+          status: "working",
+          attention: "working",
+        }),
+      ]);
 
-    await runtime.threadSessionManager.interruptThread({ threadId: "thread-gui-activate-stop" });
-
-    resolveStructuredSession?.({
-      launchOptions: {},
-      activate,
-      openThread,
-      startTurn,
-      interruptTurn,
-      setListener,
-      dispose,
-    });
+      await runtime.threadSessionManager.interruptThread({ threadId: "thread-gui-activate-stop" });
+      expect(emitted.filter((event) => event.type === "thread-state").at(-1)).toMatchObject({
+        threadId: "thread-gui-activate-stop",
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: false,
+        forceCloseActiveTurn: true,
+      });
+      expect(dispose).not.toHaveBeenCalled();
+    } finally {
+      // Release the provider gate even if a boundary assertion fails, so
+      // teardown cannot be stranded on an unpublished startup handle.
+      rejectActivation?.(new Error("ACP connection closed"));
+      await startPromise.catch(() => undefined);
+    }
 
     await expect(startPromise).resolves.toEqual({ threadId: "thread-gui-activate-stop" });
+    expect(activate).toHaveBeenCalledTimes(1);
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(openThread).not.toHaveBeenCalled();
     expect(setListener).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
     expect(interruptTurn).not.toHaveBeenCalled();
+    expect(ptySpawnMock).not.toHaveBeenCalled();
+    expect(adapter.buildLaunchArgv).not.toHaveBeenCalled();
+    expect(runtime.sessions.has("thread-gui-activate-stop")).toBe(false);
+    expect(runtime.hostResourceAdmission.usage().total).toBe(0);
+    expect(
+      emitted.filter((event) => event.type === "thread-state").map((event) => event.status),
+    ).toEqual(["working", "idle"]);
+    expect(runtimeEventsOf(emitted)).toEqual([
+      {
+        type: "turn.started",
+        threadId: "thread-gui-activate-stop",
+        turnId: expect.any(String),
+      },
+      {
+        type: "item.started",
+        threadId: "thread-gui-activate-stop",
+        itemId: "user-gui-activate-stop",
+        itemType: "user_message",
+        payload: { content: [{ kind: "text", text: "hi" }] },
+      },
+      {
+        type: "item.completed",
+        threadId: "thread-gui-activate-stop",
+        itemId: "user-gui-activate-stop",
+      },
+    ]);
   });
 
   it("settles a Codex GUI /goal initial turn after the goal item is emitted", async () => {

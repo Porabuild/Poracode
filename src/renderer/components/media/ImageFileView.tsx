@@ -17,7 +17,7 @@ export function ImageFileView(props: {
   const [natural, setNatural] = useState<{ src: string; width: number; height: number } | null>(
     null,
   );
-  if (failedSrc === props.src) return props.fallback;
+  if (!props.src || failedSrc === props.src) return <>{props.fallback}</>;
   const dimensions = natural?.src === props.src ? natural : null;
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="image-file-view">

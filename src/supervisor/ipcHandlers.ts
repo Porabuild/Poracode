@@ -78,6 +78,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     authenticateAcpAgent: (payload) =>
       withUsageReconciliation(registry.authenticateAcpAgent(payload)),
     logoutAcpAgent: (payload) => withUsageReconciliation(registry.logoutAcpAgent(payload)),
+    listImportableSessions: (payload) => runtime.sessionImportService.list(payload),
+    importSessionTranscript: (payload) => runtime.sessionImportService.importTranscript(payload),
     getThreadSnapshots: () => threads.getThreadSnapshots(),
     getResourceAdmissionStatus: () => runtime.getResourceAdmissionStatus(),
     getTerminalShellSnapshots: () => threads.getTerminalShellSnapshots(),

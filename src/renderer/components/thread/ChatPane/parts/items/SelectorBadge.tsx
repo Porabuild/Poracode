@@ -20,6 +20,10 @@ export function tryParseSelectorPayload(raw: string): SelectorBadgePayload | nul
 
 const SELECTOR_FENCE_RE = new RegExp("```" + LC_SELECTOR_LANG + "\\s*\\n([\\s\\S]*?)\\n```", "g");
 
+export function stripSelectorPayloads(text: string): string {
+  return text.replace(SELECTOR_FENCE_RE, "");
+}
+
 export function extractSelectorPayloads(text: string): SelectorBadgePayload[] {
   const out: SelectorBadgePayload[] = [];
   for (const match of text.matchAll(SELECTOR_FENCE_RE)) {

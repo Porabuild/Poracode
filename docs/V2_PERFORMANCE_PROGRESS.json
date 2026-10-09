@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-09T23:01:14.156Z",
+  "updatedAt": "2026-10-09T23:49:24.464960+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -43,9 +43,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "985608e2a204 completed/joined (missing harness,216/200read limit violation recorded);46ba3aa0c65a completed/joined (ACP fixture contracts,22passes and static checks).",
+    "lastAgent": "01bd44a75657,78510f4ad378,e4b3d8fabc04,008d01257bf1 completed/joined; provider141,GUI138,runtime108+1existing skip,flat-order83 focused passes; source/test evidence reviewed.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "remote-v2-verified-merge-ready",
+    "agentState": "master-merge-verified-ready-to-commit",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -55,7 +55,7 @@
       "state": "Exact pushed b24d6fc6b product bytes equal frozen R245; retained19434-test/fullcheck/build and exact-head core19/native6+4policy-skip CI PASS. R255 saved compact qualification PASS-scoped; full PWA/mobile and resource gates remain open."
     },
     "buildSession": null,
-    "nextAction": "Finish new ACP fixture-contract compatibility, complete remote-v2 merge, merge latest master, resolve and verify resulting tree. Then rebuild current source for genuine qualification. Broad goal stays13/18 and prior consumed cohorts unchanged.",
+    "nextAction": "Commit the resolved latest-master merge with normal hooks, then run final full regression and isolated mock GUI smoke on the committed tree. Broad performance/mobile/genuine-tool qualification remains open under existing limits.",
     "lastResult": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
     "lastDeclaration": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/launcher-declaration.json",
     "liveRootHandles": [],
@@ -2935,26 +2935,63 @@
       "frozenArtifactsRepresentCurrentHead": false
     },
     "remoteIntegration": {
-      "state": "REMOTE_V2_READY_FOR_MERGE_COMMIT_MASTER_NEXT",
-      "authorizedBy": "User: when local changes are committed, pull remote changes, then pull and resolve conflicts with latest master",
-      "resumeFixCommit": "ad91fcb54",
-      "goalScopePreserved": true,
-      "localChunks": ["ad91fcb54", "e6787bebf"],
+      "status": "verified-ready-for-merge-commit",
+      "localCommits": ["ad91fcb54", "e6787bebf9c95b0d2eb142baa6750aaab94aca6f"],
       "remoteV2": "38fb96cb80254568238c9673ac4d9d6fd39a79b7",
-      "fetchedMaster": "e56fcc87b3257c04ab64733d818923fec40008a8",
-      "conflictsResolved": 4,
-      "v2Typecheck": "PASS",
-      "currentProductionQualification": "Prior a1db runtime is historical; merged source requires a new artifact identity and qualification.",
-      "harnessFeasibility": "tmp/v2-acp-fast-resume-20261009/gui-admission-integration/harness-input-feasibility.json",
-      "harnessResearchLimit": "Inspection exceeded200-file cap by16; generated closure remains incomplete; no execution credit.",
-      "focusedChecks": {
-        "runtimeResolution": 32,
-        "usageIsolationAndProfiles": 45,
-        "acpReplayAndFraming": 22,
-        "typecheck": "PASS",
-        "touchedLint": "PASS"
+      "remoteV2Merge": "ebf105ccabeaee7f2f6de60da4d148fc32740403",
+      "master": "e56fcc87b3257c04ab64733d818923fec40008a8",
+      "originalMasterConflictPaths": 63,
+      "workingMarkersRemaining": 0,
+      "providerFocusedTestsPassed": 141,
+      "keyboardRemoteFocusedTestsPassed": 142,
+      "editorTerminalFocusedInitial": {
+        "passed": 161,
+        "failed": 1,
+        "correction": "await actual deferred shell start, keeping one-call/survivor assertion"
       },
-      "integrationFix": "Profile reconciliation now respects disabled collection before provider-source/credential/cache effects;2before failures→5isolation passes, normal current-cache controls retained."
+      "terminalAfterCorrectionPassed": 14,
+      "mediaDndAfterCorrectionPassed": 40,
+      "generatedBindings": "regenerated; protocol check passes",
+      "typecheck": "pass on combined contract source",
+      "lint": "all-repository basic/type-aware pass",
+      "i18n": "0 missing in all12 translated catalogs",
+      "fullSuite": {
+        "originalPassed": 22741,
+        "originalFailed": 20,
+        "originalSkipped": 110,
+        "originalLog": "tmp/v2-remote-integration-20261010/master/tests-full.log",
+        "state": "original retained; affected failures corrected and rerun; final committed-tree fullrun pending"
+      },
+      "nativeAppLaunched": false,
+      "oldCompiledCandidate": "stale against merged source; not reused as current qualification",
+      "evidenceRoot": "tmp/v2-remote-integration-20261010/master",
+      "push": false,
+      "requiredAgentsJoined": true,
+      "flatOrdering": {
+        "capability": "flatThreadReorder v1",
+        "command": "reorder-flat",
+        "focusedPassed": 83,
+        "defaultProjectGuardPreserved": true,
+        "refusalBeforeOptimism": true,
+        "receiptReplayAndReload": true,
+        "secondClientGlobalConvergence": true
+      },
+      "guiRestoreRace": {
+        "beforeFailed": 1,
+        "afterPassed": 138,
+        "correction": "arm checkpoints only after text and attachments restore together"
+      },
+      "runtimeStopFixture": {
+        "passed": 108,
+        "existingSkipped": 1,
+        "correction": "wait for actual pending activate before Stop"
+      },
+      "profileUsage": "existing lightweight manifest extension; independent UI bootstrap, localized provider-owned label",
+      "nativeGeneratorPassed": 13,
+      "protocolCheck": "pass after flat-command native regeneration",
+      "format": "all-repository pass",
+      "architecture": "pass",
+      "smoke": "pending current merged source; previous runtime candidate remains stale"
     },
     "interactiveTestCredentialIsolation": {
       "status": "implemented_independent_review_pass_root_verified_full_smoke_partial",
@@ -5566,7 +5603,10 @@
       "reviewJoined": true
     },
     "previousGoalTurnClassification": "progress: corrected GUI resumed prompt admission and early Stop race;53 coupled tests/static checks/final source-bound build and targeted review pass. Genuine final qualification remains open.",
-    "goalTurnClassification": "progress: two local chunks committed with normal hooks; remote-v2 pulled,4conflicts resolved and current typecheck/32runtime tests pass; master fetched, merge queued.",
+    "goalTurnClassification": {
+      "classification": "progress",
+      "reason": "Committed all local work, merged remote v2, resolved latest-master source conflicts and corrected concrete compatibility/regression issues; broad final qualification remains open."
+    },
     "configurationToolBatch": {
       "runId": "8ce5a834d5d4",
       "names": [
@@ -6611,6 +6651,14 @@
     {
       "at": "2026-10-09T20:12:37.675227+00:00",
       "summary": "Reconciled4 existing current/R78 reports: supervisor observed1.837/1.395% ofonecore versus1.841/1.689%; currentbackendp95 remains6.80/6.87ms. No supervisor increase in either scoped pair; originalmasterregression andwholeapp/privateGPU/RAM remainunproved. No new measurement/taskclosure. Desktoplocked; six liveGUI-thread controlnames preparing."
+    },
+    {
+      "at": "2026-10-09T23:31:31.916803+00:00",
+      "summary": "Committed all local changes (ad91fcb54/e6787bebf), merged remote v2 (ebf105cca), integrated latest master e56fcc87 with63 original conflict paths. Combined typecheck and post-boundary lint pass; regenerated native contract check passes;0 missing translations. Corrected Android overlay/layout geometry, media stat size metadata, surviving-split mobile accessory routing, pure profile usage discovery and reviewed additive IPC fingerprint. Full regression and two focused GUI/runtime test lanes still in progress. Prior artifact/failed-run/cohort limits preserved; no new whole-application performance gain or task closure; goal active13/18,2/6."
+    },
+    {
+      "at": "2026-10-09T23:49:24.464960+00:00",
+      "summary": "Latest-master integration ready for local merge commit after all63 conflict resolutions. Fixed concrete GUI draft-restoration race (1fails before/138passes after) and capability-gated durable flat order (83passes; realSQLite close/reopen, HTTP exactreceipt replay, source membership/default projectguard, second-client global convergence and old/retired capability refusal). All required agents joined. Regenerated native sourcepins/protocol check,13native-generator tests, full typecheck/lint/format/architecture and all12locale0missing pass. Originalfull22741PASS/20FAIL/110skip preserved; affected corrections/reruns complete, final fullrun/current mockGUI pending. No new resource/p95/toolcoverage claim;13/18 and2/6 unchanged."
     }
   ],
   "tasks": [

@@ -1212,6 +1212,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
        wallpaper blur (more glassy, but tinted by whatever's on the desktop). */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 35%, transparent);
     --content-background: var(--background);
+    --sidebar-panel-background: var(--content-background);
     /* Floating chrome that hovers over the conversation — thread tool rail,
        changes bubble, scroll-to-bottom. One shared surface so the three read as
        a set, tinted like the sidebar (side chrome) rather than the pane beneath
@@ -1241,6 +1242,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
        border-white/x hairlines so every surface follows the active theme. */
     --row-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
     --row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
+    --sidebar-row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
     --hairline: color-mix(in oklab, var(--foreground) 9%, transparent);
     --hairline-strong: color-mix(in oklab, var(--foreground) 15%, transparent);
   }
@@ -1346,6 +1348,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
        as a clearer, whiter highlight, well separated from the dimmed idle
        rows (base is 11%). */
     --row-active: color-mix(in oklab, var(--foreground) 20%, transparent);
+    --sidebar-row-active: color-mix(in oklab, var(--foreground) 20%, transparent);
 
     /* App-specific */
     --sidebar-background: #0e0e14;
@@ -3434,6 +3437,10 @@ html[data-compact-layout] .m-page-edge-action {
   z-index: 20;
 }
 
+.poracode-sidebar-aside {
+  --row-active: var(--sidebar-row-active);
+}
+
 /* === Translucent ("liquid glass") sidebar ===================================
    Opt-in via the Appearance toggle (default off). Two paths:
 
@@ -3452,7 +3459,7 @@ html[data-compact-layout] .m-page-edge-action {
       for the floating *overlay* sidebar, which genuinely sits over content.
 
    These rules are intentionally unlayered so they win over Tailwind utilities
-   (e.g. the sidebar's bg-[var(--content-background)] header class). */
+   (e.g. the sidebar's bg-[var(--sidebar-panel-background)] header class). */
 
 /* 1. Native material: clear opaque window layers, keep main content opaque.
    index.html's boot script sets an inline opaque background on <html> to avoid a
@@ -3472,7 +3479,10 @@ html[data-sidebar-glass="on"][data-theme="dark"]
   /* The regular dark-theme active wash is intentionally strong on opaque
      lists. On glass it reads as a bright solid slab, so let more of the
      sidebar material show through while retaining separation from hover. */
-  --row-active: color-mix(in oklab, var(--foreground) 12%, transparent);
+  --row-active: var(
+    --sidebar-row-active-override,
+    color-mix(in oklab, var(--foreground) 12%, transparent)
+  );
 }
 /* Faint tint so sidebar text/icons stay legible over the live OS blur. The
    sidebar header (shared .poracode-overlay-header class) is forced transparent

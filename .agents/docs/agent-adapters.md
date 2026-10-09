@@ -166,6 +166,25 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 
 - `buildDirectInput?(prompt)` — Split a prompt into terminal-safe chunks with delays for TUI pasting.
 
+### Optional — Session Import
+
+- `sessionImport?: SessionImportSource` (`base/sessionImport.ts`) — existing CLI
+  transcripts the user can import from Settings → Import. The provider declares
+  its transcript `roots`, an `acceptFile` filter, `summarize` (id, cwd, model,
+  first prompt from the bounded `headLines()` / `tailLines()` readers it is
+  handed), optional `readTitles`, and `readTranscript` for replay. Identity must
+  be the id the provider's own resume uses. Profiles declare their own store.
+- The shared `src/supervisor/sessionImport/` scanner owns enumeration, file and
+  byte bounds, the mtime/size summary cache, and supersession of older requests;
+  the service only reads paths inside a declared root and replays text through
+  `thread-runtime-events`, which main persists. Nothing is written to provider
+  homes. Imported threads are created `inactive` with a `sessionRef`, so opening
+  one resumes through the normal reopen path.
+- Version audit: `listImportableSessions` / `importSessionTranscript` are
+  desktop-local supervisor procedures (not remote-routable), the scan cache is
+  in-memory, and `ThreadConfig.importedFrom` is optional — older data and older
+  readers stay valid, so no version bump.
+
 ### Optional — Commit Generation
 
 - `defaultOneShotModel?` — Default model for one-shot CLI calls (commit messages).
@@ -284,8 +303,10 @@ is the minimum supported protocol because it introduced `permission.rules`.
 
 Poracode's persisted threads are the sole conversation list and source of truth.
 Do not call or expose provider-native ACP `session/list`, and do not import a
-provider's independent conversation history, even when the agent advertises the
-capability. This is an intentional product boundary, not missing provider support.
+provider's independent conversation history automatically, even when the agent
+advertises the capability. This is an intentional product boundary, not missing
+provider support. The one sanctioned path is the explicit, user-initiated import
+below, which turns a chosen transcript into an ordinary Poracode thread.
 
 ACP `session/resume` and legacy `session/load` are used only with a provider
 session ID already associated with a Poracode thread. Provider detection may
@@ -445,7 +466,10 @@ declarations, none of which is a new branch in shared code:
       only what differs: the one extra add-form field, the row subtitle
       component, the removal-consequence copy, and `createPayload`. Optional
       `onCreated` pins provider settings that must exist before the first
-      detection pass (Cursor pins its GUI runtime there).
+      detection pass (Cursor pins its GUI runtime there). A default that must
+      be unique per profile (a config/home directory) comes from the allocated
+      id that `field.placeholderFor(name, id)` receives, never from the name:
+      distinct names can slugify alike, and a shared home shares credentials.
 - [ ] **Profile page** — the provider's `settingsPanel` already receives
       instance-scoped kinds; branch on your own
       `extract<Provider>ProfileInstanceId(agentKind)` to render the per-profile
@@ -454,8 +478,9 @@ declarations, none of which is a new branch in shared code:
 Do NOT add per-provider profile branches to `mergeManagedSharedSettings`,
 `ProviderIcon`, `SettingsSidebar`, `SingleAgentSettings`, or the IPC surface —
 they are all driven by the registry above. Reference implementations:
-`cursor` (single sealed credential) and `claude` (free-form environment plus an
-opaque per-profile `config`).
+`cursor` (single sealed credential), `claude` (free-form environment plus an
+opaque per-profile `config`), and `codex` (a per-profile `CODEX_HOME` with its
+own hook overlay, skill root, native-plugin discovery, and pooled app-server).
 
 ## Plugin Architecture
 

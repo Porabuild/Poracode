@@ -68,6 +68,7 @@ function externalReadAsProjectResult(result: ReadExternalFileResult): ReadProjec
     ...base,
     status: result.status,
     ...(result.contentBase64 !== undefined ? { contentBase64: result.contentBase64 } : {}),
+    ...(result.sizeBytes !== undefined ? { sizeBytes: result.sizeBytes } : {}),
   };
 }
 
@@ -88,6 +89,8 @@ export interface FileEditorBuffer {
   modifiedAtMs: number;
   content: string;
   binaryContentBase64?: string;
+  /** Size of a file shown in a viewer instead of the text editor. */
+  sizeBytes?: number;
   savedContent: string;
   lineEnding: "lf" | "crlf";
   hasBom: boolean;
@@ -214,6 +217,7 @@ function buildBuffer(result: ReadProjectFileResult): FileEditorBuffer {
       modifiedAtMs: result.modifiedAtMs,
       content: "",
       ...(result.contentBase64 !== undefined ? { binaryContentBase64: result.contentBase64 } : {}),
+      ...(result.sizeBytes !== undefined ? { sizeBytes: result.sizeBytes } : {}),
       savedContent: "",
       lineEnding: "lf",
       hasBom: false,
@@ -462,6 +466,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         ...(existing.binaryContentBase64 !== undefined
           ? { contentBase64: existing.binaryContentBase64 }
           : {}),
+        ...(existing.sizeBytes !== undefined ? { sizeBytes: existing.sizeBytes } : {}),
       };
       return cachedResult;
     }
@@ -797,13 +802,14 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         )
           continue;
 
-        // Binary media reads expose status and mtime, not text/size. Identical stat results
-        // must keep the buffer/map identity; actual disk changes still invalidate the preview.
+        // Media reads expose status/mtime and may include size on older hosts. Identical
+        // metadata keeps buffer/map identity; disk changes invalidate the preview.
         if (
           fileMediaType(path) &&
           result.status !== "ready" &&
           result.status === current.status &&
-          result.modifiedAtMs === current.modifiedAtMs
+          result.modifiedAtMs === current.modifiedAtMs &&
+          result.sizeBytes === current.sizeBytes
         )
           continue;
 

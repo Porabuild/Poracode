@@ -13,6 +13,7 @@ vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", () => ({
 
 import {
   managedRootSupportsProjectCommandResults,
+  managedRootSupportsFlatThreadReorder,
   managedRootSupportsThreadLaunchMetadata,
   __resetManagedRootLaunchMetadataCapabilityForTest,
 } from "./rootLaunchMetadataCapability";
@@ -140,5 +141,34 @@ describe("managed-root launch-metadata capability", () => {
     };
     await expect(managedRootSupportsThreadLaunchMetadata()).resolves.toBe(true);
     await expect(managedRootSupportsProjectCommandResults()).resolves.toBe(false);
+  });
+
+  it("requires flatThreadReorder v1 even when catalogMutations v1 is advertised", async () => {
+    for (const capability of [undefined, { versions: [2] }, { versions: [1] }]) {
+      transport.activation = {
+        seq: (transport.activation?.seq ?? 0) + 1,
+        client: {
+          environment: async () => ({
+            capabilities: {
+              catalogMutations: { versions: [1] },
+              ...(capability ? { flatThreadReorder: capability } : {}),
+            },
+          }),
+        },
+      };
+      await expect(managedRootSupportsFlatThreadReorder()).resolves.toBe(
+        capability?.versions.includes(1) === true,
+      );
+    }
+  });
+
+  it("never hands a retired host's flat reorder capability to its successor", async () => {
+    const descriptor = Promise.withResolvers<unknown>();
+    transport.activation = { seq: 20, client: { environment: () => descriptor.promise } };
+    const supported = managedRootSupportsFlatThreadReorder();
+    activate({ versions: [] });
+    descriptor.resolve({ capabilities: { flatThreadReorder: { versions: [1] } } });
+    await expect(supported).resolves.toBe(false);
+    await expect(managedRootSupportsFlatThreadReorder()).resolves.toBe(false);
   });
 });

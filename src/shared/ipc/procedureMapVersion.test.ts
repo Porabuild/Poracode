@@ -53,7 +53,11 @@ import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
 // a supervisor `settings-edits-requested` event; not in the remote allowlist,
 // no renderer call path). Every peer loud-rejects unknown names and no
 // existing name, payload, or transport changed, so hop 17 stays.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:8664e19c9e525f2524bdfe04e93422848581b4ad1f3ea1b7d53b895c9bdfe2ab`;
+// Master integration: additive session-import supervisor names use the existing
+// checked envelope. Older peers loud-reject unknown names; no existing name,
+// transport or payload changed. Local filesystem import stays outside the remote
+// allowlist, so hop 17 remains compatible after this explicit map review.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:b0d05092a26c7af2de7c2e6b04d4e6f4f2f42a1a4e89f52d9d7f8f16103b6f0d`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

@@ -311,7 +311,7 @@ export async function removeStagedPluginDir(
 // inside the user's real `~/.codex/`, or leave the symlink behind so the
 // parent dir reports ENOTEMPTY. Walk the tree ourselves, lstat every entry,
 // and remove links via their own inode without ever following them.
-function removeWithoutFollowingSymlinks(target: string): void {
+export function removeWithoutFollowingSymlinks(target: string): void {
   let stat;
   try {
     stat = lstatSync(target);

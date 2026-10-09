@@ -100,12 +100,21 @@ export async function codexAppServerPoolKey(
   mcpServers: readonly ResolvedMcpServer[],
   wslExecPath?: string,
   wslNodePath?: string,
+  env?: Record<string, string>,
 ): Promise<string> {
+  // A profile's `CODEX_HOME` selects the account the app-server runs as, so
+  // profiles must never share a pooled server with each other or the base.
+  const envFingerprint = env
+    ? createHash("sha256")
+        .update(JSON.stringify(Object.entries(env).toSorted(([a], [b]) => a.localeCompare(b))))
+        .digest("hex")
+    : "";
   return [
     executionRuntimeKey(location),
     wslExecPath ?? "",
     wslNodePath ?? "",
     await poolFingerprint(location, mcpServers),
+    envFingerprint,
   ].join("|");
 }
 
@@ -136,6 +145,7 @@ async function spawnAndWire(
       ...(wslExecPath !== undefined ? { wslExecPath } : {}),
       ...(wslNodePath !== undefined ? { wslNodePath } : {}),
       ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
+      ...(input.env ? { env: input.env } : {}),
       includeMcpConfig: false,
     }),
   );
@@ -202,6 +212,7 @@ export async function acquireCodexAppServer(
       mcpServers,
       wslExecPath,
       wslNodePath,
+      input.env,
     );
     let entry = pool.get(key);
     if (!entry) {

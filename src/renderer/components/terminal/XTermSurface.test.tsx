@@ -1,4 +1,6 @@
 import { act, screen } from "@testing-library/react";
+import { THEME_SPECS } from "@/renderer/theme/themePresets";
+import * as terminalColors from "./terminalColors";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -330,6 +332,44 @@ describe("XTermSurface", () => {
     resetXtermInstanceCacheForTests();
     vi.restoreAllMocks();
     state.eventListeners = [];
+  });
+
+  it("refreshes terminal colors when the active custom palette is edited in place", async () => {
+    const previous = useSharedSettings.getState();
+    const root = document.documentElement;
+    const originalBg = root.style.getPropertyValue("--content-background");
+    const custom = {
+      ...THEME_SPECS[0]!,
+      version: 1 as const,
+      id: "custom:terminal",
+      label: "Terminal palette",
+    };
+    vi.spyOn(terminalColors, "resolveTerminalColor").mockImplementation((color) => color || null);
+    try {
+      useSharedSettings.setState({ themePreset: custom.id, customThemes: [custom] });
+      root.style.setProperty("--content-background", "#101010");
+      render(<XTermSurface terminalId="custom-theme-terminal" />);
+      await flushFrame();
+      expect(state.terminalOptions?.theme).toMatchObject({ background: "#101010" });
+      const existingTerminal = state.terminal;
+      act(() => {
+        root.style.setProperty("--content-background", "#202020");
+        useSharedSettings.setState({
+          customThemes: [{ ...custom, dark: { ...custom.dark, content: "#202020" } }],
+        });
+      });
+      await flushFrame();
+      expect(state.terminalOptions?.theme).toMatchObject({ background: "#202020" });
+      expect(state.terminal).toBe(existingTerminal);
+    } finally {
+      act(() =>
+        useSharedSettings.setState({
+          themePreset: previous.themePreset,
+          customThemes: previous.customThemes,
+        }),
+      );
+      root.style.setProperty("--content-background", originalBg);
+    }
   });
 
   // ── Lifecycle ─────────────────────────────────────────────────

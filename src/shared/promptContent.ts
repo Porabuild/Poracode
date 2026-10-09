@@ -156,6 +156,10 @@ export function isPdfPath(path: string, mimeType?: string): boolean {
   return mimeType === "application/pdf" || getExtension(path) === "pdf";
 }
 
+export function isSvgPath(path: string): boolean {
+  return getExtension(path) === "svg";
+}
+
 /**
  * Encode an absolute filesystem path for use in a URL path (file:// or
  * poracode-local://). Segments are percent-encoded so spaces and literal `%`

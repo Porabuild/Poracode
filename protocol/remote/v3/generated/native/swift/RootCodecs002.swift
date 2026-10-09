@@ -185,7 +185,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_891da1f8b8> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_891da1f8b84c50ae)
+  static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_abc9812a84> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_abc9812a8476a839)
 }
 
 public extension RemoteRootCodecs {
@@ -269,7 +269,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ERestoreToRevertAnchorU2ERequest: RemoteRootCodec<ProcedurerestoreToRevertAnchorRequest_dea1ab7707> = .init(id: "procedure.restoreToRevertAnchor.request", schema: RemoteSchemas.schema_dea1ab7707452a86)
+  static let procedureU2ERestoreToRevertAnchorU2ERequest: RemoteRootCodec<ProcedurerestoreToRevertAnchorRequest_d1482aea00> = .init(id: "procedure.restoreToRevertAnchor.request", schema: RemoteSchemas.schema_d1482aea00f4c310)
 }
 
 public extension RemoteRootCodecs {
@@ -277,7 +277,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ERollbackThreadConversationU2ERequest: RemoteRootCodec<ProcedurerollbackThreadConversationRequest_53e4143ffe> = .init(id: "procedure.rollbackThreadConversation.request", schema: RemoteSchemas.schema_53e4143ffe216d6e)
+  static let procedureU2ERollbackThreadConversationU2ERequest: RemoteRootCodec<ProcedurerollbackThreadConversationRequest_536f7d46d8> = .init(id: "procedure.rollbackThreadConversation.request", schema: RemoteSchemas.schema_536f7d46d82f480f)
 }
 
 public extension RemoteRootCodecs {
@@ -313,7 +313,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_15b0ba8c12> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_15b0ba8c12388bbc)
+  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_3ff5afa3da> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_3ff5afa3da26e02a)
 }
 
 public extension RemoteRootCodecs {

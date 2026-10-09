@@ -22,7 +22,7 @@ import { useProjectMenu } from "./useProjectMenu";
 
 /**
  * Menu id of the "All projects" reset row. Real project ids are generated and
- * can't collide with this sentinel (mirrors `FLAT_LIST_SCOPE = "__flat__"`).
+ * can't collide with this sentinel (mirrors `FLAT_THREAD_LIST_ID = "__flat__"`).
  */
 const ALL_PROJECTS_KEY = "__all__";
 

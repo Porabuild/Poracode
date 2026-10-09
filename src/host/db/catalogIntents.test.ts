@@ -13,7 +13,13 @@ import {
   dbSetProjectWorkspace,
   dbSetThreadWorkspace,
 } from "./catalogIntents";
-import { dbGetProjects, dbGetThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
+import {
+  dbGetProjects,
+  dbGetThread,
+  dbGetThreads,
+  dbUpsertProject,
+  dbUpsertThread,
+} from "./projectsThreads";
 import { onProjectThreadDataChanged } from "./projectThreadChanges";
 import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
 
@@ -215,6 +221,149 @@ describe.skipIf(!sqliteAvailable)("catalogIntents (real sqlite)", () => {
       ["t5", "q1"].forEach((id, index) => {
         expect(threadRowSnapshot(id)).toBe(untouched[index]);
       });
+    });
+
+    it("persists an explicit catalog move across projects without changing any row data", () => {
+      getSqlite().prepare("UPDATE threads SET sort_order = 5 WHERE id = 'q1'").run();
+      const before = dbGetThreads();
+      const untouched = threadRowSnapshot("t1");
+      const committed = vi.fn<() => void>();
+      expect(
+        dbReorderThreadBlockRelative(
+          {
+            projectId: "p2",
+            anchorThreadId: "q1",
+            threadIds: ["q1"],
+            targetThreadId: "t2",
+            placement: "before",
+            scope: "catalog",
+          },
+          committed,
+        ),
+      ).toEqual({ status: "applied", changed: 5 });
+      expect(committed).toHaveBeenCalledTimes(1);
+      expect(dbGetThreads().map((thread) => thread.id)).toEqual([
+        "t1",
+        "q1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+      ]);
+      expect(threadRowSnapshot("t1")).toBe(untouched);
+      for (const thread of before) expect(dbGetThread(thread.id)).toEqual(thread);
+
+      closeDatabase();
+      initDatabase(join(dir, "state.sqlite"));
+      expect(dbGetThreads().map((thread) => thread.id)).toEqual([
+        "t1",
+        "q1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+      ]);
+      expect([...threadSortOrders().entries()].sort((left, right) => left[1] - right[1])).toEqual([
+        ["t1", 0],
+        ["q1", 1],
+        ["t2", 2],
+        ["t3", 3],
+        ["t4", 4],
+        ["t5", 5],
+      ]);
+      for (const thread of before) expect(dbGetThread(thread.id)).toEqual(thread);
+    });
+
+    it("moves within one project in flat order over interleaved host rows", () => {
+      getSqlite().prepare("UPDATE threads SET sort_order = 2.5 WHERE id = 'q1'").run();
+      expect(
+        dbReorderThreadBlockRelative({
+          projectId: "p1",
+          anchorThreadId: "t4",
+          threadIds: ["t4"],
+          targetThreadId: "t1",
+          placement: "before",
+          scope: "catalog",
+        }),
+      ).toMatchObject({ status: "applied" });
+      expect(dbGetThreads().map((thread) => thread.id)).toEqual([
+        "t4",
+        "t1",
+        "t2",
+        "t3",
+        "q1",
+        "t5",
+      ]);
+    });
+
+    it("keeps the default project guard and validates source membership under catalog scope", () => {
+      const before = ["t1", "t2", "t3", "t4", "t5", "q1"].map(threadRowSnapshot);
+      const input = {
+        projectId: "p1",
+        anchorThreadId: "t1",
+        threadIds: ["t1"],
+        targetThreadId: "q1",
+        placement: "before" as const,
+      };
+      const committed = vi.fn<() => void>();
+      for (const scope of [undefined, "project"] as const) {
+        expect(
+          dbReorderThreadBlockRelative({ ...input, ...(scope ? { scope } : {}) }, committed),
+        ).toEqual({
+          status: "project_mismatch",
+          threadIds: ["q1"],
+        });
+      }
+      expect(
+        dbReorderThreadBlockRelative({ ...input, projectId: "p2", scope: "catalog" }, committed),
+      ).toEqual({
+        status: "project_mismatch",
+        threadIds: ["t1"],
+      });
+      expect(
+        dbReorderThreadBlockRelative(
+          { ...input, targetThreadId: "missing", scope: "catalog" },
+          committed,
+        ),
+      ).toEqual({
+        status: "thread_missing",
+        threadIds: ["missing"],
+      });
+      expect(
+        dbReorderThreadBlockRelative(
+          { ...input, targetThreadId: "t1", scope: "catalog" },
+          committed,
+        ),
+      ).toEqual({ status: "noop" });
+      expect(committed).not.toHaveBeenCalled();
+      expect(["t1", "t2", "t3", "t4", "t5", "q1"].map(threadRowSnapshot)).toEqual(before);
+    });
+
+    it("renumbers colliding catalog keys in host order and preserves all metadata", () => {
+      getSqlite().prepare("UPDATE threads SET sort_order = 0").run();
+      const before = dbGetThreads();
+      expect(
+        dbReorderThreadBlockRelative({
+          projectId: "p1",
+          anchorThreadId: "t4",
+          threadIds: ["t4"],
+          targetThreadId: "q1",
+          placement: "before",
+          scope: "catalog",
+        }),
+      ).toMatchObject({ status: "applied" });
+      expect(dbGetThreads().map((thread) => thread.id)).toEqual([
+        "t4",
+        "q1",
+        "t1",
+        "t2",
+        "t3",
+        "t5",
+      ]);
+      expect([...threadSortOrders().values()].sort((left, right) => left - right)).toEqual([
+        0, 1, 2, 3, 4, 5,
+      ]);
+      for (const thread of before) expect(dbGetThread(thread.id)).toEqual(thread);
     });
 
     it("moves a multi-entry block and preserves its authoritative internal order", () => {

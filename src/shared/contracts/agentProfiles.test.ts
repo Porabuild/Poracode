@@ -10,12 +10,19 @@ import {
   parseAgentProfileKind,
   setProfileEnvironmentPayloadSchema,
 } from "./agentProfiles";
-import { claudeProfileKind, cursorProfileKind } from "./agentInstance";
+import { claudeProfileKind, codexProfileKind, cursorProfileKind } from "./agentInstance";
 
 describe("agent profile drivers", () => {
   it("keeps the per-provider kind helpers and the generic builder in agreement", () => {
     expect(agentProfileKind("claude", "work")).toBe(claudeProfileKind("work"));
     expect(agentProfileKind("cursor", "work")).toBe(cursorProfileKind("work"));
+    expect(agentProfileKind("codex", "work")).toBe(codexProfileKind("work"));
+  });
+
+  it("registers codex as a profile driver without a credential env var", () => {
+    expect(isAgentProfileDriver("codex")).toBe(true);
+    expect(agentProfileDriver("codex")).toEqual({ driver: "codex" });
+    expect(parseAgentProfileKind("codex:work")).toEqual({ driver: "codex", instanceId: "work" });
   });
 
   it("recognises every registered driver and nothing else", () => {

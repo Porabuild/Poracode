@@ -17,6 +17,8 @@ import { openThread } from "./actions/threadActions";
 import { applyForwardedRemoteThreadCommand } from "./actions/remoteThreadCommandApplication";
 import { isProjectedRemoteEntityId } from "./state/remoteProjection";
 import { pruneLiveObservedCrossagentItems } from "./state/slices/staleSubAgents";
+import { closeExitedShell } from "./actions/terminalTabActions";
+import { onRemoteTerminalExited } from "./state/remoteTerminalFeed";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
@@ -124,7 +126,7 @@ const supervisorReducer = createSupervisorEventReducer({
     if (event.type === "thread-output") {
       useDevTerminalStore.getState().noteShellOutput(event.threadId);
     } else if (event.type === "thread-exited") {
-      useDevTerminalStore.getState().markShellExited(event.threadId);
+      closeExitedShell(event.threadId);
     }
   },
   onThreadOutput: (threadId, data) => useThreadOutputStore.getState().appendOutput(threadId, data),
@@ -248,6 +250,9 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           ...(sequenceSpace !== undefined ? { sequenceSpace } : {}),
         }),
       ),
+      onRemoteTerminalExited((terminalId) => {
+        if (terminalId.startsWith("shell:")) closeExitedShell(terminalId);
+      }),
       // Backend reset (V5 2.5): the relay sequence space restarts with a new
       // backend child. The transport drops its dedupe cursor and rebuilds;
       // here the in-flight recovery state is invalidated so no stale

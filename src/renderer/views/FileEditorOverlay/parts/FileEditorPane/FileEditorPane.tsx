@@ -110,7 +110,7 @@ export function FileEditorPane(props: {
       {props.showTabs ? (
         <TabStripHeader
           isDirty={isDirty}
-          isMarkdown={hasSourcePreview}
+          hasRenderedView={hasSourcePreview}
           showPreview={showPreview}
           onTogglePreview={togglePreview}
           activePath={activePath}
@@ -137,7 +137,7 @@ export function FileEditorPane(props: {
               </span>
               <div className="flex-1" />
               <EditorToolbar
-                isMarkdown={hasSourcePreview}
+                hasRenderedView={hasSourcePreview}
                 showPreview={showPreview}
                 onTogglePreview={togglePreview}
                 isDirty={isDirty}
@@ -171,7 +171,7 @@ export function FileEditorPane(props: {
 
 function TabStripHeader(props: {
   isDirty: boolean;
-  isMarkdown: boolean;
+  hasRenderedView: boolean;
   showPreview: boolean;
   onTogglePreview: () => void;
   activePath: string | null;
@@ -215,7 +215,7 @@ function TabStripHeader(props: {
 
       <div className="poracode-content-over-drag-region flex items-center gap-1.5">
         <EditorToolbar
-          isMarkdown={props.isMarkdown}
+          hasRenderedView={props.hasRenderedView}
           showPreview={props.showPreview}
           onTogglePreview={props.onTogglePreview}
           isDirty={props.isDirty}

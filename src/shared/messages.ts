@@ -170,6 +170,14 @@ const messages = {
     "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
   "acp.taskNotification.task": "Task {id}",
 
+  // ── Session import ────────────────────────────────────────
+  "codex.sessionInUse":
+    "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again.",
+  "sessionImport.unsupported": "This agent does not support importing sessions.",
+  "sessionImport.unknownTranscript": "This transcript is not in the agent's session store.",
+  "sessionImport.inProgress": "This session is already being imported.",
+  "sessionImport.changedOnDisk": "This session changed on disk. Refresh the list and try again.",
+
   // ── Kimi Code ─────────────────────────────────────────────
   "kimi.credentialsLocked":
     "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",
@@ -590,11 +598,16 @@ export function friendlyErrorWithDetail(err: unknown): { summary: string; detail
     }
   }
 
-  // Supervisor errors cross IPC as source-language strings. Static catalog
-  // messages can be translated exactly without parsing provider error prose.
-  for (const key of Object.keys(messages) as MessageKey[]) {
-    if (rawSummary === messages[key]) return { summary: msg(key), details };
-  }
+  return { summary: localizeCatalogMessage(rawSummary), details };
+}
 
-  return { summary: rawSummary, details };
+/**
+ * Supervisor errors cross IPC as source-language strings. A static catalog
+ * message is translated exactly; anything else is returned unchanged.
+ */
+export function localizeCatalogMessage(raw: string): string {
+  for (const key of Object.keys(messages) as MessageKey[]) {
+    if (raw === messages[key]) return msg(key);
+  }
+  return raw;
 }

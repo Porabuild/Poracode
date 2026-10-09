@@ -115,12 +115,44 @@
           {
             "object": "window",
             "property": "poracode",
-            "message": "Read the Poracode bridge through the client runtime (V5 2.4): readClientRuntime() / hasClientCapability() / hasAnyClientBridge(). Raw reads are allowed only in clientRuntime.ts (accessor owner), the installers/facades that materialize the global (bootstrap.ts, bridge.ts, browser/remoteBridge.ts), and RendererCrashScreen.tsx (crash-path diagnostics must read the raw preload globals before the runtime is installed — readBridge()/readClientRuntime() throw in that window and no accessor exposes appVersion/electronVersion/platform/isDev)."
+            "message": "Read the Poracode bridge through the client runtime (V5 2.4): readClientRuntime() / hasClientCapability() / hasAnyClientBridge(). Raw reads are allowed only in clientRuntime.ts (accessor owner), the installers/facades that materialize the global (bootstrap.ts, bridge.ts, browser/remoteBridge.ts), and RendererCrashScreen.tsx (crash-path diagnostics must read the raw preload globals before the runtime is installed \u2014 readBridge()/readClientRuntime() throw in that window and no accessor exposes appVersion/electronVersion/platform/isDev)."
           },
           {
             "object": "window",
             "property": "poracodeHost",
-            "message": "Read the Electron shell fact through the client runtime (V5 2.4): hasElectronHostBridge() — or, for host service availability, hasClientCapability()/hostCapabilities, never the host kind. Raw reads are allowed only in clientRuntime.ts (accessor owner), the installers/facades that materialize the global (bootstrap.ts, bridge.ts, browser/remoteBridge.ts), and RendererCrashScreen.tsx (crash-path diagnostics must read the raw preload globals before the runtime is installed — readBridge()/readClientRuntime() throw in that window and no accessor exposes appVersion/electronVersion/platform/isDev)."
+            "message": "Read the Electron shell fact through the client runtime (V5 2.4): hasElectronHostBridge() \u2014 or, for host service availability, hasClientCapability()/hostCapabilities, never the host kind. Raw reads are allowed only in clientRuntime.ts (accessor owner), the installers/facades that materialize the global (bootstrap.ts, bridge.ts, browser/remoteBridge.ts), and RendererCrashScreen.tsx (crash-path diagnostics must read the raw preload globals before the runtime is installed \u2014 readBridge()/readClientRuntime() throw in that window and no accessor exposes appVersion/electronVersion/platform/isDev)."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/main/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/supervisor/**"],
+                "message": "Main reaches supervisor-owned features through supervisor IPC, never by import."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/supervisor/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/main/**"],
+                "message": "The supervisor runs in its own process and must not import Electron main modules."
+              }
+            ]
           }
         ]
       }

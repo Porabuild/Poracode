@@ -7,11 +7,13 @@ const settingsState: {
   themeMode: ThemeMode;
   themePreset: string;
   sidebarTranslucency: boolean;
+  customThemes: import("@/shared/customThemes").CustomTheme[];
   sidebarGlassTint: { light: number | null; dark: number | null };
 } = {
   themeMode: "system",
   themePreset: "default",
   sidebarTranslucency: false,
+  customThemes: [],
   sidebarGlassTint: { light: null, dark: null },
 };
 
@@ -59,6 +61,7 @@ beforeEach(() => {
   settingsState.sidebarTranslucency = false;
   runtime.browser = false;
   runtime.remote = false;
+  settingsState.customThemes = [];
   document.documentElement.classList.remove("light", "dark");
   delete document.documentElement.dataset.sidebarGlass;
   delete document.documentElement.dataset.nativeMaterial;

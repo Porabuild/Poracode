@@ -782,6 +782,25 @@
             "fast": {
               "type": "boolean"
             },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "mode": {
               "enum": [
                 "agent",
@@ -1318,6 +1337,25 @@
             },
             "fast": {
               "type": "boolean"
+            },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "mode": {
               "enum": [
@@ -3161,6 +3199,25 @@
             },
             "fast": {
               "type": "boolean"
+            },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "mode": {
               "enum": [
@@ -16413,6 +16470,25 @@
             "fast": {
               "type": "boolean"
             },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "mode": {
               "enum": [
                 "agent",
@@ -17913,6 +17989,25 @@
             "fast": {
               "type": "boolean"
             },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "mode": {
               "enum": [
                 "agent",
@@ -18189,6 +18284,25 @@
             },
             "fast": {
               "type": "boolean"
+            },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "mode": {
               "enum": [
@@ -20104,6 +20218,25 @@
             },
             "fast": {
               "type": "boolean"
+            },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "mode": {
               "enum": [
@@ -26201,6 +26334,19 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
+            "flatThreadReorder": {
+              "additionalProperties": true,
+              "properties": {
+                "versions": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "versions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "projectCommandResults": {
               "additionalProperties": true,
               "properties": {
@@ -28039,6 +28185,19 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
+            "flatThreadReorder": {
+              "additionalProperties": true,
+              "properties": {
+                "versions": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "versions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "projectCommandResults": {
               "additionalProperties": true,
               "properties": {
@@ -28765,6 +28924,25 @@
                 },
                 "fast": {
                   "type": "boolean"
+                },
+                "importedFrom": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "importedAt": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "path": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "importedAt"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
                 },
                 "mode": {
                   "enum": [
@@ -34833,6 +35011,25 @@
                     "fast": {
                       "type": "boolean"
                     },
+                    "importedFrom": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "importedAt": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "path": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "importedAt"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
                     "mode": {
                       "enum": [
                         "agent",
@@ -35116,6 +35313,25 @@
                 },
                 "fast": {
                   "type": "boolean"
+                },
+                "importedFrom": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "importedAt": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "path": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "importedAt"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
                 },
                 "mode": {
                   "enum": [
@@ -35706,6 +35922,25 @@
                   },
                   "fast": {
                     "type": "boolean"
+                  },
+                  "importedFrom": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "importedAt": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "path": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "importedAt"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
                   },
                   "mode": {
                     "enum": [
@@ -40405,10 +40640,29 @@
           "x-poracode-unknownFields": "strip"
         },
         "__schema26": {
+          "additionalProperties": true,
+          "properties": {
+            "importedAt": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "path": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "importedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema27": {
           "minLength": 1,
           "type": "string"
         },
-        "__schema27": {
+        "__schema28": {
           "oneOf": [
             {
               "additionalProperties": true,
@@ -40417,7 +40671,7 @@
                   "$ref": "#/$defs/__schema0"
                 },
                 "path": {
-                  "$ref": "#/$defs/__schema28"
+                  "$ref": "#/$defs/__schema29"
                 },
                 "remoteServerId": {
                   "$ref": "#/$defs/__schema1"
@@ -40440,7 +40694,7 @@
                   "$ref": "#/$defs/__schema2"
                 },
                 "linuxPath": {
-                  "$ref": "#/$defs/__schema28"
+                  "$ref": "#/$defs/__schema29"
                 },
                 "remoteServerId": {
                   "$ref": "#/$defs/__schema5"
@@ -40465,7 +40719,7 @@
                   "$ref": "#/$defs/__schema6"
                 },
                 "path": {
-                  "$ref": "#/$defs/__schema28"
+                  "$ref": "#/$defs/__schema29"
                 },
                 "remoteServerId": {
                   "$ref": "#/$defs/__schema7"
@@ -40480,12 +40734,9 @@
             }
           ]
         },
-        "__schema28": {
+        "__schema29": {
           "maxLength": 4096,
           "minLength": 1,
-          "type": "string"
-        },
-        "__schema29": {
           "type": "string"
         },
         "__schema3": {
@@ -40496,6 +40747,9 @@
           "type": "string"
         },
         "__schema31": {
+          "type": "string"
+        },
+        "__schema32": {
           "enum": [
             "model",
             "effort",
@@ -40506,7 +40760,7 @@
           ],
           "type": "string"
         },
-        "__schema32": {
+        "__schema33": {
           "additionalProperties": true,
           "properties": {
             "hostId": {
@@ -40523,21 +40777,21 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema33": {
+        "__schema34": {
           "additionalProperties": true,
           "properties": {
             "ahead": {
-              "$ref": "#/$defs/__schema34"
+              "$ref": "#/$defs/__schema35"
             },
             "behind": {
-              "$ref": "#/$defs/__schema34"
+              "$ref": "#/$defs/__schema35"
             },
             "branch": {
               "type": "string"
             },
             "conflictFiles": {
               "items": {
-                "$ref": "#/$defs/__schema35"
+                "$ref": "#/$defs/__schema36"
               },
               "type": "array"
             },
@@ -40603,22 +40857,22 @@
             },
             "staged": {
               "items": {
-                "$ref": "#/$defs/__schema35"
+                "$ref": "#/$defs/__schema36"
               },
               "type": "array"
             },
             "totalDeletions": {
-              "$ref": "#/$defs/__schema34"
+              "$ref": "#/$defs/__schema35"
             },
             "totalInsertions": {
-              "$ref": "#/$defs/__schema34"
+              "$ref": "#/$defs/__schema35"
             },
             "tracking": {
               "type": "string"
             },
             "unstaged": {
               "items": {
-                "$ref": "#/$defs/__schema35"
+                "$ref": "#/$defs/__schema36"
               },
               "type": "array"
             }
@@ -40639,19 +40893,19 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema34": {
+        "__schema35": {
           "maximum": 9007199254740991,
           "minimum": -9007199254740991,
           "type": "integer"
         },
-        "__schema35": {
+        "__schema36": {
           "additionalProperties": true,
           "properties": {
             "deletions": {
-              "$ref": "#/$defs/__schema34"
+              "$ref": "#/$defs/__schema35"
             },
             "insertions": {
-              "$ref": "#/$defs/__schema34"
+              "$ref": "#/$defs/__schema35"
             },
             "oldPath": {
               "type": "string"
@@ -40676,12 +40930,12 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema36": {
+        "__schema37": {
           "exclusiveMinimum": 0,
           "maximum": 9007199254740991,
           "type": "integer"
         },
-        "__schema37": {
+        "__schema38": {
           "additionalProperties": true,
           "properties": {
             "avatarUrl": {
@@ -40697,11 +40951,11 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema38": {
+        "__schema39": {
           "additionalProperties": true,
           "properties": {
             "author": {
-              "$ref": "#/$defs/__schema37"
+              "$ref": "#/$defs/__schema38"
             },
             "body": {
               "type": "string"
@@ -40759,7 +41013,7 @@
                 "additionalProperties": true,
                 "properties": {
                   "project": {
-                    "$ref": "#/$defs/__schema32"
+                    "$ref": "#/$defs/__schema33"
                   },
                   "pullRequestKeys": {
                     "items": {
@@ -40840,13 +41094,13 @@
                     "type": "boolean"
                   },
                   "ref": {
-                    "$ref": "#/$defs/__schema32"
+                    "$ref": "#/$defs/__schema33"
                   },
                   "refreshedAt": {
                     "type": "string"
                   },
                   "status": {
-                    "$ref": "#/$defs/__schema33"
+                    "$ref": "#/$defs/__schema34"
                   },
                   "worktrees": {
                     "items": {
@@ -40939,7 +41193,7 @@
                         "type": "string"
                       },
                       "number": {
-                        "$ref": "#/$defs/__schema36"
+                        "$ref": "#/$defs/__schema37"
                       },
                       "reviewDecision": {
                         "type": "string"
@@ -40982,10 +41236,10 @@
                     "additionalProperties": true,
                     "properties": {
                       "additions": {
-                        "$ref": "#/$defs/__schema34"
+                        "$ref": "#/$defs/__schema35"
                       },
                       "author": {
-                        "$ref": "#/$defs/__schema37"
+                        "$ref": "#/$defs/__schema38"
                       },
                       "baseBranch": {
                         "type": "string"
@@ -40994,7 +41248,7 @@
                         "type": "string"
                       },
                       "changedFiles": {
-                        "$ref": "#/$defs/__schema34"
+                        "$ref": "#/$defs/__schema35"
                       },
                       "checks": {
                         "items": {
@@ -41044,7 +41298,7 @@
                       },
                       "comments": {
                         "items": {
-                          "$ref": "#/$defs/__schema38"
+                          "$ref": "#/$defs/__schema39"
                         },
                         "type": "array"
                       },
@@ -41056,7 +41310,7 @@
                               "type": "string"
                             },
                             "author": {
-                              "$ref": "#/$defs/__schema37"
+                              "$ref": "#/$defs/__schema38"
                             },
                             "authoredDate": {
                               "type": "string"
@@ -41089,7 +41343,7 @@
                         "type": "string"
                       },
                       "deletions": {
-                        "$ref": "#/$defs/__schema34"
+                        "$ref": "#/$defs/__schema35"
                       },
                       "headBranch": {
                         "type": "string"
@@ -41107,7 +41361,7 @@
                       "mergedBy": {
                         "anyOf": [
                           {
-                            "$ref": "#/$defs/__schema37"
+                            "$ref": "#/$defs/__schema38"
                           },
                           {
                             "type": "null"
@@ -41115,14 +41369,14 @@
                         ]
                       },
                       "number": {
-                        "$ref": "#/$defs/__schema36"
+                        "$ref": "#/$defs/__schema37"
                       },
                       "reviews": {
                         "items": {
                           "additionalProperties": true,
                           "properties": {
                             "author": {
-                              "$ref": "#/$defs/__schema37"
+                              "$ref": "#/$defs/__schema38"
                             },
                             "body": {
                               "type": "string"
@@ -41187,10 +41441,10 @@
                       "additionalProperties": true,
                       "properties": {
                         "additions": {
-                          "$ref": "#/$defs/__schema34"
+                          "$ref": "#/$defs/__schema35"
                         },
                         "deletions": {
-                          "$ref": "#/$defs/__schema34"
+                          "$ref": "#/$defs/__schema35"
                         },
                         "path": {
                           "type": "string"
@@ -41257,7 +41511,7 @@
                       "properties": {
                         "comments": {
                           "items": {
-                            "$ref": "#/$defs/__schema38"
+                            "$ref": "#/$defs/__schema39"
                           },
                           "type": "array"
                         },
@@ -41271,7 +41525,7 @@
                           "type": "boolean"
                         },
                         "line": {
-                          "$ref": "#/$defs/__schema34"
+                          "$ref": "#/$defs/__schema35"
                         },
                         "path": {
                           "type": "string"
@@ -41377,7 +41631,7 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "status": {
-                    "$ref": "#/$defs/__schema33"
+                    "$ref": "#/$defs/__schema34"
                   }
                 },
                 "required": [
@@ -41541,7 +41795,7 @@
                 "additionalProperties": true,
                 "properties": {
                   "agentKind": {
-                    "$ref": "#/$defs/__schema26"
+                    "$ref": "#/$defs/__schema27"
                   },
                   "approvalPolicy": {
                     "$ref": "#/$defs/__schema18"
@@ -41572,6 +41826,9 @@
                   },
                   "fast": {
                     "$ref": "#/$defs/__schema10"
+                  },
+                  "importedFrom": {
+                    "$ref": "#/$defs/__schema26"
                   },
                   "mode": {
                     "$ref": "#/$defs/__schema17"
@@ -41908,7 +42165,7 @@
               },
               "additionalDirectories": {
                 "items": {
-                  "$ref": "#/$defs/__schema27"
+                  "$ref": "#/$defs/__schema28"
                 },
                 "maxItems": 16,
                 "type": "array"
@@ -41920,7 +42177,7 @@
                 "type": "string"
               },
               "agentKind": {
-                "$ref": "#/$defs/__schema26"
+                "$ref": "#/$defs/__schema27"
               },
               "archived": {
                 "default": false,
@@ -41976,6 +42233,9 @@
                   },
                   "fast": {
                     "$ref": "#/$defs/__schema10"
+                  },
+                  "importedFrom": {
+                    "$ref": "#/$defs/__schema26"
                   },
                   "mode": {
                     "$ref": "#/$defs/__schema17"
@@ -42068,7 +42328,7 @@
                           "additionalProperties": true,
                           "properties": {
                             "category": {
-                              "$ref": "#/$defs/__schema30"
+                              "$ref": "#/$defs/__schema31"
                             },
                             "currentValue": {
                               "type": "string"
@@ -42096,10 +42356,10 @@
                               "type": "string"
                             },
                             "name": {
-                              "$ref": "#/$defs/__schema29"
+                              "$ref": "#/$defs/__schema30"
                             },
                             "role": {
-                              "$ref": "#/$defs/__schema31"
+                              "$ref": "#/$defs/__schema32"
                             },
                             "type": {
                               "const": "select",
@@ -42141,7 +42401,7 @@
                           "additionalProperties": true,
                           "properties": {
                             "category": {
-                              "$ref": "#/$defs/__schema30"
+                              "$ref": "#/$defs/__schema31"
                             },
                             "currentValue": {
                               "type": "boolean"
@@ -42150,10 +42410,10 @@
                               "type": "string"
                             },
                             "name": {
-                              "$ref": "#/$defs/__schema29"
+                              "$ref": "#/$defs/__schema30"
                             },
                             "role": {
-                              "$ref": "#/$defs/__schema31"
+                              "$ref": "#/$defs/__schema32"
                             },
                             "type": {
                               "const": "boolean",
@@ -42172,7 +42432,7 @@
                           "additionalProperties": true,
                           "properties": {
                             "category": {
-                              "$ref": "#/$defs/__schema30"
+                              "$ref": "#/$defs/__schema31"
                             },
                             "controlType": {
                               "type": "string"
@@ -42181,10 +42441,10 @@
                               "type": "string"
                             },
                             "name": {
-                              "$ref": "#/$defs/__schema29"
+                              "$ref": "#/$defs/__schema30"
                             },
                             "role": {
-                              "$ref": "#/$defs/__schema31"
+                              "$ref": "#/$defs/__schema32"
                             },
                             "type": {
                               "const": "unsupported",
@@ -42856,6 +43116,13 @@
         "__schema6": {
           "minLength": 1,
           "type": "string"
+        },
+        "__schema7": {
+          "enum": [
+            "before",
+            "after"
+          ],
+          "type": "string"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -42981,6 +43248,25 @@
                 },
                 "fast": {
                   "type": "boolean"
+                },
+                "importedFrom": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "importedAt": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "path": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "importedAt"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
                 },
                 "mode": {
                   "enum": [
@@ -43697,11 +43983,7 @@
               "type": "string"
             },
             "placement": {
-              "enum": [
-                "before",
-                "after"
-              ],
-              "type": "string"
+              "$ref": "#/$defs/__schema7"
             },
             "projectId": {
               "minLength": 1,
@@ -43723,6 +44005,34 @@
             "kind",
             "projectId",
             "threadIds",
+            "targetThreadId",
+            "placement"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "reorder-flat",
+              "type": "string"
+            },
+            "placement": {
+              "$ref": "#/$defs/__schema7"
+            },
+            "projectId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "targetThreadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "projectId",
             "targetThreadId",
             "placement"
           ],
@@ -44863,6 +45173,25 @@
                 "fast": {
                   "type": "boolean"
                 },
+                "importedFrom": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "importedAt": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "path": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "importedAt"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
                 "mode": {
                   "enum": [
                     "agent",
@@ -45916,6 +46245,25 @@
                   },
                   "fast": {
                     "type": "boolean"
+                  },
+                  "importedFrom": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "importedAt": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "path": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "importedAt"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
                   },
                   "mode": {
                     "enum": [
@@ -47037,6 +47385,25 @@
             "fast": {
               "type": "boolean"
             },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "mode": {
               "enum": [
                 "agent",
@@ -47696,6 +48063,25 @@
             },
             "fast": {
               "type": "boolean"
+            },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "mode": {
               "enum": [
@@ -48529,6 +48915,25 @@
             "fast": {
               "type": "boolean"
             },
+            "importedFrom": {
+              "additionalProperties": true,
+              "properties": {
+                "importedAt": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "importedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "mode": {
               "enum": [
                 "agent",
@@ -49195,5 +49600,5 @@
   },
   "manifestHash": "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
   "protocolVersion": 13,
-  "sourceHash": "sha256:7de70d42d86eee3cffe4f7f67c10dbb5b6c41607404c46bdd8b6986432c90e55"
+  "sourceHash": "sha256:b23c8ef169d77dee59c6a3b0e245064fd41d68a6e77518019cae790ea57e0a01"
 }

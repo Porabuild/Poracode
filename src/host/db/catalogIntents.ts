@@ -216,9 +216,11 @@ export function dbReorderProjectRelative(
 }
 
 /**
- * Relative move of a contiguous thread block within one project. The block's
- * order is taken from the host's own sequence, the target must belong to the
- * same project, and the route's path anchor must be the block's first entry.
+ * Relative move of a contiguous thread block, project-only by default. The
+ * explicit `catalog` scope is reserved for `reorder-flat`: its target may be
+ * in another project, but every source still must belong to projectId. The
+ * block's order comes from the host's sequence, and the route's path anchor
+ * must be the block's first entry.
  * A target inside the block is a no-op, matching the renderer drag semantics.
  */
 export function dbReorderThreadBlockRelative(
@@ -228,6 +230,7 @@ export function dbReorderThreadBlockRelative(
     readonly threadIds: readonly string[];
     readonly targetThreadId: string;
     readonly placement: CatalogReorderPlacement;
+    readonly scope?: "project" | "catalog";
   },
   onCommitted?: CatalogIntentCommittedSignal,
 ): DbThreadReorderOutcome {
@@ -242,34 +245,39 @@ export function dbReorderThreadBlockRelative(
   const rowsById = new Map(namedRows.map((row) => [row.id, row]));
   const missing = namedIds.filter((id) => !rowsById.has(id));
   if (missing.length > 0) return { status: "thread_missing", threadIds: missing };
-  const mismatched = namedIds.filter((id) => rowsById.get(id)!.projectId !== input.projectId);
+  const catalogScope = input.scope === "catalog";
+  const projectScopedIds = catalogScope ? input.threadIds : namedIds;
+  const mismatched = projectScopedIds.filter(
+    (id) => rowsById.get(id)!.projectId !== input.projectId,
+  );
   if (mismatched.length > 0) return { status: "project_mismatch", threadIds: mismatched };
 
-  const projectRows = dbReadThreadOrderRowsByProject(input.projectId);
-  const projectIds = projectRows.map((row) => row.id);
+  const orderRows = catalogScope
+    ? dbReadAllThreadOrderRows()
+    : dbReadThreadOrderRowsByProject(input.projectId);
+  const scopedIds = orderRows.map((row) => row.id);
   const nextIds = reorderCatalogBlockIds(
-    projectIds,
+    scopedIds,
     input.threadIds,
     input.targetThreadId,
     input.placement,
   );
-  if (nextIds === projectIds) return { status: "noop" };
+  if (nextIds === scopedIds) return { status: "noop" };
 
-  const slotUpdates = planSlotPreservingUpdates(projectRows, nextIds);
+  const slotUpdates = planSlotPreservingUpdates(orderRows, nextIds);
   if (slotUpdates !== null) {
     if (slotUpdates.length === 0) return { status: "noop" };
     applySortOrderUpdates("threads", slotUpdates, onCommitted);
     return { status: "applied", changed: slotUpdates.length };
   }
 
-  // Duplicate ordering values in this project: permute the project's
-  // subsequence into its existing global slots, then renumber the complete
-  // thread order so the result is unambiguous.
-  const allRows = dbReadAllThreadOrderRows();
-  const projectIdSet = new Set(projectIds);
+  // Duplicate keys: put the scoped sequence into its existing global slots
+  // before renumbering. Catalog scope already contains every host row.
+  const allRows = catalogScope ? orderRows : dbReadAllThreadOrderRows();
+  const scopedIdSet = new Set(scopedIds);
   let cursor = 0;
   const nextGlobalIds = allRows.map((row) =>
-    projectIdSet.has(row.id) ? nextIds[cursor++]! : row.id,
+    scopedIdSet.has(row.id) ? nextIds[cursor++]! : row.id,
   );
   const updates = planFullRenumber(allRows, nextGlobalIds);
   if (updates.length === 0) return { status: "noop" };

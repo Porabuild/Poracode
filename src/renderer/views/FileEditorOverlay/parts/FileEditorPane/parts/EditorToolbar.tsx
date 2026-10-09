@@ -7,7 +7,8 @@ import { formatCommandShortcut } from "@/renderer/commands/keybindingMatcher";
 import { EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID } from "@/shared/keybindings";
 
 export function EditorToolbar(props: {
-  isMarkdown: boolean;
+  /** The file has a rendered view (markdown, SVG) the user can toggle to. */
+  hasRenderedView: boolean;
   showPreview: boolean;
   onTogglePreview: () => void;
   isDirty: boolean;
@@ -18,7 +19,7 @@ export function EditorToolbar(props: {
 }) {
   const { t } = useLingui();
   const {
-    isMarkdown,
+    hasRenderedView,
     showPreview,
     onTogglePreview,
     isDirty,
@@ -36,7 +37,7 @@ export function EditorToolbar(props: {
 
   return (
     <>
-      {isMarkdown ? (
+      {hasRenderedView ? (
         <Tooltip delay={300}>
           <Tooltip.Trigger>
             <button

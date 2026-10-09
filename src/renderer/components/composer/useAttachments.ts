@@ -52,6 +52,21 @@ export function storableAttachment(attachment: Attachment): Attachment {
   return rest;
 }
 
+/** Attachment records for already-saved files (picker results, drops, drafts). */
+export function attachmentsFromPaths(paths: readonly string[]): Attachment[] {
+  return paths.map((path): Attachment => {
+    const name = fileNameFromPath(path);
+    const mimeType = mimeForPath(name);
+    return {
+      id: crypto.randomUUID(),
+      path,
+      name,
+      ...(mimeType ? { mimeType } : {}),
+      isImage: isImagePath(name, mimeType),
+    };
+  });
+}
+
 export type SaveClipboardImage = (input: {
   threadId: string;
   data: Uint8Array;
@@ -104,17 +119,7 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   }, []);
 
   function addFiles(paths: string[]) {
-    const newAttachments = paths.map((path): Attachment => {
-      const name = fileNameFromPath(path);
-      const mimeType = mimeForPath(name);
-      return {
-        id: crypto.randomUUID(),
-        path,
-        name,
-        ...(mimeType ? { mimeType } : {}),
-        isImage: isImagePath(name, mimeType),
-      };
-    });
+    const newAttachments = attachmentsFromPaths(paths);
     updateAttachments((prev) => [...prev, ...newAttachments]);
   }
 
@@ -208,6 +213,24 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     updateAttachments(saved.map(storableAttachment));
   }
 
+  /**
+   * Take out the `remove` attachments and put back `add`, as undo and redo of
+   * a restored draft do. Attachments added since then stay. `add` is a stored
+   * copy, so it renders from the durable `path`.
+   */
+  function swap(remove: readonly Attachment[], add: readonly Attachment[]) {
+    const removeIds = new Set(remove.map((attachment) => attachment.id));
+    for (const attachment of attachmentsRef.current) {
+      if (removeIds.has(attachment.id) && attachment.previewUrl) {
+        releasePreviewUrl(attachment.previewUrl);
+      }
+    }
+    updateAttachments((prev) => [
+      ...prev.filter((attachment) => !removeIds.has(attachment.id)),
+      ...add.map(storableAttachment),
+    ]);
+  }
+
   return {
     attachments,
     getAttachments: () => attachmentsRef.current,
@@ -218,5 +241,6 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     clearAll,
     toSegments,
     restore,
+    swap,
   };
 }

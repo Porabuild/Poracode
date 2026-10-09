@@ -1,4 +1,5 @@
 import type { BuiltInMcpServerId } from "@/shared/contracts";
+import type { Attachment } from "@/renderer/components/composer/useAttachments";
 import type { DraftContent, PendingDraftWorktreeSelection } from "./types";
 import type { SliceCreator } from "./shared";
 import { composerDraftStorage } from "../composerDraftStorage";
@@ -45,6 +46,12 @@ export interface DraftSlice {
   consumeDraftContentDiscard: (projectId: string) => boolean;
   saveThreadDraftContent: (threadId: string, content: DraftContent) => void;
   clearThreadDraftContent: (threadId: string) => void;
+  /**
+   * Appends attachments to a thread's saved draft. Used when an async attach
+   * (file picker/upload) finishes after its composer moved to another thread,
+   * so the files reappear when the originating thread is shown again.
+   */
+  appendThreadDraftAttachments: (threadId: string, attachments: readonly Attachment[]) => void;
   setPendingDraftWorktreeSelection: (
     projectId: string,
     selection: PendingDraftWorktreeSelection,
@@ -111,6 +118,22 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
       return { threadDraftContents: rest };
     });
   },
+  appendThreadDraftAttachments: (threadId, attachments) =>
+    set((state) => {
+      if (attachments.length === 0) return {};
+      const draft = state.threadDraftContents[threadId];
+      const content: DraftContent = {
+        segments: draft?.segments ?? [],
+        attachments: [...(draft?.attachments ?? []), ...attachments],
+      };
+      composerDraftStorage()?.save("thread", threadId, content);
+      return {
+        threadDraftContents: {
+          ...state.threadDraftContents,
+          [threadId]: content,
+        },
+      };
+    }),
   setPendingDraftWorktreeSelection: (projectId, selection) =>
     set((state) => ({
       pendingDraftWorktreeSelections: {

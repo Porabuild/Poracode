@@ -257,6 +257,22 @@ export type RemoteCatalogMutationsCapability = z.infer<
 >;
 
 /**
+ * Flat Manual thread order, independent of project membership. Version 1
+ * supports the receipt-guarded `reorder-flat` kind on the existing thread
+ * command route. The source project is validated; the target may belong to
+ * another project on the same host. Older hosts reject this new kind, and
+ * clients must refuse before optimistic paint when the capability is absent.
+ * Existing `reorder` remains project-only under catalogMutations v1.
+ */
+export const REMOTE_FLAT_THREAD_REORDER_VERSION = 1 as const;
+export const remoteFlatThreadReorderCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteFlatThreadReorderCapability = z.infer<
+  typeof remoteFlatThreadReorderCapabilitySchema
+>;
+
+/**
  * Bounded catalog-change notifications (managed-root catalog fix). Version 1
  * lets a connection declare (`catalogChanges=bounded-v1` on the WS upgrade)
  * that it consumes the membership event as a bounded signal and refreshes its
@@ -339,6 +355,7 @@ export const remoteEnvironmentCapabilitiesSchema = z.object({
   sshEnvironments: remoteSshEnvironmentsCapabilitySchema.optional(),
   runtimeHistoryNotices: remoteRuntimeHistoryNoticesCapabilitySchema.optional(),
   catalogMutations: remoteCatalogMutationsCapabilitySchema.optional(),
+  flatThreadReorder: remoteFlatThreadReorderCapabilitySchema.optional(),
   boundedCatalogChanges: remoteBoundedCatalogChangesCapabilitySchema.optional(),
   threadLaunchMetadata: remoteThreadLaunchMetadataCapabilitySchema.optional(),
   projectCommandResults: remoteProjectCommandResultsCapabilitySchema.optional(),

@@ -1,5 +1,13 @@
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { copyFileSync as fsCopyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync as fsCopyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,6 +34,7 @@ import {
   parseHooksJsonText,
   readWslTextFile,
   removeStagedPluginDir,
+  removeWithoutFollowingSymlinks,
   stagePluginAssetsToWsl,
   writeWslTextFile,
   writeHooksJsonFile,
@@ -34,6 +43,7 @@ import {
   type PluginVerificationTarget,
 } from "../../plugin/installerBase";
 import { resolveCodexNativeExecutableForWindows } from "../windowsExecutable";
+import { refreshProfileOverlayState } from "./profileOverlay";
 
 export interface CodexPluginPaths {
   pluginDir: string;
@@ -80,12 +90,36 @@ export function readBundledCodexPluginVersion(): string {
 }
 
 /**
+ * A Codex profile's hook overlay. Profiles keep their own `CODEX_HOME`
+ * (`sourceHomeDir`: auth, config, sessions), so Poracode stages a separate
+ * private home per profile under `<pluginDir>/profiles/<profileId>/home`,
+ * linked back to `sourceHomeDir` the same way the base overlay links to
+ * `~/.codex`. Native contexts only — WSL profiles skip the hook plugin.
+ */
+export interface CodexHomeOverlay {
+  profileId: string;
+  sourceHomeDir: string;
+}
+
+const PROFILE_OVERLAYS_DIR = "profiles";
+
+function overlayHomeDir(pluginDir: string, overlay?: CodexHomeOverlay): string {
+  if (!overlay) return join(pluginDir, "home");
+  // Include the source home so editing a profile cannot reuse links to its old account.
+  const homeKey = createHash("sha256").update(overlay.sourceHomeDir).digest("hex").slice(0, 16);
+  return join(pluginDir, PROFILE_OVERLAYS_DIR, overlay.profileId, homeKey, "home");
+}
+
+/**
  * Resolve Codex's private plugin paths. WSL resolves the home directory
  * through the bounded worker-backed probe, so a caller never receives empty
- * paths that would be pinned into `CODEX_HOME` or `codex plugin list` merely
- * because the sync home cache was cold.
+ * paths merely because the sync home cache was cold. Native profiles use an
+ * account-scoped overlay; WSL profiles run without the hook plugin.
  */
-export async function getCodexPluginPaths(ctx?: AgentEnvContext): Promise<CodexPluginPaths> {
+export async function getCodexPluginPaths(
+  ctx?: AgentEnvContext,
+  overlay?: CodexHomeOverlay,
+): Promise<CodexPluginPaths> {
   if (isWslPluginContext(ctx)) {
     const wsl = await resolveWslPluginBaseDirs(ctx.wslDistro, "codex");
     if (!wsl) {
@@ -99,7 +133,7 @@ export async function getCodexPluginPaths(ctx?: AgentEnvContext): Promise<CodexP
     };
   }
   const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
-  const codexHomeDir = join(pluginDir, "home");
+  const codexHomeDir = overlayHomeDir(pluginDir, overlay);
   let version = "0.0.0";
   try {
     version = readPluginManifest(pluginDir).version;
@@ -180,15 +214,33 @@ const CODEX_LINK_TARGETS = [
   { name: "config.toml", kind: "file" as const },
 ];
 
-function seedNativeCodexHome(codexHomeDir: string): void {
+/**
+ * Create the private overlay home and link the account's state files into it.
+ * Idempotent: existing links are left alone, and state files that did not
+ * exist yet (a profile that signs in after its first launch) are linked the
+ * next time this runs, so profile adapters call it on every launch.
+ *
+ * `profileOverlay` marks a profile's overlay, whose source is the profile's
+ * real `CODEX_HOME`: login/logout happen there, so its state files are
+ * reconciled non-destructively (see `refreshProfileOverlayState`) instead of
+ * being restored from the overlay into the source.
+ */
+export function seedNativeCodexHome(
+  codexHomeDir: string,
+  globalCodexHome: string = join(homedir(), ".codex"),
+  options?: { profileOverlay: boolean },
+): void {
   mkdirSync(codexHomeDir, { recursive: true });
-  const globalCodexHome = join(homedir(), ".codex");
   mkdirSync(join(globalCodexHome, "sessions"), { recursive: true });
   if (!existsSync(join(globalCodexHome, "session_index.jsonl"))) {
     writeFileSync(join(globalCodexHome, "session_index.jsonl"), "", { flag: "a" });
   }
-  restorePrivateStateFile(codexHomeDir, globalCodexHome, "auth.json");
-  restorePrivateStateFile(codexHomeDir, globalCodexHome, "config.toml");
+  if (options?.profileOverlay) {
+    refreshProfileOverlayState(codexHomeDir, globalCodexHome);
+  } else {
+    restorePrivateStateFile(codexHomeDir, globalCodexHome, "auth.json");
+    restorePrivateStateFile(codexHomeDir, globalCodexHome, "config.toml");
+  }
 
   for (const { name, kind } of CODEX_LINK_TARGETS) {
     ensureNativeStateLink(join(globalCodexHome, name), join(codexHomeDir, name), kind);
@@ -323,6 +375,8 @@ export interface InstallCodexPluginOptions {
    *   `ELECTRON_RUN_AS_NODE=1` against the bundled Electron binary.
    */
   resolvedNodePath?: string | undefined;
+  /** Stage the hooks under a profile's private home instead of the base one. */
+  overlay?: CodexHomeOverlay | undefined;
 }
 
 export async function installCodexPlugin(
@@ -355,9 +409,11 @@ export async function installCodexPlugin(
   }
 
   const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
-  const codexHomeDir = join(pluginDir, "home");
+  const codexHomeDir = overlayHomeDir(pluginDir, options?.overlay);
   mkdirSync(pluginDir, { recursive: true });
-  seedNativeCodexHome(codexHomeDir);
+  seedNativeCodexHome(codexHomeDir, options?.overlay?.sourceHomeDir, {
+    profileOverlay: options?.overlay !== undefined,
+  });
   copyPluginAssetsIfStale(sourceDir, pluginDir);
   copyForwardRuntimeFile(pluginDir);
   const wrapperPath = writeNativeHookWrapper(pluginDir, {
@@ -471,17 +527,61 @@ async function installCodexPluginWsl(
 
 export async function isCodexPluginInstalled(
   ctx?: AgentEnvContext,
+  overlay?: CodexHomeOverlay,
 ): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = await resolveWslPluginBaseDirs(ctx.wslDistro, "codex");
     if (!wsl) return { installed: false };
     return verifyCodexInstallAt(wsl.linuxBase, "wsl", { distro: ctx.wslDistro });
   }
-  return verifyCodexInstallAt(getNativePluginBaseDir("codex", ctx?.baseDir), "native");
+  const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
+  return verifyCodexInstallAt(pluginDir, "native", undefined, overlayHomeDir(pluginDir, overlay));
 }
 
-export async function uninstallCodexPlugin(ctx?: AgentEnvContext): Promise<void> {
-  await removeStagedPluginDir("codex", ctx);
+/** True when any profile overlay under `pluginDir` still has its hooks installed. */
+function hasInstalledProfileOverlay(pluginDir: string): boolean {
+  const profilesDir = join(pluginDir, PROFILE_OVERLAYS_DIR);
+  const subdirs = (dir: string): string[] => {
+    try {
+      return readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(dir, entry.name));
+    } catch {
+      return [];
+    }
+  };
+  return subdirs(profilesDir)
+    .flatMap(subdirs)
+    .some((overlayRoot) => existsSync(join(overlayRoot, "home", "hooks.json")));
+}
+
+export async function uninstallCodexPlugin(
+  ctx?: AgentEnvContext,
+  overlay?: CodexHomeOverlay,
+): Promise<void> {
+  if (isWslPluginContext(ctx)) {
+    await removeStagedPluginDir("codex", ctx);
+    return;
+  }
+  const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
+  if (overlay) {
+    // Assets are shared with the base account and other profiles; only
+    // disable this profile home's hook entrypoint.
+    try {
+      const paths = await getCodexPluginPaths(ctx, overlay);
+      unlinkSync(paths.codexHooksPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    return;
+  }
+  if (!hasInstalledProfileOverlay(pluginDir)) {
+    await removeStagedPluginDir("codex", ctx);
+    return;
+  }
+  // Profiles still run hooks from the shared assets: remove only the base
+  // account's private home (its hooks and state links, never their targets).
+  removeWithoutFollowingSymlinks(join(pluginDir, "home"));
 }
 
 const CODEX_VERIFY_ASSETS = ["plugin.json", "forward.mjs", FORWARD_RUNTIME_FILE] as const;
@@ -490,6 +590,7 @@ async function verifyCodexInstallAt(
   readableDir: string,
   target: "native" | "wsl",
   options?: PluginVerificationTarget,
+  homeDir?: string,
 ): Promise<{ installed: boolean; version?: string }> {
   const io = resolvePluginVerificationIo(target, options);
   for (const asset of CODEX_VERIFY_ASSETS) {
@@ -501,7 +602,7 @@ async function verifyCodexInstallAt(
   ) {
     return { installed: false };
   }
-  const hooksPath = io.joinPath(readableDir, "home", "hooks.json");
+  const hooksPath = io.joinPath(homeDir ?? io.joinPath(readableDir, "home"), "hooks.json");
   try {
     const raw = await io.readTextFile(hooksPath);
     if (raw === null) return { installed: false };

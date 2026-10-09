@@ -143,6 +143,41 @@ describe("useKeyboardOffset", () => {
     expect(visibility.current).toBe(300);
   });
 
+  it("lifts the Android Chrome PWA composer when only the visual viewport shrinks", () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Linux; Android 15) Chrome/140" });
+    setWindowHeight(800);
+    setDocumentHeight(800);
+    const visualViewport = installVisualViewport({ height: 800 });
+    const { result } = renderHook(() => useKeyboardGeometry());
+
+    act(() => {
+      visualViewport.viewport.height = 480;
+      visualViewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 320, visibilityOffset: 320 });
+
+    act(() => {
+      visualViewport.viewport.height = 800;
+      visualViewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 0 });
+  });
+
+  it("does not double-lift an Android browser that resizes the layout viewport", () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Linux; Android 15) Chrome/140" });
+    setWindowHeight(800);
+    setDocumentHeight(800);
+    const visualViewport = installVisualViewport({ height: 800 });
+    const { result } = renderHook(() => useKeyboardGeometry());
+    act(() => {
+      setWindowHeight(480);
+      setDocumentHeight(480);
+      visualViewport.viewport.height = 480;
+      visualViewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 320 });
+  });
+
   it("uses Android window innerHeight when documentElement keeps its pre-keyboard height", async () => {
     useAndroidUserAgent();
     setWindowHeight(923);
@@ -187,7 +222,7 @@ describe("useKeyboardOffset", () => {
     expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 336 });
   });
 
-  it("suppresses Android manual lift during visual-viewport-only pre-resize frames", async () => {
+  it("removes Android overlay lift when a later frame resizes the layout viewport", async () => {
     useAndroidUserAgent();
     setWindowHeight(923);
     setDocumentHeight(923);
@@ -201,10 +236,18 @@ describe("useKeyboardOffset", () => {
       visualViewport.dispatch();
     });
 
+    expect(result.current).toEqual({ liftOffset: 336, visibilityOffset: 336 });
+
+    act(() => {
+      setWindowHeight(587);
+      setDocumentHeight(587);
+      visualViewport.dispatch();
+    });
+
     expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 336 });
   });
 
-  it("keeps Android visual viewport reveal pan as visibility-only keyboard height", async () => {
+  it("accounts for Android reveal pan without lifting by the full keyboard height", async () => {
     useAndroidUserAgent();
     setWindowHeight(800);
     setDocumentHeight(800);
@@ -219,6 +262,6 @@ describe("useKeyboardOffset", () => {
       visualViewport.dispatch();
     });
 
-    expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 300 });
+    expect(result.current).toEqual({ liftOffset: 300, visibilityOffset: 300 });
   });
 });

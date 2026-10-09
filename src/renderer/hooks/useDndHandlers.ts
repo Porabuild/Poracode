@@ -12,6 +12,7 @@ import type {
 } from "@/renderer/dnd";
 import type { PanelDockTarget } from "@/renderer/state/panelStore";
 import type { ReorderPlacement } from "@/renderer/state/reorder";
+import { FLAT_THREAD_LIST_SORT_GROUP } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { dockPanelTab, showFilesPanel, showGitReviewPanel } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
 import {
@@ -66,10 +67,13 @@ export function resolveThreadReorder(input: {
   finalIndex: number;
 }): { targetId: string; placement: ReorderPlacement } | null {
   const { threads, source, target, initialIndex, finalIndex } = input;
+  if (source.sortDisabled) return null;
+  const acrossProjects = source.sortGroup === FLAT_THREAD_LIST_SORT_GROUP;
   const targetThread =
     target?.type === "thread" &&
-    target.projectId === source.projectId &&
+    (acrossProjects || target.projectId === source.projectId) &&
     target.threadId !== source.threadId &&
+    !target.sortDisabled &&
     (source.sortGroup === undefined || target.sortGroup === source.sortGroup)
       ? target
       : null;
@@ -83,11 +87,19 @@ export function resolveThreadReorder(input: {
     };
   }
 
+  // The index fallback rebuilds one project's rendered order. The flat list's
+  // order also depends on its project and workspace filters, so it needs a
+  // hovered thread.
+  if (acrossProjects) return null;
+
   const projectWideSort = source.sortGroup?.startsWith("project-entries:") ?? false;
+  // Manual mode renders done threads in a locked Done section after the live
+  // ones, so only live threads line up with the sortable indices.
   const groupThreads = threads
     .filter(
       (t) =>
         t.projectId === source.projectId &&
+        !t.done &&
         (projectWideSort || (t.worktreePath ?? undefined) === source.worktreePath),
     )
     .sort((a, b) => Number(b.starred) - Number(a.starred));
@@ -103,6 +115,7 @@ export function resolveThreadReorder(input: {
 export function useDndHandlers() {
   const reorderProjects = useAppStore((s) => s.reorderProjects);
   const reorderThreads = useAppStore((s) => s.reorderThreads);
+  const reorderThreadsAcrossProjects = useAppStore((s) => s.reorderThreadsAcrossProjects);
   const replacePaneById = useAppStore((s) => s.replacePaneById);
   const splitPaneById = useAppStore((s) => s.splitPaneById);
   const insertPaneAtLayoutTarget = useAppStore((s) => s.insertPaneAtLayoutTarget);
@@ -144,7 +157,24 @@ export function useDndHandlers() {
         finalIndex,
       });
       if (!reorder) return;
-      startTransition(() => reorderThreads(source.threadId, reorder.targetId, reorder.placement));
+      // Managed flat moves negotiate their separate host capability before
+      // optimistic paint; an older host must leave no misleading local order.
+      if (
+        source.sortGroup === FLAT_THREAD_LIST_SORT_GROUP &&
+        dispatchManagedRootThreadReorder(
+          source.threadId,
+          reorder.targetId,
+          reorder.placement,
+          "catalog",
+        )
+      ) {
+        return;
+      }
+      const reorderInList =
+        source.sortGroup === FLAT_THREAD_LIST_SORT_GROUP
+          ? reorderThreadsAcrossProjects
+          : reorderThreads;
+      startTransition(() => reorderInList(source.threadId, reorder.targetId, reorder.placement));
       if (!dispatchRemoteThreadReorder(source.threadId, reorder.targetId, reorder.placement)) {
         dispatchManagedRootThreadReorder(source.threadId, reorder.targetId, reorder.placement);
       }

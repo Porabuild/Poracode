@@ -394,6 +394,8 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
             // Every moved thread is named so a client can re-sort without a
             // catalog-wide response.
             ctx.publishThreadsChanged([...command.threadIds, command.targetThreadId]);
+          } else if (command.kind === "reorder-flat") {
+            ctx.publishThreadsChanged([command.threadId, command.targetThreadId]);
           } else {
             ctx.publishThreadsChanged([command.threadId]);
           }

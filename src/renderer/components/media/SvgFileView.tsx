@@ -2,6 +2,7 @@ import { Trans } from "@lingui/react/macro";
 import { getBasename } from "@/shared/pathUtils";
 import { ImageFileView } from "./ImageFileView";
 
+/** The rendered view of an SVG's current editor content, unsaved edits included. */
 export function SvgFileView(props: { path: string; content: string }) {
   return (
     <ImageFileView

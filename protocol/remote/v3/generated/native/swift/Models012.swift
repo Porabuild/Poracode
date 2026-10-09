@@ -56,16 +56,16 @@ public enum ProcedureprobeMcpServerResult_bea1bdef18: Codable, Sendable {
   }
 }
 
-public struct ProcedurequeueThreadFollowUpRequest_891da1f8b8: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedurequeueThreadFollowUpRequest_abc9812a84: Codable, Sendable, RemoteModelMetadata {
   public var clientContext: RemoteField<ProcedureensureThreadRunningRequestU2DClientContext_ee890c7da4> = .missing
-  public var config: ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0
+  public var config: ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429
   public var prompt: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
   public var segments: RemoteField<[ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItem_a399fbc754]> = .missing
   public var threadId: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "clientContext", typeName: "ProcedureensureThreadRunningRequestU2DClientContext_ee890c7da4", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "config", typeName: "ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "config", typeName: "ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "prompt", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "segments", typeName: "[ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItem_a399fbc754]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -319,14 +319,14 @@ public struct ProcedurereorderQueuedThreadFollowUpRequest_59599d21a2: Codable, S
   }
 }
 
-public struct ProcedurerestoreToRevertAnchorRequest_dea1ab7707: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedurerestoreToRevertAnchorRequest_d1482aea00: Codable, Sendable, RemoteModelMetadata {
   public var anchor: ProcedurecreateRevertAnchorResultU2DAnchor_98ef330d70
-  public var config: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0> = .missing
+  public var config: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429> = .missing
   public var threadId: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "anchor", typeName: "ProcedurecreateRevertAnchorResultU2DAnchor_98ef330d70", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "config", typeName: "ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "config", typeName: "ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
@@ -337,13 +337,13 @@ public struct ProcedurerestoreToRevertAnchorRequest_dea1ab7707: Codable, Sendabl
   }
 }
 
-public struct ProcedurerollbackThreadConversationRequest_53e4143ffe: Codable, Sendable, RemoteModelMetadata {
-  public var config: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0> = .missing
+public struct ProcedurerollbackThreadConversationRequest_536f7d46d8: Codable, Sendable, RemoteModelMetadata {
+  public var config: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429> = .missing
   public var numTurns: Int64
   public var threadId: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "config", typeName: "ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "config", typeName: "ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "numTurns", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]

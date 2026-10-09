@@ -16,6 +16,7 @@ import {
 } from "@/shared/contracts";
 import {
   reorderThreadBlockInProject,
+  reorderThreadsAcrossProjects,
   reorderThreadsInProject,
   type ReorderPlacement,
 } from "../reorder";
@@ -197,6 +198,12 @@ export interface ThreadSlice {
     options?: { readonly preserveHostOwnedRootRows?: boolean },
   ) => void;
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
+  /** Like `reorderThreads`, but the target may belong to another project (flat sidebar list). */
+  reorderThreadsAcrossProjects: (
+    sourceId: string,
+    targetId: string,
+    placement: ReorderPlacement,
+  ) => void;
   reorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
 }
 
@@ -1306,6 +1313,16 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   reorderThreads: (sourceId, targetId, placement) =>
     set((state) => {
       const threads = reorderThreadsInProject(state.threads, sourceId, targetId, placement);
+
+      if (threads === state.threads) {
+        return {};
+      }
+
+      return { threads };
+    }),
+  reorderThreadsAcrossProjects: (sourceId, targetId, placement) =>
+    set((state) => {
+      const threads = reorderThreadsAcrossProjects(state.threads, sourceId, targetId, placement);
 
       if (threads === state.threads) {
         return {};

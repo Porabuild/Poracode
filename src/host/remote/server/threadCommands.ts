@@ -239,14 +239,16 @@ export async function applyRemoteThreadCommand(
       dbDeleteThread(command.threadId);
       return false;
     // ── Narrow catalog mutations (mirror-free, bounded {ok:true}) ───────
-    case "reorder": {
+    case "reorder":
+    case "reorder-flat": {
       const outcome = dbReorderThreadBlockRelative(
         {
           projectId: command.projectId,
           anchorThreadId: command.threadId,
-          threadIds: command.threadIds,
+          threadIds: command.kind === "reorder-flat" ? [command.threadId] : command.threadIds,
           targetThreadId: command.targetThreadId,
           placement: command.placement,
+          ...(command.kind === "reorder-flat" ? { scope: "catalog" as const } : {}),
         },
         onCatalogCommitted,
       );

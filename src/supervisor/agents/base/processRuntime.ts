@@ -1,8 +1,9 @@
 import { execFile, spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, posix as posixPath } from "node:path";
 import { promisify } from "node:util";
+import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import {
   getPosixLoginShellArgs,
@@ -528,6 +529,29 @@ export function getCachedWslShellPath(distro: string): string | undefined {
 
 export function getCachedWslHomeDirectory(distro: string): string | undefined {
   return wslHomeCache.get(distro);
+}
+
+/**
+ * Expand a leading `~` / `~/` against the home directory of the runtime the
+ * project executes in (the WSL distro's `$HOME` for WSL projects, the host
+ * home otherwise). Non-tilde paths are returned trimmed but unchanged. Used
+ * by profile adapters whose per-account directories are stored tilde-relative
+ * so the same settings entry works across machines.
+ */
+export async function resolveTildePath(
+  rawPath: string,
+  location: ProjectLocation,
+): Promise<string> {
+  const trimmed = rawPath.trim();
+  if (trimmed !== "~" && !trimmed.startsWith("~/")) {
+    return trimmed;
+  }
+  const suffix = trimmed === "~" ? "" : trimmed.slice(2);
+  if (location.kind === "wsl") {
+    const home = await resolveWslHomeDirectory(location.distro);
+    return home ? posixPath.join(home, suffix) : trimmed;
+  }
+  return join(homedir(), suffix);
 }
 
 function awaitWithSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {

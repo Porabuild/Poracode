@@ -21,6 +21,8 @@ import {
 } from "@/renderer/hooks/uiSelectors";
 import { openThread, renameThread } from "@/renderer/actions/threadActions";
 
+type ThreadDragSourceData = Extract<DragSourceData, { type: "thread" }>;
+
 export function SortableThreadItem(props: {
   thread: Thread;
   threadIndex: number;
@@ -66,7 +68,14 @@ export function SortableThreadItem(props: {
     id: `thread:${thread.id}`,
     index: props.threadIndex,
     type: "thread",
-    accept: rowCanDrag && !sortDisabled ? ["thread", "worktree-group"] : [],
+    // A locked row never takes a drop, and a locked source never shifts the
+    // rows it passes over.
+    accept:
+      !rowCanDrag || sortDisabled || isExperimentCandidate
+        ? []
+        : (source) =>
+            source.type === "worktree-group" ||
+            (source.type === "thread" && !(source.data as ThreadDragSourceData).sortDisabled),
     group: props.group,
     // Automatic sort modes only disable reordering within the sidebar. Keep
     // ordinary threads draggable so they can still be dropped onto a pane.
@@ -78,6 +87,7 @@ export function SortableThreadItem(props: {
       ...(thread.worktreePath != null ? { worktreePath: thread.worktreePath } : {}),
       sortGroup: props.group,
       sortIndex: props.threadIndex,
+      ...(sortDisabled ? { sortDisabled: true } : {}),
     } satisfies DragSourceData,
   });
 

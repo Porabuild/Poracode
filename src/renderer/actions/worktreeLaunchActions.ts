@@ -1,8 +1,8 @@
 import type { Project } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
-import { closeAllPanels } from "@/renderer/actions/panelActions";
-import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { removeTerminalTab } from "@/renderer/actions/terminalTabActions";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { getProjectActiveWorktreePaths } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
@@ -117,7 +117,7 @@ function startWorktreeSetupScript(
       wtLocation.kind,
       () => {
         finish();
-        removeWorktreeSetupTab(tab);
+        removeTerminalTab(tab);
       },
       finish,
       project.remoteServerId,
@@ -130,22 +130,4 @@ function startWorktreeSetupScript(
       finish();
     });
   });
-}
-
-function removeWorktreeSetupTab(tab: DevTerminalTab): void {
-  const store = useDevTerminalStore.getState();
-  const showingThisContext =
-    store.isOpen &&
-    store.activeProjectId === tab.projectId &&
-    (store.activeWorktreePath ?? undefined) === tab.worktreePath;
-  store.removeTab(tab.id);
-  if (!showingThisContext) return;
-  const remaining = useDevTerminalStore
-    .getState()
-    .tabs.filter(
-      (item) => item.projectId === tab.projectId && item.worktreePath === tab.worktreePath,
-    );
-  if (remaining.length > 0) return;
-  if (useSharedSettings.getState().terminalPosition !== "bottom") closeAllPanels();
-  useDevTerminalStore.getState().closePanel();
 }

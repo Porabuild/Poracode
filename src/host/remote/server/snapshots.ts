@@ -1,6 +1,7 @@
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_CATALOG_MUTATIONS_VERSION,
+  REMOTE_FLAT_THREAD_REORDER_VERSION,
   REMOTE_BOUNDED_CATALOG_CHANGES_VERSION,
   REMOTE_PUSH_ROUTING_VERSION,
   REMOTE_BROWSER_FORWARD_VERSION,
@@ -155,6 +156,9 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       // existing command routes on every composition that serves them.
       catalogMutations: {
         versions: [REMOTE_CATALOG_MUTATIONS_VERSION],
+      },
+      flatThreadReorder: {
+        versions: [REMOTE_FLAT_THREAD_REORDER_VERSION],
       },
       // Bounded catalog-change notifications: a client may declare
       // `catalogChanges=bounded-v1` on its event socket to receive the bounded

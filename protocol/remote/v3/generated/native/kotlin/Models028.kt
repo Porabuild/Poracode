@@ -85,7 +85,29 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9(
 }
 
 @Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D15_69af29ff38(
+enum class RoutethreadU2DCommandRequestU2DOptionU2D15U2DKind_8e7b4d097a {
+    @SerialName("reorder-flat") REORDERU2DFLAT,
+}
+
+@Serializable
+data class RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75(
+    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D15U2DKind_8e7b4d097a,
+    @SerialName("placement") val placement: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e,
+    @SerialName("projectId") val projectId: String,
+    @SerialName("targetThreadId") val targetThreadId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D15U2DKind_8e7b4d097a", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("placement", "RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("targetThreadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DCommandRequestU2DOptionU2D16_69af29ff38(
     @SerialName("kind") val kind: RouteprojectU2DCommandRequestU2DOptionU2D8U2DKind_96cd458fa9,
     @SerialName("workspaceId") val workspaceId: RemoteField<String>,
 ) {
@@ -123,11 +145,11 @@ enum class RoutethreadU2DCommandRequestU2DOptionU2D2U2DKind_60fc988aef {
 }
 
 @Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f(
+data class RoutethreadU2DCommandRequestU2DOptionU2D2_fb9831156a(
     @SerialName("agentInstanceId") val agentInstanceId: RemoteField<String> = RemoteField.Missing,
     @SerialName("agentKind") val agentKind: String,
     @SerialName("clientContext") val clientContext: RemoteField<ProcedureensureThreadRunningRequestU2DClientContext_ee890c7da4> = RemoteField.Missing,
-    @SerialName("config") val config: ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0,
+    @SerialName("config") val config: ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429,
     @SerialName("focus") val focus: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("groupId") val groupId: RemoteField<String> = RemoteField.Missing,
     @SerialName("groupName") val groupName: RemoteField<String> = RemoteField.Missing,
@@ -153,7 +175,7 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f(
             RemoteFieldDescriptor("agentInstanceId", "String", false, false, null, null, 1, 120, null, null, "^[a-z0-9][a-z0-9_\\-:.]*$", null, listOf()),
             RemoteFieldDescriptor("agentKind", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("clientContext", "ProcedureensureThreadRunningRequestU2DClientContext_ee890c7da4", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("config", "ProcedureconnectThreadVoiceRequestU2DConfig_c721e8abc0", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("config", "ProcedureconnectThreadVoiceRequestU2DConfig_2c97b9d429", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("focus", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("groupId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("groupName", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
@@ -305,31 +327,32 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de(
     }
 }
 
-@Serializable(with = RoutethreadU2DCommandRequest_358820f0dc.Serializer::class)
-sealed interface RoutethreadU2DCommandRequest_358820f0dc {
-    data class Option1(val value: RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option2(val value: RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option3(val value: RoutethreadU2DCommandRequestU2DOptionU2D3_21cd039cb3) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option4(val value: RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option5(val value: RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option6(val value: RoutethreadU2DCommandRequestU2DOptionU2D6_c3363423bb) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option7(val value: RoutethreadU2DCommandRequestU2DOptionU2D7_80906c6ddc) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option8(val value: RoutethreadU2DCommandRequestU2DOptionU2D8_ebd70a208b) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option9(val value: RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option10(val value: RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option11(val value: RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option12(val value: RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option13(val value: RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option14(val value: RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9) : RoutethreadU2DCommandRequest_358820f0dc
-    data class Option15(val value: RoutethreadU2DCommandRequestU2DOptionU2D15_69af29ff38) : RoutethreadU2DCommandRequest_358820f0dc
-    object Serializer : KSerializer<RoutethreadU2DCommandRequest_358820f0dc> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DCommandRequest_358820f0dc")
-        override fun deserialize(decoder: Decoder): RoutethreadU2DCommandRequest_358820f0dc {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DCommandRequest_358820f0dc supports JSON only")
+@Serializable(with = RoutethreadU2DCommandRequest_cb1e50de65.Serializer::class)
+sealed interface RoutethreadU2DCommandRequest_cb1e50de65 {
+    data class Option1(val value: RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option2(val value: RoutethreadU2DCommandRequestU2DOptionU2D2_fb9831156a) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option3(val value: RoutethreadU2DCommandRequestU2DOptionU2D3_21cd039cb3) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option4(val value: RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option5(val value: RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option6(val value: RoutethreadU2DCommandRequestU2DOptionU2D6_c3363423bb) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option7(val value: RoutethreadU2DCommandRequestU2DOptionU2D7_80906c6ddc) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option8(val value: RoutethreadU2DCommandRequestU2DOptionU2D8_ebd70a208b) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option9(val value: RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option10(val value: RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option11(val value: RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option12(val value: RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option13(val value: RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option14(val value: RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option15(val value: RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75) : RoutethreadU2DCommandRequest_cb1e50de65
+    data class Option16(val value: RoutethreadU2DCommandRequestU2DOptionU2D16_69af29ff38) : RoutethreadU2DCommandRequest_cb1e50de65
+    object Serializer : KSerializer<RoutethreadU2DCommandRequest_cb1e50de65> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DCommandRequest_cb1e50de65")
+        override fun deserialize(decoder: Decoder): RoutethreadU2DCommandRequest_cb1e50de65 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DCommandRequest_cb1e50de65 supports JSON only")
             val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DCommandRequest_358820f0dc>>()
+            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DCommandRequest_cb1e50de65>>()
             RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("prepare-worktree")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("start")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("start")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D2_fb9831156a>(element)) }
             RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("set-group")))) { Option3(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D3_21cd039cb3>(element)) }
             RemoteUnionCodec.tryOption(matches, 4, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("clear-group")))) { Option4(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180>(element)) }
             RemoteUnionCodec.tryOption(matches, 5, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("rename")))) { Option5(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0>(element)) }
@@ -342,14 +365,15 @@ sealed interface RoutethreadU2DCommandRequest_358820f0dc {
             RemoteUnionCodec.tryOption(matches, 12, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("unarchive")))) { Option12(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23>(element)) }
             RemoteUnionCodec.tryOption(matches, 13, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("delete")))) { Option13(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a>(element)) }
             RemoteUnionCodec.tryOption(matches, 14, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("reorder")))) { Option14(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9>(element)) }
-            RemoteUnionCodec.tryOption(matches, 15, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("set-workspace")))) { Option15(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D15_69af29ff38>(element)) }
-            return RemoteUnionCodec.single("RoutethreadU2DCommandRequest_358820f0dc", matches)
+            RemoteUnionCodec.tryOption(matches, 15, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("reorder-flat")))) { Option15(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75>(element)) }
+            RemoteUnionCodec.tryOption(matches, 16, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("set-workspace")))) { Option16(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D16_69af29ff38>(element)) }
+            return RemoteUnionCodec.single("RoutethreadU2DCommandRequest_cb1e50de65", matches)
         }
-        override fun serialize(encoder: Encoder, value: RoutethreadU2DCommandRequest_358820f0dc) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DCommandRequest_358820f0dc supports JSON only")
+        override fun serialize(encoder: Encoder, value: RoutethreadU2DCommandRequest_cb1e50de65) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DCommandRequest_cb1e50de65 supports JSON only")
             val element = when (value) {
                 is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D2_9faf59d84f>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D2_fb9831156a>(value.value)
                 is Option3 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D3_21cd039cb3>(value.value)
                 is Option4 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180>(value.value)
                 is Option5 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0>(value.value)
@@ -362,7 +386,8 @@ sealed interface RoutethreadU2DCommandRequest_358820f0dc {
                 is Option12 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23>(value.value)
                 is Option13 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a>(value.value)
                 is Option14 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9>(value.value)
-                is Option15 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D15_69af29ff38>(value.value)
+                is Option15 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75>(value.value)
+                is Option16 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DCommandRequestU2DOptionU2D16_69af29ff38>(value.value)
             }
             jsonEncoder.encodeJsonElement(element)
         }
@@ -403,34 +428,4 @@ data class RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a(
             RemoteFieldDescriptor("action", "RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable(with = RoutethreadU2DGoalRequest_54c8350637.Serializer::class)
-sealed interface RoutethreadU2DGoalRequest_54c8350637 {
-    data class Option1(val value: RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491) : RoutethreadU2DGoalRequest_54c8350637
-    data class Option2(val value: RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a) : RoutethreadU2DGoalRequest_54c8350637
-    object Serializer : KSerializer<RoutethreadU2DGoalRequest_54c8350637> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DGoalRequest_54c8350637")
-        override fun deserialize(decoder: Decoder): RoutethreadU2DGoalRequest_54c8350637 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DGoalRequest_54c8350637 supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DGoalRequest_54c8350637>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("edit")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("pause"), JsonPrimitive("resume"), JsonPrimitive("clear")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a>(element)) }
-            return RemoteUnionCodec.single("RoutethreadU2DGoalRequest_54c8350637", matches)
-        }
-        override fun serialize(encoder: Encoder, value: RoutethreadU2DGoalRequest_54c8350637) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DGoalRequest_54c8350637 supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DHistoryQueryU2DRuntimePage_8795ea0289 {
-    @SerialName("1") N1,
 }

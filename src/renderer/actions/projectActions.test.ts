@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitHubAccountRef, McpServer, Project, ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import * as bridgeRuntime from "@/renderer/bridge";
 import {
   saveProjectMcpServers,
@@ -365,5 +366,21 @@ describe("local project icon action", () => {
     await expect(saveProjectMcpServers(localProject.id, mcpServers)).resolves.toBeUndefined();
     expect(useAppStore.getState().projects[0]?.mcpServers).toEqual(mcpServers);
     expect(runProjectCommand).not.toHaveBeenCalled();
+  });
+
+  it("forgets a hidden terminal's scope when its project is disabled", () => {
+    resetDevTerminalStore();
+    useDevTerminalStore.getState().openPanel(localProject.id);
+    useDevTerminalStore.getState().hidePanel();
+    const readBridge = vi.spyOn(bridgeRuntime, "readBridge").mockReturnValue({
+      gitUnwatchProject: async () => undefined,
+    } as unknown as ReturnType<typeof bridgeRuntime.readBridge>);
+    try {
+      setProjectDisabled(localProject.id, true);
+
+      expect(useDevTerminalStore.getState().activeProjectId).toBeNull();
+    } finally {
+      readBridge.mockRestore();
+    }
   });
 });

@@ -15,6 +15,22 @@ async function flushFadeIn() {
 }
 
 describe("OverlayShell", () => {
+  it("still dismisses when focus is in an inline listbox without a popup", () => {
+    const onExited = vi.fn<() => void>();
+    const { container } = render(
+      <OverlayShell open instantEnter onExited={onExited}>
+        <div role="listbox" aria-label="Inline choices">
+          <div role="option" aria-selected={false} tabIndex={0}>
+            Choice
+          </div>
+        </div>
+      </OverlayShell>,
+    );
+    fireEvent.keyDown(screen.getByRole("option"), { key: "Escape", code: "Escape" });
+    fireEvent.transitionEnd(surface(container), { propertyName: "opacity" });
+    expect(onExited).toHaveBeenCalledOnce();
+  });
+
   it("retains the open content until the exit transition finishes", () => {
     const onExited = vi.fn<() => void>();
     const { container, rerender } = render(

@@ -34,7 +34,7 @@ import type {
   SupervisorProcedureName,
 } from "@/shared/ipc";
 import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
-import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
+import { SupervisorIpcSender } from "@/shared/ipc/transport/supervisorIpcSender";
 
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 /** Bound the main-process fallback queue shared by all renderer callers. */

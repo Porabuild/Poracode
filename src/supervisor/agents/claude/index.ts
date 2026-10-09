@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
-import path, { posix as posixPath } from "node:path";
+import path from "node:path";
 
 import type {
   AgentCapability,
@@ -22,7 +22,7 @@ import {
   prepareAgentLocationEnvironment,
   resolveCheckedOneShotBuilderSelection,
   resolveCheckedOneShotResumeSelection,
-  resolveWslHomeDirectory,
+  resolveTildePath,
   shortenHomePath,
   type AgentAdapter,
   type CreateStructuredSessionInput,
@@ -33,6 +33,8 @@ import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./de
 import { probeClaudeCapabilities } from "./probe";
 import { claudeSkillInvocationFor, claudeSkillText, leadingSkill } from "./skillPrompt";
 import { ClaudeSdkSession } from "./sdkSession";
+import { createClaudeSessionImport } from "./sessionImport";
+import { resolveNativeTildePath } from "../base/sessionFs";
 import { claudeMcpLaunch } from "./mcp";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
@@ -68,22 +70,6 @@ interface ClaudeAdapterOptions {
   defaultEffort?: string;
   /** Per-model effort choices for external-provider model ids. */
   modelEfforts?: Record<string, string[]>;
-}
-
-async function resolveTildePath(rawPath: string, location: ProjectLocation): Promise<string> {
-  const trimmed = rawPath.trim();
-  if (trimmed !== "~" && !trimmed.startsWith("~/")) {
-    return trimmed;
-  }
-  const suffix = trimmed === "~" ? "" : trimmed.slice(2);
-  if (location.kind === "wsl") {
-    // Awaits the bounded authoritative WSL probe; never a synchronous UNC or
-    // `wsl.exe` guess. Keeps `~` unresolved when the distro cannot be reached,
-    // matching the previous failure behavior.
-    const home = await resolveWslHomeDirectory(location.distro);
-    return home ? posixPath.join(home, suffix) : trimmed;
-  }
-  return path.join(homedir(), suffix);
 }
 
 async function profileEnvForLocation(
@@ -273,6 +259,11 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     label,
     binary: claudeDetectionSpec.binary,
     mcpRequiresStdioCwdProxy: true,
+    sessionImport: createClaudeSessionImport(
+      options.configDir
+        ? resolveNativeTildePath(options.configDir)
+        : path.join(homedir(), ".claude"),
+    ),
     skillSupport: {
       roots: [
         {

@@ -77,11 +77,39 @@ describe("sharedSettingsFile", () => {
     expect(merged.crossagentRoutingOverrides).toEqual(onDisk.crossagentRoutingOverrides);
   });
 
+  it("round-trips custom theme palettes in the existing settings file", () => {
+    const palette = {
+      bg: "#111111",
+      surface: "#222222",
+      fg: "#ffffff",
+      accent: "#346bf1",
+      accentFg: "#fff",
+      border: "#333",
+    };
+    const customTheme = {
+      version: 1 as const,
+      id: "custom:personal",
+      label: "Personal palette",
+      light: palette,
+      dark: { ...palette, composer: "#000", sidebarFill: true },
+    };
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeSharedSettingsFile(settingsPath, {
+      ...defaultSharedSettings,
+      themePreset: customTheme.id,
+      customThemes: [customTheme],
+    });
+    const restored = readSharedSettingsFile(settingsPath);
+    expect(restored.themePreset).toBe(customTheme.id);
+    expect(restored.customThemes).toEqual([customTheme]);
+  });
+
   it("writes and reads shared settings as readable JSON", () => {
     const settingsPath = join(makeTempDir(), "settings.json");
     writeSharedSettingsFile(settingsPath, {
       themeMode: "dark",
       themePreset: "default",
+      customThemes: [],
       locale: "system",
       gitTextLanguage: "en",
       terminalPosition: "right",
@@ -235,6 +263,7 @@ describe("sharedSettingsFile", () => {
       followUpBehavior: "steer",
       themeMode: "dark",
       themePreset: "default",
+      customThemes: [],
       locale: "system",
       gitTextLanguage: "en",
       terminalPosition: "right",

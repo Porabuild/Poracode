@@ -9,6 +9,7 @@ import {
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useDragSource } from "@/renderer/dnd";
 import {
+  useCurrentThreadIds,
   useCurrentThreadIdsCount,
   useHasDraft,
   useIsCurrentProjectDraft,
@@ -22,6 +23,8 @@ import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
 import {
   buildSidebarProjectRows,
+  canReorderInFlatList,
+  FLAT_THREAD_LIST_ID,
   SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE,
   type SidebarRow,
 } from "./sidebarProjectRows";
@@ -31,11 +34,8 @@ import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobileQuickCompose } from "./MobileQuickCompose";
 import { useFlatListProjectFilterModel } from "./useFlatListProjectFilterModel";
 
-/**
- * `threadListLimits`/`revealMoreThreads` scope key for the flat list's single
- * "See more" pager. Not a real project id.
- */
-const FLAT_LIST_SCOPE = "__flat__";
+/** Scope key for the pinned Done section's own "See more" pager. */
+const FLAT_DONE_SCOPE = `${FLAT_THREAD_LIST_ID}:done`;
 
 /** The project a row belongs to: a thread's own, or its group's first member's. */
 function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | undefined {
@@ -50,8 +50,8 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
  * row labelled with its project instead. Worktree and provider groups keep
  * grouping; their headers carry the project tag for their children. The single
  * "New thread" row targets the most recently active project. Sorting follows
- * the shared sort mode, except per-project manual order, which has no meaning
- * across projects and falls back to last-updated.
+ * the shared sort mode. Manual order is the global thread order, which spans
+ * projects, so local rows can be dragged past other projects' threads.
  */
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const compactLayout = useCompactLayout();
@@ -72,7 +72,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);
   const setEditingThreadId = useSidebarUiStore((s) => s.setEditingThreadId);
   const revealMoreThreads = useSidebarUiStore((s) => s.revealMoreThreads);
-  const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
+  const visibleLimit = useThreadListLimit(FLAT_THREAD_LIST_ID, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
+  const doneVisibleLimit = useThreadListLimit(FLAT_DONE_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
+  const currentThreadIds = useCurrentThreadIds();
   const currentThreadCount = useCurrentThreadIdsCount();
   const source = useDragSource();
   // Own scroll container (the grouped/empty bodies use Sidebar's): the
@@ -114,14 +116,24 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const isDraftActive = useIsCurrentProjectDraft(latestProjectId ?? "");
 
   const rows = buildSidebarProjectRows({
-    projectId: FLAT_LIST_SCOPE,
+    projectId: FLAT_THREAD_LIST_ID,
     projectThreads: threads,
-    sortMode: props.sortMode === "created" ? "created" : "updated",
+    sortMode: props.sortMode,
     collapsedWorktrees,
     visibleLimit,
     liveBackgroundThreadIds,
+    openThreadIds: new Set(currentThreadIds),
+    doneVisibleLimit,
+    canReorderThread: canReorderInFlatList,
     ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
+  // The Done section is pinned below the scrolling rows: its header stays put
+  // and the done rows under it scroll on their own. Done is the only section
+  // label the builder emits, and every row after it belongs to Done.
+  const doneStart = rows.findIndex((row) => row.kind === "section-label");
+  const listRows = doneStart === -1 ? rows : rows.slice(0, doneStart);
+  const doneHeader = doneStart === -1 ? undefined : rows[doneStart];
+  const doneRows = doneStart === -1 ? [] : rows.slice(doneStart + 1);
 
   const renderNewThreadButton = (inline: boolean) =>
     latestProjectId && !compactLayout ? (
@@ -146,6 +158,59 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         onOpenAsPanel={() => openNewThreadSideBySide(latestProjectId)}
       />
     ) : null;
+
+  const renderRow = (row: SidebarRow) => {
+    if (row.kind === "see-more") {
+      const scope = row.section === "done" ? FLAT_DONE_SCOPE : FLAT_THREAD_LIST_ID;
+      return (
+        <SeeMoreThreadsButton
+          key={row.key}
+          onPress={() => revealMoreThreads(scope, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE)}
+        />
+      );
+    }
+    const projectId = rowProjectId(row);
+    const project: Project | undefined = projectId
+      ? projectsById.get(projectId)
+      : visibleProjects[0];
+    if (!project) return null;
+    // Children under a group header omit the tag — the header carries it.
+    const tagged = !(row.kind === "thread" && row.inGroup) && row.kind !== "section-label";
+    // Thread rows and worktree headers stack the tag on a second line;
+    // provider/experiment group headers keep the inline trailing form.
+    const stackedTag = row.kind === "thread" || row.kind === "worktree-group";
+    // Remote mirrors carry the machine name so their rows read as
+    // non-local; mirrors the grouped project header's server chip.
+    const remote = remoteServerFor(project);
+    return (
+      <SidebarThreadRow
+        key={row.key}
+        row={row}
+        project={project}
+        editingThreadId={editingThreadId}
+        setEditingThreadId={setEditingThreadId}
+        {...(tagged
+          ? {
+              projectTag: (
+                <span
+                  className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} flex items-center gap-1 text-[10px] leading-4 text-muted/70`}
+                >
+                  {/* Sized to the tag, not the 16px menu default, so a
+                      custom icon reads as part of the 10px label. */}
+                  <ProjectIcon project={project} className="size-3 text-muted/70" />
+                  <span className="truncate">{project.name}</span>
+                  <ProjectRemoteServerChip info={remote} size="xs" />
+                  {/* Mirrors the grouped header's trailing WSL marker. */}
+                  {project.location.kind === "wsl" ? (
+                    <TuxIcon className="h-2.5 w-auto shrink-0 text-muted/60" />
+                  ) : null}
+                </span>
+              ),
+            }
+          : {})}
+      />
+    );
+  };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -174,62 +239,18 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         className={`poracode-flat-thread-scroll ${sidebarBodyScrollClass()}`}
         style={scrollFadeStyle}
       >
-        <div>
-          {rows.map((row) => {
-            if (row.kind === "see-more") {
-              return (
-                <SeeMoreThreadsButton
-                  key={row.key}
-                  onPress={() =>
-                    revealMoreThreads(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE)
-                  }
-                />
-              );
-            }
-            const projectId = rowProjectId(row);
-            const project: Project | undefined = projectId
-              ? projectsById.get(projectId)
-              : visibleProjects[0];
-            if (!project) return null;
-            // Children under a group header omit the tag — the header carries it.
-            const tagged = !(row.kind === "thread" && row.inGroup) && row.kind !== "section-label";
-            // Thread rows and worktree headers stack the tag on a second line;
-            // provider/experiment group headers keep the inline trailing form.
-            const stackedTag = row.kind === "thread" || row.kind === "worktree-group";
-            // Remote mirrors carry the machine name so their rows read as
-            // non-local; mirrors the grouped project header's server chip.
-            const remote = remoteServerFor(project);
-            return (
-              <SidebarThreadRow
-                key={row.key}
-                row={row}
-                project={project}
-                editingThreadId={editingThreadId}
-                setEditingThreadId={setEditingThreadId}
-                {...(tagged
-                  ? {
-                      projectTag: (
-                        <span
-                          className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} flex items-center gap-1 text-[10px] leading-4 text-muted/70`}
-                        >
-                          {/* Sized to the tag, not the 16px menu default, so a
-                              custom icon reads as part of the 10px label. */}
-                          <ProjectIcon project={project} className="size-3 text-muted/70" />
-                          <span className="truncate">{project.name}</span>
-                          <ProjectRemoteServerChip info={remote} size="xs" />
-                          {/* Mirrors the grouped header's trailing WSL marker. */}
-                          {project.location.kind === "wsl" ? (
-                            <TuxIcon className="h-2.5 w-auto shrink-0 text-muted/60" />
-                          ) : null}
-                        </span>
-                      ),
-                    }
-                  : {})}
-              />
-            );
-          })}
-        </div>
+        <div>{listRows.map(renderRow)}</div>
       </div>
+
+      {doneHeader ? (
+        // Sized to its rows up to half the column; past that the rows scroll.
+        <div className="flex max-h-[50%] shrink-0 flex-col">
+          {renderRow(doneHeader)}
+          {doneRows.length > 0 ? (
+            <div className={sidebarBodyScrollClass()}>{doneRows.map(renderRow)}</div>
+          ) : null}
+        </div>
+      ) : null}
       {compactLayout && latestProjectId ? <MobileQuickCompose projectId={latestProjectId} /> : null}
     </div>
   );

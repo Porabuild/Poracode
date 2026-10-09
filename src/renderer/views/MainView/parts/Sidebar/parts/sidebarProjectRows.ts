@@ -48,8 +48,19 @@ export type SidebarRow =
       label: MessageDescriptor;
       doneThreads: Thread[];
       hasProtectedDoneThreads: boolean;
+      /** Key into the sidebar collapse map; see {@link sidebarDoneSectionKey}. */
+      collapseKey: string;
+      collapsed: boolean;
+      /** Every done thread in the list, including any hidden behind "See more". */
+      doneCount: number;
     }
-  | { kind: "see-more"; key: string; hiddenCount: number };
+  | {
+      kind: "see-more";
+      key: string;
+      hiddenCount: number;
+      /** Set when the row pages a separately paged Done section, not the main list. */
+      section?: "done";
+    };
 
 /** Default number of list items shown per project before the "See more" row. */
 export const SIDEBAR_THREAD_LIST_PAGE_SIZE = 10;
@@ -60,18 +71,52 @@ export const SIDEBAR_THREAD_LIST_PAGE_SIZE = 10;
  */
 export const SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE = 20;
 
+/**
+ * List id of the flat (cross-project) list, passed to `buildSidebarProjectRows`
+ * as its `projectId` and used as its "See more" pager scope. Not a real
+ * project id.
+ */
+export const FLAT_THREAD_LIST_ID = "__flat__";
+
+/** Drag-and-drop sort group of the reorderable rows in one sidebar list. */
+function sidebarSortGroup(listId: string): string {
+  return `project-entries:${listId}`;
+}
+
+/**
+ * Sort group of the flat list's rows. It mixes projects, so reordering in it
+ * moves threads in the global thread order rather than within one project.
+ */
+export const FLAT_THREAD_LIST_SORT_GROUP = sidebarSortGroup(FLAT_THREAD_LIST_ID);
+
+/**
+ * Whether a thread can move in the flat Manual order. A remote mirror's place
+ * comes from its host: each snapshot puts that host's threads back in host
+ * order after the local ones, and mirrors aren't persisted locally, so a move
+ * would be lost.
+ */
+export function canReorderInFlatList(thread: Thread): boolean {
+  return thread.remoteServerId === undefined;
+}
+
 const EMPTY_THREAD_ID_SET: ReadonlySet<string> = new Set();
 
 /**
- * Collapse state for both group kinds lives in one map: worktree groups are
- * keyed by worktree path and start collapsed on launch; manual thread groups
- * are keyed `group:<groupId>` and start expanded.
+ * Collapse state for every collapsible sidebar section lives in one map:
+ * worktree groups are keyed by worktree path and start collapsed on launch;
+ * manual thread groups are keyed `group:<groupId>` and start expanded; a list's
+ * Done section is keyed by {@link sidebarDoneSectionKey} and starts collapsed.
  */
 export function isSidebarGroupCollapsed(
   collapsedWorktrees: Record<string, boolean>,
   key: string,
 ): boolean {
   return collapsedWorktrees[key] ?? !key.startsWith("group:");
+}
+
+/** Collapse-map key for the Done section of one thread list (a project or the flat list). */
+export function sidebarDoneSectionKey(listId: string): string {
+  return `done:${listId}`;
 }
 
 /** Pinned or attention-needing threads are never hidden behind "See more". */
@@ -90,6 +135,11 @@ function entryIsProtected(
 ): boolean {
   if (entry.kind === "thread") return threadIsProtected(entry.thread, liveBackgroundThreadIds);
   return entry.group.threads.some((t) => threadIsProtected(t, liveBackgroundThreadIds));
+}
+
+function entryHasThread(entry: ThreadListEntry, threadIds: ReadonlySet<string>): boolean {
+  if (entry.kind === "thread") return threadIds.has(entry.thread.id);
+  return entry.group.threads.some((t) => threadIds.has(t.id));
 }
 
 /**
@@ -241,6 +291,96 @@ function orderManualExperimentCandidates(
   return ordered;
 }
 
+/**
+ * Pushes a list's live entries, then its Done section, each with its "See
+ * more" row. Every sort mode shares this layout and only orders the entries
+ * and turns them into rows itself.
+ */
+function pushListSections(
+  rows: SidebarRow[],
+  input: {
+    liveEntries: ThreadListEntry[];
+    /** Newest activity first. */
+    doneEntries: ThreadListEntry[];
+    doneCollapseKey: string;
+    doneCollapsed: boolean;
+    visibleLimit: number;
+    doneVisibleLimit: number | undefined;
+    openThreadIds: ReadonlySet<string>;
+    isEntryProtected: (entry: ThreadListEntry) => boolean;
+    experimentCandidateOrder: ReadonlyMap<string, number> | undefined;
+    pushEntries: (entries: ThreadListEntry[], offset: number, section: "live" | "done") => void;
+  },
+) {
+  const { doneEntries, doneCollapsed, isEntryProtected } = input;
+  // A collapsed Done section lists only entries holding an open thread, so the
+  // selection doesn't vanish.
+  const listedDoneEntries = doneCollapsed
+    ? doneEntries.filter((entry) => entryHasThread(entry, input.openThreadIds))
+    : doneEntries;
+
+  // An expanded inline Done shares the list's page. Otherwise Done is paged on
+  // its own: by `doneVisibleLimit` when given, or in full while collapsed.
+  const doneSharesMainPage = input.doneVisibleLimit === undefined && !doneCollapsed;
+  const mainPage = selectVisible(
+    [...input.liveEntries, ...(doneSharesMainPage ? listedDoneEntries : [])],
+    input.visibleLimit,
+    isEntryProtected,
+  );
+  const donePage = doneSharesMainPage
+    ? mainPage
+    : selectVisible(
+        listedDoneEntries,
+        input.doneVisibleLimit ?? listedDoneEntries.length,
+        isEntryProtected,
+      );
+  const liveVisible = input.liveEntries.filter((e) => mainPage.visible.has(e));
+  const doneVisible = listedDoneEntries.filter((e) => donePage.visible.has(e));
+
+  const pushMainSeeMore = () => {
+    if (mainPage.hiddenCount > 0) {
+      rows.push({ kind: "see-more", key: "see-more", hiddenCount: mainPage.hiddenCount });
+    }
+  };
+
+  input.pushEntries(liveVisible, 0, "live");
+  // A main-list pager that covers no done entries goes above the Done header,
+  // so it doesn't read as part of Done.
+  if (!doneSharesMainPage) pushMainSeeMore();
+  // The header carries the toggle, so it stays even when "See more" hides every done entry.
+  if (doneEntries.length > 0) {
+    const allDoneThreads = doneEntries.flatMap((entry) =>
+      entry.kind === "thread" ? [entry.thread] : entry.group.threads,
+    );
+    const candidateOrder = input.experimentCandidateOrder;
+    const doneThreads = candidateOrder
+      ? allDoneThreads.filter((thread) => !candidateOrder.has(thread.id))
+      : allDoneThreads;
+    const doneCount = allDoneThreads.length;
+    rows.push({
+      kind: "section-label",
+      key: "done-label",
+      label: msg`Done (${doneCount})`,
+      doneThreads,
+      hasProtectedDoneThreads: doneThreads.length < allDoneThreads.length,
+      collapseKey: input.doneCollapseKey,
+      collapsed: doneCollapsed,
+      doneCount,
+    });
+  }
+  input.pushEntries(doneVisible, liveVisible.length, "done");
+  if (doneSharesMainPage) {
+    pushMainSeeMore();
+  } else if (donePage.hiddenCount > 0) {
+    rows.push({
+      kind: "see-more",
+      key: "done-see-more",
+      hiddenCount: donePage.hiddenCount,
+      section: "done",
+    });
+  }
+}
+
 export function buildSidebarProjectRows(input: {
   projectId: string;
   projectThreads: Thread[];
@@ -252,36 +392,83 @@ export function buildSidebarProjectRows(input: {
   visibleLimit: number;
   /** Threads with live background activity — kept visible like working ones. */
   liveBackgroundThreadIds?: ReadonlySet<string>;
+  /** Threads open in a pane — kept visible even inside a collapsed Done section. */
+  openThreadIds?: ReadonlySet<string>;
   /** Canonical candidate positions for experiment groups. */
   experimentCandidateOrder?: ReadonlyMap<string, number>;
+  /**
+   * Pages the Done section on its own with this limit, for a list that shows
+   * Done apart from its other rows. Done entries then take no `visibleLimit`
+   * slots. Without it, Done shares the list's page.
+   */
+  doneVisibleLimit?: number;
+  /**
+   * Manual order only. A live thread that fails this keeps its place in the
+   * list but can't be dragged to a new one or take a drop. Defaults to every
+   * thread passing.
+   */
+  canReorderThread?: (thread: Thread) => boolean;
 }): SidebarRow[] {
   const rows: SidebarRow[] = [];
-  const dndGroup = `project-entries:${input.projectId}`;
+  const dndGroup = sidebarSortGroup(input.projectId);
   const liveBackgroundThreadIds = input.liveBackgroundThreadIds ?? EMPTY_THREAD_ID_SET;
   const isCollapsed = (key: string) =>
     input.expandAllGroups ? false : isSidebarGroupCollapsed(input.collapsedWorktrees, key);
+  const doneCollapseKey = sidebarDoneSectionKey(input.projectId);
+  const sections = {
+    doneCollapseKey,
+    doneCollapsed: isCollapsed(doneCollapseKey),
+    visibleLimit: input.visibleLimit,
+    doneVisibleLimit: input.doneVisibleLimit,
+    openThreadIds: input.openThreadIds ?? EMPTY_THREAD_ID_SET,
+    isEntryProtected: (e: ThreadListEntry) => entryIsProtected(e, liveBackgroundThreadIds),
+    experimentCandidateOrder: input.experimentCandidateOrder,
+  };
 
   if (input.sortMode === "manual") {
-    const orderedThreads = orderManualExperimentCandidates(
-      [...input.projectThreads].sort((a, b) => Number(b.starred) - Number(a.starred)),
+    // Live threads keep the stored order, starred first, with no worktree or
+    // provider grouping. Done threads sink into the Done section ordered by
+    // last update, as in the date modes, and can't be dragged.
+    const liveThreads = orderManualExperimentCandidates(
+      input.projectThreads
+        .filter((thread) => !thread.done)
+        .sort((a, b) => Number(b.starred) - Number(a.starred)),
       input.experimentCandidateOrder,
     );
-    const { visible, hiddenCount } = selectVisible(orderedThreads, input.visibleLimit, (t) =>
-      threadIsProtected(t, liveBackgroundThreadIds),
-    );
-    orderedThreads.forEach((thread, idx) => {
-      if (!visible.has(thread)) return;
-      rows.push({
-        kind: "thread",
-        key: `thread:${thread.id}`,
-        thread,
-        threadIndex: idx,
-        group: dndGroup,
-        showWorktreeBadge: true,
-        showWorktreeFilesButton: !!thread.worktreePath,
-      });
+    // A live row's sort index is its place among all live threads, hidden ones
+    // included, which is the order the drag handler's index fallback rebuilds.
+    // Done rows share the sortable group, so their indices start after the last
+    // live thread's. dnd-kit restores a canceled drag by index order, and an
+    // overlap would put a live row back among the done rows.
+    const liveIndex = new Map(liveThreads.map((thread, idx) => [thread.id, idx]));
+    const doneThreads = input.projectThreads
+      .filter((thread) => thread.done)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const toEntry = (thread: Thread): ThreadListEntry => ({ kind: "thread", thread });
+    pushListSections(rows, {
+      ...sections,
+      liveEntries: liveThreads.map(toEntry),
+      doneEntries: doneThreads.map(toEntry),
+      pushEntries: (entries, _offset, section) => {
+        entries.forEach((entry, i) => {
+          if (entry.kind !== "thread") return;
+          const { thread } = entry;
+          rows.push({
+            kind: "thread",
+            key: `thread:${thread.id}`,
+            thread,
+            threadIndex:
+              section === "done" ? liveThreads.length + i : (liveIndex.get(thread.id) ?? i),
+            group: dndGroup,
+            showWorktreeBadge: true,
+            showWorktreeFilesButton: !!thread.worktreePath,
+            ...(section === "done" || input.canReorderThread?.(thread) === false
+              ? { sortDisabled: true }
+              : {}),
+          });
+        });
+      },
     });
-    if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });
     return rows;
   }
 
@@ -309,53 +496,28 @@ export function buildSidebarProjectRows(input: {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((item) => item.entry);
 
-  const { visible, hiddenCount } = selectVisible(
-    [...starredEntries, ...activeEntries, ...doneEntries],
-    input.visibleLimit,
-    (e) => entryIsProtected(e, liveBackgroundThreadIds),
-  );
-  const starredVisible = starredEntries.filter((e) => visible.has(e));
-  const activeVisible = activeEntries.filter((e) => visible.has(e));
-  const doneVisible = doneEntries.filter((e) => visible.has(e));
   let ungroupedIndex = 0;
-
   const nextUngroupedIndex = () => ungroupedIndex++;
-  const pushList = (list: ThreadListEntry[], offset = 0) => {
-    list.forEach((entry, i) => {
-      pushEntryRows(rows, entry, offset + i, {
-        projectId: input.projectId,
-        dndGroup,
-        dndDisabled: true,
-        isCollapsed,
-        nextUngroupedIndex,
-        liveBackgroundThreadIds,
-        ...(input.experimentCandidateOrder
-          ? { experimentCandidateOrder: input.experimentCandidateOrder }
-          : {}),
+  pushListSections(rows, {
+    ...sections,
+    liveEntries: [...starredEntries, ...activeEntries],
+    doneEntries,
+    pushEntries: (list, offset) => {
+      list.forEach((entry, i) => {
+        pushEntryRows(rows, entry, offset + i, {
+          projectId: input.projectId,
+          dndGroup,
+          dndDisabled: true,
+          isCollapsed,
+          nextUngroupedIndex,
+          liveBackgroundThreadIds,
+          ...(input.experimentCandidateOrder
+            ? { experimentCandidateOrder: input.experimentCandidateOrder }
+            : {}),
+        });
       });
-    });
-  };
-
-  pushList(starredVisible);
-  pushList(activeVisible, starredVisible.length);
-  if (doneVisible.length > 0) {
-    const allDoneThreads = doneEntries.flatMap((entry) =>
-      entry.kind === "thread" ? [entry.thread] : entry.group.threads,
-    );
-    const candidateOrder = input.experimentCandidateOrder;
-    const doneThreads = candidateOrder
-      ? allDoneThreads.filter((thread) => !candidateOrder.has(thread.id))
-      : allDoneThreads;
-    rows.push({
-      kind: "section-label",
-      key: "done-label",
-      label: msg`Done`,
-      doneThreads,
-      hasProtectedDoneThreads: doneThreads.length < allDoneThreads.length,
-    });
-  }
-  pushList(doneVisible, starredVisible.length + activeVisible.length);
-  if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });
+    },
+  });
 
   return rows;
 }

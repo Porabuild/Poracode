@@ -179,6 +179,11 @@ export function extractCodexStatusErrorMessage(status: unknown): string {
   return "Codex reported a system error. The session may be out of usage or otherwise unable to continue.";
 }
 
+/** Codex allows one writer per rollout; another Codex app holding it fails resume with this. */
+export function isSessionInUseResumeError(message: string): boolean {
+  return message.toLowerCase().includes("already has an active writer");
+}
+
 export function isRecoverableResumeError(message: string): boolean {
   const lower = message.toLowerCase();
   return (

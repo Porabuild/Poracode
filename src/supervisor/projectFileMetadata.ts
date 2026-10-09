@@ -2,12 +2,12 @@ import type { ProjectLocation } from "@/shared/contracts";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
 /** Media metadata must retain the bridge's followed-symlink containment gate. */
-export async function statWslPreviewMtimeMs(
+export async function statWslPreviewMetadata(
   client: WslBridgeClient,
   location: Extract<ProjectLocation, { kind: "wsl" }>,
   path: string,
   requireRegularFile: boolean,
-): Promise<number> {
+): Promise<{ modifiedAtMs: number; sizeBytes?: number }> {
   const { stats } = await client.stat(location, [path], { follow: requireRegularFile });
   const entry = stats[0];
   if (requireRegularFile && (!entry?.exists || !entry.isFile)) {
@@ -15,5 +15,8 @@ export async function statWslPreviewMtimeMs(
       code: entry?.code ?? "ENOENT",
     });
   }
-  return entry?.mtimeMs ?? 0;
+  return {
+    modifiedAtMs: entry?.mtimeMs ?? 0,
+    ...(entry?.size !== undefined ? { sizeBytes: entry.size } : {}),
+  };
 }
