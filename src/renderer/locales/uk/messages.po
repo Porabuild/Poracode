@@ -3056,7 +3056,7 @@ msgstr "Codex не вдалося стиснути розмову: {detail}"
 msgid "Collapse"
 msgstr "Згорнути"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "Згорнути {label}"
 
@@ -3468,11 +3468,11 @@ msgstr "Підключення..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3765,7 +3765,7 @@ msgstr "Не вдалося згенерувати повідомлення ко
 msgid "Could not load pull requests for {0}."
 msgstr "Не вдалося завантажити pull request для {0}."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "Не вдалося завантажити дані використання. Перевірте з’єднання з хостом і дозволи та спробуйте ще раз."
 
@@ -4020,7 +4020,7 @@ msgid "Credentials are configured."
 msgstr "Облікові дані налаштовано."
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Credits"
 msgstr "Кредити"
 
@@ -4812,6 +4812,10 @@ msgstr "Відображуване ім’я (необов’язково)"
 msgid "Display name in the sidebar."
 msgstr "Відображуване ім'я в бічній панелі."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display preferences follow this app's settings, independently of the selected usage host."
+msgstr "Налаштування відображення беруться з налаштувань цього застосунку незалежно від вибраного хоста статистики використання."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "Закріпити ліворуч"
@@ -5368,7 +5372,7 @@ msgstr "Завершився з кодом {0}. Закрийте, щоб пов�
 msgid "Expand"
 msgstr "Розгорнути"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "Розгорнути {label}"
 
@@ -6452,7 +6456,11 @@ msgstr "Ключ хоста не збігається"
 msgid "Host key trust accepted."
 msgstr "Довіру до ключа хоста прийнято."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. No cached usage is available."
+msgstr "Хост не в мережі. Кешовані дані про використання недоступні."
+
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Host offline. Showing last known usage."
 msgstr "Хост не в мережі. Показано останні відомі дані використання."
 
@@ -7340,7 +7348,7 @@ msgstr "Завантаження навичок…"
 #~ msgid "Loading threads"
 #~ msgstr "Завантаження потоків"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Loading usage…"
 msgstr "Завантаження даних використання…"
 
@@ -8982,7 +8990,7 @@ msgstr "Немає тредів"
 msgid "No threads yet."
 msgstr "Гілок ще немає."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "No usage data yet."
 msgstr "Даних використання ще немає."
 
@@ -10887,7 +10895,7 @@ msgstr "Повторне підключення до термінала…"
 #~ msgstr "Перепідключення до десктопа…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 msgstr "Відтворено з локальних журналів за публічними тарифами API — це не відображає ваш реальний рахунок за тарифними планами підписки. Показується лише на панелі використання."
 
@@ -10925,13 +10933,13 @@ msgstr "Оновити"
 msgid "Refresh {0} authentication"
 msgstr "Оновити автентифікацію {0}"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Refresh {label}"
 msgstr "Оновити {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
-msgid "Refresh {label} usage"
-msgstr "Оновити використання {label}"
+#~ msgid "Refresh {label} usage"
+#~ msgstr "Оновити використання {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -11331,8 +11339,8 @@ msgstr "Рендерер зіткнувся з необробленим відх
 msgid "Reorder {0}"
 msgstr "Змінити порядок {0}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Змінити порядок {label}"
 
@@ -12506,12 +12514,12 @@ msgid "Show Bookmark Bar"
 msgstr "Показати панель закладок"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
 msgstr "Показувати кола на бічній панелі"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
 msgstr "Показувати компактні кільця використання для кожного провайдера на бічній панелі. Приховувати кола окремих провайдерів у списку нижче."
 
@@ -12533,7 +12541,7 @@ msgid "Show docks in the right panel"
 msgstr "Показувати доки на правій панелі"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Показувати орієнтовну вартість"
 
@@ -12683,7 +12691,7 @@ msgstr "Ярлики бічної панелі"
 msgid "Sign in"
 msgstr "Увійти"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "Увійдіть і налаштуйте відстеження використання на цьому хості. Облікові дані залишаються на хості, який збирає дані використання."
 
@@ -14106,11 +14114,11 @@ msgstr "Цей комп’ютер"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Це підключення може переглядати проєкти, але не керувати ними. Створіть сполучення заново, щоб увімкнути керування."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "Це з’єднання не має дозволу на читання даних використання."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to refresh usage."
 msgstr "Це з’єднання не має дозволу на оновлення даних використання."
 
@@ -14167,7 +14175,7 @@ msgstr "Ця папка порожня."
 msgid "This host"
 msgstr "Цей хост"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "Цей хост більше не налаштовано."
 
@@ -15079,7 +15087,7 @@ msgstr "Невідомо"
 #~ msgstr "Невідомий проєкт"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Unlimited"
 msgstr "Без обмежень"
 
@@ -15273,6 +15281,10 @@ msgstr "Оновити SDK"
 msgid "Update task"
 msgstr "Оновити завдання"
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Update this host to refresh usage remotely. Cached usage can still be read."
+msgstr "Оновіть цей хост, щоб оновлювати статистику використання віддалено. Кешовані дані й надалі можна переглядати."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "Оновити до {updateLabel}"
@@ -15407,7 +15419,7 @@ msgstr "Хост даних використання"
 msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
 msgstr "Дані використання збираються на вибраному хості. Облікові записи та квоти показано окремо для кожного хоста."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Usage is stale. Refresh to collect the latest values."
 msgstr "Дані використання застаріли. Оновіть їх, щоб отримати актуальні значення."
 

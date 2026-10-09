@@ -134,4 +134,14 @@ describe("usage host selection", () => {
       JSON.stringify(["connection", "parent"]),
     );
   });
+  it("keeps a connection named current distinct from the local sentinel", () => {
+    useRemoteServersStore.setState({ servers: [host("current")] });
+    render(<UsageSettings />);
+    fireEvent.change(screen.getByRole("combobox"), {
+      target: { value: JSON.stringify(["connection", "current"]) },
+    });
+    expect(screen.getByTestId("host-view").textContent).toBe("current");
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "current" } });
+    expect(screen.queryByTestId("host-view")).toBeNull();
+  });
 });

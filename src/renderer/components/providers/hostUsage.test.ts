@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 import type { UsageSnapshot } from "@/shared/contracts";
 import type { RemoteServersState, RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -35,13 +37,15 @@ function server(id: string): RemoteServerRecord {
   };
 }
 const callRemoteProcedure = vi.fn<(procedure: string, payload: unknown) => Promise<unknown>>();
+const providerUsage = vi.fn<() => Promise<unknown>>();
 const withClient: RemoteServersState["withClient"] = async (_id, invoke) =>
-  invoke({ callRemoteProcedure } as never);
+  invoke({ callRemoteProcedure, providerUsage } as never);
 
 describe("host-owned provider usage", () => {
   beforeEach(() => {
     fence.generation = 0;
     callRemoteProcedure.mockReset();
+    providerUsage.mockReset();
     useRemoteServersStore.setState({
       servers: [server("a"), server("b")],
       runtime: {},
@@ -152,6 +156,144 @@ describe("host-owned provider usage", () => {
     await fetchHostUsage("a");
     useRemoteServersStore.setState({ servers: [] });
     useHostUsageStore.getState().invalidate("a");
+    expect(Object.hasOwn(useHostUsageStore.getState().hosts, "a")).toBe(false);
+  });
+  it.each([403, 404])(
+    "reads an old host through its same pinned legacy client on exact unsupported procedure %i",
+    async (status) => {
+      callRemoteProcedure.mockRejectedValueOnce(
+        new RemoteClientError("unsupported", status, "git_procedure_not_allowed"),
+      );
+      providerUsage.mockResolvedValueOnce({ snapshots: [snapshot("legacy")], fromCache: true });
+      await fetchHostUsage("a");
+      expect(providerUsage).toHaveBeenCalledOnce();
+      expect(useHostUsageStore.getState().hosts.a?.snapshots[0]?.authenticatedAs).toBe("legacy");
+    },
+  );
+
+  it.each([
+    new RemoteClientError("scope", 403, "scope_denied"),
+    new RemoteClientError("expired", 401, "unauthorized"),
+    new RemoteClientError("transport", 0, "network"),
+    new RemoteClientError("missing", 404, "not_found"),
+    new Error("git_procedure_not_allowed"),
+  ])(
+    "never falls back on auth, scope, network, other codes or untyped failures (%s)",
+    async (error) => {
+      callRemoteProcedure.mockRejectedValueOnce(error);
+      await fetchHostUsage("a");
+      expect(providerUsage).not.toHaveBeenCalled();
+      expect(useHostUsageStore.getState().hosts.a?.failed).toBe(true);
+    },
+  );
+
+  it("never falls back for filtered reads, malformed replies, or refresh", async () => {
+    const unsupported = new RemoteClientError("unsupported", 403, "git_procedure_not_allowed");
+    callRemoteProcedure.mockRejectedValueOnce(unsupported);
+    await fetchHostUsage("a", false, { providerIds: ["provider"] });
+    callRemoteProcedure.mockResolvedValueOnce({ snapshots: "malformed", fromCache: true });
+    await fetchHostUsage("a");
+    callRemoteProcedure.mockRejectedValueOnce(unsupported);
+    await fetchHostUsage("a", true, { force: true });
+    expect(providerUsage).not.toHaveBeenCalled();
+    expect(useHostUsageStore.getState().hosts.a).toMatchObject({
+      updateRequired: true,
+      refreshing: false,
+    });
+    callRemoteProcedure.mockResolvedValueOnce({ snapshots: [], fromCache: true });
+    await fetchHostUsage("a");
+    expect(useHostUsageStore.getState().hosts.a?.updateRequired).toBe(true);
+    callRemoteProcedure.mockResolvedValueOnce({ snapshots: [], fromCache: false });
+    await fetchHostUsage("a", true);
+    expect(useHostUsageStore.getState().hosts.a?.updateRequired).toBe(false);
+  });
+
+  it("uses the selected child environment client for its legacy fallback", async () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          ...server("child"),
+          transport: {
+            kind: "environment",
+            environmentId: "env",
+            parentConnectionId: "a",
+            childDesktopId: "child",
+          },
+        },
+      ],
+    });
+    const parentLegacy = vi.fn<() => Promise<unknown>>();
+    const pinnedChild = {
+      callRemoteProcedure: vi
+        .fn<(procedure: string, payload: unknown) => Promise<unknown>>()
+        .mockRejectedValue(new RemoteClientError("unsupported", 403, "git_procedure_not_allowed")),
+      providerUsage: vi
+        .fn<() => Promise<unknown>>()
+        .mockResolvedValue({ snapshots: [snapshot("child")], fromCache: true }),
+    };
+    const selected: string[] = [];
+    useRemoteServersStore.setState({
+      withClient: async (id, invoke) => {
+        selected.push(id);
+        return invoke((id === "child" ? pinnedChild : { providerUsage: parentLegacy }) as never);
+      },
+    });
+    await fetchHostUsage("child");
+    expect(selected).toEqual(["child"]);
+    expect(pinnedChild.providerUsage).toHaveBeenCalledOnce();
+    expect(parentLegacy).not.toHaveBeenCalled();
+  });
+  it("uses the legacy authenticated HTTP route on an old host, but never for a refresh", async () => {
+    const requests: { url: string; authorization: string | null }[] = [];
+    const client = new RemoteDesktopClient(
+      "https://owned.test",
+      "fixture-owned-token",
+      async (url, init) => {
+        requests.push({
+          url: String(url),
+          authorization: new Headers(init?.headers).get("authorization"),
+        });
+        return String(url).endsWith("/api/git/call")
+          ? new Response(
+              JSON.stringify({
+                error: { code: "git_procedure_not_allowed", message: "Unsupported" },
+              }),
+              { status: 403, headers: { "content-type": "application/json" } },
+            )
+          : new Response(
+              JSON.stringify({ snapshots: [snapshot("legacy-http")], fromCache: true }),
+              { headers: { "content-type": "application/json" } },
+            );
+      },
+    );
+    useRemoteServersStore.setState({ withClient: async (_id, invoke) => invoke(client) });
+    await fetchHostUsage("a");
+    expect(requests.map((r) => r.url)).toEqual([
+      "https://owned.test/api/git/call",
+      "https://owned.test/api/provider-usage",
+    ]);
+    expect(requests.every((r) => r.authorization === "Bearer fixture-owned-token")).toBe(true);
+    expect(useHostUsageStore.getState().hosts.a?.snapshots[0]?.authenticatedAs).toBe("legacy-http");
+    await fetchHostUsage("a", true, { force: true });
+    expect(requests.map((r) => r.url)).toEqual([
+      "https://owned.test/api/git/call",
+      "https://owned.test/api/provider-usage",
+      "https://owned.test/api/git/call",
+    ]);
+    expect(useHostUsageStore.getState().hosts.a?.updateRequired).toBe(true);
+  });
+  it("does not issue a legacy fallback after the selected connection is retired", async () => {
+    let reject!: (error: unknown) => void;
+    callRemoteProcedure.mockReturnValueOnce(
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+    );
+    const read = fetchHostUsage("a");
+    useRemoteServersStore.setState({ servers: [] });
+    reject(new RemoteClientError("unsupported", 403, "git_procedure_not_allowed"));
+    await read;
+    expect(providerUsage).not.toHaveBeenCalled();
     expect(Object.hasOwn(useHostUsageStore.getState().hosts, "a")).toBe(false);
   });
 });

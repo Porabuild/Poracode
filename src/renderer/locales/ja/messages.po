@@ -3055,7 +3055,7 @@ msgstr "Codex は会話を圧縮できませんでした: {detail}"
 msgid "Collapse"
 msgstr "折りたたむ"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "{label}を折りたたむ"
 
@@ -3467,11 +3467,11 @@ msgstr "接続中..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3764,7 +3764,7 @@ msgstr "コミットメッセージを生成できませんでした:{detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "{0} のプルリクエストを読み込めませんでした。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "使用量を読み込めませんでした。ホストの接続と権限を確認して、もう一度お試しください。"
 
@@ -4019,7 +4019,7 @@ msgid "Credentials are configured."
 msgstr "資格情報が設定されています。"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Credits"
 msgstr "クレジット"
 
@@ -4811,6 +4811,10 @@ msgstr "表示名（任意）"
 msgid "Display name in the sidebar."
 msgstr "サイドバーに名前を表示します。"
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display preferences follow this app's settings, independently of the selected usage host."
+msgstr "表示設定は、選択した使用状況のホストに関係なく、このアプリの設定に従います。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "左にドッキング"
@@ -5367,7 +5371,7 @@ msgstr "コード{0}で終了しました。閉じて再試行してください
 msgid "Expand"
 msgstr "拡大する"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "{label}を展開する"
 
@@ -6451,7 +6455,11 @@ msgstr "ホストキーが一致しません"
 msgid "Host key trust accepted."
 msgstr "ホストキーの信頼を承認しました。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. No cached usage is available."
+msgstr "ホストはオフラインです。キャッシュされた使用状況はありません。"
+
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Host offline. Showing last known usage."
 msgstr "ホストはオフラインです。最後に取得した使用量を表示しています。"
 
@@ -7339,7 +7347,7 @@ msgstr "スキルを読み込んでいます…"
 #~ msgid "Loading threads"
 #~ msgstr "スレッドを読み込み中"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Loading usage…"
 msgstr "使用量を読み込み中…"
 
@@ -8980,7 +8988,7 @@ msgstr "スレッドがありません"
 msgid "No threads yet."
 msgstr "まだスレッドがありません。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "No usage data yet."
 msgstr "使用量データはまだありません。"
 
@@ -10885,7 +10893,7 @@ msgstr "ターミナルに再接続中…"
 #~ msgstr "デスクトップに再接続しています…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 msgstr "パブリック API レートでローカル ログから再構築されます。サブスクリプション プランの実際の請求額は反映されません。使用状況パネルにのみ表示されます。"
 
@@ -10923,13 +10931,13 @@ msgstr "リフレッシュ"
 msgid "Refresh {0} authentication"
 msgstr "{0}認証を更新します"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Refresh {label}"
 msgstr "{label} を更新する"
 
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
-msgid "Refresh {label} usage"
-msgstr "{label} の使用量を更新"
+#~ msgid "Refresh {label} usage"
+#~ msgstr "{label} の使用量を更新"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -11329,8 +11337,8 @@ msgstr "レンダラーが未処理の Promise 拒否に遭遇しました"
 msgid "Reorder {0}"
 msgstr "{0}を並べ替える"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "{label}を並べ替える"
 
@@ -12504,12 +12512,12 @@ msgid "Show Bookmark Bar"
 msgstr "ブックマークバーを表示"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
 msgstr "サイドバーにリングを表示"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
 msgstr "サイドバーにプロバイダーごとのコンパクトな使用状況リングを表示します。個々のプロバイダーのリングは下の一覧で非表示にできます。"
 
@@ -12531,7 +12539,7 @@ msgid "Show docks in the right panel"
 msgstr "ドックを右パネルに表示"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "推定コストを表示"
 
@@ -12681,7 +12689,7 @@ msgstr "サイドバーのショートカット"
 msgid "Sign in"
 msgstr "サインイン"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "このホストでサインインし、使用量の追跡を設定してください。認証情報は使用量を収集するホストに保存されます。"
 
@@ -14104,11 +14112,11 @@ msgstr "このコンピューター"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "この接続ではプロジェクトを表示できますが、管理はできません。有効にするには再度ペアリングしてください。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "この接続には使用量を読み取る権限がありません。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to refresh usage."
 msgstr "この接続には使用量を更新する権限がありません。"
 
@@ -14165,7 +14173,7 @@ msgstr "このフォルダーは空です。"
 msgid "This host"
 msgstr "このホスト"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "このホストは現在設定されていません。"
 
@@ -15077,7 +15085,7 @@ msgstr "不明"
 #~ msgstr "不明なプロジェクト"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Unlimited"
 msgstr "無制限"
 
@@ -15271,6 +15279,10 @@ msgstr "SDK を更新"
 msgid "Update task"
 msgstr "更新タスク"
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Update this host to refresh usage remotely. Cached usage can still be read."
+msgstr "使用状況をリモートで更新するには、このホストをアップデートしてください。キャッシュされた使用状況は引き続き確認できます。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "{updateLabel}に更新"
@@ -15405,7 +15417,7 @@ msgstr "使用量のホスト"
 msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
 msgstr "使用量は選択したホストで収集されます。アカウントと割り当て量はホストごとに表示されます。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Usage is stale. Refresh to collect the latest values."
 msgstr "使用量が古くなっています。更新して最新の値を取得してください。"
 

@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CURSOR_API_KEY_EXCHANGE_ENDPOINT,
   CURSOR_PERIOD_USAGE_ENDPOINT,
@@ -244,6 +244,11 @@ describe("UsageService", () => {
     now += 1;
     await service.getProviderUsage({ providerIds: ["claude"] });
     await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).toBe(afterRefresh);
+    // The host default is five minutes, not the two-minute rate-limit floor.
+    now += 3 * 60_000;
+    await service.getProviderUsage({ providerIds: ["claude"] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(calls).toBeGreaterThan(afterRefresh);
   });
 
@@ -420,7 +425,7 @@ describe("UsageService", () => {
     expect((await service.refreshDueProviders()).sort()).toEqual(["claude", "codex"]);
   });
 
-  it("auto-refresh respects the global off switch even with per-provider intervals", async () => {
+  it("auto-refresh honors explicit provider overrides while the default cadence is off", async () => {
     const settingsPath = tempCachePath();
     writeFileSync(
       settingsPath,
@@ -436,7 +441,88 @@ describe("UsageService", () => {
       host: makeHost({ claude: { accessToken: "tok" } }),
       providerIds: ["claude", "codex"],
     });
+    expect(await service.refreshDueProviders()).toEqual(["claude"]);
+  });
+
+  it("manual-only stale reads never collect, while an explicit force refresh remains authorized", async () => {
+    const settingsPath = tempCachePath();
+    writeFileSync(settingsPath, JSON.stringify({ usage: { autoRefresh: false } }));
+    const collect = vi.fn<LocalUsageCollector["collect"]>(
+      async (now: number): Promise<UsageSnapshot> => ({
+        providerId: "fixture",
+        status: "ok",
+        windows: [],
+        fetchedAt: now,
+      }),
+    );
+    const cachePath = tempCachePath();
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 8,
+        snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW - 600_000 }],
+      }),
+    );
+    const service = new UsageService({
+      emit: () => {},
+      cachePath,
+      settingsPath,
+      host: makeHost({}),
+      providerIds: ["fixture"],
+      localCollectors: [{ id: "fixture", collect }],
+    });
+    expect((await service.getProviderUsage({})).snapshots[0]?.fetchedAt).toBe(NOW - 600_000);
+    await service.getProviderUsage({ providerIds: ["fixture"] });
     expect(await service.refreshDueProviders()).toEqual([]);
+    expect(collect).not.toHaveBeenCalled();
+    await service.refreshProviderUsage({ providerIds: ["fixture"], force: true });
+    expect(collect).toHaveBeenCalledOnce();
+  });
+
+  it("cache reads share per-provider due clocks and respect disabled overrides", async () => {
+    let now = NOW;
+    const calls: string[] = [];
+    const refreshed: string[] = [];
+    const settingsPath = tempCachePath();
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        usage: {
+          autoRefresh: false,
+          providerRefreshIntervals: { fast: 2, slow: 10, disabled: 2 },
+          disabledProviders: ["disabled"],
+        },
+      }),
+    );
+    const ids = ["fast", "slow", "manual", "disabled"];
+    const service = new UsageService({
+      emit: (event) => {
+        if (event.type === "provider-usage") refreshed.push(event.snapshot.providerId);
+      },
+      cachePath: tempCachePath(),
+      settingsPath,
+      host: { ...makeHost({}), now: () => now },
+      providerIds: ids,
+      localCollectors: ids.map((id) => ({
+        id,
+        collect: async (at: number) => {
+          calls.push(id);
+          return { providerId: id, status: "ok" as const, windows: [], fetchedAt: at };
+        },
+      })),
+    });
+    await service.refreshProviderUsage({ providerIds: ids, force: true });
+    calls.length = 0;
+    refreshed.length = 0;
+    now += 120_000;
+    await service.getProviderUsage({ providerIds: ids });
+    // Await publication of the background collection, without starting another.
+    await vi.waitFor(() => expect(refreshed).toEqual(["fast"]));
+    expect(calls).toEqual(["fast"]);
+    calls.length = 0;
+    now += 480_000;
+    expect((await service.refreshDueProviders()).sort()).toEqual(["fast", "slow"]);
+    expect(calls.sort()).toEqual(["fast", "slow"]);
   });
 
   it("collects Claude profile usage from the profile config directory", async () => {
@@ -835,7 +921,10 @@ describe("UsageService", () => {
     let now = NOW;
     let calls = 0;
     let rateLimited = false;
+    const settingsPath = tempCachePath();
+    writeFileSync(settingsPath, JSON.stringify({ usage: { disabledProviders: [] } }));
     const service = new UsageService({
+      settingsPath,
       emit: () => {},
       cachePath: tempCachePath(),
       host: {

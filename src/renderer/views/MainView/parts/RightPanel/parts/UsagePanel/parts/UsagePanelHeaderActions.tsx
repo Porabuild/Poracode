@@ -4,6 +4,8 @@ import { useLingui } from "@lingui/react/macro";
 import { openUsageSettings } from "@/renderer/actions/panelActions";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { resolveDisplayedProviders } from "@/renderer/components/providers/usageProviders";
+import { useUsagePanelScope } from "@/renderer/components/providers/useUsagePanelScope";
+import { useHostUsage } from "@/renderer/state/hostUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 
@@ -23,12 +25,23 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const requestRefresh = useUsageScopeStore((s) => s.requestRefresh);
 
-  const displayed = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
+  const scope = useUsagePanelScope();
+  const usage = useHostUsage(scope.effectiveId ?? "");
+  const canRefresh =
+    scope.server?.scopes.includes("session:read") &&
+    scope.server.scopes.includes("session:operate");
+  const refreshing = scope.remote ? usage.refreshing : isRefreshing;
+  const disabled = scope.remote ? !canRefresh || usage.refreshing : isRefreshing;
+  const displayed = scope.remote
+    ? (scope.server?.scopes.includes("session:read") ? usage.snapshots : []).map((snapshot) => ({
+        id: snapshot.providerId,
+      }))
+    : resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
   const allCollapsed =
     displayed.length > 0 && displayed.every((p) => collapsedProviders.includes(p.id));
 
   const refreshNow = () => {
-    if (isRefreshing) return;
+    if (disabled) return;
     setIsRefreshing(true);
     requestRefresh();
     window.setTimeout(() => setIsRefreshing(false), 450);
@@ -72,10 +85,10 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
         type="button"
         className={buttonClass}
         title={t`Refresh`}
-        disabled={isRefreshing}
+        disabled={disabled}
         onClick={refreshNow}
       >
-        <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+        <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
       </button>
     </>
   );

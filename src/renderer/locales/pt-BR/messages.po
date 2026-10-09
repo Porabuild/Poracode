@@ -3056,7 +3056,7 @@ msgstr "O Codex não conseguiu compactar a conversa: {detail}"
 msgid "Collapse"
 msgstr "Recolher"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "Recolher {label}"
 
@@ -3468,11 +3468,11 @@ msgstr "Conectando..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3765,7 +3765,7 @@ msgstr "Não foi possível gerar mensagem de commit: {detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "Não foi possível carregar os pull requests de {0}."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "Não foi possível carregar o uso. Verifique a conexão e as permissões do host e tente novamente."
 
@@ -4020,7 +4020,7 @@ msgid "Credentials are configured."
 msgstr "As credenciais estão configuradas."
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Credits"
 msgstr "Créditos"
 
@@ -4812,6 +4812,10 @@ msgstr "Nome de exibição (opcional)"
 msgid "Display name in the sidebar."
 msgstr "Nome de exibição na barra lateral."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display preferences follow this app's settings, independently of the selected usage host."
+msgstr "As preferências de exibição seguem as configurações deste aplicativo, independentemente do host de uso selecionado."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "Encaixar à esquerda"
@@ -5368,7 +5372,7 @@ msgstr "Saiu com o código {0}. Feche para tentar novamente."
 msgid "Expand"
 msgstr "Expandir"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "Expandir {label}"
 
@@ -6452,7 +6456,11 @@ msgstr "Chave do host incompatível"
 msgid "Host key trust accepted."
 msgstr "Confiança na chave do host aceita."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. No cached usage is available."
+msgstr "Host offline. Não há dados de uso em cache disponíveis."
+
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Host offline. Showing last known usage."
 msgstr "Host offline. Exibindo o último uso conhecido."
 
@@ -7340,7 +7348,7 @@ msgstr "Carregando skills…"
 #~ msgid "Loading threads"
 #~ msgstr "Carregando threads"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Loading usage…"
 msgstr "Carregando uso…"
 
@@ -8982,7 +8990,7 @@ msgstr "Sem tópicos"
 msgid "No threads yet."
 msgstr "Nenhuma thread ainda."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "No usage data yet."
 msgstr "Ainda não há dados de uso."
 
@@ -10887,7 +10895,7 @@ msgstr "Reconectando ao terminal…"
 #~ msgstr "Reconectando ao desktop…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 msgstr "Reconstruído a partir de registros locais com taxas de API públicas — não reflete sua fatura real em planos de assinatura. Mostrado apenas no painel de uso."
 
@@ -10925,13 +10933,13 @@ msgstr "Atualizar"
 msgid "Refresh {0} authentication"
 msgstr "Atualizar autenticação de {0}"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Refresh {label}"
 msgstr "Atualizar {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
-msgid "Refresh {label} usage"
-msgstr "Atualizar uso de {label}"
+#~ msgid "Refresh {label} usage"
+#~ msgstr "Atualizar uso de {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -11331,8 +11339,8 @@ msgstr "O renderizador atingiu uma rejeição de promessa não tratada"
 msgid "Reorder {0}"
 msgstr "Reordenar {0}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Reordenar {label}"
 
@@ -12506,12 +12514,12 @@ msgid "Show Bookmark Bar"
 msgstr "Mostrar barra de favoritos"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
 msgstr "Mostrar círculos na barra lateral"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
 msgstr "Mostre anéis de uso compactos por provedor na barra lateral. Oculte os círculos de provedores individuais na lista abaixo."
 
@@ -12533,7 +12541,7 @@ msgid "Show docks in the right panel"
 msgstr "Mostrar docks no painel direito"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Mostrar custo estimado"
 
@@ -12683,7 +12691,7 @@ msgstr "Atalhos da barra lateral"
 msgid "Sign in"
 msgstr "Faça login"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "Entre e configure o monitoramento de uso neste host. As credenciais ficam no host que coleta o uso."
 
@@ -14106,11 +14114,11 @@ msgstr "Este computador"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Esta conexão pode ver projetos, mas não gerenciá-los. Faça o pareamento novamente para habilitar."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "Esta conexão não tem permissão para consultar o uso."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to refresh usage."
 msgstr "Esta conexão não tem permissão para atualizar o uso."
 
@@ -14167,7 +14175,7 @@ msgstr "Esta pasta está vazia."
 msgid "This host"
 msgstr "Este host"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "Este host não está mais configurado."
 
@@ -15079,7 +15087,7 @@ msgstr "Desconhecido"
 #~ msgstr "Projeto desconhecido"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Unlimited"
 msgstr "Ilimitado"
 
@@ -15273,6 +15281,10 @@ msgstr "Atualizar SDK"
 msgid "Update task"
 msgstr "Atualizar tarefa"
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Update this host to refresh usage remotely. Cached usage can still be read."
+msgstr "Atualize este host para atualizar o uso remotamente. Os dados de uso em cache ainda podem ser consultados."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "Atualizar para {updateLabel}"
@@ -15407,7 +15419,7 @@ msgstr "Host de uso"
 msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
 msgstr "O uso é coletado no host selecionado. As contas e cotas são exibidas separadamente para cada host."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Usage is stale. Refresh to collect the latest values."
 msgstr "O uso está desatualizado. Atualize para coletar os valores mais recentes."
 

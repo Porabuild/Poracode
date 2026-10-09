@@ -3056,7 +3056,7 @@ msgstr "Codex 无法压缩对话：{detail}"
 msgid "Collapse"
 msgstr "折叠"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "折叠{label}"
 
@@ -3468,11 +3468,11 @@ msgstr "连接中..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3765,7 +3765,7 @@ msgstr "无法生成提交消息：{detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "无法加载 {0} 的拉取请求。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "无法加载用量。请检查主机连接和权限，然后重试。"
 
@@ -4020,7 +4020,7 @@ msgid "Credentials are configured."
 msgstr "凭证已配置。"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Credits"
 msgstr "鸣谢"
 
@@ -4812,6 +4812,10 @@ msgstr "显示名称（可选）"
 msgid "Display name in the sidebar."
 msgstr "在侧边栏中显示名称。"
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display preferences follow this app's settings, independently of the selected usage host."
+msgstr "显示偏好设置遵循此应用的设置，与所选的用量主机无关。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "停靠到左侧"
@@ -5368,7 +5372,7 @@ msgstr "已退出，退出码为 {0}。关闭以重试。"
 msgid "Expand"
 msgstr "展开"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "展开{label}"
 
@@ -6452,7 +6456,11 @@ msgstr "主机密钥不匹配"
 msgid "Host key trust accepted."
 msgstr "已接受主机密钥信任。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. No cached usage is available."
+msgstr "主机离线。没有可用的缓存用量数据。"
+
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Host offline. Showing last known usage."
 msgstr "主机离线。显示上次已知的用量。"
 
@@ -7340,7 +7348,7 @@ msgstr "正在加载技能…"
 #~ msgid "Loading threads"
 #~ msgstr "正在加载线程"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Loading usage…"
 msgstr "正在加载用量…"
 
@@ -8981,7 +8989,7 @@ msgstr "没有线程"
 msgid "No threads yet."
 msgstr "暂无对话。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "No usage data yet."
 msgstr "暂无用量数据。"
 
@@ -10886,7 +10894,7 @@ msgstr "正在重新连接终端…"
 #~ msgstr "正在重新连接到桌面…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计划的真实账单。仅在使用面板中显示。"
 
@@ -10924,13 +10932,13 @@ msgstr "刷新"
 msgid "Refresh {0} authentication"
 msgstr "刷新{0}身份验证"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Refresh {label}"
 msgstr "刷新 {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
-msgid "Refresh {label} usage"
-msgstr "刷新 {label} 的用量"
+#~ msgid "Refresh {label} usage"
+#~ msgstr "刷新 {label} 的用量"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -11330,8 +11338,8 @@ msgstr "渲染器遇到未处理的 Promise 拒绝"
 msgid "Reorder {0}"
 msgstr "重新排序{0}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "重新排序{label}"
 
@@ -12505,12 +12513,12 @@ msgid "Show Bookmark Bar"
 msgstr "显示书签栏"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
 msgstr "在侧边栏中显示圆圈"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
 msgstr "在侧边栏中显示每个提供商的紧凑使用环。可在下方列表中隐藏单个提供商的圆环。"
 
@@ -12532,7 +12540,7 @@ msgid "Show docks in the right panel"
 msgstr "在右侧面板显示停靠面板"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "显示预计费用"
 
@@ -12682,7 +12690,7 @@ msgstr "侧边栏快捷方式"
 msgid "Sign in"
 msgstr "登录"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "请在此主机上登录并配置用量跟踪。凭据保留在收集用量的主机上。"
 
@@ -14105,11 +14113,11 @@ msgstr "这台电脑"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "此连接可以查看项目，但不能管理项目。请重新配对以启用。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "此连接没有读取用量的权限。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to refresh usage."
 msgstr "此连接没有刷新用量的权限。"
 
@@ -14166,7 +14174,7 @@ msgstr "此文件夹为空。"
 msgid "This host"
 msgstr "此主机"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "此主机已不再配置。"
 
@@ -15078,7 +15086,7 @@ msgstr "未知"
 #~ msgstr "未知项目"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Unlimited"
 msgstr "无限"
 
@@ -15272,6 +15280,10 @@ msgstr "更新 SDK"
 msgid "Update task"
 msgstr "更新任务"
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Update this host to refresh usage remotely. Cached usage can still be read."
+msgstr "请更新此主机以远程刷新用量。仍可读取缓存的用量数据。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "更新到{updateLabel}"
@@ -15406,7 +15418,7 @@ msgstr "用量主机"
 msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
 msgstr "用量在所选主机上收集。每台主机的账号和配额分别显示。"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Usage is stale. Refresh to collect the latest values."
 msgstr "用量已过期。请刷新以获取最新数据。"
 

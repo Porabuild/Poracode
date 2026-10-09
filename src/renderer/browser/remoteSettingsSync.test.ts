@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemoteSettings, RemoteSettingsPatch } from "@/shared/remote";
+import { defaultSharedSettings } from "@/shared/settings";
 import type { SharedSettingsInput } from "@/shared/settings";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 
@@ -42,6 +43,38 @@ describe("pushDesktopSettingsDiff push ordering", () => {
   beforeEach(() => {
     resetDesktopSettings();
     h.applyExternalSharedSettings.mockClear();
+  });
+
+  it("writes display-only usage edits to the existing settings owner, preserving collection policy", async () => {
+    const usage = {
+      ...defaultSharedSettings.usage,
+      autoRefresh: false,
+      disabledProviders: ["fixture"],
+      providerRefreshIntervals: { fixture: 10 },
+    };
+    const remote = { ...settings("owner"), usage };
+    applyDesktopSettings(remote);
+    const next = {
+      ...remote,
+      usage: {
+        ...usage,
+        showInSidebar: false,
+        showEstimatedCost: true,
+        sidebarHiddenProviders: ["fixture"],
+      },
+    };
+    const owner = {
+      updateSettings: vi.fn<RemoteDesktopClient["updateSettings"]>().mockResolvedValue(next),
+    };
+    pushDesktopSettingsDiff(owner as unknown as RemoteDesktopClient, {
+      ...input("owner"),
+      usage: next.usage,
+    });
+    expect(owner.updateSettings).toHaveBeenCalledExactlyOnceWith({ usage: next.usage });
+    expect(next.usage.autoRefresh).toBe(false);
+    expect(next.usage.disabledProviders).toEqual(["fixture"]);
+    expect(next.usage.providerRefreshIntervals).toEqual({ fixture: 10 });
+    await flush();
   });
 
   it("hydrates the desktop's persistent composer MCP toggles", () => {

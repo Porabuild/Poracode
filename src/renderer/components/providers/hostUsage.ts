@@ -1,3 +1,4 @@
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 import { providerUsageResponseSchema, type ProviderUsagePayload } from "@/shared/contracts";
 import { useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -14,24 +15,45 @@ export async function fetchHostUsage(
   const server = state.servers.find((candidate) => remoteConnectionKey(candidate) === connectionId);
   if (!server) return;
   const generation = currentRemoteServerGeneration(connectionId);
-  const request = useHostUsageStore.getState().begin(connectionId);
+  const request = useHostUsageStore.getState().begin(connectionId, refresh);
   const isCurrent = () =>
     currentRemoteServerGeneration(connectionId) === generation &&
     useRemoteServersStore
       .getState()
       .servers.find((candidate) => remoteConnectionKey(candidate) === connectionId) === server;
   try {
-    const result = await state.withClient(connectionId, (client) =>
-      client.callRemoteProcedure(refresh ? "refreshProviderUsage" : "getProviderUsage", payload),
-    );
+    const result = await state.withClient(connectionId, async (client) => {
+      try {
+        return await client.callRemoteProcedure(
+          refresh ? "refreshProviderUsage" : "getProviderUsage",
+          payload,
+        );
+      } catch (error) {
+        // Legacy protocol-12 hosts have an equivalent unfiltered cache-read
+        // endpoint. Keep the pinned owning client, including environment routing.
+        // Never substitute a cache read for collection or bypass a scope denial.
+        if (
+          !refresh &&
+          Object.keys(payload).length === 0 &&
+          isUnsupportedUsageProcedure(error) &&
+          isCurrent() &&
+          useHostUsageStore.getState().hosts[connectionId]?.request === request
+        )
+          return await client.providerUsage();
+        throw error;
+      }
+    });
     const usage = providerUsageResponseSchema.parse(result);
     if (isCurrent())
       useHostUsageStore
         .getState()
         .complete(connectionId, request, usage.snapshots, Boolean(payload.providerIds?.length));
-  } catch {
+  } catch (error) {
     // A localized error is shown by the view; do not expose provider/transport diagnostics or secrets.
-    if (isCurrent()) useHostUsageStore.getState().fail(connectionId, request);
+    if (isCurrent())
+      useHostUsageStore
+        .getState()
+        .fail(connectionId, request, refresh && isUnsupportedUsageProcedure(error));
   }
 }
 
@@ -46,3 +68,11 @@ useRemoteServersStore.subscribe((state, previous) => {
     }
   }
 });
+
+function isUnsupportedUsageProcedure(error: unknown): boolean {
+  return (
+    error instanceof RemoteClientError &&
+    (error.status === 403 || error.status === 404) &&
+    error.code === "git_procedure_not_allowed"
+  );
+}

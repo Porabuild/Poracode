@@ -26,6 +26,7 @@ function UsageCadenceField(props: { id: string; label: string }) {
   const { t } = useLingui();
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const providerRefreshIntervals = useSharedSettings((s) => s.usage.providerRefreshIntervals);
+  const autoRefresh = useSharedSettings((s) => s.usage.autoRefresh);
   const defaultIntervalMinutes = useSharedSettings((s) => s.usage.refreshIntervalMinutes);
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -53,7 +54,7 @@ function UsageCadenceField(props: { id: string; label: string }) {
         inputMode="numeric"
         aria-label={t`${label} auto-refresh interval in minutes`}
         value={text}
-        placeholder={String(defaultIntervalMinutes)}
+        placeholder={String(autoRefresh ? defaultIntervalMinutes : 0)}
         onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ""))}
         onBlur={commit}
         onKeyDown={(e) => {
@@ -75,10 +76,6 @@ function UsageCadenceField(props: { id: string; label: string }) {
 function UsageProviderControls(props: { id: string; label: string; remote: boolean }) {
   const { id, label, remote } = props;
   const { t } = useLingui();
-  const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
-  const sidebarHiddenProviders = useSharedSettings((s) => s.usage.sidebarHiddenProviders);
-  const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
-
   const {
     canBrowserSignIn,
     canApiKeySignIn,
@@ -91,17 +88,6 @@ function UsageProviderControls(props: { id: string; label: string; remote: boole
     handleSubmitApiKey,
     handleSignOut,
   } = useUsageProviderLogin(id);
-
-  const circleHidden = sidebarHiddenProviders.includes(id);
-  const circleAction = circleHidden
-    ? t`Show ${label} circle in sidebar`
-    : t`Hide ${label} circle in sidebar`;
-  const toggleCircle = () => {
-    const next = circleHidden
-      ? sidebarHiddenProviders.filter((x) => x !== id)
-      : [...new Set([...sidebarHiddenProviders, id])];
-    startTransition(() => setUsageSetting("sidebarHiddenProviders", next));
-  };
 
   const onSubmitApiKey = (event: FormEvent) => {
     event.preventDefault();
@@ -159,24 +145,7 @@ function UsageProviderControls(props: { id: string; label: string; remote: boole
       {/* Pinned to the right of the first line; the sign-in block above wraps
           below them when the container is narrow. */}
       <span className="ml-auto flex shrink-0 items-center gap-1">
-        <Tooltip>
-          <Tooltip.Trigger>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              aria-pressed={!circleHidden}
-              aria-label={circleAction}
-              className={`shrink-0 ${circleHidden ? "text-muted/50" : "text-foreground"}`}
-              onPress={toggleCircle}
-            >
-              {circleHidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>
-            {showInSidebar ? circleAction : t`Sidebar circles are turned off globally above`}
-          </Tooltip.Content>
-        </Tooltip>
+        <UsageSidebarVisibility id={id} label={label} />
         {canSignOut ? (
           <Tooltip>
             <Tooltip.Trigger>
@@ -274,5 +243,45 @@ export function UsageProviderRow(props: { id: string; label: string; remote: boo
         </span>
       ) : null}
     </div>
+  );
+}
+
+/** Display-only control, independent of collection cadence and credential hooks. */
+export function UsageSidebarVisibility({ id, label }: { id: string; label: string }) {
+  const { t } = useLingui();
+  const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
+  const sidebarHiddenProviders = useSharedSettings((s) => s.usage.sidebarHiddenProviders);
+  const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
+
+  const circleHidden = sidebarHiddenProviders.includes(id);
+  const circleAction = circleHidden
+    ? t`Show ${label} circle in sidebar`
+    : t`Hide ${label} circle in sidebar`;
+  const toggleCircle = () => {
+    const next = circleHidden
+      ? sidebarHiddenProviders.filter((x) => x !== id)
+      : [...new Set([...sidebarHiddenProviders, id])];
+    startTransition(() => setUsageSetting("sidebarHiddenProviders", next));
+  };
+
+  return (
+    <Tooltip>
+      <Tooltip.Trigger>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          aria-pressed={!circleHidden}
+          aria-label={circleAction}
+          className={`shrink-0 ${circleHidden ? "text-muted/50" : "text-foreground"}`}
+          onPress={toggleCircle}
+        >
+          {circleHidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        </Button>
+      </Tooltip.Trigger>
+      <Tooltip.Content>
+        {showInSidebar ? circleAction : t`Sidebar circles are turned off globally above`}
+      </Tooltip.Content>
+    </Tooltip>
   );
 }

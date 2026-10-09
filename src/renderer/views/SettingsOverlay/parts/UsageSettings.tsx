@@ -3,7 +3,7 @@ import { NumberField, Tooltip } from "@heroui/react";
 import { RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import { Button, Select, ToggleSwitch } from "@/renderer/components/common";
+import { Button, Select } from "@/renderer/components/common";
 import { usageProvidersForAgentInstances } from "@/renderer/components/providers/usageProviders";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
@@ -13,6 +13,7 @@ import {
   selectBrowserBridgeServer,
 } from "@/renderer/state/remoteServersStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { UsageDisplaySettings } from "./UsageDisplaySettings";
 import { HostUsageSettings } from "./HostUsageSettings";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { UsageProviderRow } from "../../../components/providers/settings/UsageProviderRow";
@@ -78,8 +79,6 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
   const { t } = useLingui();
   const autoRefresh = useSharedSettings((s) => s.usage.autoRefresh);
   const refreshIntervalMinutes = useSharedSettings((s) => s.usage.refreshIntervalMinutes);
-  const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
-  const showEstimatedCost = useSharedSettings((s) => s.usage.showEstimatedCost);
   const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -181,47 +180,7 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
         </NumberField>
       </SettingRow>
 
-      <SettingRow
-        anchorId="usage.showInSidebar"
-        title={t`Show circles in sidebar`}
-        description={
-          <Trans>
-            Show compact per-provider usage rings in the sidebar. Hide individual providers&apos;
-            circles in the list below.
-          </Trans>
-        }
-      >
-        <ToggleSwitch
-          aria-label={t`Show circles in sidebar`}
-          isSelected={showInSidebar}
-          onChange={(selected) => {
-            startTransition(() => {
-              setUsageSetting("showInSidebar", selected);
-            });
-          }}
-        />
-      </SettingRow>
-
-      <SettingRow
-        anchorId="usage.showEstimatedCost"
-        title={t`Show estimated cost`}
-        description={
-          <Trans>
-            Reconstructed from local logs at public API rates — it does not reflect your real bill
-            on subscription plans. Shown only in the usage panel.
-          </Trans>
-        }
-      >
-        <ToggleSwitch
-          aria-label={t`Show estimated cost`}
-          isSelected={showEstimatedCost}
-          onChange={(selected) => {
-            startTransition(() => {
-              setUsageSetting("showEstimatedCost", selected);
-            });
-          }}
-        />
-      </SettingRow>
+      <UsageDisplaySettings />
 
       <div className="pt-2">
         <p className="mb-1 text-sm font-medium text-foreground">

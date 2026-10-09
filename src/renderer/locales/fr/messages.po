@@ -3056,7 +3056,7 @@ msgstr "Codex n’a pas pu compacter la conversation : {detail}"
 msgid "Collapse"
 msgstr "Réduire"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "Réduire {label}"
 
@@ -3468,11 +3468,11 @@ msgstr "Connexion..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3765,7 +3765,7 @@ msgstr "Impossible de générer le message de validation : {detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "Impossible de charger les pull requests pour {0}."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Could not load usage. Check the host connection and permissions, then try again."
 msgstr "Impossible de charger l’utilisation. Vérifiez la connexion et les autorisations de l’hôte, puis réessayez."
 
@@ -4020,7 +4020,7 @@ msgid "Credentials are configured."
 msgstr "Les informations d'identification sont configurées."
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Credits"
 msgstr "Crédits"
 
@@ -4812,6 +4812,10 @@ msgstr "Nom d’affichage (facultatif)"
 msgid "Display name in the sidebar."
 msgstr "Afficher le nom dans la barre latérale."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display preferences follow this app's settings, independently of the selected usage host."
+msgstr "Les préférences d’affichage suivent les paramètres de cette application, indépendamment de l’hôte d’utilisation sélectionné."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "Ancrer à gauche"
@@ -5368,7 +5372,7 @@ msgstr "Quitté avec le code {0}. Fermez pour réessayer."
 msgid "Expand"
 msgstr "Développer"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "Développer {label}"
 
@@ -6452,7 +6456,11 @@ msgstr "La clé de l'hôte ne correspond pas"
 msgid "Host key trust accepted."
 msgstr "Confiance en la clé de l'hôte acceptée."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. No cached usage is available."
+msgstr "Hôte hors ligne. Aucune donnée d’utilisation en cache n’est disponible."
+
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Host offline. Showing last known usage."
 msgstr "Hôte hors ligne. Affichage de la dernière utilisation connue."
 
@@ -7340,7 +7348,7 @@ msgstr "Chargement des compétences…"
 #~ msgid "Loading threads"
 #~ msgstr "Chargement des fils"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Loading usage…"
 msgstr "Chargement de l’utilisation…"
 
@@ -8981,7 +8989,7 @@ msgstr "Aucun fil de discussion"
 msgid "No threads yet."
 msgstr "Aucun fil pour l'instant."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "No usage data yet."
 msgstr "Aucune donnée d’utilisation pour le moment."
 
@@ -10886,7 +10894,7 @@ msgstr "Reconnexion au terminal…"
 #~ msgstr "Reconnexion à votre ordinateur…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
 msgstr "Reconstruit à partir de journaux locaux aux tarifs de l'API publique, il ne reflète pas votre facture réelle sur les plans d'abonnement. Affiché uniquement dans le panneau d'utilisation."
 
@@ -10924,13 +10932,13 @@ msgstr "Actualiser"
 msgid "Refresh {0} authentication"
 msgstr "Actualiser l'authentification {0}"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Refresh {label}"
 msgstr "Actualiser {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
-msgid "Refresh {label} usage"
-msgstr "Actualiser l’utilisation de {label}"
+#~ msgid "Refresh {label} usage"
+#~ msgstr "Actualiser l’utilisation de {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -11330,8 +11338,8 @@ msgstr "Le moteur de rendu a rencontré un rejet de promesse non géré"
 msgid "Reorder {0}"
 msgstr "Réorganiser {0}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Réorganiser {label}"
 
@@ -12505,12 +12513,12 @@ msgid "Show Bookmark Bar"
 msgstr "Afficher la barre de favoris"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
 msgstr "Afficher les cercles dans la barre latérale"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
 msgstr "Afficher des anneaux d'utilisation compacts par fournisseur dans la barre latérale. Masquez les cercles de chaque fournisseur dans la liste ci-dessous."
 
@@ -12532,7 +12540,7 @@ msgid "Show docks in the right panel"
 msgstr "Afficher les docks dans le panneau droit"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Afficher le coût estimé"
 
@@ -12682,7 +12690,7 @@ msgstr "Raccourcis de la barre latérale"
 msgid "Sign in"
 msgstr "Connectez-vous"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "Connectez-vous et configurez le suivi de l’utilisation sur cet hôte. Les identifiants restent sur l’hôte qui collecte l’utilisation."
 
@@ -14105,11 +14113,11 @@ msgstr "Cet ordinateur"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Cette connexion peut voir les projets, mais pas les gérer. Associez-la à nouveau pour l’activer."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to read usage."
 msgstr "Cette connexion n’a pas l’autorisation de lire l’utilisation."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This connection does not have permission to refresh usage."
 msgstr "Cette connexion n’a pas l’autorisation d’actualiser l’utilisation."
 
@@ -14166,7 +14174,7 @@ msgstr "Ce dossier est vide."
 msgid "This host"
 msgstr "Cet hôte"
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "This host is no longer configured."
 msgstr "Cet hôte n’est plus configuré."
 
@@ -15078,7 +15086,7 @@ msgstr "Inconnu"
 #~ msgstr "Projet inconnu"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Unlimited"
 msgstr "Illimité"
 
@@ -15272,6 +15280,10 @@ msgstr "Mettre à jour le SDK"
 msgid "Update task"
 msgstr "Tâche de mise à jour"
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Update this host to refresh usage remotely. Cached usage can still be read."
+msgstr "Mettez à jour cet hôte pour actualiser l’utilisation à distance. Les données d’utilisation en cache restent consultables."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "Mise à jour vers {updateLabel}"
@@ -15406,7 +15418,7 @@ msgstr "Hôte de l’utilisation"
 msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
 msgstr "L’utilisation est collectée sur l’hôte sélectionné. Les comptes et quotas sont affichés séparément pour chaque hôte."
 
-#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 msgid "Usage is stale. Refresh to collect the latest values."
 msgstr "Les données d’utilisation sont obsolètes. Actualisez pour obtenir les dernières valeurs."
 

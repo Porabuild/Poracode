@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { HostUsageStatus, useHostUsageView } from "@/renderer/components/providers/HostUsageView";
 import { HostUsageSettings } from "./HostUsageSettings";
 
 vi.mock("@/renderer/state/remoteServersStore", async () => {
@@ -34,6 +35,10 @@ vi.mock("@/renderer/components/common", () => ({
 vi.mock("@/renderer/components/providers/ProviderUsageCircle", () => ({
   ProviderUsageCircle: () => <span />,
 }));
+vi.mock("./UsageDisplaySettings", () => ({ UsageDisplaySettings: () => null }));
+vi.mock("@dnd-kit/react/sortable", () => ({
+  useSortable: () => ({ ref: () => {}, handleRef: () => {}, isDragging: false }),
+}));
 vi.mock("./SettingsForm", () => ({
   SettingsPage: (props: { children: ReactNode; actions: ReactNode }) => (
     <div>
@@ -42,6 +47,11 @@ vi.mock("./SettingsForm", () => ({
     </div>
   ),
 }));
+
+function Controller(props: { liveOnOpen?: boolean; refreshVersion?: number }) {
+  const view = useHostUsageView("connection", props.refreshVersion, props.liveOnOpen);
+  return <HostUsageStatus view={view} />;
+}
 
 describe("remote usage settings", () => {
   beforeEach(() => {
@@ -60,7 +70,10 @@ describe("remote usage settings", () => {
     });
     useHostUsageStore.setState({ hosts: {} });
   });
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   function seed() {
     const store = useHostUsageStore.getState();
@@ -83,7 +96,7 @@ describe("remote usage settings", () => {
     expect(screen.getByText(/Credentials stay on the host/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Browser sign-in" })).toBeNull();
     expect(screen.queryByPlaceholderText(/API key/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Refresh provider:profile usage" }));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh provider:profile" }));
     expect(fetchHostUsage).toHaveBeenLastCalledWith("connection", true, {
       providerIds: ["provider:profile"],
       force: true,
@@ -126,13 +139,9 @@ describe("remote usage settings", () => {
   });
 
   it("performs live refresh from the embedded panel and observes header refresh requests", () => {
-    const { rerender } = render(
-      <HostUsageSettings connectionId="connection" selector={null} embedded liveOnOpen />,
-    );
+    const { rerender } = render(<Controller liveOnOpen />);
     expect(fetchHostUsage).toHaveBeenCalledWith("connection", true, { force: true });
-    rerender(
-      <HostUsageSettings connectionId="connection" selector={null} embedded refreshVersion={1} />,
-    );
+    rerender(<Controller refreshVersion={1} />);
     expect(fetchHostUsage).toHaveBeenLastCalledWith("connection", true, { force: true });
   });
 
@@ -142,13 +151,9 @@ describe("remote usage settings", () => {
       useRemoteServersStore.setState({
         runtime: { connection: { status, projects: [], threads: [] } },
       });
-      const { rerender } = render(
-        <HostUsageSettings connectionId="connection" selector={null} embedded />,
-      );
+      const { rerender } = render(<Controller />);
       expect(fetchHostUsage).not.toHaveBeenCalled();
-      rerender(
-        <HostUsageSettings connectionId="connection" selector={null} embedded refreshVersion={1} />,
-      );
+      rerender(<Controller refreshVersion={1} />);
       expect(fetchHostUsage).toHaveBeenLastCalledWith("connection", true, { force: true });
     },
   );
@@ -170,5 +175,51 @@ describe("remote usage settings", () => {
     render(<HostUsageSettings connectionId="connection" selector={null} />);
     expect(screen.getByText(/Could not load usage/)).toBeTruthy();
     expect(screen.queryByText(/Host offline/)).toBeNull();
+  });
+  it("starts with loading rather than an empty-data flash, and labels an empty offline host accurately", () => {
+    const { unmount } = render(<HostUsageSettings connectionId="connection" selector={null} />);
+    expect(screen.getByText("Loading usage…")).toBeTruthy();
+    expect(screen.queryByText("No usage data yet.")).toBeNull();
+    unmount();
+    useRemoteServersStore.setState({
+      runtime: { connection: { status: "offline", projects: [], threads: [] } },
+    });
+    render(<HostUsageSettings connectionId="connection" selector={null} />);
+    expect(screen.getByText("Host offline. No cached usage is available.")).toBeTruthy();
+    expect(screen.queryByText(/Showing last known/)).toBeNull();
+  });
+
+  it("keeps explicit refresh usable during cache reads and updates labels without polling", () => {
+    vi.useFakeTimers();
+    seed();
+    render(<HostUsageSettings connectionId="connection" selector={null} />);
+    const store = useHostUsageStore.getState();
+    act(() => {
+      store.begin("connection");
+    });
+    expect(screen.getByRole("button", { name: /^Refresh$/ }).hasAttribute("disabled")).toBe(false);
+    expect(
+      screen.getByRole("button", { name: /^Refresh$/ }).querySelector(".animate-spin"),
+    ).toBeNull();
+    act(() => {
+      store.complete("connection", useHostUsageStore.getState().hosts.connection!.request, []);
+    });
+    vi.mocked(fetchHostUsage).mockClear();
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(fetchHostUsage).not.toHaveBeenCalled();
+    act(() => {
+      store.begin("connection", true);
+    });
+    expect(screen.getByRole("button", { name: /^Refresh$/ }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("explains unsupported refresh as an update-host requirement", () => {
+    seed();
+    const store = useHostUsageStore.getState();
+    store.fail("connection", store.begin("connection", true), true);
+    render(<HostUsageSettings connectionId="connection" selector={null} />);
+    expect(screen.getByText(/Update this host to refresh usage remotely/)).toBeTruthy();
   });
 });
