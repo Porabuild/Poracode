@@ -9,6 +9,14 @@ import {
 } from "./settings";
 
 describe("shared settings defaults", () => {
+  it("defaults absent or malformed font preferences while retaining saved family names", () => {
+    expect(normalizeSharedSettings({ agentTerminalFontSize: 16 }).terminalFontFamily).toBe("");
+    expect(normalizeSharedSettings({ terminalFontFamily: 123 }).terminalFontFamily).toBe("");
+    expect(normalizeSharedSettings({ terminalFontFamily: "Missing Mono" }).terminalFontFamily).toBe(
+      "Missing Mono",
+    );
+  });
+
   it("normalizes legacy chrome_-prefixed disabled MCP tools once at load", () => {
     const normalized = normalizeSharedSettings({
       disabledBuiltInMcpTools: {

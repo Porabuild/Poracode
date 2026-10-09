@@ -35,6 +35,14 @@ function makeInput(
   };
 }
 
+/** Request ids are nonce-based and opaque, so tests read them from the emitted events. */
+function openedRequestIds(onRuntimeEvent: { mock: { calls: unknown[][] } }): string[] {
+  return onRuntimeEvent.mock.calls.flatMap(([event]) => {
+    const opened = event as { type?: string; requestId?: string };
+    return opened.type === "request.opened" && opened.requestId ? [opened.requestId] : [];
+  });
+}
+
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -367,6 +375,7 @@ describe("ACP transport close lifecycle", () => {
       toolCall: { toolCallId: "tool-1", title: "Run tests", kind: "execute" },
       options: [{ optionId: "once", name: "Allow once", kind: "allow_once" }],
     });
+    const requestId = openedRequestIds(listener.onRuntimeEvent)[0];
     listener.onRuntimeEvent.mockClear();
     const internal = session as unknown as {
       reportTransportOutcome(message: string | undefined): void;
@@ -378,7 +387,7 @@ describe("ACP transport close lifecycle", () => {
     expect(listener.onRuntimeEvent).toHaveBeenCalledExactlyOnceWith({
       type: "request.resolved",
       threadId: "thread-1",
-      requestId: "acp-perm-0",
+      requestId,
       outcome: "cancelled",
     });
   });
@@ -1086,6 +1095,123 @@ describe("ACP client protocol helpers", () => {
         {
           type: "image",
           data: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString("base64"),
+          mimeType: "image/png",
+        },
+        { type: "text", text: "inspect" },
+      ],
+    });
+  });
+
+  const TINY_PNG = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+
+  function completedPayloads(listener: {
+    onRuntimeEvent: { mock: { calls: unknown[][] } };
+  }): Array<Record<string, unknown>> {
+    return listener.onRuntimeEvent.mock.calls.flatMap(([event]) => {
+      const item = event as { type?: string; payload?: Record<string, unknown> };
+      return item.type === "item.completed" && item.payload ? [item.payload] : [];
+    });
+  }
+
+  function reportRead(
+    session: TestableAcpSession,
+    toolCallId: string,
+    update: Record<string, unknown>,
+  ) {
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "Read",
+        kind: "read",
+        status: "in_progress",
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        title: "Read",
+        kind: "read",
+        status: "completed",
+        ...update,
+      },
+    });
+  }
+
+  it("refuses an agent-origin host image read when local resource resolution is off", () => {
+    const outside = join(makePosixProject(), "shot.png");
+    writeFileSync(outside, TINY_PNG);
+    const { listener, session } = makeConfigSyncSession({
+      fsTextCapability: false,
+      localResourceResolution: false,
+    });
+
+    reportRead(session, "read-outside", {
+      locations: [{ path: outside }],
+      content: [{ type: "content", content: { type: "text", text: "Read image file" } }],
+    });
+    reportRead(session, "read-inline", {
+      content: [
+        {
+          type: "content",
+          content: { type: "image", data: TINY_PNG.toString("base64"), mimeType: "image/png" },
+        },
+      ],
+    });
+
+    const payloads = completedPayloads(listener);
+    expect(payloads[0]?.images).toBeUndefined();
+    expect(JSON.stringify(payloads[0] ?? {})).not.toContain(TINY_PNG.toString("base64"));
+    expect(payloads[1]?.images).toEqual([`data:image/png;base64,${TINY_PNG.toString("base64")}`]);
+  });
+
+  it("resolves an agent-origin host image read when local resource resolution is on", () => {
+    const outside = join(makePosixProject(), "shot.png");
+    writeFileSync(outside, TINY_PNG);
+    const { listener, session } = makeConfigSyncSession({
+      fsTextCapability: false,
+      localResourceResolution: true,
+    });
+
+    reportRead(session, "read-outside", {
+      locations: [{ path: outside }],
+      content: [{ type: "content", content: { type: "text", text: "Read image file" } }],
+    });
+
+    expect(completedPayloads(listener)[0]?.images).toEqual([
+      `data:image/png;base64,${TINY_PNG.toString("base64")}`,
+    ]);
+  });
+
+  it("inlines an approved outgoing local image when text file callbacks are off", async () => {
+    const projectRoot = makePosixProject();
+    writeFileSync(join(projectRoot, "diagram.png"), TINY_PNG);
+    const { connection, session } = makeConfigSyncSession({
+      agentPromptCapabilities: { image: true },
+      fsTextCapability: false,
+      localResourceResolution: true,
+    });
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: HOST_KIND,
+      path: projectRoot,
+    };
+
+    await session.startTurn(
+      "inspect",
+      { model: "model-a", effort: "low", mode: "agent", approvalPolicy: "default" },
+      [{ kind: "attachment", path: "diagram.png", mimeType: "image/png" }],
+    );
+
+    expect(connection.prompt).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      prompt: [
+        {
+          type: "image",
+          data: TINY_PNG.toString("base64"),
           mimeType: "image/png",
         },
         { type: "text", text: "inspect" },
@@ -3286,7 +3412,9 @@ describe("ACP turn config sync", () => {
     };
 
     const selected = session.handlePermissionRequest(request);
-    await session.resolveServerRequest("acp-perm-0", { optionId: "once" });
+    await session.resolveServerRequest(openedRequestIds(listener.onRuntimeEvent)[0]!, {
+      optionId: "once",
+    });
     await expect(selected).resolves.toEqual({
       outcome: { outcome: "selected", optionId: "once" },
     });
@@ -3296,12 +3424,13 @@ describe("ACP turn config sync", () => {
     });
 
     const cancelled = session.handlePermissionRequest(request);
+    const cancelledRequestId = openedRequestIds(listener.onRuntimeEvent)[1];
     await session.interruptTurn();
     await expect(cancelled).resolves.toEqual({ outcome: { outcome: "cancelled" } });
     expect(listener.onRuntimeEvent).toHaveBeenLastCalledWith({
       type: "request.resolved",
       threadId: "thread-1",
-      requestId: "acp-perm-1",
+      requestId: cancelledRequestId,
       outcome: "cancelled",
     });
   });

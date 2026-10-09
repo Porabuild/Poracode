@@ -3,6 +3,31 @@ import { defaultSharedSettings } from "@/shared/settings";
 import { SettingsDocumentError, decodeSettingsDocument } from "./settingsDocument";
 
 describe("settings document migration", () => {
+  it.each([{}, { $poracodeSettingsVersion: 1 }])(
+    "defaults the font in legacy settings without changing existing sizes: %j",
+    (version) => {
+      const document = decodeSettingsDocument({
+        ...version,
+        agentTerminalFontSize: 15,
+        terminalPanelFontSize: 11,
+      });
+      expect(document.settings).toMatchObject({
+        terminalFontFamily: "",
+        agentTerminalFontSize: 15,
+        terminalPanelFontSize: 11,
+      });
+    },
+  );
+
+  it("round-trips an installed or missing font and rejects invalid family values", () => {
+    expect(
+      decodeSettingsDocument({ terminalFontFamily: 'Saved "Mono"' }).settings.terminalFontFamily,
+    ).toBe('Saved "Mono"');
+    for (const terminalFontFamily of [null, 123, "bad\nname", "x".repeat(257)]) {
+      expect(() => decodeSettingsDocument({ terminalFontFamily })).toThrow(SettingsDocumentError);
+    }
+  });
+
   it("keeps defaultless utility selections absent in legacy documents and preserves present tuples", () => {
     const fields = [
       "commitGenSelection",

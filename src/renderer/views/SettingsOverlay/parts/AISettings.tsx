@@ -33,6 +33,7 @@ import {
 } from "@/renderer/components/providers/titleGen";
 import { sortByAutoPreference } from "@/renderer/components/providers/utilityTask";
 import {
+  ONE_SHOT_UTILITY_PRESENTATION,
   readUtilitySelection,
   relationForResolvedMember,
   type UtilityPresetEdit,
@@ -487,7 +488,7 @@ export function AISettings() {
         getCandidates={getTitleGenCandidates}
         onConfigChange={createUtilityPresetSetter({
           keys: utilitySettingsKeys("titleGen", wsl),
-          presentation: undefined,
+          presentation: ONE_SHOT_UTILITY_PRESENTATION,
           setScalars: setTitleGenConfig,
         })}
       />
@@ -508,7 +509,7 @@ export function AISettings() {
         getCandidates={getCommitGenCandidates}
         onConfigChange={createUtilityPresetSetter({
           keys: utilitySettingsKeys("commitGen", wsl),
-          presentation: undefined,
+          presentation: ONE_SHOT_UTILITY_PRESENTATION,
           setScalars: setCommitGenConfig,
         })}
       />

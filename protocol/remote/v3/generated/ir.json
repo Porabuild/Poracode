@@ -14,14 +14,14 @@
     "jsonProcedureResults": 78,
     "procedures": 128,
     "replayableEventTypes": 16,
-    "routes": 88,
+    "routes": 95,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 50,
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 11
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:1347fa335c587f46d569d680592c56c490d6d3950c495a0bacc79114bd9eb713",
+  "manifestHash": "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -28134,6 +28134,211 @@
     },
     {
       "auth": "bearer",
+      "id": "environment-media-release",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/media-release",
+      "pathParameters": [
+        "environmentId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "environmentId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "environmentId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ok": {
+              "const": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ok"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-media-renew",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/media-renew",
+      "pathParameters": [
+        "environmentId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "environmentId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "environmentId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "expiresAt": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket",
+            "expiresAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-media-ticket",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/media-ticket",
+      "pathParameters": [
+        "environmentId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "childTicket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "childTicket"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "environmentId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "environmentId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "expiresAt": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket",
+            "expiresAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "environment-pairing",
       "method": "POST",
       "path": "/api/environments/{environmentId}/pairing",
@@ -30802,6 +31007,336 @@
           "required": [
             "revision",
             "experiments"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer-or-query",
+      "id": "file-media",
+      "method": "GET",
+      "path": "/api/files/media",
+      "queryCodecs": [
+        {
+          "kind": "string",
+          "name": "ticket",
+          "optional": false,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "ticket"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "contentType": "audio/*,video/*,image/*",
+        "status": 200,
+        "wireKind": "binary"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "file-media-release",
+      "method": "POST",
+      "path": "/api/files/media-release",
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ok": {
+              "const": true,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ok"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "file-media-renew",
+      "method": "POST",
+      "path": "/api/files/media-renew",
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "expiresAt": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket",
+            "expiresAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "file-media-ticket",
+      "method": "POST",
+      "path": "/api/files/media-ticket",
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$defs": {
+            "__schema0": {
+              "oneOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "kind": {
+                      "const": "windows",
+                      "type": "string"
+                    },
+                    "path": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "remoteServerId": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "path"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "distro": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "kind": {
+                      "const": "wsl",
+                      "type": "string"
+                    },
+                    "linuxPath": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "remoteServerId": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "uncPath": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "distro",
+                    "linuxPath",
+                    "uncPath"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "kind": {
+                      "const": "posix",
+                      "type": "string"
+                    },
+                    "path": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "remoteServerId": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "path"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              ]
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "access": {
+                  "const": "project",
+                  "type": "string"
+                },
+                "path": {
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "projectLocation": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "access",
+                "projectLocation",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "access": {
+                  "const": "external",
+                  "type": "string"
+                },
+                "path": {
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "projectLocation": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "access",
+                "projectLocation",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "contentType": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "expiresAt": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "modifiedAtMs": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "sizeBytes": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "ticket": {
+              "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket",
+            "expiresAt",
+            "sizeBytes",
+            "modifiedAtMs",
+            "contentType"
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
@@ -51745,7 +52280,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:aeb0aa9a39d015d50ddc87be0459c4963a0fcbd7228c61fbf7acc55a9b70d089",
+  "sourceHash": "sha256:7de70d42d86eee3cffe4f7f67c10dbb5b6c41607404c46bdd8b6986432c90e55",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

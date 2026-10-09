@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { CreateElicitationRequest } from "@agentclientprotocol/sdk";
 import type { CreateStructuredSessionInput } from "../base";
 import { AcpStructuredSession } from "./session";
 import { createAcpStructuredSession } from "./sessionFactory";
@@ -63,13 +64,21 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
 
   it("forwards disabled host services for remote execution", () => {
     const createSpy = spyOnCreate();
+    const projectElicitationPresentation = (request: CreateElicitationRequest) => request;
     createAcpStructuredSession(
       { command: "test-agent", args: ["acp"] },
-      makeInput({ acpFsTextCapability: false, acpTerminalCapability: false }),
+      makeInput({
+        acpFsTextCapability: false,
+        acpTerminalCapability: false,
+        acpLocalResourceResolution: false,
+        acpElicitationPresentation: projectElicitationPresentation,
+      }),
     );
     expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
       fsTextCapability: false,
       terminalCapability: false,
+      localResourceResolution: false,
+      projectElicitationPresentation,
     });
   });
 

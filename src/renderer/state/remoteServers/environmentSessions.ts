@@ -1,3 +1,5 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { environmentProxyPrefix } from "@/shared/environments";
 import {
   environmentImageRefKey,
@@ -52,7 +54,7 @@ import {
  *   `managedEnvironment.<hostDesktopId>.<envId>` for the managed parent) and
  *   the PARENT TLS pin (remote parents only). Grant ownership is fenced: a
  *   delayed rotation from a replaced/removed session can never write.
- * - A session is rebuilt when its endpoint, child token, parent endpoint,
+ * - A session is rebuilt when its canonical proxy endpoint, child token,
  *   parent identity, or the parent's approved TLS pin changes (re-pair, parent
  *   transport reconnect); the old client is disposed (in-flight images aborted,
  *   object URLs revoked) and its grant ownership released. An ordinary parent
@@ -317,7 +319,7 @@ function managedParentSessionFor(authority: ManagedParentAuthority): ManagedPare
 async function ensureParentLive(ref: EnvironmentParentRef): Promise<void> {
   const session = ensureParentSession(ref);
   if (!session) {
-    throw new Error("The paired server that owns this environment is not connected.");
+    throw new Error(i18n._(msg`The paired server that owns this environment is not connected.`));
   }
   session.ensureLive ??= (
     session.kind === "connection"
@@ -365,10 +367,32 @@ function parentAuthorityFor(
         return directParentFor(ref)?.accessToken;
       },
       ensureLive: () => ensureParentLive(ref),
+      releaseMediaTicket: async (ticket) => {
+        const parent = parentClientForConnection(ref.connectionId);
+        if (parent) await parent.releaseEnvironmentMediaTicket(environmentId, ticket);
+      },
+      renewMediaTicket: async (ticket, signal) => {
+        const parent = parentClientForConnection(ref.connectionId);
+        if (!parent)
+          throw new Error(
+            i18n._(msg`The paired server that owns this environment is not connected.`),
+          );
+        return parent.renewEnvironmentMediaTicket(environmentId, ticket, signal);
+      },
+      mintMediaTicket: async (childTicket) => {
+        const parent = parentClientForConnection(ref.connectionId);
+        if (!parent)
+          throw new Error(
+            i18n._(msg`The paired server that owns this environment is not connected.`),
+          );
+        return parent.environmentMediaTicket(environmentId, childTicket);
+      },
       mintWebSocketTicket: async () => {
         const parent = parentClientForConnection(ref.connectionId);
         if (!parent) {
-          throw new Error("The paired server that owns this environment is not connected.");
+          throw new Error(
+            i18n._(msg`The paired server that owns this environment is not connected.`),
+          );
         }
         return parent.environmentWebSocketTicket(environmentId);
       },
@@ -384,10 +408,24 @@ function parentAuthorityFor(
       return current ? current.accessToken() : undefined;
     },
     ensureLive: () => ensureParentLive(ref),
+    releaseMediaTicket: async (ticket) => {
+      const current = managedParentFor(ref);
+      if (current) await current.client.releaseEnvironmentMediaTicket(environmentId, ticket);
+    },
+    renewMediaTicket: async (ticket, signal) => {
+      const current = managedParentFor(ref);
+      if (!current) throw new Error(i18n._(msg`The desktop's own server is not connected.`));
+      return current.client.renewEnvironmentMediaTicket(environmentId, ticket, signal);
+    },
+    mintMediaTicket: async (childTicket) => {
+      const current = managedParentFor(ref);
+      if (!current) throw new Error(i18n._(msg`The desktop's own server is not connected.`));
+      return current.client.environmentMediaTicket(environmentId, childTicket);
+    },
     mintWebSocketTicket: async () => {
       const current = managedParentFor(ref);
       if (!current) {
-        throw new Error("The desktop's own server is not connected.");
+        throw new Error(i18n._(msg`The desktop's own server is not connected.`));
       }
       return current.client.environmentWebSocketTicket(environmentId);
     },
@@ -420,10 +458,14 @@ function approvedParentPin(ref: EnvironmentParentRef): string | undefined {
 }
 
 /**
- * Identity of a child session: connection key, the record's own endpoint and
- * child bearer, the verified child identity, the discriminated parent identity,
- * the live parent endpoint, and the parent's currently approved TLS pin. The
- * child client captures the pin at construction, so a re-pair that replaces,
+ * Identity of a child session: connection key, the canonical proxy endpoint,
+ * child bearer, verified child identity, discriminated parent identity, and
+ * parent's currently approved TLS pin. The stored endpoint is a derived hint:
+ * reconnect normalizes it, while construction always uses the current parent
+ * endpoint and environment ID. That normalization must not retire a mounted
+ * preview's issuing client. The canonical endpoint still binds both the parent
+ * location and environment ID, including a target change at an unchanged hint.
+ * The child client captures the pin at construction, so a re-pair that replaces,
  * adds, or removes it must rebuild the child instead of serving the stale pin.
  * The parent's LIVE access token is deliberately excluded — the child client
  * attaches it dynamically per request (`authorityFor.accessToken()`), so a
@@ -433,15 +475,14 @@ function approvedParentPin(ref: EnvironmentParentRef): string | undefined {
 function environmentSessionFingerprint(
   server: RemoteServerRecord,
   ref: EnvironmentParentRef,
-  parentEndpoint: string,
+  endpoint: string,
 ): string {
   return [
     remoteConnectionKey(server),
-    server.endpoint,
+    endpoint,
     server.accessToken,
     server.transport?.kind === "environment" ? (server.transport.childDesktopId ?? "") : "",
     environmentParentCacheKey(ref),
-    parentEndpoint,
     approvedParentPin(ref) ?? "",
   ].join("\u0000");
 }
@@ -644,12 +685,12 @@ export function environmentSessionForServer(
   const parentEndpoint = environmentParentEndpointFor(ref);
   if (parentEndpoint === undefined) return undefined;
   const connectionKey = remoteConnectionKey(server);
-  const fingerprint = environmentSessionFingerprint(server, ref, parentEndpoint);
+  const endpoint = environmentProxyEndpoint(parentEndpoint, transport.environmentId);
+  const fingerprint = environmentSessionFingerprint(server, ref, endpoint);
   const existing = environmentSessions.get(connectionKey);
   if (existing?.fingerprint === fingerprint) return existing.session;
 
   existing?.session.dispose();
-  const endpoint = environmentProxyEndpoint(parentEndpoint, transport.environmentId);
   const created = createEnvironmentClientForPairing({
     parent: ref,
     environmentId: transport.environmentId,

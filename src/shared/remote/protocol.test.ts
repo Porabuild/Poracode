@@ -16,6 +16,15 @@ import {
   TERMINAL_CURSOR_SYNC_VERSION,
 } from "./protocol";
 
+describe("device-local terminal settings", () => {
+  it("excludes the font preference from native/browser remote settings", () => {
+    expect(REMOTE_SETTINGS_KEYS).not.toContain("terminalFontFamily");
+    expect(
+      pickRemoteSettings({ ...defaultSharedSettings, terminalFontFamily: "Menlo" }),
+    ).not.toHaveProperty("terminalFontFamily");
+  });
+});
+
 describe("remote thread snapshots", () => {
   const thread = {
     id: "thread-1",

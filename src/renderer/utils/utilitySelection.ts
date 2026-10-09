@@ -13,6 +13,14 @@ import {
 import { modelFamilyForModel } from "@/shared/modelFamilySelection";
 
 /**
+ * Title and commit helpers execute through the one-shot runner, which owns
+ * the terminal presentation. Declaring that surface here is what lets a
+ * deliberate family edit mint a binding; leaving the presentation unset
+ * refuses the mint.
+ */
+export const ONE_SHOT_UTILITY_PRESENTATION = "terminal" satisfies ThreadPresentationMode;
+
+/**
  * Renderer-side canonical utility-preset semantics for the AI helpers (title
  * generation, commit-message generation, conflict resolver — plus their WSL
  * variants). The persisted shared settings carry one optional canonical

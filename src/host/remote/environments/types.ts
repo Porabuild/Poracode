@@ -3,6 +3,7 @@ import type { Duplex } from "node:stream";
 import type { RemoteAccessScope, RemoteWebSocketTicketResult } from "@/shared/remote";
 import type { AuthenticatedRemoteSession } from "../auth";
 import type { PrincipalAdmissionController } from "../server/principalAdmission";
+import type { EnvironmentMediaTicketResult } from "@/shared/remote/media";
 
 /**
  * Structural interfaces for the C1 parent proxy (ADR §5). Deliberately narrow:
@@ -42,6 +43,10 @@ export interface EnvironmentProxyTargetRegistry {
 }
 
 export interface EnvironmentProxySessionAuthority {
+  authenticateSession?(
+    sessionId: string,
+    scopes: readonly RemoteAccessScope[],
+  ): AuthenticatedRemoteSession;
   authenticateBearerToken(
     accessToken: string,
     requiredScopes: readonly RemoteAccessScope[],
@@ -88,6 +93,22 @@ export type EnvironmentProxyFactory = (deps: {
 }) => EnvironmentProxyGatewayLike;
 
 export interface EnvironmentProxyGatewayLike {
+  /** Additive capability: old gateway compositions fail media mint closed. */
+  mintMediaTicket?(input: {
+    parentAccessToken: string;
+    environmentId: string;
+    childTicket: string;
+  }): EnvironmentMediaTicketResult | Promise<EnvironmentMediaTicketResult>;
+  renewMediaTicket?(input: {
+    parentAccessToken: string;
+    environmentId: string;
+    ticket: string;
+  }): Promise<EnvironmentMediaTicketResult>;
+  releaseMediaTicket?(input: {
+    parentAccessToken: string;
+    environmentId: string;
+    ticket: string;
+  }): void;
   handleHttpRequest(input: {
     readonly req: IncomingMessage;
     readonly res: ServerResponse;

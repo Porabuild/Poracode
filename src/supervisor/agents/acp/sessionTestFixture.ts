@@ -1,12 +1,14 @@
 import { vi } from "vitest";
 import type {
+  CreateElicitationRequest,
   PromptCapabilities,
   RequestPermissionRequest,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
-import type { ThreadConfig } from "@/shared/contracts";
+import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { AcpStructuredSession, rewriteLoadSessionError, type AcpSessionBehavior } from "./session";
 import type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
+import { createAcpLocalImageResolver } from "./sessionLocalImages";
 
 export type TestableAcpSession = {
   openThread(
@@ -52,6 +54,11 @@ export function makeConfigSyncSession(
     }>;
     fsTextCapability?: boolean;
     terminalCapability?: boolean;
+    /** Default true. `false` leaves agent-origin host image reads unresolved. */
+    localResourceResolution?: boolean;
+    projectElicitationPresentation?: (
+      request: CreateElicitationRequest,
+    ) => CreateElicitationRequest;
     initializeMeta?: Record<string, unknown>;
     clientCapabilitiesMeta?: Record<string, unknown>;
     agentPromptCapabilities?: PromptCapabilities;
@@ -134,7 +141,8 @@ export function makeConfigSyncSession(
   session["detachedTurnParentToolCallIds"] = new Set();
   session["sessionId"] = "session-1";
   session["threadId"] = "thread-1";
-  session["projectLocation"] = { kind: "windows", path: "C:\\repo" };
+  const projectLocation: ProjectLocation = { kind: "windows", path: "C:\\repo" };
+  session["projectLocation"] = projectLocation;
   session["listener"] = listener;
   // Default HTTP support keeps these pass-through fixtures independent from
   // transport-negotiation tests, which override this capability explicitly.
@@ -188,6 +196,13 @@ export function makeConfigSyncSession(
   // Mirrors the constructor's `options?.fsTextCapability !== false` default.
   session["fsTextCapability"] = overrides.fsTextCapability !== false;
   session["terminalCapability"] = overrides.terminalCapability !== false;
+  // The resolver closes over the location above. Absolute host paths still
+  // resolve when a test later replaces projectLocation; WSL mapping does not.
+  session["resolveLocalImage"] =
+    overrides.localResourceResolution !== false
+      ? createAcpLocalImageResolver(projectLocation)
+      : undefined;
+  session["projectElicitationPresentation"] = overrides.projectElicitationPresentation;
   session["fsAgentHomeDirs"] = [];
   session["spawnReady"] = Promise.resolve();
   return { connection, listener, session: session as unknown as TestableAcpSession };

@@ -1,11 +1,8 @@
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 
-/**
- * Font stack for every xterm surface. Owned here (rather than in XTermSurface)
- * so the prewarm does not drag the React surface module into its chunk.
- */
-export const TERMINAL_FONT_FAMILY = "'Geist Mono', 'JetBrains Mono', 'Cascadia Code', monospace";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
 
 /** Matches XTermSurface's default `baseFontSize`; the warm-up renders at it. */
 const PREWARM_FONT_SIZE = 12;
@@ -38,7 +35,8 @@ export function prewarmTerminalSurface(): Promise<void> {
 async function runPrewarm(): Promise<void> {
   if (typeof document === "undefined") return;
 
-  await loadTerminalFonts();
+  const family = useSharedSettings.getState().terminalFontFamily;
+  await loadTerminalFonts(family, PREWARM_FONT_SIZE);
 
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
@@ -52,7 +50,7 @@ async function runPrewarm(): Promise<void> {
   let webglAddon: WebglAddon | null = null;
   try {
     terminal = new Terminal({
-      fontFamily: TERMINAL_FONT_FAMILY,
+      fontFamily: resolveTerminalFontFamily(family),
       fontSize: PREWARM_FONT_SIZE,
       letterSpacing: 0,
       lineHeight: 1,
@@ -75,15 +73,6 @@ async function runPrewarm(): Promise<void> {
     terminal?.dispose();
     host.remove();
   }
-}
-
-function loadTerminalFonts(): Promise<unknown> {
-  const fonts = typeof document !== "undefined" ? document.fonts : undefined;
-  if (typeof fonts?.load !== "function") return Promise.resolve();
-  return Promise.all([
-    fonts.load(`${PREWARM_FONT_SIZE}px "Geist Mono"`),
-    fonts.load(`700 ${PREWARM_FONT_SIZE}px "Geist Mono"`),
-  ]).catch(() => undefined);
 }
 
 function nextFrame(): Promise<void> {

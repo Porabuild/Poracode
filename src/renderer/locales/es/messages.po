@@ -1747,6 +1747,10 @@ msgstr "Intento"
 msgid "Audio"
 msgstr "Audio"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "Vista previa de audio"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "Autenticar"
@@ -3872,6 +3876,10 @@ msgstr "Copiar los cambios sin confirmar aquí (los mantiene en esta rama)"
 msgid "Could not abort the merge: {detail}"
 msgstr "No se pudo abortar la fusión: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "No se pudo acceder a las fuentes instaladas. Puedes conservar la fuente guardada o usar Predeterminado."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "No se pudo completar la fusión"
@@ -4434,6 +4442,8 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Predeterminado"
 
@@ -5384,6 +5394,10 @@ msgstr "Finalizar chat de voz"
 msgid "Enhanced (Hooks)"
 msgstr "Avanzado (Hooks)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "Introduce una familia tipográfica de hasta 256 caracteres sin caracteres de control."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Introduce una URL de origen completa, como https://code.example.com, sin ruta."
@@ -6145,6 +6159,14 @@ msgstr "Carpeta que contiene los worktrees de este proyecto. Restablece para usa
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Follow-up behavior"
 msgstr "Comportamiento de seguimiento"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "Fuente para los terminales de agentes y el panel de terminal. Si falta una fuente, se usa la predeterminada."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "Fuente para las terminales de agentes y el panel de terminal. Escribe una familia o elige una fuente instalada. Si no está disponible, se usa la fuente predeterminada."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -7222,6 +7244,10 @@ msgstr "Instalado"
 msgid "Installed {0}."
 msgstr "Se instaló {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "La selección de fuentes instaladas no está disponible en este cliente."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7532,6 +7558,10 @@ msgstr "La voz en directo no está disponible para este hilo."
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "La voz en directo requiere iniciar sesión con una suscripción de este proveedor."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "Cargar fuentes instaladas"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7561,6 +7591,10 @@ msgstr "Cargando entornos…"
 msgid "Loading file…"
 msgstr "Cargando archivo…"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "Cargando fuentes…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
 msgstr "Cargando la configuración del host…"
@@ -7572,6 +7606,11 @@ msgstr "Cargando trabajos"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "Cargando marketplace…"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "Cargando vista previa del archivo multimedia…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -9710,6 +9749,7 @@ msgstr "Abrir la revisión de Git como un panel a la derecha o como una página 
 msgid "Open image {0} of {1}"
 msgstr "Abrir imagen {0} de {1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -10710,6 +10750,10 @@ msgstr "Preparando el entorno remoto…"
 msgid "Presets"
 msgstr "Preajustes"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Pulsa Intro para aplicar."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Pulsa el atajo…"
@@ -11424,6 +11468,10 @@ msgstr "Recargar"
 msgid "Reload browser page"
 msgstr "Recargar página del navegador"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "Recargar vista previa"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11495,6 +11543,7 @@ msgstr "No se encontró el proyecto remoto."
 #~ msgid "Remote server"
 #~ msgstr "Servidor remoto"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -12452,6 +12501,10 @@ msgstr "Guardar atajo"
 msgid "Saved credentials are shared across all machines."
 msgstr "Las credenciales guardadas se comparten entre todas las máquinas."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "Fuente guardada"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "Shell guardado"
@@ -13106,6 +13159,10 @@ msgstr "Mostrar paneles en el panel derecho"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
 msgstr "Mostrar coste estimado"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "Mostrar sugerencias de fuentes"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -14221,6 +14278,12 @@ msgstr "Terminal"
 msgid "Terminal access denied."
 msgstr "Acceso al terminal denegado."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "Tipo de letra del terminal"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14375,6 +14438,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "El propio servidor del escritorio aún no está conectado."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "El servidor propio del escritorio no está conectado."
@@ -14499,6 +14563,7 @@ msgstr "El shell normal de la app no se pudo renderizar. Los diagnósticos sigui
 #~ msgstr "La organización queda fija mientras esta sesión se ejecuta: cámbiala en la configuración del perfil de Devin y crea una sesión nueva."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14861,6 +14926,10 @@ msgstr "Esta máquina"
 msgid "This machine (local)"
 msgstr "Esta máquina (local)"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "Esta vista previa del archivo multimedia no está disponible."
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Este mensaje ya no está en la cola. Aún puedes copiar tu edición."
@@ -15000,6 +15069,10 @@ msgstr "Este servidor se ejecuta en este equipo y no está disponible para proye
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "Esta sesión no anunció ninguna configuración."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "No se puede mostrar este SVG."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -15707,6 +15780,10 @@ msgstr "Sin asignar"
 msgid "Unavailable"
 msgstr "No disponible"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "No disponible — usando la predeterminada"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -16136,6 +16213,10 @@ msgstr "Usa Chrome de forma segura cuando una tarea necesite una sesión de nave
 msgid "Use config"
 msgstr "Usar configuración"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "Usar la fuente predeterminada"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "¿Usar la sesión detectada?"
@@ -16265,6 +16346,10 @@ msgstr "Versión"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "vía {0}"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "Vista previa de vídeo"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

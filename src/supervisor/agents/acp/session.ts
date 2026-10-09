@@ -418,6 +418,17 @@ export interface AcpStructuredSessionOptions {
   fsTextCapability?: boolean;
   /** Client terminal operations are unavailable when execution belongs to another filesystem. */
   terminalCapability?: boolean;
+  /**
+   * When `false`, do not read host files to inline agent-origin image
+   * references. Inline image bytes and approved outgoing attachments are
+   * unaffected. Default `true`. Independent of {@link fsTextCapability}.
+   */
+  localResourceResolution?: boolean;
+  /**
+   * Presentation copy of an elicitation request. The opened event uses this
+   * copy; the pending resolver keeps the original request.
+   */
+  projectElicitationPresentation?: (request: CreateElicitationRequest) => CreateElicitationRequest;
   /** Provider-specific lifecycle behavior layered over the shared ACP transport. */
   behavior?: AcpSessionBehavior;
   /**
@@ -505,8 +516,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly fsAgentHomeDirs: readonly string[];
   private readonly fsTextCapability: boolean;
   private readonly terminalCapability: boolean;
-  /** Reads referenced local images for the canonical mapper (per-session cache). */
-  private readonly resolveLocalImage: (pathOrFileUri: string) => string | undefined;
+  /**
+   * Reads referenced local images for the canonical mapper. Absent when this
+   * session does not resolve agent-origin host image references.
+   */
+  private readonly resolveLocalImage: ((pathOrFileUri: string) => string | undefined) | undefined;
+  private readonly projectElicitationPresentation:
+    | ((request: CreateElicitationRequest) => CreateElicitationRequest)
+    | undefined;
   private planModeToolTrackerInstance: AcpPlanModeToolTracker | undefined;
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
@@ -800,6 +817,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         setRequestAttention: (attention) => {
           this.emitListenerUpdate({ status: attention, attention });
         },
+        ...(this.projectElicitationPresentation
+          ? { projectElicitationPresentation: this.projectElicitationPresentation }
+          : {}),
       });
     }
     return this._sessionRequests;
@@ -874,7 +894,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.fsAgentHomeDirs = options?.fsAgentHomeDirs ?? [];
     this.fsTextCapability = options?.fsTextCapability !== false;
     this.terminalCapability = options?.terminalCapability !== false;
-    this.resolveLocalImage = createAcpLocalImageResolver(this.projectLocation);
+    this.projectElicitationPresentation = options?.projectElicitationPresentation;
+    this.resolveLocalImage =
+      options?.localResourceResolution !== false
+        ? createAcpLocalImageResolver(this.projectLocation)
+        : undefined;
   }
 
   /** Initialize the canonical mapper once we have a stable thread id. */
@@ -890,8 +914,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.terminalManager.resolveAcpTerminalOutputByCommand(command);
       // Agents that report an image result by reference (a `uri`-only image
       // block, or only a read-kind tool call's `locations`) need a filesystem
-      // read the pure mapper can't do itself.
-      this.mapperState.resolveLocalImage = this.resolveLocalImage;
+      // read the pure mapper can't do itself. Leave the hook unset when this
+      // session does not resolve host files.
+      if (this.resolveLocalImage) {
+        this.mapperState.resolveLocalImage = this.resolveLocalImage;
+      }
     }
     return this.mapperState;
   }

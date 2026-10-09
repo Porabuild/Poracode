@@ -17,6 +17,7 @@ import {
   type RemoteTokenSnapshot,
 } from "./clientTypes";
 import type { RemoteImageRefValue } from "./imageRef";
+import type { MediaFileRequest, MediaSource, EnvironmentMediaTicketResult } from "./media";
 import type { RemoteWebSocketTicketResult } from "./protocol/core";
 import {
   ENVIRONMENT_IMAGE_MAX_CONCURRENT_FETCHES,
@@ -103,6 +104,10 @@ export interface RemoteEnvironmentParentAuthority {
   ensureLive(): Promise<void>;
   /** Mints the one-use parent environment-bound WS upgrade ticket. */
   mintWebSocketTicket(): Promise<RemoteWebSocketTicketResult>;
+  /** Optional until both parent and child support file-scoped playback. */
+  mintMediaTicket?(childTicket: string): Promise<EnvironmentMediaTicketResult>;
+  renewMediaTicket?(ticket: string, signal?: AbortSignal): Promise<EnvironmentMediaTicketResult>;
+  releaseMediaTicket?(ticket: string): Promise<void>;
 }
 
 export interface RemoteEnvironmentClientOptions extends RemoteDesktopClientOptions {
@@ -157,6 +162,82 @@ interface ParentTicketEntry {
  * answers its own 403. There is no blanket authority throw.
  */
 export class RemoteEnvironmentClient extends RemoteDesktopClient {
+  private readonly mediaTickets = new Map<string, string>();
+
+  override async releaseMediaSource(ticket: string): Promise<void> {
+    const parentTicket = this.mediaTickets.get(ticket);
+    this.mediaTickets.delete(ticket);
+    await Promise.allSettled([
+      super.releaseMediaSource(ticket),
+      ...(parentTicket && this.parentAuthority.releaseMediaTicket
+        ? [this.parentAuthority.releaseMediaTicket(parentTicket)]
+        : []),
+    ]);
+  }
+  override async renewMediaSource(
+    ticket: string,
+    signal?: AbortSignal,
+  ): Promise<EnvironmentMediaTicketResult> {
+    const parentTicket = this.mediaTickets.get(ticket);
+    const assertOwned = () => {
+      if (
+        this.disposed ||
+        signal?.aborted ||
+        !parentTicket ||
+        this.mediaTickets.get(ticket) !== parentTicket
+      )
+        throw new RemoteClientError("Media preview was cancelled.", 499, "cancelled");
+    };
+    assertOwned();
+    if (!this.parentAuthority.renewMediaTicket)
+      throw new RemoteClientError(
+        "Environment media renewal is unavailable.",
+        404,
+        "media_unavailable",
+      );
+    const child = await super.renewMediaSource(ticket, signal);
+    assertOwned();
+    const parent = await this.parentAuthority.renewMediaTicket(parentTicket!, signal);
+    assertOwned();
+    if (parent.ticket !== parentTicket)
+      throw new RemoteClientError("Media renewal owner mismatch.", 502, "invalid_media_ticket");
+    return {
+      ticket,
+      expiresAt: new Date(
+        Math.min(Date.parse(child.expiresAt), Date.parse(parent.expiresAt)),
+      ).toISOString(),
+    };
+  }
+  override async createMediaSource(
+    file: MediaFileRequest,
+    signal?: AbortSignal,
+  ): Promise<MediaSource> {
+    if (this.disposed) throw new RemoteClientError("Media client is disposed.", 499, "cancelled");
+    const source = await super.createMediaSource(file, signal);
+    try {
+      if (this.disposed || signal?.aborted)
+        throw new RemoteClientError("Media preview was cancelled.", 499, "cancelled");
+      if (!this.parentAuthority.mintMediaTicket || !this.parentAuthority.releaseMediaTicket)
+        throw new RemoteClientError("Environment media is unavailable.", 404, "media_unavailable");
+      const parent = await this.parentAuthority.mintMediaTicket(source.ticket);
+      this.mediaTickets.set(source.ticket, parent.ticket);
+      if (this.disposed || signal?.aborted)
+        throw new RemoteClientError("Media preview was cancelled.", 499, "cancelled");
+      const url = new URL(source.url);
+      url.searchParams.set("parentMediaTicket", parent.ticket);
+      return {
+        ...source,
+        url: url.toString(),
+        expiresAt: new Date(
+          Math.min(Date.parse(source.expiresAt), Date.parse(parent.expiresAt)),
+        ).toISOString(),
+      };
+    } catch (error) {
+      await this.releaseMediaSource(source.ticket).catch(() => undefined);
+      this.rethrowParentAuthorityFailure(error);
+    }
+  }
+
   readonly environmentId: string;
   readonly childDesktopId: string | undefined;
   private readonly parentAuthority: RemoteEnvironmentParentAuthority;
@@ -203,6 +284,7 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    for (const ticket of this.mediaTickets.keys()) void this.releaseMediaSource(ticket);
     this.images.dispose();
     this.parentTickets.clear();
   }
