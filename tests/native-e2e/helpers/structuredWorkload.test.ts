@@ -100,8 +100,13 @@ describe("structured workload fixture (real generic ACP adapter)", () => {
     expect(sessionRef).toBe(params.sessionId);
     const pid = readStructuredWorkloadPid(params.readyMarkerPath!);
 
+    // Opening the session publishes its idle state (config inventory, then
+    // config + sessionRef) before any prompt; turn status is asserted per turn.
+    expect(recorder.updates.length).toBeGreaterThan(0);
+    expect(recorder.updates.every((update) => update.status === "idle")).toBe(true);
     for (const turn of [1, 2] as const) {
       const eventsAtStart = recorder.events.length;
+      const updatesAtStart = recorder.updates.length;
       const started = startStructuredWorkloadTurn({
         session,
         recorder,
@@ -115,6 +120,9 @@ describe("structured workload fixture (real generic ACP adapter)", () => {
         events: recorder.events.slice(eventsAtStart),
       });
       expect(problems).toEqual([]);
+      const turnStatuses = recorder.updates.slice(updatesAtStart).map((update) => update.status);
+      expect(turnStatuses[0]).toBe("working");
+      expect(turnStatuses.at(-1)).toBe("idle");
     }
 
     const snapshot = recorder.snapshot();
@@ -125,7 +133,6 @@ describe("structured workload fixture (real generic ACP adapter)", () => {
     expect(snapshot.itemStartedByType.user_message).toBe(2);
     expect(snapshot.itemStartedByType.command_execution).toBe(params.toolCalls * 2);
     expect(snapshot.itemCompletedByType.command_execution).toBe(params.toolCalls * 2);
-    expect(snapshot.statusTransitions[0]).toBe("working");
     expect(snapshot.statusTransitions.at(-1)).toBe("idle");
 
     expect(await readFile(params.promptMarkerPath!, "utf8")).toBe("2");

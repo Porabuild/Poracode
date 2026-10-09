@@ -2737,3 +2737,24 @@ keeps its prior schema version and remains eligible for an older artifact. This
 reuses the existing preflight and changes no storage shape or version. The
 schema-56 startup regression preserves raw schema, rows and custody journal on
 refusal; legacy-read regressions preserve config bytes and writer protections.
+
+## Native stored-pairing upgrade eligibility (remote protocol 13)
+
+Remote protocol 13 changes wire admission only; the stored host/token binding
+shape is unchanged. Reviewed stored generations 9–12 are listed explicitly in
+both mirrored copies — Android `storage/StoredProtocolUpgrade.kt`
+(`isEligibleStoredProtocol`, `importedBinding`) and iOS
+`PreservedPairingUpgrade.isEligibleStoredProtocol` in
+`Storage/SessionCredentialTypes.swift`. Keep them identical and never derive
+the list from `current - 1`.
+
+A v12 host record, single-host v2 source, or split-v1 source keeps its original
+binding on import. It is rebound to 13 only by the existing verified upgrade
+(public descriptor at the current protocol with a matching `desktopId` and read
+scope, then an authenticated snapshot read) and the existing journaled host
+write. A live v12 host, a different host, offline, or 401 refuses and preserves
+the record, token and connection id. Future bindings stay refused. No storage
+schema, journal or registry format changes. On the next protocol bump, review
+whether 13 joins both lists and add matching regressions on both platforms
+(`StoredPairingUpgradeTest`, `LegacyProtocolUpgradeTest`,
+`AppSessionCompositionTests`, `HostImportTests`).

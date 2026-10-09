@@ -4,6 +4,7 @@ import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.HostRecord
+import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.storage.HostCatalog
 import com.poracode.app.storage.HostCatalogCredentialRepository
@@ -34,6 +35,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -60,14 +62,14 @@ class StoredPairingUpgradeTest {
         advanceUntilIdle()
         assertEquals(AppSession.Phase.Ready, h.session.state.value.phase)
         val selected = h.catalog.snapshot().selected!!
-        assertEquals(h.record.copy(protocolVersion = 12, browserForwardVersions = emptyList()), selected)
+        assertEquals(h.record.copy(protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION, browserForwardVersions = emptyList()), selected)
         assertEquals("saved-token", h.catalog.token(selected.connectionId))
         assertEquals(1, h.catalog.snapshot().hosts.size)
     }
 
     @Test
     fun reviewedBindingsUpgradeOnlyAfterAuthenticatedRead() = runTest {
-        for (version in listOf(10, 11)) {
+        for (version in listOf(10, 11, 12)) {
             val api = FakeApiGateway().apply { snapshotHold = CompletableDeferred() }
             val h = fixture(api = api, version = version)
             h.session.bootstrap()
@@ -89,7 +91,7 @@ class StoredPairingUpgradeTest {
 
     @Test
     fun incompatibleLiveServerCannotRebindOrReadProtectedState() = runTest {
-        for (version in listOf(9, 10, 11)) {
+        for (version in listOf(9, 10, 11, 12)) {
             val api = FakeApiGateway().apply {
                 environmentResponse = environmentResponse.copy(protocolVersion = version)
             }
@@ -99,6 +101,31 @@ class StoredPairingUpgradeTest {
             assertEquals(AppSession.Phase.ProtocolIncompatible, h.session.state.value.phase)
             assertEquals(0, api.snapshotCalls.get())
             assertArrayEquals(h.before, h.repository.rawV2BytesForTests())
+        }
+    }
+
+    @Test
+    fun previousV12BindingStaysPreservedUntilVerifiedCurrentHost() = runTest {
+        val refusals = listOf<FakeApiGateway.() -> Unit>(
+            { environmentResponse = environmentResponse.copy(protocolVersion = 12) },
+            { environmentResponse = environmentResponse.copy(desktopId = "replacement") },
+            { environmentError = IOException("offline") },
+            { snapshotError = RemoteClientException("expired", status = 401, code = "unauthorized") },
+        )
+        for (refuse in refusals) {
+            val api = FakeApiGateway().apply(refuse)
+            val h = fixture(api = api, version = 12)
+            h.session.bootstrap()
+            advanceUntilIdle()
+            assertNotEquals(AppSession.Phase.Ready, h.session.state.value.phase)
+            assertFalse(h.session.state.value.canSessionRead)
+            assertFalse(h.session.state.value.canSessionOperate)
+            assertNull(h.session.socketForTests())
+            assertArrayEquals(h.before, h.repository.rawV2BytesForTests())
+            val selected = h.catalog.snapshot().selected!!
+            assertEquals(h.record, selected)
+            assertEquals(12, selected.protocolVersion)
+            assertEquals("saved-token", h.catalog.token(h.record.connectionId))
         }
     }
 

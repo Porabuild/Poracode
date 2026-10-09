@@ -38,6 +38,37 @@ final class HostImportTests: XCTestCase {
         return (catalog, keychain, defaults, suite)
     }
 
+    func testReviewedV12SourcesImportWithoutRebindAndFutureIsRefused() throws {
+        let future = ProtocolConstants.remoteProtocolVersion + 1
+        let token = Data("tok-legacy".utf8)
+        for version in [12, future] {
+            let profile = makeProfile(protocolVersion: version)
+            let splitV1 = try JSONDecoding.encoder.encode(
+                ConnectionStoreDocument(version: 1, profile: profile))
+            let split = LegacyHostImport.inspectSplitV1(profile: splitV1, token: token)
+            if version == 12 {
+                guard case .imported(let imported) = split else {
+                    return XCTFail("split-v1 12 must import for verified upgrade, got \(split)")
+                }
+                XCTAssertEqual(imported.record.protocolVersion, 12)
+                XCTAssertEqual(imported.token, "tok-legacy")
+            } else {
+                XCTAssertEqual(split, .sourceInconsistent)
+            }
+        }
+        // Single-host v2 keeps its stored binding; bootstrap gates eligibility.
+        let v2 = try JSONDecoding.encoder.encode(
+            SessionCredentials(profile: makeProfile(protocolVersion: 12), accessToken: "tok-v2")
+                .asDocument())
+        guard case .imported(let imported) = LegacyHostImport.inspect(
+            v2: v2, profile: nil, token: nil)
+        else {
+            return XCTFail("v2 at 12 must import with its original binding")
+        }
+        XCTAssertEqual(imported.record.protocolVersion, 12)
+        XCTAssertEqual(imported.token, "tok-v2")
+    }
+
     func testImportSingleHostV2LeavesSourceBytesIdentical() async throws {
         let (catalog, _, _, _) = makeCatalog()
         defer { Task { await catalog.wipeForTests() } }

@@ -1,8 +1,8 @@
 import type { OAuthToken } from "@poracode/agents-usage";
 import { afterEach, describe, expect, it, vi } from "vitest";
 const readDevinCredentials = vi.hoisted(() => vi.fn<() => Promise<OAuthToken | undefined>>());
-vi.mock("../agents/devin/credentials", () => ({ readDevinCredentials }));
-import { resolveDevinToken } from "./devinCredentials";
+vi.mock("./credentials", () => ({ readDevinCredentials }));
+import { resolveDevinToken } from "./usageCredentials";
 
 describe("Devin usage credentials", () => {
   afterEach(() => {
