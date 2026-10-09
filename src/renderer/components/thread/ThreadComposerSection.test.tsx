@@ -473,6 +473,7 @@ describe("ThreadComposerSection", () => {
           fireEvent(editor, replay);
           await act(async () => Promise.resolve());
           expect(confirmation.defaultPrevented).toBe(false);
+          expect(replay.defaultPrevented).toBe(true);
           expect(editor).toHaveTextContent("日本語");
           expect(onSubmitInput).not.toHaveBeenCalled();
           expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
@@ -513,6 +514,7 @@ describe("ThreadComposerSection", () => {
         fireEvent(editor, replay);
         await act(async () => Promise.resolve());
         expect(confirmation.defaultPrevented).toBe(false);
+        expect(replay.defaultPrevented).toBe(true);
         expect(editor).toHaveTextContent("/rev");
         expect(editor.querySelector("[data-slash-command]")).toBeNull();
         expect(screen.getByRole("option", { name: /review/i })).toBeInTheDocument();
@@ -548,8 +550,8 @@ describe("ThreadComposerSection", () => {
       const { onSubmitInput } = renderComposer({ thread, agentStatus });
       const editor = screen.getByRole("textbox");
       typeComposerText(editor, "日本語");
-      fireEvent.keyDown(editor, { key: "Enter", keyCode: 229 });
-      const newline = createEvent.keyDown(editor, { key: "Enter", keyCode: 13, shiftKey: true });
+      fireEvent(editor, keyDownAt(editor, { key: "Enter", keyCode: 229 }, 100));
+      const newline = keyDownAt(editor, { key: "Enter", keyCode: 13, shiftKey: true }, 101);
       fireEvent(editor, newline);
       await act(async () => Promise.resolve());
 
@@ -2004,6 +2006,7 @@ describe("ThreadComposerSection", () => {
         fireEvent(editor, replay);
         await act(async () => Promise.resolve());
         expect(confirmation.defaultPrevented).toBe(false);
+        expect(replay.defaultPrevented).toBe(true);
         expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
         expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
         expect(editor).toHaveTextContent("unfinished input");
