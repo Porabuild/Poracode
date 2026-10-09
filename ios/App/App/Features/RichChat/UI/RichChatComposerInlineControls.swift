@@ -41,7 +41,9 @@ struct RichChatComposerInlineConfiguration: View {
   }
 
   private var effortLabel: String? {
-    guard let effort = configuration.effort else { return nil }
+    // Inside a model-bound family the displayed effort derives from the
+    // member UID; elsewhere the saved carrier itself.
+    guard let effort = catalog.displayedEffort(for: configuration) else { return nil }
     return catalog.effortOptions(for: configuration.model).first { $0.id == effort }?.label
       ?? effort.capitalized
   }

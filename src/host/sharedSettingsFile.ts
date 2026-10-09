@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { writeFileAtomic } from "@/shared/atomicFile";
+import { assertAgentProfileDependencies } from "@/shared/agentProfileDependencies";
 import type {
   AgentInstanceConfig,
   AgentInstanceEnvVar,
@@ -62,6 +63,10 @@ export function readSharedSettingsFile(settingsPath: string): SharedSettings {
 }
 
 export function writeSharedSettingsFile(settingsPath: string, settings: SharedSettings): void {
+  assertAgentProfileDependencies(
+    readSharedSettingsFile(settingsPath).agentInstances,
+    settings.agentInstances,
+  );
   writeFileAtomic(settingsPath, serializeSharedSettings(settings), { encoding: "utf8" });
 }
 

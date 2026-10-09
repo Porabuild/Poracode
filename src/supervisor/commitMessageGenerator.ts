@@ -1,5 +1,6 @@
 import type { GitFileChange, ProjectLocation } from "@/shared/contracts";
-import { resolveOneShotEffectiveModel, type AgentAdapter } from "./agents/base";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
+import { resolveOneShotSelection, type AgentAdapter } from "./agents/base";
 import { buildDiffPromptContext } from "./diffPromptContext";
 import { GitService } from "./git";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
@@ -99,12 +100,10 @@ async function appendUntrackedDiffs(
 export async function generateCommitMessage(
   location: ProjectLocation,
   adapter: AgentAdapter,
-  model?: string,
-  effort?: string,
+  selection?: ModelSelection,
   language?: string,
-  fast?: boolean,
 ): Promise<string> {
-  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+  const effectiveSelection = resolveOneShotSelection(adapter, selection, () => {
     return new Error(`No default one-shot model configured for ${adapter.label}`);
   });
 
@@ -137,9 +136,7 @@ export async function generateCommitMessage(
   const raw = await runOneShotPromptWithFallback({
     location,
     adapter,
-    model: effectiveModel,
-    effort,
-    fast,
+    selection: effectiveSelection,
     timeoutMs: COMMIT_MESSAGE_TIMEOUT_MS,
     logTag: "commit-gen",
     attempts: [

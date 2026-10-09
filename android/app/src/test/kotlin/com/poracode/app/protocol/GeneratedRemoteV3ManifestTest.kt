@@ -16,14 +16,14 @@ class GeneratedRemoteV3ManifestTest {
         val manifest = JSONObject(raw)
         assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, manifest.getInt("protocolVersion"))
         assertEquals(2, manifest.getInt("bindingFormatVersion"))
-        assertEquals(3, manifest.getInt("generatorVersion"))
+        assertEquals(GeneratedRemoteV3Contract.GENERATOR_VERSION, manifest.getInt("generatorVersion"))
         // Manifest format 5 adds background-task reduce and follow-up queue
         // (format 4 added the terminal hardware-key encoder; format 3 the
         // terminal-cursor machine; format 2 the pairing machine).
         assertEquals(5, manifest.getInt("formatVersion"))
         assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, RemoteContractMetadata.protocolVersion)
         assertEquals(2, RemoteContractMetadata.bindingFormatVersion)
-        assertEquals(3, RemoteContractMetadata.generatorVersion)
+        assertEquals(GeneratedRemoteV3Contract.GENERATOR_VERSION, RemoteContractMetadata.generatorVersion)
 
         val files = manifest.getJSONObject("languages")
             .getJSONObject("kotlin")

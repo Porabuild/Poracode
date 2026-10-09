@@ -99,7 +99,9 @@ describe("ServerInstance", () => {
     );
     instances.push(instance);
 
+    expect(instance.isReady()).toBe(false);
     await instance.start();
+    expect(instance.isReady()).toBe(true);
     const result = await instance.sendMessage({
       jsonrpc: "2.0",
       id: "completion-1",
@@ -109,6 +111,8 @@ describe("ServerInstance", () => {
 
     expect(statuses).toContain("ready");
     expect(result).toEqual({ items: [{ label: "from-fake-server", kind: 6 }] });
+    instance.dispose();
+    expect(instance.isReady()).toBe(false);
   });
 
   it("treats a send rejection from a concurrently closed connection as expected", async () => {

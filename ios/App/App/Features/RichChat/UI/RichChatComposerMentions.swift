@@ -347,3 +347,40 @@ struct RichChatMentionSuggestionsView: View {
     .padding(.horizontal, 10)
   }
 }
+
+// Composer suggestion presentation and selection stay with the mention feature.
+extension RichChatComposerView {
+  var mcpSuggestions: [RichChatMCPMentionOption] {
+    RichChatMCPMentionCatalog.suggestions(for: draft)
+  }
+
+  var mentionSuggestionsAreEmpty: Bool {
+    mcpSuggestions.isEmpty && fileMentionController.suggestions.isEmpty
+  }
+
+  var mentionSuggestionsPanel: some View {
+    RichChatMentionSuggestionsView(
+      mcps: mcpSuggestions,
+      files: fileMentionController.suggestions,
+      selectMCP: selectMCPMention,
+      selectFile: selectFileMention
+    )
+  }
+
+  func selectMCPMention(_ option: RichChatMCPMentionOption) {
+    var nextConfiguration = configuration
+    RichChatMCPMentionCatalog.enable(option.configKey, in: &nextConfiguration)
+    configuration = nextConfiguration
+    let selection = option.selection
+    if !mcps.contains(where: { $0.id == selection.id }) { mcps.append(selection) }
+    draft = fileMentionController.consumeTrigger(from: draft)
+    composerExpanded = true
+  }
+
+  func selectFileMention(_ entry: ProjectWorkspaceEntry) {
+    queuedSegments.append(.file(path: entry.path))
+    draft = fileMentionController.consumeTrigger(from: draft)
+    composerExpanded = true
+  }
+
+}

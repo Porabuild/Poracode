@@ -44,8 +44,11 @@ const updater = vi.hoisted(() => ({
 }));
 vi.mock("electron-updater", () => ({ autoUpdater: updater }));
 
-import { IPC_EVENT_CHANNELS, IPC_WINDOW_CHANNELS } from "@/shared/ipc";
+import { PREVIOUS_CLIENT_HOST_HOP_VERSION } from "@/shared/clientHostHop";
+import { IPC_EVENT_CHANNELS, IPC_PROCEDURE_MAP_VERSION, IPC_WINDOW_CHANNELS } from "@/shared/ipc";
 import { ATTACH_DEVICE_PROCEDURES } from "@/shared/ipc/attachProcedureAllowlist";
+import { IpcProcedureMapVersionError } from "@/shared/ipc/procedureMap";
+import { createClientProcedureInvocation } from "@/shared/ipc/invocation";
 import { QuickComposerLifecycle } from "../window/quickComposerLifecycle";
 import { registerStandaloneAttachIpc } from "./standaloneAttachIpc";
 
@@ -138,7 +141,27 @@ describe("standalone attach device IPC", () => {
   function invoke(name: string, args: unknown[], sender: unknown): Promise<unknown> {
     const handler = electron.handlers.get(IPC_WINDOW_CHANNELS.clientProcedureInvoke);
     expect(handler).toBeTypeOf("function");
-    return (async () => handler?.({ sender }, { name, args }))() as Promise<unknown>;
+    return (async () =>
+      handler?.(
+        { sender },
+        createClientProcedureInvocation(name as never, args),
+      ))() as Promise<unknown>;
+  }
+
+  /** Dispatches a raw (possibly non-envelope) payload, as preload would forward it. */
+  function invokeRaw(payload: unknown, sender: unknown): Promise<unknown> {
+    const handler = electron.handlers.get(IPC_WINDOW_CHANNELS.clientProcedureInvoke);
+    expect(handler).toBeTypeOf("function");
+    return (async () => handler?.({ sender }, payload))() as Promise<unknown>;
+  }
+
+  async function catchRaw(payload: unknown): Promise<unknown> {
+    try {
+      await invokeRaw(payload, main.sender);
+    } catch (error) {
+      return error;
+    }
+    return undefined;
   }
 
   it("owns exactly the device allowlist (no server-authoritative settings)", () => {
@@ -188,10 +211,57 @@ describe("standalone attach device IPC", () => {
 
   it("refuses unknown senders and malformed requests", async () => {
     await expect(invoke("getUpdateStatus", [], { id: 999 })).rejects.toThrow("sender");
-    const handler = electron.handlers.get(IPC_WINDOW_CHANNELS.clientProcedureInvoke);
+    // A current-version envelope with a malformed shape still rejects with the
+    // existing shape error — the version gate never fires for it.
     await expect(
-      (async () => handler?.({ sender: main.sender }, { name: "getUpdateStatus" }))(),
+      invokeRaw(
+        { ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION, name: "getUpdateStatus" },
+        main.sender,
+      ),
     ).rejects.toThrow("Invalid client procedure request");
+  });
+
+  it("asserts the declared envelope version before any device effect", async () => {
+    // Missing declaration (old `{name, args}` reader): version 0, typed.
+    const missing = await catchRaw({ name: "getUpdateStatus", args: [] });
+    expect(missing).toBeInstanceOf(IpcProcedureMapVersionError);
+    expect((missing as IpcProcedureMapVersionError).peerVersion).toBe(0);
+    // Bare non-envelope payload (legacy positional call through preload): typed.
+    const positional = await catchRaw("getUpdateStatus");
+    expect(positional).toBeInstanceOf(IpcProcedureMapVersionError);
+    expect((positional as IpcProcedureMapVersionError).peerVersion).toBe(0);
+    // The previous hop's envelope is refused typed.
+    const previous = await catchRaw({
+      ipcProcedureMapVersion: PREVIOUS_CLIENT_HOST_HOP_VERSION,
+      name: "getUpdateStatus",
+      args: [],
+    });
+    expect(previous).toBeInstanceOf(IpcProcedureMapVersionError);
+    expect((previous as IpcProcedureMapVersionError).peerVersion).toBe(
+      PREVIOUS_CLIENT_HOST_HOP_VERSION,
+    );
+    // A future envelope is refused typed.
+    const future = await catchRaw({
+      ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION + 1,
+      name: "getUpdateStatus",
+      args: [],
+    });
+    expect(future).toBeInstanceOf(IpcProcedureMapVersionError);
+    expect((future as IpcProcedureMapVersionError).peerVersion).toBe(IPC_PROCEDURE_MAP_VERSION + 1);
+    // None of the refusals touched the device: no keybindings file appears.
+    expect(readdirSync(profileNamespace)).toEqual([]);
+  });
+
+  it("keeps the device allowlist applied after version admission", async () => {
+    // Version 17 admission alone does not widen the surface: a server-owned
+    // procedure on a current envelope still loud-rejects as out of allowlist.
+    await expect(invoke("getSharedSettings", [], main.sender)).rejects.toThrow(
+      "not available in standalone attach",
+    );
+    await expect(invoke("dbGetState", [], main.sender)).rejects.toThrow(
+      "not available in standalone attach",
+    );
+    expect(readdirSync(profileNamespace)).toEqual([]);
   });
 
   // F1: the attach device serves the real updater actions (not just status)

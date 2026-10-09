@@ -4,6 +4,7 @@ import { vi } from "vitest";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import { IPC_PROCEDURE_MAP_VERSION } from "@/shared/ipc";
 import { RemoteDesktopClient, type RemoteFetch } from "@/shared/remote/client";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import { RemoteEnvironmentClient } from "@/shared/remote/clientEnvironments";
 import type { RemoteEnvironmentImageBytes } from "@/shared/remote/clientEnvironmentImages";
 import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
@@ -122,7 +123,7 @@ export function installRemoteImageRuntime(
     dataRoot: "/image-fixture",
     endpoint: "http://127.0.0.1:49152/",
     ownerGeneration: "11111111-1111-4111-8111-111111111111",
-    remoteProtocolVersion: 12,
+    remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
     pairingUrl: "http://127.0.0.1:49152/#token=fixture",
   });
 }

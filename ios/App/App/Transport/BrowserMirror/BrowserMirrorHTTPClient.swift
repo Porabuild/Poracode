@@ -61,6 +61,7 @@ actor BrowserMirrorHTTPClient: BrowserMirrorHTTPExecuting {
     var value = URLRequest(url: try url(path: metadata.path), timeoutInterval: timeout)
     value.httpMethod = metadata.method
     value.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    value.declareCurrentRemoteWriterProtocol()
     do {
       try await authorization.authorize(&value)
     } catch let error as RemoteClientError {

@@ -105,6 +105,17 @@ export const remoteSettingsSchema = sharedSettingsSchema
     wslConflictResolverEffort: true,
     wslConflictResolverFast: true,
     wslConflictResolverPresentationMode: true,
+    // Canonical complete utility selections (selectionBinding contract).
+    // Optional/defaultless: absent keeps the legacy scalar reads above as the
+    // compatibility projection; present objects ride the wire exactly,
+    // including falsy carriers and a recognized binding.
+    commitGenSelection: true,
+    titleGenSelection: true,
+    conflictResolverSelection: true,
+    experimentJudgeSelection: true,
+    wslCommitGenSelection: true,
+    wslTitleGenSelection: true,
+    wslConflictResolverSelection: true,
     worktreeStorageMode: true,
     worktreeBasePath: true,
     wslWorktreeBasePath: true,

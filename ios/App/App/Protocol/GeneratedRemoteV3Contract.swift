@@ -9,7 +9,7 @@ enum GeneratedRemoteV3Contract {
   /// stays a one-line change in `ProtocolConstants`.
   static let expectedProtocolVersion = ProtocolConstants.remoteProtocolVersion
   static let expectedBindingFormatVersion = 2
-  static let expectedGeneratorVersion = 3
+  static let expectedGeneratorVersion = 4
   /// 2 added the generated pairing state machine to the native bundle
   /// (V5 5.2); 3 adds the generated terminal-cursor machine and the
   /// `stateMachines` count; 4 adds the generated terminal hardware-key

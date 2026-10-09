@@ -309,6 +309,11 @@ msgstr "프롬프트 {0}개 - {when}"
 msgid "{0} queued for update to v{1}"
 msgstr "{0}: v{1}(으)로 업데이트 대기 중"
 
+#. placeholder {0}: column.label
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+msgid "{0} reasoning"
+msgstr "{0} 추론"
+
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} run"
@@ -320,6 +325,16 @@ msgstr "{0}회 실행"
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "{0}회 실행"
+
+#. placeholder {0}: names.join(", ")
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
+msgstr "{0}은(는) 이 프로필의 격리 로그인을 공유하며, 다른 소유자를 선택할 때까지 로그인을 잃습니다."
+
+#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
+msgstr "{0}은(는) 이 프로필의 격리 로그인을 공유합니다. 먼저 다른 소유자로 옮기세요 — 호스트는 로그인 없이 남겨지는 변경을 거부합니다."
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
@@ -590,6 +605,10 @@ msgstr "{projectLocation}(비활성화)"
 msgid "{projectName} Settings"
 msgstr "{projectName} 설정"
 
+#: src/renderer/components/providers/usageProviders.ts
+msgid "{provider} {profile}"
+msgstr "{provider} {profile}"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
 msgstr "{provider}에서는 원샷 생성을 지원하지 않습니다"
@@ -712,6 +731,10 @@ msgstr "{0}개 검사 중 <0>{passed}</0>개 통과"
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · 예상"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "~/.config/devin/config.json"
+msgstr "~/.config/devin/config.json"
+
 #. placeholder {0}: Math.round(projection.projectedPercent)
 #: src/renderer/components/providers/usageFormat.ts
 msgid "≈{0}% by reset"
@@ -774,6 +797,10 @@ msgstr "메시지 삭제를 확인하지 못했습니다. 새로고침하여 이
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "Poracode Helper가 이 연결을 소유하고 있지만 응답하지 않습니다. 원격 헬퍼를 중지한 후 다시 연결하세요."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "A profile can carry at most 100 repositories."
+msgstr "프로필 하나에는 최대 100개의 저장소를 담을 수 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1157,6 +1184,7 @@ msgstr "레거시 연결 채택"
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 또는 터널). 자동으로 설정하려면 비워 두세요."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -1219,6 +1247,10 @@ msgstr "에이전트 재개: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "에이전트 터미널 글꼴 크기"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Agent type"
+msgstr "에이전트 유형"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Agent update available"
@@ -1422,6 +1454,10 @@ msgstr "이미 {conflict}에서 사용 중"
 msgid "Always"
 msgstr "항상"
 
+#: src/renderer/components/providers/devin/sessionListings.tsx
+msgid "Always applied"
+msgstr "항상 적용"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "항상 제외됨"
@@ -1433,6 +1469,10 @@ msgstr "앨버"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "An agent is fixing this PR."
 msgstr "에이전트가 이 PR을 수정하고 있습니다."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "An exact platform fails visibly when this Devin organization has no cloud machines of that kind."
+#~ msgstr "이 Devin 조직에 해당 종류의 클라우드 머신이 없으면 정확한 플랫폼 지정은 눈에 띄게 실패합니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -1526,6 +1566,18 @@ msgstr "화면 표시"
 msgid "Appearance mode"
 msgstr "모양 모드"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Applied to a new or pending cloud chat before its first message — a cloud chat that already has its workspace keeps it. Leaving a choice on \"Keep Devin's current choice\" leaves the decision to Devin; it does not restore an earlier setting."
+#~ msgstr "새 클라우드 채팅 또는 대기 중인 클라우드 채팅의 첫 메시지 이전에 적용됩니다 — 이미 작업 영역이 있는 클라우드 채팅은 이를 유지합니다. 선택을 \"Devin의 현재 선택 유지\"로 두면 결정은 Devin에 맡겨지며, 이전 설정을 복원하지 않습니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+msgstr "이 프로필의 설정 뷰(devin.org_id)에 적용됩니다. Poracode는 로그인이 속한 조직을 나열할 수 없으며, Devin이 시작 시 ID를 검증하여 권한 없는 조직은 눈에 띄게 실패합니다."
+
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+msgid "Applies to both models"
+msgstr "두 모델 모두에 적용"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
 msgstr "제공자 프리셋 적용"
@@ -1577,9 +1629,19 @@ msgstr "모두 보관"
 msgid "Archive done threads"
 msgstr "완료된 스레드 보관"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#: src/renderer/components/providers/devin/sessionArchiveControl.tsx
+#~ msgid "Archive session"
+#~ msgstr "세션 보관"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "현재 스레드 보관"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Archive this session?"
+#~ msgstr "이 세션을 보관할까요?"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -1838,6 +1900,10 @@ msgstr "자동 조종"
 msgid "Availability"
 msgstr "사용 범위"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Availability depends on your Devin organization."
+msgstr "가용성은 Devin 조직에 따라 다릅니다."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
 msgstr "사용 가능"
@@ -1862,6 +1928,7 @@ msgstr "검토 대기 중"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2268,6 +2335,11 @@ msgstr "포트를 불러올 수 없습니다"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "원격 서버에 연결할 수 없습니다. 온라인 상태인지 확인한 후 다시 연결하세요."
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Can't use this model selection on that surface"
+msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
+
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -2422,6 +2494,10 @@ msgstr "변경 사항은 이 환경 전체에 적용됩니다."
 msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
 msgstr "변경 사항은 새 채팅에 적용됩니다. 실시간 스킬 다시 불러오기를 지원하는 제공자는 더 빨리 업데이트될 수 있습니다."
 
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Changes apply to this running Devin session."
+#~ msgstr "변경 사항은 실행 중인 이 Devin 세션에 적용됩니다."
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Changes in PR"
 msgstr "PR의 변경 사항"
@@ -2444,6 +2520,7 @@ msgstr "채널"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 msgid "Chat"
 msgstr "채팅"
 
@@ -2626,6 +2703,10 @@ msgstr "Poracode 인터페이스의 표시 언어를 선택하세요."
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the structured runtime for new Cursor GUI threads. Running threads keep their current runtime."
 #~ msgstr "새 Cursor GUI 스레드에 사용할 구조화 런타임을 선택하세요. 실행 중인 스레드는 현재 런타임을 유지합니다."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Choose the workspace for new cloud chats. Existing cloud sessions keep their workspace."
+msgstr "새 클라우드 채팅의 작업 영역을 선택하세요. 기존 클라우드 세션은 자신의 작업 영역을 유지합니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -3025,6 +3106,38 @@ msgstr "워크플로 패널 닫기"
 msgid "Closed"
 msgstr "닫힘"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Cloud"
+msgstr "클라우드"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud chat setup"
+msgstr "클라우드 채팅 설정"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud persona"
+msgstr "클라우드 페르소나"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud platform"
+msgstr "클라우드 플랫폼"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud repositories"
+msgstr "클라우드 저장소"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud repository list"
+msgstr "클라우드 저장소 목록"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+#~ msgid "Cloud sessions run on Devin's cloud VM: local workspace files, paths, and MCP servers configured on this machine are not reachable there."
+#~ msgstr "클라우드 세션은 Devin의 클라우드 VM에서 실행됩니다. 이 머신의 워크스페이스 파일, 경로, MCP 서버는 거기서 접근할 수 없습니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Cloud sessions use their own workspace. Local files and local MCP processes are unavailable."
+msgstr "클라우드 세션은 자체 작업 영역을 사용합니다. 로컬 파일과 로컬 MCP 프로세스는 사용할 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Cmd+Enter"
 msgstr "Cmd+Enter"
@@ -3111,6 +3224,10 @@ msgstr "할 일 도크 접기"
 msgid "Collapse warning"
 msgstr "경고 접기"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
+#~ msgstr "쉼표로 구분된 owner/name 항목(예: acme/website, acme/api). 목록은 입력한 그대로 Devin에 전달됩니다."
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -3136,6 +3253,10 @@ msgstr "명령을 찾을 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Command Prompt"
 msgstr "명령 프롬프트"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Command to revise"
+msgstr "수정할 명령어"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -3346,6 +3467,18 @@ msgstr "컴퓨터 사용이 활성화되었습니다 — 에이전트는 데스�
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "설정 디렉터리"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Config file (optional)"
+msgstr "설정 파일(선택 사항)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Config file path (optional)"
+msgstr "설정 파일 경로(선택 사항)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Configuration from a newer Poracode"
+msgstr "더 최신 Poracode의 구성"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -3744,6 +3877,10 @@ msgid "Could not complete the merge"
 msgstr "병합을 완료할 수 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Could not confirm that the Auto Fix thread \"{id}\" was stopped. Poracode keeps it recorded and will retry stopping it."
+msgstr "자동 수정 스레드 \"{id}\"의 중지를 확인하지 못했습니다. Poracode는 이를 기록해 두고 중지를 다시 시도합니다."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Could not create the project folder."
 msgstr "프로젝트 폴더를 만들 수 없습니다."
 
@@ -4125,6 +4262,11 @@ msgstr "현재 연속 기록"
 msgid "Current streak"
 msgstr "현재 연속 기록"
 
+#. placeholder {0}: setting.currentValue
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Current value: {0}"
+#~ msgstr "현재 값: {0}"
+
 #: src/renderer/components/providers/cursor/manifest.ts
 msgid "Cursor"
 msgstr "Cursor"
@@ -4299,6 +4441,10 @@ msgstr "기본값"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Default auto-refresh (minutes)"
 msgstr "기본 자동 새로고침(분)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Default coding agent"
+msgstr "기본 코딩 에이전트"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4625,9 +4771,74 @@ msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 �
 msgid "Devin"
 msgstr "Devin"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin {0} profile saved."
+msgstr "Devin 프로필 {0}이(가) 저장되었습니다."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Devin applies the new title first; the conversation list updates after it confirms."
+#~ msgstr "Devin이 먼저 새 제목을 적용하며, 확인 후 대화 목록이 업데이트됩니다."
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Devin CLI with terminal and structured chat support."
 msgstr "터미널 및 구조화된 채팅을 지원하는 Devin CLI."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin cloud"
+msgstr "Devin 클라우드"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+#~ msgid "Devin cloud chats don't take a root agent type. Saving this profile removes any agent type stored on it."
+#~ msgstr "Devin 클라우드 채팅은 루트 에이전트 유형을 받지 않습니다. 이 프로필을 저장하면 저장된 에이전트 유형이 제거됩니다."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Devin did not confirm the rename."
+#~ msgstr "Devin이 이름 변경을 확인하지 않았습니다."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Devin did not confirm the setting change."
+#~ msgstr "Devin이 설정 변경을 확인하지 않았습니다."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Devin did not return a revised command."
+msgstr "Devin이 수정된 명령어를 반환하지 않았습니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin organization id"
+msgstr "Devin 조직 ID"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile"
+msgstr "Devin 프로필"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile changes were not confirmed by the host; the editor rolled back to the stored settings."
+msgstr "호스트가 Devin 프로필 변경을 확인하지 않았습니다. 편집기가 저장된 설정으로 롤백되었습니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile config file"
+msgstr "Devin 프로필 설정 파일"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile name"
+msgstr "Devin 프로필 이름"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Devin proposes a revised command; you review it before anything runs."
+msgstr "Devin이 수정된 명령어를 제안하며, 실행 전에 검토할 수 있습니다."
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "Devin returned a persona catalog Poracode could not interpret."
+#~ msgstr "Devin이 Poracode가 해석할 수 없는 페르소나 카탈로그를 반환했습니다."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Devin returned a settings listing Poracode could not interpret."
+#~ msgstr "Devin이 Poracode가 해석할 수 없는 설정 목록을 반환했습니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin's own login (default)"
+msgstr "Devin 자체 로그인(기본값)"
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -4711,6 +4922,7 @@ msgstr "서버가 비활성화되었거나 네이티브 옵션이 지원되지 �
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "스킬을 비활성화하면 활성 스킬 폴더 밖으로 이동하고 Poracode가 관리하는 공급자 복사본을 제거합니다. 파일은 보존되므로 다시 활성화할 수 있습니다."
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
 msgstr "삭제"
@@ -4959,6 +5171,10 @@ msgstr "예: 빠른 조회에는 Codex GPT-5.5 fast, 대규모 리팩터링에�
 msgid "e.g. Work"
 msgstr "예: 업무"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Each repository entry must be 1–512 characters without control characters."
+msgstr "각 저장소 항목은 1–512자여야 하며 제어 문자를 포함할 수 없습니다."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
 msgid "Earlier text"
 msgstr "이전 텍스트"
@@ -5172,6 +5388,14 @@ msgstr "고급(후크)"
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "https://code.example.com과(와) 같은 전체 출처(origin) URL을 경로 없이 입력하세요."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Enter a persona ID or keep the current choice."
+msgstr "페르소나 ID를 입력하거나 현재 선택을 유지하세요."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Enter a persona name, or keep Devin's current choice."
+#~ msgstr "페르소나 이름을 입력하거나 Devin의 현재 선택을 유지하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Enter a port from 1 to 65535."
 msgstr "1~65535 사이의 포트를 입력하세요."
@@ -5223,6 +5447,10 @@ msgstr "MCP 서버 구성 하나를 입력하세요."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "계획 모드 시작"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Enter repository names separated by commas, such as acme/website, acme/api."
+msgstr "리포지토리 이름을 쉼표로 구분하여 입력하세요(예: acme/website, acme/api)."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -5524,7 +5752,7 @@ msgstr "외부 제공자"
 #~ msgid "External provider skills"
 #~ msgstr "외부 제공자 스킬"
 
-#: src/renderer/components/thread/threadDraftViewHelpers.ts
+#: src/renderer/components/common/effortLabel.ts
 msgid "Extra High"
 msgstr "매우 높음"
 
@@ -5607,6 +5835,7 @@ msgstr "소유권이 표시된 브랜치 메타데이터를 기록하지 못했�
 #~ msgid "Failed to update goal"
 #~ msgstr "목표를 업데이트하지 못했습니다"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay.ts
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
@@ -5615,6 +5844,14 @@ msgstr "소유권이 표시된 브랜치 메타데이터를 기록하지 못했�
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "빠르게"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+#~ msgid "Fast has no variant for this pairing"
+#~ msgstr "이 조합에서는 빠른 모드를 사용할 수 없습니다"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "Fast is unavailable for this pairing"
+msgstr "이 조합에서는 빠른 모드를 사용할 수 없습니다"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
@@ -5985,6 +6222,10 @@ msgstr "{0, plural, one {가져올 수 있는 스킬 #개를 찾았습니다} ot
 msgid "Found a signed-in {0} session."
 msgstr "로그인된 {0} 세션을 찾았습니다."
 
+#: src/renderer/components/providers/modelDescription.ts
+msgid "Free"
+msgstr "무료"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Frequency"
 msgstr "빈도"
@@ -6085,6 +6326,10 @@ msgstr "생성 중…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
 msgstr "업무 중에 간단한 점검을 받으세요."
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Get suggestion"
+msgstr "제안 받기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -6189,6 +6434,7 @@ msgstr "전역"
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Global"
@@ -6402,6 +6648,10 @@ msgstr "{0}의 스킬 숨기기"
 msgid "Hide terminal"
 msgstr "터미널 숨기기"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "High"
+msgstr "높음"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "History"
 msgstr "기록"
@@ -6426,6 +6676,19 @@ msgstr "홈 범위"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Homepage"
 msgstr "홈페이지"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Hook entries are shown exactly as Devin reports them; their schema is not interpreted."
+#~ msgstr "훅 항목은 Devin이 보고한 그대로 표시되며, 스키마는 해석되지 않습니다."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Hooks"
+#~ msgstr "훅"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Hooks in this session"
+#~ msgstr "이 세션의 훅"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Host credential reference"
@@ -6612,6 +6875,10 @@ msgstr "전역으로 가져오기"
 #~ msgid "Import to Project"
 #~ msgstr "프로젝트로 가져오기"
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Imported (.claude)"
+#~ msgstr "가져옴(.claude)"
+
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -6679,6 +6946,10 @@ msgstr "전역 설정 상속(현재 {0})"
 msgid "Initialize Repository"
 msgstr "저장소 초기화"
 
+#: src/renderer/components/providers/modelDescription.ts
+msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
+msgstr "각 모델의 토큰 100만 개당 입력/출력 가격입니다. 가격 범위에는 모델 변형이 포함됩니다."
+
 #: src/renderer/components/providers/devin/modelPricing.ts
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "100만 토큰당 입력/출력 가격입니다. 가격 범위에는 모델의 여러 변형이 포함됩니다."
@@ -6698,6 +6969,10 @@ msgstr "입력 레벨"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Inputs must be a JSON object."
 #~ msgstr "입력은 JSON 객체여야 합니다."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Insert into composer"
+msgstr "컴포저에 삽입"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -6982,6 +7257,10 @@ msgstr "중단됨"
 msgid "Interrupted: agent session ended before completion."
 msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니다."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Invalid configuration — kept, but disabled"
+msgstr "잘못된 구성 — 유지되지만 비활성화됨"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "이탤릭체"
@@ -7017,6 +7296,14 @@ msgstr "작업 영역을 최소 하나는 남겨 두세요."
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Keep Branch"
 msgstr "브랜치 유지"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Keep current choice"
+msgstr "현재 선택 유지"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Keep Devin's current choice"
+#~ msgstr "Devin의 현재 선택 유지"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Keep me on track"
@@ -7122,6 +7409,15 @@ msgstr "스레드 시작"
 msgid "Launching…"
 msgstr "실행 중…"
 
+#: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Lead"
+msgstr "주 모델"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+#~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
+#~ msgstr "주 모델과 보조 모델의 가격은 각 모델의 토큰 100만 개당 가격입니다. 가격 범위에는 모델 변형이 포함됩니다."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
 #~ msgstr "학습된 라우팅 메모리"
@@ -7189,6 +7485,10 @@ msgstr "소스에 연결"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Linked"
 msgstr "연결됨"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Linux"
+msgstr "Linux"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7403,6 +7703,7 @@ msgstr "로그아웃"
 msgid "login"
 msgstr "로그인"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -7419,6 +7720,14 @@ msgstr "로그인 {0}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Login required"
 msgstr "로그인이 필요합니다"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Login source"
+msgstr "로그인 소스"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+msgstr "이 구성의 로그인 소스, 설정 파일, 조직, 런타임입니다. 모델과 승인 같은 스레드 설정은 컴포저에 남아 있습니다."
 
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
@@ -7451,9 +7760,21 @@ msgstr "개발 서버를 찾는 중…"
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "선정되지 않은 작업 트리와 브랜치는 제거됩니다. 세션 기록은 유지됩니다."
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Low"
+msgstr "낮음"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
 msgstr "기기"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "macOS"
+msgstr "macOS"
+
+#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+msgid "Main"
+msgstr "주 모델"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
@@ -7625,6 +7946,10 @@ msgstr "대/소문자 구분"
 msgid "Match your system, or force light or dark."
 msgstr "시스템을 일치시키거나 밝게 또는 어둡게 만듭니다."
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Max"
+msgstr "최대"
+
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Max active agent sessions"
@@ -7778,6 +8103,10 @@ msgstr "mcp.json을 읽을 수 없어 이 플러그인의 서버를 건너뛰었
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json이 이 빌드에서 지원하지 않는 Agent Plugins 버전을 지정합니다."
+
+#: src/renderer/components/common/effortLabel.ts
+msgid "Medium"
+msgstr "중간"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
@@ -7936,6 +8265,10 @@ msgstr "이 환경에서는 마이크 테스트를 사용할 수 없습니다."
 msgid "min"
 msgstr "분"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Minimal"
+msgstr "최소"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "MiniMax"
 msgstr "MiniMax"
@@ -8015,6 +8348,10 @@ msgstr "모델 레이블"
 #~ msgid "Model order"
 #~ msgstr "모델 순서"
 
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
+msgid "Model pairing"
+msgstr "모델 조합"
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "모델을 즐겨찾기에서 제거함"
@@ -8027,6 +8364,12 @@ msgstr "모델이 {fromModel}에서 {toModel}(으)로 전환되었습니다."
 msgid "Model usage"
 msgstr "모델 사용량"
 
+#. placeholder {0}: entry.model
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "model: {0}"
+#~ msgstr "모델: {0}"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8201,6 +8544,10 @@ msgstr "변경 사항을 \"{newBranch}\"의 새 작업 트리로 옮겼습니다
 msgid "Moving changes…"
 msgstr "변경사항 이동 중…"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+msgstr "하나의 로그인 아래 여러 Devin 구성 — 서로 다른 설정 파일, 조직, 승인 기본값 — 또는 분리된 두 번째 로그인. 네이티브 자격 증명은 절대 복사되지 않습니다."
+
 #: src/renderer/components/providers/muse/manifest.ts
 msgid "Muse Code"
 msgstr "Muse Code"
@@ -8214,6 +8561,7 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -8244,6 +8592,14 @@ msgstr "네이티브 MCP 구성이 업데이트되었습니다. 새 CLI 세션�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP setup"
 msgstr "네이티브 MCP 설정"
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
+#~ msgstr "네이티브 페르소나 파일은 읽기 전용으로 나열되며, Poracode는 Devin 자체 정의를 편집하지 않습니다."
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Native personas"
+#~ msgstr "네이티브 페르소나"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -8335,6 +8691,10 @@ msgstr "새 Cursor 프로필 API 키"
 #~ msgid "New Cursor profile name"
 #~ msgstr "새 Cursor 프로필 이름"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "New Devin profile config file (optional)"
+msgstr "새 Devin 프로필 설정 파일(선택 사항)"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
 msgstr "새 환경"
@@ -8406,6 +8766,10 @@ msgstr "새 일정"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "New scheduled task"
 #~ msgstr "새 예약 작업"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "New session title"
+#~ msgstr "새 세션 제목"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -8700,6 +9064,10 @@ msgstr "GitHub CLI 계정을 찾을 수 없습니다. <0>gh auth login</0>으로
 msgid "No history yet"
 msgstr "아직 기록이 없습니다"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "No hooks are attached to this session."
+#~ msgstr "이 세션에 연결된 훅이 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "No host-owned environments on this server yet."
 msgstr "이 서버에는 아직 호스트 소유 환경이 없습니다."
@@ -8788,10 +9156,15 @@ msgstr "아직 메시지가 없습니다"
 msgid "No microphone found."
 msgstr "마이크를 찾을 수 없습니다."
 
+#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "모델을 찾을 수 없습니다."
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "No native persona definitions found."
+#~ msgstr "네이티브 페르소나 정의를 찾을 수 없습니다."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
@@ -8825,6 +9198,10 @@ msgstr "검색과 일치하는 플러그인이 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
 msgstr "Poracode 페어링 QR 코드를 찾을 수 없습니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
+msgstr "아직 자체 격리 로그인을 가진 프로필이 없습니다. 먼저 프로필을 \"자체 격리 로그인\"으로 설정하고 거기서 로그인하면 여기에 나타납니다."
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -8876,6 +9253,10 @@ msgstr "원격이 구성되지 않았습니다. push 및 pull을 활성화하려
 msgid "No remote environments connected yet."
 msgstr "아직 연결된 원격 환경이 없습니다."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "No repositories"
+msgstr "저장소 없음"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No repositories found."
 msgstr "저장소를 찾을 수 없습니다."
@@ -8885,6 +9266,10 @@ msgstr "저장소를 찾을 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "결과 없음"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "No rules were listed for this session."
+msgstr "이 세션에 대해 나열된 규칙이 없습니다."
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "No runs yet."
@@ -8965,6 +9350,15 @@ msgstr "스레드 없음"
 msgid "No threads yet."
 msgstr "아직 스레드가 없습니다."
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#: src/renderer/components/providers/devin/sessionSettingsSearchPicker.tsx
+#~ msgid "No value"
+#~ msgstr "값 없음"
+
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "No values were advertised for this option."
+#~ msgstr "이 옵션에 대해 알려진 값이 없습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
 #~ msgstr "판정이 도착하지 않았습니다 — CLI가 /goal을 차단했거나(작업 공간 신뢰 또는 후크 설정) 평가기를 실행할 수 없습니다"
@@ -8989,6 +9383,7 @@ msgstr "줄바꿈 없음"
 msgid "none"
 msgstr "없음"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "없음"
@@ -9564,6 +9959,14 @@ msgstr "또는 맞춤 답변을 작성하세요."
 msgid "Orange"
 msgstr "오렌지"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Organization"
+#~ msgstr "조직"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Organization (optional)"
+msgstr "조직(선택 사항)"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
@@ -9613,9 +10016,17 @@ msgstr "{conflict} 재정의"
 msgid "Overriding the global setting for this project."
 msgstr "이 프로젝트의 전역 설정을 재정의합니다."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Own isolated login"
+msgstr "자체 격리 로그인"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Owner unverified"
 msgstr "소유자 미확인"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "owner/name, owner/name"
+msgstr "owner/name, owner/name"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Package"
@@ -9759,6 +10170,10 @@ msgstr "일부 선택됨"
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
 msgstr "통과"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Passed to Devin as its user config for this profile only. It does not isolate credentials, skills, MCP servers, or plugins — those stay shared with the login."
+msgstr "이 프로필 전용 사용자 설정으로 Devin에 전달됩니다. 자격 증명, 스킬, MCP 서버, 플러그인은 격리되지 않으며 로그인과 공유된 상태로 유지됩니다."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Passphrase (optional)"
@@ -9910,9 +10325,34 @@ msgstr "권한"
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "/goal로 지속적인 목표, 예산 및 자동 계속 기능을 사용합니다."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona (optional)"
+msgstr "페르소나(선택 사항)"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona ID"
+msgstr "페르소나 ID"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona IDs are limited to 512 characters."
+msgstr "페르소나 ID는 512자로 제한됩니다."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Persona name"
+#~ msgstr "페르소나 이름"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Persona names are limited to 512 characters."
+#~ msgstr "페르소나 이름은 512자로 제한됩니다."
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Personal"
 msgstr "개인"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Personas"
+#~ msgstr "페르소나"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -9930,6 +10370,10 @@ msgstr "요소 선택"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionIconPicker.tsx
 msgid "Pick icon"
 msgstr "아이콘 선택"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Pick the profile whose login to share"
+msgstr "공유할 로그인의 프로필 선택"
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
@@ -9983,6 +10427,10 @@ msgstr "계획"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 msgid "Plan, ask, build…"
 msgstr "계획하고, 묻고, 만들어 보세요…"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Platform (optional)"
+msgstr "플랫폼(선택 사항)"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -10073,6 +10521,15 @@ msgstr "Poracode"
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode와 에이전트는 원격 머신에서 실행됩니다. SSH는 원격 환경을 시작하고 로컬 터널을 보호하는 데만 사용됩니다."
 
+#. placeholder {0}: setting.controlType
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Poracode cannot edit this {0} control yet."
+#~ msgstr "Poracode는 아직 이 {0} 컨트롤을 편집할 수 없습니다."
+
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Poracode cannot edit this control yet."
+#~ msgstr "Poracode는 아직 이 컨트롤을 편집할 수 없습니다."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode가 이 플러그인의 데이터 폴더를 만들지 못했습니다."
@@ -10112,6 +10569,10 @@ msgstr "Poracode Helper가 잘못된 응답을 반환했습니다."
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode가 저장된 데이터나 백그라운드 서비스를 기다리고 있을 수 있습니다. 계속 기다리거나, 다시 시작하거나, 사용 가능한 업데이트를 설치할 수 있습니다."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Poracode never runs the suggestion — inserting only fills the composer for you to edit and send."
+#~ msgstr "Poracode는 제안을 절대 실행하지 않습니다 — 삽입은 컴포저를 채울 뿐이며, 편집과 전송은 사용자가 합니다."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -10349,6 +10810,10 @@ msgstr "생산성"
 msgid "Profile"
 msgstr "프로필"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Profile \"{profile}\" needs account owner \"{dependency}\". Reassign its account before changing or removing the owner."
+msgstr "프로필 \"{profile}\"은(는) 계정 소유자 \"{dependency}\"가 필요합니다. 소유자를 변경하거나 제거하기 전에 계정을 다시 할당하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile {displayName} added."
 msgstr "프로필 {displayName}을(를) 추가했습니다."
@@ -10379,6 +10844,7 @@ msgstr "프로필"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -10799,6 +11265,10 @@ msgstr "이 작업 트리의 터미널 패널을 읽고 근거를 보고합니�
 msgid "Read the Terminal panel attached to this worktree and report what it is printing."
 msgstr "이 작업 트리의 터미널 패널을 읽고 출력 내용을 보고합니다."
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "read-only"
+#~ msgstr "읽기 전용"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "각 후보의 변경 사항을 읽는 중…"
@@ -10824,6 +11294,7 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "준비됨. 이 옵션을 켜면 새 페어링 코드에 Tailscale HTTPS URL이 광고됩니다."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "추론"
 
@@ -11234,6 +11705,10 @@ msgstr "{profileName}을(를) 제거하면 저장된 API 키도 삭제됩니다.
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName}을(를) 제거하면 환경 변수, 모델, Effort 등 Poracode 설정이 사라집니다. 구성 디렉터리와 그 안의 Claude 자격 증명은 디스크에 남습니다."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Removing {profileName} drops its Poracode settings only. Devin's own credentials, config files, and session history stay on disk, and other profiles are unaffected."
+msgstr "{profileName}을(를) 제거하면 Poracode 설정만 삭제됩니다. Devin 자체의 자격 증명, 설정 파일, 세션 기록은 디스크에 남고 다른 프로필은 영향을 받지 않습니다."
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -11259,6 +11734,11 @@ msgstr "실험 이름 변경"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "그룹 이름 바꾸기"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Rename session"
+#~ msgstr "세션 이름 변경"
 
 #: src/renderer/commands/registry.ts
 msgid "Rename the current chat"
@@ -11321,6 +11801,10 @@ msgstr "반복"
 msgid "Report an Issue"
 msgstr "문제 신고"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Repositories (optional)"
+msgstr "저장소(선택 사항)"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "repository"
 msgstr "저장소"
@@ -11329,6 +11813,10 @@ msgstr "저장소"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "저장소"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Repository entries must be unique."
+msgstr "저장소 항목은 고유해야 합니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
@@ -11523,6 +12011,14 @@ msgstr "정리 다시 시도"
 #~ msgid "Retry now"
 #~ msgstr "지금 다시 시도"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Retry session controls"
+msgstr "세션 컨트롤 재시도"
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Retry session settings"
+#~ msgstr "세션 설정 재시도"
+
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
 msgstr "관리자 권한으로 다시 시도"
@@ -11593,6 +12089,14 @@ msgstr "이 체크포인트로 되돌리기"
 msgid "Reverting…"
 msgstr "되돌리는 중…"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Review"
+msgstr "리뷰"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
+msgstr "리뷰와 요약은 Devin CLI가 허용하는 유일한 루트 에이전트 유형입니다. 사용자 지정 네이티브 페르소나는 Devin 자체 파일에 구성된 서브에이전트 정의로, 여기서는 선택할 수 없습니다."
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Review and track work across your GitHub accounts."
 msgstr "여러 GitHub 계정의 작업을 검토하고 추적하세요."
@@ -11654,6 +12158,15 @@ msgstr "검토 중"
 #~ msgid "Reviewing each candidate's changes to recommend a winner."
 #~ msgstr "각 후보의 변경 사항을 검토하여 우승자를 추천합니다."
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Revise command"
+msgstr "명령어 수정"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Revision note (optional)"
+msgstr "수정 메모(선택 사항)"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "{name} 해지"
@@ -11670,6 +12183,15 @@ msgstr "오른쪽 패널"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "마우스 오른쪽 버튼을 클릭해 링 전환"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Rules"
+msgstr "규칙"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Rules in this session"
+msgstr "이 세션의 규칙"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -11800,6 +12322,10 @@ msgstr "작업 트리가 제거되기 전에 실행됩니다(예: <0>rm -rf node
 msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 msgstr "새 작업 트리가 생성된 후 터미널에서 실행됩니다(예: <0>pnpm install</0>)."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Runs on"
+msgstr "실행 위치"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Runs on this server. Credentials stay on the server."
 msgstr "이 서버에서 실행됩니다. 자격 증명은 서버에 남습니다."
@@ -11831,6 +12357,14 @@ msgstr "런타임 디버그"
 msgid "Runtime options"
 msgstr "런타임 옵션"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Runtime target"
+msgstr "런타임 대상"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Same login as Devin"
+msgstr "Devin과 같은 로그인"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
@@ -11841,6 +12375,7 @@ msgid "Saturation and brightness"
 msgstr "채도와 밝기"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -11884,6 +12419,10 @@ msgstr "Cursor 프로필 이름 저장"
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Save Cursor SDK API key"
 msgstr "Cursor SDK API 키 저장"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Save Devin profile"
+msgstr "Devin 프로필 저장"
 
 #: src/renderer/commands/registry.ts
 msgid "Save File"
@@ -12106,6 +12645,7 @@ msgstr "MCP 서버 검색..."
 msgid "Search models"
 msgstr "모델 검색"
 
+#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
@@ -12367,6 +12907,28 @@ msgstr "서버가 오프라인입니다. 이 대화는 최신 상태가 아닐 �
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "이 플러그인이 mcp.json에 선언한 서버입니다. Poracode가 지원되는 모든 에이전트에 전달합니다."
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+msgid "Session actions"
+msgstr "세션 작업"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Session actions are unavailable for this thread."
+msgstr "이 스레드에는 세션 작업을 사용할 수 없습니다."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Session renamed."
+#~ msgstr "세션 이름이 변경되었습니다."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Session settings"
+#~ msgstr "세션 설정"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Session title"
+#~ msgstr "세션 제목"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "그룹 색상 설정"
@@ -12395,6 +12957,10 @@ msgstr "이 세션 시작 시 확정됨 — 플러그인을 변경하려면 새 
 #~ msgid "Set when this session started — start a new thread to change servers"
 #~ msgstr "이 세션 시작 시 확정됨 — 서버를 변경하려면 새 스레드를 시작하세요"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Setting"
+#~ msgstr "설정"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -12404,6 +12970,10 @@ msgstr "이 세션 시작 시 확정됨 — 플러그인을 변경하려면 새 
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
 msgstr "설정"
+
+#: src/renderer/state/sharedSettingsStore.ts
+msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
+msgstr "설정을 아직 사용할 수 없어 변경 사항을 저장하지 못했습니다. 다시 시도해 주세요."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -12417,6 +12987,10 @@ msgstr "도형 및 기호"
 msgid "Share"
 msgstr "공유"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Share another profile's isolated login"
+msgstr "다른 프로필의 격리 로그인 공유"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "활동 공유하기"
@@ -12424,6 +12998,29 @@ msgstr "활동 공유하기"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Shared"
 msgstr "공유"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shared login owner"
+msgstr "공유 로그인 소유자"
+
+#. placeholder {0}: owner.displayName ?? owner.id
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares {0}"
+msgstr "{0} 공유"
+
+#. placeholder {0}: props.ownerName
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares {0}'s isolated login. Manage sign-in on that profile's page."
+msgstr "{0}의 격리 로그인을 공유합니다. 로그인은 해당 프로필 페이지에서 관리하세요."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares another profile's isolated login. Manage sign-in on that profile's page."
+msgstr "다른 프로필의 격리 로그인을 공유합니다. 로그인은 해당 프로필 페이지에서 관리하세요."
+
+#. placeholder {0}: auth.ownerId
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares missing owner {0}"
+msgstr "누락된 소유자 {0} 공유"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -12651,6 +13248,12 @@ msgstr "사이드바 프로스트"
 msgid "Sidebar shortcuts"
 msgstr "사이드바 바로가기"
 
+#: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Sidekick"
+msgstr "보조 모델"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
@@ -12670,6 +13273,11 @@ msgstr "페어링된 데스크톱에서 로그인한 다음 이 상태를 새로
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Sign in required"
 msgstr "로그인이 필요합니다"
+
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Sign in to {0}"
+msgstr "{0}에 로그인"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
@@ -12903,6 +13511,14 @@ msgstr "소스"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Space separated; use quotes around spaces"
 msgstr "공백으로 구분하며, 공백이 포함된 값은 따옴표로 감싸세요"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Specific persona"
+msgstr "특정 페르소나"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Specific repositories"
+msgstr "특정 저장소"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"
@@ -13232,6 +13848,10 @@ msgstr "일반 텍스트로 저장"
 msgid "Store as secret (encrypted at rest)"
 msgstr "비밀로 저장 (저장 시 암호화)"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Stored in a newer Poracode format — kept, but disabled"
+msgstr "더 최신 Poracode 형식으로 저장됨 — 유지되지만 비활성화됨"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Stored on this device; the desktop keeps its own values."
 msgstr "이 기기에 저장되며 데스크톱은 자체 값을 유지합니다."
@@ -13248,6 +13868,10 @@ msgstr "구조화 런타임"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "하위 에이전트"
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Subagent definitions Devin discovers in its own files. This list is a scan of candidate definitions, not a confirmation that Devin loaded them."
+#~ msgstr "Devin이 자체 파일에서 발견한 서브에이전트 정의입니다. 이 목록은 후보 정의에 대한 스캔이며, Devin이 로드했음을 확인하는 것이 아닙니다."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 #~ msgid "Subagent Delegation"
@@ -13310,6 +13934,14 @@ msgstr "리뷰 제출"
 msgid "Succeeded"
 msgstr "성공"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Suggested command — review before use"
+msgstr "제안된 명령어 — 사용 전 검토"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Suggested command inserted into the composer."
+msgstr "제안된 명령어가 컴포저에 삽입되었습니다."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "제안"
@@ -13317,6 +13949,10 @@ msgstr "제안"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "이번 주의 진행 상황, 미완료 작업, 다음 주의 가장 중요한 위험을 요약해 주세요."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Summarizer"
+msgstr "요약"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Summarizing…"
@@ -13575,6 +14211,7 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
@@ -13646,6 +14283,10 @@ msgstr "터미널 탭"
 msgid "Test microphone"
 msgstr "마이크 테스트"
 
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "That combination isn’t available"
+msgstr "이 조합은 사용할 수 없습니다"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "해당 대화는 더 이상 사용할 수 없습니다."
@@ -13690,6 +14331,10 @@ msgstr "에이전트"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "the app"
 msgstr "앱"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The app's data is not ready for these settings. Restart or update the app and try again."
+msgstr "앱 데이터가 아직 이 설정을 사용할 준비가 되지 않았습니다. 앱을 다시 시작하거나 업데이트한 후 다시 시도하세요."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "the base branch"
@@ -13825,6 +14470,10 @@ msgstr "불완전한 기록 알림이 서버에서 변경되었습니다. 계속
 msgid "the Linux user"
 msgstr "Linux 사용자"
 
+#: src/renderer/components/providers/devin/sessionListings.tsx
+msgid "The listing could not be read."
+msgstr "목록을 읽을 수 없습니다."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the macOS user"
 msgstr "macOS 사용자"
@@ -13845,11 +14494,31 @@ msgstr "새 컨텍스트 크기는 다음 메시지부터 적용됩니다. 해�
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "일반 앱 셸을 렌더링할 수 없습니다. 아래 진단은 다시 로드하기 전에 표시되므로 오류를 조사할 수 있습니다."
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "The organization is fixed while this session runs — change it in the Devin profile settings, then start a new session."
+#~ msgstr "이 세션이 실행되는 동안에는 조직을 변경할 수 없습니다 — Devin 프로필 설정에서 변경한 후 새 세션을 시작하세요."
+
 #: src/renderer/state/remoteServers/environmentManagement.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
 msgstr "이 환경을 소유한 페어링된 서버가 연결되어 있지 않습니다."
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "The persona catalog could not be read."
+#~ msgstr "페르소나 카탈로그를 읽을 수 없습니다."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "The persona must exist in Devin's own configuration; an unknown name fails visibly when the cloud chat starts."
+#~ msgstr "페르소나는 Devin 자체 구성에 존재해야 합니다. 알 수 없는 이름은 클라우드 채팅 시작 시 눈에 띄게 실패합니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "The profile this profile shared a login with ({ownerName}) no longer exists or is not usable. Pick another owner or switch the login source — nothing is lost until you save."
+msgstr "이 프로필이 로그인을 공유하던 프로필({ownerName})이 더 이상 존재하지 않거나 사용할 수 없습니다. 다른 소유자를 선택하거나 로그인 소스를 변경하세요 — 저장하기 전까지는 아무것도 잃지 않습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The project moved or was removed before the thread could launch. Review the project and try again."
+msgstr "스레드가 시작되기 전에 프로젝트가 이동되거나 삭제되었습니다. 프로젝트를 확인하고 다시 시도하세요."
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."
@@ -13919,6 +14588,26 @@ msgstr "서버가 잘못된 MCP 응답을 반환했습니다."
 msgid "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
 msgstr "이 플러그인이 실행하는 서버는 연결 대상 서비스가 아니라 제3자가 유지 관리합니다. 활성화하기 전에 소스를 확인하세요."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The session action failed. Try again or reopen the session."
+msgstr "세션 작업이 실패했습니다. 다시 시도하거나 세션을 다시 여세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The session rejected the requested configuration. Review the selected settings and try again."
+msgstr "세션이 요청된 구성을 거부했습니다. 선택한 설정을 검토하고 다시 시도하세요."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "The session returned a hooks listing Poracode could not interpret."
+#~ msgstr "세션이 Poracode가 해석할 수 없는 훅 목록을 반환했습니다."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "The session returned a rules listing Poracode could not interpret."
+msgstr "세션이 Poracode가 해석할 수 없는 규칙 목록을 반환했습니다."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "The session settings could not be read."
+#~ msgstr "세션 설정을 읽을 수 없습니다."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "The skill description is missing."
 msgstr "스킬 설명이 없습니다."
@@ -13954,6 +14643,10 @@ msgstr "스킬 마켓플레이스를 로드할 수 없습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH 터널이 호환되지 않는 Poracode 서버에 연결되었습니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
+msgstr "저장된 구성이 잘못되었습니다. 저장된 값은 유지되며, 아래에서 저장하면 이 폼의 내용으로 대체됩니다."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -14020,6 +14713,18 @@ msgstr "이 기본 제공 MCP 서버는 OpenCode 2 스레드 간에 공유됩니
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "이 기본 제공 MCP 서버는 OpenCode 스레드 간에 공유됩니다. 저장하면 실행 중인 GUI 프로젝트가 업데이트되며, 서버를 제거하면 진행 중인 턴이 중단될 수 있습니다. 터미널 스레드는 다음 실행 시 변경 사항을 반영합니다."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "These choices apply to Chat. In CLI mode, configure the workspace from the terminal."
+msgstr "이 선택은 채팅에 적용됩니다. CLI 모드에서는 터미널에서 작업 영역을 설정하세요."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "These defaults apply to cloud chats started from Poracode. Terminal and one-shot Devin runs make their repository, persona, and platform choices in the native Devin CLI."
+#~ msgstr "이 기본값은 Poracode에서 시작한 클라우드 채팅에 적용됩니다. 터미널 및 일회성 Devin 실행은 저장소, 페르소나, 플랫폼 선택을 네이티브 Devin CLI에서 합니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "These model settings contain unsupported selection data. Update the app before changing them."
+msgstr "이 모델 설정에는 지원되지 않는 선택 데이터가 포함되어 있습니다. 설정을 변경하기 전에 앱을 업데이트하세요."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
 msgstr "이 서버는 플러그인에서 제공됩니다. 플러그인에서 켜거나 끄세요. 여기에서는 편집할 수 없습니다."
@@ -14030,6 +14735,10 @@ msgstr "이 서버는 플러그인에서 제공됩니다. 플러그인에서 켜
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "생각 중"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support the selected model options. Choose different options and try again."
+msgstr "이 에이전트는 선택한 모델 옵션을 지원하지 않습니다. 다른 옵션을 선택하고 다시 시도하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
@@ -14136,6 +14845,10 @@ msgstr "이 폴더는 비어 있습니다."
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "이 링크는 Poracode가 네트워크에서 제공하는 앱을 엽니다. 호스팅된 앱은 HTTPS로 제공되므로 브라우저가 일반 HTTP 데스크톱에 연결하는 것을 차단합니다."
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "This list is incomplete because the scan reached its limit."
+#~ msgstr "스캔이 한도에 도달하여 이 목록이 불완전합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "이 기기"
@@ -14143,6 +14856,10 @@ msgstr "이 기기"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "This machine"
 msgstr "이 기기"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This machine (local)"
+msgstr "이 머신(로컬)"
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
@@ -14187,9 +14904,23 @@ msgstr "이 플러그인의 Poracode 설정이 유효하지 않아 무시되었�
 msgid "This plugin's skills could not be read."
 msgstr "이 플러그인의 스킬을 읽을 수 없습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
+msgstr "이 프로필은 현재 로그인과 구성으로 시작할 수 없습니다. 프로필 설정을 검토하고 다시 시도하세요."
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "이 프로필은 Cursor SDK에서 실행됩니다. Cursor CLI와 ACP는 기기에서 로그인을 하나 공유하므로 기본 Cursor 타일에 남습니다."
+
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This profile's isolated login ({0})."
+msgstr "이 프로필의 격리 로그인({0})."
+
+#. placeholder {0}: String(props.view.formatVersion)
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This profile's settings were written by a newer Poracode version (config format {0}). They are preserved exactly and the profile stays disabled until Poracode learns that format. Nothing is overwritten here."
+msgstr "이 프로필의 설정은 더 최신 Poracode 버전이 작성했습니다(구성 형식 {0}). 설정은 그대로 보존되며, Poracode가 해당 형식을 이해할 때까지 프로필은 비활성 상태로 유지됩니다. 여기서는 아무것도 덮어쓰지 않습니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
@@ -14246,6 +14977,10 @@ msgstr "이렇게 하면 \"{0}\"의 작업 트리가 제거되고 연결된 스�
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "이렇게 하면 \"{0}\"의 작업 트리가 제거된 다음 분기가 삭제됩니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This scheduled task changed or was removed before it could run. Review the schedule and try again."
+msgstr "이 예약 작업은 실행되기 전에 변경되었거나 삭제되었습니다. 예약을 확인한 후 다시 시도하세요."
+
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
 msgid "This server does not support the bounded catalog read."
 msgstr "이 서버는 제한된 카탈로그 읽기를 지원하지 않습니다."
@@ -14262,6 +14997,10 @@ msgstr "Poracode에서 이 서버를 확인하려면 먼저 인증해야 합니�
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "이 서버는 이 컴퓨터에서 실행되며 WSL 프로젝트에서는 사용할 수 없습니다."
 
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "This session did not advertise any settings."
+#~ msgstr "이 세션은 어떤 설정도 알리지 않았습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "이 시스템 전역 단축키를 사용할 수 없습니다. 다른 키 조합을 선택하세요."
@@ -14269,6 +15008,10 @@ msgstr "이 시스템 전역 단축키를 사용할 수 없습니다. 다른 키
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "This thread cannot be resumed. Start a new thread to continue."
 msgstr "이 스레드는 재개할 수 없습니다. 계속하려면 새 스레드를 시작하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
+msgstr "승인된 폴더로 이 대화를 열 수 없습니다. 호스트를 업데이트하거나 폴더 권한을 확인한 후 다시 시도하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
@@ -15427,6 +16170,10 @@ msgstr "{name} 스킬을 사용합니다."
 #~ msgid "Use the default branch"
 #~ msgstr "기본 브랜치 사용"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Use the ID of a persona available in your Devin cloud organization."
+msgstr "Devin 클라우드 조직에서 사용할 수 있는 페르소나의 ID를 사용하세요."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "사용 추적을 위해 이 계정을 사용하거나 계속하기 전에 브라우저에서 사용자를 변경하세요."
@@ -15479,6 +16226,10 @@ msgstr "새 대화형 터미널 패널 세션에 사용됩니다."
 msgid "user@host"
 msgstr "user@host"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
+msgstr "이 머신에서는 Devin 자체 로그인을 사용합니다. Devin 기본 페이지에서 로그인/로그아웃하세요 — 그것이 유일한 전역 로그인으로 유지됩니다."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "내장 Claude 모델 목록을 사용합니다."
@@ -15491,6 +16242,10 @@ msgstr "v{0} 사용 가능"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "값"
+
+#: src/renderer/components/providers/devin/sessionActionControls.tsx
+#~ msgid "Value"
+#~ msgstr "값"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
@@ -15751,6 +16506,10 @@ msgstr "주간 검토"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "Crossagents가 명시적 선택에서 학습한 내용입니다. 태그를 편집하거나 항목을 삭제하여 라우팅을 다시 구성하세요."
 
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "What should change? (optional)"
+msgstr "무엇을 변경할까요?(선택 사항)"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"
 #~ msgstr "에이전트가 무엇을 해야 하나요?"
@@ -15838,6 +16597,7 @@ msgid "Will run in {0}:"
 msgstr "{0}에서 실행됩니다:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx

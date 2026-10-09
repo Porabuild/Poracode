@@ -40,6 +40,8 @@ export function defineRoute(input: {
   readonly queryCodecs?: readonly QueryParameterCodec[];
   readonly legacy?: true;
   readonly idempotency?: RemoteIdempotency;
+  /** Host-only per-route writer-generation admission (see `RemoteHttpRouteContract`). */
+  readonly requiresCurrentProtocol?: true;
   readonly request: RemoteHttpRequestContract;
   readonly response: RemoteHttpResponseContract;
   /** V6 A.9: dispatcher emits this kind, or `false` with a justification. */

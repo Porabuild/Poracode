@@ -4,7 +4,9 @@
  * POSIX login shell), plus the small text-matching helpers used to correlate
  * a launched terminal's command line back to its ACP request.
  */
-import type { TerminalExitStatus } from "@agentclientprotocol/sdk";
+import { stat } from "node:fs/promises";
+import { wslLinuxToHostFsPath } from "@/shared/wsl";
+import { RequestError, type TerminalExitStatus } from "@agentclientprotocol/sdk";
 import type { ProjectLocation } from "@/shared/contracts";
 import { processEnvRecord } from "@/supervisor/processEnv";
 import {
@@ -20,6 +22,7 @@ import {
   quotePosixShellArg,
 } from "../base";
 import {
+  assertAcpCanonicalHostFsPath,
   isAcpHomeScopeLocation,
   resolveAcpHostFsPath,
   resolveAcpProjectPath,
@@ -98,13 +101,30 @@ export function acpTerminalEnvEntries(
   return env;
 }
 
-export function resolveAcpTerminalCwd(location: ProjectLocation, cwd: string): string {
+export function resolveAcpTerminalCwd(
+  location: ProjectLocation,
+  cwd: string,
+  additionalDirectories: readonly ProjectLocation[] = [],
+): string {
   if (isAcpHomeScopeLocation(location)) {
     return resolveAcpResourcePath(location, cwd);
   }
   return location.kind === "wsl"
-    ? resolveAcpProjectPath(location, cwd)
-    : resolveAcpHostFsPath(location, cwd);
+    ? resolveAcpProjectPath(location, cwd, additionalDirectories)
+    : resolveAcpHostFsPath(location, cwd, additionalDirectories);
+}
+
+/** Starting-directory authorization only; spawned commands are not sandboxed. */
+export async function validateAcpTerminalCwd(
+  location: ProjectLocation,
+  cwd: string,
+  additionalDirectories: readonly ProjectLocation[] = [],
+): Promise<void> {
+  const hostPath = location.kind === "wsl" ? wslLinuxToHostFsPath(location.distro, cwd) : cwd;
+  await assertAcpCanonicalHostFsPath(location, hostPath, "terminal", [], additionalDirectories);
+  if (!(await stat(hostPath)).isDirectory()) {
+    throw RequestError.invalidParams({ message: "ACP terminal cwd is not a directory." });
+  }
 }
 
 export function buildAcpTerminalLaunch(

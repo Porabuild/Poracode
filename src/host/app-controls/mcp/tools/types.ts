@@ -100,6 +100,7 @@ import type { SharedSettings } from "@/shared/settings";
 import type { StreamableHttpMcpToolSpec } from "../../../mcp/StreamableHttpMcpIngress";
 import type { ScheduleService } from "../../../schedules/ScheduleService";
 import type {
+  CreateAppThreadLaunchOptions,
   CreateAppThreadRequest,
   CreateAppThreadResult,
 } from "../../../threads/appThreadLauncher";
@@ -301,7 +302,10 @@ export interface AppControlsToolContext {
   getAppInfo(): AppControlsAppInfo;
   supervisor: AppControlsSupervisorCaller;
   /** Create + launch a first-class app thread (see appThreadLauncher). */
-  createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
+  createThread(
+    request: CreateAppThreadRequest,
+    options?: CreateAppThreadLaunchOptions,
+  ): Promise<CreateAppThreadResult>;
   /**
    * Best-effort post-commit mirror of a metadata mutation to the renderer-owned
    * thread store. Returns `true` when a synchronous renderer received it and

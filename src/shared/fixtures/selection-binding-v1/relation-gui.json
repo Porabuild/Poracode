@@ -1,0 +1,37 @@
+{
+  "$comment": "Neutral fixture: GUI presentation relation with config-bound effort/Fast and NO redundantValues declaration. Its independent controls keep their native meaning; a deliberate member edit over this relation records nothing and mints no exemption.",
+  "relation": {
+    "model": "lead-a+sidekick-b",
+    "label": "Composite Family",
+    "selectors": [
+      {
+        "id": "sample.axis.a",
+        "labelKey": "modelSelection.lead",
+        "options": [
+          { "id": "opt-a1", "label": "A1" },
+          { "id": "opt-a2", "label": "A2" }
+        ]
+      },
+      {
+        "id": "sample.axis.b",
+        "labelKey": "modelSelection.sidekick",
+        "options": [
+          { "id": "opt-b1", "label": "B1" },
+          { "id": "opt-b2", "label": "B2" }
+        ]
+      }
+    ],
+    "bindings": { "effort": "config", "fast": "config" },
+    "members": [
+      {
+        "model": "lead-a+sidekick-b",
+        "selections": { "sample.axis.a": "opt-a1", "sample.axis.b": "opt-b1" }
+      },
+      {
+        "model": "lead-a2+sidekick-b2",
+        "selections": { "sample.axis.a": "opt-a2", "sample.axis.b": "opt-b2" }
+      }
+    ]
+  },
+  "expect": { "relationValid": true, "mintableAxes": [] }
+}

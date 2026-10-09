@@ -165,6 +165,13 @@ struct BoundedCatalogStore {
     {
       row.slashCommands = decoded
     }
+    // Negotiated session controls: a tri-state field like the host's
+    // (`thread-state` contract) — absence leaves the retained inventory alone
+    // (older hosts), `null` retires it, an array (including empty) replaces
+    // it, so a stale ladder never survives an explicit active-empty session.
+    if let options = object["sessionConfigOptions"] {
+      row.sessionConfigOptions = options.isNull ? nil : options
+    }
     // Host rule (`persistThreadStateEvent`): `updatedAt` advances exactly when
     // the transition enters `working` from a non-working status — including
     // `needs_approval`/`needs_reply`, which are live but not `working`.
@@ -175,13 +182,17 @@ struct BoundedCatalogStore {
   }
 
   /// A live thread exit finalizes the row exactly like the host's
-  /// `dbMarkLiveThreadsInactive`: status `inactive`, attention cleared.
+  /// `dbMarkLiveThreadsInactive`: status `inactive`, attention cleared. The
+  /// negotiated control inventory belongs to the retiring session incarnation
+  /// and is dropped with it — the composer falls back to the static capability
+  /// projection for any later draft or resume.
   @discardableResult
   func applyThreadExited(threadId: String, seq: Int) -> Bool {
     guard var row = threadRow(threadId) else { return false }
     row.status = "inactive"
     row.attention = "idle"
     row.activeTurnStartedAt = nil
+    row.sessionConfigOptions = nil
     if !replaceThreadRow(row) { return false }
     catalog.recordThreadAppliedSeq(threadId, seq: seq)
     return true

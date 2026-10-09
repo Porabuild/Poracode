@@ -91,6 +91,9 @@ import type { PoracodeChannel } from "./channel";
 // store is memory-only and the host experiment authority owns persistence.
 // A hop-15 backend child still dispatches the removed name, so the version
 // gate rejects that pairing instead of half-serving it.
+// Version 17: the hop's checked invocation envelope (renderer-supplied
+// version, asserted by main before dispatch); this leg's exact-equality
+// gates are unchanged (see `clientHostHop.ts`).
 export const BACKEND_HOST_PROTOCOL_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export const BACKEND_DATABASE_PROCEDURE_NAMES = [

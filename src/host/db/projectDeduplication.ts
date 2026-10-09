@@ -5,25 +5,31 @@ import { remapProjectGroupLayouts, remapProjectView } from "@/shared/projectRefe
 import { rowToProject, safeParse, type ProjectRow } from "./rowMappers";
 import { rehomeProjectWatches } from "./projectWatchRepair";
 import { prepareProjectUpsertStatement, runProjectUpsert } from "./upsertStatements";
+import { assertProjectMergeSelectionsReplaceable } from "./persistedSelectionData";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
 /** Upgrade old profiles, including headless hosts, before any snapshot is loaded. */
 export function repairDuplicateProjects(sqlite: SqliteDatabase): void {
-  const rows = sqlite
-    .prepare("SELECT * FROM projects ORDER BY sort_order ASC, rowid ASC")
-    .all() as ProjectRow[];
-  const { projects, duplicateIds } = dedupeProjects(rows.map(rowToProject), {
-    caseInsensitivePosix: process.platform === "darwin",
-  });
-  if (duplicateIds.size === 0) return;
-  const upsertProject = prepareProjectUpsertStatement(sqlite);
-  for (const [index, project] of projects.entries()) {
-    runProjectUpsert(upsertProject, project, index);
-  }
-  rehomeProjectReferences(sqlite, duplicateIds);
-  const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
-  for (const duplicateId of duplicateIds.keys()) deleteProject.run(duplicateId);
+  sqlite
+    .transaction(() => {
+      const rows = sqlite
+        .prepare("SELECT * FROM projects ORDER BY sort_order ASC, rowid ASC")
+        .all() as ProjectRow[];
+      const { projects, duplicateIds } = dedupeProjects(rows.map(rowToProject), {
+        caseInsensitivePosix: process.platform === "darwin",
+      });
+      if (duplicateIds.size === 0) return;
+      assertProjectMergeSelectionsReplaceable(sqlite, duplicateIds);
+      const upsertProject = prepareProjectUpsertStatement(sqlite);
+      for (const [index, project] of projects.entries()) {
+        runProjectUpsert(upsertProject, project, index);
+      }
+      rehomeProjectReferences(sqlite, duplicateIds);
+      const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
+      for (const duplicateId of duplicateIds.keys()) deleteProject.run(duplicateId);
+    })
+    .immediate();
 }
 
 /** Move dependent data before deleting a duplicate project can cascade its threads. */
@@ -33,6 +39,7 @@ export function rehomeProjectReferences(
 ): Set<string> {
   const rehomedThreadIds = new Set<string>();
   if (duplicateIds.size === 0) return rehomedThreadIds;
+  assertProjectMergeSelectionsReplaceable(sqlite, duplicateIds);
 
   const selectThreads = sqlite.prepare("SELECT id FROM threads WHERE project_id = ?");
   const rehomeThreads = sqlite.prepare("UPDATE threads SET project_id = ? WHERE project_id = ?");

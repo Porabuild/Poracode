@@ -8,6 +8,18 @@
  */
 
 const messages = {
+  "profile.executionUnavailable":
+    "This profile cannot launch with its current login and configuration. Review the profile settings and try again.",
+  "profile.dependencyUnavailable":
+    'Profile "{profile}" needs account owner "{dependency}". Reassign its account before changing or removing the owner.',
+  "thread.configSelectionRejected":
+    "The session rejected the requested configuration. Review the selected settings and try again.",
+  "thread.workspaceLaunchUnavailable":
+    "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again.",
+  "thread.projectLaunchStale":
+    "The project moved or was removed before the thread could launch. Review the project and try again.",
+  "thread.sessionActionFailed": "The session action failed. Try again or reopen the session.",
+  "thread.sessionActionUnavailable": "Session actions are unavailable for this thread.",
   "voice.unavailable": "Live voice is unavailable for this thread.",
   "voice.alreadyConnected": "A voice conversation is already active.",
   "voice.subscriptionRequired": "Live voice requires a subscription sign-in for this provider.",
@@ -215,6 +227,21 @@ const messages = {
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
 
+  // ── Model family selectors ────────────────────────────────
+  "modelSelection.lead": "Lead",
+  "modelSelection.sidekick": "Sidekick",
+  "modelSelection.unsupportedOptions":
+    "This agent does not support the selected model options. Choose different options and try again.",
+  "modelSelection.unsupportedStoredData":
+    "These model settings contain unsupported selection data. Update the app before changing them.",
+  "settings.dataNotPrepared":
+    "The app's data is not ready for these settings. Restart or update the app and try again.",
+  // ── Device schedules ──────────────────────────────────────
+  "schedule.executionStale":
+    "This scheduled task changed or was removed before it could run. Review the schedule and try again.",
+  "prWatch.retirementUnconfirmed":
+    'Could not confirm that the Auto Fix thread "{id}" was stopped. Poracode keeps it recorded and will retry stopping it.',
+
   // ── Thread runtime notices ────────────────────────────────
   "thread.compact.noop": "Nothing to compact yet — the conversation is still small.",
   "thread.goal.none": "No active goal in this session.",
@@ -230,6 +257,11 @@ const messages = {
 
 /** Union of every known message key. */
 export type MessageKey = keyof typeof messages;
+
+/** Whether `value` is a key of the shared message catalog. */
+export function isMessageKey(value: string): value is MessageKey {
+  return Object.prototype.hasOwnProperty.call(messages, value);
+}
 
 /**
  * Optional locale-aware resolver. The renderer installs one (via
@@ -305,6 +337,15 @@ const errorPatterns: Array<{
   key: MessageKey;
   params?: (raw: string) => Record<string, string>;
 }> = [
+  {
+    test: /^Profile "([\s\S]*)" needs account owner "([\s\S]*)"\. Reassign its account before changing or removing the owner\.$/,
+    key: "profile.dependencyUnavailable",
+    params: (raw) => {
+      const match = raw.match(/^Profile "([\s\S]*)" needs account owner "([\s\S]*)"\. Reassign/);
+      return { profile: match?.[1] ?? "", dependency: match?.[2] ?? "" };
+    },
+  },
+
   { test: /^Steer was cancelled before the message was sent\.$/, key: "supervisor.steer.cleared" },
   { test: /^Steer was replaced by a newer message\.$/, key: "supervisor.steer.replaced" },
   { test: /^The replacement message could not be sent\.$/, key: "supervisor.steer.notAdmitted" },
@@ -461,7 +502,7 @@ function stripIpcPrefix(raw: string): string {
  * Null bytes do not appear in legitimate error messages, so the marker is
  * collision-safe against real content.
  */
-const DETAILS_SENTINEL = " __LC_DETAILS__ ";
+const DETAILS_SENTINEL = "\0__LC_DETAILS__\0";
 
 /** Append a details block to an error summary so the renderer can disclose it. */
 export function attachErrorDetails(summary: string, details: string): string {

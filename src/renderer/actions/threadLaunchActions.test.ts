@@ -522,6 +522,74 @@ describe("startThreadFromDraft host transport", () => {
     });
   });
 
+  it("preserves the host-confirmed recovery reference when the launch RPC rejects afterward", async () => {
+    mocks.bridge.startThread.mockImplementation(async () => {
+      const thread = mocks.appState.threads.find((row) => row.id === "local-thread")!;
+      thread.sessionRef = {
+        providerSessionId: "owned-pending",
+        discoveredAt: "2026-10-08T00:00:00Z",
+        executionIdentity: "opaque-owner",
+      };
+      thread.canResumeWithConfig = true;
+      throw new Error("Configuration unavailable");
+    });
+    await expect(
+      startThreadFromDraft(localProject, {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "Never sent",
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("Configuration unavailable");
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith(
+      "local-thread",
+      expect.objectContaining({
+        status: "error",
+        canResumeWithConfig: true,
+      }),
+    );
+    expect(
+      mocks.appState.threads.find((row) => row.id === "local-thread")?.sessionRef
+        ?.providerSessionId,
+    ).toBe("owned-pending");
+  });
+
+  it.each([
+    { hasSessionRef: false, canResumeWithConfig: true },
+    { hasSessionRef: true, canResumeWithConfig: false },
+  ])("does not grant recovery from incomplete launch confirmation: %j", async (confirmation) => {
+    mocks.bridge.startThread.mockImplementation(async () => {
+      const thread = mocks.appState.threads.find((row) => row.id === "local-thread")!;
+      if (confirmation.hasSessionRef) {
+        thread.sessionRef = {
+          providerSessionId: "owned-pending",
+          discoveredAt: "2026-10-08T00:00:00Z",
+        };
+      }
+      thread.canResumeWithConfig = confirmation.canResumeWithConfig;
+      throw new Error("Configuration unavailable");
+    });
+    await expect(
+      startThreadFromDraft(localProject, {
+        agentKind: "example",
+        config: { model: "example" },
+        prompt: "Uncertain original prompt",
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("Configuration unavailable");
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith(
+      "local-thread",
+      expect.objectContaining({ status: "error", canResumeWithConfig: false }),
+    );
+    expect(
+      mocks.appState.threads.find((row) => row.id === "local-thread")?.sessionRef
+        ?.providerSessionId,
+    ).toBe(confirmation.hasSessionRef ? "owned-pending" : undefined);
+    expect(mocks.bridge.startThread).toHaveBeenCalledTimes(1);
+    expect(mocks.bridge.ensureThreadRunning).not.toHaveBeenCalled();
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+  });
+
   it("shows a provisioning failure on the thread opened for a new local worktree", async () => {
     mocks.createWorktree.mockRejectedValue(new Error("Branch already exists"));
 

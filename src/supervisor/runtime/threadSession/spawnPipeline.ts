@@ -5,6 +5,7 @@ import {
   MockAgentLaunchBlockedError,
   assertAgentLaunchAllowed,
 } from "@/supervisor/agentLaunchGuard";
+import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import {
   applyHomeScopePermissions,
   type UnrestrictedPermissionCapabilities,
@@ -15,7 +16,6 @@ import {
   type ProjectLocation,
   type PromptSegment,
   type SessionRef,
-  type StartThreadPayload,
   type StartThreadResult,
   type TerminalSize,
   type ThreadAttention,
@@ -73,8 +73,21 @@ import {
   type HostResourceAdmission,
   type HostResourceLease,
 } from "../hostResourceAdmission";
-import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
+import type {
+  ApprovedThreadWorkspaceScope,
+  StartThreadRuntimeInput,
+  QueuedStructuredTurn,
+  SessionRuntime,
+} from "../sessionTypes";
 import { effectiveProjectLocation, withLogicalProjectLocation } from "../sessionTypes";
+import {
+  assertWorkspaceLaunchSupported,
+  assertWorkspaceScopeUnchanged,
+  resolveWorkspaceScope,
+  snapshotWorkspaceScope,
+  snapshotWorkspaceConfig,
+  snapshotWorkspaceStart,
+} from "../workspaceScope";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
 import { formatTurnClientContext, structuredTurnTextOptions } from "../turnClientContext";
@@ -87,6 +100,7 @@ import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookAr
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { ThreadSessionManagerOptions } from "./managerOptions";
+import { bindHostDiagnosticsReader } from "../../lsp/hostDiagnosticsReader";
 import type { PtyLifecycle } from "./ptyLifecycle";
 import type { RuntimeEventRouter } from "./runtimeEventRouter";
 import type { SessionRetirement } from "./sessionRetirement";
@@ -94,6 +108,10 @@ import {
   StructuredRuntimeDiagnosticError,
   structuredRuntimeFeatureArea,
 } from "./structuredRuntimeDiagnosticError";
+import {
+  publishUnpublishedStartInterruption,
+  retainUnpublishedStartSessionRef,
+} from "./unpublishedStartFailure";
 import { describeSpawnFailure, sanitizeEnv, sanitizedProcessEnv } from "./spawnDiagnostics";
 import type { SessionRuntimeLifecycle } from "./sessionRuntimeLifecycle";
 import { getIterm2StatusL2TerminalEnv, resolveTerminalColorEnv } from "./terminalEnv";
@@ -105,6 +123,8 @@ export interface SpawnThreadInput {
   /** User-visible project location before any provider execution fallback. */
   logicalProjectLocation?: ProjectLocation;
   projectLocation: ProjectLocation;
+  workspaceScope?: ApprovedThreadWorkspaceScope;
+  executionWorkspaceScope?: ApprovedThreadWorkspaceScope;
   config: ThreadConfig;
   initialSize: TerminalSize;
   launchPrompt: string;
@@ -334,7 +354,7 @@ export class SpawnPipeline {
   constructor(private readonly ctx: SpawnPipelineContext) {}
 
   async startThreadInner(
-    payload: StartThreadPayload & {
+    payload: StartThreadRuntimeInput & {
       threadId: string;
       /** Pre-admitted execution slot for this start (see ThreadSessionManager). */
       resourceLease?: HostResourceLease;
@@ -343,6 +363,14 @@ export class SpawnPipeline {
     },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
+    payload = { ...payload, ...snapshotWorkspaceStart(payload), threadId: payload.threadId };
+    const adapter = this.requireAdapter(payload.agentKind);
+    assertWorkspaceLaunchSupported(payload.workspaceScope, adapter, payload.presentationMode);
+    const current = ctx.sessions.get(payload.threadId);
+    if (current) assertWorkspaceScopeUnchanged(current.workspaceScope, payload.workspaceScope);
+    const executionWorkspaceScope = payload.workspaceScope
+      ? await resolveWorkspaceScope(payload.workspaceScope, payload.config)
+      : undefined;
     // A provider switch abandons whatever turn the old session still has open.
     // Complete it locally — the same close-out the Stop watchdog applies when a
     // provider never acknowledges — BEFORE teardown: teardown itself never
@@ -367,11 +395,9 @@ export class SpawnPipeline {
       return { threadId: payload.threadId };
     }
 
-    const adapter = this.requireAdapter(payload.agentKind);
-    const { location: executionLocation, config: runtimeConfig } = await resolveThreadExecution(
-      payload.projectLocation,
-      payload.config,
-    );
+    const { location: executionLocation, config: runtimeConfig } = executionWorkspaceScope
+      ? { location: executionWorkspaceScope.primaryLocation, config: payload.config }
+      : await resolveThreadExecution(payload.projectLocation, payload.config);
 
     const isServerControlled = adapter.capabilities.liveInputMode === "server";
     // Per-thread mode wins over the adapter default. Chat-mode threads route
@@ -441,17 +467,19 @@ export class SpawnPipeline {
       initialPrompt.length > 0 &&
       adapter.isReadyForInitialPrompt !== undefined;
 
-    // Optimistic user_message: for GUI threads with a fresh prompt, surface
-    // the user's typed text in the chat pane immediately — before the slow
+    // Optimistic user_message: for GUI threads with an explicit prompt — a
+    // first turn or a resume that carries new input — surface the user's
+    // typed text in the chat pane immediately, before the slow
     // structured-session work (process spawn + ACP handshake +
-    // newSession/loadSession) runs. When the renderer has already painted an
-    // optimistic message and shipped its id with the payload, we reuse that
-    // id end-to-end so the chat pane never sees a duplicate.
+    // newSession/loadSession) runs. This emission is paired with the GUI
+    // startTurn guard below: `openThread` cannot carry a prompt, so on a
+    // resumed open this is the only path that admits the user's text as a
+    // canonical user row and binds the turn to it. An empty prompt stays
+    // load-only. When the renderer has already painted an optimistic message
+    // and shipped its id with the payload, we reuse that id end-to-end so the
+    // chat pane never sees a duplicate.
     let optimisticUserMessageItemId =
-      !payload.providerSwitch &&
-      !usesTerminalPresentation &&
-      initialPrompt.length > 0 &&
-      !payload.sessionRef
+      !payload.providerSwitch && !usesTerminalPresentation && initialPrompt.length > 0
         ? ctx.emitOptimisticUserMessage(
             payload.threadId,
             initialPrompt,
@@ -618,6 +646,7 @@ export class SpawnPipeline {
       mcpIdentity,
       payload.sessionRef,
       requestedPresentation,
+      executionWorkspaceScope,
     );
     // Tracks a created-but-unpublished provider handle so every escape path
     // retires it before the admission slot is settled: a rejected dispose
@@ -626,6 +655,10 @@ export class SpawnPipeline {
       payload.resourceLease,
       structuredSession,
     );
+    if (executionWorkspaceScope?.additionalDirectories.length && !structuredSession?.openThread) {
+      await unpublishedAttempt.abandon();
+      throw new Error("Approved workspace factory must provide a structured GUI open.");
+    }
     const abortPendingStart = async (): Promise<boolean> => {
       if (!ctx.pendingStartAborts.delete(payload.threadId)) {
         return false;
@@ -661,11 +694,45 @@ export class SpawnPipeline {
           payload.sessionRef,
         );
       } catch (error) {
-        await unpublishedAttempt.abandon();
+        // Capture before dispose: some handles retire their getter with their
+        // transport. Failed configuration must not lose an allocated identity.
+        let allocatedRef: SessionRef | undefined;
+        try {
+          allocatedRef = structuredSession.getSessionRef?.();
+        } catch {
+          // A broken optional getter must not bypass owned-handle retirement.
+        }
+        // Custody follows the presentation this pipeline actually opened, not
+        // the base terminal capability: a GUI runtime's declared resume support
+        // decides whether its retained native ref stays usable.
+        const canResumeWithConfig = capabilitiesForPresentation(
+          adapter.capabilities,
+          requestedPresentation,
+        ).supportsResume;
+        const failure = retainUnpublishedStartSessionRef(
+          error,
+          payload.threadId,
+          payload.agentKind,
+          allocatedRef,
+          canResumeWithConfig,
+        );
+        try {
+          await unpublishedAttempt.abandon();
+        } catch (retirementError) {
+          retainUnpublishedStartSessionRef(failure, payload.threadId, payload.agentKind, undefined);
+          throw retainUnpublishedStartSessionRef(
+            retirementError,
+            payload.threadId,
+            payload.agentKind,
+            allocatedRef,
+            canResumeWithConfig,
+          );
+        }
         if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
+          publishUnpublishedStartInterruption(payload.threadId, failure, ctx.runtimeEventRouter);
           return { threadId: payload.threadId };
         }
-        throw error;
+        throw failure;
       }
     }
     if (await abortPendingStart()) {
@@ -706,6 +773,7 @@ export class SpawnPipeline {
       }
       const resolvedSessionRef =
         payload.sessionRef ??
+        structuredSession?.getSessionRef?.() ??
         (openedStructuredThreadId ? createKnownSessionRef(openedStructuredThreadId) : undefined);
       const startInterrupted = ctx.pendingStartInterrupts.delete(payload.threadId);
       let session: SessionRuntime;
@@ -718,6 +786,8 @@ export class SpawnPipeline {
             ? { logicalProjectLocation: payload.projectLocation }
             : {}),
           projectLocation: executionLocation,
+          ...(payload.workspaceScope ? { workspaceScope: payload.workspaceScope } : {}),
+          ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
           config: runtimeConfig,
           initialSize: payload.initialSize,
           launchPrompt: "",
@@ -739,12 +809,12 @@ export class SpawnPipeline {
         throw error;
       }
       unpublishedAttempt.detach();
-      if (
-        !startInterrupted &&
-        !payload.sessionRef &&
-        initialPrompt.length > 0 &&
-        structuredSession.startTurn
-      ) {
+      // Initial admission after a successful open — a first turn or a resume
+      // whose payload carries an explicit new prompt. Paired with the
+      // optimistic emission above so the canonical user row and this turn
+      // share one id (the renderer's when it supplied one). An empty-prompt
+      // resume stays load-only.
+      if (!startInterrupted && initialPrompt.length > 0 && structuredSession.startTurn) {
         const startOptions = {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
@@ -894,6 +964,8 @@ export class SpawnPipeline {
           ? { logicalProjectLocation: payload.projectLocation }
           : {}),
         projectLocation: executionLocation,
+        ...(payload.workspaceScope ? { workspaceScope: payload.workspaceScope } : {}),
+        ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
         config: runtimeConfig,
         initialSize: payload.initialSize,
         launchPrompt,
@@ -933,18 +1005,28 @@ export class SpawnPipeline {
     turn: QueuedStructuredTurn,
   ): Promise<void | StructuredTurnResult> {
     const ctx = this.ctx;
-    const { prompt, config: turnConfig } = turn;
+    const { prompt } = turn;
+    const turnConfig = session.workspaceScope ? snapshotWorkspaceConfig(turn.config) : turn.config;
     if (!session.sessionRef) {
       throw new Error("Session cannot be restarted without a known session reference.");
     }
-    // Re-resolve the execution location so restarts honor an updated
-    // executionEnvironment instead of reusing a stale cached UNC from the
-    // previous session.
-    const { location: executionLocation, config } = session.logicalProjectLocation
-      ? await resolveThreadExecution(session.logicalProjectLocation, turnConfig)
-      : { location: session.projectLocation, config: turnConfig };
-    session.projectLocation = executionLocation;
-    session.config = config;
+    assertWorkspaceLaunchSupported(
+      session.workspaceScope,
+      session.adapter,
+      session.presentationMode,
+    );
+    const executionWorkspaceScope = session.workspaceScope
+      ? await resolveWorkspaceScope(
+          snapshotWorkspaceScope(session.workspaceScope, effectiveProjectLocation(session)),
+          turnConfig,
+        )
+      : undefined;
+    const { location: executionLocation, config } = executionWorkspaceScope
+      ? { location: executionWorkspaceScope.primaryLocation, config: turnConfig }
+      : session.logicalProjectLocation
+        ? await resolveThreadExecution(session.logicalProjectLocation, turnConfig)
+        : { location: session.projectLocation, config: turnConfig };
+    if (!ctx.isCurrentSession(session)) return;
     const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
 
     const isServerControlled = session.adapter.capabilities.liveInputMode === "server";
@@ -995,10 +1077,10 @@ export class SpawnPipeline {
     // Prime the user's interactive-shell env before respawning. See the same
     // call in `startThreadInner` — must run before the structured-session
     // spawn so the child inherits the project-pinned PATH, not launchd's.
-    if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
-      await primeProjectShellEnv(session.projectLocation.path);
+    if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
+      await primeProjectShellEnv(executionLocation.path);
     }
-    await this.ctx.options.prepareSkillsForLaunch?.(session.projectLocation, session.agentKind);
+    await this.ctx.options.prepareSkillsForLaunch?.(executionLocation, session.agentKind);
     if (!ctx.isCurrentSession(session)) {
       resourceLease.cancel();
       return;
@@ -1007,7 +1089,7 @@ export class SpawnPipeline {
     const mcpIdentity = { threadId: session.threadId };
     const launchConfig = this.resolveMcpLaunchConfig(
       workspaceLaunchConfig(
-        session.projectLocation,
+        executionLocation,
         config,
         session.adapter,
         mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
@@ -1017,10 +1099,10 @@ export class SpawnPipeline {
       mcpLaunchSnapshot,
       session.adapter,
       session.threadId,
-      session.projectLocation,
+      executionLocation,
     );
     const resolvedMcpServers = await this.resolveMcpServersForLaunch({
-      location: session.projectLocation,
+      location: executionLocation,
       config: launchConfig,
       mcpLaunchSnapshot,
       identity: mcpIdentity,
@@ -1032,14 +1114,24 @@ export class SpawnPipeline {
       session.adapter,
       session.threadId,
       session.agentKind,
-      session.projectLocation,
+      executionLocation,
       launchConfig,
       resolvedMcpServers,
       mcpIdentity,
       session.sessionRef,
       session.presentationMode,
-    );
+      executionWorkspaceScope,
+    ).catch((error: unknown) => {
+      // A refused factory returned no handle to track. Retire the unused
+      // successor reservation; the predecessor lease has its own custody.
+      resourceLease.cancel();
+      throw error;
+    });
     const unpublishedAttempt = this.trackUnpublishedHandle(resourceLease, structuredSession);
+    if (executionWorkspaceScope?.additionalDirectories.length && !structuredSession?.openThread) {
+      await unpublishedAttempt.abandon();
+      throw new Error("Approved workspace factory must provide a structured GUI open.");
+    }
     if (!ctx.isCurrentSession(session)) {
       await unpublishedAttempt.abandon();
       return;
@@ -1083,7 +1175,14 @@ export class SpawnPipeline {
           agentKind: session.agentKind,
           adapter: session.adapter,
           ...withLogicalProjectLocation(session),
-          projectLocation: session.projectLocation,
+          ...(session.workspaceScope
+            ? {
+                workspaceScope: session.workspaceScope,
+                logicalProjectLocation: session.workspaceScope.primaryLocation,
+              }
+            : {}),
+          ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
+          projectLocation: executionLocation,
           config,
           initialSize: session.terminalSize,
           launchPrompt: "",
@@ -1094,7 +1193,8 @@ export class SpawnPipeline {
           threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
           launchConfig,
           ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
-          ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
+          presentationMode:
+            session.presentationMode ?? session.adapter.capabilities.presentationMode,
         });
       } catch (error) {
         await unpublishedAttempt.abandon();
@@ -1146,7 +1246,7 @@ export class SpawnPipeline {
     const cliHookExtras = await ctx.cliHookPlugin.resolveCliHookPluginExtras(
       session.threadId,
       session.agentKind,
-      session.projectLocation,
+      executionLocation,
       resolvedMcpServers,
     );
     if (!ctx.isCurrentSession(session)) {
@@ -1154,7 +1254,7 @@ export class SpawnPipeline {
       return;
     }
     const argv = await session.adapter.buildResumeArgv(
-      session.projectLocation,
+      executionLocation,
       launchConfig,
       launchPrompt,
       session.sessionRef,
@@ -1162,7 +1262,7 @@ export class SpawnPipeline {
         session.adapter,
         structuredSession?.launchOptions,
         resolvedMcpServers,
-        session.projectLocation,
+        executionLocation,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -1179,22 +1279,22 @@ export class SpawnPipeline {
         session.adapter,
         argv.args,
         config,
-        session.projectLocation,
+        executionLocation,
       );
     } catch (error) {
       await argv.cleanup?.();
       await unpublishedAttempt.abandon();
       throw error;
     }
-    if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
-      await primeProjectShellEnv(session.projectLocation.path);
+    if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
+      await primeProjectShellEnv(executionLocation.path);
     }
     if (!ctx.isCurrentSession(session)) {
       await unpublishedAttempt.abandon();
       await argv.cleanup?.();
       return;
     }
-    const command = await resolveLaunchSpec(session.projectLocation, argv);
+    const command = await resolveLaunchSpec(executionLocation, argv);
 
     const keepStructuredSession = structuredSession && useStructuredFlow;
     if (structuredSession && !keepStructuredSession) {
@@ -1214,7 +1314,14 @@ export class SpawnPipeline {
         agentKind: session.agentKind,
         adapter: session.adapter,
         ...withLogicalProjectLocation(session),
-        projectLocation: session.projectLocation,
+        ...(session.workspaceScope
+          ? {
+              workspaceScope: session.workspaceScope,
+              logicalProjectLocation: session.workspaceScope.primaryLocation,
+            }
+          : {}),
+        ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
+        projectLocation: executionLocation,
         config,
         initialSize: session.terminalSize,
         launchPrompt,
@@ -1265,6 +1372,32 @@ export class SpawnPipeline {
   }
 
   spawnThread(input: SpawnThreadInput): SessionRuntime {
+    const workspaceScope =
+      input.workspaceScope === undefined
+        ? undefined
+        : snapshotWorkspaceScope(input.workspaceScope, effectiveProjectLocation(input));
+    const executionWorkspaceScope =
+      input.executionWorkspaceScope === undefined
+        ? undefined
+        : snapshotWorkspaceScope(input.executionWorkspaceScope, input.projectLocation);
+    assertWorkspaceLaunchSupported(workspaceScope, input.adapter, input.presentationMode);
+    if (executionWorkspaceScope && !workspaceScope)
+      throw new Error("Resolved workspace scope requires logical approval.");
+    if (
+      workspaceScope &&
+      (!executionWorkspaceScope ||
+        executionWorkspaceScope.revision !== workspaceScope.revision ||
+        executionWorkspaceScope.additionalDirectories.length !==
+          workspaceScope.additionalDirectories.length)
+    )
+      throw new Error("Workspace launch requires a complete resolved scope.");
+    if (
+      workspaceScope?.additionalDirectories.length &&
+      (input.command || !input.structuredSession?.openThread)
+    )
+      throw new Error(
+        "Approved workspace directories cannot launch through PTY or unstructured fallback.",
+      );
     const ctx = this.ctx;
     const mcpLaunchSnapshot =
       input.mcpLaunchSnapshot ?? ({ mcpServers: [], disabledBuiltInMcpServerIds: [] } as const);
@@ -1362,7 +1495,11 @@ export class SpawnPipeline {
       ...(input.resourceLease ? { resourceLease: input.resourceLease } : {}),
       ...(pty && command?.cleanup ? { launchCleanup: command.cleanup } : {}),
       ...withLogicalProjectLocation(input),
-      projectLocation: input.projectLocation,
+      projectLocation: executionWorkspaceScope?.primaryLocation ?? input.projectLocation,
+      ...(workspaceScope
+        ? { workspaceScope, logicalProjectLocation: workspaceScope.primaryLocation }
+        : {}),
+      ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
       config: input.config,
       mcpLaunchSnapshot,
       ...(input.threadMentionToolsAvailable !== undefined
@@ -1669,7 +1806,9 @@ export class SpawnPipeline {
     mcpIdentity: McpThreadIdentity | undefined,
     sessionRef?: SessionRef,
     presentationMode?: ThreadPresentationMode,
+    workspaceScope?: ApprovedThreadWorkspaceScope,
   ): Promise<StructuredSessionHandle | undefined> {
+    assertWorkspaceLaunchSupported(workspaceScope, adapter, presentationMode);
     if (!adapter.createStructuredSession) {
       return undefined;
     }
@@ -1677,9 +1816,10 @@ export class SpawnPipeline {
     // vendor SDKs, app-servers alike) before the adapter can spawn its process.
     assertAgentLaunchAllowed("thread-structured");
     try {
-      return await adapter.createStructuredSession({
+      const handle = await adapter.createStructuredSession({
         threadId,
         projectLocation,
+        ...(workspaceScope ? { additionalDirectories: workspaceScope.additionalDirectories } : {}),
         config,
         agentSettings: this.ctx.resolveAgentSettings(adapter, projectLocation),
         ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
@@ -1689,7 +1829,18 @@ export class SpawnPipeline {
           : {}),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
+        ...(this.ctx.options.readHostDiagnostics
+          ? {
+              readHostDiagnostics: bindHostDiagnosticsReader(
+                projectLocation,
+                this.ctx.options.readHostDiagnostics,
+              ),
+            }
+          : {}),
       });
+      if (workspaceScope?.additionalDirectories.length && !handle)
+        throw new Error("Qualified workspace factory returned no structured session.");
+      return handle;
     } catch (error) {
       console.error("[supervisor] structured session creation failed:", error);
       // A mock-mode refusal is itself the actionable message (it names the
@@ -1699,7 +1850,7 @@ export class SpawnPipeline {
         throw error;
       }
       const diagnosticError = new StructuredRuntimeDiagnosticError("session-creation", agentKind);
-      if (presentationMode === "gui") {
+      if (workspaceScope?.additionalDirectories.length || presentationMode === "gui") {
         // The startThread IPC boundary owns GUI startup failures. Throw one
         // privacy-safe classified error instead of capturing here and then
         // manufacturing a second "does not support GUI" failure below.

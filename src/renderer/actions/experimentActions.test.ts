@@ -1,3 +1,4 @@
+import { generatePrSummaryPayloadSchema } from "@/shared/contracts/git";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_EXPERIMENT_PROMPT_LENGTH,
@@ -1399,6 +1400,48 @@ describe("experimentActions", () => {
         .getState()
         .experiments["experiment-1"]?.candidates.map((candidate) => candidate.worktreeState),
     ).toEqual(["removed", "removed"]);
+  });
+
+  it.each([
+    { model: "uncatalogued" },
+    { model: "uncatalogued", effort: "", fast: false, thinking: false, contextSize: "" },
+    { model: "uncatalogued", effort: "high", fast: true, thinking: true, contextSize: "large" },
+  ])(
+    "PR summary transports actual candidate controls without thread binding: %j",
+    async (actual) => {
+      const candidateThread = thread("thread-1", "/repo/one", "poracode/one");
+      candidateThread.config = {
+        ...actual,
+        selectionBinding: {
+          version: 1,
+          kind: "family-member",
+          owner: { agentKind: candidateThread.agentKind, presentationMode: "gui" },
+          model: actual.model,
+          inertValues: { fast: false },
+        },
+      };
+      useAppStore.setState({ threads: [candidateThread] });
+      useExperimentStore.getState().addExperiment(experiment());
+      await expect(createExperimentCandidatePr("experiment-1", "thread-1")).resolves.toBe(true);
+      const request = generatePrSummaryPayloadSchema.parse(
+        mocks.bridge.generatePrSummary.mock.calls[0]?.[0],
+      );
+      expect(request.selection).toStrictEqual(actual);
+    },
+  );
+
+  it("PR summary uses unstamped candidate metadata when the thread is absent", async () => {
+    const value = experiment();
+    const candidate = value.candidates[0]!;
+    candidate.model = "legacy-model";
+    candidate.effort = "high";
+    candidate.fast = false;
+    useExperimentStore.getState().addExperiment(value);
+    await expect(createExperimentCandidatePr("experiment-1", "thread-1")).resolves.toBe(true);
+    expect(
+      generatePrSummaryPayloadSchema.parse(mocks.bridge.generatePrSummary.mock.calls[0]?.[0])
+        .selection,
+    ).toStrictEqual({ model: "legacy-model", effort: "high", fast: false });
   });
 
   it("removes the experiment and ungroups its candidates after opening a pull request", async () => {

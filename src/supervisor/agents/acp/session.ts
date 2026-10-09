@@ -1,3 +1,4 @@
+import { captureAcpConfigApplicationOwner } from "./sessionConfigOwnership";
 /**
  * ACP (Agent Client Protocol) structured session.
  *
@@ -14,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { homedir } from "node:os";
+import { isDeepStrictEqual } from "node:util";
 import { Readable, Writable } from "node:stream";
 import {
   ClientSideConnection,
@@ -48,6 +50,7 @@ import type {
   ProjectLocation,
   PromptSegment,
   RuntimeEvent,
+  SessionConfigOptions,
   SessionRef,
   ThreadAttention,
   ThreadConfig,
@@ -56,7 +59,10 @@ import type {
   ResolvedMcpServer,
   McpTransportKind,
 } from "@/shared/contracts";
-import { areAgentSlashCommandsEqual } from "@/shared/contracts";
+import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
+import { toErrorMessage } from "@/shared/errorMessage";
+import { assertBoundedJson } from "@/shared/jsonBounds";
+import { msg } from "@/shared/messages";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
 import { applyClientFileReadExtension } from "./canonicalMapping/textStreamExtension";
@@ -80,15 +86,34 @@ import {
   type StructuredSessionUpdate,
 } from "../base";
 import { mapAcpSlashCommands } from "./probe";
-import { AcpSessionConfigSync } from "./sessionConfigSync";
+import type { AcpSelectBooleanConfigBinding } from "./modelConfigOptions";
+import { AcpConfigSelectionError, AcpSessionConfigSync } from "./sessionConfigSync";
+import {
+  CONFIG_OPTIONS_SNAPSHOT_MAX_BYTES,
+  AcpLiveConfigControl,
+  type AcpUnlistedSelectValueGuard,
+} from "./sessionConfigControl";
+import {
+  AcpOpenedSessionSetupStaleError,
+  runAcpOpenedSessionSetup,
+  type AcpConfigureOpenedSession,
+  type AcpOpenedSessionKind,
+} from "./sessionOpenedSetup";
+import { describeConfigOptionsWithRoles } from "./sessionConfigOptions";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
+import {
+  acpAdditionalDirectoriesParams,
+  snapshotAcpAdditionalDirectories,
+  validateAcpAdditionalDirectories,
+} from "./sessionWorkspaceRoots";
 import { isMissingPathError, toAcpFsRequestError } from "./sessionFsErrors";
 import { createAcpLocalImageResolver } from "./sessionLocalImages";
 import { AcpPlanModeToolTracker } from "./sessionPlanMode";
 import { readTextFileContent } from "./sessionTextFileRead";
 import {
+  assertAcpCanonicalHostFsPath,
   isAcpHomeScopeLocation,
   resolveAcpGlobalSkillFallbackHostFsPath,
   resolveAcpReadableHostFsPath,
@@ -126,6 +151,8 @@ import {
 } from "./sessionErrors";
 import { isFatalAcpQuotaError } from "./acpUserVisibleErrors";
 import { AcpSessionRequests } from "./sessionRequests";
+import { AcpExtensionRequests } from "./sessionExtensionRequests";
+import { AcpSessionActionError, AcpSessionActionRegistry } from "./sessionActions";
 import {
   buildAcpMcpServers,
   gateAcpMcpServers,
@@ -175,7 +202,11 @@ function isAssumedMcpCompatibilityError(error: unknown): error is RequestError {
  * to recognise the work from the notifications themselves.
  *
  * Empty text chunks and metadata-only updates are excluded — that trailing
- * chatter is exactly what must not reopen a turn.
+ * chatter is exactly what must not reopen a turn. The raw shape alone is not
+ * the whole answer, though: the caller additionally checks the update's
+ * canonical effects, so a batch that only replays text into already-allocated
+ * items (see `isReplacementOnlyDeltaBatch`) counts as history revision, not
+ * work.
  */
 function isOrphanTurnActivity(update: SessionUpdate): boolean {
   switch (update.sessionUpdate) {
@@ -199,9 +230,60 @@ function isOrphanTurnActivity(update: SessionUpdate): boolean {
   }
 }
 
+/**
+ * Whether a mapped update batch is replacement-only: nonempty, and every event
+ * repaints text of an already-allocated item (`content.delta` with
+ * `replace: true`) — no item allocated, nothing appended. A provider that
+ * re-sends a full-text snapshot after its prompt settled lands here, and that
+ * is history revision, not new work: opening an orphan turn for it would paint
+ * a phantom "working" thread over an already-completed answer. Real appends
+ * stream a plain `content.delta` or allocate via `item.started`, and
+ * tools/plan updates produce item lifecycle events, so none of them match.
+ */
+function isReplacementOnlyDeltaBatch(events: RuntimeEvent[]): boolean {
+  return (
+    events.length > 0 &&
+    events.every((event) => event.type === "content.delta" && event.replace === true)
+  );
+}
+
 // ── Session ──────────────────────────────────────────────────────
 
 export interface AcpSessionBehavior {
+  /** Require advertised, confirmed configuration selections before admitting a prompt. */
+  strictConfigSelection?: boolean;
+  /**
+   * Bind the `fast` ThreadConfig toggle onto one exact native select the agent
+   * advertises under non-boolean value ids: `configId` is the select's wire id
+   * and `enabled`/`disabled` its two exact advertised value ids. The binding is
+   * honored only when a select with exactly those two distinct values is
+   * retained — a missing id, a non-select or boolean-typed control, or a select
+   * with extra values never claims the toggle. Values keep their native wire
+   * spelling everywhere; the shared side maps booleans onto the declared pair
+   * instead of rewriting anything to `true`/`false`. Absent keeps the default
+   * boolean-pair fast classification.
+   */
+  fastConfigBinding?: AcpSelectBooleanConfigBinding;
+  /**
+   * Provider-owned proof that the model the session currently acknowledges
+   * itself carries the requested graded effort, so strict target validation
+   * does not demand an independent reasoning select from every model. See
+   * `AcpConfigSyncBehavior.modelCarriesEffort` — this is the same declaration
+   * surfaced at session level for the adapter.
+   */
+  modelCarriesEffort?: (config: ThreadConfig, sessionOptions: unknown) => boolean;
+  /**
+   * Allow live config-option writes while a foreground prompt is open. The
+   * ACP spec permits configuration changes while an agent is generating, but
+   * the default stays reject — a provider whose agent mishandles mid-turn
+   * config changes keeps the compatible guard, and one that has qualified
+   * the behavior opts in here.
+   */
+  allowConfigWritesDuringPrompt?: boolean;
+  /** Prompt usage may describe one call instead of a session-cumulative counter. */
+  promptUsageCounterKind?: "cumulative" | "per-call";
+  /** False when prompt consumption cannot measure context-window occupancy. */
+  promptUsageReportsContext?: boolean;
   /** Stop painting message and thought chunks as soon as the user cancels. */
   suppressOutputAfterInterrupt?: boolean;
   /** Keep noisy provider diagnostics out of the parent process console. */
@@ -209,6 +291,8 @@ export interface AcpSessionBehavior {
 }
 
 export interface AcpStructuredSessionOptions {
+  /** User-approved roots, snapshotted before spawn; no live scope mutation. */
+  additionalDirectories?: readonly ProjectLocation[];
   /** Resolve the provider's session mode when its permission modes differ from the terminal client. */
   resolveMode?: typeof import("./sessionConfig").resolveAcpMode;
   /** Provider-owned mapping for model catalogs whose variants use opaque wire IDs. */
@@ -243,6 +327,64 @@ export interface AcpStructuredSessionOptions {
    * not surfaced as standard `session/update` messages.
    */
   extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
+  /**
+   * Provider-owned handler for agent-initiated ACP extension *requests* —
+   * the typed, bounded counterpart of {@link extensionNotificationHandler}.
+   * Requests the handler does not claim are answered with a real
+   * `method not found` error (unless they carry a standard session-update
+   * payload, which keeps flowing through the notification pipeline).
+   */
+  extensionRequestHandler?: import("../base/types").AcpExtensionRequestHandler;
+  /** Pending extension request bound; see `AcpExtensionRequests`. */
+  extensionRequestTimeoutMs?: number;
+  /**
+   * Outbound session actions the provider declares for this session, invoked
+   * by neutral id through the structured session handle.
+   */
+  sessionActions?:
+    | readonly import("../base/types").AcpSessionActionDescriptor[]
+    | import("../base/types").AcpSessionActionBuilder;
+  /** Advertise the ACP boolean config-option client capability. Default off. */
+  booleanConfigOptions?: boolean;
+  /**
+   * Provider-supplied normalizer applied to every ingested config-option
+   * list (open/load/resume, `config_option_update`, setter replies) before
+   * the session retains or reduces it. Default: pass-through. See
+   * `CreateStructuredSessionInput.acpConfigOptionsNormalizer`.
+   */
+  configOptionsNormalizer?: import("../base/types").AcpConfigOptionsNormalizer;
+  /**
+   * Provider-declared setup for one opened session, invoked once per
+   * successful open — after the `session/new`, `session/load`, or
+   * `session/resume` result's session id is adopted and the agent's native
+   * config options and current mode are retained, and before the standard
+   * launch config application or any prompt. The context carries the open
+   * kind, the exact native session id, a detached bounded raw open-response
+   * for provider-owned metadata parsing, a fenced reader for the detached
+   * current options, and the fenced `setConfigOption` writer (the shared
+   * validated, echo-confirmed live control). Callbacks are bound to this
+   * incarnation: after a reopen — even one reusing the same native id — a
+   * dispose, or a transport close, retained references fail with a typed
+   * stale error and can never touch the newer session. The context also
+   * expires when the hook ends. A hook exception rejects the open before
+   * launch configuration or prompting; the adopted native ref remains
+   * available for failed-start custody. Hook activity never emits a turn.
+   * Absent: the open flow is unchanged.
+   */
+  configureOpenedSession?: AcpConfigureOpenedSession;
+  /**
+   * Behavior opt-in for live config writes: admit a select value that the
+   * exact current option does not advertise. The predicate is consulted only
+   * after the standard strict membership check failed, only for select-typed
+   * options, and only for string values; it receives a detached option
+   * snapshot and must return exactly `true` for the send to proceed — false
+   * or a throw fails the write before anything is sent. The single-writer
+   * lock, timeout/unknown-outcome handling, and echo confirmation apply
+   * unchanged to predicate-approved writes, and no option row or alias is
+   * manufactured. Absent: advertised select membership stays strictly
+   * required.
+   */
+  allowUnlistedSelectValue?: AcpUnlistedSelectValueGuard;
   mcpServers?: readonly ResolvedMcpServer[];
   /**
    * MCP transports the adapter knows this agent supports even though it
@@ -274,6 +416,8 @@ export interface AcpStructuredSessionOptions {
    * errors — see `acpFsTextCapability` in the adapter contract.
    */
   fsTextCapability?: boolean;
+  /** Client terminal operations are unavailable when execution belongs to another filesystem. */
+  terminalCapability?: boolean;
   /** Provider-specific lifecycle behavior layered over the shared ACP transport. */
   behavior?: AcpSessionBehavior;
   /**
@@ -332,6 +476,21 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
 
+  private readonly extensionRequestHandler?:
+    | import("../base/types").AcpExtensionRequestHandler
+    | undefined;
+  private readonly extensionRequestTimeoutMs: number | undefined;
+  private readonly sessionActionDescriptors:
+    | readonly import("../base/types").AcpSessionActionDescriptor[]
+    | import("../base/types").AcpSessionActionBuilder
+    | undefined;
+  private readonly booleanConfigOptions: boolean;
+  private readonly configOptionsNormalizer:
+    | import("../base/types").AcpConfigOptionsNormalizer
+    | undefined;
+  private readonly configureOpenedSession: AcpConfigureOpenedSession | undefined;
+  private readonly allowUnlistedSelectValue: AcpUnlistedSelectValueGuard | undefined;
+
   private externalSessionUpdateSources?: Set<AcpExternalSessionUpdateSource>;
 
   private readonly acpToolCallIdToItemId = new Map<string, string>();
@@ -339,11 +498,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly connection: ClientSideConnection;
   private readonly cwd: string;
   private readonly projectLocation: ProjectLocation;
+  private readonly additionalDirectories: readonly ProjectLocation[];
   private readonly mcpServers: readonly ResolvedMcpServer[];
   private readonly assumedMcpCapabilities: AcpMcpCapabilities | undefined;
   private readonly optimisticMcpTransports: readonly McpTransportKind[] | undefined;
   private readonly fsAgentHomeDirs: readonly string[];
   private readonly fsTextCapability: boolean;
+  private readonly terminalCapability: boolean;
   /** Reads referenced local images for the canonical mapper (per-session cache). */
   private readonly resolveLocalImage: (pathOrFileUri: string) => string | undefined;
   private planModeToolTrackerInstance: AcpPlanModeToolTracker | undefined;
@@ -352,6 +513,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly stderrChunks: string[];
   private listener: StructuredSessionListener | undefined;
   private sessionId: string | undefined;
+  /**
+   * Bumped on every re-open and on dispose. Config writes and actions fence
+   * against the captured (sessionId, generation) pair, so a reopen that
+   * reuses the same native session id still fences a stale write out of the
+   * new incarnation.
+   */
+  private sessionGeneration = 0;
   private isDisposed = false;
   private disposal: Promise<void> | undefined;
   private transportClosed = false;
@@ -449,7 +617,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this._terminalManager = new AcpTerminalManager({
         projectLocation: this.projectLocation,
         cwd: this.cwd,
+        additionalDirectories: this.additionalDirectories ?? [],
         assertRequestSession: (sessionId) => this.assertRequestSession(sessionId),
+        getSessionGeneration: () => this.sessionGeneration ?? 0,
       });
     }
     return this._terminalManager;
@@ -464,9 +634,154 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.connection,
         this.resolveMode,
         this.resolveModelConfig,
+        {
+          strictConfigSelection: this.behavior?.strictConfigSelection ?? false,
+          ...(this.behavior?.fastConfigBinding
+            ? { fastConfigBinding: this.behavior.fastConfigBinding }
+            : {}),
+          ...(this.behavior?.modelCarriesEffort
+            ? { modelCarriesEffort: this.behavior.modelCarriesEffort }
+            : {}),
+        },
+        ...(this.configOptionsNormalizer ? [this.configOptionsNormalizer] : []),
       );
+      // Every successful normalized ingest — session open/load/resume, an
+      // agent-owned `config_option_update`, and setter echoes — republishes
+      // the detached inventory over the structured listener, the same path
+      // config values and slash commands ride. Replayed historical updates
+      // stay suppressed like every mapped replay artifact; the load result's
+      // own ingest (outside the replay window) publishes the authoritative
+      // list.
+      this._sessionConfigSync.onOptionsIngested = () => {
+        if (
+          this.isDisposed ||
+          this.isReplayingHistory ||
+          Date.now() < (this.replayHistoryUntil || 0)
+        ) {
+          return;
+        }
+        this.publishRetainedSessionConfigOptions();
+      };
     }
     return this._sessionConfigSync;
+  }
+
+  /** One owner guard covers queue admission, wire results and the final config commit. */
+  private async applyCurrentConfig(config: ThreadConfig): Promise<void> {
+    const assertCurrent = captureAcpConfigApplicationOwner(() => ({
+      sessionId: this.sessionId,
+      generation: this.sessionGeneration ?? 0,
+      disposed: this.isDisposed ?? false,
+      transportClosed: this.transportClosed ?? false,
+    }));
+    try {
+      const confirmed = await this.sessionConfigSync.applyTurnConfig(
+        this.sessionId,
+        config,
+        this.currentConfig,
+        assertCurrent,
+      );
+      assertCurrent();
+      // Intermediate full-list notifications can report old toggle values
+      // while setters are still applying. Publish the final authoritative
+      // result too: a setter may confirm only in its RPC reply, with no later
+      // notification to repair that earlier renderer update.
+      const reported = confirmed
+        ? (this.sessionConfigSync.reduceConfigOptions(
+            confirmed,
+            this.sessionConfigSync.listRetainedConfigOptions(),
+          ) ?? confirmed)
+        : undefined;
+      if (reported && !isThreadConfigEqual(this.currentConfig, reported)) {
+        this.commitAgentConfigChange(reported);
+      } else {
+        this.currentConfig = reported;
+      }
+    } catch (error) {
+      assertCurrent();
+      if (error instanceof AcpConfigSelectionError && error.confirmedConfig) {
+        this.commitAgentConfigChange(error.confirmedConfig);
+      }
+      throw error;
+    }
+  }
+
+  /** Lazily initialized for parity with constructor-bypassing test harnesses. */
+  private _configControl: AcpLiveConfigControl | undefined;
+
+  private get configControl(): AcpLiveConfigControl {
+    if (!this._configControl) {
+      this._configControl = new AcpLiveConfigControl({
+        connection: this.connection,
+        configSync: this.sessionConfigSync,
+        configWrites: this.sessionConfigSync.configWrites,
+        getOwner: () => ({
+          sessionId: this.sessionId ?? "",
+          generation: this.sessionGeneration ?? 0,
+          disposed: this.isDisposed,
+          transportClosed: this.transportClosed,
+        }),
+        isBooleanCapabilityNegotiated: () => this.booleanConfigOptions === true,
+        isForegroundPromptOpen: () => this.foregroundTurnOpen || this.promptInFlight,
+        allowDuringPrompt: () => this.behavior?.allowConfigWritesDuringPrompt === true,
+        ...(this.allowUnlistedSelectValue
+          ? { allowUnlistedSelectValue: this.allowUnlistedSelectValue }
+          : {}),
+        getCurrentConfig: () => this.currentConfig,
+        onConfigReconciled: (next) => this.commitAgentConfigChange(next),
+      });
+    }
+    return this._configControl;
+  }
+
+  /** Lazily initialized so unused lifecycles never allocate. */
+  private _extensionRequests: AcpExtensionRequests | undefined;
+
+  private get extensionRequests(): AcpExtensionRequests {
+    if (!this._extensionRequests) {
+      this._extensionRequests = new AcpExtensionRequests({
+        threadId: this.threadId,
+        getSessionId: () => this.sessionId,
+        ...(this.extensionRequestHandler ? { handler: this.extensionRequestHandler } : {}),
+        ...(this.extensionRequestTimeoutMs !== undefined
+          ? { requestTimeoutMs: this.extensionRequestTimeoutMs }
+          : {}),
+      });
+    }
+    return this._extensionRequests;
+  }
+
+  /** Lazily initialized; absent when the provider declares no session actions. */
+  private _sessionActionRegistry: AcpSessionActionRegistry | undefined;
+
+  private get sessionActionRegistry(): AcpSessionActionRegistry | undefined {
+    if (!this._sessionActionRegistry && this.sessionActionDescriptors) {
+      this._sessionActionRegistry = new AcpSessionActionRegistry({
+        threadId: this.threadId,
+        getSessionId: () => this.sessionId,
+        actions:
+          typeof this.sessionActionDescriptors === "function"
+            ? this.sessionActionDescriptors({
+                request: async (method, params, options) => {
+                  options?.signal?.throwIfAborted();
+                  if (this.isDisposed || !this.sessionId) {
+                    throw new AcpSessionActionError("unavailable", "ACP session is not open.");
+                  }
+                  const result = await this.connection.extMethod(method, params);
+                  options?.signal?.throwIfAborted();
+                  return result;
+                },
+                // Live config surface for descriptor composition: the same
+                // validated, fenced seam the shared session drives its own
+                // config paths through.
+                getConfigOptions: () => this.configControl.getConfigOptions(),
+                setConfigOption: (configId, value, options) =>
+                  this.configControl.setConfigOption(configId, value, options),
+              })
+            : this.sessionActionDescriptors,
+      });
+    }
+    return this._sessionActionRegistry;
   }
 
   /** Lazily initialized for parity with constructor-bypassing test harnesses. */
@@ -519,7 +834,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.resolveModelConfig = options?.resolveModelConfig;
     this.child = child;
     this.connection = connection;
-    this.projectLocation = projectLocation;
+    this.projectLocation = Object.freeze({ ...projectLocation });
+    this.additionalDirectories = options?.additionalDirectories ?? Object.freeze([]);
     this.cwd = cwd;
     this.threadId = threadId;
     this.stderrChunks = stderrChunks;
@@ -545,11 +861,19 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (options?.extensionNotificationHandler) {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
+    this.extensionRequestHandler = options?.extensionRequestHandler;
+    this.extensionRequestTimeoutMs = options?.extensionRequestTimeoutMs;
+    this.sessionActionDescriptors = options?.sessionActions;
+    this.booleanConfigOptions = options?.booleanConfigOptions === true;
+    this.configOptionsNormalizer = options?.configOptionsNormalizer;
+    this.configureOpenedSession = options?.configureOpenedSession;
+    this.allowUnlistedSelectValue = options?.allowUnlistedSelectValue;
     this.mcpServers = options?.mcpServers ?? [];
     this.assumedMcpCapabilities = options?.assumedMcpCapabilities;
     this.optimisticMcpTransports = options?.optimisticMcpTransports;
     this.fsAgentHomeDirs = options?.fsAgentHomeDirs ?? [];
     this.fsTextCapability = options?.fsTextCapability !== false;
+    this.terminalCapability = options?.terminalCapability !== false;
     this.resolveLocalImage = createAcpLocalImageResolver(this.projectLocation);
   }
 
@@ -599,7 +923,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   private emitCurrentState(listener: StructuredSessionListener): void {
-    const sessionRef = this.currentSessionRef();
+    const sessionRef = this.getSessionRef();
     listener.onUpdate({
       status: this.currentStatus,
       attention: this.currentAttention,
@@ -607,6 +931,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       ...(sessionRef ? { sessionRef } : {}),
       ...(this.currentSlashCommands !== undefined
         ? { slashCommands: this.currentSlashCommands }
+        : {}),
+      ...(this.pushedSessionConfigOptions !== undefined
+        ? {
+            sessionConfigOptions: structuredClone(
+              this.pushedSessionConfigOptions,
+            ) as SessionConfigOptions,
+          }
         : {}),
     });
   }
@@ -616,7 +947,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       return;
     }
     this.currentSlashCommands = commands;
-    const sessionRef = this.currentSessionRef();
+    const sessionRef = this.getSessionRef();
     this.emitListenerUpdate({
       status: this.currentStatus,
       attention: this.currentAttention,
@@ -626,7 +957,57 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     });
   }
 
-  private currentSessionRef(): SessionRef | undefined {
+  /**
+   * The config-option inventory this handle last published to the listener —
+   * `null` once retired for a new incarnation. `undefined` only before the
+   * first publication, so a handle whose agent never spoke replays nothing.
+   */
+  private pushedSessionConfigOptions: SessionConfigOptions | null | undefined;
+
+  private publishRetainedSessionConfigOptions(): void {
+    // Detached and bounded like the live-control snapshot: the published
+    // copy never aliases retained state, and an oversized inventory never
+    // travels the listener — the previously published inventory stays
+    // authoritative rather than inventing a truncation.
+    const described = describeConfigOptionsWithRoles(
+      this.sessionConfigSync.listRetainedConfigOptions(),
+      this.behavior?.fastConfigBinding,
+    );
+    let inventory: SessionConfigOptions;
+    try {
+      inventory = structuredClone(described) as SessionConfigOptions;
+      assertBoundedJson(inventory, CONFIG_OPTIONS_SNAPSHOT_MAX_BYTES);
+    } catch (error) {
+      console.warn(
+        "[acp] session config options exceed the detached push bound; keeping the previous inventory: %s",
+        toErrorMessage(error),
+      );
+      return;
+    }
+    this.publishSessionConfigOptions(inventory);
+  }
+
+  private publishSessionConfigOptions(inventory: SessionConfigOptions | null): void {
+    if (
+      this.pushedSessionConfigOptions !== undefined &&
+      isDeepStrictEqual(this.pushedSessionConfigOptions, inventory)
+    ) {
+      return;
+    }
+    // The dedupe baseline is its own copy: a listener mutating the delivered
+    // array can never poison the comparison or later replays.
+    this.pushedSessionConfigOptions = structuredClone(inventory) as SessionConfigOptions;
+    const sessionRef = this.getSessionRef();
+    this.emitListenerUpdate({
+      status: this.currentStatus,
+      attention: this.currentAttention,
+      ...(this.currentConfig ? { config: this.currentConfig } : {}),
+      ...(sessionRef ? { sessionRef } : {}),
+      sessionConfigOptions: inventory,
+    });
+  }
+
+  getSessionRef(): SessionRef | undefined {
     if (!this.sessionId) return undefined;
     if (this.stableSessionRef?.providerSessionId !== this.sessionId) {
       this.stableSessionRef = createKnownSessionRef(this.sessionId);
@@ -651,6 +1032,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     threadId: string,
     options?: AcpStructuredSessionOptions,
   ): AcpStructuredSession {
+    options = {
+      ...options,
+      additionalDirectories: snapshotAcpAdditionalDirectories(
+        projectLocation,
+        options?.additionalDirectories,
+      ),
+    };
     const sessionCwd = resolveSessionCwd(projectLocation);
     const spawnCwd = command.cwd ?? resolveSpawnCwd(projectLocation);
 
@@ -751,8 +1139,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           return Promise.resolve();
         },
         extMethod(method: string, params: Record<string, unknown>) {
-          session.handleExtNotification(method, params);
-          return Promise.resolve({});
+          return session.handleExtMethod(method, params);
         },
       }),
       stream,
@@ -817,7 +1204,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
 
     // Re-emit current state for late listeners
-    if (this.sessionId || this.currentConfig || this.currentSlashCommands !== undefined) {
+    if (
+      this.sessionId ||
+      this.currentConfig ||
+      this.currentSlashCommands !== undefined ||
+      this.pushedSessionConfigOptions !== undefined
+    ) {
       this.emitCurrentState(listener);
     }
   }
@@ -841,7 +1233,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           writeTextFile: this.fsTextCapability,
         },
         elicitation: { form: {}, url: {} },
-        terminal: true,
+        terminal: this.terminalCapability !== false,
+        // Only advertised when the provider declares it: the shared session
+        // records boolean config options it observes but cannot yet drive a
+        // generic boolean control, so the default stays off.
+        ...(this.booleanConfigOptions ? { session: { configOptions: { boolean: {} } } } : {}),
         ...(this.clientCapabilitiesMeta ? { _meta: this.clientCapabilitiesMeta } : {}),
       },
       ...(this.initializeMeta ? { _meta: this.initializeMeta } : {}),
@@ -849,6 +1245,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.agentPromptCapabilities = initResult.agentCapabilities?.promptCapabilities;
     this.agentSessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
     this.agentMcpCapabilities = initResult.agentCapabilities?.mcpCapabilities;
+    acpAdditionalDirectoriesParams(this.additionalDirectories ?? [], this.agentSessionCapabilities);
     console.log(
       "[acp] initialized — protocol v%d, agent: %s",
       initResult.protocolVersion,
@@ -948,12 +1345,51 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
+    // A re-open changes the session identity: pending extension requests and
+    // in-flight session actions belong to the previous generation.
+    this._extensionRequests?.reset();
+    this._sessionActionRegistry?.abortPending();
+    this.sessionGeneration = (this.sessionGeneration ?? 0) + 1;
+    // The whole open is fenced to this generation. Every await below — the
+    // new/load/resume RPC, the provider open hook, and the launch config
+    // application — re-asserts it before adopting anything, so a concurrent
+    // re-open (or a dispose or transport close) can never let a superseded
+    // open mutate the newer incarnation's config, inventory, or launch
+    // custody.
+    const openGeneration = this.sessionGeneration ?? 0;
+    const assertOpenGeneration = (): void => {
+      if (
+        (this.sessionGeneration ?? 0) !== openGeneration ||
+        this.isDisposed ||
+        this.transportClosed
+      ) {
+        throw new AcpOpenedSessionSetupStaleError();
+      }
+    };
+    const workspaceParams = () =>
+      acpAdditionalDirectoriesParams(
+        this.additionalDirectories ?? [],
+        this.agentSessionCapabilities,
+      );
+    workspaceParams();
+    if (this.additionalDirectories?.length) {
+      await validateAcpAdditionalDirectories(this.additionalDirectories);
+      assertOpenGeneration();
+    }
     let availableModeIds: string[] = [];
     let agentCurrentModeId: string | undefined;
     let configOptions: unknown[] | null | undefined;
+    // Which open call produced the session, and its raw wire result — the
+    // provider open hook's detached-metadata input. One value per branch.
+    let openResponse: unknown;
+    let openKind: AcpOpenedSessionKind;
     this.currentConfig = undefined;
     this.currentSlashCommands = undefined;
-    this.sessionConfigSync.rememberOptions([], []);
+    // A re-open is a new incarnation of this handle: the previous negotiated
+    // inventory is retired explicitly — never `[]`, which would claim the
+    // fresh agent authoritatively advertises nothing before it has spoken.
+    this.sessionConfigSync.clearRetainedOptions();
+    this.publishSessionConfigOptions(null);
 
     if (sessionRef) {
       if (this.agentSessionCapabilities?.resume != null) {
@@ -965,19 +1401,32 @@ export class AcpStructuredSession implements StructuredSessionHandle {
             this.connection.resumeSession({
               sessionId: sessionRef.providerSessionId,
               cwd: this.cwd,
+              ...workspaceParams(),
               mcpServers,
             }),
           );
+          // The RPC resolved after this open was superseded — adopt nothing:
+          // the successor incarnation owns the id, inventory, and launch
+          // custody, and the old result must not overwrite any of it.
+          assertOpenGeneration();
           this.adoptSessionRef(sessionRef);
           this.trackUsageScope(sessionRef.providerSessionId, false);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
           agentCurrentModeId = result.modes?.currentModeId;
           configOptions = result.configOptions;
+          openResponse = result;
+          openKind = "resume";
         } catch (error) {
+          // A superseded open rejects as the typed stale error; it is not a
+          // resume failure of the successor's session.
+          if (error instanceof AcpOpenedSessionSetupStaleError) throw error;
           throw this.loadSessionErrorRewriter(error, sessionRef.providerSessionId);
         } finally {
-          this.isReplayingHistory = false;
-          this.replayHistoryUntil = Date.now() + 500;
+          // A superseded open must not clear the successor's replay window.
+          if ((this.sessionGeneration ?? 0) === openGeneration) {
+            this.isReplayingHistory = false;
+            this.replayHistoryUntil = Date.now() + 500;
+          }
         }
       } else {
         console.log("[acp] loading session:", sessionRef.providerSessionId);
@@ -988,19 +1437,32 @@ export class AcpStructuredSession implements StructuredSessionHandle {
             this.connection.loadSession({
               sessionId: sessionRef.providerSessionId,
               cwd: this.cwd,
+              ...workspaceParams(),
               mcpServers,
             }),
           );
+          // The RPC resolved after this open was superseded — adopt nothing:
+          // the successor incarnation owns the id, inventory, and launch
+          // custody, and the old result must not overwrite any of it.
+          assertOpenGeneration();
           this.adoptSessionRef(sessionRef);
           this.trackUsageScope(sessionRef.providerSessionId, false);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
           agentCurrentModeId = result.modes?.currentModeId;
           configOptions = result.configOptions;
+          openResponse = result;
+          openKind = "load";
         } catch (error) {
+          // A superseded open rejects as the typed stale error; it is not a
+          // load failure of the successor's session.
+          if (error instanceof AcpOpenedSessionSetupStaleError) throw error;
           throw this.loadSessionErrorRewriter(error, sessionRef.providerSessionId);
         } finally {
-          this.isReplayingHistory = false;
-          this.replayHistoryUntil = Date.now() + 500;
+          // A superseded open must not clear the successor's replay window.
+          if ((this.sessionGeneration ?? 0) === openGeneration) {
+            this.isReplayingHistory = false;
+            this.replayHistoryUntil = Date.now() + 500;
+          }
         }
       }
     } else {
@@ -1008,20 +1470,27 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       const result = await this.openWithMcpServers((mcpServers) =>
         this.connection.newSession({
           cwd: this.cwd,
+          ...workspaceParams(),
           mcpServers,
         }),
       );
+      // The RPC resolved after this open was superseded — adopt nothing: the
+      // successor incarnation owns the id, inventory, and launch custody.
+      assertOpenGeneration();
       this.sessionId = result.sessionId;
       this.stableSessionRef = createKnownSessionRef(result.sessionId);
       this.trackUsageScope(result.sessionId, true);
       availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
       agentCurrentModeId = result.modes?.currentModeId;
       configOptions = result.configOptions;
+      openResponse = result;
+      openKind = "new";
       console.log("[acp] session created:", this.sessionId, "modes:", availableModeIds);
     }
 
+    let inventoryIngested = false;
     if (Array.isArray(configOptions)) {
-      this.sessionConfigSync.rememberOptions(availableModeIds, configOptions);
+      inventoryIngested = this.sessionConfigSync.rememberOptions(availableModeIds, configOptions);
     } else {
       this.sessionConfigSync.rememberAvailableModes(availableModeIds);
     }
@@ -1031,11 +1500,40 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // that same mode back at the agent.
     this.sessionConfigSync.rememberCurrentMode(agentCurrentModeId);
     this.planModeToolTracker.reset();
-    this.currentConfig = await this.sessionConfigSync.applyTurnConfig(
-      this.sessionId,
-      config,
-      this.currentConfig,
-    );
+    // Provider-declared open hook (fail closed): this open's identity is
+    // adopted and the native options/current mode are retained, and no
+    // launch config push or prompt has touched the session yet. Fenced to
+    // this incarnation; any hook failure — a throw, a stale incarnation, or
+    // an undetachable/out-of-bounds open response — rejects this open instead
+    // of falling back to the default config path, which could apply the
+    // launch config or prompt on the wrong repo/platform/persona. The
+    // allocated native session ref stays adopted, so the supervisor's
+    // unpublished-start custody still sees it through `getSessionRef`. Hook
+    // activity never synthesizes a prompt or turn.
+    assertOpenGeneration();
+    await runAcpOpenedSessionSetup({
+      kind: openKind,
+      sessionId: this.sessionId!,
+      openResponse,
+      hook: this.configureOpenedSession,
+      getOwner: () => ({
+        sessionId: this.sessionId ?? "",
+        generation: this.sessionGeneration ?? 0,
+        disposed: this.isDisposed,
+        transportClosed: this.transportClosed,
+      }),
+      readConfigOptions: () => this.configControl.getConfigOptions(),
+      writeConfigOption: (configId, value, callOptions) =>
+        this.configControl.setConfigOption(configId, value, callOptions),
+    });
+    assertOpenGeneration();
+    await this.applyCurrentConfig(config);
+    assertOpenGeneration();
+    // The RPC result is authoritative even inside the trailing history-replay
+    // grace window. Publish after launch setters settle so their current values
+    // are included; historical notifications remain suppressed independently.
+    if (inventoryIngested) this.publishRetainedSessionConfigOptions();
+    assertOpenGeneration();
 
     if (this.sessionId) {
       this.launchOptions = { ...this.launchOptions, resumeThreadId: this.sessionId };
@@ -1100,11 +1598,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.currentTurnHadAgentActivity = false;
     this.stderrChunks.length = 0;
 
-    this.currentConfig = await this.sessionConfigSync.applyTurnConfig(
-      this.sessionId,
-      config,
-      this.currentConfig,
-    );
+    await this.applyCurrentConfig(config);
 
     // A real prompt supersedes any agent-initiated turn still in progress, so
     // its items close under that turn instead of leaking into this one. Silent:
@@ -1128,6 +1622,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // structured-session setup, we reuse the same item id so the renderer's
     // per-id dedupe drops this duplicate emit.
     this.currentTurnId = `turn-${randomUUID()}`;
+    // A background handoff may finish the foreground turn before the prompt
+    // returns. Consumption still belongs to this accepted prompt attempt.
+    const usageSampleTurnId = this.currentTurnId;
     const userItemId = options?.userMessageItemId ?? `user-${this.currentTurnId}`;
     this.emitRuntimeEvents([
       { type: "turn.started", threadId: this.threadId, turnId: this.currentTurnId },
@@ -1176,16 +1673,25 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         sessionId: this.sessionId,
         prompt: contentBlocks,
       });
-      const usageEvent = createAcpPromptUsageEvent(this.threadId, result.usage);
-      if (usageEvent) this.emitRuntimeEvents([usageEvent]);
-      // The same prompt response also carries the session-cumulative counter
-      // for the token ledger (absent on most bridges — then nothing is emitted
-      // and the provider lands on the profile's unavailable list).
+      if (this.behavior?.promptUsageReportsContext !== false) {
+        const usageEvent = createAcpPromptUsageEvent(this.threadId, result.usage);
+        if (usageEvent) this.emitRuntimeEvents([usageEvent]);
+      }
+      // Counter semantics are provider-declared; consumption and context
+      // occupancy are independent. Missing usage emits neither a zero nor a
+      // fabricated token total.
       if (this.usageScopeId) {
         const spentEvent = createAcpPromptUsageSpentEvent(this.threadId, result.usage, {
           scopeId: this.usageScopeId,
           epoch: this.usageEpoch,
           ...(this.usageScopeFresh ? { fresh: true } : {}),
+          ...(this.behavior?.promptUsageCounterKind === "per-call"
+            ? {
+                counterKind: "per-call" as const,
+                sampleId: `acp-prompt-v1:${this.usageScopeId}:${this.usageEpoch}:${usageSampleTurnId}`,
+                turnId: usageSampleTurnId,
+              }
+            : {}),
         });
         if (spentEvent) {
           this.emitRuntimeEvents([spentEvent]);
@@ -1292,12 +1798,37 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  /** Neutral catalog of the session actions this provider declared. */
+  listSessionActions(): readonly import("../base/types").AcpSessionActionInfo[] {
+    return this.sessionActionRegistry?.listActions() ?? [];
+  }
+
+  /**
+   * Invoke a declared session action by neutral id with a validated payload.
+   * Addresses only registered actions — there is no raw-method variant.
+   */
+  invokeSessionAction(actionId: string, payload: unknown): Promise<Record<string, unknown>> {
+    const registry = this.sessionActionRegistry;
+    if (!registry) {
+      return Promise.reject(
+        new AcpSessionActionError("unknown_action", `Unknown session action: ${actionId}`, {
+          actionId,
+        }),
+      );
+    }
+    return registry.invoke(actionId, payload);
+  }
+
   async interruptTurn(): Promise<void> {
     if (!this.sessionId || this.isDisposed) {
       return;
     }
 
     this.sessionRequests.cancelPending();
+    // Extension requests and session actions blocked on this turn's work
+    // cannot be answered by an interrupted agent.
+    this._extensionRequests?.cancelPending();
+    this._sessionActionRegistry?.abortPending();
     this.currentTurnInterruptRequested = true;
     // Race guard: if interrupt fires before `connection.prompt()` has been
     // entered (e.g. the supervisor stages a steer in the same microtask as
@@ -1372,6 +1903,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   private closeSessionResources(): void {
+    // Fence in-flight config writes out of this incarnation before resources
+    // are torn down.
+    this.sessionGeneration = (this.sessionGeneration ?? 0) + 1;
     if (this.reportedBackgroundTasks.length > 0) {
       this.emitRuntimeEvents([
         { type: "background_tasks.changed", threadId: this.threadId, tasks: [] },
@@ -1380,6 +1914,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
     for (const source of this.externalSessionUpdateSources ?? []) source.dispose();
     this.externalSessionUpdateSources?.clear();
+
+    this._extensionRequests?.dispose();
+    this._sessionActionRegistry?.dispose();
 
     if (this.orphanTurnIdleTimer) {
       clearTimeout(this.orphanTurnIdleTimer);
@@ -1404,6 +1941,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (this.transportOutcomeReported) return;
     this.transportOutcomeReported = true;
     this.sessionRequests.cancelPending();
+    this._extensionRequests?.cancelPending("ACP transport closed");
+    this._sessionActionRegistry?.abortPending();
     if (errorMessage) {
       this.listener?.onError(errorMessage);
     }
@@ -1455,8 +1994,21 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   // ── Internal handlers ────────────────────────────────────────
 
   private assertRequestSession(sessionId: string): void {
-    if (!this.sessionId || sessionId !== this.sessionId) {
+    if (
+      this.isDisposed ||
+      this.transportClosed ||
+      !this.sessionId ||
+      sessionId !== this.sessionId
+    ) {
       throw RequestError.invalidParams({ message: `Unknown ACP session: ${sessionId}` });
+    }
+  }
+
+  /** An awaited client FS request must still belong to the same incarnation. */
+  private assertFileRequestOwner(sessionId: string, generation: number): void {
+    this.assertRequestSession(sessionId);
+    if ((this.sessionGeneration ?? 0) !== generation) {
+      throw RequestError.invalidParams({ message: msg("thread.sessionActionUnavailable") });
     }
   }
 
@@ -1471,14 +2023,26 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   private async handleReadTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
+    if (this.fsTextCapability === false) throw RequestError.methodNotFound("fs/read_text_file");
     this.assertRequestSession(params.sessionId);
+    const generation = this.sessionGeneration ?? 0;
     const path = resolveAcpReadableHostFsPath(
       this.projectLocation,
       params.path,
       this.fsAgentHomeDirs,
+      this.additionalDirectories,
     );
     try {
+      await assertAcpCanonicalHostFsPath(
+        this.projectLocation,
+        path,
+        "read",
+        this.fsAgentHomeDirs,
+        this.additionalDirectories,
+      );
+      this.assertFileRequestOwner(params.sessionId, generation);
       const content = await readTextFileContent(path, params.line, params.limit);
+      this.assertFileRequestOwner(params.sessionId, generation);
       this.notifyClientFileRead(params.path);
       return { content };
     } catch (error: unknown) {
@@ -1488,7 +2052,16 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       );
       if (fallbackPath && fallbackPath !== path && isMissingPathError(error)) {
         try {
+          await assertAcpCanonicalHostFsPath(
+            this.projectLocation,
+            fallbackPath,
+            "read",
+            this.fsAgentHomeDirs,
+            this.additionalDirectories,
+          );
+          this.assertFileRequestOwner(params.sessionId, generation);
           const content = await readTextFileContent(fallbackPath, params.line, params.limit);
+          this.assertFileRequestOwner(params.sessionId, generation);
           this.notifyClientFileRead(params.path);
           return { content };
         } catch {
@@ -1501,35 +2074,55 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   private async handleWriteTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
+    if (this.fsTextCapability === false) throw RequestError.methodNotFound("fs/write_text_file");
     this.assertRequestSession(params.sessionId);
+    const generation = this.sessionGeneration ?? 0;
     const path = resolveAcpWritableHostFsPath(
       this.projectLocation,
       params.path,
       this.fsAgentHomeDirs,
+      this.additionalDirectories,
     );
-    await writeFile(path, params.content, "utf8").catch((error: unknown) => {
+    try {
+      await assertAcpCanonicalHostFsPath(
+        this.projectLocation,
+        path,
+        "write",
+        this.fsAgentHomeDirs,
+        this.additionalDirectories,
+      );
+      this.assertFileRequestOwner(params.sessionId, generation);
+      await writeFile(path, params.content, "utf8");
+      this.assertFileRequestOwner(params.sessionId, generation);
+    } catch (error: unknown) {
       throw toAcpFsRequestError(error, params.path);
-    });
+    }
     return {};
   }
 
   private handleCreateTerminal(params: CreateTerminalRequest) {
+    if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/create");
     return this.terminalManager.handleCreateTerminal(params);
   }
 
   private handleTerminalOutput(params: TerminalOutputRequest) {
+    if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/output");
     return this.terminalManager.handleTerminalOutput(params);
   }
 
   private handleReleaseTerminal(params: ReleaseTerminalRequest): void {
+    if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/release");
     this.terminalManager.handleReleaseTerminal(params);
   }
 
   private handleWaitForTerminalExit(params: WaitForTerminalExitRequest) {
+    if (this.terminalCapability === false)
+      throw RequestError.methodNotFound("terminal/wait_for_exit");
     return this.terminalManager.handleWaitForTerminalExit(params);
   }
 
   private handleKillTerminal(params: KillTerminalRequest): void {
+    if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/kill");
     this.terminalManager.handleKillTerminal(params);
   }
 
@@ -1550,6 +2143,33 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   /**
+   * Handle vendor-extension JSON-RPC *requests* (methods outside the ACP
+   * spec that expect a response).
+   *
+   * The provider's typed request handler gets the first claim and answers
+   * with an explicit handled/unhandled outcome. Unclaimed requests fall back
+   * to the historical behavior for payloads that carry a standard
+   * session-notification shape (they keep flowing through the notification
+   * pipeline and are acknowledged with an empty success); everything else is
+   * answered with a real `method not found` error. A request must never
+   * receive a fabricated success merely because nobody understood it.
+   */
+  private async handleExtMethod(
+    method: string,
+    params: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const resolution = await this.extensionRequests.handleRequest(method, params);
+    if (resolution.handled) {
+      return resolution.result;
+    }
+    if (looksLikeAcpSessionNotification(params)) {
+      this.handleExtNotification(method, params);
+      return {};
+    }
+    throw RequestError.methodNotFound(method);
+  }
+
+  /**
    * Handle vendor-extension JSON-RPC notifications (methods outside the ACP
    * spec). The SDK routes anything that isn't `session/update` or
    * `session/elicitation_complete` here; without a handler the connection
@@ -1563,6 +2183,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * without polluting the chat stream.
    */
   private handleExtNotification(method: string, params: Record<string, unknown>): void {
+    if (this.isDisposed || this.transportClosed) return;
     if (looksLikeAcpSessionNotification(params)) {
       this.handleSessionUpdate(params as unknown as SessionNotification);
       return;
@@ -1604,6 +2225,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     ) {
       const events = this.extensionNotificationHandler(method, params, {
         threadId: this.threadId,
+        ...(this.sessionId ? { sessionId: this.sessionId } : {}),
+        ...(this.currentTurnId ? { turnId: this.currentTurnId } : {}),
         resolveToolCallItemId: (toolCallId) => this.acpToolCallIdToItemId.get(toolCallId),
       });
       if (events.length > 0) {
@@ -1753,7 +2376,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         !turnWasLive &&
         detachedParentToolCallId === undefined &&
         !suppressInterruptedOutput &&
-        isOrphanTurnActivity(update)
+        isOrphanTurnActivity(update) &&
+        // The raw update shape still calls this "activity"; the canonical
+        // effects computed just above get the final word. A batch that only
+        // replayed text into already-allocated items revised history instead
+        // of doing new work — it must not open or keep alive an orphan turn.
+        !isReplacementOnlyDeltaBatch(events)
       ) {
         this.noteOrphanTurnActivity();
       }
@@ -1832,7 +2460,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private commitAgentConfigChange(nextConfig: ThreadConfig | undefined): void {
     if (!nextConfig) return;
     this.currentConfig = nextConfig;
-    const sessionRef = this.currentSessionRef();
+    const sessionRef = this.getSessionRef();
     this.emitListenerUpdate({
       status: this.currentStatus,
       attention: this.currentAttention,

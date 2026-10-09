@@ -1,10 +1,9 @@
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Monitor, Settings2, Webhook } from "lucide-react";
-import { Modal } from "@heroui/react";
+import { Modal, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
-  AgentCapability,
   AgentStatus,
   ProjectDraftConfig,
   ProjectLocation,
@@ -23,7 +22,9 @@ import {
   appendProviderComposerControls,
   buildModelPickerControls,
   buildProviderModelMenuProviders,
+  resolveModelSelectionEdit,
 } from "./buildModelPickerControls";
+import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
 import { openPdfPreview } from "../pdf/openPdfPreview";
@@ -67,20 +68,16 @@ import {
   resolveLocalSlashCommandAction,
 } from "./threadSlashCommands";
 import { slashCommandDisplayId } from "./slashCommandMatching";
-import { carryOverComposerMcpConfig, composerMcpConfig } from "../composer/carryOverMcpConfig";
+import { composerMcpConfig } from "../composer/carryOverMcpConfig";
 import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import {
   agentStatusForPresentation,
-  capabilitiesForPresentation,
   filterHiddenModels,
   hasSelectableReasoning,
-  resolveModelSelection,
-  resolveReasoningSelection,
 } from "@/shared/agentSelection";
 import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
-import type { RankedCrossagentCandidate } from "@/shared/crossagentRanking";
 import {
   continuesInPlace,
   rankContinueProviders,
@@ -88,6 +85,12 @@ import {
   supportsPresentation,
 } from "@/shared/continueProviderRanking";
 import { resolveSavedProviderDraftConfig, supportsUsableFastMode } from "./threadDraftViewHelpers";
+import { composerSelectionEvent, type ComposerSelectionOrigin } from "./composerSelectionMutation";
+import {
+  modelFamilyForModel,
+  resolveFamilyPresentationTransition,
+} from "@/shared/modelFamilySelection";
+import { applyThreadConfigMutation, type SelectionMutationEvent } from "@/shared/selectionBinding";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -102,6 +105,12 @@ import {
   resolveProviderHandoffStrategy,
   targetGuaranteesReadThreadTool,
 } from "@/shared/providerHandoff";
+
+import {
+  preferredConfigPatch,
+  resolveDefaultConfig,
+  visibleCapabilities,
+} from "./continueTargetConfig";
 
 type Phase = "select" | "extracting" | "error";
 type PendingSubmission = { prompt: string; segments?: PromptSegment[] };
@@ -118,136 +127,6 @@ type CommandPanelPosition = {
  * thread when the target is a terminal.
  */
 export type ContinueIntent = "fork" | "switch";
-
-/** The model/reasoning/Fast values the ranked provider is normally launched with. */
-function preferredConfigPatch(
-  ranked: RankedCrossagentCandidate | undefined,
-): Partial<ThreadConfig> {
-  const selection = ranked?.preferredSelection;
-  if (!selection?.model) return {};
-  return {
-    model: selection.model,
-    ...(selection.effort ? { effort: selection.effort } : {}),
-    ...(selection.fast ? { fast: true } : {}),
-  };
-}
-
-function resolveContextSizeValue(
-  capabilities: AgentCapability,
-  model: string,
-  preferred?: string,
-): string | undefined {
-  const allowed = capabilities.modelContextSizes?.[model];
-  if (!allowed?.length) return capabilities.defaultContextSize;
-  if (preferred && allowed.includes(preferred)) return preferred;
-  return allowed[0];
-}
-
-function resolveModeValue(
-  capabilities: AgentCapability,
-  preferred?: ThreadConfig["mode"],
-): ThreadConfig["mode"] | undefined {
-  return preferred && capabilities.modes.includes(preferred)
-    ? preferred
-    : (capabilities.modes[0] ?? undefined);
-}
-
-/**
- * A saved/preferred id wins while the surface still advertises it. Otherwise
- * the handoff prefers the provider's bypass posture (a switch is an explicit
- * "carry this task over", not a fresh careful start), and only then falls back
- * to the provider's declared default — the same fallback the draft composer
- * applies via `resolveApprovalPolicyValue` / `resolveSandboxModeValue`.
- */
-function resolveLabeledOptionValue(
-  options: ReadonlyArray<{ id: string }>,
-  preferred: string | undefined,
-  bypass: string | undefined,
-  declaredDefault: string | undefined,
-): string {
-  if (preferred !== undefined && options.some((o) => o.id === preferred)) {
-    return preferred;
-  }
-  if (bypass && options.some((o) => o.id === bypass)) {
-    return bypass;
-  }
-  if (declaredDefault && options.some((o) => o.id === declaredDefault)) {
-    return declaredDefault;
-  }
-  return options[0]?.id ?? "";
-}
-
-/**
- * Resolve a target config against the capability surface the pickers in this
- * dialog actually display — presentation-scoped *and* hidden-model filtered.
- * Resolving against the unfiltered surface let a hidden model stay selected,
- * which the model picker then rendered as a bare id because the model is not
- * in the list it can label from.
- */
-function resolveDefaultConfig(
-  capabilities: AgentCapability,
-  presentationMode: ThreadPresentationMode,
-  preferred?: Partial<ThreadConfig>,
-  projectLocation?: ProjectLocation,
-): ThreadConfig {
-  const model = resolveModelSelection(capabilities, preferred?.model);
-  const effort = resolveReasoningSelection(capabilities, model, preferred?.effort);
-  const contextSize = resolveContextSizeValue(capabilities, model, preferred?.contextSize);
-  const fast = supportsUsableFastMode(capabilities, model) ? preferred?.fast === true : false;
-  const thinking = capabilities.thinkingModels?.includes(model)
-    ? preferred?.thinking === true
-    : false;
-  const mode = resolveModeValue(capabilities, preferred?.mode);
-  const approvalPolicy = resolveLabeledOptionValue(
-    capabilities.approvalPolicies,
-    preferred?.approvalPolicy,
-    capabilities.bypassPermissions?.approvalPolicy,
-    capabilities.defaultApprovalPolicy,
-  );
-  const sandboxMode = resolveLabeledOptionValue(
-    capabilities.sandboxModes,
-    preferred?.sandboxMode,
-    capabilities.bypassPermissions?.sandboxMode,
-    capabilities.defaultSandboxMode,
-  );
-
-  return {
-    model,
-    ...(effort ? { effort } : {}),
-    ...(contextSize ? { contextSize } : {}),
-    ...(fast ? { fast } : {}),
-    ...(thinking ? { thinking } : {}),
-    ...(mode ? { mode } : {}),
-    ...(approvalPolicy ? { approvalPolicy } : {}),
-    ...(preferred?.approvalsReviewer ? { approvalsReviewer: preferred.approvalsReviewer } : {}),
-    ...(sandboxMode ? { sandboxMode } : {}),
-    // The MCP servers the user turned on for this task follow it into the
-    // target provider, minus the ones that provider cannot honor.
-    ...carryOverComposerMcpConfig(capabilities, presentationMode, preferred ?? {}, projectLocation),
-  };
-}
-
-/**
- * The capability surface this dialog's pickers show for one agent: scoped to
- * the presentation mode, then stripped of the models the user hid for that
- * surface. If hiding leaves nothing selectable, the unfiltered surface stands
- * in so the handoff still has a model to launch with.
- */
-function visibleCapabilities(
-  agent: AgentStatus,
-  presentationMode: ThreadPresentationMode,
-  hiddenModelsByKey: Readonly<Record<string, readonly string[] | undefined>>,
-): AgentCapability {
-  const presentationCapabilities = capabilitiesForPresentation(
-    agent.capabilities,
-    presentationMode,
-  );
-  const filtered = filterHiddenModels(
-    presentationCapabilities,
-    hiddenModelsByKey[modelVisibilityKey(agent.kind, presentationMode)],
-  );
-  return filtered.models.length > 0 ? filtered : presentationCapabilities;
-}
 
 export function ContinueInProviderDialog(props: {
   isOpen: boolean;
@@ -287,12 +166,18 @@ export function ContinueInProviderDialog(props: {
   const providerConfigs = useSharedSettings((s) => s.providerConfigs);
   const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
 
-  function savedConfigForAgent(agent: AgentStatus): Partial<ThreadConfig> | undefined {
+  function savedConfigForAgent(
+    agent: AgentStatus,
+    presentationMode: ThreadPresentationMode,
+  ): Partial<ThreadConfig> | undefined {
     return resolveSavedProviderDraftConfig(
       agent.kind,
       props.lastDraftConfig,
       providerConfigs,
       providerModelPreferences,
+      // Surface-aware restoration: a saved family member keeps its own
+      // carriers instead of the unscoped per-model preference overlay.
+      visibleCapabilities(agent, presentationMode, allHiddenModels),
     );
   }
 
@@ -367,7 +252,7 @@ export function ContinueInProviderDialog(props: {
           visibleCapabilities(proposedAgent, proposedPresentationMode, allHiddenModels),
           proposedPresentationMode,
           {
-            ...savedConfigForAgent(proposedAgent),
+            ...savedConfigForAgent(proposedAgent, proposedPresentationMode),
             ...preferredConfigPatch(proposedRanking),
             ...sourceMcpConfig,
           },
@@ -376,36 +261,122 @@ export function ContinueInProviderDialog(props: {
       : { model: "" },
   );
 
-  function handleProviderChange(kind: string, preferred?: Partial<ThreadConfig>) {
-    setSelectedKind(kind);
-    const agent = otherAgents.find((a) => a.kind === kind);
-    if (agent) {
-      const nextPresentationMode = supportsPresentation(agent, targetPresentationMode)
-        ? targetPresentationMode
-        : resolveInitialPresentationMode(
-            agent,
-            lastPresentationModeByAgent,
-            sourcePresentationMode,
-          );
-      if (nextPresentationMode !== targetPresentationMode) {
-        setTargetPresentationMode(nextPresentationMode);
-      }
-      setTargetConfig(
-        resolveDefaultConfig(
-          visibleCapabilities(agent, nextPresentationMode, allHiddenModels),
-          nextPresentationMode,
-          {
-            ...savedConfigForAgent(agent),
-            ...preferred,
-            // Whatever is enabled right now — seeded from the source thread and
-            // possibly since toggled in this dialog — not the saved draft's.
-            ...composerMcpConfig(targetConfig),
-          },
-          props.projectLocation,
-        ),
-      );
-    }
+  // Every deliberate target edit lands through the shared selection mutation
+  // for the target owner: the event alone decides the binding, so a restored
+  // or carried record is never relabeled, and only a family event can mint.
+  function commitTargetSelection(
+    resolved: ThreadConfig,
+    agentKind: string,
+    presentationMode: ThreadPresentationMode,
+    event: SelectionMutationEvent,
+  ) {
+    const { selectionBinding: _resolvedRecord, ...next } = resolved;
+    setTargetConfig(
+      applyThreadConfigMutation({
+        previous: targetConfig,
+        next,
+        owner: { agentKind, presentationMode },
+        event,
+      }),
+    );
   }
+
+  function handleProviderChange(
+    kind: string,
+    preferred?: Partial<ThreadConfig>,
+    selectionIntent?: ProviderModelSelectionIntent,
+  ) {
+    const agent = otherAgents.find((a) => a.kind === kind);
+    if (!agent) {
+      setSelectedKind(kind);
+      return;
+    }
+    const nextPresentationMode = supportsPresentation(agent, targetPresentationMode)
+      ? targetPresentationMode
+      : resolveInitialPresentationMode(agent, lastPresentationModeByAgent, sourcePresentationMode);
+    const capabilities = visibleCapabilities(agent, nextPresentationMode, allHiddenModels);
+    let saved = savedConfigForAgent(agent, nextPresentationMode);
+    let pick = preferred;
+    let relation: ReturnType<typeof modelFamilyForModel>;
+    // A pick onto a target family member resolves atomically on the target
+    // surface from no current member (shared UIDs across profiles must not
+    // retain the source member); only a family row may establish intent.
+    if (preferred?.model !== undefined && modelFamilyForModel(capabilities, preferred.model)) {
+      const { effort: _savedEffort, fast: _savedFast, ...savedBase } = saved ?? {};
+      const patch = resolveModelSelectionEdit(
+        capabilities,
+        { ...savedBase, model: "" },
+        selectionIntent === "family"
+          ? { kind: "family", model: preferred.model }
+          : { kind: "model", model: preferred.model },
+      );
+      if (patch === null) {
+        familyTransitionFailureToast();
+        return;
+      }
+      saved = savedBase;
+      pick = { ...patch, model: patch.model ?? preferred.model };
+      relation =
+        selectionIntent === "family" ? modelFamilyForModel(capabilities, pick.model) : undefined;
+    }
+    setSelectedKind(kind);
+    if (nextPresentationMode !== targetPresentationMode) {
+      setTargetPresentationMode(nextPresentationMode);
+    }
+    commitTargetSelection(
+      resolveDefaultConfig(
+        capabilities,
+        nextPresentationMode,
+        {
+          ...saved,
+          ...pick,
+          // Whatever is enabled right now — seeded from the source thread and
+          // possibly since toggled in this dialog — not the saved draft's.
+          ...composerMcpConfig(targetConfig),
+        },
+        props.projectLocation,
+      ),
+      agent.kind,
+      nextPresentationMode,
+      relation ? { type: "family-member-edit", relation } : { type: "owner-retarget" },
+    );
+  }
+
+  // A same-target pick into or out of a family relation resolves through the
+  // shared edit helper against the current target selection, exactly like the
+  // thread composer; anything else re-resolves the target from its defaults.
+  function handleModelPick(next: {
+    agentKind: string;
+    model: string;
+    selectionIntent?: ProviderModelSelectionIntent;
+  }) {
+    if (next.agentKind === selectedKind && selectedTargetCapabilities) {
+      const capabilities = selectedTargetCapabilities;
+      if (
+        (capabilities.modelFamilies?.length ?? 0) > 0 &&
+        (modelFamilyForModel(capabilities, next.model) ||
+          modelFamilyForModel(capabilities, targetConfig.model))
+      ) {
+        const family = next.selectionIntent === "family";
+        const patch = resolveModelSelectionEdit(
+          capabilities,
+          targetConfig,
+          family ? { kind: "family", model: next.model } : { kind: "model", model: next.model },
+        );
+        if (patch) {
+          handleTargetConfigPatch(
+            patch,
+            family ? { kind: "family-resolved" } : { kind: "raw-pick" },
+          );
+        }
+        return;
+      }
+    }
+    handleProviderChange(next.agentKind, { model: next.model }, next.selectionIntent);
+  }
+
+  const familyTransitionFailureToast = () =>
+    toast.danger(t`Can't use this model selection on that surface`);
 
   function handlePresentationModeChange(next: ThreadPresentationMode) {
     const nextAgent =
@@ -413,32 +384,56 @@ export function ContinueInProviderDialog(props: {
         ? selectedAgent
         : otherAgents.find((agent) => supportsPresentation(agent, next));
     if (!nextAgent) return;
+    const capabilities = visibleCapabilities(nextAgent, next, allHiddenModels);
+    // A family selection must prove its mapping onto the target surface before
+    // the mode commits; an unprovable mapping keeps surface and selection.
+    const transition =
+      nextAgent.kind === selectedKind && selectedTargetCapabilities
+        ? resolveFamilyPresentationTransition(
+            selectedTargetCapabilities,
+            capabilities,
+            targetConfig,
+          )
+        : undefined;
+    if (transition === null) {
+      familyTransitionFailureToast();
+      return;
+    }
 
     setTargetPresentationMode(next);
     setLastPresentationMode(nextAgent.kind, next);
     if (nextAgent.kind !== selectedKind) setSelectedKind(nextAgent.kind);
-    setTargetConfig(
-      resolveDefaultConfig(
-        visibleCapabilities(nextAgent, next, allHiddenModels),
-        next,
-        {
-          ...savedConfigForAgent(nextAgent),
-          ...(nextAgent.kind === selectedKind ? targetConfig : composerMcpConfig(targetConfig)),
-        },
-        props.projectLocation,
-      ),
+    const resolved = resolveDefaultConfig(
+      capabilities,
+      next,
+      {
+        ...savedConfigForAgent(nextAgent, next),
+        ...(nextAgent.kind === selectedKind ? targetConfig : composerMcpConfig(targetConfig)),
+        ...transition,
+      },
+      props.projectLocation,
+    );
+    const relation = transition ? modelFamilyForModel(capabilities, resolved.model) : undefined;
+    commitTargetSelection(
+      resolved,
+      nextAgent.kind,
+      next,
+      relation ? { type: "family-member-edit", relation } : { type: "owner-retarget" },
     );
   }
 
-  function handleTargetConfigPatch(patch: Partial<ThreadConfig>) {
-    if (!selectedAgent) return;
-    setTargetConfig((prev) =>
+  function handleTargetConfigPatch(patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) {
+    if (!selectedAgent || !selectedTargetCapabilities) return;
+    commitTargetSelection(
       resolveDefaultConfig(
-        visibleCapabilities(selectedAgent, targetPresentationMode, allHiddenModels),
+        selectedTargetCapabilities,
         targetPresentationMode,
-        { ...prev, ...patch },
+        { ...targetConfig, ...patch },
         props.projectLocation,
       ),
+      selectedAgent.kind,
+      targetPresentationMode,
+      composerSelectionEvent(patch, origin, selectedTargetCapabilities),
     );
   }
 
@@ -498,8 +493,7 @@ export function ContinueInProviderDialog(props: {
           ...(targetConfig.thinking ? { thinking: targetConfig.thinking } : {}),
           capabilities: selectedTargetCapabilities ?? selectedAgent.capabilities,
           presentationMode: targetPresentationMode,
-          onProviderModelChange: (next) =>
-            handleProviderChange(next.agentKind, { model: next.model }),
+          onProviderModelChange: handleModelPick,
           onConfigPatch: handleTargetConfigPatch,
         }),
         {
@@ -902,8 +896,7 @@ export function ContinueInProviderDialog(props: {
         sessionRef: thread.sessionRef,
         projectLocation: props.projectLocation,
         ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-        ...(extractModel ? { model: extractModel } : {}),
-        ...(effectiveExtractEffort ? { effort: effectiveExtractEffort } : {}),
+        selection: { model: extractModel, effort: effectiveExtractEffort },
       });
       onContinue(
         selectedKind,

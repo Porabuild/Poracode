@@ -15,6 +15,10 @@ import {
 import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 import { forgetRuntimeThreadDurableGap } from "./runtimePersistenceRuntime";
 import {
+  assertSelectionDataReplaceable,
+  assertStoredProjectDraftReplaceable,
+} from "./persistedSelectionData";
+import {
   prepareProjectUpsertStatement,
   prepareThreadUpsertStatement,
   runProjectUpsert,
@@ -240,9 +244,14 @@ export function dbUpsertProject(project: Project, sortOrder: number): void {
 }
 
 export function dbUpdateProject(project: Project): void {
-  getSqlite()
-    .prepare(
-      `UPDATE projects SET
+  const sqlite = getSqlite();
+  sqlite
+    .transaction(() => {
+      assertStoredProjectDraftReplaceable(sqlite, project.id);
+      assertSelectionDataReplaceable(project.lastDraftConfig);
+      sqlite
+        .prepare(
+          `UPDATE projects SET
          name = @name,
          icon = @icon,
          location_kind = @locationKind,
@@ -259,8 +268,10 @@ export function dbUpdateProject(project: Project): void {
          workspace_id = @workspaceId,
          disabled = @disabled
        WHERE id = @id`,
-    )
-    .run({ id: project.id, ...projectMutableRow(project) });
+        )
+        .run({ id: project.id, ...projectMutableRow(project) });
+    })
+    .immediate();
   notifyProjectThreadDataChanged();
 }
 

@@ -6,18 +6,25 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
 import type { ButtonProps } from "@/renderer/components/common/Button";
 import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
+import { ModelFamilyMenu } from "@/renderer/components/common/ProviderModelMenu/ModelFamilyMenu";
+import {
+  modelFamilyMenuSummary,
+  type ModelFamilyMenuSelection,
+} from "@/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.types";
 import { OptionMenu } from "@/renderer/components/common/OptionMenu";
 import { ResponsiveMenuSurface } from "@/renderer/components/common/ResponsiveMenuSurface";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
   ProviderModelMenu,
   type ProviderModelMenuProvider,
+  type ProviderModelSelection,
 } from "@/renderer/components/common/ProviderModelMenu/ProviderModelMenu";
 import { TextArea } from "@/renderer/components/common/TextArea";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
 import { isCompactClientSurface, readBridge } from "@/renderer/bridge";
 import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
+import { modelFamilyMemberDisplay } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
 
 export type OptionMenuOption = string | { id: string; label: string; hint?: string };
 
@@ -89,15 +96,13 @@ export type ComposerControl =
       isDisabled?: boolean;
       hideLabelOnWrap?: boolean;
       openSignal?: number;
-      onChange: (next: {
-        agentKind: string;
-        model: string;
-        presentationMode?: ThreadPresentationMode;
-      }) => void;
+      onChange: (next: ProviderModelSelection) => void;
       tier?: number | undefined;
     }
   | {
       kind: "effort-context";
+      /** Provider-opted-in paired selection; shares the effort shortcut contract. */
+      familySelection?: ModelFamilyMenuSelection;
       efforts: readonly LabeledOption[];
       effortValue?: string;
       onEffortChange?: (value: string) => void;
@@ -190,15 +195,23 @@ function getOptionLabel(option: OptionMenuOption): string {
 function resolveControlProbeLabel(control: ComposerControl, thinkingLabel: string): string {
   if (control.kind === "provider-model") {
     const provider =
+      control.providers.find(
+        (candidate) =>
+          candidate.kind === control.currentAgentKind &&
+          (control.presentationMode === undefined ||
+            candidate.presentationMode === control.presentationMode),
+      ) ??
       control.providers.find((candidate) => candidate.kind === control.currentAgentKind) ??
       control.providers[0];
     return (
+      modelFamilyMemberDisplay(provider?.capabilities, control.currentModel)?.familyLabel ??
       provider?.capabilities.models.find((model) => model.id === control.currentModel)?.label ??
       control.currentModel
     );
   }
 
   if (control.kind === "effort-context") {
+    if (control.familySelection) return modelFamilyMenuSummary(control.familySelection);
     const effortLabel =
       control.efforts.find((option) => option.id === control.effortValue)?.label ??
       control.effortValue ??
@@ -280,13 +293,29 @@ export function ThreadComposer(props: {
     onSubmit,
     onAttachFiles,
     onStop,
-    controls,
+    controls: allControls,
     leadingControls,
     afterControls,
     toolbarLayoutKey,
     toolbarOnly = false,
   } = props;
   const { t } = useLingui();
+  // Use the same physical order for the toolbar and its geometry probes.
+  // Keep the effort carrier intact for open/cycle and Fast shortcuts.
+  const pairedControl = allControls.find(
+    (control) => control.kind === "effort-context" && control.familySelection,
+  );
+  const modelControl = allControls.find((control) => control.kind === "provider-model");
+  const controls =
+    pairedControl && modelControl
+      ? allControls.flatMap((control) =>
+          control === pairedControl
+            ? []
+            : control === modelControl
+              ? [control, pairedControl]
+              : [control],
+        )
+      : allControls;
 
   const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
   const [mobileOverflowOpen, setMobileOverflowOpen] = useState(false);
@@ -314,7 +343,7 @@ export function ThreadComposer(props: {
         return `provider-model:${control.currentAgentKind}:${control.currentModel}:${control.presentationMode ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}:${providersKey}`;
       }
       if (control.kind === "effort-context") {
-        return `effort-context:${control.effortValue ?? ""}:${control.contextValue ?? ""}:${control.thinkingValue ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;
+        return `effort-context:${control.familySelection ? modelFamilyMenuSummary(control.familySelection) : ""}:${control.effortValue ?? ""}:${control.contextValue ?? ""}:${control.thinkingValue ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;
       }
       if (control.kind === "toggle") {
         return `toggle:${control.label}:${control.iconOnly ? "icon" : "label"}:${control.hideLabelOnWrap ? "hide" : "show"}`;
@@ -463,6 +492,7 @@ export function ThreadComposer(props: {
           providers={control.providers}
           currentAgentKind={control.currentAgentKind}
           currentModel={control.currentModel}
+          showFamilySelectionSummary={false}
           {...(control.lockedAgentKind ? { lockedAgentKind: control.lockedAgentKind } : {})}
           {...(control.machineKey ? { machineKey: control.machineKey } : {})}
           {...(control.presentationMode ? { presentationMode: control.presentationMode } : {})}
@@ -484,6 +514,21 @@ export function ThreadComposer(props: {
     }
 
     if (control.kind === "effort-context") {
+      if (control.familySelection) {
+        return (
+          <ModelFamilyMenu
+            key={`effort-context-${index}`}
+            {...control}
+            familySelection={control.familySelection}
+            hideLabelOnWrap={hideOnWrap || shouldHideLabel}
+            forceHideLabel={shouldHideLabel}
+            {...(collapseTier !== undefined ? { collapseTier } : {})}
+            onOpenChange={(open) => {
+              if (!open) returnFocusToInput();
+            }}
+          />
+        );
+      }
       return (
         <EffortContextMenu
           key={`effort-context-${index}`}
@@ -610,12 +655,14 @@ export function ThreadComposer(props: {
       ...(control.iconOnly ? { iconOnly: control.iconOnly } : {}),
       ...(control.placeholder ? { placeholder: control.placeholder } : {}),
       ...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {}),
+      // No explicit tooltip: OptionMenu derives the collapsed tooltip from the
+      // selected option's readable label (the localized placeholder when the
+      // value is unset) — never the raw option id.
       ...(hideOnWrap || shouldHideLabel
         ? {
             hideLabelOnWrap: true,
             forceHideLabel: shouldHideLabel,
             ...(collapseTier !== undefined ? { collapseTier } : {}),
-            tooltip: control.value,
           }
         : {}),
     };

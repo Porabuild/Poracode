@@ -720,6 +720,7 @@ function markThreadLaunchFailed(threadId: string, error: unknown): void {
   // pre-effect failure was already re-armed as a fresh attempt by the launch
   // path, and an uncertain outcome keeps the SAME operation id and exact body
   // for an explicit retry. Only an authoritative removal drops the intent.
+  const thread = store.threads.find((row) => row.id === threadId);
   const message = friendlyError(error);
   store.applyRuntimeEvent(threadId, {
     type: "error",
@@ -730,7 +731,9 @@ function markThreadLaunchFailed(threadId: string, error: unknown): void {
     status: "error",
     attention: "error",
     errorMessage: message,
-    canResumeWithConfig: false,
+    // A host-confirmed reference can arrive before the rejected launch RPC.
+    // Preserve that earned recovery path instead of clearing it locally.
+    canResumeWithConfig: thread?.canResumeWithConfig === true && thread.sessionRef !== undefined,
   });
 }
 

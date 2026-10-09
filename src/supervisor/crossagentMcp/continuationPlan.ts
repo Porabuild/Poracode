@@ -51,6 +51,11 @@ export function prepareContinuation(
     ...(run.plan.resultMode ? { resultMode: run.plan.resultMode } : {}),
     prompt,
     background,
+    dispatchProvenance: {
+      selection: { source: "continuation" },
+      fallbackSource: "none",
+      retryModeSource: "default",
+    },
   });
   const next = plan.attempts[0]!;
   if (!next.supportsResume)

@@ -93,6 +93,7 @@ it("preserves the Fast variant when selecting a legacy favorite shortcut", async
     agentKind: "grok",
     model: "grok-4.7-build-fast",
     presentationMode: "terminal",
+    selectionIntent: "exact",
   });
 });
 

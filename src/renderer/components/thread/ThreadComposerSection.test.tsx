@@ -118,6 +118,7 @@ vi.mock("./ThreadComposer", () => ({
       label?: string;
       currentModel?: string;
       effortValue?: string;
+      efforts?: Array<{ id: string; label: string }>;
     }>;
     fixedContent?: ReactNode;
     attachmentBar?: ReactNode;
@@ -140,13 +141,19 @@ vi.mock("./ThreadComposer", () => ({
       <output data-testid="control-kinds">
         {props.controls?.map((control) => control.kind ?? control.label ?? "").join(",") ?? ""}
       </output>
+      <output data-testid="effort-options">
+        {props.controls
+          ?.find((control) => control.kind === "effort-context")
+          ?.efforts?.map((option) => option.id)
+          .join(",") ?? ""}
+      </output>
       <output data-testid="attach-files-enabled">{props.onAttachFiles ? "yes" : "no"}</output>
       {props.onStop && props.submitDisabled ? (
         <button type="button" aria-label="Stop response" onClick={props.onStop}>
           stop
         </button>
       ) : null}
-      <button type="button" onClick={props.onSubmit}>
+      <button type="button" disabled={props.submitDisabled} onClick={props.onSubmit}>
         send
       </button>
     </div>
@@ -446,6 +453,68 @@ describe("ThreadComposerSection", () => {
     const result = render(composerElement({ ...opts, onSubmitInput }));
     return { ...result, onSubmitInput };
   }
+
+  it.each([
+    { status: "idle" as const, resumable: true },
+    { status: "inactive" as const, resumable: true },
+    { status: "inactive" as const, resumable: false },
+  ])("uses live session options without granting recovery eligibility: %j", (state) => {
+    renderComposer({
+      thread: {
+        ...guiThread,
+        status: state.status,
+        ...(state.resumable ? {} : { sessionRef: undefined, canResumeWithConfig: false }),
+        config: { ...guiThread.config, effort: "high" },
+        sessionConfigOptions: [
+          {
+            id: "model-select",
+            type: "select",
+            role: "model",
+            currentValue: guiThread.config.model,
+            values: [{ value: guiThread.config.model, name: "Example model" }],
+            groups: [],
+          },
+          {
+            id: "reasoning-select",
+            type: "select",
+            role: "effort",
+            currentValue: "high",
+            values: ["low", "medium", "high", "xhigh", "max"].map((value) => ({ value })),
+            groups: [],
+          },
+        ],
+      },
+      agentStatus: {
+        ...codexGuiStatus,
+        capabilities: {
+          ...codexGuiStatus.capabilities,
+          modelEfforts: { [guiThread.config.model]: ["medium", "high", "max"] },
+          presentationCapabilities: {
+            gui: {
+              models: codexGuiStatus.capabilities.models,
+              efforts: ["medium", "high", "max"],
+              modelEfforts: { [guiThread.config.model]: ["medium", "high", "max"] },
+            },
+          },
+        },
+      },
+    });
+    expect(screen.getByTestId("effort-options")).toHaveTextContent("low,medium,high,xhigh,max");
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "contenteditable",
+      state.resumable ? "true" : "false",
+    );
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "aria-placeholder",
+      state.status === "idle"
+        ? `Ask ${codexGuiStatus.label} anything about this workspace`
+        : state.resumable
+          ? "Disconnected — send a message to reconnect"
+          : "This thread cannot be resumed. Start a new thread to continue.",
+    );
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
+    expect(runtimeActions.submitThreadInput).not.toHaveBeenCalled();
+  });
 
   it("omits client-inherent tools from chat controls without altering session bindings", () => {
     const thread = { ...guiThread, config: { ...guiThread.config, chromeMcp: true } };
@@ -2102,6 +2171,8 @@ describe("ThreadComposerSection", () => {
     expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
       { kind: "text", content: "preserve this follow up" },
     ]);
+    // The error toast precedes finally releasing the in-flight submission guard.
+    await waitFor(() => expect(screen.getByText("send")).not.toBeDisabled());
     fireEvent.click(screen.getByText("send"));
     await waitFor(() => expect(onSubmitInput).toHaveBeenCalledTimes(2));
     await waitFor(() =>

@@ -6,6 +6,13 @@ import com.poracode.app.protocol.GeneratedRemoteV3RichChatContract.JsonRoute
 import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.transport.RemoteApiClient
 import com.poracode.app.transport.RemoteMutationClassification
+import com.poracode.remote.v3.generated.RemoteRootCodec
+import com.poracode.remote.v3.generated.RemoteRootCodecs
+import com.poracode.remote.v3.generated.procedureU2EInvokeThreadSessionActionU2ERequest
+import com.poracode.remote.v3.generated.procedureU2EInvokeThreadSessionActionU2EResult
+import com.poracode.remote.v3.generated.procedureU2EListThreadSessionActionsU2ERequest
+import com.poracode.remote.v3.generated.procedureU2EListThreadSessionActionsU2EResult
+import com.poracode.remote.v3.generated.routeU2EProcedureU2DCallU2ERequest
 import java.net.URLEncoder
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
@@ -230,6 +237,12 @@ class GeneratedRichChatRemoteTransport(
         return result as? JsonObject
     }
 
+    override suspend fun listThreadSessionActions(payload: JsonObject): JsonObject =
+        sessionActionProcedure("listThreadSessionActions", payload, mutating = false)
+
+    override suspend fun invokeThreadSessionAction(payload: JsonObject): JsonObject =
+        sessionActionProcedure("invokeThreadSessionAction", payload, mutating = true)
+
     override suspend fun uploadAttachment(
         threadId: String,
         name: String,
@@ -352,6 +365,24 @@ class GeneratedRichChatRemoteTransport(
         } catch (_: RemoteClientException) {
             throw invalidResult(name, mutating)
         }
+    }
+
+    /**
+     * Session actions ride the same procedure route through the generated root
+     * codecs directly (see `GeneratedRichChatSessionActionCodec`). A 2xx
+     * answer means the action ran, so an unusable body is an invalid response
+     * — never a fake result and never a retry.
+     */
+    private suspend fun sessionActionProcedure(
+        name: String,
+        payload: JsonObject,
+        mutating: Boolean,
+    ): JsonObject {
+        val body = prepare { GeneratedRichChatSessionActionCodec.request(name, payload) }
+        val raw = executeOperation(name, mutating) {
+            http.requestText(PROCEDURE_PATH, method = "POST", jsonBody = body)
+        }
+        return GeneratedRichChatSessionActionCodec.response(name, raw)
     }
 
     private suspend fun mutate(operation: String, mutation: PreparedMutation) {

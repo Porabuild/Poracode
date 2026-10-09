@@ -678,12 +678,14 @@ poracode_identity_write "$1"`,
     writeFileSync(join(state, "port"), "49152\n");
     writeFileSync(join(state, "runtime"), `${OLD_HASH}\n`);
 
-    const { result } = await runLaunch(home, launchArgs(NEW_HASH), {
+    const outcome = await runLaunch(home, launchArgs(NEW_HASH), {
       PORACODE_FIXTURE_STATUS_EXIT: "1",
       PORACODE_FIXTURE_STATUS_SCOPE_HASH: OLD_HASH,
+      PORACODE_FIXTURE_PROTOCOL: String(PORACODE_REMOTE_PROTOCOL_VERSION),
     });
 
-    expect(result).toMatchObject({ reusedOwner: false, ownerRuntimeHash: NEW_HASH });
+    expect(outcome.error, `${outcome.stdout}\n${outcome.stderr}`).toBeUndefined();
+    expect(outcome.result).toMatchObject({ reusedOwner: false, ownerRuntimeHash: NEW_HASH });
     expect(unrelated.exitCode).toBeNull();
     expect(existsSync(join(state, "pid"))).toBe(false);
     expect(existsSync(join(state, "port"))).toBe(false);

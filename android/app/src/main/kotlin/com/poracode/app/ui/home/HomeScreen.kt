@@ -45,6 +45,8 @@ import com.poracode.app.ui.richchat.RichChatThreadScreen
 @Composable
 internal fun HomeScreen(
     state: AppSession.UiState,
+    userHiddenModels: kotlinx.serialization.json.JsonObject?,
+    onRefreshModelVisibility: () -> Unit,
     threads: List<HostPresentation.UnifiedThreadItem>,
     onRefresh: () -> Unit,
     onUnpair: () -> Unit,
@@ -88,6 +90,8 @@ internal fun HomeScreen(
         if (tablet) {
             Row(Modifier.fillMaxSize()) {
                 ThreadListPane(
+                    userHiddenModels = userHiddenModels,
+                    onRefreshModelVisibility = onRefreshModelVisibility,
                     state = state,
                     threads = threads,
                     selectedThreadId = selectedPresentedThreadId,
@@ -121,6 +125,7 @@ internal fun HomeScreen(
                 )
                 if (state.openThreadId != null) {
                     RichChatThreadScreen(
+                        userHiddenModels = userHiddenModels,
                         runtime = richChat,
                         threadLifecycleController = threadRuntime.controller,
                         thread = openThread(state),
@@ -150,6 +155,7 @@ internal fun HomeScreen(
         } else {
             if (state.openThreadId != null) {
                 RichChatThreadScreen(
+                    userHiddenModels = userHiddenModels,
                     runtime = richChat,
                     threadLifecycleController = threadRuntime.controller,
                     thread = openThread(state),
@@ -170,6 +176,8 @@ internal fun HomeScreen(
                 )
             } else {
                 ThreadListPane(
+                    userHiddenModels = userHiddenModels,
+                    onRefreshModelVisibility = onRefreshModelVisibility,
                     state = state,
                     threads = threads,
                     selectedThreadId = null,

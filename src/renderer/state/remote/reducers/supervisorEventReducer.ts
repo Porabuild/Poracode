@@ -182,6 +182,8 @@ export interface SupervisorEventReducer {
   ): void;
   /** Drains one thread's queued deltas synchronously, preserving event order. */
   flushSync(threadId: string): void;
+  /** Reacquired live content needs a baseline before queued deltas resume. */
+  recoverRuntimeHistory(threadId: string): void;
   /** Idempotent; returns the teardown for the scheduling listeners. */
   installScheduling(): () => void;
   /** Drops every queued delta, cancels pending flushes, and tears down listeners. */
@@ -443,6 +445,15 @@ export function createSupervisorEventReducer(
     schedulePendingRuntimeEvents();
   };
 
+  const recoverRuntimeHistory = (threadId: string): void => {
+    if (runtimeRecoveryInFlight.has(threadId)) return;
+    queue.block(threadId);
+    runtimeRecoveryInFlight.add(threadId);
+    const resume = createGroupResume([threadId]);
+    const recovery = config.recovery.recoverFromQueueOverflow([threadId], resume);
+    settleRecovery(recovery, [threadId], resume, "overflow");
+  };
+
   const dispatch = (
     event: SupervisorEvent,
     rendererSequence?: number,
@@ -604,6 +615,7 @@ export function createSupervisorEventReducer(
     dispatch,
     enqueueRuntimeBatches,
     flushSync,
+    recoverRuntimeHistory,
     installScheduling,
     clear,
     invalidateInFlightRecoveries,

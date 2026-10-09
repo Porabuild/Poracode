@@ -40,6 +40,7 @@ export const experimentsRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "experiment-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/experiments/{experimentId}/command",
     auth: "bearer",

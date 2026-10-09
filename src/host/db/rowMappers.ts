@@ -1,4 +1,12 @@
+import {
+  parseSavedWorkspaceDirectories,
+  workspaceGrantRevisionSchema,
+} from "@/shared/workspaceDirectorySelection";
 import type { ProjectLocation, Project, Thread } from "@/shared/contracts";
+import {
+  readPersistedProjectDraftConfig,
+  readPersistedThreadConfig,
+} from "./persistedSelectionData";
 
 // ── Row shapes (snake_case, as returned by better-sqlite3) ──────────
 
@@ -29,6 +37,8 @@ export interface ProjectRow {
 export interface ThreadRow {
   id: string;
   project_id: string;
+  additional_directories: string;
+  workspace_grant_revision: number;
   workspace_id: string | null;
   title: string;
   agent_kind: string;
@@ -110,7 +120,9 @@ export function rowToProject(row: ProjectRow): Project {
     name: row.name,
     ...(row.icon ? { icon: row.icon } : {}),
     location: rowToLocation(row),
-    ...(row.last_draft_config ? { lastDraftConfig: JSON.parse(row.last_draft_config) } : {}),
+    ...(row.last_draft_config
+      ? { lastDraftConfig: readPersistedProjectDraftConfig(row.last_draft_config) }
+      : {}),
     ...(row.scripts ? { scripts: JSON.parse(row.scripts) } : {}),
     ...(row.search_settings ? { searchSettings: JSON.parse(row.search_settings) } : {}),
     ...(row.worktree_location ? { worktreeLocation: JSON.parse(row.worktree_location) } : {}),
@@ -126,11 +138,13 @@ export function rowToThread(row: ThreadRow): Thread {
   return {
     id: row.id,
     projectId: row.project_id,
+    additionalDirectories: parseSavedWorkspaceDirectories(row.additional_directories),
+    workspaceGrantRevision: workspaceGrantRevisionSchema.parse(row.workspace_grant_revision),
     ...(row.workspace_id ? { workspaceId: row.workspace_id } : {}),
     title: row.title,
     agentKind: row.agent_kind as Thread["agentKind"],
     ...(row.agent_instance_id ? { agentInstanceId: row.agent_instance_id } : {}),
-    config: JSON.parse(row.config),
+    config: readPersistedThreadConfig(row.config),
     status: row.status as Thread["status"],
     attention: row.attention as Thread["attention"],
     ...(row.thread_status_source
