@@ -116,6 +116,12 @@ export function createAcpStructuredSession(
     ...(input.acpTerminalCapability !== undefined
       ? { terminalCapability: input.acpTerminalCapability }
       : {}),
+    ...(input.acpLocalResourceResolution !== undefined
+      ? { localResourceResolution: input.acpLocalResourceResolution }
+      : {}),
+    ...(input.acpElicitationPresentation
+      ? { projectElicitationPresentation: input.acpElicitationPresentation }
+      : {}),
     ...(overrides?.assumedMcpCapabilities
       ? { assumedMcpCapabilities: overrides.assumedMcpCapabilities }
       : {}),

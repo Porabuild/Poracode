@@ -3143,6 +3143,145 @@ describe("mapAcpPermissionRequest", () => {
 
     expect(event).toMatchObject({ requestType: "apply_patch_approval" });
   });
+
+  function seedToolCall(
+    state: ReturnType<typeof createAcpMapperState>,
+    toolCallId: string,
+    rawInput: unknown,
+    title = "Running command",
+    kind = "execute",
+  ) {
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title,
+        kind,
+        status: "in_progress",
+        rawInput,
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+  }
+
+  function permissionEvent(
+    state: ReturnType<typeof createAcpMapperState>,
+    toolCall: Record<string, unknown>,
+    options: Array<{ optionId: string; name: string; kind: "allow_once" | "reject_once" }> = [
+      { optionId: "allow", name: "Allow once", kind: "allow_once" },
+    ],
+  ) {
+    return mapAcpPermissionRequest(
+      {
+        sessionId: "s1",
+        toolCall,
+        options,
+      } as Parameters<typeof mapAcpPermissionRequest>[0],
+      state,
+      "acp-perm-meta",
+    );
+  }
+
+  it("shows permission text from authoritative same-tool metadata", () => {
+    const state = createAcpMapperState("t-perm-authoritative");
+    seedToolCall(state, "tool-live", {
+      command: "printf Q16_REAL > marker.txt",
+      cwd: "/work",
+    });
+    const event = permissionEvent(state, {
+      toolCallId: "tool-live",
+      title: "Running command",
+      kind: "execute",
+    });
+    expect(event).toMatchObject({
+      requestType: "command_execution_approval",
+      payload: {
+        details: {
+          displayName: "command",
+          input: { command: "printf Q16_REAL > marker.txt", cwd: "/work" },
+        },
+      },
+    });
+  });
+
+  it("keeps an explicit request command ahead of retained metadata", () => {
+    const state = createAcpMapperState("t-perm-explicit");
+    seedToolCall(state, "tool-live", { command: "from-state", cwd: "/state" });
+    const event = permissionEvent(state, {
+      toolCallId: "tool-live",
+      title: "Running command",
+      kind: "execute",
+      rawInput: { command: "from-request" },
+    });
+    expect(event).toMatchObject({
+      payload: { details: { input: { command: "from-request", cwd: "/state" } } },
+    });
+  });
+
+  it("presents a retained file target when the request omits it", () => {
+    const state = createAcpMapperState("t-perm-path");
+    seedToolCall(state, "tool-read", { file_path: "/outside/shot.png" }, "Read", "read");
+    const event = permissionEvent(state, {
+      toolCallId: "tool-read",
+      title: "Read",
+      kind: "read",
+    });
+    expect(event).toMatchObject({
+      requestType: "tool_call_approval",
+      payload: { details: { input: { file_path: "/outside/shot.png" } } },
+    });
+  });
+
+  it("shows permission text only from authoritative same-tool metadata, not a prompt, option label, title, or another tool", () => {
+    const state = createAcpMapperState("t-perm-guess");
+    seedToolCall(state, "tool-other", { command: "FOREIGN_COMMAND_SHOULD_NOT_APPEAR" });
+    seedToolCall(state, "tool-placeholder", {});
+    expect(state.toolCallItems.get("tool-placeholder")?.payload.command).toBe("Running command");
+
+    const guessed = permissionEvent(
+      state,
+      {
+        toolCallId: "tool-placeholder",
+        title: "Running command",
+        kind: "execute",
+        content: [
+          {
+            type: "content",
+            content: {
+              type: "text",
+              text: "The user asked to run printf PRINTF_GUESS_SHOULD_NOT_APPEAR",
+            },
+          },
+        ],
+      },
+      [
+        {
+          optionId: "allow",
+          name: "Allow printf PRINTF_GUESS_SHOULD_NOT_APPEAR",
+          kind: "allow_once",
+        },
+      ],
+    );
+    const payload = (guessed as { payload?: { summary?: unknown; details?: unknown } }).payload;
+    expect(JSON.stringify(payload?.summary ?? "")).not.toContain("PRINTF_GUESS_SHOULD_NOT_APPEAR");
+    expect(JSON.stringify(payload?.summary ?? "")).not.toContain(
+      "FOREIGN_COMMAND_SHOULD_NOT_APPEAR",
+    );
+    expect(JSON.stringify(payload?.details ?? {})).not.toContain("PRINTF_GUESS_SHOULD_NOT_APPEAR");
+    expect(JSON.stringify(payload?.details ?? {})).not.toContain(
+      "FOREIGN_COMMAND_SHOULD_NOT_APPEAR",
+    );
+    expect(JSON.stringify(payload?.details ?? {})).not.toContain("Running command");
+
+    const foreign = permissionEvent(state, {
+      toolCallId: "tool-missing",
+      title: "tool",
+      kind: "other",
+    });
+    expect(JSON.stringify(foreign)).not.toContain("FOREIGN_COMMAND_SHOULD_NOT_APPEAR");
+    expect(JSON.stringify(foreign)).not.toContain("PRINTF_GUESS_SHOULD_NOT_APPEAR");
+  });
+
   it("drops background task wait text chunks without opening an assistant message", () => {
     const state = createAcpMapperState("t-wait-task");
 

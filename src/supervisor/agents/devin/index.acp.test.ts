@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ThreadConfig, ProjectLocation } from "@/shared/contracts";
 import type { CreateStructuredSessionInput } from "../base/types";
+import { projectQualifiedAllowOtherPresentation } from "./acp/allowOtherPresentation";
 
 const mocks = vi.hoisted(() => ({
   createAcpStructuredSession: vi.fn<(...args: unknown[]) => unknown>(() => ({
@@ -181,9 +182,15 @@ describe("Devin structured-session wiring", () => {
       ...guiInput({ model: "" }),
       additionalDirectories,
     });
-    expect(mocks.createAcpStructuredSession.mock.calls.at(-1)?.[1]).toMatchObject({
+    const input = mocks.createAcpStructuredSession.mock.calls.at(-1)?.[1] as Record<
+      string,
+      unknown
+    >;
+    expect(input).toMatchObject({
       additionalDirectories,
+      acpElicitationPresentation: projectQualifiedAllowOtherPresentation,
     });
+    expect(input).not.toHaveProperty("acpLocalResourceResolution");
   });
 
   it("passes cloud setup only through the shared factory options and rejects CLI ignore", async () => {
@@ -701,6 +708,10 @@ describe("Devin structured-session wiring", () => {
     // terminal operations are refused at the method level, not advertised.
     expect((input as Record<string, unknown>).acpFsTextCapability).toBe(false);
     expect((input as Record<string, unknown>).acpTerminalCapability).toBe(false);
+    expect((input as Record<string, unknown>).acpLocalResourceResolution).toBe(false);
+    expect((input as Record<string, unknown>).acpElicitationPresentation).toBe(
+      projectQualifiedAllowOtherPresentation,
+    );
     // No local filter relays or config paths reach the server: stdio entries
     // (including Poracode's tool-filter proxies) are dropped, remote http/sse
     // negotiates through standard session/new, and FILTERED servers are
