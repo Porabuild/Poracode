@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trans } from "@lingui/react/macro";
 import { fetchHostUsage } from "./hostUsage";
 import { useHostUsage, useHostUsageStore } from "@/renderer/state/hostUsageStore";
@@ -14,6 +14,7 @@ export function useHostUsageView(connectionId: string, refreshVersion = 0, liveO
   const agents = useRemoteServersStore((state) => state.runtime[connectionId]?.agentStatuses);
   const usage = useHostUsage(connectionId);
   const [now, setNow] = useState(() => Date.now());
+  const initialReadAfter = useRef(0);
   const canRead = server?.scopes.includes("session:read") === true;
   const canRefresh = canRead && server?.scopes.includes("session:operate") === true;
   const online = status === "online";
@@ -25,6 +26,9 @@ export function useHostUsageView(connectionId: string, refreshVersion = 0, liveO
 
   useEffect(() => {
     if (!server || !canRead || !online) return;
+    // A prior mount's successful read does not satisfy this mount/reconnect.
+    initialReadAfter.current =
+      useHostUsageStore.getState().hosts[connectionId]?.lastReadRequest ?? 0;
     const read = () => {
       if (!useHostUsageStore.getState().hosts[connectionId]?.pending)
         void fetchHostUsage(connectionId);
@@ -41,11 +45,18 @@ export function useHostUsageView(connectionId: string, refreshVersion = 0, liveO
     // A compact/live-open refresh can occupy the initial read slot. If the
     // host cannot collect remotely, load its cache once after that refusal.
     // Query current ownership state so two mounted views cannot duplicate it.
-    if (!usage.updateRequired || usage.pending || usage.readSucceeded) return;
+    if (!usage.updateRequired || usage.pending || usage.lastReadRequest > initialReadAfter.current)
+      return;
     const entry = useHostUsageStore.getState().hosts[connectionId];
-    if (canRead && online && entry?.updateRequired && !entry.pending && !entry.readSucceeded)
+    if (
+      canRead &&
+      online &&
+      entry?.updateRequired &&
+      !entry.pending &&
+      entry.lastReadRequest <= initialReadAfter.current
+    )
       void fetchHostUsage(connectionId);
-  }, [connectionId, canRead, online, usage.updateRequired, usage.pending, usage.readSucceeded]);
+  }, [connectionId, canRead, online, usage.updateRequired, usage.pending, usage.lastReadRequest]);
   useEffect(() => () => useHostUsageStore.getState().invalidate(connectionId), [connectionId]);
 
   const lastFetched = usage.snapshots.length

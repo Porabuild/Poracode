@@ -70,7 +70,12 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-function fixture(status = 403, code = "git_procedure_not_allowed", legacyFails = false) {
+function fixture(
+  status = 403,
+  code = "git_procedure_not_allowed",
+  legacyFails = false,
+  account = () => "legacy-fixture-account",
+) {
   const requests: string[] = [];
   const client = new RemoteDesktopClient("https://host.test", "fixture", async (url, init) => {
     const path = new URL(String(url)).pathname;
@@ -91,7 +96,7 @@ function fixture(status = 403, code = "git_procedure_not_allowed", legacyFails =
               snapshots: [
                 {
                   providerId: "fixture-provider",
-                  authenticatedAs: "legacy-fixture-account",
+                  authenticatedAs: account(),
                   status: "ok",
                   windows: [],
                   fetchedAt: Date.now(),
@@ -119,7 +124,7 @@ describe("host usage lifecycle with the real owning-host client", () => {
       expect(screen.getByText(/Update this host to refresh usage remotely/)).toBeTruthy();
       expect(requests).toEqual(["refreshProviderUsage", "getProviderUsage", "/api/provider-usage"]);
       expect(useHostUsageStore.getState().hosts.connection).toMatchObject({
-        readSucceeded: true,
+        lastReadRequest: useHostUsageStore.getState().hosts.connection?.request,
         updateRequired: true,
         pending: false,
       });
@@ -130,6 +135,95 @@ describe("host usage lifecycle with the real owning-host client", () => {
       expect(requests).toHaveLength(3);
     },
   );
+
+  it.each([{ liveOnOpen: true }, { refreshVersion: 3 }])(
+    "reads changed legacy cache once on a new mount after an earlier successful read (%j)",
+    async (trigger) => {
+      let account = "cached-account-A";
+      const requests = fixture(403, "git_procedure_not_allowed", false, () => account);
+      const first = render(<View />);
+      await screen.findByText("cached-account-A");
+      expect(requests).toEqual(["getProviderUsage", "/api/provider-usage"]);
+      first.unmount();
+      expect(useHostUsageStore.getState().hosts.connection?.lastReadRequest).toBeGreaterThan(0);
+      account = "cached-account-B";
+      const second = render(<View {...trigger} />);
+      await screen.findByText("cached-account-B");
+      expect(screen.queryByText("cached-account-A")).toBeNull();
+      expect(screen.getByText(/Update this host to refresh usage remotely/)).toBeTruthy();
+      expect(requests).toEqual([
+        "getProviderUsage",
+        "/api/provider-usage",
+        "refreshProviderUsage",
+        "getProviderUsage",
+        "/api/provider-usage",
+      ]);
+      second.rerender(<View {...trigger} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(requests).toHaveLength(5);
+    },
+  );
+
+  it("reads changed legacy cache after reconnect despite an earlier successful read", async () => {
+    let account = "cached-account-A";
+    const requests = fixture(403, "git_procedure_not_allowed", false, () => account);
+    const { rerender } = render(<View />);
+    await screen.findByText("cached-account-A");
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { connection: { status: "offline", projects: [], threads: [] } },
+      });
+    });
+    account = "cached-account-B";
+    rerender(<View liveOnOpen />);
+    await screen.findByText(/Host offline/);
+    await waitFor(() =>
+      expect(useHostUsageStore.getState().hosts.connection?.updateRequired).toBe(true),
+    );
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { connection: { status: "online", projects: [], threads: [] } },
+      });
+    });
+    await screen.findByText("cached-account-B");
+    expect(requests).toEqual([
+      "getProviderUsage",
+      "/api/provider-usage",
+      "refreshProviderUsage",
+      "getProviderUsage",
+      "/api/provider-usage",
+    ]);
+    expect(screen.getByText(/Update this host to refresh usage remotely/)).toBeTruthy();
+    rerender(<View liveOnOpen />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(requests).toHaveLength(5);
+  });
+
+  it("shares one initial cache read between mounted views after unsupported refresh", async () => {
+    const requests = fixture();
+    const { rerender } = render(
+      <>
+        <View liveOnOpen />
+        <View />
+      </>,
+    );
+    await waitFor(() => expect(screen.getAllByText("legacy-fixture-account")).toHaveLength(2));
+    expect(requests).toEqual(["refreshProviderUsage", "getProviderUsage", "/api/provider-usage"]);
+    rerender(
+      <>
+        <View liveOnOpen />
+        <View />
+      </>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(requests).toHaveLength(3);
+  });
 
   it.each([
     [403, "scope_denied"],
@@ -154,6 +248,6 @@ describe("host usage lifecycle with the real owning-host client", () => {
       await Promise.resolve();
     });
     expect(requests).toEqual(["refreshProviderUsage", "getProviderUsage", "/api/provider-usage"]);
-    expect(useHostUsageStore.getState().hosts.connection?.readSucceeded).toBe(false);
+    expect(useHostUsageStore.getState().hosts.connection?.lastReadRequest).toBe(0);
   });
 });
