@@ -6,6 +6,7 @@ import { useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { HostUsageStatus, useHostUsageView } from "@/renderer/components/providers/HostUsageView";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { HostUsageSettings } from "./HostUsageSettings";
 
 vi.mock("@/renderer/state/remoteServersStore", async () => {
@@ -16,6 +17,18 @@ vi.mock("@/renderer/components/providers/hostUsage", () => ({
   fetchHostUsage: vi.fn<typeof fetchHostUsage>(),
 }));
 vi.mock("@/renderer/components/common", () => ({
+  ToggleSwitch: (props: {
+    "aria-label": string;
+    isSelected: boolean;
+    onChange: (value: boolean) => void;
+  }) => (
+    <input
+      type="checkbox"
+      aria-label={props["aria-label"]}
+      checked={props.isSelected}
+      onChange={(event) => props.onChange(event.target.checked)}
+    />
+  ),
   Button: (props: {
     children: ReactNode;
     isDisabled?: boolean;
@@ -35,17 +48,11 @@ vi.mock("@/renderer/components/common", () => ({
 vi.mock("@/renderer/components/providers/ProviderUsageCircle", () => ({
   ProviderUsageCircle: () => <span />,
 }));
-const display = vi.hoisted(() => ({ providers: [] as readonly { id: string; label: string }[] }));
-vi.mock("./UsageDisplaySettings", () => ({
-  UsageDisplaySettings: (props: { providers: readonly { id: string; label: string }[] }) => {
-    display.providers = props.providers;
-    return null;
-  },
-}));
 vi.mock("@dnd-kit/react/sortable", () => ({
   useSortable: () => ({ ref: () => {}, handleRef: () => {}, isDragging: false }),
 }));
 vi.mock("./SettingsForm", () => ({
+  SettingRow: (props: { children: ReactNode }) => <div>{props.children}</div>,
   SettingsPage: (props: { children: ReactNode; actions: ReactNode }) => (
     <div>
       {props.actions}
@@ -61,6 +68,22 @@ function Controller(props: { liveOnOpen?: boolean; refreshVersion?: number }) {
 
 describe("remote usage settings", () => {
   beforeEach(() => {
+    useSharedSettings.setState((state) => ({
+      agentInstances: {
+        owner: {
+          id: "owner",
+          driver: "claude",
+          displayName: "Owner",
+          config: { configDir: "/tmp/owner-profile-fixture" },
+        },
+      },
+      usage: {
+        ...state.usage,
+        sidebarHiddenProviders: [],
+        showEstimatedCost: false,
+        collapsedProviders: [],
+      },
+    }));
     useRemoteServersStore.setState({
       servers: [
         {
@@ -230,8 +253,43 @@ describe("remote usage settings", () => {
   });
   it("keeps sidebar visibility choices available before any usage has been collected", () => {
     render(<HostUsageSettings connectionId="connection" selector={null} />);
-    expect(display.providers.length).toBeGreaterThan(0);
-    expect(display.providers.every((provider) => provider.label.length > 0)).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Hide Claude Owner circle in sidebar" }),
+    ).toBeTruthy();
     expect(screen.getByText("Loading usage…")).toBeTruthy();
+  });
+  it("writes the current settings owner's custom-profile visibility with an empty cache and read-less grant", () => {
+    const server = useRemoteServersStore.getState().servers[0]!;
+    useRemoteServersStore.setState({ servers: [{ ...server, scopes: [] }] });
+    render(<HostUsageSettings connectionId="connection" selector={null} />);
+    fireEvent.click(screen.getByRole("button", { name: "Hide Claude Owner circle in sidebar" }));
+    expect(useSharedSettings.getState().usage.sidebarHiddenProviders).toEqual(["claude:owner"]);
+    expect(fetchHostUsage).not.toHaveBeenCalled();
+  });
+
+  it("shows valid billed cost-only snapshots in settings and guards estimated cost by display preference", () => {
+    const store = useHostUsageStore.getState();
+    store.complete("connection", store.begin("connection"), [
+      {
+        providerId: "billed",
+        status: "ok",
+        windows: [],
+        fetchedAt: Date.now(),
+        cost: { amount: 8.76, currency: "USD", period: "cycle", estimated: false },
+      },
+      {
+        providerId: "estimate",
+        status: "ok",
+        windows: [],
+        fetchedAt: Date.now(),
+        cost: { amount: 4.32, currency: "USD", period: "30d", estimated: true },
+      },
+    ]);
+    render(<HostUsageSettings connectionId="connection" selector={null} />);
+    expect(screen.getByText(/8.76/)).toBeTruthy();
+    expect(screen.queryByText(/4.32/)).toBeNull();
+    act(() => useSharedSettings.getState().setUsageSetting("showEstimatedCost", true));
+    expect(screen.getByText(/4.32/)).toBeTruthy();
+    expect(screen.queryByText("No windows reported")).toBeNull();
   });
 });

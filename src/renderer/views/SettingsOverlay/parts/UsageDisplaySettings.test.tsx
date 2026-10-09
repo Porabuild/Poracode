@@ -32,6 +32,14 @@ vi.mock("@/renderer/components/providers/useUsageProviderLogin", () => ({
 afterEach(cleanup);
 beforeEach(() =>
   useSharedSettings.setState((state) => ({
+    agentInstances: {
+      owner: {
+        id: "owner",
+        driver: "claude",
+        displayName: "Owner",
+        config: { configDir: "/tmp/owner-profile-fixture" },
+      },
+    },
     usage: {
       ...state.usage,
       showInSidebar: true,
@@ -47,16 +55,16 @@ beforeEach(() =>
 describe("usage display preferences", () => {
   it("restores searchable toggles and provider sidebar visibility without credential/collection controls", () => {
     const policy = useSharedSettings.getState().usage;
-    render(<UsageDisplaySettings providers={[{ id: "fixture", label: "Fixture" }]} />);
+    render(<UsageDisplaySettings showProviderVisibility />);
     expect(document.querySelector('[data-settings-anchor="usage.showInSidebar"]')).toBeTruthy();
     expect(document.querySelector('[data-settings-anchor="usage.showEstimatedCost"]')).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: "Show circles in sidebar" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Show estimated cost" }));
-    fireEvent.click(screen.getByRole("button", { name: "Hide Fixture circle in sidebar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hide Claude Owner circle in sidebar" }));
     expect(useSharedSettings.getState().usage).toMatchObject({
       showInSidebar: false,
       showEstimatedCost: true,
-      sidebarHiddenProviders: ["fixture"],
+      sidebarHiddenProviders: ["claude:owner"],
       autoRefresh: policy.autoRefresh,
       providerRefreshIntervals: policy.providerRefreshIntervals,
       disabledProviders: policy.disabledProviders,

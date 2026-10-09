@@ -6,6 +6,7 @@ export interface HostUsageState {
   pending: boolean;
   failed: boolean;
   initialized: boolean;
+  readSucceeded: boolean;
   refreshing: boolean;
   updateRequired: boolean;
 }
@@ -19,6 +20,7 @@ const EMPTY_HOST_USAGE: HostUsageEntry = {
   failed: false,
   request: 0,
   initialized: false,
+  readSucceeded: false,
   refreshing: false,
   updateRequired: false,
 };
@@ -78,6 +80,7 @@ export const useHostUsageStore = create<{
             pending: false,
             refreshing: false,
             initialized: true,
+            readSucceeded: existing.readSucceeded || !existing.refreshing,
             failed: false,
             updateRequired: existing.refreshing ? false : existing.updateRequired,
             request,

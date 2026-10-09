@@ -10896,8 +10896,13 @@ msgstr "터미널에 다시 연결하는 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계획에 대한 실제 청구서를 반영하지 않습니다. 사용량 패널에만 표시됩니다."
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "로컬 로그를 공개 API 요금으로 환산한 값이며, 구독 요금제의 실제 청구 금액을 반영하지 않습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계획에 대한 실제 청구서를 반영하지 않습니다. 사용량 패널에만 표시됩니다."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"

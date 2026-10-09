@@ -10896,8 +10896,13 @@ msgstr "Повторное подключение к терминалу…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "Реконструировано из локальных логов по публичным тарифам API — не отражает ваш реальный счёт по подписочным планам. Показывается только на панели использования."
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "Восстановлено из локальных журналов по публичным тарифам API — это не отражает ваш фактический счёт по подписке."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "Реконструировано из локальных логов по публичным тарифам API — не отражает ваш реальный счёт по подписочным планам. Показывается только на панели использования."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"

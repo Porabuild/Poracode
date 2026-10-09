@@ -71,9 +71,10 @@ describe("pushDesktopSettingsDiff push ordering", () => {
       usage: next.usage,
     });
     expect(owner.updateSettings).toHaveBeenCalledExactlyOnceWith({ usage: next.usage });
-    expect(next.usage.autoRefresh).toBe(false);
-    expect(next.usage.disabledProviders).toEqual(["fixture"]);
-    expect(next.usage.providerRefreshIntervals).toEqual({ fixture: 10 });
+    const actualUsage = owner.updateSettings.mock.calls[0]![0].usage;
+    expect(actualUsage?.autoRefresh).toBe(false);
+    expect(actualUsage?.disabledProviders).toEqual(["fixture"]);
+    expect(actualUsage?.providerRefreshIntervals).toEqual({ fixture: 10 });
     await flush();
   });
 

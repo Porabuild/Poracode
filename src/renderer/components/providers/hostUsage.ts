@@ -72,7 +72,7 @@ useRemoteServersStore.subscribe((state, previous) => {
 function isUnsupportedUsageProcedure(error: unknown): boolean {
   return (
     error instanceof RemoteClientError &&
-    (error.status === 403 || error.status === 404) &&
-    error.code === "git_procedure_not_allowed"
+    ((error.status === 403 && error.code === "git_procedure_not_allowed") ||
+      (error.status === 404 && error.code === "not_found"))
   );
 }

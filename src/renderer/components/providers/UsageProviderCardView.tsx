@@ -74,7 +74,6 @@ export function UsageProviderCardView(props: {
   credentialBody?: ReactNode;
   credentialEmptyBody?: ReactNode;
   showAccount?: boolean;
-  showCostDetails?: boolean;
   id: string;
   label: string;
   index: number;
@@ -97,11 +96,7 @@ export function UsageProviderCardView(props: {
   });
 
   const showEstimatedCost = useSharedSettings((s) => s.usage.showEstimatedCost);
-  const showCost = Boolean(
-    snapshot?.cost &&
-    props.showCostDetails !== false &&
-    (!snapshot.cost.estimated || showEstimatedCost),
-  );
+  const showCost = Boolean(snapshot?.cost && (!snapshot.cost.estimated || showEstimatedCost));
   const credits = hasDisplayableCredits(snapshot?.credits, snapshot?.windows ?? [])
     ? snapshot?.credits
     : undefined;

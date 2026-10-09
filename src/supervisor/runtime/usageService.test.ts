@@ -425,7 +425,7 @@ describe("UsageService", () => {
     expect((await service.refreshDueProviders()).sort()).toEqual(["claude", "codex"]);
   });
 
-  it("auto-refresh honors explicit provider overrides while the default cadence is off", async () => {
+  it("auto-refresh respects the global off switch even with per-provider intervals", async () => {
     const settingsPath = tempCachePath();
     writeFileSync(
       settingsPath,
@@ -441,12 +441,17 @@ describe("UsageService", () => {
       host: makeHost({ claude: { accessToken: "tok" } }),
       providerIds: ["claude", "codex"],
     });
-    expect(await service.refreshDueProviders()).toEqual(["claude"]);
+    expect(await service.refreshDueProviders()).toEqual([]);
+    await service.getProviderUsage({});
+    expect(await service.refreshDueProviders()).toEqual([]);
   });
 
   it("manual-only stale reads never collect, while an explicit force refresh remains authorized", async () => {
     const settingsPath = tempCachePath();
-    writeFileSync(settingsPath, JSON.stringify({ usage: { autoRefresh: false } }));
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ usage: { autoRefresh: false, providerRefreshIntervals: { fixture: 2 } } }),
+    );
     const collect = vi.fn<LocalUsageCollector["collect"]>(
       async (now: number): Promise<UsageSnapshot> => ({
         providerId: "fixture",
@@ -488,9 +493,9 @@ describe("UsageService", () => {
       settingsPath,
       JSON.stringify({
         usage: {
-          autoRefresh: false,
+          autoRefresh: true,
           providerRefreshIntervals: { fast: 2, slow: 10, disabled: 2 },
-          disabledProviders: ["disabled"],
+          disabledProviders: ["disabled", "manual"],
         },
       }),
     );

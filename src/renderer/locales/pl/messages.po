@@ -10896,8 +10896,13 @@ msgstr "Ponowne łączenie z terminalem…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "Zrekonstruowane z lokalnych dzienników po stawkach publicznego API — nie odzwierciedla rzeczywistego rachunku za plany subskrypcyjne. Wyświetlane tylko w panelu użytkowania."
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "Odtworzone z lokalnych dzienników według publicznych stawek API — nie odzwierciedla rzeczywistego rachunku w planach subskrypcyjnych."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "Zrekonstruowane z lokalnych dzienników po stawkach publicznego API — nie odzwierciedla rzeczywistego rachunku za plany subskrypcyjne. Wyświetlane tylko w panelu użytkowania."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"

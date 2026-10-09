@@ -199,7 +199,7 @@ const audioSettingsSchema = z.object({
 });
 
 const usageSettingsSchema = z.object({
-  /** Enable the default background cadence; explicit per-provider overrides remain active. */
+  /** Auto-refresh provider usage on a background timer. */
   autoRefresh: z.boolean().default(true),
   /**
    * Default minutes between auto-refreshes, used for any provider without its
@@ -209,15 +209,14 @@ const usageSettingsSchema = z.object({
   refreshIntervalMinutes: z.number().int().min(2).max(120).default(5),
   /**
    * Per-provider auto-refresh cadence override (minutes), keyed by provider id.
-   * A provider absent from this map uses the default cadence when `autoRefresh` is on,
-   * and is manual-only when it is off. Explicit overrides keep their own clock.
+   * A provider absent from this map uses the global `refreshIntervalMinutes`.
    * Values are floored at 2 (provider 429 limits) and capped at 120; the UI
    * removes a provider's entry to fall back to the default rather than storing 0.
    */
   providerRefreshIntervals: z.record(z.string(), z.number().int().min(2).max(120)).default({}),
   /**
    * Show estimated $ cost (reconstructed from local logs at public API rates).
-   * Opt-in and panel-only — it is meaningless for subscription/OAuth users.
+   * Opt-in — it is meaningless for subscription/OAuth users.
    */
   showEstimatedCost: z.boolean().default(false),
   /** Show the per-provider usage circles in the sidebar (master toggle). */

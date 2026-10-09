@@ -37,6 +37,15 @@ export function useHostUsageView(connectionId: string, refreshVersion = 0, liveO
     }, 30_000);
     return () => clearInterval(timer);
   }, [connectionId, server, canRead, online]);
+  useEffect(() => {
+    // A compact/live-open refresh can occupy the initial read slot. If the
+    // host cannot collect remotely, load its cache once after that refusal.
+    // Query current ownership state so two mounted views cannot duplicate it.
+    if (!usage.updateRequired || usage.pending || usage.readSucceeded) return;
+    const entry = useHostUsageStore.getState().hosts[connectionId];
+    if (canRead && online && entry?.updateRequired && !entry.pending && !entry.readSucceeded)
+      void fetchHostUsage(connectionId);
+  }, [connectionId, canRead, online, usage.updateRequired, usage.pending, usage.readSucceeded]);
   useEffect(() => () => useHostUsageStore.getState().invalidate(connectionId), [connectionId]);
 
   const lastFetched = usage.snapshots.length

@@ -10896,8 +10896,13 @@ msgstr "Đang kết nối lại với terminal…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API công khai - nó không phản ánh hóa đơn thực của bạn đối với các gói đăng ký. Chỉ hiển thị trong bảng sử dụng."
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "Được tính lại từ nhật ký cục bộ theo mức giá API công khai — không phản ánh hóa đơn thực tế của bạn với các gói đăng ký."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API công khai - nó không phản ánh hóa đơn thực của bạn đối với các gói đăng ký. Chỉ hiển thị trong bảng sử dụng."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"

@@ -10896,8 +10896,13 @@ msgstr "Повторне підключення до термінала…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "Відтворено з локальних журналів за публічними тарифами API — це не відображає ваш реальний рахунок за тарифними планами підписки. Показується лише на панелі використання."
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "Відновлено з локальних журналів за публічними тарифами API — це не відображає ваш фактичний рахунок за підпискою."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "Відтворено з локальних журналів за публічними тарифами API — це не відображає ваш реальний рахунок за тарифними планами підписки. Показується лише на панелі використання."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"

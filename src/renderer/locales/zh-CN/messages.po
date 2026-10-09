@@ -10895,8 +10895,13 @@ msgstr "正在重新连接终端…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计划的真实账单。仅在使用面板中显示。"
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "根据本地日志按公开 API 费率重建，不代表订阅套餐中的实际账单。"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计划的真实账单。仅在使用面板中显示。"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"

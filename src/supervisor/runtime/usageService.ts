@@ -380,7 +380,7 @@ export class UsageService {
    */
   private effectiveIntervalMs(settings: UsageSettings, providerId: string): number | undefined {
     const override = settings.providerRefreshIntervals[providerId];
-    if (override === undefined && !settings.autoRefresh) return undefined;
+    if (!settings.autoRefresh) return undefined;
     const minutes = override ?? settings.refreshIntervalMinutes;
     return Math.max(MIN_REFRESH_INTERVAL_MS, minutes * 60_000);
   }

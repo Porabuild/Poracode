@@ -4,12 +4,14 @@ Host-scoped provider usage adds `getProviderUsage` (`session:read`) and
 `refreshProviderUsage` (`session:operate`) to the existing authenticated generic
 procedure route. Existing IPC names, provider filters/force, snapshot schemas,
 and the legacy GET usage endpoint retain their meanings. Unknown procedures on
-older hosts are refused. For an empty read only, the exact 403/404
-`git_procedure_not_allowed` response retries the existing GET usage endpoint
-through the same pinned owning-host client, including child environments. Scope,
+older hosts are refused. For an empty read only, the exact 403
+`git_procedure_not_allowed` or 404 `not_found` response retries the existing GET
+usage endpoint through the same pinned owning-host client, including child
+environments. Scope,
 authentication, network and schema failures never trigger fallback. A refused
-refresh never becomes a cache read or device fallback; the UI asks to update
-the host. Remote protocol 12, IPC map 16, binding format 2, generator 3, native
+refresh never falls back to a legacy read or device route; the UI asks to update
+the host. If a live-open refresh occupied the initial read slot, the view issues
+one separate cache read after the refusal. Remote protocol 12, IPC map 16, binding format 2, generator 3, native
 bindings format, and host usage cache 8 remain valid. Generated manifest hashes,
 inventory counts, codecs, native metadata, parity entries and the native E2E
 operation map are regenerated/audited together. Native UI adoption is explicitly
@@ -25,16 +27,16 @@ without device-store writes or remote credential controls. Display preferences
 retain their existing settings owner: local on managed desktop, synchronized to
 the bridge owner on browser/attached clients; selecting a usage host does not
 retarget settings writes. The host's cache read and timer now share effective
-provider cadences: the disabled default is manual-only unless a provider has an
-explicit positive override, and tracking opt-outs/backoff still apply. Explicit
-refresh remains available regardless of automatic cadence. Existing usage cache
-8 snapshots retain the same values/meaning; only collection scheduling changes.
+provider cadences: global auto-refresh OFF stops all background collection,
+including saved overrides. When ON, each provider retains its own cadence, and
+tracking opt-outs/backoff still apply. Explicit refresh remains available regardless of automatic cadence. Existing usage cache
+8 snapshots retain the same values/meaning; cache reads now honor the existing
+collection policy.
 Settings schemas, IPC/wire/result shapes and generated bindings are unchanged,
 so no compatibility version or migration is required. Older hosts keep their
 previous read-side collection policy until updated; the renderer clock only
 updates labels, with reads on mount/reconnect and explicit refresh results
-applied to the scoped cache. Renderer request/loading
-state is volatile; content-hashed assets identify the updated UI.
+applied to the scoped cache. Renderer request/loading state is volatile; content-hashed assets identify the updated UI.
 
 Codex resume requests use the existing optional `excludeTurns` protocol field
 and a resume-only two-minute timeout. Saved transcripts and provider session IDs

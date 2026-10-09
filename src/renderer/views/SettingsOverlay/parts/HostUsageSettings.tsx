@@ -23,7 +23,6 @@ export function HostUsageSettings(props: { connectionId: string; selector: React
     for (const snapshot of view.usage.snapshots)
       if (!labels.has(snapshot.providerId)) labels.set(snapshot.providerId, snapshot.providerId);
   }
-  const providers = [...labels].map(([id, label]) => ({ id, label }));
   return (
     <SettingsPage
       title={t`Provider Usage`}
@@ -42,7 +41,7 @@ export function HostUsageSettings(props: { connectionId: string; selector: React
       }
     >
       {selector}
-      <UsageDisplaySettings providers={providers} />
+      <UsageDisplaySettings showProviderVisibility />
       <HostUsageStatus view={view} />
       {view.canRead
         ? view.usage.snapshots.map((snapshot, index) => {
@@ -57,7 +56,6 @@ export function HostUsageSettings(props: { connectionId: string; selector: React
                   label={labels.get(snapshot.providerId) ?? snapshot.providerId}
                   snapshot={snapshot}
                   showAccount
-                  showCostDetails={false}
                   index={index}
                   compact={false}
                   collapsed={collapsed.includes(snapshot.providerId)}

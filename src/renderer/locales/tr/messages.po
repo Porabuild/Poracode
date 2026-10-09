@@ -10896,8 +10896,13 @@ msgstr "Terminale yeniden bağlanılıyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; abonelik planlarındaki gerçek faturanızı yansıtmaz. Yalnızca kullanım panelinde gösterilir."
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "Yerel günlüklerden herkese açık API ücretleriyle hesaplanır; abonelik planlarındaki gerçek faturanızı yansıtmaz."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; abonelik planlarındaki gerçek faturanızı yansıtmaz. Yalnızca kullanım panelinde gösterilir."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"

@@ -158,16 +158,21 @@ describe("host-owned provider usage", () => {
     useHostUsageStore.getState().invalidate("a");
     expect(Object.hasOwn(useHostUsageStore.getState().hosts, "a")).toBe(false);
   });
-  it.each([403, 404])(
+  it.each([
+    [403, "git_procedure_not_allowed"],
+    [404, "not_found"],
+  ] as const)(
     "reads an old host through its same pinned legacy client on exact unsupported procedure %i",
-    async (status) => {
-      callRemoteProcedure.mockRejectedValueOnce(
-        new RemoteClientError("unsupported", status, "git_procedure_not_allowed"),
-      );
+    async (status, code) => {
+      callRemoteProcedure.mockRejectedValueOnce(new RemoteClientError("unsupported", status, code));
       providerUsage.mockResolvedValueOnce({ snapshots: [snapshot("legacy")], fromCache: true });
       await fetchHostUsage("a");
       expect(providerUsage).toHaveBeenCalledOnce();
       expect(useHostUsageStore.getState().hosts.a?.snapshots[0]?.authenticatedAs).toBe("legacy");
+      callRemoteProcedure.mockRejectedValueOnce(new RemoteClientError("unsupported", status, code));
+      await fetchHostUsage("a", true, { force: true });
+      expect(providerUsage).toHaveBeenCalledOnce();
+      expect(useHostUsageStore.getState().hosts.a?.updateRequired).toBe(true);
     },
   );
 
@@ -175,7 +180,8 @@ describe("host-owned provider usage", () => {
     new RemoteClientError("scope", 403, "scope_denied"),
     new RemoteClientError("expired", 401, "unauthorized"),
     new RemoteClientError("transport", 0, "network"),
-    new RemoteClientError("missing", 404, "not_found"),
+    new RemoteClientError("wrong unsupported pair", 404, "git_procedure_not_allowed"),
+    new RemoteClientError("wrong not-found pair", 403, "not_found"),
     new Error("git_procedure_not_allowed"),
   ])(
     "never falls back on auth, scope, network, other codes or untyped failures (%s)",

@@ -10894,8 +10894,13 @@ msgstr "ターミナルに再接続中…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "パブリック API レートでローカル ログから再構築されます。サブスクリプション プランの実際の請求額は反映されません。使用状況パネルにのみ表示されます。"
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "ローカルログから公開 API 料金で再構成した値です。サブスクリプションプランでの実際の請求額を示すものではありません。"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "パブリック API レートでローカル ログから再構築されます。サブスクリプション プランの実際の請求額は反映されません。使用状況パネルにのみ表示されます。"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
