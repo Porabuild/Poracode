@@ -1098,7 +1098,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         placeholder={
                           approvalDenyOption
                             ? t`Deny and tell the agent what to do differently…`
-                            : canRecoverGuiInput && !isConnecting
+                            : thread.status === "inactive" && canRecoverGuiInput && !isConnecting
                               ? t`Disconnected — send a message to reconnect`
                               : isServerControlled
                                 ? (props.composerPlaceholder ??

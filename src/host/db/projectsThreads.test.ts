@@ -1202,7 +1202,12 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     const byId = new Map(dbGetThreads().map((thread) => [thread.id, thread]));
     expect(byId.get("t-working")).toMatchObject({ status: "inactive", attention: "none" });
     expect(byId.get("t-working")?.activeTurnStartedAt).toBeUndefined();
-    expect(byId.get("t-launching")?.status).toBe("inactive");
+    expect(byId.get("t-launching")).toMatchObject({
+      status: "inactive",
+      presentationMode: "gui",
+      canResumeWithConfig: false,
+    });
+    expect(byId.get("t-launching")?.sessionRef).toBeUndefined();
     expect(byId.get("t-inactive")?.status).toBe("inactive");
     expect(byId.get("t-error")?.status).toBe("error");
   });

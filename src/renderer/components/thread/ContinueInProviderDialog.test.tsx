@@ -277,6 +277,42 @@ describe("ContinueInProviderDialog handoff flow", () => {
     );
   });
 
+  it("explicitly hands off an inactive pre-session GUI thread using its stored history", async () => {
+    seedRuntimeItems([
+      {
+        id: "original-prompt",
+        type: "user_message",
+        state: "completed",
+        payload: { content: [{ kind: "text", text: "Original startup task" }] },
+        streams: {},
+      },
+    ]);
+    const originalHistory = useAppStore.getState().runtimeItemIdsByThread[thread.id];
+    const onContinue = renderDialog({
+      thread: { status: "inactive", canResumeWithConfig: false },
+      installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+    });
+    expect(onContinue).not.toHaveBeenCalled();
+    await pressSwitch();
+    expect(bridge.extractContext).not.toHaveBeenCalled();
+    expect(onContinue).toHaveBeenCalledExactlyOnceWith(
+      "codex",
+      expect.anything(),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      {
+        strategy: "context-file",
+        extracted: expect.objectContaining({
+          contentKind: "transcript",
+          summary: expect.stringContaining("Original startup task"),
+        }),
+      },
+    );
+    expect(useAppStore.getState().runtimeItemIdsByThread[thread.id]).toBe(originalHistory);
+  });
+
   it("starts without context when nothing is stored and no session exists", async () => {
     const onContinue = renderDialog({});
 

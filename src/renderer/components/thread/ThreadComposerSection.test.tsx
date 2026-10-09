@@ -1874,6 +1874,24 @@ describe("ThreadComposerSection", () => {
     expect(editor).toHaveTextContent("unfinished input");
   });
 
+  it("keeps the ordinary placeholder and submit path after a live GUI turn error", async () => {
+    const { onSubmitInput } = renderComposer({ thread: { ...guiThread, status: "error" } });
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveAttribute(
+      "aria-placeholder",
+      `Ask ${codexGuiStatus.label} anything about this workspace`,
+    );
+    typeComposerText(editor, "try another turn");
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() =>
+      expect(onSubmitInput).toHaveBeenCalledExactlyOnceWith("try another turn", [
+        { kind: "text", content: "try another turn" },
+      ]),
+    );
+    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+    expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+  });
+
   it.each([
     { sessionRef: guiThread.sessionRef, canResumeWithConfig: true },
     { sessionRef: guiThread.sessionRef, canResumeWithConfig: false },
@@ -1884,6 +1902,10 @@ describe("ThreadComposerSection", () => {
     });
     const editor = screen.getByRole("textbox");
     expect(editor).toHaveAttribute("contenteditable", "true");
+    expect(editor).toHaveAttribute(
+      "aria-placeholder",
+      "Disconnected — send a message to reconnect",
+    );
     typeComposerText(editor, "follow up after restart");
     fireEvent.keyDown(editor, { key: "Enter" });
     await waitFor(() =>

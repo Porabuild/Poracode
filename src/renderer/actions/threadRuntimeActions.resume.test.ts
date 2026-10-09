@@ -208,6 +208,28 @@ describe("performThreadInputSubmit unknown-session resume", () => {
     expect(rollbackCalls()).toHaveLength(1);
   });
 
+  it("sends an ordinary next turn after a live structured turn error without relaunching", async () => {
+    const thread = createThread({ status: "error", attention: "error" });
+    const resumeLaunch = vi.fn<(args: unknown) => Promise<void>>().mockResolvedValue(undefined);
+    await performThreadInputSubmit({
+      thread,
+      prompt: "next turn",
+      segments,
+      transport: mocks.bridge,
+      resumeLaunch,
+    });
+    expect(mocks.bridge.sendThreadInput).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        threadId: thread.id,
+        prompt: "next turn",
+        userMessageItemId: expect.stringMatching(/^user-/),
+      }),
+    );
+    expect(resumeLaunch).not.toHaveBeenCalled();
+    expect(mocks.appState.beginThreadConnecting).not.toHaveBeenCalled();
+    expect(rollbackCalls()).toEqual([]);
+  });
+
   it("keeps the old failure behavior without a resume hook or a resumable thread", async () => {
     const thread = createThread();
     await expect(
