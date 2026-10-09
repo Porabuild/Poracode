@@ -53,6 +53,24 @@ describe("project procedure authorization", () => {
     expect(payload.worktreeLocation).toEqual({ kind: "posix", path: "/worktrees/one" });
   });
 
+  it("binds project/canonical location independently of shared-worktree thread order and equivalent path spelling", () => {
+    const a = { ...testThread(), id: "a", worktreePath: "/worktrees/one" };
+    const c = { ...a, id: "c", worktreePath: "/worktrees/one/./" };
+    const owner = () =>
+      authorizeProjectProcedurePayload("readProjectFile", {
+        projectLocation: { kind: "posix", path: "/worktrees/one" },
+      })?.projectLocation;
+    vi.mocked(dbGetThreads).mockReturnValue([a]);
+    const original = owner();
+    expect(original).toBeDefined();
+    for (const threads of [[c, a], [a, c], [c]]) {
+      vi.mocked(dbGetThreads).mockReturnValue(threads);
+      expect(owner()).toBe(original);
+    }
+    vi.mocked(dbGetThreads).mockReturnValue([]);
+    expect(owner).toThrow("Project location is not registered");
+  });
+
   it("replaces forged WSL UNC and distro values with stored identity", () => {
     const location: ProjectLocation = {
       kind: "wsl",

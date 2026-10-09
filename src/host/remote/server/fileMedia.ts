@@ -15,6 +15,7 @@ interface FileMediaGrant {
   readonly request: MediaFileRequest;
   readonly hostPath: string;
   readonly projectOwner: string | null;
+  readonly projectRoot: string | null;
   readonly dev: number;
   readonly ino: number;
   readonly sizeBytes: number;
@@ -32,65 +33,88 @@ export function fileMediaGrants(auth: RemoteAuthStore): PlaybackGrants<FileMedia
   return store;
 }
 
-/** Recheck registry ownership on every request. Never retry an external lane after denial. */
-async function resolveMediaPath(
-  request: MediaFileRequest,
-  canManage: boolean,
-  ctx: RemoteServerContext,
-): Promise<{ hostPath: string; projectOwner: string | null }> {
+/** Pure registry/scope check, also repeated after filesystem awaits without a WSL read. */
+function authorizeMediaLocation(request: MediaFileRequest, canManage: boolean) {
   const payload = { projectLocation: { ...request.projectLocation } };
-  if (request.access === "external" && !canManage) {
+  if (request.access === "external" && !canManage)
     throw new RemoteHttpError(
       "missing_scope",
       "External media requires project management access.",
       403,
     );
-  }
   const owners =
     request.access === "project"
       ? authorizeProjectProcedurePayload("readProjectFile", payload, () => canManage)
       : undefined;
-  const projectOwner = owners?.projectLocation ?? null;
   const location = payload.projectLocation;
   if (location.remoteServerId)
     throw new RemoteHttpError("invalid_media_owner", "Media must be read by its owning host.", 403);
+  return { location, projectOwner: owners?.projectLocation ?? null };
+}
+
+/** One full resolution/WSL containment gate per request. Retain the original path/root
+ * coordinates so the post-open check detects symlink/root changes, not just the old target.
+ * Never retry an external lane after denial.
+ */
+async function resolveMediaPath(
+  request: MediaFileRequest,
+  canManage: boolean,
+  ctx: RemoteServerContext,
+) {
+  const { location, projectOwner } = authorizeMediaLocation(request, canManage);
   if (request.path.includes("\0"))
     throw new RemoteHttpError("invalid_path", "Invalid media path.", 400);
-  let target: string;
+  let requestFsPath: string;
+  let rootFsPath: string | null = null;
+  let projectRoot: string | null = null;
   if (request.access === "external") {
     if (location.kind === "wsl" && request.path.startsWith("/")) {
-      target = wslLinuxToHostFsPath(location.distro, request.path);
+      requestFsPath = wslLinuxToHostFsPath(location.distro, request.path);
     } else {
       if (!isAbsolute(request.path))
         throw new RemoteHttpError("invalid_path", "An absolute media path is required.", 400);
-      target = request.path;
+      requestFsPath = request.path;
     }
   } else {
-    // Do not strip an absolute prefix into a project-relative path.
     const path = request.path.replace(/\\/gu, "/");
-    if (path.startsWith("/") || /^[A-Za-z]:/u.test(path) || path.split("/").includes("..")) {
+    if (path.startsWith("/") || /^[A-Za-z]:/u.test(path) || path.split("/").includes(".."))
       throw new RemoteHttpError(
         "invalid_path",
         "A contained project-relative media path is required.",
         400,
       );
-    }
-    // UNC path resolution alone cannot prove Linux symlink containment. The existing
-    // in-distro read gate must accept this path before any host stream opens.
+    // UNC resolution alone is not an in-distro admission gate. Once admitted, the
+    // minted descriptor identity pins which file can be opened; post-open host path,
+    // root containment, registry and authority checks fence any asynchronous changes.
     if (location.kind === "wsl")
       await ctx.options.callSupervisor("readProjectFile", { projectLocation: location, path });
-    const root = await realpath(getProjectFsPath(location));
-    target = await realpath(resolve(root, path));
-    const tail = relative(root, target);
-    if (isAbsolute(tail) || tail.split(/[\\/]/u)[0] === "..") {
-      throw new RemoteHttpError(
-        "media_path_not_contained",
-        "The media path escapes the project root.",
-        403,
-      );
-    }
+    rootFsPath = getProjectFsPath(location);
+    projectRoot = await realpath(rootFsPath);
+    requestFsPath = resolve(projectRoot, path);
   }
-  return { hostPath: await realpath(target), projectOwner };
+  const hostPath = await realpath(requestFsPath);
+  assertMediaContained(projectRoot, hostPath);
+  return { hostPath, projectOwner, projectRoot, rootFsPath, requestFsPath };
+}
+
+function assertMediaContained(root: string | null, path: string) {
+  if (root === null) return;
+  const tail = relative(root, path);
+  if (isAbsolute(tail) || tail.split(/[\\/]/u)[0] === "..")
+    throw new RemoteHttpError(
+      "media_path_not_contained",
+      "The media path escapes the project root.",
+      403,
+    );
+}
+
+function assertMediaOwner(expected: string | null, current: string | null) {
+  if (current !== expected)
+    throw new RemoteHttpError(
+      "media_owner_changed",
+      "The registered media owner changed; reopen its preview.",
+      403,
+    );
 }
 
 export async function issueFileMediaTicket(
@@ -106,7 +130,7 @@ export async function issueFileMediaTicket(
       "Only editor media files can be served.",
       415,
     );
-  const { hostPath, projectOwner } = await resolveMediaPath(
+  const { hostPath, projectOwner, projectRoot } = await resolveMediaPath(
     request,
     session.scopes.includes("projects:manage"),
     ctx,
@@ -118,6 +142,7 @@ export async function issueFileMediaTicket(
     request,
     hostPath,
     projectOwner,
+    projectRoot,
     dev: info.dev,
     ino: info.ino,
     sizeBytes: info.size,
@@ -127,6 +152,10 @@ export async function issueFileMediaTicket(
   const currentSession = auth.authenticateSession(
     session.sessionId,
     request.access === "external" ? ["projects:manage"] : ["session:read"],
+  );
+  assertMediaOwner(
+    projectOwner,
+    authorizeMediaLocation(request, currentSession.scopes.includes("projects:manage")).projectOwner,
   );
   return {
     ...fileMediaGrants(auth).issue(value, currentSession.sessionId, currentSession.expiresAtMs),
@@ -146,18 +175,14 @@ async function openValidatedMedia(ctx: RemoteServerContext, ticket: string) {
   );
   // Session revocation retires the grant. Registry removal/root changes and symlink changes
   // are independently rechecked before opening any bytes, even for an unexpired grant.
-  const { hostPath, projectOwner } = await resolveMediaPath(
+  const resolved = await resolveMediaPath(
     value.request,
     session.scopes.includes("projects:manage"),
     ctx,
   );
-  if (projectOwner !== value.projectOwner)
-    throw new RemoteHttpError(
-      "media_owner_changed",
-      "The registered media owner changed; reopen its preview.",
-      403,
-    );
-  if (hostPath !== value.hostPath)
+  const { hostPath } = resolved;
+  assertMediaOwner(value.projectOwner, resolved.projectOwner);
+  if (resolved.projectRoot !== value.projectRoot || hostPath !== value.hostPath)
     throw new RemoteHttpError(
       "media_file_changed",
       "The media file changed; reopen its preview.",
@@ -166,17 +191,11 @@ async function openValidatedMedia(ctx: RemoteServerContext, ticket: string) {
   let file: FileHandle | undefined;
   try {
     file = await open(hostPath, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-    const checked = await resolveMediaPath(
-      value.request,
-      session.scopes.includes("projects:manage"),
-      ctx,
-    );
-    if (checked.projectOwner !== value.projectOwner)
-      throw new RemoteHttpError(
-        "media_owner_changed",
-        "The registered media owner changed; reopen its preview.",
-        403,
-      );
+    const [checkedPath, checkedRoot] = await Promise.all([
+      realpath(resolved.requestFsPath),
+      resolved.rootFsPath === null ? Promise.resolve(null) : realpath(resolved.rootFsPath),
+    ]);
+    assertMediaContained(checkedRoot, checkedPath);
     const info = await file.stat();
     if (
       !info.isFile() ||
@@ -184,7 +203,8 @@ async function openValidatedMedia(ctx: RemoteServerContext, ticket: string) {
       info.ino !== value.ino ||
       info.size !== value.sizeBytes ||
       info.mtimeMs !== value.modifiedAtMs ||
-      checked.hostPath !== hostPath
+      checkedPath !== hostPath ||
+      checkedRoot !== value.projectRoot
     ) {
       throw new RemoteHttpError(
         "media_file_changed",
@@ -192,10 +212,17 @@ async function openValidatedMedia(ctx: RemoteServerContext, ticket: string) {
         409,
       );
     }
-    auth.authenticateSession(
+    const currentSession = auth.authenticateSession(
       grant.sessionId,
       value.request.access === "external" ? ["projects:manage"] : ["session:read"],
     );
+    // Filesystem/WSL operations can take arbitrarily long. Recheck current registry
+    // identity and scopes after the final await, without repeating the supervisor read.
+    const currentOwner = authorizeMediaLocation(
+      value.request,
+      currentSession.scopes.includes("projects:manage"),
+    ).projectOwner;
+    assertMediaOwner(value.projectOwner, currentOwner);
     if (grant.signal.aborted)
       throw new RemoteHttpError("invalid_media_ticket", "The media preview has expired.", 401);
     return { file, info, grant };

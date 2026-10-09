@@ -198,6 +198,54 @@ describe("authorized editor media HTTP", () => {
     expect((await fetch(source.url)).status).toBe(403);
   });
 
+  it("keeps shared-worktree Range and renewal stable through joins, reorder and representative-thread removal", async () => {
+    const host = await startChildHost(cleanup);
+    const owner = client(host);
+    const worktree = join(process.cwd(), root, "shared-worktree");
+    mkdirSync(worktree);
+    writeFileSync(join(worktree, "clip.mp4"), "shared-video");
+    const a = { ...testThread(), id: "thread-a", projectId: "project", worktreePath: worktree };
+    const c = { ...a, id: "thread-c" };
+    vi.mocked(dbGetThreads).mockReturnValue([a]);
+    const source = await owner.createMediaSource({
+      ...file(),
+      projectLocation: { kind: "posix", path: worktree },
+    });
+    for (const threads of [[c, a], [a, c], [c]]) {
+      vi.mocked(dbGetThreads).mockReturnValue(threads);
+      const range = await fetch(source.url, { headers: { range: "bytes=0-5" } });
+      expect(range.status).toBe(206);
+      expect(await range.text()).toBe("shared");
+      const renewal = await fetch(new URL("/api/files/media-renew", host.info.httpBaseUrl), {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${host.accessToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ ticket: source.ticket }),
+      });
+      expect(renewal.status).toBe(200);
+      expect(await renewal.json()).toMatchObject({ ticket: source.ticket });
+    }
+    vi.mocked(dbGetThreads).mockReturnValue([]);
+    expect((await fetch(source.url, { headers: { range: "bytes=0-5" } })).status).toBe(403);
+    await expect(owner.renewMediaSource(source.ticket)).rejects.toMatchObject({ status: 403 });
+    vi.mocked(dbGetThreads).mockReturnValue([c]);
+    vi.mocked(dbGetProjects).mockReturnValue([
+      { id: "replacement-project", name: "Replacement", createdAt: "2026-01-01", location },
+    ]);
+    vi.mocked(dbGetThreads).mockReturnValue([{ ...c, projectId: "replacement-project" }]);
+    // The same worktree is registered to the new project: refusal must come from the
+    // bound project identity rather than merely from absence in the registry.
+    const replaced = await fetch(source.url, { headers: { range: "bytes=0-5" } });
+    expect(replaced.status).toBe(403);
+    expect(await replaced.json()).toMatchObject({ error: { code: "media_owner_changed" } });
+    await expect(owner.renewMediaSource(source.ticket)).rejects.toMatchObject({
+      status: 403,
+      code: "media_owner_changed",
+    });
+  });
+
   it("keeps parent and child grants independently scoped across real environment proxy ranges", async () => {
     const child = await startChildHost(cleanup);
     const parent = await startParentHost(cleanup);

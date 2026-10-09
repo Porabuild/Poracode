@@ -128,4 +128,30 @@ describe("editor media source ownership", () => {
     expect(second.release).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
   });
+  it("expires a session-capped preview honestly without auto-remint and recovers only after explicit Reload", async () => {
+    vi.useFakeTimers();
+    const capped = { ...source("capped"), expiresAt: new Date(Date.now() + 2_000).toISOString() };
+    const refreshed = source("refreshed");
+    vi.mocked(createEditorMediaSource)
+      .mockResolvedValueOnce(capped)
+      .mockResolvedValueOnce(refreshed);
+    const screen = renderHook(({ reload }) => useFileMediaSource(location, "clip.mp4", 1, reload), {
+      initialProps: { reload: 0 },
+    });
+    await act(async () => {});
+    await act(async () => vi.advanceTimersByTimeAsync(2_000));
+    expect(screen.result.current.failed).toBe(true);
+    expect(screen.result.current.source).toBeNull();
+    expect(createEditorMediaSource).toHaveBeenCalledOnce();
+    expect(capped.renew).not.toHaveBeenCalled();
+    expect(capped.release).toHaveBeenCalledOnce();
+    screen.rerender({ reload: 1 }); // The existing explicit Reload control changes this scope key.
+    await act(async () => {});
+    expect(screen.result.current.failed).toBe(false);
+    expect(screen.result.current.source).toBe(refreshed);
+    expect(createEditorMediaSource).toHaveBeenCalledTimes(2);
+    screen.unmount();
+    expect(refreshed.release).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

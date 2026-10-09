@@ -2272,8 +2272,13 @@ Range responses and disconnect descriptor cleanup have targeted regressions.
 Stable renewal revalidates the original issuing session/scopes and the same file
 registry, containment and descriptor identity, then extends the existing ticket
 only to min(now + two minutes, authenticated session lifetime). Contained grants
-also bind the matched project/thread registry identity, so replacing the owner
-at the same filesystem root cannot reuse a prior grant. The owned expiry
+also bind the registered project/canonical-location identity, so replacing the owner
+at the same filesystem root cannot reuse a prior grant. Shared-worktree thread
+joins, ordering and representative-thread removal do not change that identity.
+Each request uses one full path resolution/in-distro WSL admission gate. After
+open, host path/root containment and descriptor identity are rechecked; current
+registry identity and session scopes are checked after the final filesystem
+await, so a slow read cannot retain a removed owner. The owned expiry
 timer is reset; its active-stream controller and revocation hook are retained.
 Natural expiry still aborts active transfers. A late result cannot revive a
 released/revoked/expired ticket. Environment mint/renew additionally verifies the
@@ -2287,3 +2292,12 @@ credentials in URLs. Both new routes reuse existing ticket/result schema shapes;
 in generated Swift/Kotlin artifacts. No persisted/cache/helper shape changes or
 version bumps are needed for these additive, unshipped routes. Native transport
 and editor adoption remain planned; generated codecs alone are not native UI proof.
+
+At the authenticated session expiry (normally the access-token lifetime), an
+already open preview deliberately expires and shows the localized unavailable
+state with its existing Reload preview control. Renewal cannot extend beyond
+that authority or remint automatically: reminting changes the URL/player state
+and must not resurrect revoked permissions. Explicit Reload makes a new
+credentialed request, allowing the normal refresh/re-pair path if still
+authorized; expired/revoked grants themselves remain retired. Real short-session
+expiry/Reload recovery is a pending manual gate; no daily wait is required.

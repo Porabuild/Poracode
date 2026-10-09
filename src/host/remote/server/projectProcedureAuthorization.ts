@@ -30,7 +30,7 @@ export function authorizeProjectProcedurePayload(
   if (fields.length === 0) return;
   const record = payload as Record<string, unknown>;
   if (spec.owner === "optionalProjectLocation" && record.projectLocation === undefined) return;
-  let locations: { location: ProjectLocation; projectId: string; threadId: string | null }[];
+  let locations: { location: ProjectLocation; projectId: string }[];
   try {
     const projects = dbGetProjects().filter(
       (project) =>
@@ -43,7 +43,6 @@ export function authorizeProjectProcedurePayload(
     locations = projects.map((project) => ({
       location: project.location,
       projectId: project.id,
-      threadId: null,
     }));
     for (const thread of dbGetThreads()) {
       const project = projectById.get(thread.projectId);
@@ -51,7 +50,6 @@ export function authorizeProjectProcedurePayload(
         locations.push({
           location: buildWorktreeLocation(project.location, thread.worktreePath),
           projectId: project.id,
-          threadId: thread.id,
         });
       }
     }
@@ -74,9 +72,36 @@ export function authorizeProjectProcedurePayload(
       );
     }
     record[field] = { ...stored.location };
-    owners[field] = JSON.stringify([stored.projectId, stored.threadId]);
+    owners[field] = JSON.stringify([
+      stored.projectId,
+      canonicalRegisteredLocation(stored.location),
+    ]);
   }
   return owners;
+}
+
+/** Fixed field order and native path normalization keep a registered location independent
+ * of a representative thread, spelling/trailing separators, or object property order.
+ * WSL host routing is included: a stored UNC-root change must not keep a prior file grant.
+ */
+function canonicalRegisteredLocation(location: ProjectLocation) {
+  const remoteServerId = location.remoteServerId ?? null;
+  if (location.kind === "wsl")
+    return {
+      kind: location.kind,
+      distro: location.distro.toLowerCase(),
+      linuxPath: posix.resolve(location.linuxPath),
+      uncPath: win32.resolve(location.uncPath).toLowerCase(),
+      remoteServerId,
+    };
+  return {
+    kind: location.kind,
+    path:
+      location.kind === "windows"
+        ? win32.resolve(location.path).toLowerCase()
+        : posix.resolve(location.path),
+    remoteServerId,
+  };
 }
 
 function sameLocation(left: ProjectLocation, right: ProjectLocation): boolean {
