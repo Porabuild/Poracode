@@ -40,6 +40,8 @@ function installMatchMedia(initial: boolean) {
 afterEach(() => {
   resetAdaptiveLayoutForTest();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  window.history.replaceState(null, "", "/");
   Reflect.deleteProperty(window, "poracodeHost");
   document.documentElement.removeAttribute("data-compact-layout");
   document.documentElement.removeAttribute("data-coarse-input");
@@ -66,6 +68,27 @@ describe("adaptive layout", () => {
 
     expect(result.current).toBe(false);
   });
+
+  it.each(["extension-build", "sidebar-preview"])(
+    "keeps %s desktop menus and controls at narrow widths and after resizing",
+    (surface) => {
+      const setMatches = installMatchMedia(true);
+      if (surface === "extension-build") {
+        vi.stubEnv("VITE_PORACODE_BUILD_TARGET", "extension");
+      } else {
+        window.history.replaceState(null, "", "/?surface=chat-sidebar");
+      }
+      initializeAdaptiveLayout();
+      const { result } = renderHook(() => useCompactLayout());
+      expect(result.current).toBe(false);
+      expect(document.documentElement).not.toHaveAttribute("data-compact-layout");
+
+      act(() => setMatches(false));
+      act(() => setMatches(true));
+      expect(result.current).toBe(false);
+      expect(document.documentElement).not.toHaveAttribute("data-compact-layout");
+    },
+  );
 
   it("recovers the shared document and React layout after a missed viewport event", () => {
     const setMatches = installMatchMedia(true);

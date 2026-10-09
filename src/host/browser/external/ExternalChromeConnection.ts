@@ -62,6 +62,11 @@ type RequestPayload =
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
+export interface ExternalChromeConnectionOptions {
+  /** Receives already-parsed frames the CDP relay does not consume. */
+  onUnhandledMessage?: (message: Record<string, unknown>) => void;
+}
+
 export class ExternalChromeConnection {
   readonly extensionVersion: string;
   private attachedTabId: number | null = null;
@@ -76,6 +81,7 @@ export class ExternalChromeConnection {
     private readonly ws: WebSocket,
     hello: { extensionVersion?: string },
     private readonly onClosed: () => void,
+    private readonly options: ExternalChromeConnectionOptions = {},
   ) {
     this.extensionVersion = hello.extensionVersion ?? "unknown";
     this.ws.on("message", (data: unknown) => this.handleMessage(data));
@@ -250,6 +256,7 @@ export class ExternalChromeConnection {
     } catch {
       return;
     }
+    if (!msg || typeof msg !== "object") return;
     const type = msg.type;
     if (type === "result" && typeof msg.id === "number") {
       const pending = this.pending.get(msg.id);
@@ -281,7 +288,11 @@ export class ExternalChromeConnection {
       this.attachedTabId = null;
       this.attachedUrl = undefined;
       this.attachedTitle = undefined;
+      return;
     }
+    try {
+      this.options.onUnhandledMessage?.(msg);
+    } catch {}
   }
 }
 

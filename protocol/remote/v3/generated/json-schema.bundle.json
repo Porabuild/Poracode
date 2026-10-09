@@ -3070,6 +3070,43 @@
           "const": true,
           "type": "boolean"
         },
+        "__schema28": {
+          "additionalProperties": true,
+          "properties": {
+            "browserFocus": {
+              "additionalProperties": true,
+              "properties": {
+                "activeTab": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "tabId": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "title": {
+                      "maxLength": 300,
+                      "type": "string"
+                    },
+                    "url": {
+                      "maxLength": 2048,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tabId"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         "__schema3": {
           "maxLength": 120,
           "minLength": 1,
@@ -3319,6 +3356,9 @@
         },
         "agentKind": {
           "$ref": "#/$defs/__schema2"
+        },
+        "clientContext": {
+          "$ref": "#/$defs/__schema28"
         },
         "config": {
           "$ref": "#/$defs/__schema4"
@@ -16287,6 +16327,43 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
+        "clientContext": {
+          "additionalProperties": true,
+          "properties": {
+            "browserFocus": {
+              "additionalProperties": true,
+              "properties": {
+                "activeTab": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "tabId": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "title": {
+                      "maxLength": 300,
+                      "type": "string"
+                    },
+                    "url": {
+                      "maxLength": 2048,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tabId"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         "config": {
           "additionalProperties": true,
           "properties": {
@@ -19936,6 +20013,43 @@
           "const": true,
           "type": "boolean"
         },
+        "__schema28": {
+          "additionalProperties": true,
+          "properties": {
+            "browserFocus": {
+              "additionalProperties": true,
+              "properties": {
+                "activeTab": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "tabId": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "title": {
+                      "maxLength": 300,
+                      "type": "string"
+                    },
+                    "url": {
+                      "maxLength": 2048,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tabId"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         "__schema3": {
           "maxLength": 120,
           "minLength": 1,
@@ -20185,6 +20299,9 @@
         },
         "agentKind": {
           "$ref": "#/$defs/__schema2"
+        },
+        "clientContext": {
+          "$ref": "#/$defs/__schema28"
         },
         "config": {
           "$ref": "#/$defs/__schema4"
@@ -42380,6 +42497,43 @@
             "agentKind": {
               "$ref": "#/$defs/__schema0"
             },
+            "clientContext": {
+              "additionalProperties": true,
+              "properties": {
+                "browserFocus": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "activeTab": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "tabId": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "title": {
+                          "maxLength": 300,
+                          "type": "string"
+                        },
+                        "url": {
+                          "maxLength": 2048,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "tabId"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    }
+                  },
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "config": {
               "additionalProperties": true,
               "properties": {
@@ -46398,6 +46552,43 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
+        "clientContext": {
+          "additionalProperties": true,
+          "properties": {
+            "browserFocus": {
+              "additionalProperties": true,
+              "properties": {
+                "activeTab": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "tabId": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "title": {
+                      "maxLength": 300,
+                      "type": "string"
+                    },
+                    "url": {
+                      "maxLength": 2048,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tabId"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         "config": {
           "additionalProperties": true,
           "properties": {
@@ -47020,6 +47211,43 @@
         },
         "agentKind": {
           "$ref": "#/$defs/__schema0"
+        },
+        "clientContext": {
+          "additionalProperties": true,
+          "properties": {
+            "browserFocus": {
+              "additionalProperties": true,
+              "properties": {
+                "activeTab": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "tabId": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "title": {
+                      "maxLength": 300,
+                      "type": "string"
+                    },
+                    "url": {
+                      "maxLength": 2048,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tabId"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         },
         "config": {
           "additionalProperties": true,
@@ -47816,6 +48044,43 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
+        "clientContext": {
+          "additionalProperties": true,
+          "properties": {
+            "browserFocus": {
+              "additionalProperties": true,
+              "properties": {
+                "activeTab": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "tabId": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "title": {
+                      "maxLength": 300,
+                      "type": "string"
+                    },
+                    "url": {
+                      "maxLength": 2048,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tabId"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         "config": {
           "additionalProperties": true,
           "properties": {
@@ -48531,5 +48796,5 @@
   },
   "manifestHash": "sha256:1347fa335c587f46d569d680592c56c490d6d3950c495a0bacc79114bd9eb713",
   "protocolVersion": 13,
-  "sourceHash": "sha256:23a16f85592f8201da6c918de242d798dc1921142627a359b4bb059fd0658b6a"
+  "sourceHash": "sha256:aeb0aa9a39d015d50ddc87be0459c4963a0fcbd7228c61fbf7acc55a9b70d089"
 }

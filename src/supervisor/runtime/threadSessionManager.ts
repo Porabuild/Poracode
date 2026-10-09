@@ -93,6 +93,7 @@ import { writeSubmittedPrompt } from "./threadSession/promptWrite";
 import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
 import { requireSessionPty, shouldPrimeNativeProjectShellEnv } from "./threadSession/helpers";
 import { resolveThreadMentionSegments } from "./threadMentionResolver";
+import { formatTurnClientContext } from "./turnClientContext";
 import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
 import { publishUnpublishedStartFailure } from "./threadSession/unpublishedStartFailure";
 import type { RuntimeEventBufferOverflow } from "./threadSession/runtimeEventBuffer";
@@ -876,12 +877,16 @@ export class ThreadSessionManager {
       session.adapter.capabilities,
     );
     const inlineInstructions = await this.resolveSkillTurnInjection(session, policySegments);
+    // The queue record's own snapshot: context captured when this follow-up
+    // was accepted, never the state of whichever client is current at drain.
+    const turnContext = formatTurnClientContext(payload.clientContext);
     return {
       prompt,
       config: effectiveConfig,
       ...(policySegments ? { segments: policySegments } : {}),
       ...(payload.segments ? { displaySegments: payload.segments } : {}),
       ...(inlineInstructions ? { inlineInstructions } : {}),
+      ...(turnContext ? { turnContext } : {}),
     };
   }
 
@@ -1185,6 +1190,10 @@ export class ThreadSessionManager {
       const inlineInstructions = usesStructuredFlow
         ? await this.resolveSkillTurnInjection(session, effectiveSegments)
         : undefined;
+      // Structured turns only: a PTY prompt has no provider-only channel.
+      const turnContext = usesStructuredFlow
+        ? formatTurnClientContext(payload.clientContext)
+        : undefined;
       if (!this.isCurrentSession(session)) {
         return this.sendThreadInput(payload);
       }
@@ -1201,6 +1210,7 @@ export class ThreadSessionManager {
         ...(payload.segments ? { displaySegments: payload.segments } : {}),
         ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
         ...(inlineInstructions ? { inlineInstructions } : {}),
+        ...(turnContext ? { turnContext } : {}),
       };
       if (session.status === "inactive") {
         // Guaranteed to have a sessionRef here — the no-ref case threw above.

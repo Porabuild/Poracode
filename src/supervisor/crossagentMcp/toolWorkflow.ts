@@ -91,10 +91,15 @@ export async function dispatchWorkflow(
         roster.set(key, pending);
       }
       const resolved = resolveSelectionArgs(selection, await pending);
-      const request = parseSpawnRequest({
-        ...resolved.args,
-        result_mode: task.result_mode === undefined ? "compact" : task.result_mode,
-      });
+      const request = parseSpawnRequest(
+        {
+          ...resolved.args,
+          result_mode: task.result_mode === undefined ? "compact" : task.result_mode,
+        },
+        undefined,
+        undefined,
+        resolved.provenance,
+      );
       if (Object.values(resolved.explicitFields).some(Boolean)) {
         selections.push({ selection: request, tags, explicitFields: resolved.explicitFields });
       }

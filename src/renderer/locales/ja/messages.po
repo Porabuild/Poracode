@@ -2535,6 +2535,10 @@ msgstr "チャットにスターを付けました"
 msgid "Chat unstarred"
 msgstr "チャットのスターを外しました"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Chats"
+msgstr "チャット"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "チェックする"
@@ -2827,6 +2831,7 @@ msgstr "この日の分を消去"
 msgid "Clear goal"
 msgstr "目標をクリア"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "検索をクリア"
@@ -3599,6 +3604,10 @@ msgstr "接続中..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "接続中…"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+#~ msgid "Connection"
+#~ msgstr "接続"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -8652,6 +8661,10 @@ msgstr "新しいアクション名"
 msgid "New branch name..."
 msgstr "新しいブランチ名..."
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "New chat"
+msgstr "新しいチャット"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "新しい Claude プロファイル設定ディレクトリ"
@@ -9243,6 +9256,7 @@ msgid "No repositories found."
 msgstr "リポジトリが見つかりません。"
 
 #: src/renderer/components/find/FindBar.tsx
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "結果なし"
@@ -12647,6 +12661,10 @@ msgstr "プラグイン・スキル・サーバーを検索..."
 msgid "Search pull requests"
 msgstr "プルリクエストを検索"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Search recent chats"
+msgstr "最近のチャットを検索"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
 msgstr "リポジトリの検索"
@@ -13637,6 +13655,10 @@ msgstr "リアルタイム音声を開始"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
 msgstr "最小化して起動"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Start Poracode to chat in your browser."
+msgstr "ブラウザーでチャットするにはPoracodeを起動してください。"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Start remote thread"
@@ -15364,6 +15386,10 @@ msgstr "候補を比較できません：{0}"
 #~ msgid "Unable to connect over SSH."
 #~ msgstr "SSH 経由で接続できません。"
 
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Unable to connect. Retrying…"
+msgstr "接続できません。再試行中…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy desktop endpoint."
 msgstr "デスクトップエンドポイントをコピーできませんでした。"
@@ -15823,6 +15849,10 @@ msgstr "未ステージ"
 msgid "Unsupported"
 msgstr "サポートされていません"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Untitled"
+msgstr "無題"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Unverified"
 msgstr "未確認"
@@ -15920,6 +15950,10 @@ msgstr "更新方法"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
 msgstr "ポート転送を使用するには、デスクトップの Poracode を更新してください。"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Update Poracode to use browser chats."
+msgstr "ブラウザでチャットするには、Poracode を更新してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update SDK"

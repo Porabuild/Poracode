@@ -1,6 +1,7 @@
 import { resolveCodexContextWindowTokens } from "@/shared/agents/codexContextWindows";
 import type { ThreadConfig } from "@/shared/contracts";
 import type { CodexClientRequestMap } from "./protocol";
+import { resumeCodexThread } from "./threadResume";
 
 type ThreadResumeParams = CodexClientRequestMap["thread/resume"]["params"];
 
@@ -9,6 +10,7 @@ export interface CodexContextWindowReloadHost {
   request<M extends "thread/unsubscribe" | "thread/resume" | "thread/read">(
     method: M,
     params: CodexClientRequestMap[M]["params"],
+    timeoutMs?: number,
   ): Promise<CodexClientRequestMap[M]["result"]>;
   /** `thread/resume` overrides (model, cwd, sandbox, `config`) for `config`. */
   buildResumeOverrides(config: ThreadConfig): Omit<ThreadResumeParams, "threadId">;
@@ -79,17 +81,18 @@ export class CodexContextWindowReload {
         return false;
       }
       try {
-        await host.request("thread/resume", { ...host.buildResumeOverrides(config), threadId });
+        await resumeCodexThread(host, { ...host.buildResumeOverrides(config), threadId });
         this.recordApplied(config);
         return true;
       } catch (error) {
         console.warn("[codex] context window reload: thread/resume failed:", error);
         if (previousConfig) {
-          await host
-            .request("thread/resume", { ...host.buildResumeOverrides(previousConfig), threadId })
-            .catch((retryError: unknown) => {
-              console.warn("[codex] context window reload: re-resume failed:", retryError);
-            });
+          await resumeCodexThread(host, {
+            ...host.buildResumeOverrides(previousConfig),
+            threadId,
+          }).catch((retryError: unknown) => {
+            console.warn("[codex] context window reload: re-resume failed:", retryError);
+          });
         }
         return false;
       } finally {

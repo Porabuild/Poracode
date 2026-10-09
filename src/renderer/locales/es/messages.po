@@ -2536,6 +2536,10 @@ msgstr "Chat destacado"
 msgid "Chat unstarred"
 msgstr "Destacado del chat quitado"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Chats"
+msgstr "Chats"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Comprobar"
@@ -2828,6 +2832,7 @@ msgstr "Borrar día"
 msgid "Clear goal"
 msgstr "Borrar objetivo"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "Borrar búsqueda"
@@ -3600,6 +3605,10 @@ msgstr "Conectando..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Conectando…"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+#~ msgid "Connection"
+#~ msgstr "Conexión"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -8654,6 +8663,10 @@ msgstr "Nuevo nombre de acción"
 msgid "New branch name..."
 msgstr "Nombre de la nueva rama..."
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "New chat"
+msgstr "Nuevo chat"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "Nuevo directorio de configuración del perfil de Claude"
@@ -9245,6 +9258,7 @@ msgid "No repositories found."
 msgstr "No se encontraron repositorios."
 
 #: src/renderer/components/find/FindBar.tsx
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Sin resultados"
@@ -12649,6 +12663,10 @@ msgstr "Buscar plugins, skills y servidores..."
 msgid "Search pull requests"
 msgstr "Buscar pull requests"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Search recent chats"
+msgstr "Buscar chats recientes"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
 msgstr "Buscar repositorios"
@@ -13639,6 +13657,10 @@ msgstr "Iniciar voz en directo"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
 msgstr "Iniciar minimizado"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Start Poracode to chat in your browser."
+msgstr "Inicia Poracode para chatear en tu navegador."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Start remote thread"
@@ -15366,6 +15388,10 @@ msgstr "No se pueden comparar los candidatos: {0}"
 #~ msgid "Unable to connect over SSH."
 #~ msgstr "No se pudo conectar mediante SSH."
 
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Unable to connect. Retrying…"
+msgstr "No se pudo conectar. Reintentando…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy desktop endpoint."
 msgstr "No se pudo copiar el endpoint del escritorio."
@@ -15825,6 +15851,10 @@ msgstr "sin preparar"
 msgid "Unsupported"
 msgstr "No compatible"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Untitled"
+msgstr "Sin título"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Unverified"
 msgstr "Sin verificar"
@@ -15922,6 +15952,10 @@ msgstr "Método de actualización"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
 msgstr "Actualiza Poracode en tu escritorio para usar el reenvío de puertos."
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Update Poracode to use browser chats."
+msgstr "Actualiza Poracode para usar los chats del navegador."
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update SDK"

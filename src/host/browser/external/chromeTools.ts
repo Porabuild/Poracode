@@ -100,7 +100,7 @@ export async function dispatchChromeTool(
     if (!conn) {
       return {
         connected: false,
-        hint: "The Poracode Chrome extension is not connected. Ask the user to install/enable it — it auto-connects when Poracode is running — and confirm its popup shows Connected.",
+        hint: "The Poracode Chrome extension is not connected. Ask the user to install/enable it and reopen its sidebar. It connects automatically when Poracode is running.",
       };
     }
     return conn.status();

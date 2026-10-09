@@ -1,4 +1,12 @@
-import { closeSync, mkdirSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  fchmodSync,
+  mkdirSync,
+  openSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 
@@ -13,7 +21,12 @@ import { dirname } from "node:path";
 export function writeFileAtomic(
   filePath: string,
   data: string | NodeJS.ArrayBufferView,
-  options?: { encoding?: BufferEncoding; mode?: number },
+  options?: {
+    encoding?: BufferEncoding;
+    mode?: number;
+    /** Apply `mode` exactly on POSIX before publication, overriding umask. */
+    exactMode?: boolean;
+  },
 ): void {
   mkdirSync(dirname(filePath), { recursive: true });
   const tmp = `${filePath}.${randomUUID()}.tmp`;
@@ -23,6 +36,9 @@ export function writeFileAtomic(
     ownsTemporary = true;
     try {
       writeFileSync(descriptor, data, options);
+      if (options?.exactMode && options.mode !== undefined && process.platform !== "win32") {
+        fchmodSync(descriptor, options.mode);
+      }
     } finally {
       closeSync(descriptor);
     }

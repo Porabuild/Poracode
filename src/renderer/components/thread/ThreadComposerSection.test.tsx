@@ -19,6 +19,12 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ThreadComposerSection } from "./ThreadComposerSection";
+import { ImplicitMcpServersContext } from "../composer/implicitMcpServers";
+import {
+  TurnClientContextSource,
+  type TurnClientContextCapture,
+} from "../composer/turnClientContext";
+import type { ComposerMcpMenuItem } from "../composer/ComposerAddMenu";
 import { useRevertedPromptStore } from "./revertedPrompt";
 import type { ThreadErrorDockState } from "./threadErrorState";
 
@@ -482,6 +488,24 @@ describe("ThreadComposerSection", () => {
       },
     });
     expect(screen.getByTestId("effort-options")).toHaveTextContent("low,medium,high,xhigh,max");
+  });
+
+  it("omits client-inherent tools from chat controls without altering session bindings", () => {
+    const thread = { ...guiThread, config: { ...guiThread.config, chromeMcp: true } };
+    const { rerender } = render(
+      <ImplicitMcpServersContext value={["chrome"]}>
+        {composerElement({ thread })}
+      </ImplicitMcpServersContext>,
+    );
+    const menu = () =>
+      composerAddMenuSpy.mock.lastCall?.[0] as {
+        mcpServers: ComposerMcpMenuItem[];
+      };
+    expect(menu().mcpServers.map((item) => item.descriptor.id)).not.toContain("chrome");
+    expect(thread.config.chromeMcp).toBe(true);
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
+    rerender(composerElement({ thread }));
+    expect(menu().mcpServers.find((item) => item.descriptor.id === "chrome")?.visible).toBe(true);
   });
 
   it("hides provider controls for active terminal threads", () => {
@@ -1722,6 +1746,82 @@ describe("ThreadComposerSection", () => {
     );
     expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
     expect(bridgeMock.interruptThread).not.toHaveBeenCalled();
+  });
+
+  describe("surface client context", () => {
+    const clientContext = {
+      browserFocus: { activeTab: { tabId: 8, title: "Docs", url: "https://docs.test/" } },
+    };
+
+    function renderWithContext(thread: Thread) {
+      const capture = vi.fn<TurnClientContextCapture>(async () => clientContext);
+      render(
+        <TurnClientContextSource value={capture}>
+          {composerElement({ thread })}
+        </TurnClientContextSource>,
+      );
+      return capture;
+    }
+
+    it("captures once at submit and sends it with an ordinary message", async () => {
+      const capture = renderWithContext(guiThread);
+      const editor = screen.getByRole("textbox");
+      typeComposerText(editor, "explain this page");
+      fireEvent.click(screen.getByText("send"));
+      expect(capture).toHaveBeenCalledTimes(1);
+      await waitFor(() =>
+        expect(runtimeActions.submitThreadInput).toHaveBeenCalledWith(
+          guiThread.id,
+          "explain this page",
+          [{ kind: "text", content: "explain this page" }],
+          { clientContext },
+        ),
+      );
+    });
+
+    it("retains it with a staged steer", async () => {
+      renderWithContext({ ...guiThread, status: "working", attention: "working" });
+      typeComposerText(screen.getByRole("textbox"), "change direction");
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() =>
+        expect(bridgeMock.setPendingSteer).toHaveBeenCalledWith({
+          threadId: guiThread.id,
+          prompt: "change direction",
+          segments: [{ kind: "text", content: "change direction" }],
+          config: guiThread.config,
+          clientContext,
+        }),
+      );
+    });
+
+    it("retains it with a queued follow-up", async () => {
+      useSharedSettings.setState({ followUpBehavior: "queue" });
+      renderWithContext({ ...guiThread, status: "working", attention: "working" });
+      typeComposerText(screen.getByRole("textbox"), "after this");
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() =>
+        expect(bridgeMock.queueThreadFollowUp).toHaveBeenCalledWith({
+          threadId: guiThread.id,
+          prompt: "after this",
+          config: guiThread.config,
+          segments: [{ kind: "text", content: "after this" }],
+          clientContext,
+        }),
+      );
+    });
+
+    it("sends no context from a surface that provides none", async () => {
+      render(composerElement({ thread: guiThread }));
+      typeComposerText(screen.getByRole("textbox"), "desktop send");
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() => expect(runtimeActions.submitThreadInput).toHaveBeenCalled());
+      expect(runtimeActions.submitThreadInput.mock.calls.at(-1)).toEqual([
+        guiThread.id,
+        "desktop send",
+        [{ kind: "text", content: "desktop send" }],
+        { clientContext: undefined },
+      ]);
+    });
   });
 
   it.each([

@@ -63,7 +63,7 @@ describe("remote v3 native binding generator", () => {
         // hashes with them. The canonical schedule/PR-watch selection config
         // and the seven persisted AI-utility selections move the IR source
         // hash again (manifest itself is schema-free and unchanged).
-        sourceHash: "sha256:23a16f85592f8201da6c918de242d798dc1921142627a359b4bb059fd0658b6a",
+        sourceHash: "sha256:aeb0aa9a39d015d50ddc87be0459c4963a0fcbd7228c61fbf7acc55a9b70d089",
         manifestHash: "sha256:1347fa335c587f46d569d680592c56c490d6d3950c495a0bacc79114bd9eb713",
         counts: {
           routes: 88,
@@ -74,10 +74,10 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 409,
-          structuralTypes: 958,
+          structuralTypes: 961,
           semanticValidators: 18,
           swiftFiles: 61,
-          kotlinFiles: 52,
+          kotlinFiles: 53,
           stateMachines: 5,
         },
       });

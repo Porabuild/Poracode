@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/opencode";
 import "@/renderer/components/providers/cursor";
 import { registerModelDescriptionFormatter } from "@/renderer/components/providers/modelDescription";
@@ -125,6 +125,12 @@ function hasComposedHeader(providerLabel: string, subProviderLabel: string): boo
 }
 
 describe("ProviderModelMenu", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    window.history.replaceState(null, "", "/");
+  });
+
   beforeEach(() => {
     layoutMock.compact = false;
     useSharedSettings.setState({
@@ -134,6 +140,44 @@ describe("ProviderModelMenu", () => {
       providerConfigs: {},
       providerModelPreferences: {},
     });
+  });
+
+  it.each([
+    { surface: "extension", width: 320 },
+    { surface: "extension", width: 360 },
+    { surface: "sidebar-preview", width: 320 },
+    { surface: "sidebar-preview", width: 360 },
+    { surface: "desktop", width: 1024 },
+  ])("keeps model favorites usable in $surface at $width px", async ({ surface, width }) => {
+    vi.stubGlobal("innerWidth", width);
+    layoutMock.compact = width < 768;
+    if (surface === "extension") vi.stubEnv("VITE_PORACODE_BUILD_TARGET", "extension");
+    if (surface === "sidebar-preview") {
+      window.history.replaceState(null, "", "/?surface=chat-sidebar");
+    }
+    render(
+      <ProviderModelMenu
+        providers={[makeNamedProvider("test-agent", "Test Agent", 2)]}
+        currentAgentKind="test-agent"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(listbox).not.toHaveAttribute("data-mobile", "true");
+    const popover = listbox.closest(".popover");
+    expect(popover).toHaveClass("w-96", "p-0");
+    // jsdom cannot measure layout; assert the actual popover's viewport cap
+    // and exercise the trailing control, leaving bounding boxes to browser QA.
+    expect(popover?.classList.contains("max-w-[calc(100vw-2rem)]")).toBe(surface !== "desktop");
+    const favorites = await screen.findAllByRole("button", { name: "Add to favorites" });
+    fireEvent.click(favorites[0]!);
+    expect(screen.getByRole("button", { name: "Remove from favorites" })).toBeInTheDocument();
+    expect(useSharedSettings.getState().favoriteModels).toEqual([
+      expect.objectContaining({ agentKind: "test-agent", modelId: "model-1" }),
+    ]);
   });
 
   it("uses divider headers without an initial hover highlight in the mobile drawer", async () => {

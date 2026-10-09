@@ -6,6 +6,7 @@
 // composed by the shared module exactly like the standalone server does.
 
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { app } from "electron";
 import type { PoracodePaths } from "@/shared/poracodePaths";
@@ -23,6 +24,7 @@ import type { DesktopResourceDirs } from "./desktopAppShell";
 import { safeStorageHealth } from "./safeStorageHealth";
 import { desktopApp, requirePoracodePaths } from "./desktopAppState";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
+import { chromeNativeHostEnabled } from "@/host/browser/external/chromeNativeHost";
 import { focusBrowserExtractWindow } from "./desktopAppWindows";
 import { SshEnvironmentSupervisor } from "./ssh/sshEnvironmentSupervisor";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
@@ -114,6 +116,12 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
   const services = composeHostServices(
     {
       baseDir: deps.paths.baseDir,
+      getChatBootstrap: () =>
+        deps.backendHost.callService("getManagedLoopbackBootstrap", { browserExtension: true }),
+      // Unpacked dev and smoke runs must not repoint the installed app's launcher.
+      ...(chromeNativeHostEnabled(app.isPackaged, process.env)
+        ? { chromeNativeHost: { homeDir: homedir() } }
+        : {}),
       getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
       // Device-local SSH is not a host service: the desktop runs it in a
       // utility process (main only invokes and presents), while the shared

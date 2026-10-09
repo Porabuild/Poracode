@@ -646,12 +646,12 @@ export class RemoteAccessServer {
    * republishes pairing info — reachable, not advertised. `null` once stopping
    * or before the listener is ready.
    */
-  mintLoopbackRendererCredential(): {
+  mintLoopbackRendererCredential(options?: { readonly browserExtension?: boolean }): {
     endpoint: string;
     pairingUrl: string;
     expiresAt: string;
   } | null {
-    return mintLoopbackRendererCredential(this.asHost());
+    return mintLoopbackRendererCredential(this.asHost(), options);
   }
 
   /**

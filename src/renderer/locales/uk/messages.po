@@ -2536,6 +2536,10 @@ msgstr "Чат позначено зіркою"
 msgid "Chat unstarred"
 msgstr "Позначку зірки знято з чату"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Chats"
+msgstr "Чати"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Перевірити"
@@ -2828,6 +2832,7 @@ msgstr "Очистити день"
 msgid "Clear goal"
 msgstr "Очистити мету"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "Очистити пошук"
@@ -3600,6 +3605,10 @@ msgstr "Підключення..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Підключення…"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+#~ msgid "Connection"
+#~ msgstr "Підключення"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -8654,6 +8663,10 @@ msgstr "Нова назва дії"
 msgid "New branch name..."
 msgstr "Назва нової гілки..."
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "New chat"
+msgstr "Новий чат"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "Новий каталог конфігурації профілю Claude"
@@ -9245,6 +9258,7 @@ msgid "No repositories found."
 msgstr "Репозиторії не знайдено."
 
 #: src/renderer/components/find/FindBar.tsx
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Немає результатів"
@@ -12649,6 +12663,10 @@ msgstr "Пошук плагінів, навичок і серверів..."
 msgid "Search pull requests"
 msgstr "Шукати pull request"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Search recent chats"
+msgstr "Пошук нещодавніх чатів"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
 msgstr "Пошук репозиторіїв"
@@ -13639,6 +13657,10 @@ msgstr "Почати голосовий чат"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
 msgstr "Запускати згорнутим"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Start Poracode to chat in your browser."
+msgstr "Запустіть Poracode, щоб спілкуватися в браузері."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Start remote thread"
@@ -15366,6 +15388,10 @@ msgstr "Не вдалося порівняти кандидатів: {0}"
 #~ msgid "Unable to connect over SSH."
 #~ msgstr "Не вдалося підключитися через SSH."
 
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Unable to connect. Retrying…"
+msgstr "Не вдалося підключитися. Повторна спроба…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy desktop endpoint."
 msgstr "Не вдалося скопіювати кінцеву точку робочого стола."
@@ -15825,6 +15851,10 @@ msgstr "не в індексі"
 msgid "Unsupported"
 msgstr "Не підтримується"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Untitled"
+msgstr "Без назви"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Unverified"
 msgstr "Не перевірено"
@@ -15922,6 +15952,10 @@ msgstr "Спосіб оновлення"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
 msgstr "Оновіть Poracode на комп'ютері, щоб використовувати переспрямування портів."
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Update Poracode to use browser chats."
+msgstr "Оновіть Poracode, щоб користуватися чатами в браузері."
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update SDK"

@@ -13,6 +13,7 @@ import {
   openSync,
   lstatSync,
   fstatSync,
+  fchmodSync,
   symlinkSync,
 } from "node:fs";
 import { fork, execFileSync } from "node:child_process";
@@ -32,6 +33,7 @@ const renameControl = vi.hoisted(() => ({
   failCodes: [] as string[],
   realRename: (() => {}) as (from: string, to: string) => void,
   writeFailure: false,
+  chmodFailure: false,
 }));
 
 vi.mock("node:fs", async (importOriginal) => {
@@ -39,6 +41,10 @@ vi.mock("node:fs", async (importOriginal) => {
   renameControl.realRename = actual.renameSync;
   return {
     ...actual,
+    fchmodSync: vi.fn<typeof actual.fchmodSync>((...args) => {
+      if (renameControl.chmodFailure) throw new Error("Synthetic chmod failure.");
+      return actual.fchmodSync(...args);
+    }),
     openSync: vi.fn<typeof actual.openSync>(actual.openSync),
     closeSync: vi.fn<typeof actual.closeSync>(actual.closeSync),
     writeFileSync: vi.fn<typeof actual.writeFileSync>((...args) => {
@@ -67,6 +73,7 @@ describe("writeFileAtomic", () => {
   beforeEach(() => {
     renameControl.failCodes = [];
     renameControl.writeFailure = false;
+    renameControl.chmodFailure = false;
     vi.mocked(randomUUID).mockReset();
     vi.mocked(randomUUID).mockImplementation(() => "f6489b1a-1952-4a42-8e74-448e00c24a15");
     vi.mocked(renameSync).mockClear();
@@ -224,6 +231,49 @@ describe("writeFileAtomic", () => {
     writeFileAtomic(target, "private bytes", { mode: 0o600 });
     expect(statSync(target).mode & 0o777).toBe(0o600);
   });
+
+  it.skipIf(process.platform === "win32")(
+    "applies exact mode under a restrictive umask without changing the default mode policy",
+    () => {
+      const moduleUrl = new URL("./atomicFile.ts", import.meta.url).href;
+      // Isolate the process-wide umask from Vitest and other filesystem tests.
+      const script = `
+        import { writeFileAtomic } from ${JSON.stringify(moduleUrl)};
+        import { statSync } from "node:fs";
+        process.umask(0o777);
+        const modes = [0o600, 0o700, 0o644].map((mode) => {
+          const path = ${JSON.stringify(dir)} + "/" + mode;
+          writeFileAtomic(path, "bytes", { mode, exactMode: true });
+          return statSync(path).mode & 0o777;
+        });
+        const path = ${JSON.stringify(dir)} + "/default";
+        writeFileAtomic(path, "bytes", { mode: 0o600 });
+        modes.push(statSync(path).mode & 0o777);
+        process.stdout.write(JSON.stringify(modes));
+      `;
+      const output = execFileSync(process.execPath, ["--input-type=module", "--eval", script], {
+        env: { ...process.env, NODE_OPTIONS: "" },
+        encoding: "utf8",
+      });
+      expect(JSON.parse(output)).toEqual([0o600, 0o700, 0o644, 0]);
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "does not publish a file when exact permissions cannot be set",
+    () => {
+      const target = join(dir, "target.json");
+      writeFileSync(target, "old target");
+      renameControl.chmodFailure = true;
+      expect(() => writeFileAtomic(target, "new target", { mode: 0o600, exactMode: true })).toThrow(
+        /Synthetic chmod failure/,
+      );
+      expect(fchmodSync).toHaveBeenCalled();
+      expect(renameSync).not.toHaveBeenCalled();
+      expect(readFileSync(target, "utf8")).toBe("old target");
+      expect(readdirSync(dir)).toEqual(["target.json"]);
+    },
+  );
 
   it.skipIf(process.platform === "win32")(
     "ignores a legacy PID temporary FIFO without opening or renaming it",

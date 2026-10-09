@@ -213,9 +213,10 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
   // V5 plan 2.5 completion: the managed flavor's always-on loopback attach
   // payload (endpoint + single-use credential) resolved behind readiness.
   // Additive same-build procedure: main and the backend child ship in one
-  // bundle, so the backend-host protocol version is unchanged.
+  // bundle, so the backend-host protocol version is unchanged. The optional
+  // `browserExtension` flag (Chrome sidebar) is additive on the same basis.
   getManagedLoopbackBootstrap: {
-    payload: Record<string, never>;
+    payload: { browserExtension?: boolean };
     result: ManagedLoopbackBootstrap | null;
   };
   refreshRemoteAccessPairing: {

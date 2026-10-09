@@ -44,6 +44,15 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Pi takes one text message per prompt or steer, so inline instructions (skill
+ * injections, provider-handoff text, per-turn client context) follow the
+ * user's prompt in it (see StartTurnOptions.inlineInstructions).
+ */
+function withInlineInstructions(prompt: string, options: StartTurnOptions | undefined): string {
+  return options?.inlineInstructions ? `${prompt}\n\n${options.inlineInstructions}` : prompt;
+}
+
 function recordOf(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
 }
@@ -233,13 +242,9 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.publishUpdate("working", "none");
     const completion = this.turnCompletion;
     try {
-      // Inline instructions (skill injections, provider-handoff context) ride
-      // with the prompt Pi receives but stay out of the painted user_message —
-      // `beginTurn` above records the user's own text (see
-      // StartTurnOptions.inlineInstructions).
-      const message = options?.inlineInstructions
-        ? `${prompt}\n\n${options.inlineInstructions}`
-        : prompt;
+      // `beginTurn` above records the user's own text for the painted
+      // user_message; the provider message carries the inline instructions.
+      const message = withInlineInstructions(prompt, options);
       const response = await this.client.request("prompt", { message, source: "rpc" });
       if (!response.success) {
         this.failTurn(response.error ?? "Pi rejected the prompt.");
@@ -268,7 +273,9 @@ export class PiRpcSession implements StructuredSessionHandle {
   ): Promise<void> {
     await this.applyConfig(config);
     if (!this.currentTurnId) return this.startTurn(prompt, config, undefined, options);
-    const response = await this.client.request("steer", { message: prompt });
+    const response = await this.client.request("steer", {
+      message: withInlineInstructions(prompt, options),
+    });
     if (!response.success) {
       throw new Error(response.error ?? "Pi could not steer the current turn.");
     }

@@ -10,12 +10,13 @@ import type {
   PromptSegment,
   ThreadConfig,
   ThreadPresentationMode,
+  TurnClientContext,
 } from "@/shared/contracts";
 import { MAX_EXPERIMENT_CANDIDATES } from "@/shared/contracts";
 import { hasSelectableReasoning } from "@/shared/agentSelection";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
-import { isHomeProjectId } from "@/shared/homeScope";
+import { isHomeProject } from "@/shared/homeScope";
 import { hasSendablePromptContent, skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { friendlyError } from "@/shared/messages";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -35,6 +36,7 @@ import {
 } from "@/renderer/components/composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
 import { LiveVoiceButton } from "@/renderer/components/composer/LiveVoiceControls";
+import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
 import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
@@ -135,6 +137,8 @@ export type DraftStartInput = {
   worktreeIsNewBranch?: boolean | undefined;
   worktreeTransferUncommitted?: boolean | undefined;
   presentationMode?: ThreadPresentationMode | undefined;
+  /** Per-turn context the launching surface captured for the initial prompt. */
+  clientContext?: TurnClientContext | undefined;
 };
 
 function HookInstallProposal(props: {
@@ -302,6 +306,8 @@ export function ThreadDraftComposerArea(props: {
   controls: ComposerControl[];
   config: ThreadConfig;
   compact: boolean | undefined;
+  /** Embedded clients cannot manage branches or experiment workspaces. */
+  hideWorkspaceControls?: boolean;
   paneCount: number | undefined;
   gitBranch: string | undefined;
   worktreeMode: boolean;
@@ -328,6 +334,7 @@ export function ThreadDraftComposerArea(props: {
 }) {
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
+  const implicitMcpServers = useImplicitMcpServers();
   const promptRef = useRef("");
   const [hasContent, setHasContent] = useState(false);
   // Set to true while an agent-binary update is running for this project's env.
@@ -497,7 +504,7 @@ export function ThreadDraftComposerArea(props: {
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
   const showCommandPanel = filteredCommands.length > 0;
   const authRequired = props.selectedAgent.authState === "missing";
-  const isHomeScope = isHomeProjectId(props.project.id);
+  const isHomeScope = isHomeProject(props.project);
   const threadMentions = useThreadMentionItems(
     isHomeScope
       ? { kind: "workspace", currentWorktreePath: branchSelection?.worktreePath }
@@ -512,7 +519,9 @@ export function ThreadDraftComposerArea(props: {
   // id — not the per-thread config flag. A new MCP server means adding one
   // descriptor to the registry.
   const availableComposerMcpServers = composerMcpServers.filter(
-    (descriptor) => disabledBuiltInMcpServers[descriptor.id] !== true,
+    (descriptor) =>
+      disabledBuiltInMcpServers[descriptor.id] !== true &&
+      !implicitMcpServers.includes(descriptor.id),
   );
   const providerOwnsMcp = providerOwnsMcpConfig(props.selectedAgent.capabilities);
   // A desktop remote project launches on the paired host, whose provider
@@ -1497,7 +1506,11 @@ export function ThreadDraftComposerArea(props: {
             showVoiceInputButton={showVoiceInputButton && !liveVoiceActive}
             {...(voiceInputUnavailableHint !== undefined ? { voiceInputUnavailableHint } : {})}
             isDisabled={authRequired || agentUpdating || isSubmitting}
-            {...(!isHomeScope && !usesRemoteTransport && !isQuickComposer && props.gitBranch
+            {...(!props.hideWorkspaceControls &&
+            !isHomeScope &&
+            !usesRemoteTransport &&
+            !isQuickComposer &&
+            props.gitBranch
               ? {
                   experiment: {
                     enabled: experimentMode,
@@ -1538,7 +1551,7 @@ export function ThreadDraftComposerArea(props: {
           />
         }
       />
-      {props.gitBranch ? (
+      {props.hideWorkspaceControls ? null : props.gitBranch ? (
         <div data-draft-worktree-row="" className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
           <WorktreeModeSelect
             mode={experimentMode ? "new" : worktreeMode}

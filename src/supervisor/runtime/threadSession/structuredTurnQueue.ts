@@ -4,6 +4,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { StructuredTurnResult } from "../../agents/base";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
+import { structuredTurnTextOptions } from "../turnClientContext";
 
 export interface StructuredTurnQueueContext {
   emit(event: SupervisorEvent): void;
@@ -48,7 +49,7 @@ export class StructuredTurnQueue {
         : undefined;
     const startOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
-      ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
+      ...structuredTurnTextOptions(session, turn),
     };
     const startTurn = session.structuredSession.startTurn(
       turn.prompt,

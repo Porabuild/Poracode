@@ -4,6 +4,7 @@ import {
   type RemoteAccessTokenResult,
   type RemoteTokenExchangePayload,
 } from "@/shared/remote";
+import { isBrowserExtensionReachableEndpoint } from "@/shared/chromeSidebarProtocol";
 import { buildPairingUrl, formatCertFingerprint } from "@/shared/remote/pairingUrl";
 import { RemoteHttpError, RefreshTokenReuseError } from "./auth";
 import { REMOTE_AUDIT_LOG_VERSION, type RemoteAuditEvent } from "./server/auditLog";
@@ -73,14 +74,28 @@ export function issueIndependentPairingUrl(
  * rotates the displayed QR credential (`activePairingCredential`) and never
  * republishes pairing info — reachable, not advertised. `null` once stopping
  * or before the listener is ready.
+ *
+ * `browserExtension` mints for the Chrome sidebar: it returns `null` before
+ * issuing anything when the endpoint is not plain-http loopback (LAN, tailnet
+ * or TLS binds), because the extension could never use it, and the credential
+ * expires quickly since the sidebar exchanges it immediately.
  */
-export function mintLoopbackRendererCredential(host: RemoteAccessServerHost): {
+export function mintLoopbackRendererCredential(
+  host: RemoteAccessServerHost,
+  options?: { readonly browserExtension?: boolean },
+): {
   endpoint: string;
   pairingUrl: string;
   expiresAt: string;
 } | null {
   if (host.stopping || !host.info) return null;
-  const issued = issuePresetPairingCredential(host, "Managed renderer");
+  if (options?.browserExtension && !isBrowserExtensionReachableEndpoint(host.info.localHttpBaseUrl))
+    return null;
+  const issued = options?.browserExtension
+    ? issuePresetPairingCredential(host, "Browser extension", undefined, {
+        ttlMs: BROWSER_EXTENSION_PAIRING_TTL_MS,
+      })
+    : issuePresetPairingCredential(host, "Managed renderer");
   const fingerprint = host.tls?.fingerprint;
   return {
     endpoint: host.info.localHttpBaseUrl,
@@ -93,14 +108,19 @@ export function mintLoopbackRendererCredential(host: RemoteAccessServerHost): {
   };
 }
 
+/** The sidebar redeems its credential within seconds of the bridge reply. */
+const BROWSER_EXTENSION_PAIRING_TTL_MS = 60_000;
+
 export function issuePresetPairingCredential(
   host: RemoteAccessServerHost,
   label: string | undefined,
   preset?: RemoteAccessScopePreset,
+  options?: { readonly ttlMs?: number },
 ) {
   const issued = host.auth.issuePairingCredential({
     ...(label ? { label } : {}),
     ...(preset ? { scopes: remoteAccessScopesForPreset(preset) } : {}),
+    ...(options?.ttlMs ? { ttlMs: options.ttlMs } : {}),
   });
   // Gate 6 item 4.7 (S7): every issued (or rotated) pairing credential is an
   // audited event. Revoked superseded credentials ride the same line.

@@ -1,3 +1,5 @@
+import "./sidebar/installTransportPolicy";
+import { isChatSidebarSurface } from "./clientSurface";
 import {
   installAttachedElectronClientRuntime,
   installBrowserClientRuntime,
@@ -137,7 +139,7 @@ if (window.poracodeHost) {
   window.poracode = readBridge();
 } else {
   const { installRemoteBridge } = await import("./browser/remoteBridge");
-  installRemoteBridge();
+  installRemoteBridge({ hostSettingsWriteThrough: !isChatSidebarSurface() });
   if (!window.poracode) throw new Error("Browser client bridge failed to initialize.");
   installBrowserClientRuntime(window.poracode);
 }
@@ -146,7 +148,8 @@ await import("./main");
 
 if (!window.poracodeHost) {
   void showBrowserPairing(window.location.href, true);
-  void import("./pwa/registerServiceWorker").then(({ registerCanonicalServiceWorker }) => {
-    registerCanonicalServiceWorker();
-  });
+  if (!isChatSidebarSurface())
+    void import("./pwa/registerServiceWorker").then(({ registerCanonicalServiceWorker }) => {
+      registerCanonicalServiceWorker();
+    });
 }

@@ -90,6 +90,7 @@ import {
 } from "../workspaceScope";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
+import { formatTurnClientContext, structuredTurnTextOptions } from "../turnClientContext";
 import {
   buildProviderHandoffInstruction,
   isResolvedThreadMentionSegment,
@@ -617,6 +618,15 @@ export class SpawnPipeline {
       inlineSkillInstructions && handoffInstruction
         ? `${handoffInstruction}\n\n${inlineSkillInstructions}`
         : (handoffInstruction ?? inlineSkillInstructions);
+    // Context for the initial prompt only; never stored on the session.
+    const initialTurnContext = useStructuredFlow
+      ? formatTurnClientContext(payload.clientContext)
+      : undefined;
+    const initialTurnText = {
+      prompt: initialPrompt,
+      ...(inlineInstructions ? { inlineInstructions } : {}),
+      ...(initialTurnContext ? { turnContext: initialTurnContext } : {}),
+    };
     if (
       payload.segments?.some((segment) => segment.kind === "thread") &&
       !threadMentionToolsAvailable &&
@@ -809,7 +819,7 @@ export class SpawnPipeline {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
-          ...(inlineInstructions ? { inlineInstructions } : {}),
+          ...structuredTurnTextOptions(session, initialTurnText),
         };
         void structuredSession
           .startTurn(
@@ -835,12 +845,19 @@ export class SpawnPipeline {
       !shouldQueueInitialPrompt &&
       structuredSession?.startTurn
     ) {
+      const initialTextOptions = structuredTurnTextOptions(
+        {
+          structuredSession,
+          slashCommands: ctx.sessions.get(payload.threadId)?.slashCommands,
+        },
+        initialTurnText,
+      );
       void structuredSession
         .startTurn(
           initialPrompt,
           launchConfig,
           effectiveSegments,
-          inlineInstructions ? { inlineInstructions } : undefined,
+          Object.keys(initialTextOptions).length > 0 ? initialTextOptions : undefined,
         )
         .catch((error) => {
           console.error("[supervisor] initial turn failed:", error);
@@ -1198,7 +1215,10 @@ export class SpawnPipeline {
           );
         const startOptions = {
           userMessageItemId: optimisticItemId,
-          ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
+          ...structuredTurnTextOptions(
+            { structuredSession, slashCommands: session.slashCommands },
+            turn,
+          ),
         };
         try {
           return await structuredSession.startTurn(

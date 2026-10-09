@@ -41,6 +41,8 @@ interface StartRemoteThreadCommon {
   readonly presentationMode?: ThreadPresentationMode | undefined;
   readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
   readonly providerSwitch?: StartThreadPayload["providerSwitch"] | undefined;
+  /** Per-turn client context for the initial prompt; an older host strips it. */
+  readonly clientContext?: StartThreadPayload["clientContext"] | undefined;
 }
 
 export interface StartRemoteThreadInput extends StartRemoteThreadCommon {

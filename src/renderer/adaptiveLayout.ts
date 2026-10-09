@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { hasElectronHostBridge } from "./clientRuntime";
+import { isChatSidebarSurface } from "./clientSurface";
 import { markMobilePlatformOnRoot } from "./components/mobileComposer/mobilePlatform";
 import { markTouchCapabilityOnRoot } from "./components/mobileComposer/pointerModality";
 import { isStandaloneDisplay } from "./pwa/install";
@@ -28,7 +29,8 @@ function mediaQuery(query: string): MediaQueryList | null {
 }
 
 function supportsCompactLayout(): boolean {
-  return !hasElectronHostBridge();
+  // Sidebar clients stay desktop-sized: narrow browser chrome is not a phone.
+  return !hasElectronHostBridge() && !isChatSidebarSurface();
 }
 
 function readCompactLayoutFromEnvironment(): boolean {

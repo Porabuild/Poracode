@@ -13,6 +13,7 @@ import {
   type AcpProbeResult,
 } from "./probe";
 import { projectModelConfigGroups } from "./modelConfigGroups";
+import { structuredTurnTextOptions } from "../../runtime/turnClientContext";
 import { dedupeAcpAuthMethods } from "./authMethods";
 import { resolveThoughtLevelToggleValues } from "./thoughtLevel";
 
@@ -83,6 +84,23 @@ describe("mapAcpSlashCommands", () => {
         description: "Show status",
       },
     ]);
+  });
+
+  it("lets the runtime keep advertised command arguments free of client context", () => {
+    const slashCommands = mapAcpSlashCommands([
+      { name: "memory", description: "Manage memory" },
+      { name: "skill:simplify", description: "Review changed code" },
+    ]);
+    const target = { structuredSession: {}, slashCommands };
+    const turnContext = "[client context] tab_id: 9";
+    // The provider receives `/memory add note` without the URL as arguments.
+    expect(structuredTurnTextOptions(target, { prompt: "/memory add note", turnContext })).toEqual(
+      {},
+    );
+    // A skill invocation is a model turn and keeps its context.
+    expect(
+      structuredTurnTextOptions(target, { prompt: "/skill:simplify src", turnContext }),
+    ).toEqual({ inlineInstructions: turnContext });
   });
 });
 

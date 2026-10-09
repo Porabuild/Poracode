@@ -402,6 +402,8 @@ describe("standalone host service composition (V5 1.1)", () => {
     let host: Awaited<ReturnType<typeof makeHost>> | undefined;
     try {
       host = await makeHost({ staging: true, stagingDeadlineMs: 50 });
+      // Expire before start installs its waiter, as a slow staged startup can.
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
       await expect(host.start()).rejects.toThrow(/admission/u);
     } finally {
       await disposeQuietly(host);

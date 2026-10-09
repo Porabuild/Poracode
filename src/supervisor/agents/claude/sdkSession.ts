@@ -46,11 +46,13 @@ import { captureSupervisorException } from "../../diagnostics/sentry";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { DeferredTurnCompletion } from "./deferredTurnCompletion";
 import { clearBackgroundTasks } from "./canonicalMapping/backgroundTasks";
+import { isSubAgentParentTool } from "./canonicalMapping/toolClassification";
 import { applyClaudeContextSuffix } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
   ClaudeUsageScopeTracker,
   closeClaudeOpenItems,
+  closeClaudeGenerationItems,
   completeActiveGoalOnTaskDrainEvents,
   createClaudeMapperState,
   emitActiveGoalTick,
@@ -69,7 +71,12 @@ import {
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
 import { AsyncPromptQueue } from "./promptQueue";
-import { ClaudeSteerDelivery, interruptClaudeQuery, isGoalMutationPrompt } from "./steerDelivery";
+import {
+  ClaudeSteerDelivery,
+  interruptClaudeQuery,
+  isGoalMutationPrompt,
+  type ClaudeForegroundSteerState,
+} from "./steerDelivery";
 import { projectCwd, spawnClaudeInWsl, spawnClaudeNative } from "./sdkSpawn";
 import { buildSdkUserMessage } from "./sdkPrompt";
 import {
@@ -110,6 +117,8 @@ const DEFERRED_FLUSH_RESUME_GRACE_MS = 5000;
 
 export class ClaudeSdkSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions = { suppressResumeConfigOverrides: true };
+  /** Inline instructions mean "skill not native" here, and a slash command must stay last. */
+  readonly placesTurnContext = true;
 
   private readonly input: CreateStructuredSessionInput;
   private listener: StructuredSessionListener | undefined;
@@ -336,7 +345,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     await this.syncUltracodeFlag(query);
     await this.syncFastMode(query);
 
-    const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
+    const message = await buildSdkUserMessage(
+      prompt,
+      segments,
+      options?.inlineInstructions,
+      options?.turnContext,
+    );
     if (this.disposed || generation !== this.submissionGeneration) return;
     this.promptQueue.push(message);
   }
@@ -361,7 +375,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * Deliver ordinary follow-ups at the SDK's next tool boundary without
+   * Deliver ordinary follow-ups immediately through the SDK without
    * resetting the running mapper. Commands and config changes need a fresh
    * turn; older CLIs also keep local admission because Stop cannot cancel
    * their queued input atomically.
@@ -398,9 +412,59 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     try {
       await this.steerDelivery.serialize(async () => {
         if (this.disposed || generation !== this.submissionGeneration) return;
-        const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
+        const message = await buildSdkUserMessage(
+          prompt,
+          segments,
+          options?.inlineInstructions,
+          options?.turnContext,
+        );
         if (this.disposed || generation !== this.submissionGeneration) return;
-        this.promptQueue.push({ ...message, uuid, priority: "next" });
+        // A child may execute before the CLI registers its task. Wait for
+        // that readiness edge instead of interrupting and killing it.
+        let foreground: ClaudeForegroundSteerState = "none";
+        if (this.pendingRequests.size === 0 && this.queryRuntime) {
+          foreground = await this.steerDelivery.backgroundForegroundTools(
+            this.queryRuntime,
+            () =>
+              [...this.mapperState.toolItemsById.values()].filter(
+                (tool) =>
+                  !tool.inputStreaming &&
+                  !this.mapperState.subAgentChildToolItemIds?.has(tool.itemId) &&
+                  (tool.itemType === "command_execution" || isSubAgentParentTool(tool)),
+              ),
+            () =>
+              !this.disposed &&
+              generation === this.submissionGeneration &&
+              this.pendingRequests.size === 0,
+          );
+        }
+        if (this.disposed || generation !== this.submissionGeneration) return;
+        if (
+          this.queryRuntime &&
+          foreground === "none" &&
+          !this.steerDelivery.canSendNow(this.queryRuntime) &&
+          !this.steerDelivery.hasBackgroundedTools &&
+          !this.hasLiveBackgroundWork() &&
+          this.pendingRequests.size === 0
+        ) {
+          // Interrupt BEFORE sending new input so the old abort cannot catch
+          // the replacement cycle. Leave earlier SDK-queued input runnable.
+          await interruptClaudeQuery(this.queryRuntime, false).catch(() => {});
+        }
+        if (this.disposed || generation !== this.submissionGeneration) return;
+        // Keep an open question/permission callback intact until it is answered.
+        const priority = this.pendingRequests.size > 0 ? "later" : "now";
+        this.promptQueue.push({ ...message, uuid, priority });
+        if (priority === "now" && foreground !== "blocked" && this.queryRuntime) {
+          await this.steerDelivery.sendNow(
+            this.queryRuntime,
+            uuid,
+            () =>
+              !this.disposed &&
+              generation === this.submissionGeneration &&
+              this.pendingRequests.size === 0,
+          );
+        }
       });
     } catch (error) {
       if (this.disposed || generation !== this.submissionGeneration) return;
@@ -632,7 +696,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   /** Closes the live query and reopens the session at an absolute position. */
   private applyResumePoint(resumeSessionAt: string): void {
     this.submissionGeneration++;
-    this.steerDelivery.clear();
+    this.steerDelivery.reset();
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = false;
     this.openedResumeSessionId = this.sessionId;
@@ -655,7 +719,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     // (see steersSurvivingInterrupt); the interrupted result delivers it.
     this.goalSteerInterruptInFlight = false;
     this.pendingSteers = this.steersSurvivingInterrupt(false);
-    this.steerDelivery.clear();
+    this.steerDelivery.reset();
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.interruptInFlight = true;
@@ -673,7 +737,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
     }
     this.pendingSteers = [];
-    this.steerDelivery.clear();
+    this.steerDelivery.reset();
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.deferredCompletion.clear();
@@ -844,7 +908,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   private closeSessionResources(): void {
     this.pendingSteers = [];
-    this.steerDelivery.clear();
+    this.steerDelivery.reset();
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.stopGoalTracking();
@@ -1097,14 +1161,20 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           if (runtime !== this.queryRuntime) return;
           this.submissionGeneration++;
           this.pendingSteers = [];
-          this.steerDelivery.clear();
+          this.steerDelivery.reset();
           this.promptQueue.clear();
-          if (!this.disposed) this.flushDeferredCompletion();
+          if (!this.disposed) {
+            if (this.currentTurnInFlight) {
+              this.forceCompleteTurn();
+              this.emitUpdate({ status: "idle", attention: "none" });
+            }
+            this.flushDeferredCompletion();
+          }
         } catch (error) {
           if (runtime !== this.queryRuntime) return;
           this.submissionGeneration++;
           this.pendingSteers = [];
-          this.steerDelivery.clear();
+          this.steerDelivery.reset();
           this.promptQueue.clear();
           if (!this.disposed) {
             captureSupervisorException(error, {
@@ -1292,22 +1362,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
 
     let wasInterrupted = false;
+    let failed = false;
     let resultState: TurnState | undefined;
     if (message.type === "result") {
       wasInterrupted =
         this.interruptInFlight || (message.subtype !== "success" && isInterruptedResult(message));
       if (this.steerError) resultState = "failed";
       else if (wasInterrupted) resultState = "interrupted";
-    }
-    const events = mapClaudeSdkMessage(
-      message,
-      this.mapperState,
-      resultState ? { resultState } : undefined,
-    );
-    this.emitRuntimeEvents(events);
-    if (message.type === "result") {
-      void this.refreshContextUsage();
-      this.interruptInFlight = false;
       const remaining = nonDiagnosticErrors(message);
       // claude.exe surfaces upstream API failures (e.g. 401 auth, 429 rate
       // limit) as subtype "success" with `is_error: true` / `api_error_status`
@@ -1322,10 +1383,29 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // diagnostic-only case is itself treated as an interrupt via
       // `isInterruptedResult`, covering external (in-CLI) Esc interrupts where
       // `interruptInFlight` is false.
-      const failed =
+      failed =
         this.steerError !== undefined ||
         (!wasInterrupted &&
           (apiErrored || (message.subtype !== "success" && remaining.length > 0)));
+      if (!failed) this.steerDelivery.settleResult(message, wasInterrupted);
+      if (!failed && !this.interruptInFlight && this.steerDelivery.hasPending) {
+        // `now` can end the old generation before the replacement is echoed,
+        // or echo it before the old result arrives. Neither ends the user's
+        // logical turn: preserve live tools, goals, and submission ownership.
+        this.emitRuntimeEvents(closeClaudeGenerationItems(this.mapperState));
+        void this.refreshContextUsage();
+        return;
+      }
+    }
+    const events = mapClaudeSdkMessage(
+      message,
+      this.mapperState,
+      resultState ? { resultState } : undefined,
+    );
+    this.emitRuntimeEvents(events);
+    if (message.type === "result") {
+      void this.refreshContextUsage();
+      this.interruptInFlight = false;
       const errorMessage = failed
         ? (this.steerError ?? extractResultErrorMessage(message) ?? "Claude turn failed.")
         : undefined;
@@ -1359,10 +1439,6 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         if (failed && hadPendingDelivery && this.queryRuntime && this.steerDelivery.supported) {
           void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
         }
-      }
-      if (this.steerDelivery.hasPending) {
-        this.deferredCompletion.defer(completion);
-        return;
       }
       if (this.startPendingSteer()) return;
       if (this.hasLiveBackgroundWork()) {

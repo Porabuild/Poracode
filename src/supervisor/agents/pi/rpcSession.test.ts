@@ -356,6 +356,43 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     await disposeSettledSession(session, events, updates);
   });
 
+  it("delivers inline instructions with a steer, live and as a fresh turn", async () => {
+    const { session, events, updates } = await createSession();
+    const config = { model: "mock/model", effort: "off" };
+    const request = vi.spyOn(PiRpcClient.prototype, "request");
+    try {
+      // No turn in flight: the steer starts one with the same provider message.
+      await session.steerTurn("ECHO fresh", config, undefined, {
+        inlineInstructions: "[client context] tab A",
+      });
+      const seen = events
+        .filter(
+          (e): e is Extract<RuntimeEvent, { type: "content.delta" }> =>
+            e.type === "content.delta" && e.stream === "assistant_text",
+        )
+        .map((e) => e.delta)
+        .join("");
+      expect(seen).toBe("SAW:ECHO fresh\n\n[client context] tab A");
+
+      const turn = session.startTurn("DIALOG", config);
+      const opened = (await waitFor(events, (event) => event.type === "request.opened")) as Extract<
+        RuntimeEvent,
+        { type: "request.opened" }
+      >;
+      await session.steerTurn("summarize this page instead", config, undefined, {
+        inlineInstructions: "[client context] tab B",
+      });
+      expect(request).toHaveBeenCalledWith("steer", {
+        message: "summarize this page instead\n\n[client context] tab B",
+      });
+      await session.resolveServerRequest(opened.requestId, { optionId: "alpha" });
+      await turn;
+    } finally {
+      request.mockRestore();
+      await disposeSettledSession(session, events, updates);
+    }
+  });
+
   it("surfaces a provider error as a failed turn", async () => {
     const { session, events, updates } = await createSession();
     await session.startTurn?.("FAIL please", { model: "mock/model", effort: "off" });

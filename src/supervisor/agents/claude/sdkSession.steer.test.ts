@@ -148,6 +148,23 @@ it("uses normal turn accounting when steering an idle session", async () => {
   expect(h.events.filter((event) => event.type === "turn.started")).toHaveLength(1);
 });
 
+it("places declared turn context on started and steered turns without painting it", async () => {
+  const h = await createSession();
+  expect(h.session.placesTurnContext).toBe(true);
+  await h.session.startTurn("first", config, undefined, { turnContext: "[client context] one" });
+  expect((await h.inputs.next()).value?.message.content).toEqual([
+    { type: "text", text: "[client context] one" },
+    { type: "text", text: "first" },
+  ]);
+  await h.session.steerTurn("second", config, undefined, { turnContext: "[client context] two" });
+  h.output.write(resultMessage(h.id));
+  expect((await h.inputs.next()).value?.message.content).toEqual([
+    { type: "text", text: "[client context] two" },
+    { type: "text", text: "second" },
+  ]);
+  expect(JSON.stringify(h.events)).not.toContain("[client context]");
+});
+
 it.each([
   { initial: config, next: { ...config, mode: "plan" as const }, permission: "plan" },
   { initial: { ...config, mode: "plan" as const }, next: config, permission: "acceptEdits" },

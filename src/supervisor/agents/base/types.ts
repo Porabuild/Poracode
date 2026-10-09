@@ -118,6 +118,16 @@ export interface StartTurnOptions {
    * payload only — never painted into the chat's user_message item.
    */
   inlineInstructions?: string;
+  /**
+   * Per-turn client context (for example the browser tab the user was looking
+   * at when they sent this message), already rendered as untrusted metadata.
+   * Only passed to a handle that declares `placesTurnContext`; every other
+   * handle receives it at the front of `inlineInstructions`, except on a
+   * prompt that invokes a command the session advertised in `slashCommands`.
+   * Never painted into the chat's user_message item and never a skill
+   * fallback.
+   */
+  turnContext?: string;
 }
 
 /** Result used by provider controls that complete without opening a turn. */
@@ -149,6 +159,15 @@ export interface StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
   /** Complete provider reference, including opaque resume-scope metadata, after open. */
   getSessionRef?(): SessionRef | undefined;
+  /**
+   * Declares that `startTurn`/`steerTurn` place `StartTurnOptions.turnContext`
+   * themselves. Set it when the provider infers meaning from the presence of
+   * `inlineInstructions` or must keep context out of a position the provider
+   * protocol reserves. Absent: the runtime prepends the context to
+   * `inlineInstructions`, which every handle already delivers, and withholds
+   * it from a prompt that invokes an advertised non-skill slash command.
+   */
+  readonly placesTurnContext?: boolean;
   /** Whether a provider-native root or child session belongs to this thread. */
   ownsProviderSession?(providerSessionId: string): boolean;
   activate?(): Promise<void>;

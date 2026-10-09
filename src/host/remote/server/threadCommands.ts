@@ -406,6 +406,8 @@ async function startRemoteThread(
     initialSize: command.initialSize ?? DEFAULT_TERMINAL_SIZE,
     ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
     ...(command.userMessageItemId ? { userMessageItemId: command.userMessageItemId } : {}),
+    // Per-turn context reaches the launch only; the row and title above never see it.
+    ...(command.clientContext ? { clientContext: command.clientContext } : {}),
     ...mcpSnapshot,
   });
 }

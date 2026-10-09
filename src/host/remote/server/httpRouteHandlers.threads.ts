@@ -371,8 +371,16 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
           if (!catalogIntent) {
             const rendererCommand = (() => {
               if (command.kind !== "start") return command;
-              const { isNewWorktree: _isNewWorktree, ...startCommand } = command;
-              return { ...startCommand, launchRuntime: false };
+              // Per-turn client context belongs to the provider launch only;
+              // the mirrored row never carries another client's page metadata.
+              const {
+                isNewWorktree: _isNewWorktree,
+                clientContext: _clientContext,
+                ...startCommand
+              } = command;
+              // A host catalog projection is not a navigation intent in the
+              // desktop client. The requesting client owns its selection.
+              return { ...startCommand, launchRuntime: false, focus: startCommand.focus ?? false };
             })();
             await ctx.options.dispatchThreadCommand?.(rendererCommand);
           }

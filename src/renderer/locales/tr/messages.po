@@ -2536,6 +2536,10 @@ msgstr "Sohbet yıldızlandı"
 msgid "Chat unstarred"
 msgstr "Sohbetin yıldızı kaldırıldı"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Chats"
+msgstr "Sohbetler"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Kontrol et"
@@ -2828,6 +2832,7 @@ msgstr "Günü temizle"
 msgid "Clear goal"
 msgstr "Hedefi temizle"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "Aramayı temizle"
@@ -3600,6 +3605,10 @@ msgstr "Bağlanıyor..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Bağlanıyor…"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+#~ msgid "Connection"
+#~ msgstr "Bağlantı"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -8654,6 +8663,10 @@ msgstr "Yeni işlem adı"
 msgid "New branch name..."
 msgstr "Yeni şube adı..."
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "New chat"
+msgstr "Yeni sohbet"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "Yeni Claude profili yapılandırma dizini"
@@ -9245,6 +9258,7 @@ msgid "No repositories found."
 msgstr "Hiçbir depo bulunamadı."
 
 #: src/renderer/components/find/FindBar.tsx
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Sonuç yok"
@@ -12649,6 +12663,10 @@ msgstr "Eklenti, beceri ve sunucu ara..."
 msgid "Search pull requests"
 msgstr "Çekme isteklerinde ara"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Search recent chats"
+msgstr "Son sohbetlerde ara"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
 msgstr "Depolarda ara"
@@ -13639,6 +13657,10 @@ msgstr "Canlı sesli sohbet başlat"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
 msgstr "Simge durumunda başlat"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Start Poracode to chat in your browser."
+msgstr "Tarayıcınızda sohbet etmek için Poracode uygulamasını başlatın."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Start remote thread"
@@ -15366,6 +15388,10 @@ msgstr "Adaylar karşılaştırılamadı: {0}"
 #~ msgid "Unable to connect over SSH."
 #~ msgstr "SSH üzerinden bağlanılamadı."
 
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Unable to connect. Retrying…"
+msgstr "Bağlanılamadı. Yeniden deneniyor…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy desktop endpoint."
 msgstr "Masaüstü uç noktası kopyalanamadı."
@@ -15825,6 +15851,10 @@ msgstr "hazırlanmamış"
 msgid "Unsupported"
 msgstr "Desteklenmiyor"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Untitled"
+msgstr "Başlıksız"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Unverified"
 msgstr "Doğrulanmadı"
@@ -15922,6 +15952,10 @@ msgstr "Güncelleme yöntemi"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
 msgstr "Port yönlendirmeyi kullanmak için masaüstünüzdeki Poracode'u güncelleyin."
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Update Poracode to use browser chats."
+msgstr "Tarayıcı sohbetlerini kullanmak için Poracode’u güncelleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update SDK"

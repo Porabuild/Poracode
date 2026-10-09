@@ -339,6 +339,8 @@ describe("createDbStorage", () => {
     expect(bridge.dbGetProjects).not.toHaveBeenCalled();
     expect(bridge.dbGetState).not.toHaveBeenCalled();
     expect(bridge.dbSyncAll).not.toHaveBeenCalled();
+    expect(bridge.dbSetState).not.toHaveBeenCalled();
+    expect(bridge.dbSyncChanges).not.toHaveBeenCalled();
   });
 
   it("migrates a legacy localStorage payload into IndexedDB once and removes it after the commit", async () => {

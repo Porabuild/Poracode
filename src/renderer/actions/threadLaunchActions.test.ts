@@ -681,6 +681,26 @@ describe("startThreadFromDraft host transport", () => {
     expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
   });
 
+  it("forwards the draft's client context with a remote GUI launch, keeping the prompt original", async () => {
+    mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
+    const clientContext = {
+      browserFocus: { activeTab: { tabId: 2, title: "Spec", url: "https://spec.test/" } },
+    };
+
+    await startThreadFromDraft(remoteProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "review this spec",
+      presentationMode: "gui",
+      clientContext,
+    });
+
+    expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "review this spec", clientContext }),
+      undefined,
+    );
+  });
+
   it("shows the same optimistic GUI launch while a remote worktree is provisioning", async () => {
     mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
     let resolveWorktree!: (result: { path: string; changesTransferred?: boolean }) => void;

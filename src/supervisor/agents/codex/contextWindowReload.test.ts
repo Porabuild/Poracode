@@ -40,7 +40,10 @@ describe("Codex context-window reload", () => {
       "turn/start",
     ]);
     expect(h.requests[0]?.params).toEqual({ threadId: "provider-thread" });
-    expect(h.requests[1]?.params).toMatchObject({ threadId: "provider-thread" });
+    expect(h.requests[1]).toMatchObject({
+      params: { threadId: "provider-thread", excludeTurns: true },
+      timeoutMs: 120_000,
+    });
     expect(windowOf(h.requests[1]?.params)).toBe(1_000_000);
 
     // Applied: the next turn on the same window does not reload again.
@@ -123,6 +126,10 @@ describe("Codex context-window reload", () => {
     ]);
     // The retry re-subscribes on the previously applied window.
     expect(windowOf(h.requests[2]?.params)).toBe(400_000);
+    expect(h.requests[2]).toMatchObject({
+      params: { excludeTurns: true },
+      timeoutMs: 120_000,
+    });
   });
 
   it("skips the resume when unsubscribing fails", async () => {

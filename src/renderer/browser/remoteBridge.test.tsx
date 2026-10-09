@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import type { PrWatch, PrWatchInput, PrWatchKey, ProjectNotes } from "@/shared/contracts";
-import { REMOTE_PROCEDURE_SPECS } from "@/shared/remote";
+import { REMOTE_PROCEDURE_SPECS, pickRemoteSettings } from "@/shared/remote";
+import { defaultSharedSettings } from "@/shared/settings";
+import { applyDesktopSettings, resetDesktopSettings } from "./remoteSettingsSync";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
@@ -17,6 +19,7 @@ import { useRemoteBridgeImageReadiness } from "./useRemoteBridgeImages";
 describe("remote bridge", () => {
   afterEach(() => {
     setRemoteBridgeClient(null);
+    resetDesktopSettings();
     vi.restoreAllMocks();
     Object.defineProperty(window, "poracode", {
       configurable: true,
@@ -24,6 +27,26 @@ describe("remote bridge", () => {
       value: undefined,
     });
   });
+
+  it.each([false, true])(
+    "honors independent preference writes while preserving the default host sync (%s)",
+    async (writeThrough) => {
+      const initial = pickRemoteSettings(defaultSharedSettings);
+      const updateSettings = vi
+        .fn<RemoteDesktopClient["updateSettings"]>()
+        .mockResolvedValue(initial);
+      setRemoteBridgeClient({ updateSettings } as unknown as RemoteDesktopClient);
+      installRemoteBridge(writeThrough ? {} : { hostSettingsWriteThrough: false });
+      applyDesktopSettings(initial);
+      await window.poracode!.setSharedSettings({
+        ...defaultSharedSettings,
+        enabledMcpServers: { chrome: true },
+      });
+      expect(updateSettings.mock.calls).toEqual(
+        writeThrough ? [[{ enabledMcpServers: { chrome: true } }]] : [],
+      );
+    },
+  );
 
   it("publishes a fetched attachment blob to the thumbnail and lightbox resolver", async () => {
     const createDescriptor = Object.getOwnPropertyDescriptor(URL, "createObjectURL");

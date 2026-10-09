@@ -54,6 +54,13 @@ export interface HeadlessRemoteHostOptions {
    * the computer-use MCP ingress; otherwise the capability stays `false`.
    */
   readonly computerUseHelperRoot?: string;
+  /**
+   * Register the per-user Chrome native messaging host and publish this
+   * host's bridge token through it. The CLI sets it for production runs (or
+   * `PORACODE_CHROME_NATIVE_HOST=1`, see `chromeNativeHostEnabled`); fixtures
+   * leave it unset so they never write into the user's browser profiles.
+   */
+  readonly registerChromeNativeHost?: boolean;
   /** Explicit base64 32-byte key injection; absence uses the owned key file. */
   readonly environmentKey?: string;
   /**
