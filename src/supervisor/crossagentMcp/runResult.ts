@@ -3,6 +3,7 @@ import { compactRunResult } from "./compactRunResult";
 import { cursorOutputTail } from "./cursorOutputTail";
 import type { PreparedSubagentRun } from "./spawnPlan";
 import type { SubagentAttemptResult, SubagentWaitOptions, SubagentWaitResult } from "./types";
+import { readDispatchTrace } from "./dispatchTrace";
 
 interface RunResultRecord {
   status: SubagentWaitResult["status"];
@@ -38,6 +39,24 @@ function clipOutputTail(text: string, maxChars: number, totalChars = text.length
 }
 
 export function readRunResult(
+  record: RunResultRecord,
+  options?: SubagentWaitOptions,
+): SubagentWaitResult {
+  const result = readRunOutputResult(record, options);
+  return options?.includeTrace === true && record.plan.dispatchTrace
+    ? {
+        ...result,
+        trace: readDispatchTrace(
+          record.plan.dispatchTrace,
+          record.attemptResults,
+          record.attemptIndex,
+          record.status,
+        ),
+      }
+    : result;
+}
+
+function readRunOutputResult(
   record: RunResultRecord,
   options?: SubagentWaitOptions,
 ): SubagentWaitResult {

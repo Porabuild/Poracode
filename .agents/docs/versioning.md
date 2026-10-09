@@ -1,5 +1,18 @@
 # Versioned State & Protocols
 
+Crossagents plugin `1.9.0` adds optional `include_trace` to `get_status` and
+single/batch `wait_for_agent`. The manifest also supplies the MCP server version.
+Omitted/false keeps the previous response; compact reports, quiet/full/progress
+reads and output cursors keep their existing meaning. Dispatch provenance is
+copied into the existing memory-only resolved run plan; attempts reuse existing
+outcomes and dispatch state. No database, settings, cache, remote-wire, helper or
+compact-envelope version changes. Older stored settings and connected callers
+remain valid; refresh the catalog/skill to discover the opt-in capability. Older
+hosts do not advertise it. Trace expires under existing run retention and host
+restart. Regression tests start with prior read shapes and cover privacy bounds,
+saved/per-call policy sources, explicit empty chains, batch/cursor isolation,
+workflow selection and winning-session continuation.
+
 Codex resume requests use the existing optional `excludeTurns` protocol field
 and a resume-only two-minute timeout. Saved transcripts and provider session IDs
 remain valid; UI history is already persisted independently of this response.

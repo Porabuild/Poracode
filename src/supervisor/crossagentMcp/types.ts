@@ -16,6 +16,7 @@ import type {
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { CompactResult } from "./compactResult";
 import type { CrossagentRoutingOverride } from "@/shared/settings";
+import type { DispatchProvenance, SubagentDispatchTrace } from "./dispatchTrace";
 
 /** Terminal states a subagent run can settle into. */
 export type SubagentRunStatus = "running" | "completed" | "failed" | "cancelled";
@@ -182,6 +183,8 @@ export interface ExplicitSpawnAgentSelection {
 
 /** Arguments accepted by `spawn_agent` / `run_agent`. */
 export interface SpawnAgentRequest extends SpawnAgentSelection {
+  /** Internal selection provenance; never parsed from caller-supplied metadata. */
+  dispatchProvenance?: DispatchProvenance;
   prompt: string;
   /** Ask the worker to prepare a structured final report; reads omit narration by default. */
   resultMode?: "compact";
@@ -214,6 +217,8 @@ export interface SubagentAttemptResult {
 
 /** Options accepted by the wait/status read paths. */
 export interface SubagentWaitOptions {
+  /** Opt in to the sanitized dispatch-time plan and normalized attempt outcomes. */
+  includeTrace?: boolean;
   /** Suppress running narration without consuming its cursor; fullOutput wins. */
   outputMode?: "quiet" | "progress";
   /** Return the entire accumulated transcript instead of the incremental tail. */
@@ -226,6 +231,8 @@ export interface SubagentWaitOptions {
 
 /** Result of `wait_for_agent` / `run_agent`. */
 export interface SubagentWaitResult {
+  /** Absent unless include_trace was requested. Retained with the run, not persisted. */
+  trace?: SubagentDispatchTrace;
   status: SubagentRunStatus;
   /** Worker-authored claims, validated structurally but not independently verified. */
   result?: CompactResult;
