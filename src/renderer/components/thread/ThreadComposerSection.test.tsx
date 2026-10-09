@@ -1,6 +1,6 @@
 import { keyDownAt } from "@/renderer/testUtils/keyboard";
 import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
-import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -2979,7 +2979,9 @@ describe("ThreadComposerSection", () => {
     expect(screen.queryByRole("button", { name: "Allow" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deny" })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Scope B" } });
+    fireEvent.click(screen.getByRole("button", { name: /Scope$/u }));
+    const listbox = await screen.findByRole("listbox");
+    fireEvent.click(within(listbox).getByRole("option", { name: "Scope B" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Confirm" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
