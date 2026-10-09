@@ -40,6 +40,36 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
+  it("invalidates v40 catalogs that omitted confirmed empty effort ladders", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 40,
+        windows: [
+          {
+            kind: "example",
+            installed: true,
+            capabilities: {
+              models: [{ id: "plain", label: "Plain" }],
+              efforts: ["high"],
+              modelEfforts: {},
+            },
+          },
+        ],
+        wsl: [],
+      }),
+    );
+    const service = makeRuntime(() => {}).agentStatusService as unknown as {
+      readCachedStatuses(distros: string[]): unknown;
+    };
+
+    expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
   it("invalidates v37 snapshots before derived model capability refresh", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
@@ -68,11 +98,11 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(STATUS_CACHE_VERSION).toBe(41);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
-  it.each([32, 33, 34, 35, 36, 37, 38, 39])(
+  it.each([32, 33, 34, 35, 36, 37, 38, 39, 40])(
     "invalidates pre-integration v%i status snapshots",
     (version) => {
       const dataDir = makeTempDir();
@@ -132,7 +162,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(STATUS_CACHE_VERSION).toBe(41);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
@@ -487,7 +517,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(STATUS_CACHE_VERSION).toBe(41);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -538,7 +568,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(STATUS_CACHE_VERSION).toBe(41);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -578,7 +608,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(STATUS_CACHE_VERSION).toBe(41);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -617,7 +647,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(STATUS_CACHE_VERSION).toBe(41);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -678,7 +708,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(STATUS_CACHE_VERSION).toBe(41);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -718,7 +748,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses([]);
-    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(STATUS_CACHE_VERSION).toBe(41);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

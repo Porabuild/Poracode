@@ -114,7 +114,9 @@ const execFileAsync = promisify(execFile);
 // v40 invalidates the post-v35 parents: V2 v39 caches still hold skill
 // invocations in the pre-`invocationForSkill` form, and master v34 lacks V2's
 // SDK installation and capability metadata, so every cache below v40 re-probes.
-export const STATUS_CACHE_VERSION = 40;
+// v41 re-probes confirmed empty per-model effort ladders so models without
+// an effort selector cannot inherit unsupported global/CLI choices.
+export const STATUS_CACHE_VERSION = 41;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

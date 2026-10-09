@@ -395,6 +395,7 @@ function rememberModelThoughtLevels(
   modelEfforts: Record<string, string[]>,
   modelDefaultEfforts: Record<string, string>,
   thinkingModels: string[],
+  preserveEmptyModelEfforts = false,
 ): void {
   const thinkingToggle = findThinkingToggleConfigOption(configOptions);
   if (
@@ -425,6 +426,7 @@ function rememberModelThoughtLevels(
     modelDefaultEfforts[modelId] = thoughtLevels.defaultEffort;
   }
   if (thoughtLevels.efforts.length === 0) {
+    if (preserveEmptyModelEfforts) modelEfforts[modelId] = [];
     return;
   }
   modelEfforts[modelId] = thoughtLevels.efforts;
@@ -517,6 +519,13 @@ export async function probeAcpCapabilities(
      * advertise them here.
      */
     clientCapabilitiesMeta?: Record<string, unknown>;
+    /**
+     * Record an empty effort ladder when a verified per-model config snapshot
+     * exposes no effort choices. Missing entries then mean unprobed models,
+     * rather than models allowed to inherit the provider-wide effort list.
+     * Undeclared probes retain their existing global-list fallback behavior.
+     */
+    preserveEmptyModelEfforts?: boolean;
     /**
      * Per-model thought-level / model_config sweep budget. Defaults to the
      * shared 300ms cap so a wedged `set_config_option` cannot stall detection.
@@ -813,6 +822,7 @@ export async function probeAcpCapabilities(
             modelEfforts,
             modelDefaultEfforts,
             thinkingModels,
+            options?.preserveEmptyModelEfforts,
           );
           rememberModelConfigControls(
             currentModel,
@@ -893,6 +903,7 @@ export async function probeAcpCapabilities(
             modelEfforts,
             modelDefaultEfforts,
             thinkingModels,
+            options?.preserveEmptyModelEfforts,
           );
           rememberModelConfigControls(modelId, configOptions, fastModels, modelContextSizes);
         }

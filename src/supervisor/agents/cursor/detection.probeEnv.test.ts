@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fileURLToPath } from "node:url";
 import type { probeAcpCapabilities } from "../acp";
+import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
 
 const mocks = vi.hoisted(() => ({
   readCursorAgentCommandOutput:
@@ -48,7 +50,7 @@ vi.mock("../base", async (importOriginal) => ({
   readWslLoginShellCommandOutputAsync: mocks.readWslLoginShellCommandOutputAsync,
 }));
 
-import { cursorDetectionSpec } from "./detection";
+import { cursorDefaultCapabilities, cursorDetectionSpec } from "./detection";
 import { primeWslLaunchEnvironment, type DetectionSpec } from "../base";
 
 type ProbeCtx = Parameters<NonNullable<DetectionSpec["capabilitiesProbe"]>>[0];
@@ -196,5 +198,42 @@ describe("Cursor detection probe integration", () => {
       "grok-4.6": ["low"],
       "gpt-5.5": ["medium"],
     });
+  });
+
+  it("keeps a real ACP-confirmed absent effort selector distinct from an unprobed model", async () => {
+    mocks.readCommandOutputAsync.mockResolvedValue({
+      ok: true,
+      stdout: "composer-2.5-medium - Composer 2.5 Medium\ngpt-5.5-medium - GPT-5.5 Medium",
+      stderr: "",
+    });
+    mocks.probeAcpCapabilities.mockImplementation(async (_command, _args, cwd, options) => {
+      const { probeAcpCapabilities } = await import("../acp/probe");
+      // Replace only the provider executable with the protocol fixture; keep
+      // the adapter's probe options and shared capability sweep real.
+      return probeAcpCapabilities(
+        process.execPath,
+        [fileURLToPath(new URL("../acp/fixtures/fake-acp-agent.mjs", import.meta.url))],
+        cwd,
+        options,
+      );
+    });
+    const result = await cursorDetectionSpec.capabilitiesProbe?.({
+      ...probeCtx({
+        FAKE_MODELS: "grok-4.6,composer-2.5,gpt-5.5",
+        FAKE_REASONING_EFFORT: "1",
+        FAKE_EFFORTS: "high,xhigh",
+        FAKE_NO_EFFORT_MODELS: "composer-2.5",
+        FAKE_REJECT_MODEL: "gpt-5.5",
+      }),
+    });
+    const gui = capabilitiesForPresentation({ ...cursorDefaultCapabilities, ...result }, "gui");
+
+    expect(gui.modelEfforts).toMatchObject({
+      "grok-4.6": ["high", "xhigh"],
+      "composer-2.5": [],
+      "gpt-5.5": ["medium"],
+    });
+    expect(modelSelectionFor(gui, "composer-2.5").reasoning.values).toEqual([]);
+    expect(modelSelectionFor(gui, "gpt-5.5").reasoning.values).toEqual(["medium"]);
   });
 });

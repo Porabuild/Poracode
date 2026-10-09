@@ -1,5 +1,16 @@
 # Versioned State & Protocols
 
+Cursor ACP declares `preserveEmptyModelEfforts` so a verified model config with
+no effort choices becomes an authoritative empty ladder. Failed/unprobed model
+requests remain absent and can use the existing CLI fallback. Previous derived
+statuses omitted confirmed empties and could display unsupported global effort
+tiers. Supervisor status-cache format 41 and renderer status-store version 37
+invalidate both previous copies (40 / 36), with regressions starting from those
+versions. ThreadConfig, session references, database, IPC/remote protocols and
+deployed helpers keep their existing formats: the selected model and saved
+effort remain valid data, and ACP sync already refuses unadvertised effort values.
+Only the derived capability catalogs must be recomputed.
+
 Codex resume requests use the existing optional `excludeTurns` protocol field
 and a resume-only two-minute timeout. Saved transcripts and provider session IDs
 remain valid; UI history is already persisted independently of this response.
