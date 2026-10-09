@@ -26,6 +26,8 @@ void test(
       await promisify(execFile)(
         process.execPath,
         [
+          "--import",
+          fileURLToPath(new URL("./smoke-desktop-state.fixture.mjs", import.meta.url)),
           fileURLToPath(new URL("./run-poracode-smoke.mjs", import.meta.url)),
           "--launch-only",
           "--new",

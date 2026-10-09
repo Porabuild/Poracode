@@ -494,6 +494,15 @@ export class ThreadSessionManager {
     this.runtimeEventRouter.setCanonicalCapacity(remainingBytes);
   }
 
+  /** Final canonical drain after session retirement, including private child tails. */
+  flushCanonicalEventsForShutdown(): void {
+    this.runtimeEventRouter.flushAllForShutdown();
+  }
+
+  hasPendingCanonicalEvents(): boolean {
+    return this.runtimeEventRouter.hasPending();
+  }
+
   getCanonicalEventBufferStats(): {
     events: number;
     bytes: number;

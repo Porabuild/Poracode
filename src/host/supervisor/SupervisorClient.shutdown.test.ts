@@ -101,6 +101,53 @@ describe("SupervisorClient joined shutdown", () => {
     expect(mocks.fork).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["dispose", "stop"] as const)(
+    "during %s sends resolved-envelope ACKs but blocks new credit and admission controls",
+    async (operation) => {
+      const { client, first } = fixture();
+      first.emit("message", {
+        kind: "supervisor-flow-control-capabilities",
+        versions: [1],
+        supportsCanonicalCredit: true,
+        canonicalFlowGeneration: "retiring-boot",
+        canonicalAdmissionVersions: [2],
+      });
+      client.acknowledgeCanonicalFlow(1);
+      const retiring =
+        operation === "dispose" ? client.dispose() : client.stop(new Error("test stop"));
+      client.setEventBackpressured(false, undefined, { canonicalCreditBytes: 1_000 });
+      client.setOutputBackpressured(false);
+      client.sendCanonicalAdmissionControl({
+        control: "canonical-admission-enable",
+        version: 2,
+        generation: "retiring-boot",
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(first.send).toHaveBeenCalledExactlyOnceWith(
+        { control: "ack-canonical-flow", ackSeq: 1, generation: "retiring-boot" },
+        expect.any(Function),
+      );
+
+      // Envelopes arriving after retirement starts still release their credit.
+      first.send.mockClear();
+      client.acknowledgeCanonicalFlow(2);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(first.send).toHaveBeenCalledExactlyOnceWith(
+        { control: "ack-canonical-flow", ackSeq: 2, generation: "retiring-boot" },
+        expect.any(Function),
+      );
+
+      first.send.mockClear();
+      client.acknowledgeCanonicalFlow(3);
+      first.finish();
+      await retiring;
+      client.acknowledgeCanonicalFlow(4);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(first.send).not.toHaveBeenCalled();
+      await client.dispose();
+    },
+  );
+
   it("does not launch a replacement until the prior supervisor exits", async () => {
     const { client, first, second } = fixture();
     const restarting = client.restart();

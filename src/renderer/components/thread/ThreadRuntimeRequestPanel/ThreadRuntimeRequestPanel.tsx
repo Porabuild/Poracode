@@ -199,7 +199,11 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         size="sm"
         type="submit"
         variant="tertiary"
-        className={gated ? "cursor-not-allowed opacity-50 text-white" : "text-white"}
+        className={
+          gated && !resolving
+            ? "pointer-events-auto cursor-not-allowed opacity-50 text-white"
+            : "text-white"
+        }
       >
         <Trans>Submit</Trans>
       </Button>

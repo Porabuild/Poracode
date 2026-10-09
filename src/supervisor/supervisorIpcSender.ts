@@ -130,6 +130,12 @@ export interface SupervisorIpcSenderOptions<AdditionalMessage = never> {
    * the channel drains a stalled backlog.
    */
   onCanonicalCapacityChange?(remainingBytes: number): void;
+  /**
+   * Shutdown-only custody for canonical content retained outside this sender.
+   * After producers retire, flush their private tails and keep the drain open
+   * while any remain held by pause/credit. Ordinary streaming does not invoke it.
+   */
+  canonicalDrain?: { flush(): void; hasPending(): boolean };
   /** Observe application queue residence and estimates without retaining message content. */
   queueDiagnostics?: IpcQueueCapture;
 }
@@ -160,6 +166,8 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   private readonly pendingTerminalOutput = new Map<string, TerminalOutputEvent>();
   private readonly queue: QueueEntry<AdditionalMessage>[] = [];
   private readonly idleWaiters = new Set<(drained: boolean) => void>();
+  /** Constant-space failure witness; a drain cannot hide a newly refused tail. */
+  private canonicalDropVersion = 0;
   private terminalTimer: ReturnType<typeof setTimeout> | undefined;
   private backpressureTimer: ReturnType<typeof setTimeout> | undefined;
   private deferredCanonicalHook: ReturnType<typeof setImmediate> | undefined;
@@ -322,6 +330,10 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
       this.options.onCanonicalCapacityChange?.(this.canonicalCreditRemaining());
     } catch (error) {
       this.options.onError(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      // The capacity callback can synchronously publish another charged tail.
+      // Only recheck completion after that producer flush has returned.
+      this.notifyIdle();
     }
   }
 
@@ -342,8 +354,12 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   }
 
   async flushAndWait(timeoutMs: number): Promise<boolean> {
+    const deadline = performance.now() + timeoutMs;
+    const dropVersion = this.canonicalDropVersion;
+    this.options.canonicalDrain?.flush();
     this.flush();
-    if (this.failed) return false;
+    if (this.failed || this.canonicalDropVersion !== dropVersion || performance.now() > deadline)
+      return false;
     if (this.isIdle()) return true;
 
     return new Promise<boolean>((resolve) => {
@@ -351,10 +367,12 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
       const finish = (drained: boolean): void => {
         clearTimeout(timeout);
         this.idleWaiters.delete(finish);
-        resolve(drained);
+        resolve(
+          drained && this.canonicalDropVersion === dropVersion && performance.now() <= deadline,
+        );
       };
       this.idleWaiters.add(finish);
-      timeout = setTimeout(() => finish(false), timeoutMs);
+      timeout = setTimeout(() => finish(false), Math.max(0, deadline - performance.now()));
     });
   }
 
@@ -570,6 +588,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
    * control traffic into the reserve without re-entering a saturated `emit`.
    */
   private beginCanonicalOverflow(error: Error, entry: QueueEntry<AdditionalMessage>): void {
+    this.canonicalDropVersion++;
     this.options.onCanonicalDropped?.({ bytes: entry.bytes, type: messageType(entry.message) });
     this.reportShed(1, entry.bytes);
     // The envelope never reached the channel: release its in-flight credit
@@ -901,11 +920,14 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
       this.inFlightSends === 0 &&
       this.queue.length === 0 &&
       this.pendingTerminalOutput.size === 0 &&
-      !this.terminalTimer
+      !this.terminalTimer &&
+      this.flowLedger.outstanding() === 0 &&
+      !this.options.canonicalDrain?.hasPending()
     );
   }
 
   private notifyIdle(): void {
+    if (this.idleWaiters.size === 0) return;
     if (!this.isIdle()) return;
     for (const finish of this.idleWaiters) finish(true);
   }

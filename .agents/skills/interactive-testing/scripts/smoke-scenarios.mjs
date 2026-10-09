@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "renderer-styles",
+    title: "Shared and component renderer styles",
+    patterns: [/^src\/renderer\/.*\.css$/],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
     id: "live-voice",
     title: "Subscription live voice, microphone ownership, WebRTC, and transcripts",
     patterns: [
@@ -251,7 +258,7 @@ export const manualGates = {
 
 export function isProductionFile(file) {
   if (!productionRoots.some((root) => file.startsWith(root))) return false;
-  if (!/\.(?:[cm]?[jt]sx?)$/.test(file)) return false;
+  if (!/\.(?:[cm]?[jt]sx?|css)$/.test(file)) return false;
   return !/(?:^|\/)(?:__tests__|fixtures)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file);
 }
 

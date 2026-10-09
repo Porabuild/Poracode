@@ -59,6 +59,8 @@ const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
 const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 5 * 60_000;
 
 export interface UsageServiceOptions {
+  /** Disable all collection, including explicit refreshes, for isolated QA sessions. */
+  collectionEnabled?: boolean;
   emit(event: SupervisorEvent): void;
   cachePath: string;
   /** Cache dir; backs the captured-secret store read by the credential host. */
@@ -195,6 +197,7 @@ export class UsageService {
    * any requested provider is stale. Mirrors `getAgentStatuses`.
    */
   async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
+    if (this.options.collectionEnabled === false) return { snapshots: [], fromCache: false };
     const ids = this.resolveIds(payload);
     const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
     const cached = ids
@@ -217,6 +220,7 @@ export class UsageService {
 
   /** Forces a live collection of the requested providers and emits the results. */
   async refreshProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
+    if (this.options.collectionEnabled === false) return { snapshots: [], fromCache: false };
     const ids = this.resolveIds(payload);
     if (ids.length === 0) {
       return { snapshots: [], fromCache: false };
@@ -371,7 +375,7 @@ export class UsageService {
    * scheduled only after the current completes).
    */
   startAutoRefresh(): void {
-    if (this.autoRefreshTimer || this.stopped) return;
+    if (this.options.collectionEnabled === false || this.autoRefreshTimer || this.stopped) return;
     this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
   }
 
@@ -435,7 +439,7 @@ export class UsageService {
    * driving real `setTimeout`s. Returns the ids that were refreshed.
    */
   async refreshDueProviders(): Promise<string[]> {
-    if (this.stopped) return [];
+    if (this.options.collectionEnabled === false || this.stopped) return [];
     const settings = this.readUsageSettings();
     if (!settings.autoRefresh) return [];
     const ids = this.dueProviderIds(settings);

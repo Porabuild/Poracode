@@ -75,3 +75,58 @@ describe("spawnAndAwaitExit", () => {
     await expect(pending).rejects.toThrow("caller cancelled");
   });
 });
+
+describe("runtime probe output bounds", () => {
+  it("retains the diagnostic tail without retaining an unbounded stderr transcript", async () => {
+    const pending = spawnAndAwaitExit(process.execPath, [
+      "-e",
+      'process.stderr.write("x".repeat(200000)+"final diagnostic",()=>process.exit(1));',
+    ]);
+    const error = await pending.catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message.endsWith("final diagnostic")).toBe(true);
+    expect((error as Error).message.length).toBeLessThan(66000);
+  });
+});
+
+it.skipIf(process.platform === "win32")(
+  "cancels the owned POSIX group including an inheriting probe child",
+  async () => {
+    let ready!: () => void;
+    const started = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    const controller = new AbortController();
+    let pids: number[] = [];
+    const script =
+      'const c=require("node:child_process").spawn(process.execPath,["-e","setTimeout(()=>process.exit(0),5000);setInterval(()=>{},1000)"],{stdio:"ignore"});console.log(JSON.stringify([process.pid,c.pid]));setInterval(()=>{},1000);';
+    const pending = spawnAndAwaitExit(process.execPath, ["-e", script], {
+      signal: controller.signal,
+      timeoutMs: 5000,
+      onStdout: (chunk) => {
+        pids = JSON.parse(chunk.toString());
+        ready();
+      },
+    });
+    const handled = pending.catch((error: unknown) => error);
+    await started;
+    controller.abort();
+    expect(await handled).toMatchObject({ name: "AbortError" });
+    expect(pids).toHaveLength(2);
+    for (let read = 0; read < 8; read++) {
+      if (
+        pids.every((pid) => {
+          try {
+            process.kill(pid, 0);
+            return false;
+          } catch {
+            return true;
+          }
+        })
+      )
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    for (const pid of pids) expect(() => process.kill(pid, 0)).toThrow(/ESRCH|no such process/u);
+  },
+);

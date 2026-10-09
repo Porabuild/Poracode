@@ -14,6 +14,8 @@ export interface SpawnAndAwaitExitOptions {
   signal?: AbortSignal;
   /** Human-readable label for error messages (defaults to the command). */
   label?: string;
+  /** Optional bounded-output consumer used by runtime availability probes. */
+  onStdout?: (chunk: Buffer) => void;
   /**
    * Grace after the initial terminate (SIGTERM / `taskkill`) before escalating
    * to SIGKILL. Test seam; production uses the default.
@@ -32,6 +34,8 @@ export interface SpawnAndAwaitExitOptions {
 const TERMINATE_GRACE_MS = 2_000;
 /** Bound on awaiting the actual exit after SIGKILL before reporting failure. */
 const REAP_TIMEOUT_MS = 2_000;
+/** Retain only the diagnostic tail, including chatty login-shell probe failures. */
+const STDERR_MAX_CHARS = 64 * 1024;
 
 /**
  * Spawn a child process and resolve when it exits 0; reject on non-zero
@@ -56,6 +60,7 @@ export function spawnAndAwaitExit(
     const reapTimeoutMs = options?.reapTimeoutMs ?? REAP_TIMEOUT_MS;
     const child = spawn(command, args, {
       windowsHide: true,
+      detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stderr = "";
@@ -118,7 +123,7 @@ export function spawnAndAwaitExit(
     };
     const terminate = (): void => {
       if (settled || exited) return;
-      terminateChildProcessTree(child);
+      terminateChildProcessTree(child, { ownedProcessGroup: process.platform !== "win32" });
       if (settled || exited || graceTimer) return;
       graceTimer = setTimeout(() => {
         graceTimer = undefined;
@@ -140,8 +145,9 @@ export function spawnAndAwaitExit(
     options?.signal?.addEventListener("abort", onAbort, { once: true });
     if (options?.signal?.aborted) onAbort();
 
+    if (options?.onStdout) child.stdout?.on("data", options.onStdout);
     child.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
+      stderr = (stderr + chunk.toString()).slice(-STDERR_MAX_CHARS);
     });
     child.on("error", (error) => finish(error));
     child.on("exit", (code) => {
@@ -158,4 +164,9 @@ export function spawnAndAwaitExit(
       else finish(new Error(`${label} exited ${code}: ${stderr.trim()}`));
     });
   });
+}
+
+/** Shared legacy error contract: keep resources owned when child exit remains unproved. */
+export function exitCouldNotBeConfirmed(error: unknown): error is Error {
+  return error instanceof Error && error.message.includes("could not be confirmed exited");
 }

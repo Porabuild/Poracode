@@ -1,5 +1,46 @@
 # Versioned State & Protocols
 
+Supervisor shutdown now joins host-resolved canonical flow entries and the
+producer's held runtime/subagent tails, in addition to native IPC callbacks.
+Private unsubscribed child tails enter the existing canonical channel after
+producers retire. Credit/pause limits and the one-second IPC deadline remain;
+unresolved or unflushable tails report failure. This is process-local custody
+using the existing flow ACK vocabulary/generation, payload-origin format and
+SQLite shapes. No migration or protocol/helper version bump is needed; bundle
+source/content hashes change. Legacy peers without negotiated credit still
+drain without ACKs. Regressions cover stale boot ACKs, credit-held/pause-held
+tails, private children in multiple threads, exact-once drain and deadline
+time spent in producer flushing. A process-local refusal counter prevents a
+newly dropped canonical tail from being mistaken for a clean drain, and both
+immediate completion and deferred ACK completion must precede the same absolute
+deadline, even if its timeout callback dispatches late. Queue/admission limits
+are unchanged. Regressions fill the default estimated-byte queue and exercise
+late producer flush and late ACK dispatch.
+
+Supervisor retirement continues the existing `ack-canonical-flow` control for
+host-resolved canonical envelopes until the same connected child closes. The
+child and boot-generation fences remain in force; new credit grants and
+admission controls remain blocked during retirement. The existing IPC vocabulary,
+flow versions, ledger generation, SQLite schema and persisted rows are unchanged,
+so no migration or version bump is required. Bundle content hashes identify the
+new lifecycle. Regressions cover legacy negotiation, stale generations, stop and
+dispose, late ACKs, physical close and a credit-held final envelope reaching the
+existing SQLite persistence path.
+
+Native runtime resolution may reuse the compatible bare Node already hosting the supervisor after checking the existing managed installation; Electron-as-Node remains excluded. The `host-runtime` source and `probe-found-host` event are process-local diagnostics, not persisted or wire shapes. Existing managed binaries and hook manifests remain valid. Shutdown deadline expiry and forced unconfirmed development termination now use the existing nonzero process-exit contract; the five-second/250-ms budgets stay unchanged, and completed disposal clears its timer. No settings/cache/database/helper protocol version bump is required. Regression coverage retains old managed bytes, lower Electron resolver layers, timed failure and late promise settlement.
+
+Native Node provisioning now has process-local supervisor custody: probe, download, checksum and extraction work shares cancellation and retirement before shutdown. The managed Node version, archive checksums, installation directories, existing complete runtimes, settings/cache formats, database schemas and wire/helper protocols stay compatible; no version bump or migration is needed. Interrupted work cannot publish a final runtime. Existing `.staging-*` directories remain incomplete installations, and an unconfirmed extractor exit must preserve staging and refuse a successor in the same process. Changed bundle content hashes identify the new lifecycle. Regression coverage begins with an existing managed binary and checks cancellation, actual child retirement, held stream/staging ownership and shutdown failure propagation.
+
+Managed development QA launches may disable provider usage collection through
+`PORACODE_DISABLE_USAGE_COLLECTION=1`. The supervisor ignores this override
+outside development sessions. This changes only process-local collection and
+timer admission: disabled sessions neither resolve credentials nor refresh or
+rewrite cached usage, including explicit refresh requests. Existing version-8
+cache rows, settings, provider authentication, wire/IPC shapes and deployed
+helper formats remain valid; no version bump is needed. Regression coverage
+starts with an existing cache and verifies preservation, zero credential/HTTP
+calls, zero polling timers and unchanged ordinary-session collection.
+
 Codex resume requests use the existing optional `excludeTurns` protocol field
 and a resume-only two-minute timeout. Saved transcripts and provider session IDs
 remain valid; UI history is already persisted independently of this response.
@@ -2239,3 +2280,7 @@ Regression fixtures seed actual encrypted pre-upgrade vault slots, exercise
 mount/resume/online/visibility, background refresh, retry and event backoff,
 reject lost-session refresh after 401 and stale tickets, select only the current
 host, and retain record-based clients across refresh rotation.
+
+Inactive renderer transcript admission now checks estimated content storage as well as the existing row/thread counts: 16 MiB per inactive window and 64 MiB across the inactive LRU. Active reader reference counts remain authoritative; pending authorization requests are preserved and excluded from the evictable estimate. Background regrowth and partially successful hydration re-enter admission, while already-cleared windows retire without duplicate history invalidation. Eviction clears only the existing disposable runtime projection and paging/selector metadata; canonical host rows, replay contents and persisted/wire shapes remain unchanged. This is a document-local policy with no stored cache artifact to migrate or invalidate. Regressions include exact pre-existing history replay, two readers, failed-read retries, closed-window regrowth and pending approval preservation.
+
+Browser metadata committed-state identities now use weak references, with revision-only fallback where WeakRef is unavailable. Both successful commits and disk hydration share that helper; stale revision and removal-generation fencing stay intact. Quota/refused writes no longer pin an obsolete full catalog behind a truncated durable projection. IndexedDB database version 1, record format 1, serialized Zustand payloads and migration markers remain compatible. This private volatile identity bookkeeping needs no version bump or migration; renderer content hashes identify the new code. Tests cover old durable records, quota after a successful projected write, identity deduplication, revision progression without WeakRef, stale writes and removal/recreation.

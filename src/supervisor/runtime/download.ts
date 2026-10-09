@@ -66,7 +66,7 @@ export async function downloadToFile(
       lastReport = bytesReceived;
     }
   });
-  await pipeline(nodeStream, out);
+  await pipeline(nodeStream, out, options?.signal ? { signal: options.signal } : {});
   options?.onProgress?.({
     bytesReceived,
     bytesTotal: bytesTotal || bytesReceived,
@@ -78,9 +78,13 @@ export async function downloadToFile(
  * `expected` (case-insensitive hex). Streams the file so we don't pull a
  * ~30 MB tarball into memory.
  */
-export async function verifySha256(filePath: string, expected: string): Promise<void> {
+export async function verifySha256(
+  filePath: string,
+  expected: string,
+  signal?: AbortSignal,
+): Promise<void> {
   const hash = createHash("sha256");
-  await pipeline(createReadStream(filePath), hash);
+  await pipeline(createReadStream(filePath), hash, signal ? { signal } : {});
   const actual = hash.digest("hex");
   if (actual.toLowerCase() !== expected.toLowerCase()) {
     throw new Error(`SHA256 mismatch for ${filePath}: expected ${expected}, got ${actual}`);

@@ -590,16 +590,17 @@ export class SupervisorClient {
    * acks into one control message per macrotask and drops any ack whose child
    * or boot generation changed before the send, so a pre-restart sequence can
    * never free bytes in a new supervisor's ledger. Called only AFTER the host's
-   * persist outcome for that envelope.
+   * persist outcome for that envelope. Resolved envelopes still release credit
+   * while that same child retires, so its held final events can reach the host.
    */
   acknowledgeCanonicalFlow(flowSeq: number): void {
-    if (this.disposed) return;
+    const child = this.child;
+    if (!child?.connected || (this.disposed && this.retiringChild !== child)) return;
     if (!this.peerSupportsCanonicalCredit || this.peerCanonicalFlowGeneration === null) return;
     if (!Number.isInteger(flowSeq) || flowSeq <= 0) return;
     if (flowSeq <= this.sentAckSeq || flowSeq <= this.pendingAckSeq) return;
     this.pendingAckSeq = flowSeq;
     if (this.ackScheduled) return;
-    const child = this.child;
     const generation = this.peerCanonicalFlowGeneration;
     this.ackScheduled = setImmediate(() => {
       this.ackScheduled = null;
@@ -687,9 +688,13 @@ export class SupervisorClient {
   }
 
   private sendFlowControl(message: SupervisorFlowControl): void {
-    if (this.disposed || this.stopPromise) return;
     const child = this.child;
     if (!child?.connected) return;
+    if (
+      (this.disposed || this.stopPromise) &&
+      (message.control !== "ack-canonical-flow" || this.retiringChild !== child)
+    )
+      return;
     try {
       child.send(message, (error) => {
         if (this.child !== child) return;

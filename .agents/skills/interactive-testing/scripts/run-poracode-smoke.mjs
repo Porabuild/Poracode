@@ -2,6 +2,7 @@
 
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { assertSmokeDesktopUnlocked } from "./smoke-desktop-state.mjs";
 import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -94,6 +95,7 @@ try {
     throw new Error(`--mode must be mock or real, got: ${mode}`);
   }
   assertSessionRootOutsideRepo(root, repoRoot);
+  assertSmokeDesktopUnlocked({ sessionRoot: root });
   sessionLaunch: {
     if (launchOnly && args.new !== true) {
       releaseLaunchLock = await acquireDebugLaunchLock(repoRoot);
@@ -252,6 +254,10 @@ try {
       PORACODE_SMOKE_OUT_DIR: outDir,
       PORACODE_DEV_SERVER_REQUIRE_FREE: "1",
       PORACODE_DISABLE_DEVTOOLS: "1",
+      // Chromium's mock keychain does not cover provider CLI credential reads.
+      // Opt in only for an intentional live usage test, in either launch mode.
+      PORACODE_DISABLE_USAGE_COLLECTION:
+        process.env.PORACODE_DISABLE_USAGE_COLLECTION === "0" ? "0" : "1",
       ...(launchOnly ? { VITE_PORACODE_SKIP_WELCOME: "1" } : {}),
       ...identityEnv,
     };

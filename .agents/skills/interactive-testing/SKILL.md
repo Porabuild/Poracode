@@ -7,6 +7,22 @@ description: Run repeatable integration and smoke testing against the real Porac
 
 Test the real Electron renderer, preload bridge, main process, and supervisor integration. Treat unit tests as complementary; do not substitute them for this workflow when the skill triggers.
 
+## Desktop state before interactive checks
+
+On macOS, the smoke launcher checks the console lock state before building or
+launching an app. A locked desktop requires the user to unlock it; do not retry
+captures or native UI controls, extend their deadlines, or change app rendering
+to compensate. The probe reads only two console flags and removes its private
+compiler artifacts. It does not enumerate windows/devices or keep the display
+awake.
+
+For other interactive launchers, establish the same desktop-state precondition.
+A visible DOM and a fast JavaScript evaluation do not establish available paint
+or input delivery. Preserve a failed run if lock state was discovered after
+launch, and distinguish the observed current lock from unknown historical state.
+Independent protocol/source work may continue. See
+[computer-use guidance](../../docs/computer-use.md#macos-locked-screen).
+
 ## Required workflow
 
 1. Inspect `git status --short` and the relevant diff.
@@ -177,6 +193,14 @@ explicit port + URL pair only for deliberate unmanaged-app diagnosis; they
 reject either value alone and have no `9222`/`3100` fallback.
 
 ## Run the deterministic suite
+
+Managed launches disable provider usage collection in both mock and real modes.
+This prevents background quota polling from reading provider credentials through
+the OS keychain and showing access dialogs. Chromium's mock keychain only covers
+Electron storage; it does not intercept a provider's `security` subprocess.
+Provider turns in real mode still use their normal authentication. For a deliberate
+live usage test, set `PORACODE_DISABLE_USAGE_COLLECTION=0` on the launcher; that
+test may require keychain access. Normal and packaged apps retain usage collection.
 
 Changed-surface run against the one active managed debug session (or pass
 `--session <session.json>` when concurrent sessions intentionally exist):

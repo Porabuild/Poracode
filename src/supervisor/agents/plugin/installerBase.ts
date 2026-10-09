@@ -580,15 +580,16 @@ export function buildWslHookCommandHead(nodePath: string, forwardMjsPath: string
  *     adapter surfaces a degraded state.
  *
  *   - **Native:** preferred. When the host has a usable Node binary (managed
- *     fast path → user login-shell probe), we bake that path in directly,
+ *     fast path → compatible bare-Node host → user login-shell probe), we bake
+ *     that path in directly,
  *     skipping the ~100–200 ms Electron-as-Node startup tax. On a miss the
  *     resolver kicks off a background download for next boot, and this
  *     call returns `{ ok: true }` with no `nodePath` — the wrapper falls
  *     back to Electron-as-Node for this session.
  *
- *   - **Bare Node supervisor (`pnpm tsx`)**: tests/dev. Same as native, just
- *     no Electron. Probe still resolves the user's node; if not, the
- *     wrapper exec'ing `process.execPath` produces a working runtime.
+ *   - **Bare Node supervisor**: standalone server, dev and tests. After the
+ *     managed-runtime check, reuse the already-running compatible Node
+ *     executable without a login-shell probe or background download.
  *
  * Native resolution is best-effort: any error inside the probe is swallowed
  * and treated as "no native node available" so a flaky shell rc never

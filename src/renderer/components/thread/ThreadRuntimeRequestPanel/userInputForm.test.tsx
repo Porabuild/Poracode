@@ -1,6 +1,11 @@
-import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { type UserInputFormDetails, useUserInputFormController } from "./userInputForm";
+import { AppProvider } from "@/renderer/components/ui/provider";
+import { act, fireEvent, render, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import {
+  type UserInputFormDetails,
+  UserInputForm,
+  useUserInputFormController,
+} from "./userInputForm";
 
 const details: UserInputFormDetails = {
   responseShape: "answers-map",
@@ -48,5 +53,42 @@ describe("useUserInputFormController.allAnswered", () => {
     expect(result.current?.allAnswered).toBe(false);
     act(() => result.current?.setDirectAnswer("notes", "real note"));
     expect(result.current?.allAnswered).toBe(true);
+  });
+});
+
+describe("UserInputForm submission guard", () => {
+  it("refuses native form submission until every answer is nonblank", () => {
+    const onSubmit = vi.fn<(response: unknown, outcome: string) => void>();
+    function Form() {
+      const controller = useUserInputFormController(details);
+      return (
+        <UserInputForm
+          formId="guarded-question"
+          controller={controller!}
+          isDisabled={false}
+          onSubmit={onSubmit}
+        />
+      );
+    }
+    const { container, getByRole } = render(
+      <AppProvider>
+        <Form />
+      </AppProvider>,
+    );
+    const form = container.querySelector("form")!;
+    fireEvent.submit(form);
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.click(getByRole("option", { name: /Blue/ }));
+    fireEvent.submit(form);
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.change(getByRole("textbox"), { target: { value: "   " } });
+    fireEvent.submit(form);
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.change(getByRole("textbox"), { target: { value: "Verified answer" } });
+    fireEvent.submit(form);
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      { answers: { color: "blue", notes: "Verified answer" } },
+      "answered",
+    );
   });
 });

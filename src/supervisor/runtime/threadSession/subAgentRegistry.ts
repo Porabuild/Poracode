@@ -166,6 +166,13 @@ export class SubAgentRegistry {
     return batches;
   }
 
+  /** Shutdown must persist private tails even when no overlay subscribed. */
+  drainAll(): BufferedSubAgentEvents[] {
+    const batches = [...this.buffers.values()];
+    for (const key of this.buffers.keys()) this.removeBuffer(key);
+    return batches;
+  }
+
   /**
    * Renderer-facing: subscribe a sub-agent overlay. Returns buffered child
    * events for hydration; subsequent events stream live.

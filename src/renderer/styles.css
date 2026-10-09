@@ -5483,9 +5483,9 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
   background: transparent !important;
 }
 
+/* Keep xterm's pixel-sized screen height: its canvas wrapper has auto height. */
 .xterm,
-.xterm-viewport,
-.xterm-screen {
+.xterm-viewport {
   height: 100% !important;
 }
 

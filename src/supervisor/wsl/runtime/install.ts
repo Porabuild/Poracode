@@ -12,7 +12,7 @@ import {
   nodeArchiveFileName,
   nodeArchiveUrl,
 } from "../../runtime/pinnedNode";
-import { spawnAndAwaitExit } from "../../runtime/spawn";
+import { exitCouldNotBeConfirmed, spawnAndAwaitExit } from "../../runtime/spawn";
 import { getWslStagingService, type WslStagingService } from "../staging";
 import {
   MANAGED_RUNTIME_MARKER_FILE,
@@ -179,15 +179,6 @@ export async function installRuntimeIntoDistro(
   } finally {
     safeRm(tmpTarball);
   }
-}
-
-/**
- * `spawnAndAwaitExit` rejects with this phrase when SIGKILL could not be
- * reaped (see runtime/spawn.ts). Custody is unproven then, so neither the
- * runtime dir nor the staged input may be touched.
- */
-function exitCouldNotBeConfirmed(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("could not be confirmed exited");
 }
 
 /** Best-effort removal of this attempt's unique staged input, without the flight signal. */

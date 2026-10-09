@@ -152,4 +152,10 @@ export class RuntimeEventRouter {
   flush(): void {
     this.runtimeEvents.flush();
   }
+
+  /** Retired producers cannot complete parents later; publish every private tail. */
+  flushAllForShutdown(): void {
+    this.publishChildren(this.subAgents.drainAll());
+    this.runtimeEvents.flush();
+  }
 }

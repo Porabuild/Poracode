@@ -1,3 +1,4 @@
+import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
 import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -61,6 +62,7 @@ import { resolveExecutablePath } from "./agents/base/processRuntime";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
+import { isUsageCollectionEnabled } from "./runtime/usageCollectionPolicy";
 import { setWslCredentialProjectScope } from "./runtime/wslCredentials";
 import { AgentRegistryService } from "./runtime/agentRegistryService";
 import { GenerationService } from "./runtime/generationService";
@@ -184,6 +186,7 @@ export class SupervisorRuntime {
   private readonly subagentRunManager: SubagentRunManager;
   private readonly routingOverridePersistence: RoutingOverridePersistence;
   private readonly disposeWslCredentialProjectScope: () => void;
+  private readonly disposeNativeRuntime: () => Promise<void>;
   private readonly disposeWindowsPowerShellPreference: () => void;
   private wslHookBridge: WslBridgeServer | undefined;
 
@@ -264,7 +267,7 @@ export class SupervisorRuntime {
     // parallel with the rest of the supervisor boot. By the time providers'
     // `installPlugin` calls `resolveInstallNodePath`, the shared promise is
     // typically already settled. Failures surface as a single warn line.
-    void prefetchNativeNodeRuntime(baseDir);
+    this.disposeNativeRuntime = prefetchNativeNodeRuntime(baseDir);
 
     this.lspManager = new LanguageServerManager(emit);
     this.agentStatusService = new AgentStatusService({
@@ -578,6 +581,7 @@ export class SupervisorRuntime {
       this.hasLiveWslSession(),
     );
     this.usageService = new UsageService({
+      collectionEnabled: isUsageCollectionEnabled(),
       emit,
       cachePath: join(paths.cacheDir, "provider-usage.json"),
       cacheDir: paths.cacheDir,
@@ -1136,43 +1140,48 @@ export class SupervisorRuntime {
   }
 
   async disposeAsync(): Promise<void> {
-    this.disposeWindowsPowerShellPreference();
-    this.disposeWslCredentialProjectScope();
-    this.routingOverridePersistence.dispose();
-    this.usageService.stop();
-    this.mcpProbeService.dispose();
-    this.mcpOAuthService.dispose();
-    this.lspManager.dispose();
-    await this._projectWatcher?.dispose();
-    const ptysExited = await this.threadSessionManager.dispose();
-    // Subagent custody is owned by the run manager, not the thread session
-    // manager: join/retry every child retirement still holding capacity
-    // (bounded per child) before reporting shutdown.
-    await this.subagentRunManager.retryRetirements().catch((error) => {
-      console.warn("[supervisor] subagent retirement retry failed:", error);
-    });
-    if (!ptysExited) {
-      throw new Error("Supervisor PTY shutdown was not confirmed before the deadline.");
-    }
-    this.crossagentMcpIngress.dispose();
-    this.sharedSettingsCache.dispose();
-    await this.cliHookPluginCoordinator.dispose().catch((error) => {
-      console.warn("[supervisor] CLI hook plugin coordinator dispose failed:", error);
-    });
-    // Join per-distro staging workers so no isolated filesystem handle
-    // outlives the runtime that owned it.
-    await disposeWslStagingService().catch((error) => {
-      console.warn("[supervisor] WSL staging worker dispose failed:", error);
-    });
-    await Promise.all(
-      [...this.adapters.values()].map(async (adapter) => {
-        try {
-          await adapter.shutdown?.();
-        } catch (error) {
-          console.warn("[supervisor] provider shutdown failed:", adapter.kind, error);
+    await joinRuntimeShutdown([
+      () => this.disposeNativeRuntime(),
+      async () => {
+        this.disposeWindowsPowerShellPreference();
+        this.disposeWslCredentialProjectScope();
+        this.routingOverridePersistence.dispose();
+        this.usageService.stop();
+        this.mcpProbeService.dispose();
+        this.mcpOAuthService.dispose();
+        this.lspManager.dispose();
+        await this._projectWatcher?.dispose();
+        const ptysExited = await this.threadSessionManager.dispose();
+        // Subagent custody is owned by the run manager, not the thread session
+        // manager: join/retry every child retirement still holding capacity
+        // (bounded per child) before reporting shutdown.
+        await this.subagentRunManager.retryRetirements().catch((error) => {
+          console.warn("[supervisor] subagent retirement retry failed:", error);
+        });
+        if (!ptysExited) {
+          throw new Error("Supervisor PTY shutdown was not confirmed before the deadline.");
         }
-      }),
-    );
+        this.crossagentMcpIngress.dispose();
+        this.sharedSettingsCache.dispose();
+        await this.cliHookPluginCoordinator.dispose().catch((error) => {
+          console.warn("[supervisor] CLI hook plugin coordinator dispose failed:", error);
+        });
+        // Join per-distro staging workers so no isolated filesystem handle
+        // outlives the runtime that owned it.
+        await disposeWslStagingService().catch((error) => {
+          console.warn("[supervisor] WSL staging worker dispose failed:", error);
+        });
+        await Promise.all(
+          [...this.adapters.values()].map(async (adapter) => {
+            try {
+              await adapter.shutdown?.();
+            } catch (error) {
+              console.warn("[supervisor] provider shutdown failed:", adapter.kind, error);
+            }
+          }),
+        );
+      },
+    ]);
   }
 
   private handlePtyData(session: SessionRuntime, data: string): void {

@@ -39,11 +39,16 @@ import {
 import { readRuntimeWindowPage, runtimeWindowPageCursor } from "./runtimeHistoryPaging";
 import { compactRuntimeItemsForHydration } from "./runtimeHistoryCompaction";
 import { alignRuntimeHistoryControl } from "./runtimeHistoryControlAlignment";
+import {
+  estimateInactiveThreadRuntimeBytes,
+  MAX_INACTIVE_THREAD_ESTIMATED_BYTES,
+  selectInactiveRuntimeEvictions,
+} from "./inactiveRuntimeRetention";
+
 export { compactRuntimeItemsForHydration } from "./runtimeHistoryCompaction";
 
 const RUNTIME_PAGE_SCAN_SIZE = 500;
 const RUNTIME_TIMELINE_PAGE_SIZE = 40;
-const MAX_CACHED_THREAD_TRANSCRIPTS = 10;
 const MAX_CACHED_THREAD_RUNTIME_ITEMS = 5_000;
 const hydratedThreadRuntimeIds = new Set<string>();
 const pendingThreadRuntimeHydrations = new Map<
@@ -186,7 +191,6 @@ export function releaseThreadRuntimeItems(threadId: string): void {
   inactiveThreadRuntimeLru.delete(threadId);
   inactiveThreadRuntimeLru.add(threadId);
   evictOversizedInactiveThreadRuntimeItems([threadId]);
-  evictInactiveThreadRuntimeItems();
 }
 
 export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boolean> {
@@ -255,7 +259,6 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
         );
         markRuntimeItemsPaged(threadId, addedVisibleItems);
         evictOversizedInactiveThreadRuntimeItems([threadId]);
-        evictInactiveThreadRuntimeItems();
         if (addedVisibleItems.length > 0) return true;
         if (page.nextCursor === null) return false;
       }
@@ -359,11 +362,12 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
       useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
-      evictOversizedInactiveThreadRuntimeItems([threadId]);
-      evictInactiveThreadRuntimeItems();
     } else if (isEmptyBefore) {
       useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
     }
+    // A successful item read can install rows even when another hydration read
+    // fails. They still need admission if the last reader left during I/O.
+    evictOversizedInactiveThreadRuntimeItems([threadId]);
   } finally {
     if (pendingThreadRuntimeHydrations.get(threadId) === request) {
       pendingThreadRuntimeHydrations.delete(threadId);
@@ -625,9 +629,14 @@ function pinOutOfWindowGoalItem(threadId: string, goalItem: PersistedRuntimeItem
 }
 
 function evictInactiveThreadRuntimeItems(): void {
-  while (inactiveThreadRuntimeLru.size > MAX_CACHED_THREAD_TRANSCRIPTS) {
-    const threadId = inactiveThreadRuntimeLru.keys().next().value as string | undefined;
-    if (!threadId) return;
+  const state = useAppStore.getState();
+  // Authoritative resets can clear a window independently of cache eviction.
+  // Retire empty ownership entries without issuing another history invalidation.
+  for (const threadId of inactiveThreadRuntimeLru) {
+    if (state.runtimeItemIdsByThread[threadId] === undefined)
+      inactiveThreadRuntimeLru.delete(threadId);
+  }
+  for (const threadId of selectInactiveRuntimeEvictions(state, inactiveThreadRuntimeLru)) {
     evictThreadRuntimeItems(threadId);
   }
 }
@@ -686,7 +695,18 @@ function cancelPendingThreadRuntimeHydration(threadId: string): void {
 export function evictOversizedInactiveThreadRuntimeItems(threadIds: readonly string[]): void {
   for (const threadId of threadIds) {
     if (retainedThreadRuntimeCounts.has(threadId)) continue;
-    const itemCount = useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0;
-    if (itemCount > MAX_CACHED_THREAD_RUNTIME_ITEMS) evictThreadRuntimeItems(threadId);
+    const state = useAppStore.getState();
+    const itemCount = state.runtimeItemIdsByThread[threadId]?.length ?? 0;
+    if (state.runtimeItemIdsByThread[threadId] !== undefined)
+      inactiveThreadRuntimeLru.add(threadId);
+    else inactiveThreadRuntimeLru.delete(threadId);
+    if (
+      itemCount > MAX_CACHED_THREAD_RUNTIME_ITEMS ||
+      estimateInactiveThreadRuntimeBytes(state, threadId) > MAX_INACTIVE_THREAD_ESTIMATED_BYTES
+    )
+      evictThreadRuntimeItems(threadId);
   }
+  // Background updates can grow several individually admitted closed windows.
+  // Enforce their aggregate budget as well as their existing count/row limits.
+  evictInactiveThreadRuntimeItems();
 }

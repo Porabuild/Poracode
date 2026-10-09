@@ -97,16 +97,28 @@ type CacheOperation = CacheWriteOperation | CacheRemoveOperation;
 
 interface CommittedMetadata {
   /**
-   * Present when the last durable commit wrote exactly this payload. Persist
-   * builds a fresh `{ state, version }` wrapper per call, so identity is the
-   * partializer's `state` reference, which only changes on a real state edit.
+   * Identity of the original snapshot behind the last successful durable
+   * commit. Persist builds a fresh `{ state, version }` wrapper per call, so
+   * identity is the partializer's `state` reference, which only changes on a
+   * real state edit.
+   * Keep it weak: projection can discard most of the original catalog, and
+   * failed or refused writes must not pin that retired catalog indefinitely.
+   * Without WeakRef, retain only the revision and skip identity deduplication.
    */
-  state?: unknown;
+  state?: WeakRef<object>;
   revision: number;
 }
 
 function persistedStateIdentity(value: unknown): unknown {
   return isPersistedStateValue(value) ? (value as { state: unknown }).state : value;
+}
+
+function committedMetadata(value: unknown, revision: number): CommittedMetadata {
+  const state = persistedStateIdentity(value);
+  if (typeof WeakRef === "function" && typeof state === "object" && state !== null) {
+    return { state: new WeakRef(state), revision };
+  }
+  return { revision };
 }
 
 /**
@@ -450,10 +462,7 @@ export function createBrowserMetadataCache(
         committed.set(name, { revision: result.revision });
         return "stale";
       }
-      committed.set(name, {
-        state: persistedStateIdentity(operation.value),
-        revision: result.revision,
-      });
+      committed.set(name, committedMetadata(operation.value, result.revision));
       return "committed";
     } catch (error) {
       writesDisabled = true;
@@ -518,10 +527,7 @@ export function createBrowserMetadataCache(
       const value = result.record.value ?? null;
       if (value !== null) {
         memory.set(name, value);
-        committed.set(name, {
-          state: persistedStateIdentity(value),
-          revision: result.record.revision,
-        });
+        committed.set(name, committedMetadata(value, result.record.revision));
         completeInterruptedMigration(name, result.record);
       }
       return value;
@@ -544,7 +550,8 @@ export function createBrowserMetadataCache(
     }
     const identity = persistedStateIdentity(value);
 
-    if (committed.get(name)?.state === identity) return;
+    const stateRef = committed.get(name)?.state;
+    if (stateRef && stateRef.deref() === identity) return;
     const tail = queues.get(name)?.at(-1);
     if (tail?.kind === "write" && persistedStateIdentity(tail.value) === identity) return;
     await enqueue(name, { kind: "write", value, waiters: [] });

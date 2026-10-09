@@ -6,6 +6,7 @@ import {
   legacyStoragePayloadFingerprint,
   __resetBrowserMetadataCacheForTest,
   type BrowserMetadataCache,
+  type BrowserMetadataCacheOptions,
 } from "./browserMetadataCache";
 import {
   __setBrowserMetadataCacheTimeoutForTest,
@@ -89,6 +90,47 @@ function seedRecord(value: unknown, revision = 0): Promise<unknown> {
   });
 }
 
+/** Capture only this cache's Maps, restoring the constructor before any I/O. */
+function cacheWithTrackedMaps(options: BrowserMetadataCacheOptions) {
+  const maps: Array<Map<unknown, unknown>> = [];
+  const OriginalMap = Map;
+  vi.stubGlobal(
+    "Map",
+    class extends OriginalMap<unknown, unknown> {
+      constructor() {
+        super();
+        maps.push(this);
+      }
+    },
+  );
+  try {
+    return { cache: createBrowserMetadataCache(options), maps };
+  } finally {
+    vi.stubGlobal("Map", OriginalMap);
+  }
+}
+
+/**
+ * Walk strong Map/property edges, never WeakRef targets. The caller holds the
+ * target alive, so this ownership assertion does not depend on GC timing.
+ */
+function stronglyReaches(roots: unknown[], target: object): boolean {
+  const pending = [...roots];
+  const visited = new Set<object>();
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (value === target) return true;
+    if (typeof value !== "object" || value === null || visited.has(value)) continue;
+    visited.add(value);
+    if (value instanceof Map) {
+      pending.push(...value.keys(), ...value.values());
+    } else {
+      pending.push(...Object.values(value));
+    }
+  }
+  return false;
+}
+
 /**
  * A legacy key that cannot be deleted (storage unavailable or over quota):
  * the explicit removal must still resolve and drop the durable record, and the
@@ -157,14 +199,39 @@ describe("browser metadata cache", () => {
     expect(record?.value).toEqual(snapshot("third"));
   });
 
-  it("skips a repeated identical snapshot reference instead of committing again", async () => {
+  it("dedupes exact state identities across fresh persist wrappers and hydration", async () => {
     const cache = createBrowserMetadataCache();
     const value = snapshot("stable");
 
     await cache.write(APP_STORE, value);
-    await cache.write(APP_STORE, value);
+    await cache.write(APP_STORE, { ...value });
 
     expect((await readRawBrowserMetadataRecordForTest(APP_STORE))?.revision).toBe(1);
+
+    const reopened = createBrowserMetadataCache();
+    const hydrated = (await reopened.read(APP_STORE)) as typeof value;
+    await reopened.write(APP_STORE, { ...hydrated });
+    expect((await readRawBrowserMetadataRecordForTest(APP_STORE))?.revision).toBe(1);
+
+    // Equal contents with a different state reference must still commit.
+    await reopened.write(APP_STORE, { ...hydrated, state: { ...hydrated.state } });
+    expect((await readRawBrowserMetadataRecordForTest(APP_STORE))?.revision).toBe(2);
+  });
+
+  it("skips committed identity deduplication but keeps revisions when WeakRef is unavailable", async () => {
+    vi.stubGlobal("WeakRef", undefined);
+    const cache = createBrowserMetadataCache();
+    const value = snapshot("stable");
+
+    await cache.write(APP_STORE, value);
+    await cache.write(APP_STORE, { ...value });
+    expect((await readRawBrowserMetadataRecordForTest(APP_STORE))?.revision).toBe(2);
+
+    const reopened = createBrowserMetadataCache();
+    const hydrated = (await reopened.read(APP_STORE)) as typeof value;
+    await reopened.write(APP_STORE, { ...hydrated });
+    expect((await readRawBrowserMetadataRecordForTest(APP_STORE))?.revision).toBe(3);
+    await expect(reopened.read(APP_STORE)).resolves.toEqual(value);
   });
 
   it("orders a removal after an in-flight commit and never resurrects the older snapshot", async () => {
@@ -240,26 +307,30 @@ describe("browser metadata cache", () => {
     expect(await readRawBrowserMetadataRecordForTest(APP_STORE)).toBeUndefined();
   });
 
-  it("recreates the record when the same snapshot reference is written after a removal superseded an in-flight commit", async () => {
-    commitGate.hold = true;
-    const cache = createBrowserMetadataCache();
-    const value = snapshot("inflight");
-    const write = cache.write(APP_STORE, value);
-    await vi.waitFor(() => expect(commitGate.started).toBe(1));
+  it.each([true, false])(
+    "recreates the record when removal superseded an in-flight identical commit (WeakRef: %s)",
+    async (hasWeakRef) => {
+      if (!hasWeakRef) vi.stubGlobal("WeakRef", undefined);
+      commitGate.hold = true;
+      const cache = createBrowserMetadataCache();
+      const value = snapshot("inflight");
+      const write = cache.write(APP_STORE, value);
+      await vi.waitFor(() => expect(commitGate.started).toBe(1));
 
-    const removal = cache.remove(APP_STORE);
-    commitGate.hold = false;
-    commitGate.release?.();
-    await Promise.all([write, removal]);
-    // The in-flight commit was durably written and then deleted; it must not
-    // have reinstalled the removed record's committed identity.
-    expect(await readRawBrowserMetadataRecordForTest(APP_STORE)).toBeUndefined();
+      const removal = cache.remove(APP_STORE);
+      commitGate.hold = false;
+      commitGate.release?.();
+      await Promise.all([write, removal]);
+      // The in-flight commit was durably written and then deleted; it must not
+      // have reinstalled the removed record's committed identity.
+      expect(await readRawBrowserMetadataRecordForTest(APP_STORE)).toBeUndefined();
 
-    await cache.write(APP_STORE, value);
-    const record = await readRawBrowserMetadataRecordForTest(APP_STORE);
-    expect(record?.value).toEqual(value);
-    expect(record?.revision).toBe(1);
-  });
+      await cache.write(APP_STORE, value);
+      const record = await readRawBrowserMetadataRecordForTest(APP_STORE);
+      expect(record?.value).toEqual(value);
+      expect(record?.revision).toBe(1);
+    },
+  );
 
   it("commits an identical write issued while a removal is still committing", async () => {
     commitGate.hold = true;
@@ -560,6 +631,49 @@ describe("browser metadata cache", () => {
     putSpy.mockRestore();
   });
 
+  it.each([true, false])(
+    "does not strongly retain a retired projected catalog after quota degradation (WeakRef: %s)",
+    async (hasWeakRef) => {
+      const reportError = vi.fn<(operation: string, error: unknown) => void>();
+      // Vitest's spies themselves use WeakRef; create them before testing the
+      // cache's fallback in an environment without it.
+      const putSpy = vi.spyOn(IDBObjectStore.prototype, "put");
+      if (!hasWeakRef) vi.stubGlobal("WeakRef", undefined);
+      const { cache, maps } = cacheWithTrackedMaps({ reportError, maxRecordBytes: 2048 });
+      const retired = snapshot("thread-38");
+      retired.state.threads = Array.from({ length: 40 }, (_, index) => ({
+        id: `thread-${index}`,
+        filler: "x".repeat(200),
+      }));
+
+      await cache.write(APP_STORE, retired);
+      const record = await readRawBrowserMetadataRecordForTest(APP_STORE);
+      expect(record?.revision).toBe(1);
+      expect(record?.truncated).toBe(true);
+      expect(record?.droppedThreadCount).toBeGreaterThan(0);
+      const stored = record?.value as typeof retired;
+      expect(stored.state.threads.length).toBeLessThan(40);
+      await expect(cache.read(APP_STORE)).resolves.toBe(retired);
+      expect(stronglyReaches(maps, retired.state)).toBe(true);
+
+      putSpy.mockClear();
+      putSpy.mockImplementation(() => {
+        throw new DOMException("quota", "QuotaExceededError");
+      });
+      await cache.write(APP_STORE, snapshot("compact-1"));
+      const latest = snapshot("compact-2");
+      await cache.write(APP_STORE, latest);
+
+      await expect(cache.read(APP_STORE)).resolves.toBe(latest);
+      expect(putSpy).toHaveBeenCalledTimes(1);
+      expect(reportError).toHaveBeenCalledTimes(1);
+      expect(await readRawBrowserMetadataRecordForTest(APP_STORE)).toEqual(record);
+      expect(stronglyReaches(maps, latest.state)).toBe(true);
+      expect(stronglyReaches(maps, retired.state)).toBe(false);
+      expect(stronglyReaches(maps, retired.state.threads)).toBe(false);
+    },
+  );
+
   it("preserves an unknown future-format record and serves the session from memory", async () => {
     await writeRawBrowserMetadataRecordForTest({
       key: APP_STORE,
@@ -765,27 +879,33 @@ describe("browser metadata cache", () => {
     expect(record?.value).toEqual(snapshot("c"));
   });
 
-  it("rejects a delayed snapshot after another writer commits a newer revision", async () => {
-    await seedRecord(snapshot("r1"));
-    const tabA = createBrowserMetadataCache();
-    const tabB = createBrowserMetadataCache();
-    await expect(tabA.read(APP_STORE)).resolves.toEqual(snapshot("r1"));
-    await tabB.read(APP_STORE);
+  it.each([true, false])(
+    "rejects a delayed snapshot after another writer commits a newer revision (WeakRef: %s)",
+    async (hasWeakRef) => {
+      if (!hasWeakRef) vi.stubGlobal("WeakRef", undefined);
+      await seedRecord(snapshot("r1"));
+      const tabA = createBrowserMetadataCache();
+      const tabB = createBrowserMetadataCache();
+      await expect(tabA.read(APP_STORE)).resolves.toEqual(snapshot("r1"));
+      await tabB.read(APP_STORE);
 
-    await tabB.write(APP_STORE, snapshot("newer"));
-    // Tab A's write is based on r1; it must not overwrite the newer commit.
-    await tabA.write(APP_STORE, snapshot("stale"));
+      await tabB.write(APP_STORE, snapshot("newer"));
+      // Tab A's write is based on r1; it must not overwrite the newer commit.
+      const delayed = snapshot("stale");
+      await tabA.write(APP_STORE, delayed);
 
-    let record = await readRawBrowserMetadataRecordForTest(APP_STORE);
-    expect(record?.revision).toBe(2);
-    expect(record?.value).toEqual(snapshot("newer"));
-    // The session keeps its own newer state and can commit on top afterwards.
-    await expect(tabA.read(APP_STORE)).resolves.toEqual(snapshot("stale"));
-    await tabA.write(APP_STORE, snapshot("after"));
-    record = await readRawBrowserMetadataRecordForTest(APP_STORE);
-    expect(record?.revision).toBe(3);
-    expect(record?.value).toEqual(snapshot("after"));
-  });
+      let record = await readRawBrowserMetadataRecordForTest(APP_STORE);
+      expect(record?.revision).toBe(2);
+      expect(record?.value).toEqual(snapshot("newer"));
+      // A rejected write must not become a committed identity. Retrying the
+      // exact same state can commit on top of the observed revision afterwards.
+      await expect(tabA.read(APP_STORE)).resolves.toBe(delayed);
+      await tabA.write(APP_STORE, { ...delayed });
+      record = await readRawBrowserMetadataRecordForTest(APP_STORE);
+      expect(record?.revision).toBe(3);
+      expect(record?.value).toEqual(delayed);
+    },
+  );
 
   it("keeps the newer in-memory snapshot when a disk read was already in flight", async () => {
     await seedRecord(snapshot("disk"));

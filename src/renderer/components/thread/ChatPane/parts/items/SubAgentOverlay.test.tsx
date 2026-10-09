@@ -100,6 +100,9 @@ describe("SubAgentContent", () => {
   });
 
   it("uses the shared compact panel chrome and content surface", async () => {
+    // This case checks panel chrome once its real deferred renderer is ready.
+    // The controlled history/Markdown gates below cover loading independently.
+    await DeferredItemMarkdownInner.preload();
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");
 

@@ -12,6 +12,7 @@ import {
   flushSupervisorSentry,
   initializeSupervisorSentry,
 } from "./diagnostics/sentry";
+import { awaitSupervisorShutdown } from "./runtime/awaitSupervisorShutdown";
 import { startDevOrphanWatchdog } from "./devOrphanWatchdog";
 import { createUncaughtStormDetector } from "./devUncaughtStorm";
 import { handleSupervisorIpcFailure } from "./ipcFailure";
@@ -104,6 +105,12 @@ const ipcSender = new SupervisorIpcSender<
     if (!runtimeReady) return;
     runtime.threadSessionManager.setCanonicalCreditCapacity(remainingBytes);
   },
+  canonicalDrain: {
+    flush: () => {
+      if (runtimeReady) runtime.threadSessionManager.flushCanonicalEventsForShutdown();
+    },
+    hasPending: () => runtimeReady && runtime.threadSessionManager.hasPendingCanonicalEvents(),
+  },
 });
 performanceDiagnostics?.observeIpcQueue("supervisor-to-host", () =>
   ipcSender.getQueueDiagnostics(),
@@ -147,24 +154,24 @@ async function shutdownSupervisor(exitCode = 0): Promise<void> {
       // Dev-only: a repeated disconnect/signal means the first shutdown has
       // not finished yet. Force the exit instead of no-opping so a soft kill
       // can never look hung.
-      setTimeout(() => process.exit(exitCode), DEV_SHUTDOWN_REPEAT_FORCE_EXIT_MS).unref();
+      setTimeout(() => process.exit(exitCode || 1), DEV_SHUTDOWN_REPEAT_FORCE_EXIT_MS).unref();
     }
     return;
   }
   isShuttingDown = true;
   let finalExitCode = exitCode;
   try {
-    await Promise.race([
-      runtime.disposeAsync(),
-      new Promise<void>((resolve) => setTimeout(resolve, SUPERVISOR_SHUTDOWN_TIMEOUT_MS)),
-    ]);
+    await awaitSupervisorShutdown(runtime.disposeAsync(), SUPERVISOR_SHUTDOWN_TIMEOUT_MS);
   } catch (error) {
     finalExitCode = 1;
     console.error("[supervisor] shutdown was not confirmed:", error);
   } finally {
     if (process.connected) {
       const drained = await ipcSender.flushAndWait(SUPERVISOR_IPC_FLUSH_TIMEOUT_MS);
-      if (!drained) console.error("[supervisor] IPC queue did not drain before shutdown.");
+      if (!drained) {
+        finalExitCode = 1;
+        console.error("[supervisor] IPC queue did not drain before shutdown.");
+      }
     }
     await performanceDiagnostics?.stop();
     process.exit(finalExitCode);
