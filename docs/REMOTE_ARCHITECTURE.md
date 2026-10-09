@@ -106,10 +106,10 @@ derives every published artifact from it: the language-neutral inventory at
 the HTTP router dispatches from the same registry through an exhaustively-typed
 per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
-version is 12. The inventory describes:
+version is 13. The inventory describes:
 
-- 88 HTTP routes;
-- 126 supervisor procedures;
+- 95 HTTP routes;
+- 128 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
 
@@ -118,7 +118,7 @@ extra, or stale generated artifacts, including a hand-edited manifest.
 
 The generated inventory carries separate compatibility identities:
 
-- wire `protocolVersion` (currently 12);
+- wire `protocolVersion` (currently 13);
 - generator and binding-format versions (binding format currently 2); and
 - hashes of the source contract and manifest.
 
@@ -126,6 +126,16 @@ The binding format must change when IR layout, schema naming, or omitted-versus-
 null representation changes, even when the wire protocol version is unchanged. A native
 binding bundle must embed the matching version/hash identity so stale Swift or
 Kotlin output cannot silently compile against a newer contract.
+
+Protocol 13 is the current generation: it adds strict selection-binding schemas
+and writer-generation admission, including the canonical session-control
+procedures. The reviewed native stored-pairing upgrade path can rebind stored
+9–12 records only after verifying host identity and completing an authenticated
+read; live outdated hosts and failed proofs retain the original binding. Media
+mint/stream/release/renew routes add file-scoped reads without weakening this
+writer admission or changing persisted credentials. Their grants remain bounded
+and revocable; native media editor adoption is still planned. Generated artifacts
+combine this policy with the seven media routes (95 routes, 128 procedures).
 
 Protocol 12 combines the two parent branches' additions: daily usage broadcasts
 and authoritative `content.delta.replace` semantics. An omitted or false flag

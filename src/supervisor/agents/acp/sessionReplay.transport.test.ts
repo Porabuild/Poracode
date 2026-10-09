@@ -9,7 +9,9 @@ import { AcpStructuredSession } from "./session";
 import {
   replayActivityUpdates,
   REPLAY_CONFIG,
+  REPLAY_OPEN_UPDATES,
   REPLAY_SESSION_ID,
+  REPLAY_SESSION_REF,
 } from "./sessionReplay.testFixtures";
 
 const { spawn } = vi.hoisted(() => ({ spawn: vi.fn<typeof import("node:child_process").spawn>() }));
@@ -150,12 +152,9 @@ async function transportSession(method: "load" | "resume") {
   });
   child.emit("spawn");
   await session.activate();
-  await expect(
-    session.openThread(REPLAY_CONFIG, {
-      providerSessionId: REPLAY_SESSION_ID,
-      discoveredAt: "2026-10-09T12:00:00.000Z",
-    }),
-  ).resolves.toBe(REPLAY_SESSION_ID);
+  await expect(session.openThread(REPLAY_CONFIG, REPLAY_SESSION_REF)).resolves.toBe(
+    REPLAY_SESSION_ID,
+  );
   expect(
     messages.filter((message) => "method" in message && message.method === `session/${method}`),
   ).toEqual([
@@ -167,7 +166,7 @@ async function transportSession(method: "load" | "resume") {
     },
   ]);
   expect(listener.onRuntimeEvent).not.toHaveBeenCalled();
-  expect(listener.onUpdate).not.toHaveBeenCalled();
+  expect(listener.onUpdate.mock.calls.map(([update]) => update)).toEqual(REPLAY_OPEN_UPDATES);
   return {
     session,
     connection,
@@ -227,19 +226,26 @@ function expectLiveCanonical(fixture: Fixture) {
       payload: { content: [{ kind: "text", text: "continue" }] },
     }),
   ]);
-  expect(canonical).toContainEqual(
-    expect.objectContaining({ type: "item.completed", itemId: OPTIMISTIC_ID }),
-  );
+  expect(
+    canonical.filter((event) => event.type === "item.completed" && event.itemId === OPTIMISTIC_ID),
+  ).toEqual([expect.objectContaining({ type: "item.completed", itemId: OPTIMISTIC_ID })]);
   expect(canonical.filter((event) => event.type === "content.delta")).toEqual([
     expect.objectContaining({ stream: "assistant_text", delta: "live reply 🙂 café" }),
     expect.objectContaining({ stream: "reasoning_text", delta: "live thought" }),
   ]);
-  const tool = canonical.find(
+  const tools = canonical.filter(
     (event) => event.type === "item.started" && event.itemType === "tool_call",
   );
-  expect(tool).toMatchObject({
-    payload: { name: "live tool", status: "running", args: { query: "live" } },
-  });
+  expect(tools).toEqual([
+    expect.objectContaining({
+      payload: expect.objectContaining({
+        name: "live tool",
+        status: "running",
+        args: { query: "live" },
+      }),
+    }),
+  ]);
+  const [tool] = tools;
   if (!tool || tool.type !== "item.started") throw new Error("Missing live tool start");
   expect(
     canonical.filter((event) => event.type === "item.completed" && event.itemId === tool.itemId),
@@ -251,6 +257,9 @@ function expectLiveCanonical(fixture: Fixture) {
   expect(canonical.filter((event) => event.type === "turn.completed")).toEqual([
     expect.objectContaining({ state: "completed" }),
   ]);
+  expect(
+    fixture.listener.onUpdate.mock.calls.filter(([update]) => update.status === "working"),
+  ).toHaveLength(2);
   expect(fixture.listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
   expect(promptMessages(fixture)).toEqual([
     {
@@ -270,6 +279,31 @@ async function expectHistorySuppressed(fixture: Fixture, marker: string) {
   await fixture.activity(marker);
   expect(events(fixture)).toEqual(before);
   expect(fixture.listener.onUpdate).toHaveBeenCalledTimes(updateCount);
+}
+
+function expectFailedBeforeDispatch(fixture: Fixture) {
+  expect(promptMessages(fixture)).toEqual([]);
+  const canonical = events(fixture);
+  expect(canonical.filter((event) => event.type === "turn.started")).toHaveLength(1);
+  expect(canonical.filter((event) => event.type === "item.started")).toEqual([
+    expect.objectContaining({
+      itemId: OPTIMISTIC_ID,
+      itemType: "user_message",
+      payload: { content: [{ kind: "text", text: "continue" }] },
+    }),
+  ]);
+  expect(
+    canonical.filter((event) => event.type === "item.completed" && event.itemId === OPTIMISTIC_ID),
+  ).toEqual([expect.objectContaining({ type: "item.completed", itemId: OPTIMISTIC_ID })]);
+  expect(canonical.filter((event) => event.type === "content.delta")).toEqual([]);
+  expect(canonical.filter((event) => event.type === "turn.completed")).toEqual([
+    expect.objectContaining({ state: "failed" }),
+  ]);
+  expect(
+    fixture.listener.onUpdate.mock.calls.filter(([update]) => update.status === "working"),
+  ).toHaveLength(1);
+  expect(fixture.promptWriteCompleted()).toBe(false);
+  expect(Date.now()).toBe(NOW);
 }
 
 describe.each(["load", "resume"] as const)(
@@ -308,13 +342,13 @@ describe.each(["load", "resume"] as const)(
       await cancel.written;
       const { invoked, turn } = fixture.beginTurn();
       await invoked;
-      cancel.reject(new Error("Earlier write failed"));
-      expect(await cancel.outcome).toBeInstanceOf(Error);
-      await turn;
       expect(promptMessages(fixture)).toEqual([]);
-      expect(events(fixture)).toContainEqual(
-        expect.objectContaining({ type: "turn.completed", state: "failed" }),
-      );
+      await expectHistorySuppressed(fixture, "before-cancel-write-failure");
+      const failure = new Error("Earlier write failed");
+      cancel.reject(failure);
+      expect(await cancel.outcome).toBe(failure);
+      await turn;
+      expectFailedBeforeDispatch(fixture);
       const before = events(fixture);
       const updateCount = fixture.listener.onUpdate.mock.calls.length;
       fixture.externalHistory();
@@ -327,10 +361,7 @@ describe.each(["load", "resume"] as const)(
       const writer = fixture.output.getWriter();
       try {
         await fixture.beginTurn().turn;
-        expect(promptMessages(fixture)).toEqual([]);
-        expect(events(fixture)).toContainEqual(
-          expect.objectContaining({ type: "turn.completed", state: "failed" }),
-        );
+        expectFailedBeforeDispatch(fixture);
         const before = events(fixture);
         const updateCount = fixture.listener.onUpdate.mock.calls.length;
         fixture.externalHistory();
@@ -356,7 +387,9 @@ describe.each(["load", "resume"] as const)(
       });
       await expectHistorySuppressed(fixture, "unrelated-writes-history");
       expect(fixture.listener.onRuntimeEvent).not.toHaveBeenCalled();
-      expect(fixture.listener.onUpdate).not.toHaveBeenCalled();
+      expect(fixture.listener.onUpdate.mock.calls.map(([update]) => update)).toEqual(
+        REPLAY_OPEN_UPDATES,
+      );
     });
   },
 );

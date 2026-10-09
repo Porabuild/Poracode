@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-09T22:46:06.032Z",
+  "updatedAt": "2026-10-09T23:01:14.156Z",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -42,10 +42,10 @@
     "completedMilestoneIds": ["F1", "F2"]
   },
   "currentWork": {
-    "requiredAgent": "985608e2a204",
-    "lastAgent": "ACP correction93b1f6a3fa8d, transport review46dd0651ae8c, GUI integration cb38cebae13c and safeguard re-review bb4312f32812 completed/joined; final reviewer sources match, no remaining findings. Parent53 coupled tests and static/build checks pass.",
+    "requiredAgent": null,
+    "lastAgent": "985608e2a204 completed/joined (missing harness,216/200read limit violation recorded);46ba3aa0c65a completed/joined (ACP fixture contracts,22passes and static checks).",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "authentic-harness-input-feasibility",
+    "agentState": "remote-v2-verified-merge-ready",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -55,7 +55,7 @@
       "state": "Exact pushed b24d6fc6b product bytes equal frozen R245; retained19434-test/fullcheck/build and exact-head core19/native6+4policy-skip CI PASS. R255 saved compact qualification PASS-scoped; full PWA/mobile and resource gates remain open."
     },
     "buildSession": null,
-    "nextAction": "Check authentic recovery of missing inherited harness inputs. Desktop is currently unlocked; final corrected-source genuine thread-control run, remaining GUI shutdown/Quit, PWA recovery and final matched resources remain open. Preserve original consumed scopes.",
+    "nextAction": "Finish new ACP fixture-contract compatibility, complete remote-v2 merge, merge latest master, resolve and verify resulting tree. Then rebuild current source for genuine qualification. Broad goal stays13/18 and prior consumed cohorts unchanged.",
     "lastResult": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
     "lastDeclaration": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/launcher-declaration.json",
     "liveRootHandles": [],
@@ -2935,10 +2935,26 @@
       "frozenArtifactsRepresentCurrentHead": false
     },
     "remoteIntegration": {
-      "state": "COMMIT_ALL_THEN_PULL_V2_THEN_MERGE_MASTER",
+      "state": "REMOTE_V2_READY_FOR_MERGE_COMMIT_MASTER_NEXT",
       "authorizedBy": "User: when local changes are committed, pull remote changes, then pull and resolve conflicts with latest master",
       "resumeFixCommit": "ad91fcb54",
-      "goalScopePreserved": true
+      "goalScopePreserved": true,
+      "localChunks": ["ad91fcb54", "e6787bebf"],
+      "remoteV2": "38fb96cb80254568238c9673ac4d9d6fd39a79b7",
+      "fetchedMaster": "e56fcc87b3257c04ab64733d818923fec40008a8",
+      "conflictsResolved": 4,
+      "v2Typecheck": "PASS",
+      "currentProductionQualification": "Prior a1db runtime is historical; merged source requires a new artifact identity and qualification.",
+      "harnessFeasibility": "tmp/v2-acp-fast-resume-20261009/gui-admission-integration/harness-input-feasibility.json",
+      "harnessResearchLimit": "Inspection exceeded200-file cap by16; generated closure remains incomplete; no execution credit.",
+      "focusedChecks": {
+        "runtimeResolution": 32,
+        "usageIsolationAndProfiles": 45,
+        "acpReplayAndFraming": 22,
+        "typecheck": "PASS",
+        "touchedLint": "PASS"
+      },
+      "integrationFix": "Profile reconciliation now respects disabled collection before provider-source/credential/cache effects;2before failures→5isolation passes, normal current-cache controls retained."
     },
     "interactiveTestCredentialIsolation": {
       "status": "implemented_independent_review_pass_root_verified_full_smoke_partial",
@@ -5550,7 +5566,7 @@
       "reviewJoined": true
     },
     "previousGoalTurnClassification": "progress: corrected GUI resumed prompt admission and early Stop race;53 coupled tests/static checks/final source-bound build and targeted review pass. Genuine final qualification remains open.",
-    "goalTurnClassification": "progress: corrected/released enrollment, four currentbackend matchedarms executed/verified, scoped requirementmap advanced; broadgoalnotcomplete.",
+    "goalTurnClassification": "progress: two local chunks committed with normal hooks; remote-v2 pulled,4conflicts resolved and current typecheck/32runtime tests pass; master fetched, merge queued.",
     "configurationToolBatch": {
       "runId": "8ce5a834d5d4",
       "names": [

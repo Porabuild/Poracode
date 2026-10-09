@@ -11,6 +11,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  isRemoteOmittedField,
+  pickRemoteSettings,
+  readRemoteImageRef,
+  type RemoteHostUpdateStatus,
+  type RemoteSettings,
+} from "@/shared/remote";
 import type {
   BackgroundTask,
   Experiment,
@@ -26,13 +35,6 @@ import type {
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { REMOTE_PROCEDURE_RESULT_FIXTURES } from "@/shared/remote/contract/goldens/procedureFixtures";
-import {
-  isRemoteOmittedField,
-  pickRemoteSettings,
-  readRemoteImageRef,
-  type RemoteHostUpdateStatus,
-  type RemoteSettings,
-} from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
 import { emptyGitStateSnapshot } from "@/shared/gitState";
 import type { BrowserPanelManager } from "@/host/browser/types";
@@ -468,7 +470,10 @@ async function openPairedSocket(info: RemoteAccessServerInfo): Promise<{
 
   const ticketResponse = await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
     method: "POST",
-    headers: { authorization: `Bearer ${token.accessToken}` },
+    headers: {
+      authorization: `Bearer ${token.accessToken}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    },
   });
   expect(ticketResponse.status).toBe(200);
   const ticket = (await ticketResponse.json()) as { ticket: string };
@@ -538,7 +543,10 @@ async function issueWebSocketTicket(
 ): Promise<string> {
   const ticketResponse = await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
     method: "POST",
-    headers: { authorization: `Bearer ${accessToken}` },
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    },
   });
   expect(ticketResponse.status).toBe(200);
   const ticket = (await ticketResponse.json()) as { ticket: string };
@@ -738,7 +746,10 @@ describe("RemoteAccessServer", () => {
     servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["session:read", "projects:manage"]);
-    const headers = { authorization: `Bearer ${token}` };
+    const headers = {
+      authorization: `Bearer ${token}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
 
     const checkResponse = await fetch(new URL("/api/host-update/check", info.httpBaseUrl), {
       method: "POST",
@@ -1285,7 +1296,10 @@ describe("RemoteAccessServer", () => {
     servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["session:read"]);
-    const headers = { authorization: `Bearer ${token}` };
+    const headers = {
+      authorization: `Bearer ${token}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
 
     const legacyResponse = await fetch(
       new URL("/api/threads/thread-paged/history", info.httpBaseUrl),
@@ -1744,7 +1758,12 @@ describe("RemoteAccessServer", () => {
     // path-scoped image ticket.
     const mintResponse = await fetch(new URL("/api/files/image-ticket", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ path: imagePath }),
     });
     expect(mintResponse.status).toBe(200);
@@ -1857,7 +1876,12 @@ describe("RemoteAccessServer", () => {
 
     const minted = await fetch(mintUrl, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ path: imagePath }),
     });
     expect(minted.status).toBe(200);
@@ -1900,7 +1924,12 @@ describe("RemoteAccessServer", () => {
 
     const minted = await fetch(new URL("/api/files/image-ticket", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ path: imagePath }),
     });
     expect(minted.status).toBe(200);
@@ -1967,6 +1996,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(url, {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/octet-stream",
       },
@@ -2560,7 +2590,12 @@ describe("RemoteAccessServer", () => {
 
     const response = await fetch(new URL("/api/terminal/start", info.httpBaseUrl), {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify(payload),
     });
 
@@ -2967,6 +3002,7 @@ describe("RemoteAccessServer", () => {
     const searchResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -2996,6 +3032,7 @@ describe("RemoteAccessServer", () => {
     const listResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3023,6 +3060,7 @@ describe("RemoteAccessServer", () => {
     const readResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3047,6 +3085,7 @@ describe("RemoteAccessServer", () => {
     const writeResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3075,6 +3114,7 @@ describe("RemoteAccessServer", () => {
     const createResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3099,6 +3139,7 @@ describe("RemoteAccessServer", () => {
     const renameResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3123,6 +3164,7 @@ describe("RemoteAccessServer", () => {
     const deleteResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3161,6 +3203,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3201,6 +3244,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3238,6 +3282,7 @@ describe("RemoteAccessServer", () => {
     const subscribeResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3257,6 +3302,7 @@ describe("RemoteAccessServer", () => {
     const unsubscribeResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3297,6 +3343,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3344,6 +3391,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3387,6 +3435,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3807,7 +3856,10 @@ describe("RemoteAccessServer", () => {
     };
     const ticketResponse = await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      headers: {
+        authorization: `Bearer ${tokens.accessToken}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
     });
     const ticket = (await ticketResponse.json()) as { ticket: string };
     const wsUrl = new URL("/ws", info.wsBaseUrl);
@@ -3892,6 +3944,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/threads/thread-remote/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -3972,6 +4025,7 @@ describe("RemoteAccessServer", () => {
       fetch(new URL("/api/threads/start", info.httpBaseUrl), {
         method: "POST",
         headers: {
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
           "x-poracode-command-id": `thread-start:${thread.id}`,
@@ -4047,6 +4101,7 @@ describe("RemoteAccessServer", () => {
       {
         method: "POST",
         headers: {
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
         },
@@ -4130,6 +4185,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/threads/thread-offline/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -4182,6 +4238,7 @@ describe("RemoteAccessServer", () => {
       {
         method: "POST",
         headers: {
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
         },
@@ -4253,6 +4310,7 @@ describe("RemoteAccessServer", () => {
         {
           method: "POST",
           headers: {
+            [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
             authorization: `Bearer ${token}`,
             "content-type": "application/json",
           },
@@ -4316,6 +4374,7 @@ describe("RemoteAccessServer", () => {
     const headers = {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const payload = {
       projectLocation: { kind: "posix", path: "/repo" },
@@ -4399,6 +4458,7 @@ describe("RemoteAccessServer", () => {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
       "x-poracode-command-id": "prompt-item-1",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const body = JSON.stringify({
       threadId: "thread-1",
@@ -4479,6 +4539,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -4566,6 +4627,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -4631,7 +4693,12 @@ describe("RemoteAccessServer", () => {
 
     const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({
         threadId: "thread-1",
         projectLocation: { kind: "posix", path: "/repo" },
@@ -4668,7 +4735,12 @@ describe("RemoteAccessServer", () => {
 
     const response = await fetch(new URL("/api/threads/thread-1/command", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({
         kind: "start",
         projectId: "project-1",
@@ -4701,7 +4773,12 @@ describe("RemoteAccessServer", () => {
     const request = (fromAgentKind: string) =>
       fetch(new URL("/api/threads/start", info.httpBaseUrl), {
         method: "POST",
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+
         body: JSON.stringify({
           threadId: "thread-1",
           projectLocation: { kind: "posix", path: "/repo" },
@@ -4746,7 +4823,12 @@ describe("RemoteAccessServer", () => {
     const request = (agentKind: string, fromAgentKind: string) =>
       fetch(new URL("/api/threads/start", info.httpBaseUrl), {
         method: "POST",
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+
         body: JSON.stringify({
           threadId: "thread-1",
           projectLocation: { kind: "posix", path: "/repo" },
@@ -4794,6 +4876,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/threads/thread-fork/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -4873,6 +4956,7 @@ describe("RemoteAccessServer", () => {
     const headers = {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
 
     const clearGroupResponse = await fetch(
@@ -5021,6 +5105,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/threads/thread-1/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -5065,6 +5150,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/threads/thread-1/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -5113,6 +5199,7 @@ describe("RemoteAccessServer", () => {
     const headers = {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const commands = [
       { threadId: "thread-1", body: { kind: "set-group" } },
@@ -5225,7 +5312,10 @@ describe("RemoteAccessServer", () => {
     const sessionToken = await pair(["session:read", "session:operate"]);
     const closeResponse = await fetch(new URL("/api/threads/thread-1/close", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${sessionToken}` },
+      headers: {
+        authorization: `Bearer ${sessionToken}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
     });
     expect(closeResponse.status).toBe(200);
     expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "thread-1" });
@@ -5235,7 +5325,10 @@ describe("RemoteAccessServer", () => {
       new URL("/api/threads/thread-2/close", info.httpBaseUrl),
       {
         method: "POST",
-        headers: { authorization: `Bearer ${readOnlyToken}` },
+        headers: {
+          authorization: `Bearer ${readOnlyToken}`,
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
       },
     );
     expect(forbiddenResponse.status).toBe(403);
@@ -5246,7 +5339,10 @@ describe("RemoteAccessServer", () => {
       new URL("/api/threads/shell%3Aone/terminal/close", info.httpBaseUrl),
       {
         method: "POST",
-        headers: { authorization: `Bearer ${terminalToken}` },
+        headers: {
+          authorization: `Bearer ${terminalToken}`,
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
       },
     );
     expect(terminalCloseResponse.status).toBe(200);
@@ -5294,6 +5390,7 @@ describe("RemoteAccessServer", () => {
     const forbiddenResponse = await fetch(new URL("/api/projects/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${readOnlyToken}`,
         "content-type": "application/json",
       },
@@ -5305,7 +5402,10 @@ describe("RemoteAccessServer", () => {
     const manageToken = await pair(["session:read", "projects:manage"]);
     const ticketResponse = await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${manageToken}` },
+      headers: {
+        authorization: `Bearer ${manageToken}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
     });
     expect(ticketResponse.status).toBe(200);
     const ticket = (await ticketResponse.json()) as { ticket: string };
@@ -5322,6 +5422,7 @@ describe("RemoteAccessServer", () => {
     const commandResponse = await fetch(new URL("/api/projects/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${manageToken}`,
         "content-type": "application/json",
       },
@@ -5383,6 +5484,7 @@ describe("RemoteAccessServer", () => {
     const updateResponse = await fetch(new URL("/api/projects/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${manageToken}`,
         "content-type": "application/json",
       },
@@ -5473,6 +5575,7 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/projects/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
       },
@@ -5588,6 +5691,7 @@ describe("RemoteAccessServer", () => {
     const headers = {
       authorization: `Bearer ${token.accessToken}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
 
     const stateResponse = await fetch(new URL("/api/browser/state", info.httpBaseUrl), {
@@ -5729,6 +5833,7 @@ describe("RemoteAccessServer", () => {
     const headers = {
       authorization: `Bearer ${forwardToken}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
 
     const emptyState = await fetch(new URL("/api/ports", info.httpBaseUrl), { headers });
@@ -5863,7 +5968,11 @@ describe("RemoteAccessServer", () => {
     const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
 
     const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
@@ -5954,7 +6063,12 @@ describe("RemoteAccessServer", () => {
       const token = await issueAccessToken(info, ["ports:forward"]);
       const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
         method: "POST",
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+
         body: JSON.stringify({ targetPort: upstream.port }),
       });
       const forwardResult = (await forwardResponse.json()) as {
@@ -6007,7 +6121,12 @@ describe("RemoteAccessServer", () => {
     const token = await issueAccessToken(info, ["ports:forward"]);
     const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ targetPort: upstream.port }),
     });
     const forwardResult = (await forwardResponse.json()) as {
@@ -6078,7 +6197,12 @@ describe("RemoteAccessServer", () => {
     const token = await issueAccessToken(info, ["ports:forward"]);
     const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ targetPort: upstream.port }),
     });
     const forwardResult = (await forwardResponse.json()) as { enterPath: string };
@@ -6113,7 +6237,11 @@ describe("RemoteAccessServer", () => {
     const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
     const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
       headers,
@@ -6190,7 +6318,11 @@ describe("RemoteAccessServer", () => {
     const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
     const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
       headers,
@@ -6271,7 +6403,11 @@ describe("RemoteAccessServer", () => {
     const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
     const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
       headers,
@@ -6361,7 +6497,10 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({ grantType: "pairing-token", credential }),
     });
     const token = (await tokenResponse.json()) as { accessToken: string };
-    const auth = { authorization: `Bearer ${token.accessToken}` };
+    const auth = {
+      authorization: `Bearer ${token.accessToken}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
 
     const getResponse = await fetch(new URL("/api/settings", info.httpBaseUrl), {
       headers: auth,
@@ -6445,7 +6584,10 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({ grantType: "pairing-token", credential }),
     });
     const token = (await tokenResponse.json()) as { accessToken: string };
-    const auth = { authorization: `Bearer ${token.accessToken}` };
+    const auth = {
+      authorization: `Bearer ${token.accessToken}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
 
     // Conflict: conflict-explicit status and payload, never a generic 500.
     const conflictResponse = await fetch(new URL("/api/settings", info.httpBaseUrl), {
@@ -6501,6 +6643,7 @@ describe("RemoteAccessServer", () => {
     const internalResponse = await fetch(new URL("/api/settings", brokenInfo.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${brokenToken.accessToken}`,
         "content-type": "application/json",
       },
@@ -6570,6 +6713,7 @@ describe("RemoteAccessServer", () => {
     const forbidden = await fetch(endpoint, {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${readOnlyToken}`,
         "content-type": "application/json",
       },
@@ -6584,7 +6728,12 @@ describe("RemoteAccessServer", () => {
 
     const probe = await fetch(endpoint, {
       method: "POST",
-      headers: { authorization: `Bearer ${manageToken}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${manageToken}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({
         kind: "probe",
         scope: { kind: "global" },
@@ -6598,7 +6747,12 @@ describe("RemoteAccessServer", () => {
 
     const status = await fetch(endpoint, {
       method: "POST",
-      headers: { authorization: `Bearer ${manageToken}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${manageToken}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ kind: "oauth-status", scope: { kind: "global" } }),
     });
     await expect(status.json()).resolves.toEqual({
@@ -6644,6 +6798,7 @@ describe("RemoteAccessServer", () => {
     const readHeaders = {
       authorization: `Bearer ${readToken}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const getResponse = await fetch(
       new URL(`/api/projects/${project.id}/notes`, info.httpBaseUrl),
@@ -6670,6 +6825,7 @@ describe("RemoteAccessServer", () => {
       {
         method: "POST",
         headers: {
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
           authorization: `Bearer ${operateToken}`,
           "content-type": "application/json",
         },
@@ -6751,7 +6907,10 @@ describe("RemoteAccessServer", () => {
     const info = await server.start();
 
     const readToken = await issueAccessToken(info, ["session:read"]);
-    const readHeaders = { authorization: `Bearer ${readToken}` };
+    const readHeaders = {
+      authorization: `Bearer ${readToken}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
     const emptyResponse = await fetch(new URL("/api/schedules", info.httpBaseUrl), {
       headers: readHeaders,
     });
@@ -6787,6 +6946,7 @@ describe("RemoteAccessServer", () => {
     const createResponse = await fetch(new URL("/api/schedules/command", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         authorization: `Bearer ${operateToken}`,
         "content-type": "application/json",
       },
@@ -6842,6 +7002,7 @@ describe("RemoteAccessServer", () => {
     const readHeaders = {
       authorization: `Bearer ${readToken}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const emptyResponse = await fetch(
       new URL("/api/pr-watches?projectId=project-1&prNumber=42", info.httpBaseUrl),
@@ -6873,6 +7034,7 @@ describe("RemoteAccessServer", () => {
     const operateHeaders = {
       authorization: `Bearer ${operateToken}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const upsertResponse = await fetch(new URL("/api/pr-watches", info.httpBaseUrl), {
       method: "POST",
@@ -6948,6 +7110,7 @@ describe("RemoteAccessServer", () => {
     const readHeaders = {
       authorization: `Bearer ${readToken}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
 
     const devicesResponse = await fetch(new URL("/api/profile/devices", info.httpBaseUrl), {
@@ -7007,6 +7170,7 @@ describe("RemoteAccessServer", () => {
     const operateHeaders = {
       authorization: `Bearer ${operateToken}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const identityResponse = await fetch(new URL("/api/profile/identity", info.httpBaseUrl), {
       method: "POST",
@@ -7071,6 +7235,7 @@ describe("RemoteAccessServer", () => {
     const fullHeaders = {
       authorization: `Bearer ${fullToken}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const projectLocation = { kind: "posix", path: "/tmp/repo" };
     vi.mocked(dbGetProjects).mockReturnValue([
@@ -7190,7 +7355,12 @@ describe("RemoteAccessServer", () => {
     const readToken = await pair(["session:read"]);
     const stageResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${readToken}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${readToken}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({
         procedure: "gitStage",
         payload: { projectLocation, filePath: "a.ts" },
@@ -7202,7 +7372,12 @@ describe("RemoteAccessServer", () => {
 
     const pushWithoutOperateResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${readToken}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${readToken}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ procedure: "gitPush", payload: pushPayload }),
     });
     expect(pushWithoutOperateResponse.status).toBe(403);
@@ -7213,7 +7388,12 @@ describe("RemoteAccessServer", () => {
 
     const dispatchWithoutOperateResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${readToken}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${readToken}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ procedure: "ghDispatchWorkflow", payload: dispatchPayload }),
     });
     expect(dispatchWithoutOperateResponse.status).toBe(403);
@@ -7224,7 +7404,12 @@ describe("RemoteAccessServer", () => {
 
     const cancelWithoutOperateResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${readToken}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${readToken}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ procedure: "ghCancelWorkflowRun", payload: cancelPayload }),
     });
     expect(cancelWithoutOperateResponse.status).toBe(403);
@@ -7254,6 +7439,7 @@ describe("RemoteAccessServer", () => {
     const headers = {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const projectLocation = { kind: "posix", path: "/repo" } as const;
     const worktreeLocation = { kind: "posix", path: "/repo/one" } as const;
@@ -7357,6 +7543,7 @@ describe("RemoteAccessServer", () => {
     const headers = {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     };
     const calls = [
       {
@@ -7497,6 +7684,7 @@ describe("RemoteAccessServer", () => {
     const forbidden = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
       method: "POST",
       headers: {
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         "content-type": "application/json",
         authorization: `Bearer ${readToken.accessToken}`,
       },
@@ -7525,7 +7713,12 @@ describe("RemoteAccessServer", () => {
     };
     const registerResponse = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify(registration),
     });
     expect(registerResponse.status).toBe(200);
@@ -7537,7 +7730,12 @@ describe("RemoteAccessServer", () => {
 
     const unregisterResponse = await fetch(new URL("/api/push/unregister", info.httpBaseUrl), {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ deviceId: "device-abcdef", routing: registration.routing }),
     });
     expect(unregisterResponse.status).toBe(200);
@@ -7565,7 +7763,12 @@ describe("RemoteAccessServer", () => {
 
     const response = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({
         deviceId: "device-abcdef",
         platform: "ios",
@@ -7599,7 +7802,12 @@ describe("RemoteAccessServer", () => {
 
     const response = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+
       body: JSON.stringify({ deviceId: "device-abcdef", platform: "ios" }),
     });
     expect(response.status).toBe(503);
@@ -7636,7 +7844,10 @@ describe("RemoteAccessServer", () => {
     servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["session:read"]);
-    const auth = { authorization: `Bearer ${token}` };
+    const auth = {
+      authorization: `Bearer ${token}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
 
     // Default payload keeps the catalogs.
     const full = await (

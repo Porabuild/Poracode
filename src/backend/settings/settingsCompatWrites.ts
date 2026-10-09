@@ -6,6 +6,7 @@ import {
   settingsSubjectId,
   type SettingsEdit,
   type SettingsMutationResult,
+  type SettingsOwnerEdit,
   type SettingsSubject,
 } from "@/shared/settingsTransactions";
 import { canonicalSettingsJson } from "./settingsSubjects";
@@ -104,6 +105,33 @@ export class SettingsCompatWriter {
     return result;
   }
 
+  /**
+   * Trusted owner-runtime edits (supervisor registry records, hook verdicts)
+   * that hold no revisions. Each attempt stamps the freshest revisions of the
+   * named subjects only, so concurrent edits to every other subject survive;
+   * a racing commit to the same subject rebases, and one that survives the
+   * bounded attempts refuses loudly. An empty list is an admission probe.
+   */
+  async commitOwnerEdits(edits: readonly SettingsOwnerEdit[]): Promise<void> {
+    if (edits.length === 0) {
+      this.authority.assertWriteAdmission();
+      return;
+    }
+    const subjects = edits.map((edit) => edit.subject);
+    const result = await withSettingsRebase(() => {
+      const snapshot = this.authority.snapshot(subjects);
+      return this.authority.mutate(
+        {
+          version: SETTINGS_TRANSACTION_VERSION,
+          authorityId: snapshot.authorityId,
+          edits: edits.map(({ subject, value }) => this.subjectEdit(subject, snapshot, value)),
+        },
+        authorizeSettingsCommandSubjects(subjects),
+      );
+    });
+    if (result.status !== "committed") this.uncommitted("owner settings edit", result);
+  }
+
   private async attemptCompatSnapshot(
     incoming: SharedSettingsInput,
   ): Promise<SettingsMutationResult> {
@@ -136,7 +164,7 @@ export class SettingsCompatWriter {
       {
         version: SETTINGS_TRANSACTION_VERSION,
         authorityId: snapshot.authorityId,
-        edits: [this.fieldEdit(subject, snapshot, value)],
+        edits: [this.subjectEdit(subject, snapshot, value)],
       },
       authorizeSettingsCommandSubjects([subject]),
     );
@@ -149,12 +177,16 @@ export class SettingsCompatWriter {
   ): Promise<SettingsMutationResult> {
     const edits = Object.keys(next)
       .map((field) => ({ kind: "field", field }) as SettingsSubject & { kind: "field" })
-      .filter(
-        (subject) =>
-          canonicalSettingsJson(current[subject.field]) !==
-          canonicalSettingsJson(next[subject.field]),
-      )
-      .map((subject) => this.fieldEdit(subject, snapshot, next[subject.field]));
+      .filter((subject) => {
+        const previousValue = current[subject.field];
+        const nextValue = next[subject.field];
+        // Defaultless optional fields have no JSON value until first set.
+        // Preserve absence without passing undefined to the JSON comparator.
+        if (previousValue === undefined || nextValue === undefined)
+          return previousValue !== nextValue;
+        return canonicalSettingsJson(previousValue) !== canonicalSettingsJson(nextValue);
+      })
+      .map((subject) => this.subjectEdit(subject, snapshot, next[subject.field]));
     if (edits.length === 0) {
       // An equal snapshot is a committed no-op: the caller's state is already
       // authoritative and no document bytes change.
@@ -176,8 +208,8 @@ export class SettingsCompatWriter {
     );
   }
 
-  private fieldEdit(
-    subject: SettingsSubject & { kind: "field" },
+  private subjectEdit(
+    subject: SettingsSubject,
     snapshot: ReturnType<SettingsAuthority["snapshot"]>,
     value: unknown,
   ): SettingsEdit {

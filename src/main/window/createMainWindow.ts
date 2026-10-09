@@ -1,3 +1,5 @@
+import { pathToFileURL } from "node:url";
+import { registerLocalFontRenderer } from "../browser/localFontPermissions";
 import type { ShellStateStore } from "../backend/BackendStateStore";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
@@ -170,6 +172,14 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       }),
     },
   });
+  if ((options.windowKind ?? "main") === "main") {
+    registerLocalFontRenderer(
+      window.webContents,
+      options.isDev
+        ? (options.devServerUrl as string)
+        : pathToFileURL(options.rendererHtmlPath).href,
+    );
+  }
   installSessionPermissions(window.webContents.session);
   if (options.isDev && process.env.PORACODE_PROFILE_STARTUP === "1") {
     console.log(`[startup] ${Date.now()} window-created`);

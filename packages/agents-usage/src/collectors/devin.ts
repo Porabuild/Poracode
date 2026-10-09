@@ -59,7 +59,12 @@ export function parseDevinUsage(data: unknown, now: number): UsageSnapshot {
   if (!plan?.hideDailyQuota)
     add("daily", value.dailyQuotaRemainingPercent, value.dailyQuotaResetAtUnix);
   add("weekly", value.weeklyQuotaRemainingPercent, value.weeklyQuotaResetAtUnix);
-  if (!windows.length) return { ...base, status: plan?.planName ? "unsupported" : "error" };
+  const credits =
+    value.overageBalanceMicros !== undefined
+      ? { balance: value.overageBalanceMicros / 1_000_000, currency: "USD" }
+      : undefined;
+  if (!windows.length && !credits)
+    return { ...base, status: plan?.planName ? "unsupported" : "error" };
   return {
     ...base,
     status: "ok",
@@ -67,9 +72,7 @@ export function parseDevinUsage(data: unknown, now: number): UsageSnapshot {
     ...(plan?.planName ? { plan: plan.planName } : {}),
     // This is a remaining balance, not spend; displaying it as used would
     // invert the meaning of the meter.
-    ...(value.overageBalanceMicros
-      ? { credits: { balance: value.overageBalanceMicros / 1_000_000, currency: "USD" } }
-      : {}),
+    ...(credits ? { credits } : {}),
   };
 }
 

@@ -19,6 +19,7 @@ import {
 } from "./portForward/forwardOriginIdentity";
 import { ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { imageTickets } from "./server/imageTickets";
+import { fileMediaGrants } from "./server/fileMedia";
 import {
   handleRemoteAccessHttpRequest,
   handleRemoteAccessUpgrade,
@@ -44,6 +45,7 @@ import {
   resolvePrincipalAdmissionLimits,
 } from "./server/principalAdmission";
 import { LegacyBulkReadAdmission } from "./server/legacyBulkReadAdmission";
+import { SessionConfigInventory } from "./server/sessionConfigInventory";
 import {
   type IngressRequestClassification,
   type IngressWorkClass,
@@ -222,6 +224,7 @@ export class RemoteAccessServer {
   private readonly desktopInternalClients = new Set<WebSocket>();
   private readonly desktopReplayingClients = new Set<WebSocket>();
   private readonly backgroundTasksByThread = new Map<string, readonly BackgroundTask[]>();
+  private readonly sessionConfigInventory = new SessionConfigInventory();
   private readonly context: RemoteServerContext;
   private readonly maxConcurrentIngressWork: number;
   private readonly maxConcurrentIngressWorkPerSource: number;
@@ -398,6 +401,7 @@ export class RemoteAccessServer {
       boundedCatalogChangeClients: this.boundedCatalogChangeClients,
       eventBuffer: this.eventBuffer,
       backgroundTasksByThread: this.backgroundTasksByThread,
+      sessionConfigInventory: this.sessionConfigInventory,
       get seq() {
         return server.seq;
       },
@@ -503,6 +507,7 @@ export class RemoteAccessServer {
   dispose(): Promise<void> {
     if (this.closing) return this.closing;
     this.stopping = true;
+    fileMediaGrants(this.auth).clear();
     this.listenCancellation.abort();
     this.closing = Promise.resolve().then(async () => {
       // The server owns the gateway created by its factory. Cancel its live
@@ -545,6 +550,7 @@ export class RemoteAccessServer {
     if (!revoked) return false;
     this.recordAudit("revoke", { detail: { sessionId } });
     imageTickets.revokeSession(sessionId);
+    fileMediaGrants(this.auth).revokeSession(sessionId);
     this.options.portForward?.revokeSessionTickets(sessionId);
     // C1: a revoked parent session closes its environment proxy legs (and its
     // outstanding environment upgrade tickets, dropped by the auth store's
@@ -605,11 +611,13 @@ export class RemoteAccessServer {
     publishCatalogChangedRows(this.asHost(), projects);
   }
 
-  /** Drops every cached background-task level. The supervisor process that
-   * reported them is gone after a crash-restart; its fresh sessions report
-   * their own levels, so stale entries must not shadow the live read. */
+  /** Drops every cached background-task level and the volatile session-control
+   * inventory. The supervisor process that reported them is gone after a
+   * crash-restart; its fresh sessions report their own levels, so stale
+   * entries must not shadow the live read. */
   clearBackgroundTaskLevels(): void {
     this.backgroundTasksByThread.clear();
+    this.sessionConfigInventory.clear();
   }
 
   /**

@@ -1,5 +1,7 @@
 import { msg } from "@lingui/core/macro";
+import { msg as sharedMessage } from "@/shared/messages";
 import type { MessageDescriptor } from "@lingui/core";
+import { i18n } from "@/renderer/i18n/i18n";
 import {
   baseAgentKind,
   type AgentCapability,
@@ -20,6 +22,14 @@ import {
   providerVisibilityKey,
 } from "./providerIdentity";
 import { getProviderModelPickerRank } from "@/renderer/components/providers/providerManifest";
+import { primaryModelChoices } from "@/renderer/components/providers/modelPickerLayout";
+import { separatePrimaryModelRows } from "./primaryModelRows";
+import {
+  aggregateModelPriceTerms,
+  formatModelPriceHint,
+  formatProviderModelDescription,
+} from "@/renderer/components/providers/modelDescription";
+import { cachedProjectedFamilies, modelFamilyMemberCompactLabel } from "./modelFamilyDisplay";
 import type { ProviderModelItem } from "./types";
 
 export interface ProviderModelMenuProvider {
@@ -148,6 +158,15 @@ function joinHints(...hints: Array<string | undefined>): string | undefined {
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
+function distinctGroupLabel(
+  modelLabel: string,
+  groupLabel: string | undefined,
+): string | undefined {
+  return groupLabel?.trim().toLowerCase() !== modelLabel.trim().toLowerCase()
+    ? groupLabel
+    : undefined;
+}
+
 /**
  * The model supports fast mode AND the account can actually use it. Mirrors
  * `supportsUsableFastMode` in the thread helpers, inlined here to keep the
@@ -179,9 +198,48 @@ function formatTooltipDescription(input: {
   return description;
 }
 
+/**
+ * Muted right-hand price text for one row. An exact row shows its own
+ * provider-parsed price; a projected family row aggregates the complete
+ * relation member inventory into an honest input/output range — rendered only
+ * when EVERY member's price is known, never fabricated over partial terms.
+ * The vendor cost text is parsed exclusively by the provider leaf formatter
+ * through the description seam; this side only consumes parsed terms.
+ */
+function rowPriceLine(
+  providerKind: string,
+  entry: ModelEntry,
+  cache: ProviderModelCache,
+  intent: "projected" | "exact" = "projected",
+): string | undefined {
+  const memberIds = intent === "exact" ? undefined : cache.familyMemberIds.get(entry.id);
+  if (memberIds) {
+    const terms = aggregateModelPriceTerms(
+      memberIds.map((id) =>
+        formatProviderModelDescription(providerKind, cache.modelById.get(id)?.tooltipDescription),
+      ),
+    );
+    return terms ? formatModelPriceHint(terms) : undefined;
+  }
+  return formatProviderModelDescription(providerKind, entry.tooltipDescription)?.hint;
+}
+
 interface ProviderModelCache {
+  /** Locale of the translated selector search tokens and compact member labels. */
+  locale: string;
+  /** The raw, backwards-compatible selection inventory (every exact member keeps its row data). */
   models: ModelEntry[];
   modelById: Map<string, ModelEntry>;
+  /**
+   * The visible main list: projected family rows (one per relation, labeled with
+   * the family name) replacing their member rows, every other raw choice kept.
+   * Absent when the surface declares no relation.
+   */
+  pickRows: ModelEntry[];
+  /** Compact family label per member UID, for favorites/recents rows that keep exact ids. */
+  memberLabels: Map<string, string>;
+  /** Representative UID → every exact member id its projected row stands for. */
+  familyMemberIds: Map<string, readonly string[]>;
 }
 
 const providerModelCache = new WeakMap<AgentCapability, ProviderModelCache>();
@@ -251,7 +309,7 @@ function makeModelEntry(
 
 function getProviderModelCache(capability: AgentCapability): ProviderModelCache {
   const cached = providerModelCache.get(capability);
-  if (cached) return cached;
+  if (cached?.locale === i18n.locale) return cached;
 
   const models: ModelEntry[] = [];
   const modelById = new Map<string, ModelEntry>();
@@ -267,9 +325,76 @@ function getProviderModelCache(capability: AgentCapability): ProviderModelCache 
     modelById.set(entry.id, entry);
   }
 
-  const next: ProviderModelCache = { models, modelById };
+  // Project the optional family relations into the visible list only: one row
+  // per relation at the representative's catalog position, member rows dropped,
+  // raw `models` untouched. Members stay resolvable for favorites/recents with
+  // a compact family label instead of the giant native pair label.
+  const families = cachedProjectedFamilies(capability);
+  const memberLabels = new Map<string, string>();
+  const familyMemberIds = new Map<string, readonly string[]>();
+  let pickRows = models;
+  if (families.length > 0) {
+    const members = new Set(families.flatMap((family) => family.members.map((m) => m.model)));
+    const representativeByModel = new Map(families.map((family) => [family.model, family]));
+    const rows: ModelEntry[] = [];
+    for (const entry of models) {
+      const family = representativeByModel.get(entry.id);
+      if (family) {
+        const sub = deriveSubProvider(entry.id, capability);
+        const searchParts = [entry.id, family.label];
+        for (const selector of family.selectors) {
+          // The localized selector label is what the menus display, so it is
+          // searchable too.
+          searchParts.push(sharedMessage(selector.labelKey));
+          for (const option of selector.options) {
+            searchParts.push(option.id, option.label);
+          }
+        }
+        // The Fast coordinate is part of the family's reachability even though
+        // no selector option carries it.
+        if (family.bindings.fast === "model") searchParts.push("fast");
+        if (sub) searchParts.push(sub.id, sub.label);
+        rows.push({
+          id: entry.id,
+          label: family.label,
+          ...(sub ? { subId: sub.id, subLabel: sub.label } : {}),
+          searchText: searchParts.join("\n").toLowerCase(),
+        });
+        continue;
+      }
+      if (!members.has(entry.id)) rows.push(entry);
+    }
+    pickRows = rows;
+    for (const family of families) {
+      familyMemberIds.set(
+        family.model,
+        family.members.map((member) => member.model),
+      );
+      for (const member of family.members) {
+        memberLabels.set(member.model, modelFamilyMemberCompactLabel(family, member));
+      }
+    }
+  }
+
+  const next: ProviderModelCache = {
+    locale: i18n.locale,
+    models,
+    modelById,
+    pickRows,
+    memberLabels,
+    familyMemberIds,
+  };
   providerModelCache.set(capability, next);
   return next;
+}
+
+/** Optional spread carrying a projected family row's exact member ids. */
+function familyModelIdsField(
+  cache: ProviderModelCache,
+  modelId: string,
+): {} | { familyModelIds: readonly string[] } {
+  const ids = cache.familyMemberIds.get(modelId);
+  return ids ? { familyModelIds: ids } : {};
 }
 
 interface VisibleProvider {
@@ -366,12 +491,17 @@ function resolveModelRef(
   }
   const resolved: ResolvedModelRef = {
     ref,
-    label: formatShortcutModelLabel(ref.agentKind, ref.modelId, model.label),
+    // Family members keep their exact persisted id but read as the compact
+    // family + selector summary; the group label would only repeat the family.
+    label:
+      cache.memberLabels.get(ref.modelId) ??
+      formatShortcutModelLabel(ref.agentKind, ref.modelId, model.label),
     providerLabel: provider.label,
     searchText: model.searchText,
     providerSearchText: visibleProvider.searchText,
   };
-  if (model.subLabel) resolved.subProviderLabel = model.subLabel;
+  if (model.subLabel && !cache.memberLabels.has(ref.modelId))
+    resolved.subProviderLabel = model.subLabel;
   if (model.contextDescription) resolved.contextDescription = model.contextDescription;
   if (model.modelDescription) resolved.modelDescription = model.modelDescription;
   if (model.tooltipDescription) resolved.tooltipDescription = model.tooltipDescription;
@@ -514,9 +644,14 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       const providerIcon = visibleProvider?.provider.icon;
       const shortcutSubLabel = disambiguatedSubLabel(
         modelId,
-        m.subProviderLabel,
+        distinctGroupLabel(m.label, m.subProviderLabel),
         visibleProvider?.provider.label,
       );
+      // Shortcut rows are always exact rows, so the price is the member's own.
+      const shortcutPriceLine = formatProviderModelDescription(
+        m.ref.agentKind,
+        m.tooltipDescription,
+      )?.hint;
       out.push({
         type: "model",
         id: `${sectionId}:${m.ref.agentKind}:${modelId}`,
@@ -531,6 +666,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         ...(shortcutSubLabel ? { subProviderLabel: shortcutSubLabel } : {}),
         ...modelHintProps(m),
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+        ...(shortcutPriceLine ? { priceLine: shortcutPriceLine } : {}),
         showProviderIcon: true,
         ...(visibleProvider && supportsFastModel(visibleProvider.provider.capabilities, modelId)
           ? { supportsFast: true }
@@ -561,11 +697,12 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       currentAgentKind === provider.kind && currentModel && !cache.modelById.has(currentModel)
         ? makeModelEntry(currentModel, DEFAULT_LABEL(currentModel), cap)
         : undefined;
-    const sourceModelCount = cache.models.length + (currentEntry ? 1 : 0);
+    // The projected main list: family rows stand in for their members; a
+    // current model the catalog doesn't know at all keeps its synthesized row.
+    const sourceRows = currentEntry ? [...cache.pickRows, currentEntry] : cache.pickRows;
 
     const filtered: ModelEntry[] = [];
-    for (let index = 0; index < sourceModelCount; index += 1) {
-      const model = index < cache.models.length ? cache.models[index]! : currentEntry!;
+    for (const model of sourceRows) {
       if (!isSearching || providerHit || model.searchText.includes(query)) {
         filtered.push(model);
       }
@@ -585,10 +722,59 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       });
     }
 
+    const providerRowsStart = out.length;
+    const finishProviderRows = () => {
+      const rows = out.splice(providerRowsStart);
+      out.push(...separatePrimaryModelRows(rows, key, primaryModelChoices(provider.kind, cap)));
+    };
+
+    // Favorited family members keep explicit exact rows in single-provider
+    // mode: the member's ordinary row collapsed into the projected family
+    // row, but the favorite is persisted against the exact member id and must
+    // stay selectable as is — including the representative, whose only visible
+    // row is the family row itself. Exact rows carry no family metadata, so a
+    // click selects the exact UID (`selectionIntent: "exact"`) instead of
+    // retaining the family's current member.
+    if (singleProviderMode) {
+      const familyMembers = new Set([...cache.familyMemberIds.values()].flat());
+      for (const m of cache.models) {
+        if (!familyMembers.has(m.id) || !sectionFavoriteSet.has(`${provider.kind}:${m.id}`)) {
+          continue;
+        }
+        const hasExactRow = filtered.some(
+          (row) => row.id === m.id && !cache.familyMemberIds.has(row.id),
+        );
+        if (hasExactRow) continue;
+        const exactFavoritePriceLine = rowPriceLine(provider.kind, m, cache, "exact");
+        out.push({
+          type: "model",
+          id: `model-exact:${key}:${m.id}`,
+          providerKind: provider.kind,
+          providerKey: key,
+          hiddenModelsKey: visibilityKey,
+          providerLabel: provider.label,
+          modelId: m.id,
+          label: cache.memberLabels.get(m.id) ?? m.label,
+          ...(provider.presentationMode ? { presentationMode: provider.presentationMode } : {}),
+          ...(provider.icon ? { providerIcon: provider.icon } : {}),
+          ...modelHintProps(m),
+          ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+          ...(exactFavoritePriceLine ? { priceLine: exactFavoritePriceLine } : {}),
+          ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
+          isFavorite: true,
+        });
+      }
+    }
+
     if (isSearching) {
       // Flat under the provider; sub-provider promoted to right-rail label.
       for (const m of sortFavoritesFirst(filtered, provider.kind)) {
-        const subProviderLabel = disambiguatedSubLabel(m.id, m.subLabel, provider.label);
+        const subProviderLabel = disambiguatedSubLabel(
+          m.id,
+          distinctGroupLabel(m.label, m.subLabel),
+          provider.label,
+        );
+        const searchPriceLine = rowPriceLine(provider.kind, m, cache);
         out.push({
           type: "model",
           id: `model:${key}:${m.id}`,
@@ -603,11 +789,14 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
           ...(subProviderLabel ? { subProviderLabel } : {}),
           ...modelHintProps(m),
           ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+          ...(searchPriceLine ? { priceLine: searchPriceLine } : {}),
           showProviderIcon: true,
           ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
+          ...familyModelIdsField(cache, m.id),
           isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
         });
       }
+      finishProviderRows();
       continue;
     }
 
@@ -627,6 +816,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     }
 
     for (const m of sortFavoritesFirst(ungrouped, provider.kind)) {
+      const ungroupedPriceLine = rowPriceLine(provider.kind, m, cache);
       out.push({
         type: "model",
         id: `model:${key}:${m.id}`,
@@ -640,26 +830,33 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         ...(provider.icon ? { providerIcon: provider.icon } : {}),
         ...modelHintProps(m),
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+        ...(ungroupedPriceLine ? { priceLine: ungroupedPriceLine } : {}),
         ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
+        ...familyModelIdsField(cache, m.id),
         isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
       });
     }
 
-    if (grouped.size === 0) continue;
+    if (grouped.size === 0) {
+      finishProviderRows();
+      continue;
+    }
 
     for (const sp of listSubProviderOrder(cap, grouped.keys())) {
       const models = grouped.get(sp.id);
       if (!models?.length) continue;
-      out.push({
-        type: "header-sub",
-        id: `sub:${key}:${sp.id}`,
-        providerKind: provider.kind,
-        providerKey: key,
-        hiddenModelsKey: visibilityKey,
-        subId: sp.id,
-        label: sp.label,
-      });
+      if (models.length !== 1 || distinctGroupLabel(models[0]!.label, sp.label))
+        out.push({
+          type: "header-sub",
+          id: `sub:${key}:${sp.id}`,
+          providerKind: provider.kind,
+          providerKey: key,
+          hiddenModelsKey: visibilityKey,
+          subId: sp.id,
+          label: sp.label,
+        });
       for (const m of sortFavoritesFirst(models, provider.kind)) {
+        const groupedPriceLine = rowPriceLine(provider.kind, m, cache);
         out.push({
           type: "model",
           id: `model:${key}:${m.id}`,
@@ -673,11 +870,14 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
           ...(provider.icon ? { providerIcon: provider.icon } : {}),
           ...modelHintProps(m),
           ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+          ...(groupedPriceLine ? { priceLine: groupedPriceLine } : {}),
           ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
+          ...familyModelIdsField(cache, m.id),
           isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
         });
       }
     }
+    finishProviderRows();
   }
 
   return out;

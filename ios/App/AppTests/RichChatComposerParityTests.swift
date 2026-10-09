@@ -26,7 +26,7 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertEqual(catalog.contextOptions(for: "model-a").map(\.id), ["64k", "128k"])
     XCTAssertTrue(catalog.supportsFast("model-a"))
     XCTAssertTrue(catalog.supportsThinking("model-a"))
-    XCTAssertEqual(catalog.modeOptions.map(\.id), ["agent", "plan"])
+    XCTAssertEqual(catalog.modeOptions(for: "model-a").map(\.id), ["agent", "plan"])
     XCTAssertEqual(catalog.permissionOptions.map(\.id), ["default", "never"])
   }
 
@@ -202,6 +202,7 @@ final class RichChatComposerParityTests: XCTestCase {
 
   func testComposerSurfaceOffersNativeControlsAndAllAttachmentSources() throws {
     let composer = try Self.source("App/Features/RichChat/UI/RichChatComposerView.swift")
+    let mentions = try Self.source("App/Features/RichChat/UI/RichChatComposerMentions.swift")
     let controls = try Self.source(
       "App/Features/RichChat/UI/RichChatComposerConfiguration.swift"
     )
@@ -215,7 +216,7 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(composer.contains("slashCommandPanel"))
     XCTAssertTrue(composer.contains(#"draft = "/\(command.displayID) ""#))
     XCTAssertTrue(composer.contains("skills.append(skill)"))
-    XCTAssertTrue(composer.contains("queuedSegments.append(.file(path: entry.path))"))
+    XCTAssertTrue(mentions.contains("queuedSegments.append(.file(path: entry.path))"))
     XCTAssertTrue(context.contains("case .file(let path): \"@\\(path)\""))
     XCTAssertTrue(composer.contains("!skills.isEmpty || !mcps.isEmpty"))
     XCTAssertTrue(controls.contains("capabilities[\"slashCommands\"]"))

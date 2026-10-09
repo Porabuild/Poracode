@@ -3,6 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
+import {
   HOST_RESOURCE_BUSY_CODE,
   HostResourceAdmissionRefusalError,
 } from "@/shared/hostResourceAdmission";
@@ -116,6 +120,7 @@ describe.skipIf(!sqliteAvailable)("provider-switch validation receipts", () => {
       headers: {
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         "x-poracode-command-id": commandId,
       },
       body: JSON.stringify(body),

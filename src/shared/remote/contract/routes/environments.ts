@@ -70,6 +70,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-create",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments",
     auth: "bearer",
@@ -98,6 +99,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-update",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}",
     auth: "bearer",
@@ -112,6 +114,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-delete",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}/delete",
     auth: "bearer",
@@ -126,6 +129,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-connect",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}/connect",
     auth: "bearer",
@@ -140,6 +144,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-disconnect",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}/disconnect",
     auth: "bearer",
@@ -154,6 +159,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-pairing",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}/pairing",
     auth: "bearer",
@@ -168,6 +174,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-upgrade",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}/upgrade",
     auth: "bearer",
@@ -196,6 +203,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-trust-probe",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}/trust-probe",
     auth: "bearer",
@@ -210,6 +218,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-trust-accept",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}/trust-accept",
     auth: "bearer",
@@ -224,6 +233,7 @@ export const environmentManagementRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "environment-adopt-legacy",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/environments/{environmentId}/adopt-legacy",
     auth: "bearer",

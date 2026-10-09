@@ -25,6 +25,7 @@ import { RuntimePersistenceBusyError } from "@/host/db/runtimePersistenceTypes";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import { RemoteHttpError } from "../auth";
 import type { RemoteServerContext } from "./context";
+import { SessionConfigInventory } from "./sessionConfigInventory";
 import {
   HistoryItemTooLargeError,
   boundedThreadSnapshotSchema,
@@ -71,6 +72,7 @@ function context(): RemoteServerContext {
       },
     },
     backgroundTasksByThread: new Map(),
+    sessionConfigInventory: new SessionConfigInventory(),
     seq: 42,
   } as unknown as RemoteServerContext;
 }

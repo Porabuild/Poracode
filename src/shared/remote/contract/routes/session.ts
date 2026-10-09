@@ -192,6 +192,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "host-update-check",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/host-update/check",
     auth: "bearer",
@@ -206,6 +207,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "host-update-install",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/host-update/install",
     auth: "bearer",
@@ -262,6 +264,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "project-notes-write",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/projects/{projectId}/notes",
     auth: "bearer",
@@ -360,6 +363,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "profile-identity",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/profile/identity",
     auth: "bearer",
@@ -388,6 +392,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "settings-write",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/settings",
     auth: "bearer",
@@ -416,6 +421,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "mcp-settings-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/settings/mcp-servers/command",
     auth: "bearer",
@@ -430,6 +436,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "mcp-settings-operation",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/settings/mcp-servers/operation",
     auth: "bearer",

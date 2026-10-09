@@ -63,7 +63,7 @@ class BoundedRecoveryTapeTest {
 
     @Test
     fun tapePinsProtocolVersionAndAdditiveBoundary() {
-        assertEquals(12, int(tape["protocolVersion"]))
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, int(tape["protocolVersion"]))
         assertEquals("fixture-only-additive", str(tape["versionBoundary"]))
         val semantics = obj(tape["semantics"])
         assertTrue(

@@ -24,6 +24,11 @@ import { RUNTIME_EVENT_MAX_SINGLE_EVENT_BYTES } from "./runtime/threadSession/ru
 import { SupervisorIpcSender } from "./supervisorIpcSender";
 import { canonicalCreditGrant } from "./canonicalCreditControl";
 import { RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION } from "@/shared/runtimePayloadOriginProtocol";
+import {
+  isThreadWorkspaceRuntimeRequest,
+  type ThreadWorkspaceRuntimeRequest,
+} from "@/shared/threadWorkspaceRuntimeProtocol";
+import { createWorkspaceRuntimeRequestHandler } from "./workspaceRuntimeRequest";
 
 const performanceDiagnostics = startNodePerformanceDiagnostics("supervisor");
 const isDev = process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -142,6 +147,7 @@ ipcSender.sendMessage({
 });
 
 const handlers = createSupervisorIpcHandlers(runtime);
+const workspaceRequest = createWorkspaceRuntimeRequestHandler(runtime.threadSessionManager);
 
 let isShuttingDown = false;
 const SUPERVISOR_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -178,7 +184,10 @@ async function shutdownSupervisor(exitCode = 0): Promise<void> {
   }
 }
 
-async function handleRequest(request: SupervisorRequest): Promise<unknown> {
+async function handleRequest(
+  request: SupervisorRequest | ThreadWorkspaceRuntimeRequest,
+): Promise<unknown> {
+  if (isThreadWorkspaceRuntimeRequest(request)) return workspaceRequest(request.payload);
   const handler = handlers[request.type];
   return handler(request.payload as never);
 }
@@ -235,7 +244,7 @@ process.on("message", (message: SupervisorRequest | unknown) => {
   ) {
     return;
   }
-  const request = message as SupervisorRequest;
+  const request = message as SupervisorRequest | ThreadWorkspaceRuntimeRequest;
   void handleRequest(request)
     .then((data): SupervisorReply => ({
       replyTo: request.id,

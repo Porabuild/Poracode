@@ -115,6 +115,23 @@ describe("remote transport mutation phase evidence", () => {
     expect(signals[0]?.aborted).toBe(true);
   });
 
+  it("classifies a dispatched session-action failure as an unknown effect without retrying it", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => {
+      throw new Error("connection lost after dispatch");
+    });
+    const client = new RemoteDesktopClient(endpoint, "token", fetch);
+    const error = await client
+      .callRemoteProcedure("invokeThreadSessionAction", {
+        threadId: "t1",
+        actionId: "fixture.action",
+        payload: {},
+      })
+      .catch((failure: unknown) => failure);
+    expect(error).toMatchObject({ requestPhase: "dispatched", requestMayHaveCommitted: true });
+    expect(remoteMutationMayHaveCommitted(error)).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a dispatched read timeout definite: reads are never mutations", async () => {
     vi.useFakeTimers();
     const { fetchImpl } = neverRespondingFetch();

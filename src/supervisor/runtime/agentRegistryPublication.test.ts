@@ -12,9 +12,10 @@ vi.mock("../agents/registry", () => ({ buildAgentRegistryEntries: () => fixtures
 vi.mock("../agents/acpRegistry", async (load) => ({
   ...(await load<typeof import("../agents/acpRegistry")>()),
   readAcpRegistrySettings: () => defaultSharedSettings,
-  persistAcpRegistrySettingsMigrations: () => false,
+  persistAcpRegistrySettingsMigrations: async () => false,
 }));
 import { AgentRegistryService } from "./agentRegistryService";
+import { fileSettingsWriter } from "./supervisorSettingsWriter.testFixtures";
 
 function entry(kind: AgentKind, inputKey: string) {
   return { adapter: { kind, label: kind } as AgentAdapter, inputKey };
@@ -28,6 +29,7 @@ function setup() {
   const service = new AgentRegistryService({
     adapters,
     settingsPath: "/owned/settings.json",
+    settingsWriter: fileSettingsWriter("/owned/settings.json"),
     baseDir: "/owned",
     acpIconsDir: "/owned/icons",
     sharedSettingsCache: {

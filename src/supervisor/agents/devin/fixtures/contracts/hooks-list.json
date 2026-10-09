@@ -1,0 +1,5 @@
+{
+  "$comment": "Sanitized live wire capture, devin acp 3000.11.3 (2026-10-07). Only the empty list has ever been observed; populated entries stay opaque until captured.",
+  "request": { "sessionId": "fixture-session" },
+  "response": { "hooks": [] }
+}

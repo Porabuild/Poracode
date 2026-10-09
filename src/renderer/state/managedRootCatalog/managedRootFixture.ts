@@ -322,7 +322,8 @@ export function electronHost(
     onSupervisorEvent: (_listener: (event: SupervisorEvent, sequence?: number) => void) => () => {},
     onBackendSupervisorReset: () => () => {},
     ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
-    invokeProcedure: (async (name: string, args: unknown[]) => {
+    invokeProcedure: (async (invocation: { name: string; args: unknown[] }) => {
+      const { name, args } = invocation;
       preloadCalls.push(name);
       const override = preloadProcedures?.[name];
       if (override) return override(args);

@@ -22,8 +22,8 @@
       "/.well-known/lightcode/environment"
     ],
     "endpointPathPolicy": "append-to-preserved-base-path",
-    "maximumAcceptedProtocolVersion": 12,
-    "minimumAcceptedProtocolVersion": 12,
+    "maximumAcceptedProtocolVersion": 13,
+    "minimumAcceptedProtocolVersion": 13,
     "pairingCredential": {
       "singleUse": true,
       "transport": "url-fragment-or-request-body"
@@ -413,6 +413,75 @@
       "queryParameters": [],
       "scopes": [
         "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "file-media-ticket",
+      "method": "POST",
+      "path": "/api/files/media-ticket",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer-or-query",
+      "id": "file-media",
+      "method": "GET",
+      "path": "/api/files/media",
+      "queryParameters": [
+        "ticket"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "file-media-release",
+      "method": "POST",
+      "path": "/api/files/media-release",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "file-media-renew",
+      "method": "POST",
+      "path": "/api/files/media-renew",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-media-ticket",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/media-ticket",
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-media-release",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/media-release",
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-media-renew",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/media-renew",
+      "scopes": [
+        "session:operate",
+        "ports:forward"
       ]
     },
     {
@@ -968,6 +1037,16 @@
     }
   ],
   "procedures": [
+    {
+      "name": "listThreadSessionActions",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "invokeThreadSessionAction",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
     {
       "name": "rollbackThreadConversation",
       "owner": "thread",
@@ -1617,7 +1696,7 @@
       "scope": "session:read"
     }
   ],
-  "protocolVersion": 12,
+  "protocolVersion": 13,
   "scopes": [
     "session:read",
     "session:operate",

@@ -16,6 +16,15 @@ import {
   TERMINAL_CURSOR_SYNC_VERSION,
 } from "./protocol";
 
+describe("device-local terminal settings", () => {
+  it("excludes the font preference from native/browser remote settings", () => {
+    expect(REMOTE_SETTINGS_KEYS).not.toContain("terminalFontFamily");
+    expect(
+      pickRemoteSettings({ ...defaultSharedSettings, terminalFontFamily: "Menlo" }),
+    ).not.toHaveProperty("terminalFontFamily");
+  });
+});
+
 describe("remote thread snapshots", () => {
   const thread = {
     id: "thread-1",
@@ -66,7 +75,7 @@ describe("remote thread snapshots", () => {
         updatedAt: "2026-01-01T00:00:00.000Z",
       }).thread.config.executionEnvironment,
     ).toEqual({ kind: "wsl", distro: "Ubuntu-24.04" });
-    expect(PORACODE_REMOTE_PROTOCOL_VERSION).toBe(12);
+    expect(PORACODE_REMOTE_PROTOCOL_VERSION).toBe(13);
     expect(LAUNCH_REMOTE_SERVER_SCRIPT).toContain(
       `descriptor.protocolVersion === ${PORACODE_REMOTE_PROTOCOL_VERSION}`,
     );
@@ -324,6 +333,65 @@ describe("remote settings", () => {
       wslCommitGenFast: true,
       wslConflictResolverFast: true,
     });
+  });
+
+  it("mirrors the canonical utility selections exactly and keeps absent fields absent", () => {
+    const binding = {
+      version: 1,
+      kind: "family-member",
+      owner: { agentKind: "sample-agent", presentationMode: "terminal" },
+      model: "member-a",
+      inertValues: { effort: "", fast: false },
+    } as const;
+    const selection = {
+      model: "member-a",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "default",
+      selectionBinding: binding,
+    };
+
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      commitGenSelection: selection,
+      titleGenSelection: { model: "" },
+    });
+    expect(settings.commitGenSelection).toEqual(selection);
+    expect(settings.titleGenSelection).toEqual({ model: "" });
+    for (const key of [
+      "conflictResolverSelection",
+      "experimentJudgeSelection",
+      "wslCommitGenSelection",
+      "wslTitleGenSelection",
+      "wslConflictResolverSelection",
+    ] as const) {
+      expect(Object.hasOwn(settings, key)).toBe(false);
+    }
+    for (const key of [
+      "commitGenSelection",
+      "titleGenSelection",
+      "conflictResolverSelection",
+      "experimentJudgeSelection",
+      "wslCommitGenSelection",
+      "wslTitleGenSelection",
+      "wslConflictResolverSelection",
+    ] as const) {
+      expect(REMOTE_SETTINGS_KEYS).toContain(key);
+    }
+
+    // Patches stay sparse: an unrelated edit must not mint canonical objects,
+    // and a present object rides with its binding intact.
+    expect(remoteSettingsPatchSchema.parse({ prMergeMethod: "rebase" })).toEqual({
+      prMergeMethod: "rebase",
+    });
+    expect(remoteSettingsPatchSchema.parse({ wslTitleGenSelection: selection })).toEqual({
+      wslTitleGenSelection: selection,
+    });
+    expect(
+      remoteSettingsPatchSchema.safeParse({ titleGenSelection: { selectionBinding: null } })
+        .success,
+    ).toBe(false);
   });
 
   it("never exposes or accepts sensitive agent settings", () => {

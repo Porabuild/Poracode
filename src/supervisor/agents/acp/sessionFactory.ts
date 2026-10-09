@@ -54,8 +54,14 @@ export function createAcpStructuredSession(
     | "stderrTurnSignalParser"
     | "resolveMode"
     | "resolveModelConfig"
+    | "configureOpenedSession"
+    | "allowUnlistedSelectValue"
   >,
 ): AcpStructuredSession | undefined {
+  // The TUI handoff has no approved-root argv contract. Do not silently lose grants.
+  if (input.additionalDirectories?.length && input.presentationMode !== "gui") {
+    throw new Error("Additional workspace directories require a structured GUI session.");
+  }
   if (!shouldSpawnAcpSession(input)) {
     return undefined;
   }
@@ -67,6 +73,7 @@ export function createAcpStructuredSession(
     ? injectWslEnv(mergedCommand, input.projectLocation, mergedCommand.env)
     : mergedCommand;
   return AcpStructuredSession.create(command, input.projectLocation, input.threadId, {
+    ...(input.additionalDirectories ? { additionalDirectories: input.additionalDirectories } : {}),
     ...(input.loadSessionErrorRewriter
       ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }
       : {}),
@@ -87,6 +94,17 @@ export function createAcpStructuredSession(
     ...(input.acpExtensionNotificationHandler
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),
+    ...(input.acpExtensionRequestHandler
+      ? { extensionRequestHandler: input.acpExtensionRequestHandler }
+      : {}),
+    ...(input.acpExtensionRequestTimeoutMs !== undefined
+      ? { extensionRequestTimeoutMs: input.acpExtensionRequestTimeoutMs }
+      : {}),
+    ...(input.acpSessionActions ? { sessionActions: input.acpSessionActions } : {}),
+    ...(input.acpBooleanConfigOptions ? { booleanConfigOptions: true } : {}),
+    ...(input.acpConfigOptionsNormalizer
+      ? { configOptionsNormalizer: input.acpConfigOptionsNormalizer }
+      : {}),
     ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
     ...(input.acpOptimisticMcpTransports
       ? { optimisticMcpTransports: input.acpOptimisticMcpTransports }
@@ -94,6 +112,15 @@ export function createAcpStructuredSession(
     ...(input.acpFsAgentHomeDirs ? { fsAgentHomeDirs: input.acpFsAgentHomeDirs } : {}),
     ...(input.acpFsTextCapability !== undefined
       ? { fsTextCapability: input.acpFsTextCapability }
+      : {}),
+    ...(input.acpTerminalCapability !== undefined
+      ? { terminalCapability: input.acpTerminalCapability }
+      : {}),
+    ...(input.acpLocalResourceResolution !== undefined
+      ? { localResourceResolution: input.acpLocalResourceResolution }
+      : {}),
+    ...(input.acpElicitationPresentation
+      ? { projectElicitationPresentation: input.acpElicitationPresentation }
       : {}),
     ...(overrides?.assumedMcpCapabilities
       ? { assumedMcpCapabilities: overrides.assumedMcpCapabilities }
@@ -106,6 +133,12 @@ export function createAcpStructuredSession(
       : {}),
     ...(overrides?.stderrTurnSignalParser
       ? { stderrTurnSignalParser: overrides.stderrTurnSignalParser }
+      : {}),
+    ...(overrides?.configureOpenedSession
+      ? { configureOpenedSession: overrides.configureOpenedSession }
+      : {}),
+    ...(overrides?.allowUnlistedSelectValue
+      ? { allowUnlistedSelectValue: overrides.allowUnlistedSelectValue }
       : {}),
   });
 }

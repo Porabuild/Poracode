@@ -16,7 +16,7 @@ enum AdvancedOperationsRemoteV3Contract {
     let expected = procedure.metadata
     guard RemoteContractMetadata.protocolVersion == ProtocolConstants.remoteProtocolVersion,
       RemoteContractMetadata.bindingFormatVersion == 2,
-      RemoteContractMetadata.generatorVersion == 3,
+      RemoteContractMetadata.generatorVersion == 4,
       let generated = RemoteContractMetadata.procedures.first(where: {
         $0.name == procedure.rawValue
       }),

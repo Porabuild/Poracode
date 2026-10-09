@@ -11,6 +11,8 @@
  *   FAKE_INIT_MODELS            comma-separated model ids for initialize._meta.modelState
  *   FAKE_EFFORTS                comma-separated reasoning-effort values (default "low,high")
  *   FAKE_REASONING_EFFORT       "1" → advertise a {category:"model",id:"reasoning_effort"} selector
+ *   FAKE_NO_EFFORT_MODELS       comma-separated models whose config snapshot omits effort
+ *   FAKE_REJECT_MODEL          reject config changes to this model (leave it unprobed)
  *   FAKE_SLASH_BATCHES          JSON array of {delayMs, commands:[{name,description}]} — each
  *                               entry schedules one available_commands_update notification
  *   FAKE_SET_CONFIG_DELAY_MS    delay before answering session/set_config_option
@@ -71,6 +73,7 @@ const promptMarker = env.FAKE_PROMPT_MARKER;
 const cancelMarker = env.FAKE_CANCEL_MARKER;
 const selfDestructMs = Number(env.FAKE_SELF_DESTRUCT_MS ?? 0);
 const includeReasoningEffort = env.FAKE_REASONING_EFFORT === "1";
+const noEffortModels = new Set((env.FAKE_NO_EFFORT_MODELS ?? "").split(","));
 
 if (env.FAKE_STDERR_TEXT) {
   process.stderr.write(env.FAKE_STDERR_TEXT);
@@ -121,7 +124,9 @@ function reasoningEffortOption() {
 function configOptions() {
   const options = [];
   if (models.length > 0) options.push(modelConfigOption());
-  if (includeReasoningEffort) options.push(reasoningEffortOption());
+  if (includeReasoningEffort && !noEffortModels.has(currentModel)) {
+    options.push(reasoningEffortOption());
+  }
   return options;
 }
 
@@ -140,6 +145,9 @@ rl.on("line", (line) => {
 
   switch (method) {
     case "initialize":
+      if (env.FAKE_INITIALIZE_MARKER) {
+        writeFileSync(env.FAKE_INITIALIZE_MARKER, JSON.stringify(params.clientCapabilities));
+      }
       respond(id, {
         protocolVersion: 1,
         agentCapabilities: {
@@ -235,6 +243,10 @@ rl.on("line", (line) => {
       if (hangSetConfig) return; // wedged agent: never answer
       const value = params?.value;
       if (params?.configId === "model" && typeof value === "string") {
+        if (value === env.FAKE_REJECT_MODEL) {
+          send({ jsonrpc: "2.0", id, error: { code: -32602, message: "Model unavailable" } });
+          return;
+        }
         currentModel = value;
       }
       const answer = () => respond(id, { configOptions: configOptions() });

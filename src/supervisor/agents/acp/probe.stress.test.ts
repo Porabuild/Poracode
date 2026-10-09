@@ -41,6 +41,69 @@ async function waitForFile(path: string): Promise<void> {
 }
 
 describe("probeAcpCapabilities live-process paths", () => {
+  it.each(["plain,reasoning", "reasoning,plain"])(
+    "preserves verified empty effort selectors for catalog %s when declared",
+    async (models) => {
+      const result = await probeAcpCapabilities(process.execPath, [FIXTURE], process.cwd(), {
+        env: {
+          FAKE_MODELS: models,
+          FAKE_REASONING_EFFORT: "1",
+          FAKE_NO_EFFORT_MODELS: "plain",
+        },
+        timeoutMs: 3_000,
+        preserveEmptyModelEfforts: true,
+      });
+
+      expect(result?.modelEfforts).toEqual({ plain: [], reasoning: ["low", "high"] });
+    },
+  );
+
+  it("keeps absent effort selectors unspecified for undeclared probe behavior", async () => {
+    const result = await probeWith(
+      {
+        FAKE_MODELS: "reasoning,plain",
+        FAKE_REASONING_EFFORT: "1",
+        FAKE_NO_EFFORT_MODELS: "plain",
+      },
+      3_000,
+    );
+
+    expect(result?.modelEfforts).toEqual({ reasoning: ["low", "high"] });
+  });
+
+  it.each([false, true])(
+    "can discover a persistent runtime without creating or authenticating a session (preserve empty efforts: %s)",
+    async (preserveEmptyModelEfforts) => {
+      const root = await mkdtemp(join(tmpdir(), "poracode-acp-init-only-"));
+      const initMarker = join(root, "initialize.json");
+      const newMarker = join(root, "created.txt");
+      try {
+        const result = await probeAcpCapabilities(process.execPath, [FIXTURE], process.cwd(), {
+          timeoutMs: 3_000,
+          sessionProbe: "initialize-only",
+          preserveEmptyModelEfforts,
+          fsTextCapability: false,
+          terminalCapability: false,
+          env: {
+            FAKE_INITIALIZE_MARKER: initMarker,
+            FAKE_SESSION_NEW_MARKER: newMarker,
+            FAKE_LOAD_CAPABILITY: "1",
+          },
+        });
+        expect(result?.supportsResume).toBe(true);
+        expect(result?.sessionEstablished).not.toBe(true);
+        expect(result?.modelEfforts).toBeUndefined();
+        expect(JSON.parse(await readFile(initMarker, "utf8"))).toMatchObject({
+          fs: { readTextFile: false, writeTextFile: false },
+          terminal: false,
+        });
+        await expect(access(newMarker)).rejects.toMatchObject({ code: "ENOENT" });
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
   it.each([
     { env: { FAKE_SESSION_RESUME_CAPABILITY: "1" }, capability: "session/resume" },
     { env: { FAKE_LOAD_CAPABILITY: "1" }, capability: "session/load" },

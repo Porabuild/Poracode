@@ -1,5 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { dirname } from "node:path";
+import { join, resolve } from "node:path";
 import type { CreateProfilePayload, SetProfileEnvironmentPayload } from "@/shared/contracts";
 import type {
   BackendServicePayload,
@@ -10,6 +9,7 @@ import type { SharedSettings, SharedSettingsInput } from "@/shared/settings";
 import {
   settingsSubjectId,
   type SettingsMutationResult,
+  type SettingsOwnerEdit,
   type SettingsSubject,
 } from "@/shared/settingsTransactions";
 import {
@@ -17,7 +17,7 @@ import {
   reportSettingsError,
   type BackendSettingsNotifications,
 } from "./BackendSettingsNotifications";
-import { SettingsAuthority } from "./settings/SettingsAuthority";
+import { SettingsAuthority, type SettingsAuthorityLease } from "./settings/SettingsAuthority";
 import {
   SettingsCommandService,
   type SettingsCommandExpectation,
@@ -34,31 +34,28 @@ import { SettingsCompatWriter, withSettingsRebase } from "./settings/settingsCom
 export function createBackendSettingsAccess(
   options: BackendSettingsNotifications & {
     settingsPath(): string;
+    /** Capture the existing custody only when this settings authority first opens. */
+    lease(): SettingsAuthorityLease;
+    assertPreparedDatabaseForWrite(): void;
   },
 ): BackendSettingsAccess {
   let runtime: Promise<SettingsCommandRuntime> | null = null;
   let closed = false;
 
   function ensureRuntime(): Promise<SettingsCommandRuntime> {
+    if (closed) return Promise.reject(new Error("The desktop settings authority is closed."));
     runtime ??= openRuntime();
     return runtime;
   }
 
   async function openRuntime(): Promise<SettingsCommandRuntime> {
     const settingsPath = options.settingsPath();
-    // Desktop custody is process-lifetime today: a fresh generation per open
-    // invalidates revisions across restarts, and the guard only refuses use
-    // after dispose. The HostOwnerController unification (Gate 2.5) replaces
-    // this adapter with the shared kernel lease and its real credential mode.
-    const generation = randomUUID();
+    const lease = options.lease();
+    if (resolve(settingsPath) !== resolve(join(lease.paths.dataRoot, "settings.json")))
+      throw new Error("Settings path does not belong to the leased data root.");
     const authority = await SettingsAuthority.open({
-      lease: {
-        paths: { dataRoot: dirname(settingsPath) },
-        generation,
-        assertActive: () => {
-          if (closed) throw new Error("The desktop settings authority is closed.");
-        },
-      },
+      lease,
+      assertPreparedDatabaseForWrite: options.assertPreparedDatabaseForWrite,
       // The desktop key always persists (OS-sealed or file-backed); there is no
       // session-only desktop mode to guard against yet.
       assertPersistentCredentials: () => {},
@@ -155,6 +152,8 @@ export function createBackendSettingsAccess(
       ensureRuntime().then((opened) => opened.writes.editSettingsField(field, compute)),
     commitCompatPatch: (patch) =>
       ensureRuntime().then((opened) => opened.writes.commitCompatPatch(patch)),
+    commitOwnerEdits: (edits) =>
+      ensureRuntime().then((opened) => opened.writes.commitOwnerEdits(edits)),
     /** Fire-and-forget compat write for durable event handlers; failures are
      * reported through diagnostics, never thrown into the event path. */
     writeSharedSettingsCompat: (next: SharedSettingsInput): void => {
@@ -181,6 +180,8 @@ export interface BackendSettingsAccess {
   commitCompatPatch(patch: {
     [K in keyof SharedSettings]?: SharedSettings[K] | undefined;
   }): Promise<SharedSettings>;
+  /** Trusted owner-runtime subject edits; see `SettingsCompatWriter.commitOwnerEdits`. */
+  commitOwnerEdits(edits: readonly SettingsOwnerEdit[]): Promise<void>;
   writeSharedSettingsCompat(next: SharedSettingsInput): void;
   dispose(): Promise<void>;
 }

@@ -62,6 +62,7 @@ const PROJECT_LOCATION = { kind: "posix", path: "/fixture-resume" } as const;
 const OWNED_REF: SessionRef = {
   providerSessionId: "owned-resume-target",
   discoveredAt: "2026-10-08T00:00:00.000Z",
+  executionIdentity: "opaque-owner-scope",
 };
 const INITIAL_SIZE = { cols: 80, rows: 24 } as const;
 
@@ -363,10 +364,15 @@ describe("GUI resume initial prompt admission", () => {
     expect(manager.sessions.has(THREAD_ID)).toBe(false);
     // The optimistic admission paired with the (never reached) startTurn is
     // still published with the renderer's id — the same shape a fresh failed
-    // open leaves behind. This manager rejects the start for its caller to
-    // report; it does not publish a runtime for an unsuccessful open.
-    await flushRuntimeEvents();
+    // open leaves behind — and the failure is visible.
+    await waitFor(
+      () => runtimeEvents(events).some((event) => (event as { type: string }).type === "error"),
+      "error item",
+    );
     expect(userMessageItemIds(events)).toEqual(["user-doomed-resume"]);
+    expect(events.some((event) => event.type === "thread-state" && event.status === "error")).toBe(
+      true,
+    );
   });
 
   it("interrupts a pending resumed open without starting a turn or replacing the owned reference", async () => {

@@ -39,7 +39,21 @@ import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
 // renderer had no live caller left. A published hop-15 peer still dispatches
 // the removed main-local name, so the hop moved 15→16 and the fingerprint
 // moved with the removal (see `clientHostHop.test.ts` hop-15 regression).
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:885c27234391c14e3e3ee1b2b77b5c72a8495c5bd4b3bcd24a74f38932a4927e`;
+// Optional session actions: two additive supervisor names. Enumeration is the
+// capability query; callers invoke only listed ids and hide controls when an
+// older peer rejects the query by name. Existing names/payloads are unchanged,
+// so hop 16 remains compatible and the reviewed fingerprint moves.
+// Selection-binding integration (remote13/hop17): the hop moved 16→17 for the
+// checked invocation envelope (renderer-supplied version, asserted by main
+// before dispatch). No procedure was added, removed, or re-transported, so the
+// wire-visible fingerprint is unchanged — the version prefix moves to force
+// exactly this review.
+// Supervisor settings owner: additive internal supervisor procedure
+// `confirmSupervisorSettingsEdits` (the backend settings authority's answer to
+// a supervisor `settings-edits-requested` event; not in the remote allowlist,
+// no renderer call path). Every peer loud-rejects unknown names and no
+// existing name, payload, or transport changed, so hop 17 stays.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:8664e19c9e525f2524bdfe04e93422848581b4ad1f3ea1b7d53b895c9bdfe2ab`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

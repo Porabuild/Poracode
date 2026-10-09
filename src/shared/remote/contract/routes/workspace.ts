@@ -35,8 +35,87 @@ import {
   runtimeImageQuerySchema,
 } from "../routeSchemas";
 import type { RemoteHttpRouteContract } from "../types";
+import { ENVIRONMENT_USE_SCOPES } from "../../../environments";
+import {
+  mediaFileRequestSchema,
+  mediaTicketQuerySchema,
+  mediaTicketResultSchema,
+  environmentMediaTicketBodySchema,
+  environmentMediaTicketResultSchema,
+} from "../../media";
 
 export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
+  defineRoute({
+    id: "file-media-renew",
+    method: "POST",
+    path: "/api/files/media-renew",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: environmentMediaTicketResultSchema },
+  }),
+  defineRoute({
+    id: "environment-media-renew",
+    method: "POST",
+    path: "/api/environments/{environmentId}/media-renew",
+    auth: "bearer",
+    scopes: ENVIRONMENT_USE_SCOPES,
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: environmentMediaTicketResultSchema },
+  }),
+  defineRoute({
+    id: "environment-media-release",
+    method: "POST",
+    path: "/api/environments/{environmentId}/media-release",
+    auth: "bearer",
+    scopes: ENVIRONMENT_USE_SCOPES,
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: remoteOkResponseSchema },
+  }),
+  defineRoute({
+    id: "file-media-ticket",
+    method: "POST",
+    path: "/api/files/media-ticket",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: mediaFileRequestSchema },
+    response: { wireKind: "json", status: 200, jsonSchema: mediaTicketResultSchema },
+  }),
+  defineRoute({
+    id: "file-media",
+    method: "GET",
+    path: "/api/files/media",
+    auth: "bearer-or-query",
+    scopes: ["session:read"],
+    audit: auditEvent("file_read"),
+    queryParameters: ["ticket"],
+    request: { bodyKind: "empty", querySchema: mediaTicketQuerySchema },
+    response: { wireKind: "binary", status: 200, contentType: "audio/*,video/*,image/*" },
+  }),
+  defineRoute({
+    id: "file-media-release",
+    method: "POST",
+    path: "/api/files/media-release",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: remoteOkResponseSchema },
+  }),
+  defineRoute({
+    id: "environment-media-ticket",
+    method: "POST",
+    path: "/api/environments/{environmentId}/media-ticket",
+    auth: "bearer",
+    scopes: ENVIRONMENT_USE_SCOPES,
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: environmentMediaTicketBodySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: environmentMediaTicketResultSchema },
+  }),
   defineRoute({
     id: "local-image",
     method: "GET",
@@ -95,6 +174,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "attachment-upload",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/files/attachment",
     auth: "bearer",
@@ -124,6 +204,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "schedules-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/schedules/command",
     auth: "bearer",
@@ -168,6 +249,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "pr-watch-check",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/pr-watches/check",
     auth: "bearer",
@@ -182,6 +264,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "pr-watch-agent-sync",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/pr-watches/agent",
     auth: "bearer",
@@ -196,6 +279,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "pr-watch-upsert",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/pr-watches",
     auth: "bearer",
@@ -210,6 +294,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "pr-watch-delete",
+    requiresCurrentProtocol: true,
     method: "DELETE",
     path: "/api/pr-watches",
     auth: "bearer",
@@ -238,6 +323,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "browser-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/browser/command",
     auth: "bearer",
@@ -266,6 +352,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "port-forward",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/ports/forward",
     auth: "bearer",
@@ -280,6 +367,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "port-enter",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/ports/enter",
     auth: "bearer",
@@ -294,6 +382,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "port-unforward",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/ports/unforward",
     auth: "bearer",
@@ -322,6 +411,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "project-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/projects/command",
     auth: "bearer",
@@ -374,6 +464,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "push-register",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/push/register",
     auth: "bearer",
@@ -388,6 +479,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "push-unregister",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/push/unregister",
     auth: "bearer",

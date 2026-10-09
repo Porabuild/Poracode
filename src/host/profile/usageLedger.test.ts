@@ -190,6 +190,30 @@ describe.skipIf(!sqliteAvailable)("usageLedger (real sqlite round-trip)", () => 
     expect(sampleCount()).toBe(3);
   });
 
+  it("preserves an older cumulative baseline when a producer starts reporting per-call samples", () => {
+    dbUpsertThread(
+      { ...testThread(), agentKind: "fixture:work", config: { model: "fixture-model" } },
+      0,
+    );
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, [
+      spent({ counter: 1200, fresh: true, sampleId: "scope-1:0:1200" }),
+    ]);
+    const newCalls = [
+      spent({ counterKind: "per-call", counter: 1200, sampleId: "acp-prompt-v1:scope-1:0:turn-a" }),
+      spent({ counterKind: "per-call", counter: 900, sampleId: "acp-prompt-v1:scope-1:0:turn-b" }),
+    ];
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, newCalls);
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, newCalls);
+    expect(tokenRows().map((row) => row.value)).toEqual([1200, 1200, 900]);
+    expect(sampleCount()).toBe(2);
+    const oldBaseline = getSqlite()
+      .prepare(
+        "SELECT last_counter FROM usage_token_ledger WHERE provider = ? AND scope_id = ? AND epoch = ?",
+      )
+      .get("fixture:work", "scope-1", 0) as { last_counter: number };
+    expect(oldBaseline.last_counter).toBe(1200);
+  });
+
   it("commits a mixed batch together and ignores non-usage events", () => {
     recordUsageSpentFromRuntimeEvents(THREAD_ID, [
       spent({

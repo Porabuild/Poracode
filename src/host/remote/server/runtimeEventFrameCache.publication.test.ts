@@ -6,6 +6,7 @@ import { publishSupervisorEvent, scopeEventForClient } from "../remoteAccessServ
 import type { RemoteAccessServerHost, RemoteAccessServerOptions } from "../remoteAccessServerTypes";
 import { dropWebSocketClient, send, sendRaw } from "../remoteAccessServerWs";
 import type { RemoteBroadcastEvent } from "./context";
+import { SessionConfigInventory } from "./sessionConfigInventory";
 import { replayEvents } from "./eventReplay";
 import { outboundFrameBytes } from "./outboundBudget";
 import {
@@ -56,6 +57,7 @@ function fixture(count: number, options: Partial<RemoteAccessServerOptions> = {}
     eventBuffer: [],
     supervisorEventListeners: new Set(),
     backgroundTasksByThread: new Map(),
+    sessionConfigInventory: new SessionConfigInventory(),
     clients: new Map(
       sockets.map((socket, index) => [socket.ws, { sessionId: `principal-${index}` }]),
     ),

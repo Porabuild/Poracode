@@ -1,7 +1,7 @@
 {
   "id": "remote-v3-bounded-recovery-tape",
   "format": "remote-v3-bounded-recovery-tape",
-  "protocolVersion": 12,
+  "protocolVersion": 13,
   "versionBoundary": "fixture-only-additive",
   "authority": "Client-local recovery-buffer bookkeeping (count/byte/age bounds and overflow recovery). No wire vocabulary, route, or generated artifact is defined here; every expectation is consumed directly by the TS reference evaluator and by the Swift/Kotlin production buffers under test.",
   "semantics": {

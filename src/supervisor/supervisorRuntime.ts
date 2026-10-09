@@ -29,6 +29,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
 import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
+import type { ConfirmSupervisorSettingsEditsPayload } from "@/shared/ipc/procedures/settings";
 import { msg } from "@/shared/messages";
 import { poracodeBaseDirFromEnv, resolvePoracodePaths } from "@/shared/poracodePaths";
 import { getProjectFsPath, getWslLocationHostFsPath, joinProjectPosixPath } from "@/shared/wsl";
@@ -80,6 +81,7 @@ import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
 import { CrossagentMcpIngress } from "./crossagentMcp/CrossagentMcpIngress";
 import { SubagentRunManager } from "./crossagentMcp/SubagentRunManager";
 import { RoutingOverridePersistence } from "./crossagentMcp/RoutingOverridePersistence";
+import { SupervisorSettingsEditsChannel } from "./runtime/supervisorSettingsWriter";
 import {
   visibleCrossagentCapabilitiesForAdapter,
   type CrossagentVisibilitySettings,
@@ -185,6 +187,7 @@ export class SupervisorRuntime {
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
   private readonly routingOverridePersistence: RoutingOverridePersistence;
+  private readonly settingsWriter: SupervisorSettingsEditsChannel;
   private readonly disposeWslCredentialProjectScope: () => void;
   private readonly disposeNativeRuntime: () => Promise<void>;
   private readonly disposeWindowsPowerShellPreference: () => void;
@@ -245,6 +248,10 @@ export class SupervisorRuntime {
       emit,
       invalidateSettings: () => this.sharedSettingsCache.invalidate(),
     });
+    this.settingsWriter = new SupervisorSettingsEditsChannel({
+      emit,
+      invalidateSettings: () => this.sharedSettingsCache.invalidate(),
+    });
     // The agent/ACP registry cluster. Constructed up front so the initial
     // adapter build below can run before the later-created services exist; those
     // dependencies (status/usage/hook-plugin/sessions) resolve lazily at call
@@ -252,6 +259,7 @@ export class SupervisorRuntime {
     this.agentRegistryService = new AgentRegistryService({
       adapters: this.adapters,
       settingsPath: this.settingsPath,
+      settingsWriter: this.settingsWriter,
       baseDir,
       acpIconsDir: this.acpIconsDir,
       sharedSettingsCache: this.sharedSettingsCache,
@@ -347,6 +355,7 @@ export class SupervisorRuntime {
       {
         adapters: this.adapters,
         settingsPath: this.settingsPath,
+        settingsWriter: this.settingsWriter,
         baseDir,
         ...(process.env.PORACODE_HOOK_PORT
           ? { preferredPort: Number(process.env.PORACODE_HOOK_PORT) }
@@ -412,6 +421,10 @@ export class SupervisorRuntime {
         return visibleCrossagentCapabilitiesForAdapter(adapter, cachedCapabilities, settings);
       },
       host: {
+        readHostDiagnostics: async (location, signal) => {
+          signal.throwIfAborted();
+          return this.lspManager.readDiagnostics(location);
+        },
         getParentContext: (threadId) =>
           this.threadSessionManager.getSubagentParentContext(threadId),
         resolveParentMcpAccess: (threadId, identity, targetAgentKind, projectLocation) =>
@@ -482,6 +495,10 @@ export class SupervisorRuntime {
       adapters: this.adapters,
       admission: this.hostResourceAdmission,
       resolveWindowsShell: (runtime) => this.resolveWindowsShell(runtime),
+      readHostDiagnostics: async (location, signal) => {
+        signal.throwIfAborted();
+        return this.lspManager.readDiagnostics(location);
+      },
       ...(options.canonicalCapacity ? { canonicalCapacity: options.canonicalCapacity } : {}),
       ...(this.wslHookBridge ? { wslBridge: this.wslHookBridge } : {}),
       resolvePluginEnvForSpawn: (input) =>
@@ -814,6 +831,10 @@ export class SupervisorRuntime {
     this.routingOverridePersistence.confirm(payload);
   }
 
+  confirmSupervisorSettingsEdits(payload: ConfirmSupervisorSettingsEditsPayload): void {
+    this.settingsWriter.confirm(payload);
+  }
+
   /** Distinct WSL distros hosting a live `antigravity` session (the only
    * locations the usage scanner needs — native scanning is host-wide). */
   private getActiveAntigravityWslDistros(): string[] {
@@ -880,9 +901,7 @@ export class SupervisorRuntime {
         experimentId: payload.experimentId,
         projectLocation: payload.projectLocation,
         agentKind: payload.agentKind,
-        ...(payload.model ? { model: payload.model } : {}),
-        ...(payload.effort ? { effort: payload.effort } : {}),
-        ...(payload.fast !== undefined ? { fast: payload.fast } : {}),
+        ...(payload.selection ? { selection: payload.selection } : {}),
         mode: "responses",
         prompt: payload.prompt,
         candidates: snapshot.candidates,
@@ -916,9 +935,7 @@ export class SupervisorRuntime {
       experimentId: payload.experimentId,
       projectLocation: payload.projectLocation,
       agentKind: payload.agentKind,
-      ...(payload.model ? { model: payload.model } : {}),
-      ...(payload.effort ? { effort: payload.effort } : {}),
-      ...(payload.fast !== undefined ? { fast: payload.fast } : {}),
+      ...(payload.selection ? { selection: payload.selection } : {}),
       mode: "changes",
       prompt: payload.prompt,
       candidates: snapshot.candidates.map((candidate) => ({
@@ -1146,6 +1163,7 @@ export class SupervisorRuntime {
         this.disposeWindowsPowerShellPreference();
         this.disposeWslCredentialProjectScope();
         this.routingOverridePersistence.dispose();
+        this.settingsWriter.dispose();
         this.usageService.stop();
         this.mcpProbeService.dispose();
         this.mcpOAuthService.dispose();

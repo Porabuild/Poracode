@@ -36,7 +36,8 @@ function managedHost(
     platform: "darwin",
     hostCapabilities: {},
     onBackendSupervisorReset: () => () => {},
-    invokeProcedure: (async (name: string, args: unknown[]) => {
+    invokeProcedure: (async (invocation: { name: string; args: unknown[] }) => {
+      const { name, args } = invocation;
       calls.push({ name, args });
       switch (name) {
         case "dbGetState": {

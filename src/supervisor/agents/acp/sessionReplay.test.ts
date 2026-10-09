@@ -4,7 +4,9 @@ import * as promptContent from "./sessionContentBlocks";
 import {
   createReplaySession,
   REPLAY_CONFIG,
+  REPLAY_OPEN_UPDATES,
   REPLAY_SESSION_ID,
+  REPLAY_SESSION_REF,
 } from "./sessionReplay.testFixtures";
 
 const NOW = Date.parse("2026-10-09T12:00:00.000Z");
@@ -35,6 +37,12 @@ function expectSuppressedActivity(fixture: Fixture, marker: string) {
   expect(fixture.listener.onUpdate).toHaveBeenCalledTimes(updates);
 }
 
+function expectOpenMetadata(fixture: Fixture) {
+  expect(fixture.listener.onUpdate.mock.calls.map(([update]) => update)).toEqual(
+    REPLAY_OPEN_UPDATES,
+  );
+}
+
 function replyImmediately(fixture: Fixture) {
   fixture.promptReply.mockImplementationOnce(async () => {
     expect(Date.now()).toBe(NOW);
@@ -55,25 +63,37 @@ function expectCanonicalReply(fixture: Fixture) {
       payload: { content: [{ kind: "text", text: "continue" }] },
     }),
   ]);
-  expect(events).toContainEqual(
-    expect.objectContaining({ type: "item.completed", itemId: OPTIMISTIC_ID }),
-  );
+  expect(
+    events.filter((event) => event.type === "item.completed" && event.itemId === OPTIMISTIC_ID),
+  ).toEqual([expect.objectContaining({ type: "item.completed", itemId: OPTIMISTIC_ID })]);
   expect(events.filter((event) => event.type === "content.delta")).toEqual([
     expect.objectContaining({ stream: "assistant_text", delta: "live reply" }),
     expect.objectContaining({ stream: "reasoning_text", delta: "live thought" }),
   ]);
-  const tool = events.find(
+  const tools = events.filter(
     (event) => event.type === "item.started" && event.itemType === "tool_call",
   );
-  expect(tool).toMatchObject({ payload: { name: "live tool", status: "running" } });
-  if (!tool || tool.type !== "item.started") throw new Error("Missing canonical tool start");
-  expect(events).toContainEqual(
+  expect(tools).toEqual([
     expect.objectContaining({
-      type: "item.completed",
-      itemId: tool.itemId,
+      payload: expect.objectContaining({
+        name: "live tool",
+        status: "running",
+        args: { query: "live" },
+      }),
+    }),
+  ]);
+  const [tool] = tools;
+  if (!tool || tool.type !== "item.started") throw new Error("Missing canonical tool start");
+  expect(
+    events.filter((event) => event.type === "item.completed" && event.itemId === tool.itemId),
+  ).toEqual([
+    expect.objectContaining({
       payload: expect.objectContaining({ status: "success", result: "live result" }),
     }),
-  );
+  ]);
+  expect(events.filter((event) => event.type === "turn.completed")).toEqual([
+    expect.objectContaining({ state: "completed" }),
+  ]);
   expect(events.at(-1)).toMatchObject({ type: "turn.completed", state: "completed" });
   expect(
     fixture.listener.onUpdate.mock.calls.filter(([update]) => update.status === "working"),
@@ -94,6 +114,7 @@ describe.each(["load", "resume"] as const)("ACP session/%s replay boundary", (me
   it("delivers an immediate reply and tools after openThread without advancing the clock", async () => {
     const fixture = createReplaySession(method);
     await expect(fixture.open()).resolves.toBe(REPLAY_SESSION_ID);
+    expectOpenMetadata(fixture);
     expect(fixture.openRpc).toHaveBeenCalledExactlyOnceWith({
       sessionId: REPLAY_SESSION_ID,
       cwd: "C:\\repo",
@@ -131,7 +152,7 @@ describe.each(["load", "resume"] as const)("ACP session/%s replay boundary", (me
     vi.mocked(Date.now).mockReturnValue(NOW + 1_249);
     expectSuppressedActivity(fixture, "idle-tail");
     expect(fixture.listener.onRuntimeEvent).not.toHaveBeenCalled();
-    expect(fixture.listener.onUpdate).not.toHaveBeenCalled();
+    expectOpenMetadata(fixture);
     expect(fixture.connection.prompt).not.toHaveBeenCalled();
   });
 
@@ -145,6 +166,7 @@ describe.each(["load", "resume"] as const)("ACP session/%s replay boundary", (me
       return {};
     });
     await fixture.open();
+    expectOpenMetadata(fixture);
     expect(fixture.connection.setSessionConfigOption).not.toHaveBeenCalled();
     const configEntered = Promise.withResolvers<void>();
     const configured = Promise.withResolvers<{ configOptions: SessionConfigOption[] }>();
@@ -182,13 +204,23 @@ describe.each(["load", "resume"] as const)("ACP session/%s replay boundary", (me
     });
     expectSuppressedActivity(fixture, "pending-config");
     expect(fixture.listener.onRuntimeEvent).not.toHaveBeenCalled();
-    expect(fixture.listener.onUpdate).not.toHaveBeenCalled();
+    expectOpenMetadata(fixture);
     expect(prepare).not.toHaveBeenCalled();
     expect(fixture.connection.prompt).not.toHaveBeenCalled();
 
     configured.resolve({ configOptions: thoughtOptions("high") });
     await contentEntered.promise;
     expectSuppressedActivity(fixture, "pending-content");
+    expect(fixture.listener.onUpdate.mock.calls.map(([update]) => update)).toEqual([
+      ...REPLAY_OPEN_UPDATES,
+      {
+        status: "idle",
+        attention: "none",
+        config: { ...REPLAY_CONFIG, effort: "high" },
+        sessionRef: REPLAY_SESSION_REF,
+      },
+      { status: "working", attention: "working" },
+    ]);
     expect(fixture.connection.prompt).not.toHaveBeenCalled();
     prepared.resolve();
     await turn;
@@ -200,46 +232,76 @@ describe.each(["load", "resume"] as const)("ACP session/%s replay boundary", (me
     expectCanonicalReply(fixture);
   });
 
-  it("ends replay only after a staged idle cancel settles and the new prompt is dispatched", async () => {
+  it("keeps replay suppressed after setup Stop until a fresh prompt is dispatched", async () => {
     const fixture = createReplaySession(method);
     await fixture.open();
-    const cancelEntered = Promise.withResolvers<void>();
-    const cancelled = Promise.withResolvers<void>();
-    fixture.connection.cancel.mockImplementationOnce(() => {
-      expectSuppressedActivity(fixture, "cancel-replay");
-      cancelEntered.resolve();
-      return cancelled.promise;
+    expectOpenMetadata(fixture);
+    const contentEntered = Promise.withResolvers<void>();
+    const prepared = Promise.withResolvers<void>();
+    const realPrepare = promptContent.segmentsToContentBlocks;
+    vi.spyOn(promptContent, "segmentsToContentBlocks").mockImplementationOnce(async (...args) => {
+      contentEntered.resolve();
+      await prepared.promise;
+      return realPrepare(...args);
     });
-    replyImmediately(fixture);
+    const stoppedItemId = "optimistic-stopped";
     const turn = fixture.session.startTurn("continue", REPLAY_CONFIG, undefined, {
-      userMessageItemId: OPTIMISTIC_ID,
+      userMessageItemId: stoppedItemId,
     });
+    await contentEntered.promise;
+    expectSuppressedActivity(fixture, "before-setup-stop");
     await fixture.session.interruptTurn();
-    await cancelEntered.promise;
-    expect(fixture.connection.cancel).toHaveBeenCalledExactlyOnceWith({
-      sessionId: REPLAY_SESSION_ID,
-    });
-    expectSuppressedActivity(fixture, "pending-cancel");
+    expect(fixture.connection.cancel).not.toHaveBeenCalled();
+    expectSuppressedActivity(fixture, "stopped-setup");
     expect(fixture.connection.prompt).not.toHaveBeenCalled();
-    cancelled.resolve();
+    prepared.resolve();
     await turn;
 
+    expect(fixture.connection.prompt).not.toHaveBeenCalled();
+    expect(fixture.listener.onRuntimeEvent.mock.calls.map(([event]) => event)).toEqual([
+      expect.objectContaining({ type: "turn.started" }),
+      expect.objectContaining({
+        type: "item.started",
+        itemId: stoppedItemId,
+        itemType: "user_message",
+        payload: { content: [{ kind: "text", text: "continue" }] },
+      }),
+      expect.objectContaining({ type: "item.completed", itemId: stoppedItemId }),
+      expect.objectContaining({ type: "turn.completed", state: "cancelled" }),
+    ]);
+    expect(fixture.listener.onUpdate.mock.calls.map(([update]) => update)).toEqual([
+      ...REPLAY_OPEN_UPDATES,
+      { status: "working", attention: "working" },
+      { status: "idle", attention: "none" },
+    ]);
+    expectSuppressedActivity(fixture, "after-setup-stop");
+    // The stopped turn is fully asserted above; isolate the fresh turn's proof.
+    fixture.listener.onRuntimeEvent.mockClear();
+    fixture.listener.onUpdate.mockClear();
+    replyImmediately(fixture);
+    await fixture.session.startTurn("continue", REPLAY_CONFIG, undefined, {
+      userMessageItemId: OPTIMISTIC_ID,
+    });
     expect(fixture.connection.prompt).toHaveBeenCalledOnce();
     expectCanonicalReply(fixture);
   });
 
-  it("retains idle replay suppression when the staged cancel fails before dispatch", async () => {
+  it("keeps idle Stop from cancelling or admitting replay before a subsequent fresh prompt", async () => {
     const fixture = createReplaySession(method);
     await fixture.open();
-    fixture.connection.cancel.mockRejectedValueOnce(new Error("Idle cancel failed"));
-    const turn = fixture.session.startTurn("continue", REPLAY_CONFIG);
+    expectOpenMetadata(fixture);
     await fixture.session.interruptTurn();
-    await turn;
-
+    expect(fixture.connection.cancel).not.toHaveBeenCalled();
     expect(fixture.connection.prompt).not.toHaveBeenCalled();
-    expect(fixture.listener.onRuntimeEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "turn.completed", state: "failed" }),
-    );
-    expectSuppressedActivity(fixture, "after-cancel-failure");
+    expect(fixture.listener.onRuntimeEvent).not.toHaveBeenCalled();
+    expectSuppressedActivity(fixture, "after-idle-stop");
+    expectOpenMetadata(fixture);
+    replyImmediately(fixture);
+    await fixture.session.startTurn("continue", REPLAY_CONFIG, undefined, {
+      userMessageItemId: OPTIMISTIC_ID,
+    });
+    expect(fixture.connection.cancel).not.toHaveBeenCalled();
+    expect(fixture.connection.prompt).toHaveBeenCalledOnce();
+    expectCanonicalReply(fixture);
   });
 });

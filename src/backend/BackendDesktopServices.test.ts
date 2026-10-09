@@ -160,6 +160,11 @@ function options(desktop: boolean) {
   return {
     initialize: initialize(desktop),
     host: {
+      getDataCustody: vi.fn<BackendHostCore["getDataCustody"]>(() => ({
+        generation: "fixture-fence",
+        assertActive: vi.fn<() => void>(),
+      })),
+      assertPreparedDatabaseForWrite: vi.fn<BackendHostCore["assertPreparedDatabaseForWrite"]>(),
       supervisorClient: { call: vi.fn<() => null>(() => null) },
     } as unknown as BackendHostCore,
     requestNative: vi.fn<(request: never) => Promise<unknown>>(() => Promise.resolve(null)),
@@ -168,6 +173,59 @@ function options(desktop: boolean) {
     setRemoteEventInterests: vi.fn<(interests: never) => void>(() => {}),
   };
 }
+
+describe("BackendDesktopServices settings custody wiring", () => {
+  it("forwards the real fence generation and invokes the live Core assertion", () => {
+    const opts = options(true);
+    const assertActive = vi.fn<(generation?: string) => void>();
+    vi.spyOn(opts.host, "getDataCustody").mockReturnValue({
+      generation: "owned-fence",
+      assertActive,
+    });
+    void new BackendDesktopServices(opts);
+    const injected = mocks.settingsAccessOptions.at(-1)! as unknown as Parameters<
+      typeof import("./BackendSettingsService").createBackendSettingsAccess
+    >[0];
+    expect(opts.host.getDataCustody).not.toHaveBeenCalled();
+    const lease = injected.lease();
+    expect(lease.paths.dataRoot).toBe(opts.initialize.baseDir);
+    expect(lease.generation).toBe("owned-fence");
+    lease.assertActive("owned-fence");
+    expect(assertActive).toHaveBeenLastCalledWith("owned-fence");
+    injected.assertPreparedDatabaseForWrite();
+    expect(opts.host.assertPreparedDatabaseForWrite).toHaveBeenCalledExactlyOnceWith(
+      opts.initialize.baseDir,
+    );
+    vi.spyOn(opts.host, "assertPreparedDatabaseForWrite").mockImplementation(() => {
+      throw new Error("fixture database changed");
+    });
+    expect(() => injected.assertPreparedDatabaseForWrite()).toThrow("fixture database changed");
+    assertActive.mockImplementation(() => {
+      throw new Error("fixture fence lost");
+    });
+    expect(() => lease.assertActive()).toThrow("fixture fence lost");
+  });
+  it("requires custody lazily when configured settings open", () => {
+    const opts = options(true);
+    vi.spyOn(opts.host, "getDataCustody").mockReturnValue(null);
+    void new BackendDesktopServices(opts);
+    expect(opts.host.getDataCustody).not.toHaveBeenCalled();
+    const injected = mocks.settingsAccessOptions.at(-1)! as unknown as Parameters<
+      typeof import("./BackendSettingsService").createBackendSettingsAccess
+    >[0];
+    expect(() => injected.lease()).toThrow("active data custody");
+  });
+  it("constructs unconfigured helpers without asking for desktop custody", () => {
+    const opts = options(false);
+    vi.spyOn(opts.host, "getDataCustody").mockReturnValue(null);
+    void new BackendDesktopServices(opts);
+    expect(opts.host.getDataCustody).not.toHaveBeenCalled();
+    const injected = mocks.settingsAccessOptions.at(-1)! as unknown as Parameters<
+      typeof import("./BackendSettingsService").createBackendSettingsAccess
+    >[0];
+    expect(() => injected.settingsPath()).toThrow("not configured");
+  });
+});
 
 describe("BackendDesktopServices projection invalidation", () => {
   it("never turns shell projection reads into another invalidation", () => {

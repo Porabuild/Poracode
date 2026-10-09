@@ -7,7 +7,7 @@ import {
   type HostPort,
   type UsageSnapshot,
 } from "@poracode/agents-usage";
-import { UsageService } from "./usageService";
+import { UsageService, type UsageServiceOptions } from "./usageService";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { LocalUsageCollector } from "./localUsageCollectors";
 
@@ -18,7 +18,7 @@ afterEach(() => {
     rmSync(directory, { recursive: true, force: true });
 });
 
-function fixture(collectionEnabled?: boolean) {
+function fixture(collectionEnabled?: boolean, cacheVersion = 8) {
   const directory = mkdtempSync(join(tmpdir(), "poracode-usage-isolation-"));
   directories.push(directory);
   const cachePath = join(directory, "provider-usage.json");
@@ -28,7 +28,7 @@ function fixture(collectionEnabled?: boolean) {
     windows: [],
     fetchedAt: 1_700_000_000_000,
   };
-  const cache = JSON.stringify({ version: 8, snapshots: [snapshot] });
+  const cache = JSON.stringify({ version: cacheVersion, snapshots: [snapshot] });
   writeFileSync(cachePath, cache);
   const getOAuthToken = vi.fn<HostPort["credentials"]["getOAuthToken"]>(async () => undefined);
   const getSecret = vi.fn<HostPort["credentials"]["getSecret"]>(async () => undefined);
@@ -49,12 +49,14 @@ function fixture(collectionEnabled?: boolean) {
   };
   const collect = vi.fn<LocalUsageCollector["collect"]>(async () => snapshot);
   const emit = vi.fn<(event: SupervisorEvent) => void>();
+  const profileSources = vi.fn<NonNullable<UsageServiceOptions["profileSources"]>>(() => []);
   const service = new UsageService({
     cachePath,
     host,
     emit,
     providerIds: ["fixture"],
     localCollectors: [{ id: "fixture", collect }],
+    profileSources,
     ...(collectionEnabled === undefined ? {} : { collectionEnabled }),
   });
   return {
@@ -63,6 +65,7 @@ function fixture(collectionEnabled?: boolean) {
     cache,
     collect,
     emit,
+    profileSources,
     getOAuthToken,
     getSecret,
     refreshOAuthToken,
@@ -73,36 +76,41 @@ function fixture(collectionEnabled?: boolean) {
 }
 
 describe("disabled isolated usage collection", () => {
-  it("blocks cache-triggered and forced collection before any credentials or collectors run", async () => {
-    const f = fixture(false);
-    const providerIds = [
-      ...allUsageProviderDescriptors().map((provider) => provider.id),
-      "fixture",
-    ];
-    expect(await f.service.getProviderUsage({ providerIds })).toEqual({
-      snapshots: [],
-      fromCache: false,
-    });
-    expect(await f.service.refreshProviderUsage({ providerIds, force: true })).toEqual({
-      snapshots: [],
-      fromCache: false,
-    });
-    expect(await f.service.refreshDueProviders()).toEqual([]);
-    for (const spy of [
-      f.collect,
-      f.emit,
-      f.getOAuthToken,
-      f.getSecret,
-      f.refreshOAuthToken,
-      f.setSecret,
-      f.request,
-      f.now,
-    ]) {
-      expect(spy).not.toHaveBeenCalled();
-    }
-    expect(readFileSync(f.cachePath, "utf8")).toBe(f.cache);
-    f.service.stop();
-  });
+  it.each([8, 10])(
+    "blocks collection and profile reconciliation with cache version %s",
+    async (cacheVersion) => {
+      const f = fixture(false, cacheVersion);
+      const providerIds = [
+        ...allUsageProviderDescriptors().map((provider) => provider.id),
+        "fixture",
+      ];
+      expect(await f.service.getProviderUsage({ providerIds })).toEqual({
+        snapshots: [],
+        fromCache: false,
+      });
+      expect(await f.service.refreshProviderUsage({ providerIds, force: true })).toEqual({
+        snapshots: [],
+        fromCache: false,
+      });
+      expect(await f.service.refreshDueProviders()).toEqual([]);
+      await f.service.reconcileProfileSources();
+      for (const spy of [
+        f.collect,
+        f.emit,
+        f.profileSources,
+        f.getOAuthToken,
+        f.getSecret,
+        f.refreshOAuthToken,
+        f.setSecret,
+        f.request,
+        f.now,
+      ]) {
+        expect(spy).not.toHaveBeenCalled();
+      }
+      expect(readFileSync(f.cachePath, "utf8")).toBe(f.cache);
+      f.service.stop();
+    },
+  );
 
   it("does not schedule polling, including repeated starts", () => {
     vi.useFakeTimers();
@@ -116,7 +124,7 @@ describe("disabled isolated usage collection", () => {
   it.each([undefined, true])(
     "retains existing cached reads and refreshes when enabled=%s",
     async (enabled) => {
-      const f = fixture(enabled);
+      const f = fixture(enabled, 10);
       expect(await f.service.getProviderUsage({})).toMatchObject({
         fromCache: true,
         snapshots: [{ providerId: "fixture" }],

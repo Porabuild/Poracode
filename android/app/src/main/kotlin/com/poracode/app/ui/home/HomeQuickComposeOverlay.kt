@@ -59,6 +59,7 @@ import java.util.UUID
 @Composable
 internal fun HomeQuickComposeOverlay(
     state: AppSession.UiState,
+    userHiddenModels: kotlinx.serialization.json.JsonObject? = null,
     threads: List<HostPresentation.UnifiedThreadItem>,
     runtime: ThreadSessionRuntime,
     richChat: RichChatSessionRuntime,
@@ -167,8 +168,8 @@ internal fun HomeQuickComposeOverlay(
         ?: agents.firstOrNull { it.kind == defaults?.agentKind }
         ?: agents.firstOrNull()
     val selectedCatalog = selectedAgent?.let { status ->
-        remember(status.identityKey, normalizedMode, configuration.model) {
-            HomeQuickComposeCatalog(status, normalizedMode, configuration)
+        remember(status, normalizedMode, configuration.model, userHiddenModels) {
+            HomeQuickComposeCatalog(status, normalizedMode, configuration, userHiddenModels)
         }
     }
     val worktrees = project?.let { homeQuickComposeWorktrees(it.id, currentItems) }.orEmpty()
@@ -221,7 +222,7 @@ internal fun HomeQuickComposeOverlay(
             )
         }
         configuration = selectedAgent?.let {
-            HomeQuickComposeCatalog(it, normalizedMode, base).normalize(base)
+            HomeQuickComposeCatalog(it, normalizedMode, base, userHiddenModels).normalize(base)
         } ?: base
         configurationSelectionKey = key
     }

@@ -17,6 +17,7 @@ import { projectTreeProcedures } from "./procedures/projectTree";
 import { settingsProcedures } from "./procedures/settings";
 import { sshProcedures } from "./procedures/ssh";
 import { threadProcedures } from "./procedures/thread";
+import { sessionActionProcedures } from "./procedures/sessionActions";
 import { updatesProcedures } from "./procedures/updates";
 import { usageProcedures } from "./procedures/usage";
 import { CLIENT_HOST_HOP_VERSION } from "../clientHostHop";
@@ -24,6 +25,7 @@ import { CLIENT_HOST_HOP_VERSION } from "../clientHostHop";
 export const groupedIpcProcedures = {
   app: appProcedures,
   thread: threadProcedures,
+  sessionActions: sessionActionProcedures,
   liveVoice: liveVoiceProcedures,
   git: gitProcedures,
   experiment: experimentProcedures,
@@ -48,6 +50,7 @@ export const groupedIpcProcedures = {
 export const ipcProcedureMap = {
   ...appProcedures,
   ...threadProcedures,
+  ...sessionActionProcedures,
   ...liveVoiceProcedures,
   ...gitProcedures,
   ...experimentProcedures,
@@ -90,7 +93,10 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * the renderer's retained interests locally, so no IPC interest sync remains.
  * Version 16 (V2) removed `dbPersistExperimentState`: the renderer experiment
  * store is a memory-only projection of the host's durable experiment
- * authority, so no renderer→host experiment persist remains. Previously
+ * authority, so no renderer→host experiment persist remains. Version 17
+ * carries the hop's checked invocation envelope: the version declared in the
+ * renderer-supplied envelope is asserted by main before dispatch — the map's
+ * own wire-visible shape is unchanged (see `clientHostHop.ts`). Previously
  * published map version 1 is an old reader. Peers that cannot
  * declare a version (legacy attach handshakes) count as version 0 and are
  * rejected typed by {@link assertIpcProcedureMapVersion} — a mismatch must

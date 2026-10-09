@@ -3,6 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { closeDatabase, dbGetProject, dbGetThread, initDatabase } from "@/host/db";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import {
@@ -89,6 +93,7 @@ describe.skipIf(!sqliteAvailable)("managed host canonical Home startup", () => {
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
         "x-poracode-command-id": `thread-start:${threadId}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
       },
       body: JSON.stringify({
         kind: "start",

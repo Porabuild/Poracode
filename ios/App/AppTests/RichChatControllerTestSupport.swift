@@ -192,6 +192,26 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
     return try checkpointListResponse.get()
   }
 
+  // Neutral session actions: suite tests default to an empty inventory and an
+  // empty invoke record; specific tests configure responses explicitly.
+  var sessionActionListResponse: RichChatControllerTestResponse<[String]> = .value([])
+  var sessionActionInvokeResponse: RichChatControllerTestResponse<[String: RichJSON]> =
+    .value([:])
+
+  func listRichSessionActions(target _: RichChatThreadTarget) async throws -> [String] {
+    calls.append("session-actions-list")
+    return try sessionActionListResponse.get()
+  }
+
+  func invokeRichSessionAction(
+    target _: RichChatThreadTarget,
+    actionID: String,
+    payload _: [String: RichJSON]
+  ) async throws -> [String: RichJSON] {
+    calls.append("session-action-invoke:\(actionID)")
+    return try sessionActionInvokeResponse.get()
+  }
+
   func sendRichInput(target _: RichChatThreadTarget, input _: RichChatSendInput) async throws {
     try await mutation("send")
   }

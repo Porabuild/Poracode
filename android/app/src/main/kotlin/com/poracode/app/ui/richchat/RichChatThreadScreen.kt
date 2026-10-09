@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -70,6 +68,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun RichChatThreadScreen(
     runtime: RichChatSessionRuntime,
+    userHiddenModels: kotlinx.serialization.json.JsonObject? = null,
     threadLifecycleController: ThreadLifecycleController,
     thread: RemoteThread?,
     agentStatus: AgentStatusEntry?,
@@ -88,6 +87,7 @@ fun RichChatThreadScreen(
     if (showBack) BackHandler(onBack = onBack)
     val state by runtime.chat.state.collectAsStateWithLifecycle()
     val checkpointState by runtime.checkpoints.state.collectAsStateWithLifecycle()
+    val sessionActionsState by runtime.sessionActions.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val threadId = state.selection?.threadId ?: thread?.id.orEmpty()
@@ -169,6 +169,28 @@ fun RichChatThreadScreen(
     LaunchedEffect(state.needsAuthoritativeRefresh) {
         if (state.needsAuthoritativeRefresh) runtime.refreshSelectedThread()
     }
+    // Session-action inventory: one live read per selected thread, status
+    // change, and owner-axis change (host, presentation, provider instance,
+    // live SessionRef). Only the typed old-host answer collapses the inventory
+    // quietly — every other failure stays visible with a retry.
+    LaunchedEffect(
+        state.selection?.generation,
+        state.selection?.host?.key,
+        state.selection?.threadId,
+        thread?.status,
+        RichChatUiLogic.sessionActionOwnerKey(thread),
+    ) {
+        if (state.selection != null) runtime.sessionActions.refreshInventory()
+    }
+    LaunchedEffect(sessionActionsState.needsAuthoritativeRefresh) {
+        if (sessionActionsState.needsAuthoritativeRefresh) {
+            runtime.refreshSelectedThread()
+            runtime.sessionActions.acknowledgeAuthoritativeRefresh()
+            // The ambiguous mutation may have replaced the session; the
+            // inventory is read fresh instead of trusting the old list.
+            runtime.sessionActions.refreshInventory()
+        }
+    }
     LaunchedEffect(checkpointState.needsAuthoritativeRefresh) {
         if (checkpointState.needsAuthoritativeRefresh) {
             runtime.refreshSelectedThread()
@@ -230,68 +252,82 @@ fun RichChatThreadScreen(
         },
         bottomBar = {
             if (!ThreadPresentationPolicy.isTerminal(thread?.presentationMode)) {
-                Column(Modifier.imePadding().navigationBarsPadding()) {
-                    state.transcript?.followUpQueue?.let { queue ->
-                        RichFollowUpQueueSection(
-                            runtime = runtime,
-                            queue = queue,
-                            enabled = canOperate,
+                RichChatThreadComposerSection(
+                    userHiddenModels = userHiddenModels,
+                    runtime = runtime,
+                    contextKey = threadId,
+                    sessionActionOwnerKey = RichChatUiLogic.sessionActionOwnerKey(
+                        currentThreadForComposer,
+                    ),
+                    canOperate = canOperate,
+                    enabled = canOperate && state.selection != null && !refreshing,
+                    draft = draft,
+                    attachments = attachments,
+                    sending = sending,
+                    uploading = uploading,
+                    errorText = attachmentError?.let {
+                        stringResource(
+                            when (it) {
+                                AttachmentUiError.Invalid -> R.string.rich_chat_attachment_invalid
+                                AttachmentUiError.UploadFailed -> R.string.rich_chat_attachment_upload_failed
+                                AttachmentUiError.CameraUnavailable -> R.string.rich_chat_camera_unavailable
+                            },
                         )
-                    }
-                    RichChatComposer(
-                        contextKey = threadId,
-                        contextUsage = state.transcript?.contextUsage,
-                        draft = draft,
-                        attachments = attachments,
-                        sending = sending,
-                        uploading = uploading,
-                        enabled = canOperate && state.selection != null && !refreshing,
-                        errorText = attachmentError?.let {
-                            stringResource(
-                                when (it) {
-                                    AttachmentUiError.Invalid -> R.string.rich_chat_attachment_invalid
-                                    AttachmentUiError.UploadFailed -> R.string.rich_chat_attachment_upload_failed
-                                    AttachmentUiError.CameraUnavailable -> R.string.rich_chat_camera_unavailable
-                                },
-                            )
-                        },
-                        configuration = composerConfiguration,
-                        agentStatus = agentStatus,
-                        canConfigure = canConfigure,
-                        threadSlashCommands = thread?.slashCommands,
-                        currentThread = currentThreadForComposer,
-                        mentionItems = state.transcript?.itemsInOrder.orEmpty(),
-                        workspaceFiles = workspaceFiles,
-                        mentionThreads = mentionThreads,
-                        isTurnActive = isTurnActive,
-                        queuedSegments = queuedSegments,
-                        onDraftChange = { draft = it },
-                        onConfigurationChange = { composerConfiguration = it },
-                        onQueueSegment = { segment ->
-                            if (queuedSegments.none { it == segment }) queuedSegments += segment
-                        },
-                        onRemoveSegment = { segment ->
-                            queuedSegments = queuedSegments.filterNot { it == segment }
-                        },
-                        onAttachmentUri = { uri ->
-                            uploadAttachment(
-                                uri,
-                                context,
-                                runtime,
-                                scope,
-                                onStart = { uploading = true; attachmentError = null },
-                                onFinish = { uploading = false },
-                                onFailure = { attachmentError = it },
-                                onSuccess = { attachments = attachments + it },
-                            )
-                        },
-                        onRemoveAttachment = { target -> attachments = attachments - target },
-                        onCameraUnavailable = { attachmentError = AttachmentUiError.CameraUnavailable },
-                        onSend = { submitComposer(queueInsteadOfSteer = false) },
-                        onQueueSend = { submitComposer(queueInsteadOfSteer = true) },
-                        onInterrupt = { scope.launch { runtime.chat.interrupt() } },
-                    )
-                }
+                    },
+                    configuration = composerConfiguration,
+                    agentStatus = agentStatus,
+                    canConfigure = canConfigure,
+                    currentThread = currentThreadForComposer,
+                    followUpQueue = state.transcript?.followUpQueue,
+                    contextUsage = state.transcript?.contextUsage,
+                    mentionItems = state.transcript?.itemsInOrder.orEmpty(),
+                    workspaceFiles = workspaceFiles,
+                    mentionThreads = mentionThreads,
+                    isTurnActive = isTurnActive,
+                    queuedSegments = queuedSegments,
+                    sessionActionIds = if (state.selection != null) {
+                        sessionActionsState.actionIds
+                    } else {
+                        null
+                    },
+                    sessionActionsState = sessionActionsState,
+                    onSessionActionInvoke = runtime.sessionActions::invoke,
+                    onSessionActionRefreshInventory = {
+                        scope.launch { runtime.sessionActions.refreshInventory() }
+                    },
+
+                    onInsertIntoComposer = { suggestion ->
+                        // Explicit draft insertion only; the suggestion is
+                        // never sent by the app itself.
+                        draft = if (draft.isBlank()) suggestion else "$draft\n$suggestion"
+                    },
+
+                    onDraftChange = { draft = it },
+                    onConfigurationChange = { composerConfiguration = it },
+                    onQueueSegment = { segment ->
+                        if (queuedSegments.none { it == segment }) queuedSegments += segment
+                    },
+                    onRemoveSegment = { segment ->
+                        queuedSegments = queuedSegments.filterNot { it == segment }
+                    },
+                    onAttachmentUri = { uri ->
+                        uploadAttachment(
+                            uri,
+                            context,
+                            runtime,
+                            scope,
+                            onStart = { uploading = true; attachmentError = null },
+                            onFinish = { uploading = false },
+                            onFailure = { attachmentError = it },
+                            onSuccess = { attachments = attachments + it },
+                        )
+                    },
+                    onRemoveAttachment = { target -> attachments = attachments - target },
+                    onCameraUnavailable = { attachmentError = AttachmentUiError.CameraUnavailable },
+                    onSend = { submitComposer(queueInsteadOfSteer = false) },
+                    onQueueSend = { submitComposer(queueInsteadOfSteer = true) },
+                    onInterrupt = { scope.launch { runtime.chat.interrupt() } },
+                )
             }
         },
     ) { padding ->
@@ -326,57 +362,20 @@ fun RichChatThreadScreen(
                     }
                 },
             )
-            pendingTruncateItemId?.let { itemId ->
-                RichChatTruncateConfirmDialog(
-                    enabled = !mutating,
-                    onDismiss = { pendingTruncateItemId = null },
-                    onConfirm = {
-                        pendingTruncateItemId = null
-                        scope.launch { runtime.chat.truncate(itemId) }
-                    },
-                )
-            }
-            pendingRevertItemId?.let { userItemId ->
-                RichChatRevertConfirmDialog(
-                    enabled = !mutating,
-                    onDismiss = { pendingRevertItemId = null },
-                    onConfirm = {
-                        val items = state.transcript?.itemsInOrder.orEmpty()
-                        val checkpointItemId =
-                            RichChatUiLogic.revertCheckpointItemId(items, userItemId)
-                        val selection = state.selection
-                        pendingRevertItemId = null
-                        if (checkpointItemId != null && selection != null) {
-                            scope.launch {
-                                runtime.checkpoints.revert(
-                                    RichChatUiLogic.checkpointRevertPayload(
-                                        selection.threadId,
-                                        checkpointItemId,
-                                    ),
-                                )
-                            }
-                        }
-                    },
-                )
-            }
-            if (showCloseDialog) {
-                RichChatCloseThreadConfirmDialog(
-                    enabled = !mutating,
-                    onDismiss = { showCloseDialog = false },
-                    onConfirm = {
-                        showCloseDialog = false
-                        scope.launch {
-                            // Dismiss only on a confirmed, owned success. A stale
-                            // host or ambiguous delivery leaves the selection intact so
-                            // the authoritative feed reconciles the runtime state.
-                            when (runtime.chat.closeThreadRuntime()) {
-                                is RichChatOperationResult.Success -> onBack()
-                                else -> Unit
-                            }
-                        }
-                    },
-                )
-            }
+            RichChatThreadConfirmDialogs(
+                runtime = runtime,
+                scope = scope,
+                pendingTruncateItemId = pendingTruncateItemId,
+                pendingRevertItemId = pendingRevertItemId,
+                showCloseDialog = showCloseDialog,
+                mutating = mutating,
+                transcriptItems = state.transcript?.itemsInOrder.orEmpty(),
+                selectionThreadId = state.selection?.threadId,
+                onBack = onBack,
+                onDismissTruncate = { pendingTruncateItemId = null },
+                onDismissRevert = { pendingRevertItemId = null },
+                onDismissClose = { showCloseDialog = false },
+            )
             when (state.loadPhase) {
                 RichChatLoadPhase.Idle, RichChatLoadPhase.Loading -> LoadingStateView(
                     stringResource(R.string.rich_chat_loading_transcript),

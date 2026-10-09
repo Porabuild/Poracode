@@ -25,6 +25,9 @@ interface RemoteProcedureSpec {
   readonly scope: RemoteAccessScope;
   readonly owner: RemoteProcedureOwner;
   readonly timeout?: "long";
+  /** Client-local delivery intent, excluded from published authorization/routing metadata.
+   * The operation can produce an external effect; transport failure may leave its outcome unknown. */
+  readonly mutation?: boolean;
 }
 
 function read<const Owner extends RemoteProcedureOwner>(owner: Owner) {
@@ -43,12 +46,18 @@ function longRunning<const Spec extends RemoteProcedureSpec>(spec: Spec) {
   return { ...spec, timeout: "long" as const };
 }
 
+function mutating<const Spec extends RemoteProcedureSpec>(spec: Spec) {
+  return { ...spec, mutation: true as const };
+}
+
 /**
  * Supervisor procedures exposed through the generic remote passthrough. The
  * scope is enforced by the remote server; the owner tells reused renderer
  * controls which desktop must execute the operation.
  */
 export const REMOTE_PROCEDURE_SPECS = {
+  listThreadSessionActions: read("thread"),
+  invokeThreadSessionAction: mutating(operate("thread")),
   // Thread checkpoints / rollback
   rollbackThreadConversation: operate("thread"),
   queueThreadFollowUp: operate("thread"),

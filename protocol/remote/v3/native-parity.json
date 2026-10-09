@@ -1,7 +1,7 @@
 {
   "formatVersion": 2,
   "contract": "poracode.remote.native-parity",
-  "protocolVersion": 12,
+  "protocolVersion": 13,
   "entries": {
     "httpRoutes": [
       {
@@ -498,7 +498,8 @@
             "evidence": [
               "ios/App/App/Transport/RemoteAPIClient.swift",
               "ios/App/App/Models/RemoteModels.swift",
-              "ios/App/App/Features/Home/HomeThreadListPresentation.swift"
+              "ios/App/App/Features/Home/HomeThreadListPresentation.swift",
+              "ios/App/App/Models/ProjectDomain.swift"
             ]
           },
           "ui": {
@@ -515,7 +516,9 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/RemoteModels.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/WorkspaceGrantReadProjection.kt"
             ]
           },
           "ui": {
@@ -525,7 +528,8 @@
               "screen:android.shell-snapshot"
             ]
           }
-        }
+        },
+        "note": "Readonly optional saved-workspace roots/revision are retained in order, including unknown legacy versus explicit empty. No workspace-grant capability, mutation API, authorization from cache, or native grant UI is advertised."
       },
       {
         "id": "agent-statuses",
@@ -642,7 +646,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
-              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift"
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -658,7 +663,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -680,7 +686,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
-              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift"
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -696,7 +703,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -818,7 +826,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/Projects/ProjectRemoteAPI.swift"]
+            "evidence": [
+              "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
@@ -830,7 +841,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1012,7 +1024,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatComposerAttachments.swift"
+              "ios/App/App/Features/RichChat/UI/RichChatComposerAttachments.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1025,7 +1038,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1137,7 +1151,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/Settings/SettingsRemoteAPI.swift"]
+            "evidence": [
+              "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
@@ -1149,7 +1166,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1203,7 +1221,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/Settings/SettingsRemoteAPI.swift"]
+            "evidence": [
+              "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
@@ -1218,7 +1239,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1279,7 +1301,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
-              "ios/App/App/Features/SettingsIntegrations/GlobalMCPSettingsController.swift"
+              "ios/App/App/Features/SettingsIntegrations/GlobalMCPSettingsController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1296,7 +1319,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/settings/GlobalMcpSettingsController.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/GlobalMcpSettingsController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1319,7 +1343,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
-              "ios/App/App/Features/SettingsIntegrations/GlobalMCPSettingsController.swift"
+              "ios/App/App/Features/SettingsIntegrations/GlobalMCPSettingsController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1335,7 +1360,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/settings/SettingsRemoteApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/settings/GlobalMcpSettingsController.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/GlobalMcpSettingsController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1395,7 +1421,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
-              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift"
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1411,7 +1438,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1509,7 +1537,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
-              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift"
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1525,7 +1554,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1548,7 +1578,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
-              "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteV3Contract.swift"
+              "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteV3Contract.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1565,7 +1596,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/protocol/remoteintegrations/RemoteV3IntegrationsContract.kt"
+              "android/app/src/main/kotlin/com/poracode/app/protocol/remoteintegrations/RemoteV3IntegrationsContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1587,7 +1619,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
-              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift"
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1603,7 +1636,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1625,7 +1659,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
-              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift"
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsSessionComposition.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1641,7 +1676,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/RemoteIntegrationsComposition.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1702,7 +1738,8 @@
               "ios/App/App/Transport/BrowserMirror/BrowserMirrorRemoteAPI.swift",
               "ios/App/App/Features/BrowserMirror/BrowserMirrorActions.swift",
               "ios/App/App/Features/BrowserMirror/BrowserMirrorController.swift",
-              "ios/App/App/Features/BrowserMirror/BrowserMirrorChrome.swift"
+              "ios/App/App/Features/BrowserMirror/BrowserMirrorChrome.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1722,7 +1759,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/browsermirror/BrowserMirrorRemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/session/browsermirror/BrowserMirrorController.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/browsermirror/BrowserMirrorController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1779,7 +1817,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
-              "ios/App/App/Features/PortForwarding/PortForwardingController.swift"
+              "ios/App/App/Features/PortForwarding/PortForwardingController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1793,7 +1832,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/ports/PortForwardRemoteGateway.kt",
-              "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1814,7 +1854,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
-              "ios/App/App/Features/PortForwarding/PortForwardingController.swift"
+              "ios/App/App/Features/PortForwarding/PortForwardingController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1828,7 +1869,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/ports/PortForwardRemoteGateway.kt",
-              "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1849,7 +1891,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/PortForwarding/PortForwardingRemoteV3Contract.swift",
-              "ios/App/App/Features/PortForwarding/PortForwardingController.swift"
+              "ios/App/App/Features/PortForwarding/PortForwardingController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -1863,7 +1906,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/ports/PortForwardRemoteGateway.kt",
-              "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/ports/PortForwardController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1882,7 +1926,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"]
+            "evidence": [
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
@@ -1897,7 +1944,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectWorkspaceRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -1917,7 +1965,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/Projects/ProjectRemoteAPI.swift"]
+            "evidence": [
+              "ios/App/App/Transport/Projects/ProjectRemoteAPI.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
@@ -1935,7 +1986,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/ProjectRemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2022,7 +2074,8 @@
               "ios/App/App/Transport/RemoteAPIClient.swift",
               "ios/App/App/Features/Notifications/PushRegistrationController.swift",
               "ios/App/App/Features/Notifications/PushRemoteModels.swift",
-              "ios/App/App/Features/Notifications/NotificationPermissionController.swift"
+              "ios/App/App/Features/Notifications/NotificationPermissionController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2041,7 +2094,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/push/PushHostClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/push/PushRegistrationCoordinator.kt"
+              "android/app/src/main/kotlin/com/poracode/app/push/PushRegistrationCoordinator.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2064,7 +2118,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RemoteAPIClient.swift",
-              "ios/App/App/Features/Notifications/PushRegistrationController.swift"
+              "ios/App/App/Features/Notifications/PushRegistrationController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2081,7 +2136,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/push/PushHostClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/push/PushRegistrationCoordinator.kt"
+              "android/app/src/main/kotlin/com/poracode/app/push/PushRegistrationCoordinator.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2104,7 +2160,9 @@
             "evidence": [
               "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedTransport.swift",
               "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedSessionAPI.swift",
-              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift"
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift",
+              "ios/App/App/Models/RemoteModels.swift",
+              "ios/App/App/Models/ProjectDomain.swift"
             ]
           },
           "ui": {
@@ -2121,7 +2179,9 @@
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedReadClient.kt",
               "android/app/src/main/kotlin/com/poracode/app/transport/RemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedContract.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/RemoteModels.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/WorkspaceGrantReadProjection.kt"
             ]
           },
           "ui": {
@@ -2129,7 +2189,7 @@
             "evidence": []
           }
         },
-        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation."
+        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation. Readonly optional saved-workspace roots/revision are retained in order, including unknown legacy versus explicit empty. No workspace-grant capability, mutation API, authorization from cache, or native grant UI is advertised."
       },
       {
         "id": "thread-history-items",
@@ -2172,7 +2232,11 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "ios/App/App/Models/RemoteModels.swift",
+              "ios/App/App/Models/ProjectDomain.swift"
+            ]
           },
           "ui": {
             "disposition": "implemented",
@@ -2183,7 +2247,9 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/RemoteModels.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/WorkspaceGrantReadProjection.kt"
             ]
           },
           "ui": {
@@ -2193,7 +2259,8 @@
               "screen:android.thread-history"
             ]
           }
-        }
+        },
+        "note": "Readonly optional saved-workspace roots/revision are retained in order, including unknown legacy versus explicit empty. No workspace-grant capability, mutation API, authorization from cache, or native grant UI is advertised."
       },
       {
         "id": "thread-turns",
@@ -2240,7 +2307,8 @@
             "evidence": [
               "ios/App/App/Transport/Threads/ThreadLifecycleRemoteAPI.swift",
               "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
-              "ios/App/App/Features/Threads/ThreadDetailDestinations.swift"
+              "ios/App/App/Features/Threads/ThreadDetailDestinations.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2258,7 +2326,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleUiLogic.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2279,7 +2348,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Features/Terminal/ProjectShellTerminalSession.swift"]
+            "evidence": [
+              "ios/App/App/Features/Terminal/ProjectShellTerminalSession.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
@@ -2295,7 +2367,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2316,7 +2389,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Features/RichChat/Controllers/RichChatConversationController.swift"
+              "ios/App/App/Features/RichChat/Controllers/RichChatConversationController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2330,7 +2404,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2354,7 +2429,8 @@
               "ios/App/App/Transport/RichChat/GeneratedRichChatContract.swift",
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
               "ios/App/App/Features/RichChat/Controllers/RichChatConversationController.swift",
-              "ios/App/App/Features/RichChat/RichChatMessageRevert.swift"
+              "ios/App/App/Features/RichChat/RichChatMessageRevert.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2370,7 +2446,8 @@
               "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt",
               "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
               "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichCheckpointController.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatUiLogic.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatUiLogic.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2399,7 +2476,8 @@
               "ios/App/App/Features/Threads/ThreadProviderHandoff.swift",
               "ios/App/App/Features/Home/HomeComposerActions.swift",
               "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
-              "ios/App/App/Features/Threads/ThreadDetailDestinations.swift"
+              "ios/App/App/Features/Threads/ThreadDetailDestinations.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2416,7 +2494,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/threads/ThreadLifecycleRemoteApiClient.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2435,7 +2514,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "implemented",
@@ -2446,7 +2528,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2465,7 +2548,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RemoteAPIClient.swift"]
+            "evidence": [
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "implemented",
@@ -2479,7 +2565,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2500,7 +2587,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
+              "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2514,7 +2602,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2535,7 +2624,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift"
+              "ios/App/App/Features/Threads/ThreadWorktreeMoveController.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2549,7 +2639,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatController.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/thread/ThreadLifecycleActions.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2571,7 +2662,8 @@
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
               "ios/App/App/Features/RichChat/UI/RichChatGoalSteerView.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
+              "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2587,7 +2679,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2608,7 +2701,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
+              "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2622,7 +2716,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2643,7 +2738,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Features/Terminal/RichTerminalView.swift"
+              "ios/App/App/Features/Terminal/RichTerminalView.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2653,7 +2749,7 @@
               "ios/App/App/Features/Terminal/TerminalRawKeyInput.swift",
               "screen:ios.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row — the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u2014 the standard mobile-terminal compromise."
           }
         },
         "android": {
@@ -2661,7 +2757,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2671,7 +2768,7 @@
               "android/app/src/main/kotlin/com/poracode/app/ui/terminal/TerminalKeyAccessory.kt",
               "screen:android.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row — the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u2014 the standard mobile-terminal compromise."
           }
         }
       },
@@ -2684,7 +2781,8 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
-              "ios/App/App/Features/Terminal/RichTerminalView.swift"
+              "ios/App/App/Features/Terminal/RichTerminalView.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2701,7 +2799,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2721,7 +2820,10 @@
         "ios": {
           "wire": {
             "disposition": "implemented",
-            "evidence": ["ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"]
+            "evidence": [
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
+            ]
           },
           "ui": {
             "disposition": "partial",
@@ -2733,7 +2835,8 @@
           "wire": {
             "disposition": "implemented",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt"
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2755,7 +2858,8 @@
             "evidence": [
               "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
               "ios/App/App/Features/RichChat/UI/RichChatRequestView.swift",
-              "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift"
+              "ios/App/App/Features/RichChat/UI/RichChatCompactControlDock.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2771,7 +2875,8 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2888,7 +2993,8 @@
             "evidence": [
               "ios/App/App/Features/RichChat/Notices/RichChatNoticeTransport.swift",
               "ios/App/App/Features/RichChat/Notices/RichChatNoticeController.swift",
-              "ios/App/App/Transport/RemoteAPIClient.swift"
+              "ios/App/App/Transport/RemoteAPIClient.swift",
+              "ios/App/App/Transport/RemoteWriterProtocol.swift"
             ]
           },
           "ui": {
@@ -2906,7 +3012,8 @@
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryNoticeClient.kt",
               "android/app/src/main/kotlin/com/poracode/app/transport/RemoteV3TransportAdapters.kt",
-              "android/app/src/main/kotlin/com/poracode/app/model/RemoteHistoryNoticeModels.kt"
+              "android/app/src/main/kotlin/com/poracode/app/model/RemoteHistoryNoticeModels.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
             ]
           },
           "ui": {
@@ -2972,6 +3079,197 @@
           }
         },
         "note": "Desktop-only experiment authority (capabilities.experiments v1): the embedded desktop backend owns the experiment store and the local-shell experiment worktree driver, and every mutating intent is additionally gated on the documented loopback LOCALITY check (not an authentication guarantee). No native client composes the authority or exposes an experiment UI, so both routes are deliberately unsupported on iOS and Android; the desktop renderer consumes them over its managed loopback session."
+      },
+      {
+        "id": "file-media-ticket",
+        "scopes": ["session:read"],
+        "batch": "attachments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "file-media",
+        "scopes": ["session:read"],
+        "batch": "attachments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "file-media-release",
+        "scopes": ["session:read"],
+        "batch": "attachments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "file-media-renew",
+        "scopes": ["session:read"],
+        "batch": "attachments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+          }
+        },
+        "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+      },
+      {
+        "id": "environment-media-ticket",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "environment-media-release",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Native media transport and editor UI adoption remain planned; #806 implements the adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Native media transport and editor UI adoption remain planned; #806 implements the adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "environment-media-renew",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+          }
+        },
+        "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
       }
     ],
     "procedures": [
@@ -7230,6 +7528,82 @@
           }
         },
         "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
+      },
+      {
+        "id": "listThreadSessionActions",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatSessionActionsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/RichChat/UI/RichChatSessionActionsView.swift",
+              "ios/App/App/Features/RichChat/Controllers/RichChatSessionActionsController.swift"
+            ],
+            "note": "Live action controls and owner fencing are implemented. Paired-host device journeys are pending; iOS focused test results also need reconciliation before final verification."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/GeneratedRichChatSessionGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatSessionActionEntry.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionActionsController.kt"
+            ],
+            "note": "Live action controls and owner fencing have focused test coverage. Paired-host device journeys are pending before full UI parity can be claimed."
+          }
+        }
+      },
+      {
+        "id": "invokeThreadSessionAction",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatSessionActionsGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/RichChat/UI/RichChatSessionActionsView.swift",
+              "ios/App/App/Features/RichChat/Controllers/RichChatSessionActionsController.swift"
+            ],
+            "note": "Live action controls and owner fencing are implemented. Paired-host device journeys are pending; iOS focused test results also need reconciliation before final verification."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/GeneratedRichChatSessionGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatSessionActionEntry.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionActionsController.kt"
+            ],
+            "note": "Live action controls and owner fencing have focused test coverage. Paired-host device journeys are pending before full UI parity can be claimed."
+          }
+        }
       }
     ],
     "webSocketClientMessages": [
@@ -8044,13 +8418,18 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Protocol/RuntimeEventReducer.swift",
-              "ios/App/App/Features/Session/SessionEventRouter.swift"
+              "ios/App/App/Features/Session/SessionEventRouter.swift",
+              "ios/App/App/Features/BoundedCatalog/Session/BoundedCatalogStore.swift"
             ]
           },
           "ui": {
             "disposition": "partial",
-            "evidence": ["ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "evidence": [
+              "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift",
+              "ios/App/App/Features/RichChat/RichChatSessionConfigOptions.swift",
+              "ios/App/AppTests/RichChatSessionConfigControlsTests.swift"
+            ],
+            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
           }
         },
         "android": {
@@ -8058,15 +8437,18 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
-              "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/catalog/CatalogStore.kt"
             ]
           },
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatLiveSessionControls.kt",
+              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatLiveSessionControlsTest.kt"
             ],
-            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
           }
         }
       },
@@ -8432,7 +8814,9 @@
             "disposition": "implemented",
             "evidence": [
               "ios/App/App/Protocol/RuntimeEventReducer.swift",
-              "ios/App/App/Features/Session/SessionEventRouter.swift"
+              "ios/App/App/Features/Session/SessionEventRouter.swift",
+              "ios/App/App/Models/RemoteModels.swift",
+              "ios/App/App/Models/ProjectDomain.swift"
             ]
           },
           "ui": {
@@ -8446,7 +8830,9 @@
             "disposition": "implemented",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
-              "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
+              "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/RemoteModels.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/WorkspaceGrantReadProjection.kt"
             ]
           },
           "ui": {
@@ -8456,7 +8842,8 @@
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
-        }
+        },
+        "note": "Readonly optional saved-workspace roots/revision are retained in order, including unknown legacy versus explicit empty. No workspace-grant capability, mutation API, authorization from cache, or native grant UI is advertised."
       },
       {
         "id": "remote-user-notification",
@@ -9081,5 +9468,5 @@
       }
     ]
   },
-  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence — a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
+  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence \u2014 a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
 }

@@ -70,6 +70,8 @@ import com.poracode.app.ui.components.LoadingStateView
 @Composable
 internal fun ThreadListPane(
     state: AppSession.UiState,
+    userHiddenModels: kotlinx.serialization.json.JsonObject?,
+    onRefreshModelVisibility: () -> Unit,
     threads: List<HostPresentation.UnifiedThreadItem>,
     selectedThreadId: String?,
     onRefresh: () -> Unit,
@@ -346,7 +348,9 @@ internal fun ThreadListPane(
             )
         }
         if (showQuickCompose) {
+            LaunchedEffect(Unit) { onRefreshModelVisibility() }
             HomeQuickComposeOverlay(
+                userHiddenModels = userHiddenModels,
                 state = state,
                 threads = threads,
                 runtime = threadRuntime,

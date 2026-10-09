@@ -88,4 +88,30 @@ describe("modelSurfaceLabel", () => {
       ),
     ).toBe("Acme SDK");
   });
+
+  it("qualifies unnamed presentation surfaces with the localized mode word", () => {
+    const unnamed = (presentationMode: "terminal" | "gui") => ({
+      kind: "acme",
+      label: "Acme",
+      presentationMode,
+      capabilities,
+    });
+
+    expect(modelSurfaceLabel(unnamed("gui"), agent, undefined)).toBe("Acme Chat");
+    expect(modelSurfaceLabel(unnamed("terminal"), agent, undefined)).toBe("Acme Terminal");
+    // An already surface-qualified label keeps its word instead of stacking.
+    expect(modelSurfaceLabel({ ...unnamed("gui"), label: "Acme Chat" }, agent, undefined)).toBe(
+      "Acme Chat",
+    );
+  });
+
+  it("keeps a legacy terminal badge without stacking the mode word", () => {
+    expect(
+      modelSurfaceLabel(
+        { kind: "cursor", label: "Cursor", presentationMode: "terminal", capabilities },
+        agent,
+        undefined,
+      ),
+    ).toBe("Cursor CLI");
+  });
 });

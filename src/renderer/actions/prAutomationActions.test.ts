@@ -1,3 +1,5 @@
+import { prWatchInputSchema } from "@/shared/contracts/prWatch";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas";
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, PrWatch, Project } from "@/shared/contracts";
@@ -33,6 +35,8 @@ const mocks = vi.hoisted(() => ({
   } satisfies AgentStatus,
   settings: {
     prAutomationDefault: "merge" as "off" | "fix" | "merge",
+    conflictResolverSelection: undefined as ModelSelection | undefined,
+    wslConflictResolverSelection: undefined as ModelSelection | undefined,
     conflictResolverProvider: "codex",
     conflictResolverModel: "gpt-5.6",
     conflictResolverEffort: "high",
@@ -67,6 +71,8 @@ import { applyDefaultPrAutomation } from "./prAutomationActions";
 describe("applyDefaultPrAutomation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.settings.conflictResolverSelection = undefined;
+    mocks.settings.wslConflictResolverSelection = undefined;
     mocks.settings.prAutomationDefault = "merge";
     mocks.upsertPrWatch.mockImplementation(async (input) => ({
       ...(input as Omit<
@@ -85,6 +91,28 @@ describe("applyDefaultPrAutomation", () => {
       activeThreadId: null,
       lastError: null,
     }));
+  });
+
+  it.each([
+    { model: "uncatalogued" },
+    { model: "uncatalogued", effort: "", fast: false, thinking: false, contextSize: "" },
+    { model: "uncatalogued", effort: "custom", fast: true, thinking: true, contextSize: "large" },
+  ])("sends complete canonical automation config without utility binding: %j", async (actual) => {
+    mocks.settings.conflictResolverSelection = {
+      ...actual,
+      selectionBinding: {
+        version: 1,
+        kind: "family-member",
+        owner: { agentKind: mocks.agent.kind, presentationMode: "gui" },
+        model: actual.model,
+        inertValues: { fast: false },
+      },
+    };
+    await applyDefaultPrAutomation({ project, prNumber: 42, headBranch: "branch" });
+    expect(mocks.upsertPrWatch.mock.calls[0]?.[0]).toMatchObject({ config: actual });
+    expect(prWatchInputSchema.parse(mocks.upsertPrWatch.mock.calls[0]?.[0]).config).toStrictEqual(
+      actual,
+    );
   });
 
   it("enables the configured defaults for a newly created pull request", async () => {

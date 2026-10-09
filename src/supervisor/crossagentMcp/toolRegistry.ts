@@ -30,7 +30,6 @@ import {
   runToolResult,
   WAIT_AGAIN_INSTRUCTION,
   parseWaitOptions,
-  parseOutputMode,
   parseWaitTimeoutMs,
   TIMEOUT_S_DESCRIPTION,
 } from "./toolResult";
@@ -196,6 +195,12 @@ const SUBAGENT_REQUEST_PROPERTIES = {
     description:
       "Return immediately with a run_id so the parent can continue useful work. The result is never injected as a message; call wait_for_agent at a synchronization point if it is required. Default false waits for completion. Background runs survive parent-turn interruption but stop when the parent thread closes.",
   },
+} as const;
+
+const INCLUDE_TRACE_PROPERTY = {
+  type: "boolean",
+  description:
+    "Opt in to a bounded dispatch-time selection/fallback trace with normalized attempt outcomes. Excludes prompts, output, raw errors and environment values. Omitted/false keeps the normal response. Retained only while this host retains the run.",
 } as const;
 
 const RAW_TOOLS: ToolSpec[] = [
@@ -378,6 +383,7 @@ const RAW_TOOLS: ToolSpec[] = [
         output_mode: OUTPUT_MODE_PROPERTY,
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
         after_output_chars_by_run: AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY,
+        include_trace: INCLUDE_TRACE_PROPERTY,
         wait_mode: {
           type: "string",
           enum: ["all", "any"],
@@ -401,6 +407,7 @@ const RAW_TOOLS: ToolSpec[] = [
         full_output: FULL_OUTPUT_PROPERTY,
         output_mode: OUTPUT_MODE_PROPERTY,
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
+        include_trace: INCLUDE_TRACE_PROPERTY,
       },
     },
   },
@@ -770,7 +777,7 @@ export async function dispatchTool(
         return jsonResult({ run_ids: runs.map(({ runId }) => runId) }, WAIT_AGAIN_INSTRUCTION);
       }
       case "wait_for_agent": {
-        parseOutputMode(args);
+        const waitOptions = parseWaitOptions(args);
         if (args.wait_mode !== undefined && args.wait_mode !== "all" && args.wait_mode !== "any") {
           return errorResult("wait_mode must be all or any");
         }
@@ -796,12 +803,12 @@ export async function dispatchTool(
             runId,
             parseWaitTimeoutMs(args),
             ctx.parentThreadId,
-            parseWaitOptions(args),
+            waitOptions,
           ),
         );
       }
       case "wait_for_agents": {
-        parseOutputMode(args);
+        parseWaitOptions(args);
         const runIds = parseRunIds(args);
         return runToolResult(
           await ctx.runManager.waitForMany(

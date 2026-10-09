@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   CreateElicitationRequest as AcpCreateElicitationRequest,
   type CompleteElicitationNotification,
@@ -45,6 +46,18 @@ interface AcpSessionRequestsOptions {
   ensureMapperState: () => AcpMapperState;
   emitRuntimeEvents: (events: RuntimeEvent[]) => void;
   setRequestAttention: (attention: RequestAttention) => void;
+  /**
+   * Test seam. Production ids embed a per-instance nonce so they stay unique
+   * across reloaded handles and process restarts; tests inject a deterministic
+   * factory. The returned id is opaque to every consumer.
+   */
+  createRequestId?: (kind: "perm" | "elicit", seq: number) => ThreadServerRequestId;
+  /**
+   * Presentation copy of an elicitation request. The opened event uses this
+   * copy; the pending resolver keeps the original request for reply
+   * normalization.
+   */
+  projectElicitationPresentation?: (request: CreateElicitationRequest) => CreateElicitationRequest;
 }
 
 interface PendingElicitation {
@@ -71,8 +84,15 @@ export class AcpSessionRequests {
   >();
   private permissionRequestSeq = 0;
   private elicitationRequestSeq = 0;
+  private readonly requestIdNonce = randomUUID();
 
   constructor(private readonly options: AcpSessionRequestsOptions) {}
+
+  /** The kind prefix is for log readability only; ids are opaque. */
+  private nextRequestId(kind: "perm" | "elicit"): ThreadServerRequestId {
+    const seq = kind === "perm" ? this.permissionRequestSeq++ : this.elicitationRequestSeq++;
+    return this.options.createRequestId?.(kind, seq) ?? `acp-${kind}-${this.requestIdNonce}-${seq}`;
+  }
 
   requestPermission(params: RequestPermissionRequest): Promise<RequestPermissionResponse> {
     const isQuestion = parseAcpPermissionQuestions(params).length > 0;
@@ -84,7 +104,7 @@ export class AcpSessionRequests {
     }
 
     return new Promise<RequestPermissionResponse>((resolve) => {
-      const requestId = `acp-perm-${this.permissionRequestSeq++}`;
+      const requestId = this.nextRequestId("perm");
 
       this.pendingPermissionResolvers.set(requestId, {
         isQuestion,
@@ -124,7 +144,7 @@ export class AcpSessionRequests {
 
   createElicitation(params: CreateElicitationRequest): Promise<CreateElicitationResponse> {
     return new Promise<CreateElicitationResponse>((resolve) => {
-      const requestId = `acp-elicit-${this.elicitationRequestSeq++}`;
+      const requestId = this.nextRequestId("elicit");
       const urlElicitationId = AcpCreateElicitationRequest.isUrl(params)
         ? params.elicitationId
         : undefined;
@@ -141,8 +161,9 @@ export class AcpSessionRequests {
         this.pendingElicitationRequestIdsByElicitationId.set(urlElicitationId, requestId);
       }
 
+      const presentation = this.options.projectElicitationPresentation?.(params) ?? params;
       this.options.emitRuntimeEvents([
-        mapAcpElicitationRequest(params, this.options.ensureMapperState(), String(requestId)),
+        mapAcpElicitationRequest(presentation, this.options.ensureMapperState(), String(requestId)),
       ]);
       this.options.setRequestAttention("needs_reply");
     });
@@ -169,7 +190,7 @@ export class AcpSessionRequests {
     }
     const resolved = this.resolvePendingElicitationRequest(requestId, response);
     if (resolved) {
-      this.emitResolvedAndResume(requestId, "answered");
+      this.emitResolvedAndResume(requestId, elicitationOutcome(response));
     }
     return resolved;
   }
@@ -259,4 +280,15 @@ function permissionOutcome(response: unknown): "accepted" | "declined" | "cancel
   if (record.action === "cancel") return "cancelled";
   if (isRejectionOptionId(record.optionId)) return "declined";
   return "accepted";
+}
+
+/** Maps the structured elicitation action to its canonical outcome; unknown shapes count as answered. */
+function elicitationOutcome(response: unknown): "answered" | "declined" | "cancelled" {
+  const action =
+    response && typeof response === "object"
+      ? (response as { action?: unknown }).action
+      : undefined;
+  if (action === "decline") return "declined";
+  if (action === "cancel") return "cancelled";
+  return "answered";
 }

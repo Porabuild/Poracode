@@ -1,11 +1,21 @@
 import type { AnyMessage, ClientSideConnection, SessionUpdate } from "@agentclientprotocol/sdk";
 import { vi } from "vitest";
-import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
+import type { RuntimeEvent, SessionRef, ThreadConfig } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
 import { AcpStructuredSession, rewriteLoadSessionError } from "./session";
 
 export const REPLAY_SESSION_ID = "restored-session";
 export const REPLAY_CONFIG: ThreadConfig = { model: "model-a", effort: "low" };
+export const REPLAY_SESSION_REF: SessionRef = {
+  providerSessionId: REPLAY_SESSION_ID,
+  discoveredAt: "2026-10-09T12:00:00.000Z",
+};
+// Opening retires the old option inventory and confirms idle configuration.
+// Neither metadata update admits replayed activity or opens a work turn.
+export const REPLAY_OPEN_UPDATES: StructuredSessionUpdate[] = [
+  { status: "idle", attention: "none", sessionConfigOptions: null },
+  { status: "idle", attention: "none", config: REPLAY_CONFIG, sessionRef: REPLAY_SESSION_REF },
+];
 
 export function replayActivityUpdates(
   marker: string,
@@ -75,12 +85,15 @@ export function createReplaySession(method: "load" | "resume") {
     listener,
     threadId: "replay-thread",
     projectLocation: { kind: "windows", path: "C:\\repo" },
+    additionalDirectories: Object.freeze([]),
     cwd: "C:\\repo",
     mcpServers: [],
     launchOptions: {},
     loadSessionErrorRewriter: rewriteLoadSessionError,
     agentSessionCapabilities: method === "resume" ? { resume: {} } : {},
     behavior: {},
+    booleanConfigOptions: false,
+    goalCommands: false,
     stderrChunks: [],
     bufferedRuntimeEvents: [],
     acpToolCallIdToItemId: new Map(),
@@ -88,7 +101,11 @@ export function createReplaySession(method: "load" | "resume") {
     reportedBackgroundTasks: [],
     currentStatus: "idle",
     currentAttention: "none",
+    sessionGeneration: 0,
     isDisposed: false,
+    transportClosed: false,
+    transportOutcomeReported: false,
+    spawnReady: Promise.resolve(),
     isReplayingHistory: false,
     replayHistoryUntil: 0,
     promptInFlight: false,
@@ -118,10 +135,6 @@ export function createReplaySession(method: "load" | "resume") {
     update,
     activity,
     openRpc: method === "load" ? connection.loadSession : connection.resumeSession,
-    open: () =>
-      session.openThread(REPLAY_CONFIG, {
-        providerSessionId: REPLAY_SESSION_ID,
-        discoveredAt: "2026-10-09T12:00:00.000Z",
-      }),
+    open: () => session.openThread(REPLAY_CONFIG, REPLAY_SESSION_REF),
   };
 }

@@ -89,6 +89,8 @@
     <string name="home_start">开始</string>
     <string name="home_quick_compose_agent">智能体</string>
     <string name="home_quick_compose_presentation">呈现模式</string>
+    <string name="model_selection_lead">主模型</string>
+    <string name="model_selection_sidekick">辅助模型</string>
     <string name="home_quick_compose_chat">聊天</string>
     <string name="home_quick_compose_terminal">终端</string>
     <string name="home_quick_compose_controls">启动设置</string>

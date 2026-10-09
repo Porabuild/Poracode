@@ -1,6 +1,8 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   detectAgentInstall,
   type AgentAdapter,
   type TerminalStatusHint,
@@ -188,7 +190,15 @@ export function createCommandCodeAdapter(): AgentAdapter {
 
     allowsImplicitOneShotModel: true,
 
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Reasoning effort maps natively (`--effort`); the command-code CLI has
+      // no Fast lane, so false Fast is the declared-inactive legacy carrier and
+      // meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) return undefined;
       return {
         command: "command-code",

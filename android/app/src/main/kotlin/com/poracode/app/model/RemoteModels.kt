@@ -247,7 +247,16 @@ data class RemoteThread(
     val lastTurnEndedAt: String? = null,
     val errorMessage: String? = null,
     val slashCommands: List<RemoteSlashCommand>? = null,
+    /** Live negotiated session controls (`RemoteSessionConfigOption`); null/absent keeps static fallback. */
+    val sessionConfigOptions: List<RemoteSessionConfigOption>? = null,
     val parentThreadId: String? = null,
+    /** Live structured-session identity; absent on older hosts. */
+    val sessionRef: RemoteSessionRef? = null,
+    /** Readonly host projection; absence is unknown, never launch or mutation authority. */
+    @Serializable(with = WorkspaceDirectoryProjectionSerializer::class)
+    val additionalDirectories: List<ProjectLocation>? = null,
+    @Serializable(with = WorkspaceGrantRevisionProjectionSerializer::class)
+    val workspaceGrantRevision: Long? = null,
 ) {
     val isArchived: Boolean get() = archived == true
     val isDone: Boolean get() = done == true

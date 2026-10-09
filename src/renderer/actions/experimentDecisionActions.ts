@@ -486,13 +486,24 @@ export async function createExperimentCandidatePr(
       const settings = useSharedSettings.getState();
       const language = resolveAiLanguageName("match-app", settings.locale, detectOSLocale());
       try {
+        // Candidate metadata is a legacy display projection; prefer its actual config.
+        const config = useAppStore
+          .getState()
+          .threads.find((thread) => thread.id === threadId)?.config;
+        const actual = config ?? candidate;
+        const selection = {
+          model: actual.model ?? "",
+          ...(actual.effort !== undefined ? { effort: actual.effort } : {}),
+          ...(actual.fast !== undefined ? { fast: actual.fast } : {}),
+          ...(config?.thinking !== undefined ? { thinking: config.thinking } : {}),
+          ...(config?.contextSize !== undefined ? { contextSize: config.contextSize } : {}),
+        };
         const summary = await readBridge().generatePrSummary({
           projectLocation: project.location,
           agentKind: candidate.agentKind,
           branch: candidate.worktreeBranch,
           baseBranch: experiment.baseBranch,
-          ...(candidate.model ? { model: candidate.model } : {}),
-          ...(candidate.effort ? { effort: candidate.effort } : {}),
+          selection,
           ...(language ? { language } : {}),
         });
         if (summary.title.trim()) {

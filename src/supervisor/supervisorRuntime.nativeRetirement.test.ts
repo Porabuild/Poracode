@@ -10,6 +10,7 @@ function runtimeFixture(disposeNativeRuntime: () => Promise<void>) {
     disposeWindowsPowerShellPreference: dispose,
     disposeWslCredentialProjectScope: dispose,
     routingOverridePersistence: { dispose },
+    settingsWriter: { dispose },
     usageService: { stop: dispose },
     mcpProbeService: { dispose },
     mcpOAuthService: { dispose },
