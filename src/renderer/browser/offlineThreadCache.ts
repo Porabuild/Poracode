@@ -1,4 +1,5 @@
 import type { RemoteThreadSnapshot } from "@/shared/remote";
+import { stripVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 
 const DATABASE_NAME = "poracode-browser-cache";
 const STORE_NAME = "threadSnapshots";
@@ -57,6 +58,34 @@ function openDatabase(): Promise<IDBDatabase> {
   return databasePromise;
 }
 
+/**
+ * `sessionConfigOptions` is live runtime metadata owned by a session
+ * incarnation (see `stripVolatileSessionConfigOptions`): the host cannot
+ * redeliver it from storage, so a cached transcript must never carry it across
+ * reloads or into an offline hydrate, where it would present stale composer
+ * controls for a session that no longer exists. Cached rows are stripped on
+ * BOTH sides: writes never persist the key, and reads normalize it away from
+ * rows already written before the write-side strip. A clean snapshot is
+ * returned as-is; a contaminated one is cloned, never mutated, so the
+ * caller's live snapshot keeps its event-delivered inventory.
+ */
+function stripVolatileSessionConfigOptionsFromSnapshot(
+  snapshot: RemoteThreadSnapshot,
+): RemoteThreadSnapshot {
+  // Cache values are validated by the hydration reader after this boundary.
+  // Leave malformed envelopes to that validator instead of throwing inside
+  // the IndexedDB success callback and waiting for the read timeout.
+  if (
+    typeof snapshot !== "object" ||
+    snapshot === null ||
+    typeof snapshot.thread !== "object" ||
+    snapshot.thread === null
+  )
+    return snapshot;
+  const thread = stripVolatileSessionConfigOptions(snapshot.thread);
+  return thread === snapshot.thread ? snapshot : { ...snapshot, thread };
+}
+
 export async function cacheBrowserThreadSnapshot(snapshot: RemoteThreadSnapshot): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
@@ -66,7 +95,7 @@ export async function cacheBrowserThreadSnapshot(snapshot: RemoteThreadSnapshot)
       const store = transaction.objectStore(STORE_NAME);
       store.put({
         threadId: snapshot.thread.id,
-        snapshot,
+        snapshot: stripVolatileSessionConfigOptionsFromSnapshot(snapshot),
         updatedAt: Date.now(),
       } satisfies CachedThreadSnapshot);
       // Prune over the updatedAt index newest-first in the SAME transaction —
@@ -121,8 +150,10 @@ export async function readCachedBrowserThreadSnapshot(
         }
         finish(new Error("Browser cache read timed out."));
       }, remaining);
-      request.onsuccess = () =>
-        finish(null, (request.result as CachedThreadSnapshot | undefined)?.snapshot ?? null);
+      request.onsuccess = () => {
+        const cached = (request.result as CachedThreadSnapshot | undefined)?.snapshot ?? null;
+        finish(null, cached ? stripVolatileSessionConfigOptionsFromSnapshot(cached) : null);
+      };
       request.onerror = () => finish(request.error ?? new Error("Unable to read browser cache."));
       transaction.onabort = () =>
         finish(transaction.error ?? new Error("Unable to read browser cache."));

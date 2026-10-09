@@ -2,7 +2,11 @@ import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import { mergeDevinMcpConfig, prepareDevinMcpConfig } from "./mcpConfig";
+import {
+  mergeDevinMcpConfig,
+  prepareDevinMcpConfig,
+  prepareDevinMcpConfigForRoots,
+} from "./mcpConfig";
 const roots: string[] = [];
 afterEach(async () => {
   vi.unstubAllEnvs();
@@ -64,6 +68,35 @@ it("rejects malformed existing catalogs rather than discarding user configuratio
   );
 });
 
+it("keeps remote servers on the tool-filter stdio relay even though native injection is proven", () => {
+  // Corrected live evidence (devin 3000.11.3, tmp/devin/probe/results/):
+  // native session/new injection DOES work — stdio entries and spec-exact
+  // `{type:"http"|"sse", name, url, headers:[{name,value}]}` entries all
+  // completed real tools/list + tools/call round trips inside prompt turns.
+  // The overlay still serializes remote servers to the stdio relay for a
+  // different reason: Poracode's per-server `disabledTools` filtering is
+  // enforced by its stdio tool-filter proxy, and a natively injected remote
+  // server would bypass it. Direct native injection must not be adopted per
+  // server until that filter guarantee is re-established.
+  const remote = (transport: {
+    type: "http" | "sse";
+    url: string;
+    headers: Record<string, string>;
+  }) => [{ id: "poracode", timeoutMs: 15000, name: "poracode", transport }];
+  expect(() =>
+    mergeDevinMcpConfig(
+      '{"mcpServers":{}}',
+      remote({ type: "http", url: "https://fixture.test/mcp", headers: {} }),
+    ),
+  ).toThrow("Devin session MCP requires a stdio relay");
+  expect(() =>
+    mergeDevinMcpConfig(
+      '{"mcpServers":{}}',
+      remote({ type: "sse", url: "https://fixture.test/sse", headers: {} }),
+    ),
+  ).toThrow("Devin session MCP requires a stdio relay");
+});
+
 it("accepts the CLI's JSONC catalog format", () => {
   expect(
     JSON.parse(
@@ -88,4 +121,38 @@ it("keeps the first native session database outside the temporary overlay", asyn
   expect(await readFile(join(original, "devin", "cli", "sessions.db"), "utf8")).toBe(
     "first session",
   );
+});
+
+it("overlays a profile context's roots without touching them and cleans only the private overlay", async () => {
+  // Profile context: an isolated account root (config + data siblings) plus a
+  // private overlay parent. Nothing outside the overlay dir may be written.
+  const accountRoot = await mkdtemp(join(tmpdir(), "devin-account-"));
+  roots.push(accountRoot);
+  const configRoot = join(accountRoot, "config");
+  const overlayParent = join(accountRoot, "tmp");
+  await mkdir(join(configRoot, "devin"), { recursive: true });
+  await writeFile(join(configRoot, "devin", "mcp_config.json"), '{"mcpServers":{}}');
+  await writeFile(join(configRoot, "devin", "config.json"), "account-settings");
+  await mkdir(overlayParent);
+  const overlay = await prepareDevinMcpConfigForRoots(
+    { kind: "posix", path: accountRoot },
+    { root: configRoot, variable: "XDG_CONFIG_HOME", overlayParent },
+    servers,
+  );
+  const overlayDir = overlay.env.XDG_CONFIG_HOME!;
+  expect(overlayDir.startsWith(overlayParent)).toBe(true);
+  // Resources inside the account config root are preserved through the overlay…
+  expect(await readFile(join(overlayDir, "devin", "config.json"), "utf8")).toBe("account-settings");
+  expect(
+    JSON.parse(await readFile(join(overlayDir, "devin", "mcp_config.json"), "utf8")),
+  ).toMatchObject({ mcpServers: { poracode: { command: "node" } } });
+  // …the original root is never modified…
+  expect(await readFile(join(configRoot, "devin", "mcp_config.json"), "utf8")).toBe(
+    '{"mcpServers":{}}',
+  );
+  // …and cleanup removes only the private overlay dir.
+  await overlay.cleanup();
+  await expect(stat(overlayDir)).rejects.toMatchObject({ code: "ENOENT" });
+  await expect(stat(join(overlayParent, "devin"))).rejects.toMatchObject({ code: "ENOENT" });
+  expect(await readFile(join(configRoot, "devin", "config.json"), "utf8")).toBe("account-settings");
 });

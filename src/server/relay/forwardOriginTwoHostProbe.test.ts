@@ -2,6 +2,10 @@ import { randomBytes } from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { WebSocket, WebSocketServer } from "ws";
 import {
   createForwardOriginIdentity,
@@ -149,7 +153,11 @@ async function startProbeHost(input: {
   });
   expect(tokenResponse.status).toBe(200);
   const { accessToken } = (await tokenResponse.json()) as { accessToken: string };
-  const bearer = { authorization: `Bearer ${accessToken}`, "content-type": "application/json" };
+  const bearer = {
+    authorization: `Bearer ${accessToken}`,
+    "content-type": "application/json",
+    [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  };
 
   return {
     serverId: input.serverId,

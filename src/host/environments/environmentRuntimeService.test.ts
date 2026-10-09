@@ -223,7 +223,7 @@ async function openHarness(options: HarnessOptions = {}, existingRoot?: string):
   const descriptorReader: EnvironmentDescriptorReader = async () => {
     descriptorCalls += 1;
     return {
-      protocolVersion: 12,
+      protocolVersion: 13,
       hostMode: "helper",
       desktopId: descriptorId,
       label: "Remote",

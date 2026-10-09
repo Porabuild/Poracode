@@ -5,6 +5,7 @@ import {
   normalizeSidebarShortcutOrder,
   normalizeThreadDocksOrder,
   reorderVisibleThreadDocks,
+  sharedSettingsSchema,
 } from "./settings";
 
 describe("shared settings defaults", () => {
@@ -527,5 +528,109 @@ describe("machine-scoped settings normalization", () => {
 
   it("recovers an entirely corrupt machineSettings value", () => {
     expect(normalizeSharedSettings({ machineSettings: "garbage" }).machineSettings).toEqual({});
+  });
+});
+
+describe("canonical AI-utility selection settings", () => {
+  const binding = {
+    version: 1,
+    kind: "family-member",
+    owner: { agentKind: "sample-agent", presentationMode: "terminal" },
+    model: "member-a",
+    inertValues: { effort: "", fast: false },
+  } as const;
+  const fullSelection = {
+    model: "member-a",
+    effort: "",
+    fast: false,
+    thinking: false,
+    contextSize: "default",
+    selectionBinding: binding,
+  };
+
+  it("leaves the seven canonical selections absent from defaults and legacy input", () => {
+    for (const key of [
+      "commitGenSelection",
+      "titleGenSelection",
+      "conflictResolverSelection",
+      "experimentJudgeSelection",
+      "wslCommitGenSelection",
+      "wslTitleGenSelection",
+      "wslConflictResolverSelection",
+    ] as const) {
+      expect(Object.hasOwn(defaultSharedSettings, key)).toBe(false);
+      expect(Object.hasOwn(normalizeSharedSettings({}), key)).toBe(false);
+      expect(Object.hasOwn(normalizeSharedSettings({ commitGenModel: "m" }), key)).toBe(false);
+    }
+  });
+
+  it("never backfills a canonical object from the legacy scalar siblings", () => {
+    const normalized = normalizeSharedSettings({
+      commitGenProvider: "claude",
+      commitGenModel: "opus",
+      commitGenEffort: "high",
+      commitGenFast: true,
+      wslTitleGenModel: "sonnet",
+      experimentJudgeModel: "glm",
+    });
+    expect(Object.hasOwn(normalized, "commitGenSelection")).toBe(false);
+    expect(Object.hasOwn(normalized, "wslTitleGenSelection")).toBe(false);
+    expect(Object.hasOwn(normalized, "experimentJudgeSelection")).toBe(false);
+  });
+
+  it("preserves a present canonical object exactly, including falsy carriers and binding", () => {
+    const normalized = normalizeSharedSettings({
+      commitGenSelection: fullSelection,
+      wslConflictResolverSelection: { model: "" },
+    });
+    expect(normalized.commitGenSelection).toEqual(fullSelection);
+    // Empty model stays the implicit/default convention, never rewritten.
+    expect(normalized.wslConflictResolverSelection).toEqual({ model: "" });
+  });
+
+  it("keeps absent fields absent while sibling selections are present", () => {
+    const normalized = normalizeSharedSettings({ titleGenSelection: { model: "m" } });
+    expect(normalized.titleGenSelection).toEqual({ model: "m" });
+    for (const key of [
+      "commitGenSelection",
+      "conflictResolverSelection",
+      "experimentJudgeSelection",
+      "wslCommitGenSelection",
+      "wslTitleGenSelection",
+      "wslConflictResolverSelection",
+    ] as const) {
+      expect(Object.hasOwn(normalized, key)).toBe(false);
+    }
+  });
+
+  it("drops a present value that fails its schema instead of minting a default", () => {
+    const normalized = normalizeSharedSettings({
+      commitGenSelection: { model: "m", effort: 5 },
+      titleGenSelection: { selectionBinding: { version: 2 } },
+    });
+    expect(Object.hasOwn(normalized, "commitGenSelection")).toBe(false);
+    expect(Object.hasOwn(normalized, "titleGenSelection")).toBe(false);
+  });
+
+  it("requires model when the object is present and rejects malformed bindings", () => {
+    const normalized = normalizeSharedSettings({ commitGenSelection: {} });
+    expect(Object.hasOwn(normalized, "commitGenSelection")).toBe(false);
+    const malformed = normalizeSharedSettings({
+      commitGenSelection: { ...fullSelection, selectionBinding: { ...binding, version: 2 } },
+    });
+    expect(Object.hasOwn(normalized, "commitGenSelection")).toBe(false);
+    expect(malformed.commitGenModel).toBe("");
+  });
+
+  it("round-trips a canonical selection through schema.safeParse with future/unknown rejection", () => {
+    const parsed = sharedSettingsSchema.shape.commitGenSelection.safeParse(fullSelection);
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data).toEqual(fullSelection);
+    expect(
+      sharedSettingsSchema.shape.commitGenSelection.safeParse({
+        ...fullSelection,
+        futureTopLevel: true,
+      }).success,
+    ).toBe(false);
   });
 });

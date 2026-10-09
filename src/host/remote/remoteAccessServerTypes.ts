@@ -22,6 +22,7 @@ import type {
   RuntimeHistoryNoticeLookup,
 } from "@/shared/runtimeHistoryNotice";
 import type { TerminalBaselineStreamScheduler } from "./server/terminalBaselineStream";
+import type { SessionConfigInventory } from "./server/sessionConfigInventory";
 import type { PrincipalAdmissionController } from "./server/principalAdmission";
 import type {
   BackgroundTask,
@@ -694,6 +695,8 @@ export interface RemoteAccessServerHost {
   readonly desktopInternalClients: Set<WebSocket>;
   readonly desktopReplayingClients: Set<WebSocket>;
   readonly backgroundTasksByThread: Map<string, readonly BackgroundTask[]>;
+  /** Volatile latest per-thread session-control inventory (see `sessionConfigInventory.ts`). */
+  readonly sessionConfigInventory: SessionConfigInventory;
   readonly maxConcurrentIngressWork: number;
   readonly maxConcurrentIngressWorkPerSource: number;
   readonly maxConcurrentIngressWorkPerAddress: number;

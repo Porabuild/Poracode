@@ -4,8 +4,10 @@ import type {
   GenerateTitleResult,
   ProjectLocation,
 } from "@/shared/contracts";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas";
 import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { toErrorMessage } from "@/shared/errorMessage";
+import { resolveUtilitySelection } from "@/renderer/utils/utilitySelection";
 import {
   createUtilityTaskRegistry,
   getMiniModelId,
@@ -49,38 +51,63 @@ export function getTitleGenCandidates(
   });
 }
 
-export async function generateTitleWithFallback(input: {
+export interface GenerateTitleWithFallbackInput {
   projectLocation: ProjectLocation;
   agentStatuses: readonly AgentStatus[];
   provider: string;
-  model: string;
-  effort: string;
+  /**
+   * Legacy scalar preset, kept for callers that still read the scalar
+   * siblings. Superseded by `selection` when it is present.
+   */
+  model?: string;
+  effort?: string;
   /** Opus-only fast mode; only forwarded when the resolved candidate model supports it. */
   fast?: boolean;
+  /**
+   * Canonical complete utility selection — the sole tuple when present.
+   * Absent, the scalars above convert to an unstamped tuple at this
+   * boundary. Empty effort and false Fast survive transport exactly, and a
+   * recognized binding travels with its own selection only.
+   */
+  selection?: ModelSelection;
   prompt: string;
   /** English name of the language to write the title in. Omitted = match the user's message. */
   language?: string;
   invoke: (payload: GenerateTitlePayload) => Promise<GenerateTitleResult>;
-}): Promise<string> {
+}
+
+export async function generateTitleWithFallback(
+  input: GenerateTitleWithFallbackInput,
+): Promise<string> {
   const candidates = getTitleGenCandidates(input.agentStatuses, input.provider);
   if (candidates.length === 0) {
     throw new Error("No agent available to generate title");
   }
 
+  const legacy = {
+    model: input.model ?? "",
+    effort: input.effort ?? "",
+    fast: input.fast ?? false,
+  };
+
   const failures: string[] = [];
 
   for (const candidate of candidates) {
-    const resolved = resolveTitleGenConfig(candidate, input.model, input.effort);
-    const fast = resolveFastValue(candidate, resolved.model, input.fast);
+    const selection = resolveUtilitySelection(input.selection, legacy, (scalars) => {
+      const resolved = resolveTitleGenConfig(candidate, scalars.model, scalars.effort);
+      return {
+        model: resolved.model,
+        effort: resolved.effort,
+        fast: resolveFastValue(candidate, resolved.model, scalars.fast),
+      };
+    });
 
     try {
       const result = await input.invoke({
         projectLocation: input.projectLocation,
         agentKind: candidate.kind,
         prompt: input.prompt,
-        ...(resolved.model ? { model: resolved.model } : {}),
-        ...(resolved.effort ? { effort: resolved.effort } : {}),
-        ...(fast ? { fast: true } : {}),
+        selection,
         ...(input.language ? { language: input.language } : {}),
       });
       return result.title;

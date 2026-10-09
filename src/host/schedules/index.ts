@@ -3,6 +3,7 @@ import {
   dbGetSchedule,
   dbGetSchedules,
   dbListScheduleRuns,
+  dbPatchScheduleRuntime,
   dbUpsertSchedule,
 } from "@/host/db";
 import type { ScheduledTask } from "@/shared/contracts";
@@ -13,6 +14,8 @@ export interface DeviceScheduleServiceOptions {
   runTask: (task: ScheduledTask) => Promise<string>;
   /** Marks a schedule's dangling run rows interrupted after a restart. */
   onStartupInterrupted?: (scheduleId: string) => void;
+  /** Report one failed background task without stopping healthy siblings. */
+  onError?: (scheduleId: string, error: unknown) => void;
 }
 
 export function createDeviceScheduleService(
@@ -23,11 +26,13 @@ export function createDeviceScheduleService(
       list: dbGetSchedules,
       get: dbGetSchedule,
       upsert: dbUpsertSchedule,
+      patchRuntime: dbPatchScheduleRuntime,
       delete: dbDeleteSchedule,
     },
     runTask: options.runTask,
     listRuns: dbListScheduleRuns,
     ...(options.onStartupInterrupted ? { onStartupInterrupted: options.onStartupInterrupted } : {}),
+    ...(options.onError ? { onError: options.onError } : {}),
   });
 }
 

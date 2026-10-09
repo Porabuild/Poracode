@@ -4,6 +4,8 @@ import { cursorProfileKind } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
@@ -19,6 +21,7 @@ import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/i
 import { transformCursorAcpSessionUpdate } from "./acpTransform";
 import { handleCursorAcpExtensionNotification } from "./acpExtension";
 import { buildCursorArgs } from "./argv";
+import { resolveCursorOneShotModel } from "./oneShotSelection";
 import {
   CURSOR_ACP_CLIENT_CAPABILITIES_META,
   cursorDefaultCapabilities,
@@ -308,10 +311,15 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
     },
     shouldApplyTerminalStatusWhileHookActive: cursorHookActiveTerminalFallback,
     defaultOneShotModel: "composer-2.5",
-    buildOneShotCommand(model, _effort, _prompt, location) {
+    buildOneShotCommand(model, effort, _prompt, location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      const resolvedModel = resolveCursorOneShotModel(selection);
       const args = ["--print", "--force", "--trust", "--output-format", "json"];
-      if (model && model !== "auto") {
-        args.push("--model", model);
+      if (resolvedModel && resolvedModel !== "auto") {
+        args.push("--model", resolvedModel);
       }
       if (location) {
         const spec = buildCursorArgvSpec(location, args);
@@ -319,11 +327,13 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
       }
       return { command: "cursor-agent", args };
     },
-    buildContextExtractionCommand(sessionRef, location, model) {
+    buildContextExtractionCommand(sessionRef, location, model, oneShotOptions) {
       // `sdk:` identifies Cursor's SDK-local Agent store, not a cursor-agent
       // CLI chat. Passing it to `cursor-agent --resume` can open the wrong
       // conversation or fail with an invalid session id.
       if (sessionRef.providerSessionId.startsWith(CURSOR_SDK_SESSION_PREFIX)) return undefined;
+      const selection = resolveCheckedOneShotResumeSelection(model, oneShotOptions);
+      const resolvedModel = resolveCursorOneShotModel(selection);
       const args = [
         "--print",
         "--force",
@@ -332,8 +342,8 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         "--output-format",
         "json",
       ];
-      if (model && model !== "auto") {
-        args.push("--model", model);
+      if (resolvedModel && resolvedModel !== "auto") {
+        args.push("--model", resolvedModel);
       }
       const spec = buildCursorArgvSpec(location, args);
       return { command: spec.binary, args: spec.args, ...(spec.env ? { env: spec.env } : {}) };

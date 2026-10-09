@@ -310,8 +310,8 @@ public enum RemoteUnionProbe {
   }
   public static func matchesString(_ decoder: Decoder, literals: [RemoteJSONValue] = [], pattern: String? = nil, minLength: Int? = nil, maxLength: Int? = nil) -> Bool {
     guard let value = try? decoder.singleValueContainer().decode(String.self), literals.isEmpty || literals.contains(.string(value)) else { return false }
-    // JSON Schema length follows JavaScript/Zod String.length: UTF-16 code units.
-    let length = value.utf16.count
+    // JSON Schema string bounds count Unicode code points, not UTF-16 units or graphemes.
+    let length = value.unicodeScalars.count
     return (pattern == nil || value.range(of: pattern!, options: .regularExpression) != nil) && (minLength == nil || length >= minLength!) && (maxLength == nil || length <= maxLength!)
   }
   public static func matchesNumber(_ decoder: Decoder, integer: Bool, literals: [RemoteJSONValue] = [], minimum: Double? = nil, maximum: Double? = nil, exclusiveMinimum: Double? = nil, exclusiveMaximum: Double? = nil) -> Bool {

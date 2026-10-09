@@ -7,6 +7,7 @@ import { SubagentSpawnError } from "./errors";
 import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
 import type { SpawnAgentRequest, SpawnAgentSelection } from "./types";
 import { compactResultPrompt } from "./compactResult";
+import { snapshotDispatchTrace, type DispatchTraceSnapshot } from "./dispatchTrace";
 
 export interface ResolvedSpawnAttempt {
   adapter: AgentAdapter;
@@ -26,6 +27,7 @@ export interface ResolvedSpawnAttempt {
 }
 
 export interface PreparedSubagentRun {
+  dispatchTrace?: DispatchTraceSnapshot;
   prompt: string;
   resultMode?: "compact";
   projectLocation: ProjectLocation;
@@ -74,6 +76,7 @@ export function prepareSubagentRun(
 
   const workerPrompt = `${WORKER_INSTRUCTIONS}\n\n${prompt}`;
   return {
+    dispatchTrace: snapshotDispatchTrace(request, attempts, request.retryMode ?? "startup"),
     prompt: request.resultMode === "compact" ? compactResultPrompt(workerPrompt) : workerPrompt,
     ...(request.resultMode ? { resultMode: request.resultMode } : {}),
     projectLocation: parent.projectLocation,

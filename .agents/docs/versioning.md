@@ -4,12 +4,40 @@ Cursor ACP declares `preserveEmptyModelEfforts` so a verified model config with
 no effort choices becomes an authoritative empty ladder. Failed/unprobed model
 requests remain absent and can use the existing CLI fallback. Previous derived
 statuses omitted confirmed empties and could display unsupported global effort
-tiers. Supervisor status-cache format 41 and renderer status-store version 37
-invalidate both previous copies (40 / 36), with regressions starting from those
-versions. ThreadConfig, session references, database, IPC/remote protocols and
+tiers. Supervisor status-cache format 48 and renderer status-store version 44
+invalidate both integration parents (target 47 / 43 and issue branch 41 / 37),
+as well as the original 40 / 36 catalogs. Regressions start from these versions.
+ThreadConfig, session references, database, IPC/remote protocols and
 deployed helpers keep their existing formats: the selected model and saved
 effort remain valid data, and ACP sync already refuses unadvertised effort values.
 Only the derived capability catalogs must be recomputed.
+
+ACP prompt consumption supports a provider-declared `per-call` mode alongside
+its existing `cumulative` mode. The wire enum, usage event shape, SQLite tables,
+remote protocol 12, and native readers already support both; no schema or
+protocol bump is needed. New per-call prompt samples use opaque
+`acp-prompt-v1:<scope>:<epoch>:<turn>` IDs. Existing cumulative baselines and
+historical usage rows remain valid and are never rewritten; equal/decreasing
+new per-call totals count fully and repeated sample IDs deduplicate. A real
+SQLite pre-change-baseline regression covers that transition. Historical totals
+produced by an incorrect earlier counter declaration cannot be reconstructed
+from the derived delta rows alone. Prompt consumption can independently opt out
+of context occupancy, leaving standard `usage_update` authoritative. Internal
+notification hooks additionally carry optional live session/turn owners; these
+are same-bundle callbacks, not serialized protocol fields. Content hashes
+identify the changed producer and lifecycle behavior.
+Crossagents plugin `1.9.0` adds optional `include_trace` to `get_status` and
+single/batch `wait_for_agent`. The manifest also supplies the MCP server version.
+Omitted/false keeps the previous response; compact reports, quiet/full/progress
+reads and output cursors keep their existing meaning. Dispatch provenance is
+copied into the existing memory-only resolved run plan; attempts reuse existing
+outcomes and dispatch state. No database, settings, cache, remote-wire, helper or
+compact-envelope version changes. Older stored settings and connected callers
+remain valid; refresh the catalog/skill to discover the opt-in capability. Older
+hosts do not advertise it. Trace expires under existing run retention and host
+restart. Regression tests start with prior read shapes and cover privacy bounds,
+saved/per-call policy sources, explicit empty chains, batch/cursor isolation,
+workflow selection and winning-session continuation.
 
 Codex resume requests use the existing optional `excludeTurns` protocol field
 and a resume-only two-minute timeout. Saved transcripts and provider session IDs
@@ -21,6 +49,38 @@ Regressions cover the old-server response, slow success, bounded timeout and
 metadata-only resume for both reopening and context-window reloads.
 
 Poracode keeps data and deployed artifacts across app upgrades. A change can work in a clean profile and still fail for existing users when an old cache, renderer store, helper, or plugin remains on disk. Treat every serialized or deployed boundary as an upgrade contract.
+
+Reacquiring a runtime item-interest lease after a coverage gap rebuilds the
+renderer transcript through its existing bounded history recovery and queue
+arbitration. The cached hydration marker is window-local; persisted history,
+wire contracts and cache formats remain valid. No boundary version changes.
+
+Devin account/configuration profiles change derived auth, catalog and approval
+semantics. Supervisor status-cache format 41 and renderer status-store version
+37 intentionally invalidate the previous 40/36 rows. Usage cache format 9
+invalidates version 8: cached quota now belongs to an opaque credential-source
+fingerprint, and source changes retire cached and in-flight results. Regression
+fixtures start from each previous version.
+
+The optional session-action query/invoke names are additive. An older host
+rejects the query by name; clients hide unsupported controls and only invoke
+ids returned by the current session. Hop 16 and remote protocol 12 remain valid;
+the procedure-map fingerprint and generated source/manifest hashes change
+intentionally. Invocation is declared as a mutation in client-local transport
+policy so a dispatched failure has an unknown outcome and is not retried.
+That policy is excluded from published authorization/routing metadata.
+
+`SessionRef.executionIdentity` is optional opaque provider-owned resume scope.
+Existing native/default references remain valid. Previous published reference
+schemas explicitly strip unknown fields, so they can read the new metadata;
+profiles requiring scope validation refuse an unstamped resume instead of
+attaching to another account. Current Swift/Kotlin bindings preserve the field,
+including the iOS domain reference and Android's JSON projection. SQLite stores
+complete reference JSON, so its schema and migration version stay unchanged.
+Profile config and isolated account-root manifests introduce format 1; unknown
+formats remain stored and unavailable. Per-launch hook/config files are private,
+uniquely named and never reused across app versions. Content hashes identify the
+changed runtime and renderer artifacts.
 
 Agent-status readiness uses process-local publication ownership and detached
 validated snapshots. Completed probes become readable before the complete sweep
@@ -132,6 +192,59 @@ ACP ranged text reads now scan UTF-8 incrementally and close the file after the 
 
 Payload-projection composition uses the same deterministic pure-leaf generator in tsdown, Vite, source-test Node loaders and synthetic CLI bundles. Node loaders emit file URL imports; Vite watches directories outside its imported-file bookkeeping and invalidates the module when projection leaves appear or disappear. The generator is tooling only: packaged readers retain their static projection array, provider ownership and payload-origin contracts. No persisted/cache/wire or independently deployed helper shape changes; previous complete artifacts remain valid. Source-fork, CLI lifecycle, Vite discovery and previous-generator differential checks cover these execution paths.
 
+### Session references from failed starts
+
+A configuration error after native session creation now retains that attempt's
+exact `SessionRef` on the existing `thread-state` recovery update. The provider's
+opaque execution binding is preserved before the unpublished handle is disposed;
+private, thread-scoped error custody keeps concurrent attempts separate. Resume
+availability still respects the adapter's declared support. No failed prompt is
+repeated automatically. Renderer launch rejection preserves a host-confirmed
+reference instead of clearing its recovery flag.
+
+This uses already-versioned reference/state fields and their existing native
+mirrors; no wire, database, status-cache or persisted error shape changes. Existing
+unreferenced failed rows remain failed: migration must not guess an ID from native
+session lists. Regression coverage verifies capture before disposal, original
+error identity, reused error objects across owners, and renderer rejection order.
+
+### Live session control inventories
+
+Declared select-to-Fast bindings are private supervisor behavior, not serialized
+configuration or a wire field. They retain the existing `ThreadConfig.fast`
+boolean and `fast` inventory role, with exact native IDs preserved. Old stored
+Fast choices retain their intent; ACP now applies them to the advertised speed
+select instead of folding them into a model ID. CLI variant folding is unchanged.
+Missing or changed carriers reject explicit enables before the prompt. Inventory
+is session-owned and volatile, so no persisted inventory or detection cache is
+reinterpreted. No protocol/store version change is required for this binding.
+Regression coverage includes saved choices, unchanged model identity, missing
+and retired selectors, strict CLI pair rejection, and exact native value echoes.
+
+`Thread.sessionConfigOptions`, the matching `thread-state` field, and internal
+`ThreadRuntimeSnapshot.agentKind`/`sessionConfigOptions` are additive, optional
+runtime metadata. The normalized descriptor preserves exact native select IDs
+and values; host-resolved roles identify existing composer controls. Absence
+supports an older host, `null` retires the inventory, and `[]` records an observed
+empty inventory. Model-scoped ladders apply only to the native current model;
+pending picks of another model use that model's detection capabilities.
+
+These choices belong to a live session incarnation, not the durable thread.
+SQLite has no new column. Remote pulls project the current owner-fenced runtime
+inventory instead of persisting it. Browser app-store and offline transcript
+cache writes omit it; reads normalize any previously cached copy away while
+retaining user config, transcript, cursors and context. Native catalogs retain
+it only in memory. Provider switches and exits retire it.
+
+Protocol 12 and internal IPC/hop 16 remain valid: old readers ignore the new
+optional fields, new readers accept the pre-upgrade shape, and no existing
+method or field changes meaning. All generated Swift/Kotlin/schema mirrors and
+the native parity ledger must be regenerated together. App-store v5 and offline
+DB v2 remain valid because the existing stored catalog/transcript format stays
+readable; only non-authoritative live metadata is stripped on hydration. This
+must be covered by old-shape decode, contaminated-cache read, retirement,
+foreign-owner and pending-refresh race regressions. It is not a general rule
+that optional fields never require a version bump.
 Chrome sidebar extension 0.2.0 added independently negotiated bootstrap protocol 1;
 extension 0.2.1 bumps it to 2 (see the hello handshake below).
 The worker's `SIDEBAR_PROTOCOL_VERSION` mirrors
@@ -377,36 +490,36 @@ payload schemas and persisted settings remain compatible; their versions stay un
 
 ## Persisted data and caches
 
-| Boundary                                          | Version location                                                                                                                                                                                                                                                                                                                                                                                                                                  | What must trigger a review                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SQLite application database                       | `src/host/db/migrations.ts` (`DATABASE_MIGRATIONS`, `LATEST_SCHEMA_VERSION`, currently 54)                                                                                                                                                                                                                                                                                                                                                        | Any table, column, index, constraint, stored JSON meaning, or data repair. Append a migration; never rewrite published history. Migrations 49–51 are forward-only: 49 adds history notice/episode semantics; 50 rejoins divergent schema-42 lineages; 51 fences unresolved legacy relative rollback plans as ambiguous before they can be retried. Existing wire phase values remain compatible.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Runtime durable canonical-gap evidence            | `src/host/db/migrations.ts` (migrations 48 and 49, `forward-only`), `src/host/db/runtimeDurableGap.ts`, `src/host/db/runtimeHistoryNotice.ts` (`runtime_persistence_epoch`, `thread_runtime_gaps.episode_id`, `thread_runtime_epoch_touches`, `thread_runtime_gap_notices`)                                                                                                                                                                       | Boot epoch/arm protocol, touch-before-accept ordering, contamination reasons, episode identity, acknowledgement/notice semantics, and close/rebase clearing rules. A pre-49 database fails validate mode until migrated once. Test validate-before refusal, validate-after success, existing-gap UUID backfill, reopen preservation, and delete/reuse invalidation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Runtime history-gap acknowledgement token         | `src/shared/runtimeHistoryNotice.ts` (`gap2:` generation)                                                                                                                                                                                                                                                                                                                                                                                         | Tokens are opaque and version-prefixed. Reject unknown or malformed tokens. An identity-format revision mints a new prefix; do not reinterpret existing tokens or use timestamps as unique episode identity.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Supervisor agent-status cache                     | `src/supervisor/runtime/agentStatusService.ts` (`STATUS_CACHE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                           | Any `AgentStatus`, capability, auth, runtime-routing, detection, or derived provider result that can make a cached status stale.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Renderer agent-status cache                       | `src/renderer/state/agentStatusesStore.ts` (Zustand `version`)                                                                                                                                                                                                                                                                                                                                                                                    | The same changes as the supervisor status cache. This is a second persisted copy; audit and usually bump both together.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Provider usage cache                              | `src/supervisor/runtime/usageService.ts` (`USAGE_CACHE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                                  | Snapshot shape or changed semantics of a cached usage result.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Claude fast-mode cache                            | `src/supervisor/agents/claude/fastModeCacheCore.ts` (`CACHE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                             | Account keying or availability semantics/shape.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ACP registry icon index                           | `src/supervisor/agents/acpRegistryIcons.ts` (`ICON_INDEX_VERSION`)                                                                                                                                                                                                                                                                                                                                                                                | Index shape, filename derivation, normalization, or cache-validity rules.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Durable package-install pins                      | `src/supervisor/runtime/packageInstallPin.ts` (`PACKAGE_INSTALL_PIN_FILE_VERSION`), path in `src/shared/poracodePaths.ts` (`packageInstallPinsPath`), per-provider slot claim under `src/supervisor/agents/<provider>/` (Cursor: `sdkInstallPin.ts`)                                                                                                                                                                                              | Record shape, slot-keying, or the rule for when a recorded root is trusted versus re-derived. A mismatch is discarded, never migrated: every pin is recoverable by one successful discovery pass, so losing the memory must cost a probe and never an installation. Write only when a slot's meaning changes; readers must keep treating an unreadable or unknown-generation file as "nothing recorded".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ACP registry extracted-artifact layout            | `src/supervisor/agents/acpRegistryInstallDir.ts` (`ACP_REGISTRY_INSTALL_LAYOUT_VERSION`)                                                                                                                                                                                                                                                                                                                                                          | Anything that makes an already-extracted `acp-registry/<id>/<version>/bin` install invalid (mode bits, file placement). Teach `repairAcpRegistryInstallLayouts` the previous generation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Managed skill manifest                            | `src/supervisor/skills/SkillsService.ts` (`SkillManifest.version` and `.poracode-skill.json` parsing/writes)                                                                                                                                                                                                                                                                                                                                      | Manifest fields, projection/copy semantics, hashing, or ownership rules.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Keybindings file                                  | `src/shared/keybindings.ts` (`keybindingsFileSchema.version`) and `src/main/keybindingsFile.ts`                                                                                                                                                                                                                                                                                                                                                   | File shape, command identity, or default-binding migrations. Keep renderer writers in `src/renderer/commands/keybindingStore.ts` aligned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Legacy Lightcode import marker                    | `src/host/legacyDataMigration.ts` (`MIGRATION_VERSION`, marker/request filenames)                                                                                                                                                                                                                                                                                                                                                                 | Import scope or behavior that must run again for already-migrated users.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Experiment persisted store                        | `src/shared/contracts/experiment.ts` (`EXPERIMENT_STORE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                                 | Experiment schema/meaning. Keep `src/renderer/state/experimentStore.ts` (memory-only projection), the host authority writer (`src/host/db/experimentStore.ts`/`src/host/db/experimentIntents.ts`), and remote experiment ownership aligned. The legacy renderer→main `dbPersistExperimentState` mirror (which wrote this key from `src/host/db/sync.ts`) was removed at hop 16 — the host authority is the only store writer and `EXPERIMENT_STORE_VERSION` stays 1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Main renderer app store                           | `src/renderer/state/appStore.ts` (Zustand `version`)                                                                                                                                                                                                                                                                                                                                                                                              | Persisted projects, threads, view, or group-layout shape/semantics. Keep `src/renderer/state/dbStorage.ts` fallback reconstruction aligned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Other renderer stores                             | `src/renderer/state/threadTodoDockStore.ts`, `sidebarUiStore.ts`, and `workspaceStore.ts` (Zustand `version`)                                                                                                                                                                                                                                                                                                                                     | Any field included by `partialize`, its meaning, defaults, or storage location. Add a `migrate` function when retaining data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Panel persist slice                               | `src/renderer/state/panelPersist.ts` (`PANEL_PERSIST_VERSION`), key `poracode-panel`                                                                                                                                                                                                                                                                                                                                                              | Persist shape or meaning of git-review context, browser drawer width, right-panel thread lock, rail offset, or thread list sort/layout. v1 one-time-locks unversioned 1.8.x slices that stored the old unlocked default; later unlocks stay.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Remote-server renderer store                      | `src/renderer/state/remoteServersStore.ts` (Zustand persist `version: 2`)                                                                                                                                                                                                                                                                                                                                                                         | Durable server identity, token, projected projects, or `partialize` shape. v2 makes `connectionId` the per-connection key; v1 documents migrate by `connectionId = desktopId` (byte-identical records), and `migrateRemoteServersPersistedState` passes any version ≥2 through by reference so unknown future fields survive. Managed-parent integration adds the additive `managedHostDesktopId` discriminator to environment transports at the SAME version 2: no accepted field changes meaning, an older reader looks up `findServer(undefined)` and fails closed (no parent, no addressable grant), and a downgrade round trip preserves every field. Both/neither/empty discriminator variants are refused before any dial.                                                                                                                                                                                                                                                                             |
-| Renderer refresh-token subjects (vault roots)     | `src/renderer/state/remoteServers/refreshTokens.ts` (`RefreshSubject` kinds; `refreshSubjectVaultKey`) with the shared record in `tokenVault.ts` (database `lightcode-mobile-vault`, store `entries`)                                                                                                                                                                                                                                             | Credential-grade custody roots: `connection` → `refresh.<connectionId>` (v1 bytes unchanged); remote-environment grant → `environmentRefresh.<parentConnectionId>.<environmentId>`; managed-environment grant → `managedEnvironment.<hostDesktopId>.<environmentId>`. Both environment roots sit outside `refresh.`, so no arbitrary direct id can address them and an older reader's `refresh.` delete/sweep cannot purge them. The pre-correction `refresh.environment.<parent>.<envId>` slot is migrated only when unambiguous (never when a direct record addresses the same slot); the legacy slot is deleted only after a strict successful write of the new root. Ownership fencing + per-slot write serialization keep delayed rotations from resurrecting a removed grant or overwriting a newly paired one. Tests: `refreshTokens.test.ts` (roots, strict write failure, ambiguous/unambiguous migration, old-reader sweep), `managedParentSessions.test.ts`, `desktopLoopbackUnification.test.ts`. |
-| iOS native multi-host catalog                     | `ios/App/App/Models/HostRecord.swift` (`HostRegistryDocument.formatVersion`), `Storage/HostRegistryStore.swift` (`directoryName`, `fileName`), `Storage/HostVault.swift` (`service`, `accountPrefix`, `journalAccount`), `Storage/HostTransactionJournal.swift` (`currentVersion`), and `Storage/LegacyHostImport.swift` (`Receipt.currentVersion`, `Tombstone.currentVersion`)                                                                   | Registry schema, host identity/LRU semantics, Keychain service or account derivation, token encoding, journal record/stage/recovery semantics, or legacy-source fingerprint/import rules. Registry format 2 is stored at Application Support `Poracode/hosts/registry.json`; secrets and journal v3 use the dedicated `com.lightcodeapp.mobile.remote.hosts` Keychain service. Journal v1 and v2 are explicitly migrated during decode. Review registry, vault, journal, import receipts/tombstones, recovery, and upgrade tests as one boundary.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| iOS project sync preferences                      | `ios/App/App/Storage/ProjectSyncPreferences.swift` (`documentVersion`, stable `storageKey`)                                                                                                                                                                                                                                                                                                                                                       | Per-device project exclusion shape or host/project identity semantics. The versioned document is stored in `UserDefaults`; preserve unknown future documents and cover the absent pre-feature state in upgrade tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| iOS AI content language preference                | `ios/App/App/Features/Settings/UI/AIContentLanguagePreference.swift` (`storageKey`)                                                                                                                                                                                                                                                                                                                                                               | The key suffix versions the device-local scalar vocabulary used to prefill commit-message and PR-summary generation requests. Adding, removing, or reinterpreting values requires a new key plus an explicit migration; unknown installed values resolve to `match-app`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| iOS chat text-size preference                     | `ios/App/App/AppTheme.swift` (`PoracodeChatTextSize.storageKey`)                                                                                                                                                                                                                                                                                                                                                                                  | The versioned device-local scalar mirrors the compact PWA's 8...20 range but maps it to native Dynamic Type-aware body, command, and metadata baselines. Changing the range, default, or mapping semantics requires a new key or an explicit migration with an upgrade regression test.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| iOS terminal text-size preferences                | `ios/App/App/Features/Terminal/TerminalTextSurface.swift` (`PoracodeTerminalTextSize.storageKey`, `projectStorageKey`)                                                                                                                                                                                                                                                                                                                            | Versioned device-local scalars independently drive agent-terminal and project-shell rendering plus PTY viewport geometry. The project key falls back to the legacy shared/agent value when absent so upgrades retain their prior size. Changing either role, range, default, fallback, scaling semantics, or cell metrics requires a new key or an explicit migration plus resize regression coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Android native multi-host catalog                 | `android/app/src/main/kotlin/com/poracode/app/model/HostModels.kt` (`HostRegistryDocument.FORMAT_VERSION`), `storage/HostRegistryStore.kt` (`DIRECTORY_NAME`, `FILE_NAME`), `storage/HostVault.kt` (`JOURNAL_ACCOUNT`, `account` and vault envelope), `storage/HostTransactionJournal.kt` (`VERSION`), `storage/LegacyHostImport.kt` (receipt/tombstone filenames and `VERSION`), and `security/AccessTokenCipher.kt` (`HOST_VAULT_ALIAS_PREFIX`) | Registry schema, host identity/LRU semantics, no-backup file locations, vault account/file/envelope or Keystore alias derivation, journal record/phase/recovery semantics, or legacy-source fingerprint/import rules. Registry format 2 is `hosts/registry.json`; vault envelopes, receipts, and tombstones are version 1; the journal is version 2 and explicitly accepts version 1 records. Review registry, encrypted vault files, per-account Keystore keys, journal, import artifacts, recovery, and upgrade tests as one boundary.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Native push registration store                    | `src/host/remote/push/PushRegistrationStore.ts` (`PUSH_REGISTRATIONS_FILE_FORMAT_VERSION`)                                                                                                                                                                                                                                                                                                                                                        | Registration identity/keying, token ownership, routing metadata, or native alert preferences. Format 2 reads both the unversioned legacy `{ registrations }` file and format 1, then writes device-owned sound/status filters on the next mutation; routed records remain keyed by normalized `clientConnectionId`. Unknown future formats are never overwritten. Keep the remote push-registration schema, native clients, and hosted gateway payload consumers aligned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| iOS push unregister outbox                        | `ios/App/App/Features/Notifications/PushUnregisterOutbox.swift` (`Document.version`, `Document.legacyVersion`, `account`, `expiry`)                                                                                                                                                                                                                                                                                                               | Entry shape, parent-authority custody semantics, Keychain account/service derivation, or expiry policy. The document stays in the existing `push-unregister-outbox-v1` Keychain account (service `com.lightcodeapp.mobile.notifications`) and is now document version 2: a v1-only reader sees an unsupported version and preserves the raw document instead of re-encoding an entry without its parent authority (erasing custody) or dispatching it and deleting it as a "child" rejection. v1 documents are read and upgraded durably in place before any caller relies on v2 semantics; a failed migration write preserves the v1 source and fails closed, and unknown future or malformed documents are preserved, never overwritten. Direct entries and their createdAt/expiry semantics are unchanged, and an endpoint-bound capture written by the unreleased v1 candidate survives the upgrade. Tests: `PushStorageTests`.                                                                           |
-| Shared settings and other unversioned JSON stores | `src/shared/settings.ts`, `src/host/sharedSettingsFile.ts`, remote auth/identity/push stores, MCP OAuth, and usage secrets                                                                                                                                                                                                                                                                                                                        | These normalize or validate instead of carrying a version. Any incompatible change still requires an explicit migration, tolerant parser, or introduction of a version field plus legacy handling. `hostResourceAdmission` (resource admission PHASE1) is additive: no `$poracodeSettingsVersion` bump; old readers preserve the bytes and treat absence as the transitional unlimited default; a present invalid value is refused, never repaired to unlimited; the supervisor resolves the raw field through the same single settings cache, keeps the last known valid policy across transient read/parse failures, and fails closed (refuses new counted starts) only when no valid policy was ever observed.                                                                                                                                                                                                                                                                                             |
+| Boundary                                      | Version location                                                                                                                                                                                                                                                                                                                                                                                                                                  | What must trigger a review                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SQLite application database                   | `src/host/db/migrations.ts` (`DATABASE_MIGRATIONS`, `LATEST_SCHEMA_VERSION`, currently 56)                                                                                                                                                                                                                                                                                                                                                        | Any table, column, index, constraint, stored JSON meaning, or data repair. Append a migration; never rewrite published history. Migrations 49–51 are forward-only: 49 adds history notice/episode semantics; 50 rejoins divergent schema-42 lineages; 51 fences unresolved legacy relative rollback plans as ambiguous before they can be retried. Existing wire phase values remain compatible.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Runtime durable canonical-gap evidence        | `src/host/db/migrations.ts` (migrations 48 and 49, `forward-only`), `src/host/db/runtimeDurableGap.ts`, `src/host/db/runtimeHistoryNotice.ts` (`runtime_persistence_epoch`, `thread_runtime_gaps.episode_id`, `thread_runtime_epoch_touches`, `thread_runtime_gap_notices`)                                                                                                                                                                       | Boot epoch/arm protocol, touch-before-accept ordering, contamination reasons, episode identity, acknowledgement/notice semantics, and close/rebase clearing rules. A pre-49 database fails validate mode until migrated once. Test validate-before refusal, validate-after success, existing-gap UUID backfill, reopen preservation, and delete/reuse invalidation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Runtime history-gap acknowledgement token     | `src/shared/runtimeHistoryNotice.ts` (`gap2:` generation)                                                                                                                                                                                                                                                                                                                                                                                         | Tokens are opaque and version-prefixed. Reject unknown or malformed tokens. An identity-format revision mints a new prefix; do not reinterpret existing tokens or use timestamps as unique episode identity.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Supervisor agent-status cache                 | `src/supervisor/runtime/agentStatusService.ts` (`STATUS_CACHE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                           | Any `AgentStatus`, capability, auth, runtime-routing, detection, or derived provider result that can make a cached status stale.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Renderer agent-status cache                   | `src/renderer/state/agentStatusesStore.ts` (Zustand `version`)                                                                                                                                                                                                                                                                                                                                                                                    | The same changes as the supervisor status cache. This is a second persisted copy; audit and usually bump both together.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Provider usage cache                          | `src/supervisor/runtime/usageService.ts` (`USAGE_CACHE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                                  | Snapshot shape or changed semantics of a cached usage result.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Claude fast-mode cache                        | `src/supervisor/agents/claude/fastModeCacheCore.ts` (`CACHE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                             | Account keying or availability semantics/shape.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ACP registry icon index                       | `src/supervisor/agents/acpRegistryIcons.ts` (`ICON_INDEX_VERSION`)                                                                                                                                                                                                                                                                                                                                                                                | Index shape, filename derivation, normalization, or cache-validity rules.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Durable package-install pins                  | `src/supervisor/runtime/packageInstallPin.ts` (`PACKAGE_INSTALL_PIN_FILE_VERSION`), path in `src/shared/poracodePaths.ts` (`packageInstallPinsPath`), per-provider slot claim under `src/supervisor/agents/<provider>/` (Cursor: `sdkInstallPin.ts`)                                                                                                                                                                                              | Record shape, slot-keying, or the rule for when a recorded root is trusted versus re-derived. A mismatch is discarded, never migrated: every pin is recoverable by one successful discovery pass, so losing the memory must cost a probe and never an installation. Write only when a slot's meaning changes; readers must keep treating an unreadable or unknown-generation file as "nothing recorded".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ACP registry extracted-artifact layout        | `src/supervisor/agents/acpRegistryInstallDir.ts` (`ACP_REGISTRY_INSTALL_LAYOUT_VERSION`)                                                                                                                                                                                                                                                                                                                                                          | Anything that makes an already-extracted `acp-registry/<id>/<version>/bin` install invalid (mode bits, file placement). Teach `repairAcpRegistryInstallLayouts` the previous generation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Managed skill manifest                        | `src/supervisor/skills/SkillsService.ts` (`SkillManifest.version` and `.poracode-skill.json` parsing/writes)                                                                                                                                                                                                                                                                                                                                      | Manifest fields, projection/copy semantics, hashing, or ownership rules.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Keybindings file                              | `src/shared/keybindings.ts` (`keybindingsFileSchema.version`) and `src/main/keybindingsFile.ts`                                                                                                                                                                                                                                                                                                                                                   | File shape, command identity, or default-binding migrations. Keep renderer writers in `src/renderer/commands/keybindingStore.ts` aligned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Legacy Lightcode import marker                | `src/host/legacyDataMigration.ts` (`MIGRATION_VERSION`, marker/request filenames)                                                                                                                                                                                                                                                                                                                                                                 | Import scope or behavior that must run again for already-migrated users.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Experiment persisted store                    | `src/shared/contracts/experiment.ts` (`EXPERIMENT_STORE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                                 | Experiment schema/meaning. Keep `src/renderer/state/experimentStore.ts` (memory-only projection), the host authority writer (`src/host/db/experimentStore.ts`/`src/host/db/experimentIntents.ts`), and remote experiment ownership aligned. The legacy renderer→main `dbPersistExperimentState` mirror (which wrote this key from `src/host/db/sync.ts`) was removed at hop 16 — the host authority is the only store writer and `EXPERIMENT_STORE_VERSION` stays 1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Main renderer app store                       | `src/renderer/state/appStore.ts` (Zustand `version`)                                                                                                                                                                                                                                                                                                                                                                                              | Persisted projects, threads, view, or group-layout shape/semantics. Keep `src/renderer/state/dbStorage.ts` fallback reconstruction aligned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Other renderer stores                         | `src/renderer/state/threadTodoDockStore.ts`, `sidebarUiStore.ts`, and `workspaceStore.ts` (Zustand `version`)                                                                                                                                                                                                                                                                                                                                     | Any field included by `partialize`, its meaning, defaults, or storage location. Add a `migrate` function when retaining data.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Panel persist slice                           | `src/renderer/state/panelPersist.ts` (`PANEL_PERSIST_VERSION`), key `poracode-panel`                                                                                                                                                                                                                                                                                                                                                              | Persist shape or meaning of git-review context, browser drawer width, right-panel thread lock, rail offset, or thread list sort/layout. v1 one-time-locks unversioned 1.8.x slices that stored the old unlocked default; later unlocks stay.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Remote-server renderer store                  | `src/renderer/state/remoteServersStore.ts` (Zustand persist `version: 2`)                                                                                                                                                                                                                                                                                                                                                                         | Durable server identity, token, projected projects, or `partialize` shape. v2 makes `connectionId` the per-connection key; v1 documents migrate by `connectionId = desktopId` (byte-identical records), and `migrateRemoteServersPersistedState` passes any version ≥2 through by reference so unknown future fields survive. Managed-parent integration adds the additive `managedHostDesktopId` discriminator to environment transports at the SAME version 2: no accepted field changes meaning, an older reader looks up `findServer(undefined)` and fails closed (no parent, no addressable grant), and a downgrade round trip preserves every field. Both/neither/empty discriminator variants are refused before any dial.                                                                                                                                                                                                                                                                             |
+| Renderer refresh-token subjects (vault roots) | `src/renderer/state/remoteServers/refreshTokens.ts` (`RefreshSubject` kinds; `refreshSubjectVaultKey`) with the shared record in `tokenVault.ts` (database `lightcode-mobile-vault`, store `entries`)                                                                                                                                                                                                                                             | Credential-grade custody roots: `connection` → `refresh.<connectionId>` (v1 bytes unchanged); remote-environment grant → `environmentRefresh.<parentConnectionId>.<environmentId>`; managed-environment grant → `managedEnvironment.<hostDesktopId>.<environmentId>`. Both environment roots sit outside `refresh.`, so no arbitrary direct id can address them and an older reader's `refresh.` delete/sweep cannot purge them. The pre-correction `refresh.environment.<parent>.<envId>` slot is migrated only when unambiguous (never when a direct record addresses the same slot); the legacy slot is deleted only after a strict successful write of the new root. Ownership fencing + per-slot write serialization keep delayed rotations from resurrecting a removed grant or overwriting a newly paired one. Tests: `refreshTokens.test.ts` (roots, strict write failure, ambiguous/unambiguous migration, old-reader sweep), `managedParentSessions.test.ts`, `desktopLoopbackUnification.test.ts`. |
+| iOS native multi-host catalog                 | `ios/App/App/Models/HostRecord.swift` (`HostRegistryDocument.formatVersion`), `Storage/HostRegistryStore.swift` (`directoryName`, `fileName`), `Storage/HostVault.swift` (`service`, `accountPrefix`, `journalAccount`), `Storage/HostTransactionJournal.swift` (`currentVersion`), and `Storage/LegacyHostImport.swift` (`Receipt.currentVersion`, `Tombstone.currentVersion`)                                                                   | Registry schema, host identity/LRU semantics, Keychain service or account derivation, token encoding, journal record/stage/recovery semantics, or legacy-source fingerprint/import rules. Registry format 2 is stored at Application Support `Poracode/hosts/registry.json`; secrets and journal v3 use the dedicated `com.lightcodeapp.mobile.remote.hosts` Keychain service. Journal v1 and v2 are explicitly migrated during decode. Review registry, vault, journal, import receipts/tombstones, recovery, and upgrade tests as one boundary.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| iOS project sync preferences                  | `ios/App/App/Storage/ProjectSyncPreferences.swift` (`documentVersion`, stable `storageKey`)                                                                                                                                                                                                                                                                                                                                                       | Per-device project exclusion shape or host/project identity semantics. The versioned document is stored in `UserDefaults`; preserve unknown future documents and cover the absent pre-feature state in upgrade tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| iOS AI content language preference            | `ios/App/App/Features/Settings/UI/AIContentLanguagePreference.swift` (`storageKey`)                                                                                                                                                                                                                                                                                                                                                               | The key suffix versions the device-local scalar vocabulary used to prefill commit-message and PR-summary generation requests. Adding, removing, or reinterpreting values requires a new key plus an explicit migration; unknown installed values resolve to `match-app`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| iOS chat text-size preference                 | `ios/App/App/AppTheme.swift` (`PoracodeChatTextSize.storageKey`)                                                                                                                                                                                                                                                                                                                                                                                  | The versioned device-local scalar mirrors the compact PWA's 8...20 range but maps it to native Dynamic Type-aware body, command, and metadata baselines. Changing the range, default, or mapping semantics requires a new key or an explicit migration with an upgrade regression test.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| iOS terminal text-size preferences            | `ios/App/App/Features/Terminal/TerminalTextSurface.swift` (`PoracodeTerminalTextSize.storageKey`, `projectStorageKey`)                                                                                                                                                                                                                                                                                                                            | Versioned device-local scalars independently drive agent-terminal and project-shell rendering plus PTY viewport geometry. The project key falls back to the legacy shared/agent value when absent so upgrades retain their prior size. Changing either role, range, default, fallback, scaling semantics, or cell metrics requires a new key or an explicit migration plus resize regression coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Android native multi-host catalog             | `android/app/src/main/kotlin/com/poracode/app/model/HostModels.kt` (`HostRegistryDocument.FORMAT_VERSION`), `storage/HostRegistryStore.kt` (`DIRECTORY_NAME`, `FILE_NAME`), `storage/HostVault.kt` (`JOURNAL_ACCOUNT`, `account` and vault envelope), `storage/HostTransactionJournal.kt` (`VERSION`), `storage/LegacyHostImport.kt` (receipt/tombstone filenames and `VERSION`), and `security/AccessTokenCipher.kt` (`HOST_VAULT_ALIAS_PREFIX`) | Registry schema, host identity/LRU semantics, no-backup file locations, vault account/file/envelope or Keystore alias derivation, journal record/phase/recovery semantics, or legacy-source fingerprint/import rules. Registry format 2 is `hosts/registry.json`; vault envelopes, receipts, and tombstones are version 1; the journal is version 2 and explicitly accepts version 1 records. Review registry, encrypted vault files, per-account Keystore keys, journal, import artifacts, recovery, and upgrade tests as one boundary.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Native push registration store                | `src/host/remote/push/PushRegistrationStore.ts` (`PUSH_REGISTRATIONS_FILE_FORMAT_VERSION`)                                                                                                                                                                                                                                                                                                                                                        | Registration identity/keying, token ownership, routing metadata, or native alert preferences. Format 2 reads both the unversioned legacy `{ registrations }` file and format 1, then writes device-owned sound/status filters on the next mutation; routed records remain keyed by normalized `clientConnectionId`. Unknown future formats are never overwritten. Keep the remote push-registration schema, native clients, and hosted gateway payload consumers aligned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| iOS push unregister outbox                    | `ios/App/App/Features/Notifications/PushUnregisterOutbox.swift` (`Document.version`, `Document.legacyVersion`, `account`, `expiry`)                                                                                                                                                                                                                                                                                                               | Entry shape, parent-authority custody semantics, Keychain account/service derivation, or expiry policy. The document stays in the existing `push-unregister-outbox-v1` Keychain account (service `com.lightcodeapp.mobile.notifications`) and is now document version 2: a v1-only reader sees an unsupported version and preserves the raw document instead of re-encoding an entry without its parent authority (erasing custody) or dispatching it and deleting it as a "child" rejection. v1 documents are read and upgraded durably in place before any caller relies on v2 semantics; a failed migration write preserves the v1 source and fails closed, and unknown future or malformed documents are preserved, never overwritten. Direct entries and their createdAt/expiry semantics are unchanged, and an endpoint-bound capture written by the unreleased v1 candidate survives the upgrade. Tests: `PushStorageTests`.                                                                           |
+| Settings documents and other JSON stores      | `src/shared/settings.ts`, `src/host/sharedSettingsFile.ts`, remote auth/identity/push stores, MCP OAuth, and usage secrets                                                                                                                                                                                                                                                                                                                        | These normalize or validate instead of carrying a version. Any incompatible change still requires an explicit migration, tolerant parser, or introduction of a version field plus legacy handling. `hostResourceAdmission` (resource admission PHASE1) is additive: no `$poracodeSettingsVersion` bump; old readers preserve the bytes and treat absence as the transitional unlimited default; a present invalid value is refused, never repaired to unlimited; the supervisor resolves the raw field through the same single settings cache, keeps the last known valid policy across transient read/parse failures, and fails closed (refuses new counted starts) only when no valid policy was ever observed.                                                                                                                                                                                                                                                                                             |
 
 The prepared settings authority in `src/backend/settings/` introduces a flat
 `$poracodeSettingsVersion: 1` marker. Absence is legacy generation 0; malformed
@@ -443,6 +556,37 @@ controller's remote `POST /api/settings` patch and the remote-access toggles
 `remoteAccessAdvertisedUrl`) now commit through the composition's
 `settingsWrites.commitCompatPatch` / `editSettingsField` scoped compare-and-swap
 edits, so every desktop writer shares one authority chain.
+
+**Supervisor-owned writers:** the supervisor process wrote whole normalized
+documents straight to `settings.json` for ACP registry records (install,
+update, auto-install, removal, auth env, auth acknowledgement, icon
+localization, layout repair, alias-migration persist) and CLI hook verdicts
+(`agentHookSupport`). That dropped the document marker and unknown fields, so
+the authority's write admission (correctly) refused every later commit —
+observed live as a second profile create failing with
+`settings.dataNotPrepared`. Those writers now diff their read against their
+next state into subject edits (`SettingsOwnerEdit`, per entry / per agent
+setting) and send them as the
+additive supervisor event `settings-edits-requested`; the backend commits them
+through `SettingsCompatWriter.commitOwnerEdits` (fresh revisions, bounded
+rebase, subject-scoped authorization) and answers with the additive supervisor
+procedure `confirmSupervisorSettingsEdits` (procedure-map fingerprint moved,
+hop unchanged). Registry writers diff the _stored_ view (secrets as on disk,
+never the decrypted execution view), so an unchanged credential — including
+one the supervisor cannot decrypt — crosses byte-for-byte and a metadata edit
+needs no credential capability; only a deliberately replaced value is sealed,
+and a deliberate removal is an absent key. Layout repair diffs against the
+view it was derived from, so entries changed meanwhile are not edited. An
+empty edit list is an admission probe sent before each first effect: downloads
+and install-dir deletion, stopping an agent's live threads on removal, icon
+downloads, and WSL layout repair — so an outside/future document is refused
+before those effects. A probe is not a lock; the commit rechecks. No document
+shape changed, so `$poracodeSettingsVersion` stays 2. Mixed pairs: a new
+supervisor against an older backend gets no confirmation and fails the write
+loudly after its timeout (no file write); an older supervisor still writes
+directly, and the authority refuses only its later commits — not before its
+own downloads or deletions. Supervisor and backend ship in one bundle; that
+co-packaging, not a capability exchange, is what keeps the pair consistent.
 
 **Device-local (client-only) preferences are declared out of the shared
 authority on purpose:** keybindings (`src/shared/keybindings.ts` /
@@ -1851,6 +1995,37 @@ provider probe -> supervisor agent-status cache -> IPC/event -> renderer Zustand
 
 If provider discovery semantics change, an old value can survive in either cache. Review both `STATUS_CACHE_VERSION` and the renderer store version, then test an upgrade fixture containing the previous version and stale data.
 
+Supervisor status cache 42 and renderer status store 38 invalidate inventories
+that omitted profiles when their probes returned the base adapter identity.
+Profile detection now preserves the adapter's kind and label. Upgrade tests
+reject supervisor cache 41 and renderer store 37; settings, profile formats,
+IPC and remote protocols are unchanged.
+
+Provider usage cache 10 invalidates version-9 snapshots that could pair a retired
+account's quota with a replacement account fingerprint during cost enrichment.
+Final account admission now follows enrichment and immediately precedes commit.
+It also refreshes balances omitted by earlier collectors. The renderer usage
+store is memory-only; shared settings and usage wire shapes are unchanged.
+
+Devin native-default sessions now use the same account-scope-3 binding as
+profiles. The hash dimensions retain their v3 meaning; no identity format,
+IPC or database shape changes. Historical unbound default refs are intentionally
+refused with `resume-scope-missing`: the current login cannot prove who created
+an older conversation. They are preserved for inspection, never assigned a new
+owner by migration. Pre-upgrade unbound-ref fixtures cover GUI and Terminal
+admission. Terminal resumes also require an exact native id and never select
+the latest conversation in a shared working directory.
+
+WSL Devin session bindings use account-scope-4, adding the distro name because
+default roots are shell templates and identical roots in separate distributions
+are distinct filesystems. Prior WSL v3 refs fail with `resume-scope-mismatch`;
+they are never assigned the currently selected distro by migration. Native v3
+bindings retain identical bytes and remain resumable. Upgrade fixtures cover
+both outcomes. Identity inputs now require the execution location. The shared
+SessionRef field, database and IPC/remote shapes are unchanged. Credential reads
+expand only the resolver's exact WSL default template inside the distro shell;
+all literal paths remain quoted, and no native credential file is rewritten.
+
 ## Terminal scrollback chunks (schema 52)
 
 Schema 52 is forward-only: new terminal writes store UTF-16LE BLOB chunks
@@ -2096,7 +2271,7 @@ synthetic and public snapshot assignments invalidate even identical bytes.
 Storage format 1, the table/checks/triggers and physical schema 54 are unchanged;
 shared types/constants/validation now mirror that sealed storage boundary.
 Legacy/import/public snapshot rows remain unknown. Public runtime events,
-procedure signatures, hop16, remote12, gap2, backup receipt1, and helper/cache
+procedure signatures, hop 16, remote protocol 12, gap2, backup receipt1, and helper/cache
 manifest versions remain unchanged. Updated helpers/bundles advertise the new
 private capability; old complete artifacts remain valid without custody.
 Regression gates run the actual source/router/sender/owned host/queue/SQLite
@@ -2152,6 +2327,322 @@ The volatile thread-gallery snapshot now includes `readyRemoteRefs` and `readyRe
 
 The gallery now collects every displayable image in each tool payload, while the transcript card keeps its first-candidate behavior. Format 3 invalidates warm format-2 snapshots that may omit later images or their readiness coordinates. The five-field collection shape and logical retention budgets stay unchanged; pre-upgrade tests include format 2. This cache is document-local. Persisted canonical image bytes, database, authenticated image references, IPC, remote wire, deployed helpers and service-worker formats remain valid. Existing content hashes identify the updated renderer assets.
 
+### ACP model groups and context breakdown — existing optional capability fields
+
+ACP group projection now fills the existing optional `subProviders` and
+`modelSubProvider` fields in the capability and GUI-override schemas. Flat or
+older cached capabilities remain valid, with no sections until the normal
+detection refresh. Status cache 42, renderer status-store 38, usage cache 10,
+IPC/remote schemas, generated native bindings and SQLite formats stay unchanged.
+Group advertisement is separately gated; the inert retention change never
+rewrites a model value or its independent effort selection.
+
+Provider transforms may annotate standard usage updates with a same-bundle
+`poracodeUsageBreakdown` pair. The shared mapper validates it against the
+authoritative occupancy before filling the already-optional context breakdown.
+Absent, malformed or inconsistent annotations retain the prior event shape;
+old persisted context rows stay valid and are not backfilled. Account usage and
+per-call accounting samples are unchanged. Vendor stats never become an extra
+usage sample. The internal annotation is not an IPC, wire, cache or persisted
+format, so no compatibility version or migration is required. New source hashes
+distinguish the runtime; the J frozen app predates these two enrichment changes.
+
+## Negotiated composite reasoning inventories (status caches 43 / 39)
+
+Supervisor status cache 43 and renderer status store 39 invalidate older derived
+inventories that suppressed a negotiated reasoning selector based on a model's
+catalog classification. A composite model ID can have a separate native ACP
+thought-level control; detection now retains its negotiated ladder. Previous
+supervisor version 42 and renderer version 38 fixtures are discarded before
+startup hydration, including an otherwise valid inventory with an empty model
+ladder. Settings, persisted thread config, profile format, native session scope,
+IPC and remote protocols keep their existing shapes and versions.
+
+The provider's ACP launch defers independent composite effort to the live
+selector without removing it from the saved config. Repeated submits validate
+unchanged values against the current native ladder; a model switch waits for
+the target's options through strict config sync. Terminal and one-shot selection
+semantics are unchanged. No guessed migration rewrites historical thread choices.
+
+## Family-relation composite inventories (status caches 44 / 40)
+
+Supervisor status cache 44 and renderer status store 40 invalidate older derived
+inventories that carried the raw flat composite model list plus a legacy
+composite Fast declaration on the raw capability path. Family-relation
+projection derives from fresh capability data instead of reinterpreting those
+cached rows. The optional `modelFamilies` descriptor on fresh snapshots is
+additive: raw `models` remain the compatible selection inventory for clients
+that ignore the relation. Previous supervisor version 43 and renderer version
+39 fixtures are discarded before startup hydration. Invalidation discards only
+the derived status inventory; thread data, settings, persisted thread config,
+profile format, native session scope and ThreadConfig keep their existing
+shapes and versions, and no saved thread choice is rewritten. The optional
+capability descriptor is mirrored in the regenerated remote and native
+contracts; clients that do not understand it retain the raw inventory fallback.
+
+## Presentation-scoped family fallback (status caches 45 / 41)
+
+Supervisor cache 45 and renderer status store 41 invalidate valid-shaped older
+snapshots that copied a model-bound relation onto a surface with independent
+native controls. A refreshed surface declares its own accepted relation or
+omits it. Previous supervisor 44 and renderer 40 fixtures prove that this is
+version-based invalidation, preserving unrelated persisted state and saved
+thread choices. The explicit family-row versus exact-model edit intent and
+presentation transition are ephemeral UI operations; they introduce no
+serialized configuration fields or preference identities. Remote protocol 12
+keeps the optional capability metadata and complete raw model inventory.
+
+## Devin cloud profile setup — profile format 2
+
+The provider-owned profile schema now writes format 2 with optional
+`cloudDefaults` (repositories, persona and platform). Explicit format-1 profiles
+retain their previous meaning and upgrade on Save. Format 1 carrying these new
+choices is rejected rather than silently losing execution intent; future formats
+are preserved but disabled. Regression fixtures exercise an old profile and
+the previous format-1 reader, which refuses format 2. Unknown profile keys
+remain preserved. Account-root manifests remain format 1.
+
+These mutable launch choices change detection generation, not the immutable
+account/organization/runtime resume scope. Activated cloud resumes retain their
+workspace; fresh and pending sessions apply explicit choices before the shared
+composer configuration. The generic opened-session hook and qualified select
+predicate are internal runtime declarations, not serialized capabilities.
+Agent-instance config already travels as opaque provider JSON; no new IPC,
+remote, native-client DTO, SQLite or helper-envelope fields are added. Public
+remote protocol 12 and client-host hop 16 remain valid. Existing profile readers
+delegate validation to the same provider schema, and bundled source identity
+distinguishes the new launch implementation.
+
+## Typed missing-session send refusal (thread-send 422) — additive, no version bump
+
+The supervisor's `sendThreadInput` throws the typed absence refusal
+(`unknown_thread_session`, `src/shared/threadSessionRefusal.ts`) when no session
+exists after the pending-start join. The refusal travels three ways and every
+boundary stays additive: the supervisor IPC reply reuses its existing optional
+`errorCode` string field (documented additive since introduction; an older host
+that does not know the code degrades to the historical message-only Error, and
+an older supervisor that sends no code leaves the host on the plain-Error path);
+the remote `thread-send` route answers it with HTTP 422 and body code
+`unknown_thread_session`, which fits the open `remoteHttpErrorSchema`
+(`code: string.min(1)`) — clients classify the definite rejection by the 4xx
+status rule alone, and native `RemoteMutationClassification` needs no new entry;
+and the legacy exact message `Unknown thread session: <id>` is preserved
+verbatim in every carrier, so existing client message matchers keep working.
+
+No receipt migration: the `remote_command_receipts` states are unchanged. Rows
+recorded `uncertain` for thread-send before this change stay `uncertain`
+forever — the idempotency claim guard replays the typed uncertain 409 and never
+reclassifies or replays them, even though newer attempts can prove pre-effect.
+Only the newly typed refusals record `failed`, and a same-id replay of a failed
+row stays the definite `command_failed` 409. Predecessor message-only refusals
+keep the raw 500 with the conservative `uncertain` receipt: the host applies no
+message regex fallback, so the typed code is the only proof.
+
+### ACP correlated text snapshots
+
+The provider-to-mapper `poracodeTextStream` annotation is an in-process
+normalization declaration, not a persisted or client wire field. Authoritative
+snapshots emit the already deployed `content.delta` event with `replace: true`.
+No remote, IPC, profile, or usage cache version changes are required. The
+correlation store is session-local and bounded; a new mapper has no inherited
+correlation state. Regression coverage must prove ordinary unannotated append
+semantics, owner isolation, and late replacement of a closed item.
+
+Replacement-only canonical effects do not reopen or extend autonomous work.
+This is same-bundle runtime classification, with no serialized field or cache
+change. Prompt completion and genuine autonomous append activity retain their
+existing contracts.
+
+## Provider default model visibility (status caches 46 / 42)
+
+The supervisor status cache v46 and renderer status store v42 invalidate
+previous derived inventories that lacked provider-owned default visibility.
+Defaults hide older native catalog versions only when a newer version of the
+same model line exists; recommendation labels do not override version age.
+Both caches must refresh together; the preceding v45/v41 snapshots can be
+structurally valid while still offering superseded models by default. Explicit
+user hidden-model lists, including an empty show-all list, remain authoritative.
+No saved thread model, profile, protocol, or native schema changes: the existing
+optional `defaultHiddenModels` field carries exact native model IDs. The native
+catalog cache is process-local and refreshes on restart. Pre-upgrade tests pin
+rejection of valid-shaped old caches and preservation of unrelated settings.
+
+## Thread workspace grant custody (schemas 55–56)
+
+Migration 55 is forward-only. It adds host-owned committed `additional_directories`
+and `workspace_grant_revision` columns plus a bounded operation journal. Existing
+schema-54 rows migrate to `[]`/0 without changing prior payload/history evidence.
+Ordinary thread upserts and full/delta replica synchronization omit both grant
+columns; only the internal CAS store can publish committed intent. Pending,
+dispatched and ambiguous candidates remain separate and cannot become saved
+permissions. Missing custody schema is not repaired by recreating empty tables.
+Older app versions reject newer databases; use the normal backup and
+forward-upgrade path.
+
+Forward-only migration 56 freezes the original migration-55 creator in
+`threadWorkspaceGrantsSchema55.ts`. It adds host-minted immutable row
+incarnations and a private committed-scope flag. Relevant thread/project owner
+changes advance the existing revision, including empty-scope A → B → A changes.
+Delete/recreate receives a new incarnation. Owner-only revisions leave
+never-scoped launches on the legacy path; explicit committed empty grants still
+use the scoped launch bridge. Safe-integer exhaustion refuses the whole owner
+change. The migration preserves historical journal bytes and terminal replay;
+old unresolved operations cannot publish against the new owner fingerprint.
+Missing or partial custody refuses instead of synthesizing an empty journal.
+Current admission also closes the persistent trigger inventory on the three
+authority tables. Both expected DDL and that inventory are checked before
+migration backfill or safe repair can write; conflicting triggers are refused,
+never dropped. TEMP connection-local fault-injection triggers are outside this
+persisted-artifact check. Pre-55 databases without custody retain safe repair.
+Schema-55 startup artifacts reject schema 56. No public read shape changes.
+
+The optional Thread read projections are additive to public remote protocol 12 and client
+hop 16. No public grant mutation or launch field is introduced by this foundation.
+The future replacement command requires a versioned host/supervisor capability,
+confirmed quiescent reopen, reservation/retirement custody, explicit journal
+cleanup/deletion policy, and an independent compatibility audit before enablement.
+A legacy optional start field would be stripped by old hosts and is prohibited as
+a grant carrier. Replica/browser/native caches never authorize filesystem scope.
+App-store version 5 and agent-status versions 46/42 formats remain unchanged in this slice.
+
+## Native string-bound semantics (generator 4)
+
+Generator 4 corrects generated native JSON Schema `minLength`/`maxLength` and
+string-union probes to count Unicode code points, matching current source Zod
+and JSON Schema semantics. Swift counts Unicode scalars; Kotlin counts code
+points. Combining marks remain separate code points. Terminal cursor offsets,
+range validators, overlap accounting and buffered data retain UTF-16 units.
+
+Binding format 2, manifest format 1, native-binding manifest format 5, public
+remote protocol 12 and hop 16 keep their existing layouts. Generated manifests, native
+validator/adapter/build version pins, tree hashes and parity fixtures must move
+together to generator 4; native consumers built from v3 output must regenerate.
+The readonly workspace directory projection uses portable count/path bounds;
+host admission and persisted parsing separately enforce the aggregate 32,768
+serialized-character budget and runtime execution-path policy. This change does
+not enable folder mutation controls or authorize native notifications as grants.
+
+## Approved workspace launch bridge (private runtime protocol 1)
+
+`threadWorkspaceRuntimeProtocol.ts` defines a host-only `workspace-runtime-v1`
+request, separate from the public procedure map and legacy start schema. The
+support reply carries an exact version and supervisor-process incarnation.
+Only committed SQL grants supply the complete primary/extra-directory/revision
+snapshot; unresolved custody refuses launch. Support is cached only against the
+actual child transport, and owner/revision, child identity and control epoch are
+rechecked before dispatch. An older supervisor rejects the read-only support
+request before any grant-bearing launch is sent. Public remote protocol 12,
+hop 16, generated bindings and derived status-cache formats remain unchanged.
+
+Version 1 promises immutable scoped start/ensure, not a live permission-change
+transaction. New reservation/commit/reconciliation verbs require their own
+compatibility audit before enablement. The full folder feature remains
+unadvertised; prior schema-55 artifacts have no new grant writer exposed.
+Schema 56 now rejects older consumers and adds monotonic SQL owner/incarnation
+fences. Before enabling mutations, runtime reservations and positive retirement
+evidence, receipt cleanup/deletion policy and durability must also be qualified.
+Browser/native read projections never supply launch authority.
+
+## Saved model selection writer admission (SQL 57, settings document 2)
+
+Migration 57 is forward-only and deliberately changes no model/config rows or
+DDL. It advances the database marker to reject older schema-56 consumers; it
+does not infer or backfill selection intent. The historical schema-56 prefix
+regression verifies unchanged rows and schema through that upgrade.
+
+The settings authority now writes `$poracodeSettingsVersion: 2`. Documents
+without a marker and version-1 documents remain readable without disk backfill.
+Only an admitted commit advances their marker. Malformed/future document
+versions remain refused. Existing unknown fields and ciphertext are retained.
+
+Prepared settings writes require the actual successful Core connection, current
+connection identity, unchanged filesystem root/database file, exact fresh SQL57
+marker, and live custody. Desktop borrows its existing data fence lazily when
+opening settings; headless retains its kernel lease and supplies the Core check.
+No captured schema number, projected renderer state, or invented UUID grants
+write authority. Refused database close retains custody until actual close.
+
+For known provider draft and seven utility-selection containers, conservative
+reads remove only unrecognized selection metadata from the public projection.
+Actual model/options and original metadata remain unchanged. Legacy model
+migrations do not reinterpret those protected containers. Unsupported metadata
+makes the containing settings document read-only, including unrelated commits
+or replacements that omit it. Every existing persistence checkpoint rereads
+the authoritative file and compares it with the committed document; changed
+outside data is refused instead of overwritten. Arbitrary plugin data is opaque.
+
+Thread configs and project drafts retain their historical lossless JSON read
+semantics, including empty or model-less legacy configs; they are not revalidated
+as fresh launch payloads. Schedules and PR-watch configs retain their existing
+known-field validation. All four remove unsupported selection metadata only
+from the public projection and preserve stored bytes. Fresh requests remain
+strictly validated. Their full-row writers check original raw storage inside the actual write transaction,
+including replacements that omit metadata. Sync preflights replacement IDs
+before deletes or cascades; duplicate-project repair checks both drafts and a
+colliding watch's losing config before retiring it. Independent scalar updates
+retain config bytes. These guards complete another part of the existing,
+unreleased SQL57 boundary and introduce no new storage shape or migration.
+
+These are bounded settings/Core/DB compatibility checks, not full release
+qualification. Service and launch admission before external effects, complete
+control propagation, derived cache boundaries, native readers/writers, and the
+complete previous-app/restore/manual matrix remain separate required work.
+Current-process fixtures do not establish compatibility with a complete previous
+released application artifact; earlier migrations and imports remain unqualified.
+
+## Surface-scoped family intent (status caches 47 / 43)
+
+The supervisor agent-status cache advances from 46 to 47, and the renderer's
+persisted status store from 42 to 43. Both discard older derived inventories
+and request fresh detection; cached menus are not migrated into selection intent.
+Previous-version fixtures use valid capability shapes and exercise the real
+supervisor read and renderer rehydration paths, so refusal does not depend on
+a parse error. Unrelated renderer state retains the existing migration behavior.
+
+Providers may now advertise their already-versioned, surface-scoped
+`redundantValues` declaration. Terminal and CLI print consumers compare saved
+evidence with the independently supplied full adapter kind and concrete
+presentation. Warm catalogs still resolve every original control. Cold resolution
+may remove only matching, recorded, declared inert entries from a temporary
+view; unrecorded controls still pass through the conservative gate, and saved
+config bytes and the requested model ID remain unchanged. A matching record
+does not authorize accounts, execution targets or session recovery.
+
+This completes the bounded declaration/consumer/cache change. Optional runtime
+route-ID propagation, native ACK handling, utility presentation declarations,
+handwritten native codecs, old-artifact upgrades and full manual qualification
+remain required. Provider-local function signatures changed; serialized wire,
+binding format 1 and generated artifact formats did not change in this step.
+
+### PR-watch execution admission (unreleased SQL 57)
+
+PR-watch fix launches gain fresh raw execution admission and narrow runtime
+patches. `dbReadPrWatchExecutionSnapshot`/`dbAdmitPrWatchExecution` read the
+authoritative `pr_watches` row by key and refuse a launch whose row is gone,
+changed (branch, worktree, automation flags, full opaque `agent_kind`,
+own-presence-sensitive model/effort/fast/thinking/contextSize/selectionBinding),
+or carries unsupported raw selection data; the launch-result and status writes
+moved to `dbPatchPrWatchRuntime`, a status-only column patch that never reads
+or serializes the config column, never resurrects a deleted row, and never
+refuses on a protected row. There is no DDL, wire, cache, or catalog change:
+rows written by current builds remain fully valid under the unreleased schema,
+the guarded full-save refusal semantics are unchanged and still cover every
+public upsert/sync ingress, and deletion remains an ungated retirement. The
+launcher's per-call launch-admission options are an ephemeral host-only
+callback — never serialized into a request or tool schema. Valid callers
+without this callback retain their launch behavior; malformed controls and
+unsupported selection metadata are now refused before Home creation or
+worktree effects, including callers without the optional callback.
+
+After an awaited permission or checkout operation, launch admission rechecks
+the actual project location and remote identity as well as the selection.
+Launch results that cannot be attached to the current watch remain owned until
+the supervisor positively confirms retirement. A refused retirement retains
+the thread ID, blocks another fix for that watch, and prevents successful
+disposal; a later explicit disposal can retry. These callbacks and pending
+custody are host-local, with no new persisted field or serialized format.
+Current-source unit and SQLite regressions qualify these seams separately;
+they do not qualify previous released artifacts or native/manual workflows.
 Projectless sidebar chats use the existing persisted Home scope ID and projected remoteId. The host prepares that built-in row before client attachment; the chat surface opts into mirroring Home rows and conversations while desktop remote mirrors retain their prior exclusion. This uses existing Project and Thread shapes, credentials and launch protocol, so schema and wire versions stay unchanged. Pre-upgrade empty profiles and saved Home rows remain valid; regressions cover empty-profile bootstrap, existing Home identity, flat chat selection and refresh without desktop navigation.
 
 Sidebar-inherent composer tools use a same-bundle React context, with the existing
@@ -2250,3 +2741,32 @@ Regression fixtures seed actual encrypted pre-upgrade vault slots, exercise
 mount/resume/online/visibility, background refresh, retry and event backoff,
 reject lost-session refresh after 401 and stale tickets, select only the current
 host, and retain record-based clients across refresh rotation.
+
+Migrate startup admits workspace custody read-only before committing any pending
+migration or its forward-only schema marker. Unsupported schema versions are
+refused first. A database rejected for an unexpected custody trigger therefore
+keeps its prior schema version and remains eligible for an older artifact. This
+reuses the existing preflight and changes no storage shape or version. The
+schema-56 startup regression preserves raw schema, rows and custody journal on
+refusal; legacy-read regressions preserve config bytes and writer protections.
+
+## Native stored-pairing upgrade eligibility (remote protocol 13)
+
+Remote protocol 13 changes wire admission only; the stored host/token binding
+shape is unchanged. Reviewed stored generations 9–12 are listed explicitly in
+both mirrored copies — Android `storage/StoredProtocolUpgrade.kt`
+(`isEligibleStoredProtocol`, `importedBinding`) and iOS
+`PreservedPairingUpgrade.isEligibleStoredProtocol` in
+`Storage/SessionCredentialTypes.swift`. Keep them identical and never derive
+the list from `current - 1`.
+
+A v12 host record, single-host v2 source, or split-v1 source keeps its original
+binding on import. It is rebound to 13 only by the existing verified upgrade
+(public descriptor at the current protocol with a matching `desktopId` and read
+scope, then an authenticated snapshot read) and the existing journaled host
+write. A live v12 host, a different host, offline, or 401 refuses and preserves
+the record, token and connection id. Future bindings stay refused. No storage
+schema, journal or registry format changes. On the next protocol bump, review
+whether 13 joins both lists and add matching regressions on both platforms
+(`StoredPairingUpgradeTest`, `LegacyProtocolUpgradeTest`,
+`AppSessionCompositionTests`, `HostImportTests`).

@@ -4,6 +4,7 @@ import {
   REMOTE_BOUNDED_CATALOG_CHANGES_DECLARATION,
   REMOTE_BOUNDED_CATALOG_CHANGES_WS_PARAM,
 } from "../../../src/shared/remote/protocol.ts";
+import { currentClientProtocolHeaders } from "../harness/httpIo.ts";
 import { type RealHostHandle } from "../harness/realHost.ts";
 import { httpRequestJson, issueTicket } from "./testClient.ts";
 import { TerminalWatchRecorder, type TerminalWatchState } from "./terminalWatchRecorder.ts";
@@ -340,6 +341,7 @@ export class ProfileClient {
           ...(requestBody === undefined ? {} : { body: requestBody }),
           headers: {
             authorization: `Bearer ${this.accessToken}`,
+            ...currentClientProtocolHeaders(init?.method),
             ...(init?.body === undefined ? {} : { "content-type": "application/json" }),
             host: this.handle.originHostHeader,
           },
@@ -349,6 +351,7 @@ export class ProfileClient {
           ...(requestBody === undefined ? {} : { body: requestBody }),
           headers: {
             authorization: `Bearer ${this.accessToken}`,
+            ...currentClientProtocolHeaders(init?.method),
             ...(init?.body === undefined ? {} : { "content-type": "application/json" }),
           },
         });

@@ -30,7 +30,13 @@ function cycleValue(
 }
 
 function toggleControl(control: ComposerControl): boolean {
-  if (control.kind !== "toggle" || control.isDisabled || !control.onChange) return false;
+  if (
+    control.kind !== "toggle" ||
+    control.isDisabled ||
+    control.disabledReason ||
+    !control.onChange
+  )
+    return false;
   control.onChange(!control.isSelected);
   return true;
 }
@@ -115,6 +121,7 @@ function runComposerAction(
       return control ? cycleEffortControl(control) : false;
     }
     case "toggle-fast": {
+      // Fast is always the ordinary composer toggle, paired relations included.
       const control = input.controls.find(
         (candidate) => candidate.kind === "toggle" && candidate.label === "Fast",
       );

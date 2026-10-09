@@ -1,4 +1,8 @@
-import { remoteHttpErrorSchema } from "@/shared/remote";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  remoteHttpErrorSchema,
+} from "@/shared/remote";
 import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
 import { readBoundedResponseBody } from "@/shared/http";
 import {
@@ -270,14 +274,26 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
       }
     }
 
+    const method = init.method ?? "GET";
     const headers: Record<string, string> = { ...init.headers };
     if (init.body !== undefined) {
       headers["content-type"] = "application/json";
     }
     if (this.accessToken) {
       headers.authorization = `Bearer ${this.accessToken}`;
+      // Fence 1 (remote 13): the current TS producer declares the writer
+      // generation on every authenticated non-GET request — including the
+      // post-refresh retry, which rebuilds headers through this same block.
+      // The compiled constant is the only source: a caller-supplied stale
+      // value is replaced here (this producer is the only thing that may
+      // upgrade it), and the transport-level `mutation` hint is never
+      // consulted — the host classifies by route/procedure scope, not client
+      // intent. Auth-free calls (pairing/refresh exchange before a token
+      // exists) carry no header, mirroring the host's auth-free exemptions.
+      if (method !== "GET") {
+        headers[REMOTE_PROTOCOL_VERSION_HEADER] = REMOTE_PROTOCOL_VERSION_HEADER_VALUE;
+      }
     }
-    const method = init.method ?? "GET";
     const cached = method === "GET" ? this.etagCache.get(path) : undefined;
     if (cached) {
       headers["if-none-match"] = cached.etag;

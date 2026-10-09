@@ -12,6 +12,7 @@ import type {
 import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
+  assertOneShotControlsMapped,
   brailleSpinnerOscTitleHint,
   buildAgentCommand,
   createKnownSessionRef,
@@ -19,6 +20,8 @@ import {
   detectProbeLocation,
   iterm2ProgressOscHint,
   prepareAgentLocationEnvironment,
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   resolveWslHomeDirectory,
   shortenHomePath,
   type AgentAdapter,
@@ -215,6 +218,23 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     options.modelEfforts,
   );
 
+  /**
+   * The one-shot lane's native effort/Fast argv mapping — `--effort` and the
+   * `fastMode` settings JSON — shared verbatim with the resume extraction lane
+   * so both claude print runs consume the same controls the same way.
+   */
+  function claudeControlArgs(effort: string | undefined, fast: boolean | undefined): string[] {
+    const args: string[] = [];
+    if (effort) args.push("--effort", effort);
+    if (fast) {
+      // Fast mode is a session flag, not a model/effort value. On the CLI it
+      // rides on --settings JSON (the SDK path uses applyFlagSettings). One-shot
+      // calls pass no other --settings, so a single inline flag is safe here.
+      args.push("--settings", JSON.stringify({ fastMode: true }));
+    }
+    return args;
+  }
+
   async function buildClaudeOneShotCommand(
     model: string,
     effort: string | undefined,
@@ -238,13 +258,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       "--no-session-persistence",
       ...extraArgs,
     ];
-    if (effort) args.push("--effort", effort);
-    if (fast) {
-      // Fast mode is a session flag, not a model/effort value. On the CLI it
-      // rides on --settings JSON (the SDK path uses applyFlagSettings). One-shot
-      // calls pass no other --settings, so a single inline flag is safe here.
-      args.push("--settings", JSON.stringify({ fastMode: true }));
-    }
+    args.push(...claudeControlArgs(effort, fast));
     const env = location ? await profileEnv(location) : undefined;
     return {
       command: "claude",
@@ -431,6 +445,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     workingSilenceTimeoutMs: null,
     defaultOneShotModel: "haiku",
     async buildOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Both carriers map natively through claudeControlArgs below.
+      assertOneShotControlsMapped(selection, { effort: true, fast: true });
       return buildClaudeOneShotCommand(
         model,
         effort,
@@ -452,7 +472,13 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
           : [],
       );
     },
-    async buildTextOnlyOneShotCommand(model, effort, prompt, location, fast) {
+    async buildTextOnlyOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Same native carrier mapping as the general lane.
+      assertOneShotControlsMapped(selection, { effort: true, fast: true });
       return buildClaudeOneShotCommand(model, effort, prompt, location, fast, [
         "--safe-mode",
         "--tools",
@@ -462,7 +488,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         "--strict-mcp-config",
       ]);
     },
-    async buildContextExtractionCommand(sessionRef, location, model) {
+    async buildContextExtractionCommand(sessionRef, location, model, oneShotOptions) {
+      const selection = resolveCheckedOneShotResumeSelection(model, oneShotOptions);
+      // The resume print run consumes the same native effort/Fast mapping as
+      // the one-shot lane; every other present carrier refuses before the
+      // command is built.
+      assertOneShotControlsMapped(selection, { effort: true, fast: true });
       // The resumed session is read-only here; --no-session-persistence
       // prevents the extraction turn from being written back to disk.
       const args = [
@@ -472,6 +503,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         "--model",
         model ?? "haiku",
         "--no-session-persistence",
+        ...claudeControlArgs(selection.effort, selection.fast),
       ];
       const env = await profileEnv(location);
       return {

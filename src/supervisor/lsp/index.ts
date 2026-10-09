@@ -1,5 +1,16 @@
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { LspStartPayload, LspStopPayload, LspMessagePayload } from "@/shared/lsp";
+import type {
+  LspStartPayload,
+  LspStopPayload,
+  LspMessagePayload,
+  HostDiagnosticsSnapshot,
+} from "@/shared/lsp";
+import type { ProjectLocation } from "@/shared/contracts";
+import {
+  LspDiagnosticStore,
+  boundDiagnosticSnapshot,
+  sameDiagnosticProject,
+} from "./diagnosticStore";
 import { getConfigForLanguage } from "./serverRegistry";
 import { ServerInstance } from "./serverInstance";
 
@@ -23,6 +34,8 @@ function restartReadiness(): RestartReadiness {
 interface ServerOwner {
   sessionId: string;
   languageId: string;
+  projectLocation: ProjectLocation;
+  diagnostics: LspDiagnosticStore;
   instance: ServerInstance;
   retired: boolean;
   everReady: boolean;
@@ -63,10 +76,14 @@ export class LanguageServerManager {
       config,
       projectLocation,
       (message) => {
-        if (this.current(owner)) this.emit({ type: "lsp-message", sessionId, message });
+        if (this.current(owner)) {
+          owner.diagnostics.publish(message);
+          this.emit({ type: "lsp-message", sessionId, message });
+        }
       },
       (status, error) => {
         if (!this.current(owner)) return;
+        if (status === "starting") owner.diagnostics.clear();
         if (status === "starting" && owner.everReady && !owner.restarting)
           owner.restarting = restartReadiness();
         if (status === "ready") {
@@ -87,6 +104,8 @@ export class LanguageServerManager {
     const owner: ServerOwner = {
       sessionId,
       languageId,
+      projectLocation: { ...projectLocation },
+      diagnostics: new LspDiagnosticStore({ ...projectLocation }, languageId),
       instance,
       retired: false,
       everReady: false,
@@ -117,6 +136,7 @@ export class LanguageServerManager {
   private retire(owner: ServerOwner, emitStopped: boolean): void {
     if (owner.retired) return;
     owner.retired = true;
+    owner.diagnostics.clear();
     owner.restarting?.reject(new Error("Language server is unavailable."));
     owner.restarting = null;
     if (this.sessions.get(owner.sessionId) === owner) this.sessions.delete(owner.sessionId);
@@ -142,7 +162,26 @@ export class LanguageServerManager {
     if (!this.current(owner) || owner.restarting) return undefined;
     // Restarted document state is rebuilt from the renderer's live models.
     // Old versions/requests must not be delivered into the fresh connection.
+    owner.diagnostics.observeClientMessage(payload.message);
     return owner.instance.sendMessage(payload.message);
+  }
+
+  /** Current IDE diagnostics only; no ready source is unavailable, not an empty success. */
+  readDiagnostics(location: ProjectLocation): HostDiagnosticsSnapshot | undefined {
+    const owners = [...this.sessions.values()].filter(
+      (owner) =>
+        this.current(owner) &&
+        owner.everReady &&
+        !owner.restarting &&
+        owner.instance.isReady() &&
+        sameDiagnosticProject(owner.projectLocation, location),
+    );
+    if (!owners.length) return undefined;
+    const snapshots = owners.map((owner) => owner.diagnostics.snapshot());
+    return boundDiagnosticSnapshot(
+      snapshots.flatMap((snapshot) => snapshot.documents),
+      snapshots.some((snapshot) => snapshot.truncated),
+    );
   }
 
   dispose(): void {

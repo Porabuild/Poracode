@@ -1,6 +1,7 @@
 import { MAX_CONCURRENT_CHILDREN_PER_PARENT } from "./SubagentRunManager";
 import { SubagentSpawnError } from "./errors";
 import type { SpawnAgentRequest, SpawnAgentSelection } from "./types";
+import type { DispatchSelectionProvenance } from "./dispatchTrace";
 
 export function parseResultMode(args: Record<string, unknown>): "compact" | undefined {
   if (args.result_mode !== undefined && args.result_mode !== "compact") {
@@ -13,6 +14,7 @@ export function parseSpawnRequest(
   args: Record<string, unknown>,
   inheritedFallbacks?: SpawnAgentSelection[],
   inheritedRetryMode?: "startup" | "any-failure",
+  selectionProvenance?: DispatchSelectionProvenance,
 ): SpawnAgentRequest {
   parseResultMode(args);
   const agent = typeof args.provider === "string" ? args.provider : "";
@@ -73,6 +75,25 @@ export function parseSpawnRequest(
     args.fallbacks !== undefined ? explicitRetryMode : (explicitRetryMode ?? inheritedRetryMode);
 
   return {
+    ...(selectionProvenance
+      ? {
+          dispatchProvenance: {
+            selection: selectionProvenance,
+            fallbackSource:
+              args.fallbacks !== undefined
+                ? ("per-call" as const)
+                : inheritedFallbacks !== undefined
+                  ? ("saved-route" as const)
+                  : ("none" as const),
+            retryModeSource:
+              args.retry_on !== undefined
+                ? ("per-call" as const)
+                : args.fallbacks === undefined && inheritedRetryMode !== undefined
+                  ? ("saved-route" as const)
+                  : ("default" as const),
+          },
+        }
+      : {}),
     agent,
     prompt,
     ...(args.result_mode === "compact" ? { resultMode: "compact" as const } : {}),
@@ -89,6 +110,7 @@ export function parseSpawnRequest(
 interface InheritedFallback {
   fallbacks: SpawnAgentSelection[] | undefined;
   retryMode: "startup" | "any-failure" | undefined;
+  selectionProvenance?: DispatchSelectionProvenance;
 }
 
 export function parseSpawnRequests(
@@ -112,6 +134,7 @@ export function parseSpawnRequests(
       task as Record<string, unknown>,
       inheritedForTask?.fallbacks,
       inheritedForTask?.retryMode,
+      inheritedForTask?.selectionProvenance,
     );
   });
 }

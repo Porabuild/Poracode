@@ -62,6 +62,27 @@ interface RichChatRemoteTransport {
         throw RichChatTransportUnavailableException()
     }
 
+    /**
+     * Neutral session-action inventory for one thread. The payload carries the
+     * canonical `{threadId}` shape; the result is the validated
+     * `{actions:[{id}]}` object. Hosts without the verb fail closed — an
+     * unknown-query error hides every session control instead of advertising
+     * one.
+     */
+    suspend fun listThreadSessionActions(payload: JsonObject): JsonObject {
+        throw RichChatTransportUnavailableException()
+    }
+
+    /**
+     * Single-attempt neutral session-action mutation. The payload carries the
+     * canonical `{threadId, actionId, payload}` shape; the result is the
+     * validated provider record. Ambiguous delivery must surface as an unknown
+     * outcome and is never retried.
+     */
+    suspend fun invokeThreadSessionAction(payload: JsonObject): JsonObject {
+        throw RichChatTransportUnavailableException()
+    }
+
     suspend fun uploadAttachment(
         threadId: String,
         name: String,

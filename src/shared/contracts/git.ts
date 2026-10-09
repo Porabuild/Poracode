@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { agentKindSchema, projectLocationSchema, sessionRefSchema } from "./common";
+import { modelSelectionSchema } from "../selectionBinding.schemas.ts";
 
 export type RemoteHostPlatform = "github" | "gitlab" | "bitbucket" | "unknown";
 
@@ -232,10 +233,15 @@ export interface GitCommitResult {
 export const generateCommitMessagePayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   agentKind: agentKindSchema,
-  model: z.string().min(1).optional(),
-  effort: z.string().min(1).optional(),
-  /** Run generation in fast mode (Opus-only session flag; ignored by other models). */
-  fast: z.boolean().optional(),
+  /**
+   * Canonical complete utility selection. Omitted selection requests the
+   * existing utility default; `selection.model === ""` follows the existing
+   * default/implicit-model resolution. Replaces the scalar
+   * model/effort/fast triple (and carries context/thinking the old payload
+   * never had) so an empty effort and a false Fast survive transport exactly,
+   * and a recognized selection binding travels with its own selection.
+   */
+  selection: modelSelectionSchema.optional(),
   /** English name of the language to write the commit message in (e.g. "German"). Omitted = English. */
   language: z.string().min(1).optional(),
 });
@@ -249,10 +255,8 @@ export const generateTitlePayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   agentKind: agentKindSchema,
   prompt: z.string().min(1),
-  model: z.string().min(1).optional(),
-  effort: z.string().min(1).optional(),
-  /** Run generation in fast mode (Opus-only session flag; ignored by other models). */
-  fast: z.boolean().optional(),
+  /** Canonical complete utility selection (see `generateCommitMessagePayloadSchema`). */
+  selection: modelSelectionSchema.optional(),
   /** English name of the language to write the title in (e.g. "German"). Omitted = match the user's message. */
   language: z.string().min(1).optional(),
 });
@@ -267,8 +271,8 @@ export const generatePrSummaryPayloadSchema = z.object({
   agentKind: agentKindSchema,
   branch: z.string().min(1),
   baseBranch: z.string().min(1),
-  model: z.string().min(1).optional(),
-  effort: z.string().min(1).optional(),
+  /** Canonical complete utility selection (see `generateCommitMessagePayloadSchema`). */
+  selection: modelSelectionSchema.optional(),
   /** English name of the language to write the PR title/description in (e.g. "German"). Omitted = English. */
   language: z.string().min(1).optional(),
 });
@@ -285,8 +289,8 @@ export const extractContextPayloadSchema = z.object({
   sessionRef: sessionRefSchema,
   projectLocation: projectLocationSchema,
   worktreePath: z.string().optional(),
-  model: z.string().optional(),
-  effort: z.string().optional(),
+  /** Canonical complete utility selection (see `generateCommitMessagePayloadSchema`). */
+  selection: modelSelectionSchema.optional(),
 });
 export type ExtractContextPayload = z.infer<typeof extractContextPayloadSchema>;
 

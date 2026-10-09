@@ -26,25 +26,34 @@ extension HomeQuickComposeView {
     guard let agent = selectedAgent else { return [] }
     let capabilities = HomeComposerCatalog.capabilities(
       for: agent, presentationMode: presentationMode)
-    let model = effectiveConfiguration?.model ?? ""
-    let modelEfforts =
-      capabilities["modelEfforts"]?.objectValue?[model]?.arrayValue?
-      .compactMap(\.stringValue) ?? []
-    return modelEfforts.isEmpty
-      ? capabilities["efforts"]?.arrayValue?.compactMap(\.stringValue) ?? []
-      : modelEfforts
+    var config = ThreadConfig.empty
+    config.model = effectiveConfiguration?.model ?? ""
+    // Inside a model-bound family this is the encoded ladder reachable from
+    // the current member; otherwise the ordinary advertised ladder.
+    return ModelFamilies.efforts(capabilities, config: config)
   }
 
   var supportsFast: Bool {
     guard let agent = selectedAgent, let model = effectiveConfiguration?.model else { return false }
-    return HomeComposerCatalog.capabilities(for: agent, presentationMode: presentationMode)[
-      "fastModels"
-    ]?.arrayValue?
-    .compactMap(\.stringValue).contains(model) == true
+    let capabilities = HomeComposerCatalog.capabilities(
+      for: agent, presentationMode: presentationMode)
+    var config = ThreadConfig.empty
+    config.model = model
+    // Inside a model-bound family an opposite-Fast sibling must exist;
+    // otherwise the ordinary fastModels capability applies.
+    return ModelFamilies.fastAvailable(capabilities, config: config)
   }
 
+  /// The picker rows for one agent: hidden ids removed (user override, then
+  /// provider defaults), the current selection re-admitted so a configured
+  /// hidden model stays labeled, resumable, and check-marked.
   func modelOptions(for agent: AgentStatusRecord) -> [HomeComposerModel] {
-    let options = HomeComposerCatalog.models(for: agent, presentationMode: presentationMode)
+    let options = HomeComposerCatalog.pickerModels(
+      for: agent,
+      presentationMode: presentationMode,
+      userHiddenModels: hiddenModels,
+      currentModelID: selectedModel ?? defaults?.configuration.model
+    )
     if !options.isEmpty { return options }
     guard agent.kind == defaults?.agentKind, let model = defaults?.configuration.model else {
       return []
@@ -60,10 +69,42 @@ extension HomeQuickComposeView {
   }
 
   func defaultEffort(for agent: AgentStatusRecord, modelID: String) -> String? {
-    let capabilities = HomeComposerCatalog.capabilities(
-      for: agent, presentationMode: presentationMode)
-    return capabilities["modelDefaultEfforts"]?.objectValue?[modelID]?.stringValue
-      ?? capabilities["defaultEffort"]?.stringValue
+    HomeComposerCatalog.defaultEffort(
+      capabilities: HomeComposerCatalog.capabilities(
+        for: agent, presentationMode: presentationMode),
+      modelID: modelID
+    )
+  }
+
+  /// Reads the host settings document once so the saved visibility lists
+  /// reach the model pickers. An unavailable document (offline, no lease) is
+  /// not a failure — the provider's advertised defaults still apply.
+  func loadVisibilityOverrides() async {
+    visibilityDocument.activate(session.currentSettingsHostSelection?.lease)
+    guard visibilityDocument.document == nil else {
+      hiddenModels = visibilityDocument.document?.hiddenModels ?? [:]
+      return
+    }
+    await visibilityDocument.load()
+    hiddenModels = visibilityDocument.document?.hiddenModels ?? [:]
+  }
+
+  /// The launch/selection trigger label: a projected family member reads as
+  /// its family row (desktop parity); every other id keeps its raw native
+  /// label or the normalized fallback.
+  var modelLabel: String {
+    guard let agent = selectedAgent, let modelID = effectiveConfiguration?.model else {
+      return HomeStrings.model
+    }
+    if let family = ModelFamilies.family(
+      for: modelID,
+      in: HomeComposerCatalog.capabilities(for: agent, presentationMode: presentationMode))
+    {
+      return family.label
+    }
+    return modelOptions(for: agent).first(where: { $0.modelID == modelID })?.label
+      ?? HomeComposerCatalog.normalizedLabel(
+        agentKind: agent.kind, modelID: modelID, advertisedLabel: modelID)
   }
 
   func launchDefaults(for project: RemoteProject) -> HomeThreadLaunchDefaults? {
@@ -144,12 +185,14 @@ extension HomeQuickComposeView {
     for agent: AgentStatusRecord,
     preferredID: String? = nil
   ) -> HomeComposerModel? {
-    let models = HomeComposerCatalog.models(for: agent, presentationMode: presentationMode)
-    if let advertised = preferredID.flatMap({ preferred in
-      models.first { $0.modelID == preferred }
-    }) {
+    // The raw inventory resolves preferred ids first: a family member keeps
+    // its exact UID and native label even though the picker projects one row
+    // per family. Restores never widen or rewrite the saved choice.
+    let rawModels = HomeComposerCatalog.models(for: agent, presentationMode: presentationMode)
+    if let preferredID, let advertised = rawModels.first(where: { $0.modelID == preferredID }) {
       return advertised
     }
+    let models = HomeComposerCatalog.pickerModels(for: agent, presentationMode: presentationMode)
     if let preferredID = preferredID?.nilIfBlank {
       return HomeComposerModel(
         agentKind: agent.kind,
@@ -214,6 +257,76 @@ extension HomeQuickComposeView {
     chromeMcp = configuration.chromeMcp
     permissionMode = .configured
   }
+
+  // MARK: Family-aware common controls
+
+  /// The derived family view of the current selection. Inside a model-bound
+  /// family Effort/Fast are encoded in the member UID, so the displayed values
+  /// come from the relation while the saved carriers stay inert. `nil` outside
+  /// any family — the raw selection state is the display.
+  var composerFamilyDisplay: ModelFamilyDisplay? {
+    guard let agent = selectedAgent else { return nil }
+    let capabilities = HomeComposerCatalog.capabilities(
+      for: agent, presentationMode: presentationMode)
+    var config = ThreadConfig.empty
+    config.model = effectiveConfiguration?.model ?? ""
+    config.effort = selectedEffort
+    config.fast = fast
+    return ModelFamilies.displayConfig(capabilities, config: config)
+  }
+
+  var composerDisplayedEffort: String? {
+    composerFamilyDisplay?.effort ?? effectiveConfiguration?.effort
+  }
+
+  var composerDisplayedFast: Bool {
+    composerFamilyDisplay?.fast ?? fast
+  }
+
+  /// Explicit Effort pick at the control boundary. Inside a model-bound family
+  /// this resolves the one-axis tuple to the exact sibling UID (inert seeds,
+  /// no sibling guessing); otherwise it is the ordinary independent carrier.
+  func applyComposerEffort(_ effort: String) {
+    guard let agent = selectedAgent else {
+      selectedEffort = effort
+      return
+    }
+    let capabilities = HomeComposerCatalog.capabilities(
+      for: agent, presentationMode: presentationMode)
+    var config = ThreadConfig.empty
+    config.model = effectiveConfiguration?.model ?? ""
+    config.effort = selectedEffort
+    config.fast = fast
+    guard let patch = ModelFamilies.apply(.effort(effort), to: config, capabilities: capabilities)
+    else { return }
+    applyComposerPatch(patch)
+  }
+
+  /// Explicit Fast toggle at the control boundary — same resolution rule as
+  /// the Effort pick. The displayed state flips only when the relation admits
+  /// the opposite-Fast sibling.
+  func applyComposerFastToggle() {
+    guard let agent = selectedAgent else {
+      fast.toggle()
+      return
+    }
+    let capabilities = HomeComposerCatalog.capabilities(
+      for: agent, presentationMode: presentationMode)
+    var config = ThreadConfig.empty
+    config.model = effectiveConfiguration?.model ?? ""
+    config.effort = selectedEffort
+    config.fast = fast
+    let target = !composerDisplayedFast
+    guard let patch = ModelFamilies.apply(.fast(target), to: config, capabilities: capabilities)
+    else { return }
+    applyComposerPatch(patch)
+  }
+
+  private func applyComposerPatch(_ patch: ModelSelectionPatch) {
+    if let model = patch.model { selectedModel = model }
+    if let effort = patch.effort { selectedEffort = effort }
+    if let fast = patch.fast { self.fast = fast }
+  }
 }
 
 extension ThreadConfig {
@@ -269,6 +382,10 @@ struct HomeComposerModel: Identifiable, Equatable {
   let modelID: String
   let label: String
   var subProviderLabel: String?
+  /// Provider-content pricing/cost text, surfaced verbatim as a muted row
+  /// hint. Projected family rows never carry one — the representative's cost
+  /// does not describe the whole family.
+  var modelDescription: String? = nil
 
   var id: String { "\(agentKind)\u{0}\(modelID)" }
 
@@ -338,6 +455,7 @@ enum HomeComposerCatalog {
         "models", "efforts", "modelEfforts", "defaultEffort", "modelDefaultEfforts",
         "defaultHiddenModels", "contextSizes", "modelContextSizes", "defaultContextSize",
         "fastModels", "thinkingModels", "subProviders", "modelSubProvider",
+        "modelFamilies",
       ] {
         resolved.removeValue(forKey: key)
       }
@@ -375,9 +493,93 @@ enum HomeComposerCatalog {
           modelID: modelID,
           capability: capability,
           providerLabel: agent.label
-        )
+        ),
+        modelDescription: object["description"]?.stringValue
       )
     } ?? []
+  }
+
+  /// The static independent effort default for one model: absent inside a
+  /// model-bound effort family (the coordinate is encoded in the member UID
+  /// and displayed from the relation), otherwise the advertised per-model or
+  /// global default.
+  static func defaultEffort(
+    capabilities: [String: JSONValue], modelID: String
+  ) -> String? {
+    if let family = ModelFamilies.family(for: modelID, in: capabilities),
+      family.bindings.effort == .model
+    {
+      return nil
+    }
+    return capabilities["modelDefaultEfforts"]?.objectValue?[modelID]?.stringValue
+      ?? capabilities["defaultEffort"]?.stringValue
+  }
+
+  /// The composer's visible model list: the raw inventory with the
+  /// user/provider hidden ids removed (the current selection re-admitted so a
+  /// configured model stays labeled and resumable), then every represented
+  /// family member collapsed into one labeled family row at the
+  /// representative's position. Without a valid descriptor this is the
+  /// visibility-filtered `models` — surfaces that must keep exact choices
+  /// (schedules, handoff) stay on `models`.
+  static func pickerModels(
+    for agent: AgentStatusRecord,
+    presentationMode: ThreadPresentationMode,
+    userHiddenModels: [String: [String]]? = nil,
+    currentModelID: String? = nil
+  ) -> [HomeComposerModel] {
+    let capability = capabilities(for: agent, presentationMode: presentationMode)
+    let raw = models(for: agent, presentationMode: presentationMode)
+    guard !raw.isEmpty else { return [] }
+    let hidden = ModelVisibility.hiddenModelIDs(
+      capabilities: capability,
+      userHiddenModels: userHiddenModels,
+      agentKind: agent.kind,
+      runtimeVariant: ModelVisibility.declaredGUIVariant(
+        for: agent, presentationMode: presentationMode)
+    )
+    let visibleIDs = ModelVisibility.visiblePickerIDs(
+      from: raw.map(\.modelID),
+      hidden: hidden,
+      currentModelID: currentModelID
+    )
+    let visibleIDsSet = Set(visibleIDs)
+    let visible = raw.filter { visibleIDsSet.contains($0.modelID) }
+    // The projection intersects against the VISIBLE inventory, so hidden
+    // members leave the relation and a hidden representative substitutes
+    // instead of silently dropping member rows.
+    let projected = ModelFamilies.pickerModels(
+      accepted: visible.map { (id: $0.modelID, label: $0.label) },
+      capabilities: capability,
+      acceptedIDs: visibleIDsSet
+    )
+    guard projected.map(\.id) != visible.map(\.modelID) else { return visible }
+    let labels = Dictionary(uniqueKeysWithValues: raw.map { ($0.modelID, $0) })
+    let familyRowIDs = Set(
+      ModelFamilies.project(capability, accepted: visibleIDsSet).map(\.model))
+    return projected.map { row in
+      // A projected family row stands for all of its members: it never claims
+      // the representative's cost as the family's price.
+      if familyRowIDs.contains(row.id) {
+        return HomeComposerModel(
+          agentKind: agent.kind,
+          modelID: row.id,
+          label: row.label,
+          subProviderLabel: labels[row.id]?.subProviderLabel,
+          modelDescription: nil
+        )
+      }
+      if let exact = labels[row.id], exact.label == row.label {
+        return exact
+      }
+      return HomeComposerModel(
+        agentKind: agent.kind,
+        modelID: row.id,
+        label: row.label,
+        subProviderLabel: labels[row.id]?.subProviderLabel,
+        modelDescription: labels[row.id]?.modelDescription
+      )
+    }
   }
 
   static func normalizedLabel(

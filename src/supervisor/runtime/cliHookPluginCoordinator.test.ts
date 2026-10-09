@@ -10,6 +10,7 @@ import {
 } from "../agents/base";
 import type { WslBridgeServer } from "../wsl/bridge";
 import { CliHookPluginCoordinator } from "./cliHookPluginCoordinator";
+import { fileSettingsWriter } from "./supervisorSettingsWriter.testFixtures";
 
 /**
  * Tests cover the cache lifecycle of `CliHookPluginCoordinator`:
@@ -126,6 +127,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }) as AgentEnvContext,
       },
       () => undefined,
@@ -168,6 +170,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -202,6 +205,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -238,6 +242,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -257,6 +262,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -296,6 +302,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -341,6 +348,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "wsl", wslDistro: "Ubuntu" }),
       },
       () => undefined,
@@ -375,6 +383,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -432,6 +441,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "wsl", wslDistro: "Ubuntu" }),
       },
       () => undefined,
@@ -479,6 +489,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -537,6 +548,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: (_kind, location) =>
           location?.kind === "wsl"
             ? { envKind: "wsl", wslDistro: location.distro }
@@ -599,6 +611,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: (_kind, location) =>
           location?.kind === "wsl"
             ? { envKind: "wsl", wslDistro: location.distro }
@@ -646,6 +659,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["claude", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: (_kind, location) =>
           location?.kind === "wsl"
             ? { envKind: "wsl", wslDistro: location.distro }
@@ -679,6 +693,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -712,6 +727,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["fake-agent", adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -733,6 +749,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }) as AgentEnvContext,
       },
       () => undefined,
@@ -784,6 +801,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }) as AgentEnvContext,
       },
       () => undefined,
@@ -806,6 +824,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -840,6 +859,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["gemini", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -876,6 +896,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -898,6 +919,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,
@@ -945,6 +967,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       {
         adapters: new Map([["codex", stub.adapter]]),
         settingsPath,
+        settingsWriter: fileSettingsWriter(settingsPath),
         envContext: () => ({ envKind: "posix" }),
       },
       () => undefined,

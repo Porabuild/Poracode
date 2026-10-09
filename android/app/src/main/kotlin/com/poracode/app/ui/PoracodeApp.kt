@@ -237,6 +237,11 @@ fun PoracodeApp(
                                 onPushAction = onPushAction,
                                 notificationBanner = notificationBanner,
                                 deviceSettingsState = deviceSettingsState,
+                                userHiddenModels = settingsHostLease?.let {
+                                    settingsInformation.entries[it.key]?.settings?.settings
+                                        ?.get("hiddenModels") as? kotlinx.serialization.json.JsonObject
+                                },
+                                onRefreshModelVisibility = settings.controller::refreshModelVisibility,
                             )
                         }
                     }

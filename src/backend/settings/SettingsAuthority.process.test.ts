@@ -102,22 +102,32 @@ describe("settings commit process boundaries", () => {
     await fixture.completion;
     expect(JSON.parse(await readFile(join(root, "settings.json"), "utf8"))).toMatchObject({
       themeMode: "light",
-      $poracodeSettingsVersion: 1,
+      $poracodeSettingsVersion: 2,
       futureField: { retain: true },
     });
     // This is an unknown client outcome, not proof of an exactly-once response or power-loss durability.
   });
 
-  it.each(["file-sync-failure", "lease-loss"])(
-    "refuses %s before rename and cleans the temporary file",
-    async (mode) => {
-      const fixture = launch(mode);
-      await expect(fixture.next("failure")).resolves.toMatchObject({ type: "failure" });
-      await fixture.completion;
-      expect(await readFile(join(root, "settings.json"), "utf8")).toBe(original);
-      expect((await readdir(root)).filter((name) => name.endsWith(".tmp"))).toEqual([]);
-    },
-  );
+  it.each([
+    "file-sync-failure",
+    "lease-loss",
+    "database-loss-after-open",
+    "database-loss-after-write",
+    "database-loss-after-sync",
+    "database-loss-during-rename-retry",
+  ])("refuses %s before rename and cleans the temporary file", async (mode) => {
+    const fixture = launch(mode);
+    const failure = await fixture.next("failure");
+    expect(failure).toMatchObject({ type: "failure" });
+    expect(failure).toMatchObject(
+      mode.startsWith("database-loss")
+        ? { message: "Error: Fixture prepared database lost", sequence: 0, cachedTheme: "dark" }
+        : { type: "failure" },
+    );
+    await fixture.completion;
+    expect(await readFile(join(root, "settings.json"), "utf8")).toBe(original);
+    expect((await readdir(root)).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+  });
 
   it("reports directory-sync failure while returning the coherent committed cache/result", async () => {
     const fixture = launch("directory-sync-failure");

@@ -37,6 +37,7 @@ import {
   isSameTerminalCommand,
   normalizeTerminalCommandText,
   resolveAcpTerminalCwd,
+  validateAcpTerminalCwd,
 } from "./sessionTerminalLaunch";
 import {
   appendTerminalOutput,
@@ -52,8 +53,12 @@ import {
 export interface AcpTerminalManagerContext {
   readonly projectLocation: ProjectLocation;
   readonly cwd: string;
+  /** Immutable user-approved scope; only constrains the terminal starting cwd. */
+  readonly additionalDirectories?: readonly ProjectLocation[];
   /** Throws `RequestError` if `sessionId` is not the active ACP session. */
   assertRequestSession(sessionId: string): void;
+  /** Fences an async cwd check across reopen, including reopening the same id. */
+  getSessionGeneration?(): number;
 }
 
 export class AcpTerminalManager {
@@ -71,17 +76,37 @@ export class AcpTerminalManager {
 
   constructor(private readonly context: AcpTerminalManagerContext) {}
 
-  handleCreateTerminal(params: CreateTerminalRequest): CreateTerminalResponse {
+  async handleCreateTerminal(params: CreateTerminalRequest): Promise<CreateTerminalResponse> {
     this.context.assertRequestSession(params.sessionId);
     if (this.acpTerminals.size >= MAX_ACP_TERMINALS_PER_SESSION) {
       throw RequestError.invalidParams({
         message: `ACP terminal limit reached (${MAX_ACP_TERMINALS_PER_SESSION}); release existing terminals before creating more.`,
       });
     }
+    const generation = this.context.getSessionGeneration?.();
+    const cwd = resolveAcpTerminalCwd(
+      this.context.projectLocation,
+      params.cwd || this.context.cwd,
+      this.context.additionalDirectories,
+    );
+    await validateAcpTerminalCwd(
+      this.context.projectLocation,
+      cwd,
+      this.context.additionalDirectories,
+    );
+    this.context.assertRequestSession(params.sessionId);
+    if (this.context.getSessionGeneration?.() !== generation) {
+      throw RequestError.invalidParams({
+        message: "ACP terminal request belongs to a retired session.",
+      });
+    }
+    // Concurrent creates may have consumed the budget while validation awaited IO.
+    if (this.acpTerminals.size >= MAX_ACP_TERMINALS_PER_SESSION) {
+      throw RequestError.invalidParams({
+        message: "ACP terminal limit reached during cwd validation.",
+      });
+    }
     const terminalId = `acp-terminal-${this.acpTerminalSeq++}`;
-    const cwd = params.cwd
-      ? resolveAcpTerminalCwd(this.context.projectLocation, params.cwd)
-      : resolveAcpTerminalCwd(this.context.projectLocation, this.context.cwd);
     const launch = buildAcpTerminalLaunch(
       this.context.projectLocation,
       cwd,

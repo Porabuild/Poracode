@@ -12,6 +12,7 @@ import {
   configOptionsDescribeModel,
   type AcpProbeResult,
 } from "./probe";
+import { projectModelConfigGroups } from "./modelConfigGroups";
 import { structuredTurnTextOptions } from "../../runtime/turnClientContext";
 import { dedupeAcpAuthMethods } from "./authMethods";
 import { resolveThoughtLevelToggleValues } from "./thoughtLevel";
@@ -145,6 +146,61 @@ describe("mapAcpConfigModels", () => {
         { type: "select", category: "model", options: [{ value: "" }, {}] },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("grouped model menu projection", () => {
+  // Grouped config options negotiated: the `model` select arrives with
+  // SDK-nested groups ({group, name, options[]}). Group ids/names are
+  // agent-owned content; the fixture keeps neutral ones.
+  const groupedModelOption = {
+    type: "select",
+    id: "model",
+    category: "model",
+    currentValue: "m-high",
+    options: [
+      {
+        group: "flagship",
+        name: "Flagship",
+        options: [
+          { value: "m-high", name: "High" },
+          { value: "fusion-a-plus-b", name: "Fusion (A + B)" },
+        ],
+      },
+      { value: "m-standalone", name: "Standalone" },
+      { group: "fast", name: "Fast tier", options: [{ value: "m-fast", name: "Lightning" }] },
+    ],
+  };
+
+  it("keeps the flat {id,label} projection exact when groups are present", () => {
+    expect(mapAcpConfigModels([groupedModelOption])).toEqual([
+      { id: "m-high", label: "High" },
+      { id: "fusion-a-plus-b", label: "Fusion (A + B)" },
+      { id: "m-standalone", label: "Standalone" },
+      { id: "m-fast", label: "Lightning" },
+    ]);
+  });
+
+  it("maps exactly the accepted ids to their own groups, leaving ungrouped ones out", () => {
+    const acceptedIds = new Set(mapAcpConfigModels([groupedModelOption]).map((model) => model.id));
+    const groups = projectModelConfigGroups(groupedModelOption.options);
+    expect(groups?.subProviders).toEqual([
+      { id: "flagship", label: "Flagship" },
+      { id: "fast", label: "Fast tier" },
+    ]);
+    // Membership keys are always accepted ids — never an invented one — and
+    // cover exactly the grouped values; ungrouped entries stay unmapped.
+    const membershipKeys = Object.keys(groups?.modelSubProvider ?? {});
+    for (const key of membershipKeys) expect(acceptedIds.has(key)).toBe(true);
+    expect(membershipKeys.sort()).toEqual(["fusion-a-plus-b", "m-fast", "m-high"]);
+    expect(groups?.modelSubProvider["m-high"]).toBe("flagship");
+    expect(groups?.modelSubProvider["fusion-a-plus-b"]).toBe("flagship");
+    expect(groups?.modelSubProvider["m-fast"]).toBe("fast");
+    expect(groups?.modelSubProvider["m-standalone"]).toBeUndefined();
+  });
+
+  it("projects nothing for a flat menu, keeping the unadvertised-flag result unchanged", () => {
+    expect(projectModelConfigGroups([{ value: "m-1", name: "One" }])).toBeUndefined();
   });
 });
 

@@ -6,8 +6,38 @@ import { gitStatePatchSchema } from "../../gitState";
 // window enum values, so exact-match pairing must prevent mixed generations.
 // v12 combines that contract with authoritative content.delta.replace recovery.
 // Previous V2 clients append replacement snapshots and must not pair with this host.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 12;
+// v13 pairs the canonical strict selection-binding schemas (thread/project/
+// provider draft configs and canonical utility generation selections) with
+// per-route writer-generation admission: every route declared
+// `requiresCurrentProtocol` must refuse an authenticated writer request that
+// does not carry the exact current version header, so an old bearer minted
+// before the bump can never write the new selection semantics. This is an
+// UNSHIPPED protocol-13 REQUIREMENT pending host/client admission
+// qualification: the declaration below and the route registry pin define the
+// contract; host dispatcher/WS/IPC enforcement, old-bearer behavior, and
+// previous-artifact retirement are separate admission work that has not landed
+// yet, so no old-writer refusal is qualified today. Reads, the WS
+// declaration/query surface, and auth-free or ticket/read-class POSTs stay
+// open to old clients.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 13;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
+
+/**
+ * Per-request writer-generation admission header (protocol 13). A request
+ * targeting a route declared `requiresCurrentProtocol` — or resolving to a
+ * non-read procedure on the generic dispatch — must carry this header with the
+ * EXACT current {@link PORACODE_REMOTE_PROTOCOL_VERSION} string; any other
+ * value (including older or future versions) must be refused before any
+ * effect. This refusal is an unshipped requirement pending host/client
+ * admission qualification — current producers must send the header, but no
+ * host gate is qualified to enforce it yet. The value is carried verbatim by
+ * opaque proxies (bridge, relay): they never synthesize, strip, or upgrade it,
+ * so an old client's unheadered request arrives unheadered and the host fence
+ * fires once enforcement lands.
+ */
+export const REMOTE_PROTOCOL_VERSION_HEADER = "x-poracode-protocol-version";
+/** Exact current header value; a range check is never sufficient. */
+export const REMOTE_PROTOCOL_VERSION_HEADER_VALUE = String(PORACODE_REMOTE_PROTOCOL_VERSION);
 
 export const remoteAccessScopeSchema = z.enum([
   "session:read",

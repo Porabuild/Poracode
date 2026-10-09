@@ -160,4 +160,65 @@
     <string name="rich_chat_history_notice_reason_shutdown">비정상 종료</string>
     <string name="rich_chat_history_notice_reason_unclean_epoch">비정상 세션</string>
     <string name="rich_chat_history_notice_reason_unknown">저장소 한도</string>
+    <string name="rich_chat_session_actions">세션 작업</string>
+    <string name="rich_chat_session_action_rename">세션 이름 바꾸기</string>
+    <string name="rich_chat_session_action_revise">명령 수정</string>
+    <string name="rich_chat_session_action_rules">규칙</string>
+    <string name="rich_chat_session_action_hooks">훅</string>
+    <string name="rich_chat_session_action_personas">네이티브 페르소나</string>
+    <string name="rich_chat_session_rename_title">세션 이름 바꾸기</string>
+    <string name="rich_chat_session_rename_field">새 세션 제목</string>
+    <string name="rich_chat_session_rename_hint">에이전트가 새 제목을 먼저 적용하며, 확인 후 대화 목록이 업데이트됩니다.</string>
+    <string name="rich_chat_session_rename_submit">이름 바꾸기</string>
+    <string name="rich_chat_session_revise_command_field">수정할 명령</string>
+    <string name="rich_chat_session_revise_note_field">무엇을 바꿀까요? (선택)</string>
+    <string name="rich_chat_session_revise_submit">제안 받기</string>
+    <string name="rich_chat_session_revise_hint">에이전트가 수정된 명령을 제안합니다. 실행되기 전에 직접 검토하세요.</string>
+    <string name="rich_chat_session_revise_result_title">제안된 명령 — 사용 전 검토</string>
+    <string name="rich_chat_session_revise_insert">작성창에 삽입</string>
+    <string name="rich_chat_session_revise_discard">버리기</string>
+    <string name="rich_chat_session_revise_insert_hint">Poracode는 제안을 절대 실행하지 않습니다. 삽입은 작성창을 채울 뿐, 편집과 전송은 사용자가 합니다.</string>
+    <string name="rich_chat_session_revise_empty">에이전트가 수정된 명령을 반환하지 않았습니다.</string>
+    <string name="rich_chat_session_rules_title">이 세션의 규칙</string>
+    <string name="rich_chat_session_rules_empty">이 세션에 등록된 규칙이 없습니다.</string>
+    <string name="rich_chat_session_hooks_title">이 세션의 훅</string>
+    <string name="rich_chat_session_hooks_empty">이 세션에 연결된 훅이 없습니다.</string>
+    <string name="rich_chat_session_hooks_hint">훅 항목은 보고된 그대로 표시되며 스키마는 해석되지 않습니다.</string>
+    <string name="rich_chat_session_listing_failed">목록을 읽을 수 없습니다.</string>
+    <string name="rich_chat_session_actions_failed">세션 작업을 불러오지 못했습니다.</string>
+    <string name="rich_chat_session_rename_unconfirmed">에이전트가 이름 변경을 확인하지 않았습니다.</string>
+
+    <string name="rich_chat_session_archive">세션 보관</string>
+
+    <string name="rich_chat_session_archive_title">이 세션을 보관할까요?</string>
+
+    <string name="rich_chat_session_archive_message">에이전트가 먼저 세션을 보관하며, 확인 후 이 대화가 보관됩니다.</string>
+
+    <string name="rich_chat_session_archive_unconfirmed">에이전트가 보관을 확인하지 않았습니다.</string>
+
+
+    <string name="rich_chat_session_personas_truncated">스캔이 항목 한도에서 중단되었습니다. 목록이 불완전할 수 있습니다.</string>
+    <string name="rich_chat_session_personas_title">네이티브 페르소나</string>
+    <string name="rich_chat_session_personas_empty">네이티브 페르소나 정의를 찾을 수 없습니다.</string>
+    <string name="rich_chat_session_personas_hint">에이전트가 자체 파일에서 발견한 서브에이전트 정의입니다. 이 목록은 후보 정의의 스캔일 뿐, 로드되었음을 확인하는 것이 아닙니다.</string>
+    <string name="rich_chat_session_persona_read_only">읽기 전용</string>
+    <string name="rich_chat_session_persona_model">모델: %1$s</string>
+    <string name="rich_chat_session_action_settings">세션 설정</string>
+    <string name="rich_chat_session_settings_empty">이 세션은 어떤 설정도 알리지 않았습니다.</string>
+    <string name="rich_chat_session_settings_malformed">Devin이 Poracode가 해석할 수 없는 설정 목록을 반환했습니다.</string>
+    <string name="rich_chat_session_settings_read_failed">세션 설정을 읽을 수 없습니다.</string>
+    <string name="rich_chat_session_settings_footer">변경 사항은 실행 중인 이 Devin 세션에 적용됩니다.</string>
+    <string name="rich_chat_session_settings_unconfirmed">Devin이 설정 변경을 확인하지 않았습니다.</string>
+    <string name="rich_chat_session_settings_no_values">이 옵션에 대해 알려진 값이 없습니다.</string>
+    <string name="rich_chat_session_settings_current_value">현재 값: %1$s</string>
+    <string name="rich_chat_session_settings_org_locked">이 세션이 실행되는 동안에는 조직을 변경할 수 없습니다 — Devin 프로필 설정에서 변경한 후 새 세션을 시작하세요.</string>
+    <string name="rich_chat_session_settings_org_name">조직</string>
+    <string name="rich_chat_session_settings_unavailable">사용할 수 없음</string>
+    <string name="rich_chat_session_settings_unsupported_typed">Poracode는 아직 이 %1$s 컨트롤을 편집할 수 없습니다.</string>
+    <string name="rich_chat_session_settings_unsupported">Poracode는 아직 이 컨트롤을 편집할 수 없습니다.</string>
+    <string name="rich_chat_session_settings_no_value">값 없음</string>
+    <string name="rich_chat_session_settings_no_matches">일치하는 값이 없습니다.</string>
+    <string name="rich_chat_session_settings_search">값 검색</string>
+    <string name="rich_chat_session_settings_back">뒤로</string>
+    <string name="rich_chat_session_settings_fallback_heading">설정</string>
 </resources>

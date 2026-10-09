@@ -279,6 +279,7 @@ function publishAppliedSupervisorEventNow(
     }
   }
   updateBackgroundTasks(host, event);
+  updateSessionConfigInventory(host, event);
 
   // Terminal output is high-volume and ephemeral: keep it off the replayable
   // event stream (replaying PTY bytes would garble the screen) and only send
@@ -449,6 +450,32 @@ function updateBackgroundTasks(host: RemoteAccessServerHost, event: RemoteBroadc
     if (runtimeEvent.type === "background_tasks.changed") {
       host.backgroundTasksByThread.set(runtimeEvent.threadId, [...runtimeEvent.tasks]);
     }
+  }
+}
+
+/**
+ * Latest-wins projection of the volatile per-thread session-control inventory
+ * from `thread-state` events. The db cannot hold the field, so pull surfaces
+ * overlay this back onto served rows (`sessionConfigInventory.ts`); exit and
+ * reset retire a thread's entry so no pull resurrects a departed session's
+ * controls.
+ */
+function updateSessionConfigInventory(
+  host: RemoteAccessServerHost,
+  event: RemoteBroadcastEvent,
+): void {
+  if (event.type === "thread-state") {
+    host.sessionConfigInventory.observeThreadState({
+      threadId: event.threadId,
+      ...(event.agentKind !== undefined ? { agentKind: event.agentKind } : {}),
+      ...(event.sessionConfigOptions !== undefined
+        ? { sessionConfigOptions: event.sessionConfigOptions }
+        : {}),
+    });
+    return;
+  }
+  if (event.type === "thread-exited" || event.type === "thread-reset") {
+    host.sessionConfigInventory.retireThread(event.threadId);
   }
 }
 

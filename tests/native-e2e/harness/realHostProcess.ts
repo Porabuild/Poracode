@@ -1,6 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { LOOPBACK_HOST, STARTUP_TIMEOUT_MS } from "./constants.ts";
+import { currentClientProtocolHeaders } from "./httpIo.ts";
 import { loadProtocolManifest } from "./manifest.ts";
 import { detectServerNativeBinding } from "./paths.ts";
 import { ProcessCleanup } from "./processCleanup.ts";
@@ -191,13 +192,20 @@ export async function exchangeAndAddProject(
     headers: {
       authorization: `Bearer ${token.accessToken}`,
       "content-type": "application/json",
+      ...currentClientProtocolHeaders("POST"),
     },
     body: JSON.stringify({ kind: "add-existing", path: fixtureDir, name: "native-e2e-fixture" }),
   });
   if (!add.ok) {
+    const errorCode = await add
+      .json()
+      .then((body: { error?: { code?: unknown } }) => body.error?.code)
+      .catch(() => undefined);
     return {
       code: "project-seed-unavailable",
-      message: `Public project add-existing failed (${String(add.status)}). The production CLI has no separate seed command.`,
+      message: `Public project add-existing failed (${String(add.status)}${
+        typeof errorCode === "string" ? ` ${errorCode}` : ""
+      }). The production CLI has no separate seed command.`,
     };
   }
   return undefined;

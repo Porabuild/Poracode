@@ -5,6 +5,7 @@ import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.EnvironmentHostReference
 import com.poracode.app.model.HostRecord
 import com.poracode.app.model.RemoteEnvironmentPairing
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.storage.HostCatalog
 import com.poracode.app.storage.HostCatalogCredentialRepository
 import com.poracode.app.storage.HostOperationKind
@@ -174,7 +175,7 @@ class EnvironmentPairingCoordinatorTest {
                 path.endsWith("/.well-known/poracode/environment") -> json(
                     """
                     {
-                      "protocolVersion":12,
+                      "protocolVersion":${ProtocolConstants.REMOTE_PROTOCOL_VERSION},
                       "hostMode":"desktop",
                       "desktopId":"$childDesktopId",
                       "label":"Child",
@@ -244,7 +245,7 @@ class EnvironmentPairingCoordinatorTest {
             appVersion = "12.0.0",
             scopes = listOf("projects:manage", "session:operate", "ports:forward", "session:read"),
             pairedAtEpochMs = 1,
-            protocolVersion = 12,
+            protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
             certFingerprint = PARENT_PIN,
         )
 
@@ -263,7 +264,7 @@ class EnvironmentPairingCoordinatorTest {
                     EnvironmentProtocol.proxyPrefix(environmentId).trimEnd('/'),
                 appVersion = "12.0.0",
                 pairedAtEpochMs = 1,
-                protocolVersion = 12,
+                protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
                 environment = EnvironmentHostReference(parentId, environmentId, childDesktopId),
             )
             catalog.add(record, "existing-token", catalog.begin(HostOperationKind.Add))

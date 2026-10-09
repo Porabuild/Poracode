@@ -4,6 +4,10 @@ import { connect, createServer as createNetServer, type AddressInfo } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { REMOTE_HTTP_ROUTES } from "@/shared/remote/contract";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "./RemoteAccessServer";
 import { RemotePortForwardGateway } from "./RemotePortForwardGateway";
@@ -224,7 +228,11 @@ describe("RemoteAccessServer audit log (Gate 6 item 4.7)", () => {
       const sessionId = server.listAccessSessions()[0]?.id;
       expect(sessionId).toBeTruthy();
 
-      const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+      const headers = {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      };
 
       // thread_create (start-existing requires the thread to exist).
       dbGetThreadMock.mockReturnValue({
@@ -376,7 +384,11 @@ describe("RemoteAccessServer audit log (Gate 6 item 4.7)", () => {
     });
     expect(tokenResponse.status).toBe(200);
     const token = ((await tokenResponse.json()) as { accessToken: string }).accessToken;
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
 
     const auditedRoutes = REMOTE_HTTP_ROUTES.filter((route) => route.audit.kind !== false);
     for (const route of auditedRoutes) {

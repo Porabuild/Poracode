@@ -29,6 +29,12 @@ import {
 } from "./catalogReads";
 import { dbReadCatalogMembership } from "./catalogMembershipReads";
 import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
+import {
+  dbBeginThreadWorkspaceGrantOperation,
+  dbCommitThreadWorkspaceGrants,
+  dbMarkThreadWorkspaceGrantDispatched,
+  dbReadThreadWorkspaceGrantOwner,
+} from "./threadWorkspaceGrants";
 
 function testThread(overrides: Partial<Thread> = {}): Thread {
   return {
@@ -105,6 +111,45 @@ describe.skipIf(!sqliteAvailable)("catalogReads (real sqlite)", () => {
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  function commitDirectories(paths: string[]): void {
+    const current = dbReadThreadWorkspaceGrantOwner("thread-1");
+    dbBeginThreadWorkspaceGrantOperation({
+      threadId: "thread-1",
+      operationToken: "catalog-scope",
+      expectedRevision: current.revision,
+      owner: current.owner,
+      candidate: paths.map((path) => ({ kind: "posix", path })),
+    });
+    dbMarkThreadWorkspaceGrantDispatched("thread-1", "catalog-scope");
+    dbCommitThreadWorkspaceGrants("thread-1", "catalog-scope");
+  }
+
+  it("projects the committed workspace scope and revision through catalog phase 2", () => {
+    dbUpsertThread(testThread(), 0);
+    expect(dbReadCatalogThreadPhase2(["thread-1"])).toEqual([dbGetThread("thread-1")]);
+    commitDirectories(["/extra", "/second"]);
+    const projected = dbReadCatalogThreadPhase2(["thread-1"])[0]!;
+    expect(projected).toEqual(dbGetThread("thread-1"));
+    expect(projected.additionalDirectories).toEqual([
+      { kind: "posix", path: "/extra" },
+      { kind: "posix", path: "/second" },
+    ]);
+    expect(projected.workspaceGrantRevision).toBeGreaterThan(0);
+  });
+
+  it("includes committed directory JSON in the payload-free phase-1 size bound", () => {
+    dbUpsertThread(testThread(), 0);
+    commitDirectories(
+      Array.from({ length: 8 }, (_, index) => `/extra-${index}-${"🥑".repeat(500)}`),
+    );
+    const actual = JSON.stringify(threadSchema.parse(dbGetThread("thread-1")));
+    const page = dbReadCatalogThreadPhase1({ mode: "page", order: "manual", limit: 1 });
+    const row = page.rows[0]!;
+    expect(row.boundWireBytes).toBeGreaterThanOrEqual(serializedWireByteLength(actual));
+    expect(JSON.stringify(row)).not.toContain("🥑");
+    expect(Object.hasOwn(row, "additionalDirectories")).toBe(false);
   });
 
   it("pages manual paint in (sort_order, id) order across cursors", () => {
@@ -406,6 +451,7 @@ describe.skipIf(!sqliteAvailable)("catalogReads (real sqlite)", () => {
         id: "hostile-json",
         title: "hostile",
         config: {
+          model: "opaque-hostile-model",
           exp: 1e20,
           zero: -0,
           one: 1.0,

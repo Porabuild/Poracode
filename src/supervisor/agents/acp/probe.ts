@@ -30,6 +30,7 @@ import type {
 import { canonicalizeEffortId, sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
+import { projectModelConfigGroups } from "./modelConfigGroups";
 import {
   findContextConfigOption,
   findFastConfigOption,
@@ -90,6 +91,15 @@ export interface AcpProbeResult {
   authState?: AuthState;
   models?: Array<{ id: string; label: string; description?: string; tooltipDescription?: string }>;
   modelMetadata?: Record<string, Record<string, unknown>>;
+  /**
+   * Section order + labels when the negotiated `model` menu arrives grouped
+   * (standard `SessionConfigSelectGroup` shapes; see `modelConfigGroups.ts`).
+   * Flat menus — everything an agent sends while grouped config options are
+   * not negotiated — omit this and `modelSubProvider`.
+   */
+  subProviders?: Array<{ id: string; label: string }>;
+  /** Advertised model id → its sub-provider section id (see `subProviders`). */
+  modelSubProvider?: Record<string, string>;
   /**
    * Raw `_meta` collected during the probe handshake, merged across the
    * `initialize`, `authenticate`, and `newSession` responses (later sources
@@ -527,6 +537,22 @@ export async function probeAcpCapabilities(
      */
     preserveEmptyModelEfforts?: boolean;
     /**
+     * Advertise the boolean session config-option client capability for this
+     * probe, matching what the live session would negotiate. Default off, so
+     * the probe observes the option set a non-boolean-capable client sees.
+     */
+    booleanConfigOptions?: boolean;
+    /**
+     * Initialization-only discovery never allocates a provider session. Use
+     * this for runtimes whose sessions persist independently of this process.
+     * Model and mode options then come from the actual user-owned session.
+     */
+    sessionProbe?: "initialize-only";
+    /** Match the execution boundary of a runtime without host filesystem access. */
+    fsTextCapability?: boolean;
+    /** Match the execution boundary of a runtime without host terminal access. */
+    terminalCapability?: boolean;
+    /**
      * Per-model thought-level / model_config sweep budget. Defaults to the
      * shared 300ms cap so a wedged `set_config_option` cannot stall detection.
      */
@@ -685,6 +711,18 @@ export async function probeAcpCapabilities(
         clientInfo: { name: "poracode-probe", version: "0.1.0" },
         clientCapabilities: {
           auth: { terminal: true },
+          ...(options?.fsTextCapability !== undefined
+            ? {
+                fs: {
+                  readTextFile: options.fsTextCapability,
+                  writeTextFile: options.fsTextCapability,
+                },
+              }
+            : {}),
+          ...(options?.terminalCapability !== undefined
+            ? { terminal: options.terminalCapability }
+            : {}),
+          ...(options?.booleanConfigOptions ? { session: { configOptions: { boolean: {} } } } : {}),
           ...(options?.clientCapabilitiesMeta ? { _meta: options.clientCapabilitiesMeta } : {}),
         },
       }),
@@ -722,6 +760,7 @@ export async function probeAcpCapabilities(
     const preferredAuthMethodId = options?.authenticateMethodIds?.find((id) =>
       initResult.authMethods?.some((method) => method.id === id),
     );
+    if (options?.sessionProbe === "initialize-only") return probeResult;
     if (preferredAuthMethodId) {
       try {
         const authResult = (await runWithinProbeBudget(
@@ -790,9 +829,18 @@ export async function probeAcpCapabilities(
       }
     }
     if (result.configOptions?.length) {
+      const modelConfig = findSelectConfigOption(result.configOptions, "model");
       const configModels = mapAcpConfigModels(result.configOptions, options?.modelLabel);
       if (configModels.length > 0) {
         probeResult.models = configModels;
+      }
+      // Retain group structure when the negotiated model menu arrives
+      // grouped. Flat menus project to nothing, so an unadvertised flag
+      // leaves the probe result exactly as before.
+      const modelGroups = projectModelConfigGroups(modelConfig?.options);
+      if (modelGroups) {
+        probeResult.subProviders = modelGroups.subProviders;
+        probeResult.modelSubProvider = modelGroups.modelSubProvider;
       }
       const thoughtLevels = mapAcpThoughtLevels(result.configOptions);
       if (!thoughtLevels.toggleOnly && thoughtLevels.efforts.length > 0) {
@@ -801,7 +849,6 @@ export async function probeAcpCapabilities(
       if (!thoughtLevels.toggleOnly && thoughtLevels.defaultEffort) {
         probeResult.defaultEffort = thoughtLevels.defaultEffort;
       }
-      const modelConfig = findSelectConfigOption(result.configOptions, "model");
       const perModelTimeoutMs =
         options?.modelThoughtLevelProbeTimeoutMs ?? MODEL_THOUGHT_LEVEL_PROBE_TIMEOUT_MS;
       // Probe per-model thought levels even when the default model exposes

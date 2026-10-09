@@ -1,0 +1,53 @@
+{
+  "$comment": "Neutral fixture: encoded relation with a coordinate hole. Selector sample.axis.a=opt-a2 with sample.axis.b=opt-b1 has no member; an edit resolving to that tuple is refused and never guesses a member. The relation itself stays valid — existing family logic treats the hole as a visible unavailability.",
+  "relation": {
+    "model": "lead-a+sidekick-b",
+    "label": "Composite Family",
+    "selectors": [
+      {
+        "id": "sample.axis.a",
+        "labelKey": "modelSelection.lead",
+        "options": [
+          { "id": "opt-a1", "label": "A1" },
+          { "id": "opt-a2", "label": "A2" }
+        ]
+      },
+      {
+        "id": "sample.axis.b",
+        "labelKey": "modelSelection.sidekick",
+        "options": [
+          { "id": "opt-b1", "label": "B1" },
+          { "id": "opt-b2", "label": "B2" }
+        ]
+      }
+    ],
+    "bindings": { "effort": "model", "fast": "model" },
+    "redundantValues": {
+      "effort": ["", "default"],
+      "fast": [false],
+      "thinking": [false],
+      "contextSize": ["", "default"]
+    },
+    "members": [
+      {
+        "model": "lead-a+sidekick-b",
+        "selections": { "sample.axis.a": "opt-a1", "sample.axis.b": "opt-b1" },
+        "effort": "high",
+        "fast": false
+      },
+      {
+        "model": "lead-a2+sidekick-b2",
+        "selections": { "sample.axis.a": "opt-a2", "sample.axis.b": "opt-b2" },
+        "effort": "max",
+        "fast": true
+      },
+      {
+        "model": "lead-a+sidekick-b2",
+        "selections": { "sample.axis.a": "opt-a1", "sample.axis.b": "opt-b2" },
+        "effort": "high",
+        "fast": true
+      }
+    ]
+  },
+  "expect": { "relationValid": true, "holeModel": "lead-a2+sidekick-b" }
+}

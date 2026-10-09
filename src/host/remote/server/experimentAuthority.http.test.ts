@@ -24,6 +24,10 @@ import {
   initDatabase,
 } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import {
   RemoteAccessServer,
@@ -174,6 +178,7 @@ async function postCommand(
       headers: {
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         ...(commandId ? { "x-poracode-command-id": commandId } : {}),
         ...(extraHeaders ?? {}),
       },
@@ -755,6 +760,7 @@ describe.skipIf(!sqliteAvailable)("experiment authority over real HTTP", () => {
       headers: {
         authorization: `Bearer ${operatorToken}`,
         "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         "x-poracode-command-id": "experiment-relay-1",
         // Exactly the marker the in-process relay adapter stamps on its
         // loopback dial; the shared classifier must refuse it as proxied.

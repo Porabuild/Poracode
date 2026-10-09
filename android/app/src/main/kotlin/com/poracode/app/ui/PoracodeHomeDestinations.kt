@@ -399,8 +399,15 @@ internal fun HomeDestinationScreenContent(
     onPushAction: () -> Unit,
     notificationBanner: RemoteUserNotificationBanner?,
     deviceSettingsState: DeviceSettingsState,
+    userHiddenModels: kotlinx.serialization.json.JsonObject?,
+    onRefreshModelVisibility: () -> Unit,
 ) {
+    androidx.compose.runtime.LaunchedEffect(state.hostCatalog.selectedConnectionId, state.openThreadId) {
+        onRefreshModelVisibility()
+    }
     HomeScreen(
+        userHiddenModels = userHiddenModels,
+        onRefreshModelVisibility = onRefreshModelVisibility,
         state = state,
         threads = session.unifiedThreads().filter { item ->
             item.project.id !in excludedProjectIds[item.connectionId.value].orEmpty()

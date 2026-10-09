@@ -2,6 +2,9 @@ import type { AgentCapability, ResolvedMcpServer, PromptSegment } from "@/shared
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
@@ -291,7 +294,19 @@ export function createOpenCodeAdapter(): AgentAdapter {
     async runOneShot(input: RunOneShotInput): Promise<string> {
       return runOpenCodeOneShot(input);
     },
-    buildOneShotCommand(model, _effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // The legacy `opencode run` CLI maps neither effort nor Fast. The legacy
+      // default carriers stay accepted as declared-inactive so default utility
+      // selections keep flowing; a meaningful control refuses visibly instead
+      // of being silently dropped (the SDK lane maps effort onto the variant).
+      assertOneShotControlsMapped(selection, {
+        effort: { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       if (!prompt) return undefined;
       return {
         command: "opencode",
@@ -299,7 +314,15 @@ export function createOpenCodeAdapter(): AgentAdapter {
         stdin: "",
       };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, _location, model, options) {
+      const selection = resolveCheckedOneShotResumeSelection(model, options);
+      // Same provider policy as the legacy CLI one-shot lane: only the model
+      // maps here, so meaningful effort/Fast (and any thinking/context
+      // carrier) refuse before the command is built.
+      assertOneShotControlsMapped(selection, {
+        effort: { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       return {
         command: "opencode",
         args: [

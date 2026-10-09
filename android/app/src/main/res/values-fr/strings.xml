@@ -89,6 +89,8 @@
     <string name="home_start">Démarrer</string>
     <string name="home_quick_compose_agent">Agent</string>
     <string name="home_quick_compose_presentation">Présentation</string>
+    <string name="model_selection_lead">Principal</string>
+    <string name="model_selection_sidekick">Auxiliaire</string>
     <string name="home_quick_compose_chat">Chat</string>
     <string name="home_quick_compose_terminal">Terminal</string>
     <string name="home_quick_compose_controls">Réglages de lancement</string>

@@ -2,6 +2,8 @@ import { createAcpStructuredSession } from "../acp";
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import { createAcpGenericAdapter } from "../acp-generic";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   detectAgentInstall,
   detectProbeLocation,
   type AgentAdapter,
@@ -113,7 +115,15 @@ export function createFactoryAdapter(): AgentAdapter {
       return buildFactoryCommand(location, resolveAgentBinaryPath(location, "droid"));
     },
     defaultOneShotModel: "auto",
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Reasoning effort maps natively (`--reasoning-effort`); the droid CLI
+      // has no Fast lane, so false Fast is the declared-inactive legacy carrier
+      // and meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) return undefined;
       const args = ["exec", "--output-format", "text"];
       if (model) args.push("--model", model);

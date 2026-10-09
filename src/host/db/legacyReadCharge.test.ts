@@ -79,6 +79,14 @@ describe.skipIf(!sqliteAvailable)("legacy read charges", () => {
         bytes("none") +
         bytes("prompt") +
         bytes("terminal") +
+        bytes("[]") +
+        bytes(
+          (
+            sqlite
+              .prepare("SELECT workspace_owner_incarnation FROM threads WHERE id = 'thread-1'")
+              .get() as { workspace_owner_incarnation: string }
+          ).workspace_owner_incarnation,
+        ) +
         bytes("2026-01-01T00:00:00.000Z") +
         bytes("2026-01-02T00:00:00.000Z"),
       projectsStoredBytes:
@@ -187,7 +195,15 @@ describe.skipIf(!sqliteAvailable)("legacy read charges", () => {
         created_at: "2026-01-01T00:00:00.000Z",
         updated_at: "2026-01-01T00:00:00.000Z",
       };
-      row[column] = value;
+      const hostMinted = new Set([
+        "additional_directories",
+        "workspace_grant_revision",
+        "workspace_grants_initialized",
+        "workspace_owner_incarnation",
+      ]);
+      if (!hostMinted.has(column))
+        row[column] =
+          column === "config" ? JSON.stringify({ model: "probe", opaque: value }) : value;
       const columns = Object.keys(row);
       const before = dbMeasureLegacySnapshotCharge().threadsStoredBytes;
       sqlite
@@ -196,9 +212,32 @@ describe.skipIf(!sqliteAvailable)("legacy read charges", () => {
            VALUES (${columns.map(() => "?").join(", ")})`,
         )
         .run(...columns.map((name) => row[name]!));
+      // These columns cannot accept arbitrary text at INSERT. Exercise legal
+      // host-owned values instead of disabling the schema56 custody triggers.
+      if (column === "additional_directories")
+        sqlite
+          .prepare(
+            "UPDATE threads SET additional_directories = ?, workspace_grant_revision = 1, workspace_grants_initialized = 1 WHERE id = ?",
+          )
+          .run(JSON.stringify([`/${value}`]), row.id!);
+      else if (column === "workspace_grant_revision" || column === "workspace_grants_initialized")
+        sqlite
+          .prepare(
+            "UPDATE threads SET workspace_grant_revision = 1, workspace_grants_initialized = 1 WHERE id = ?",
+          )
+          .run(row.id!);
       const after = dbMeasureLegacySnapshotCharge().threadsStoredBytes;
-      expect(after - before, `threads.${column}`).toBeGreaterThanOrEqual(bytes(value));
-      sqlite.prepare("DELETE FROM threads WHERE id = ?").run(row.id!);
+      const actual = sqlite.prepare("SELECT * FROM threads WHERE id = ?").get(row.id!) as Record<
+        string,
+        unknown
+      >;
+      expect(after - before, `threads.${column}`).toBe(materializedStoredBytes([actual]));
+      expect(after - before, `threads.${column}`).toBeGreaterThanOrEqual(
+        hostMinted.has(column) ? 0 : bytes(value),
+      );
+      // Keep host-minted grant probes until this owned fixture is disposed;
+      // do not reset custody or bypass its deletion guard just for cleanup.
+      if (!hostMinted.has(column)) sqlite.prepare("DELETE FROM threads WHERE id = ?").run(row.id!);
       if (column === "project_id") {
         sqlite.prepare("DELETE FROM projects WHERE id = ?").run(value);
       }

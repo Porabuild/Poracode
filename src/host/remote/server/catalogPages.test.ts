@@ -19,6 +19,7 @@ import { getSqlite } from "@/host/db/connection";
 import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import type { RemoteServerContext } from "./context";
+import { SessionConfigInventory } from "./sessionConfigInventory";
 import { handleCatalogMembership } from "./catalogMembership";
 import {
   buildCatalogProjectListPage,
@@ -119,6 +120,7 @@ function context(overrides: { readonly withGitState?: boolean } = {}): RemoteSer
         : {}),
     },
     seq: 42,
+    sessionConfigInventory: new SessionConfigInventory(),
   } as unknown as RemoteServerContext;
 }
 

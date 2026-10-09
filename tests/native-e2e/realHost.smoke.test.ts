@@ -2,8 +2,12 @@ import { existsSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../src/shared/remote/protocol.ts";
+import {
+  PORACODE_REMOTE_PROTOCOL_VERSION,
+  REMOTE_PROTOCOL_VERSION_HEADER,
+} from "../../src/shared/remote/protocol.ts";
 import { LOOPBACK_HOST } from "./harness/constants.ts";
+import { currentClientProtocolHeaders } from "./harness/httpIo.ts";
 import { detectHeadlessServerEntrypoint, findRepoRoot } from "./harness/paths.ts";
 import { ProcessCleanup } from "./harness/processCleanup.ts";
 import { missingServerArtifactBlocker, startRealHost } from "./harness/realHost.ts";
@@ -116,6 +120,69 @@ describe("real production host smoke", () => {
       const credentialAgain = pairingTokenFromUrl(pairingAgain.pairingUrl);
       const tokenAgain = await exchangeToken(host.httpBaseUrl, credentialAgain, ["session:read"]);
       expect(tokenAgain.status).toBe(200);
+    },
+    90_000,
+  );
+
+  it.skipIf(!realHostEntrypoint)(
+    "refuses old-generation writers without effect and admits the current client generation",
+    async () => {
+      cleanup = new ProcessCleanup();
+      const host = await startRealHost({
+        host: LOOPBACK_HOST,
+        port: await allocateLoopbackPort(),
+        repoRoot: repoRootForSmoke,
+        cleanup,
+        startupTimeoutMs: 45_000,
+      });
+      stop = () => host.stop();
+      expect(
+        host.blockers.filter((blocker) => blocker.code === "project-seed-unavailable"),
+      ).toEqual([]);
+
+      const pairing = await host.pair();
+      const token = await exchangeToken(host.httpBaseUrl, pairingTokenFromUrl(pairing.pairingUrl), [
+        "session:read",
+        "projects:manage",
+      ]);
+      expect(token.status).toBe(200);
+      const auth = { authorization: `Bearer ${token.accessToken}` };
+      const listProjects = async () => {
+        const snapshot = await fetch(new URL("/api/snapshot", host.httpBaseUrl), {
+          headers: auth,
+        });
+        expect(snapshot.status).toBe(200);
+        return ((await snapshot.json()) as { projects: Array<{ id: string; name: string }> })
+          .projects;
+      };
+      const seeded = (await listProjects()).find((entry) => entry.name === "native-e2e-fixture");
+      if (!seeded) throw new Error("seeded project native-e2e-fixture must exist");
+      const seededName = async () =>
+        (await listProjects()).find((entry) => entry.id === seeded.id)?.name;
+
+      const rename = (name: string, generation: Record<string, string>) =>
+        fetch(new URL("/api/projects/command", host.httpBaseUrl), {
+          method: "POST",
+          headers: { ...auth, "content-type": "application/json", ...generation },
+          body: JSON.stringify({ kind: "update", projectId: seeded.id, patch: { name } }),
+        });
+      // An old client never declares the writer generation; a stale one
+      // declares the previous generation. Both are refused before any effect.
+      for (const generation of [
+        {},
+        { [REMOTE_PROTOCOL_VERSION_HEADER]: String(PORACODE_REMOTE_PROTOCOL_VERSION - 1) },
+      ]) {
+        const refused = await rename("old-writer-rename", generation);
+        expect(refused.status).toBe(409);
+        expect(((await refused.json()) as { error: { code: string } }).error.code).toBe(
+          "protocol_version_mismatch",
+        );
+        expect(await seededName()).toBe("native-e2e-fixture");
+      }
+
+      const admitted = await rename("current-writer-rename", currentClientProtocolHeaders("POST"));
+      expect(admitted.status).toBe(200);
+      expect(await seededName()).toBe("current-writer-rename");
     },
     90_000,
   );

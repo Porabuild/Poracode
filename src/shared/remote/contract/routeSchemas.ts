@@ -311,6 +311,17 @@ const remoteSettingsKeys = [
   "wslConflictResolverEffort",
   "wslConflictResolverFast",
   "wslConflictResolverPresentationMode",
+  // Canonical complete utility selections (selectionBinding contract).
+  // Optional/defaultless in the shared schema: absent keeps the legacy scalar
+  // reads above as the compatibility projection; a present object rides the
+  // wire exactly, including falsy carriers and a recognized binding.
+  "commitGenSelection",
+  "titleGenSelection",
+  "conflictResolverSelection",
+  "experimentJudgeSelection",
+  "wslCommitGenSelection",
+  "wslTitleGenSelection",
+  "wslConflictResolverSelection",
   "worktreeStorageMode",
   "worktreeBasePath",
   "wslWorktreeBasePath",
