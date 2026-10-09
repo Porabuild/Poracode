@@ -66,6 +66,12 @@ struct SettingsAgentStatus: Codable, Equatable, Sendable {
     Set(stringArray("fastModels"))
   }
 
+  /// An explicit empty override means show all. Seed the first settings edit
+  /// from the effective defaults so toggling one model preserves the others.
+  func effectiveHiddenModelIDs(overrides: [String: [String]]) -> Set<String> {
+    Set(overrides[kind] ?? stringArray("defaultHiddenModels"))
+  }
+
   private func stringArray(_ key: String) -> [String] {
     guard let values = payload.objectValue?["capabilities"]?.objectValue?[key]?.arrayValue else {
       return []

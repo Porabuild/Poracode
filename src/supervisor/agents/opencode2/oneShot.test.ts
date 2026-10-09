@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runOpenCode2OneShot } from "./oneShot";
+import { UnsupportedOneShotControlError } from "../base";
 
 const mocks = vi.hoisted(() => ({
   acquire: vi.fn<() => Promise<unknown>>(),
@@ -25,8 +26,7 @@ function fixture() {
 }
 const input = {
   location: { kind: "posix" as const, path: "/repo" },
-  model: "vendor/model",
-  effort: "high",
+  selection: { model: "vendor/model", effort: "high" },
   prompt: "Summarize",
 };
 beforeEach(() => mocks.acquire.mockReset());
@@ -65,4 +65,58 @@ describe("OpenCode 2 native utility generation", () => {
     ).rejects.toThrow("cancelled");
     expect(mocks.acquire).toHaveBeenCalledTimes(1);
   });
+});
+
+describe("OpenCode 2 selection carriers", () => {
+  it("refuses present unsupported carriers before acquiring the server", async () => {
+    const { client } = fixture();
+    const thinkingRefusal = await runOpenCode2OneShot({
+      ...input,
+      selection: { model: "vendor/model", thinking: true },
+    }).catch((error: unknown) => error);
+    expect(thinkingRefusal).toBeInstanceOf(UnsupportedOneShotControlError);
+    expect((thinkingRefusal as UnsupportedOneShotControlError).axes).toEqual(["thinking"]);
+    expect(client.session.create).not.toHaveBeenCalled();
+    const contextRefusal = await runOpenCode2OneShot({
+      ...input,
+      selection: { model: "vendor/model", contextSize: "" },
+    }).catch((error: unknown) => error);
+    expect(contextRefusal).toBeInstanceOf(UnsupportedOneShotControlError);
+    expect((contextRefusal as UnsupportedOneShotControlError).axes).toEqual(["contextSize"]);
+    expect(client.session.create).not.toHaveBeenCalled();
+    expect(mocks.acquire).not.toHaveBeenCalled();
+    // Empty/false legacy carriers keep flowing through the model ref mapping.
+    await expect(
+      runOpenCode2OneShot({
+        ...input,
+        selection: { model: "vendor/model", effort: "", fast: false },
+      }),
+    ).resolves.toBe("generated");
+  });
+
+  it("refuses meaningful Fast before the server is acquired", async () => {
+    const { client } = fixture();
+    const refusal = await runOpenCode2OneShot({
+      ...input,
+      selection: { model: "vendor/model", fast: true },
+    }).catch((error: unknown) => error);
+    expect(refusal).toBeInstanceOf(UnsupportedOneShotControlError);
+    expect((refusal as UnsupportedOneShotControlError).axes).toEqual(["fast"]);
+    expect(mocks.acquire).not.toHaveBeenCalled();
+    expect(client.session.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("OpenCode 2 unresolved utility model", () => {
+  it.each(["", "auto", "vendor/"])(
+    "refuses effort for %j before SDK acquisition",
+    async (model) => {
+      const { client } = fixture();
+      await expect(
+        runOpenCode2OneShot({ ...input, selection: { model, effort: "high" } }),
+      ).rejects.toMatchObject({ name: "UnsupportedOneShotControlError", axes: ["effort"] });
+      expect(mocks.acquire).not.toHaveBeenCalled();
+      expect(client.session.create).not.toHaveBeenCalled();
+    },
+  );
 });

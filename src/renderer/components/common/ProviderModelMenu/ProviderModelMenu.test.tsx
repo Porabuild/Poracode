@@ -321,7 +321,11 @@ describe("ProviderModelMenu", () => {
 
     fireEvent.keyDown(search, { key: "Enter" });
 
-    expect(onChange).toHaveBeenCalledWith({ agentKind: "codex", model: "model-3" });
+    expect(onChange).toHaveBeenCalledWith({
+      agentKind: "codex",
+      model: "model-3",
+      selectionIntent: "exact",
+    });
   });
 
   it("selects from the current query when Enter follows typing immediately", async () => {
@@ -345,7 +349,11 @@ describe("ProviderModelMenu", () => {
     fireEvent.change(search, { target: { value: "Model 3" } });
     fireEvent.keyDown(search, { key: "Enter" });
 
-    expect(onChange).toHaveBeenCalledWith({ agentKind: "codex", model: "model-3" });
+    expect(onChange).toHaveBeenCalledWith({
+      agentKind: "codex",
+      model: "model-3",
+      selectionIntent: "exact",
+    });
   });
 
   it("renders normalized model rate descriptions as muted row hints", async () => {
@@ -640,6 +648,7 @@ describe("ProviderModelMenu", () => {
       expect(onChange).toHaveBeenCalledWith({
         agentKind: "acp-generic:glm-acp-agent",
         model: "model-2",
+        selectionIntent: "exact",
       });
     });
   });
@@ -966,6 +975,25 @@ describe("ProviderModelMenu", () => {
     expect(within(trigger).getByText("OpenCode")).toBeInTheDocument();
   });
 
+  it("omits a selected model group that repeats the model label", () => {
+    const provider = makeNamedProvider("example", "Example", 1);
+    provider.capabilities.subProviders = [{ id: "family", label: " model 1 " }];
+    provider.capabilities.modelSubProvider = { "model-1": "family" };
+
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="example"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Select model" });
+    expect(within(trigger).getByText("Model 1")).toBeInTheDocument();
+    expect(within(trigger).getAllByText(/^model 1$/i)).toHaveLength(1);
+  });
+
   it("shows Cursor base model rows without embedding speed or context controls", async () => {
     render(
       <ProviderModelMenu
@@ -1122,7 +1150,7 @@ describe("ProviderModelMenu", () => {
   });
 });
 
-it("renders opted-in compact rates beside the model name without increasing row height", async () => {
+it("renders provider prices in the muted right rail on the same row", async () => {
   registerModelDescriptionFormatter("pricing-fixture", () => ({
     hint: "$1 / $2 · 1M",
     explanation: { id: "fixture-pricing-units", message: "Input / output rates" },
@@ -1139,8 +1167,116 @@ it("renders opted-in compact rates beside the model name without increasing row 
   );
   fireEvent.click(screen.getByRole("button", { name: "Select model" }));
   const row = await screen.findByRole("option", { name: /Model 1/ });
-  const hint = within(row).getByText("· $1 / $2 · 1M");
-  expect(hint).toHaveClass("text-muted/60");
-  expect(hint.parentElement).toBe(within(row).getByText("Model 1").parentElement);
+  // Price and model share a horizontal row; the price occupies its right rail.
+  const price = within(row).getByText("$1 / $2 · 1M");
+  expect(price).toHaveClass("text-muted/70");
+  expect(within(row).queryByText("· $1 / $2 · 1M")).not.toBeInTheDocument();
+  expect(price.parentElement).toBe(within(row).getByText("Model 1").parentElement);
+  expect(price).toHaveClass("ml-auto", "truncate");
+  expect(price.parentElement).toHaveClass("items-center");
+  expect(price.parentElement).not.toHaveClass("flex-col");
   expect(row).toHaveStyle({ height: "28px" });
+});
+
+it("emits a family intent for the projected family row and an exact intent for an exact favorite", async () => {
+  const onChange =
+    vi.fn<(next: { agentKind: string; model: string; selectionIntent?: string }) => void>();
+  const provider = makeProvider(0);
+  provider.capabilities.models = [
+    { id: "pair-a-x", label: "Fusion (Alpha + X)" },
+    { id: "pair-a-x-fast", label: "Fusion (Alpha + X Fast)" },
+  ];
+  provider.capabilities.modelFamilies = [
+    {
+      model: "pair-a-x",
+      label: "Fusion",
+      selectors: [
+        {
+          id: "lead",
+          labelKey: "modelSelection.lead",
+          options: [{ id: "alpha", label: "Alpha" }],
+        },
+        {
+          id: "sidekick",
+          labelKey: "modelSelection.sidekick",
+          options: [{ id: "x", label: "X" }],
+        },
+      ],
+      bindings: { effort: "model", fast: "model" },
+      members: [
+        {
+          model: "pair-a-x",
+          selections: { lead: "alpha", sidekick: "x" },
+          effort: "low",
+          fast: false,
+        },
+        {
+          model: "pair-a-x-fast",
+          selections: { lead: "alpha", sidekick: "x" },
+          effort: "low",
+          fast: true,
+        },
+      ],
+    },
+  ];
+  // An exact favorite of the representative persists against the member UID.
+  useSharedSettings.setState({
+    favoriteModels: [{ agentKind: "codex", modelId: "pair-a-x", presentationMode: "terminal" }],
+  });
+
+  const { unmount } = render(
+    <ProviderModelMenu
+      providers={[provider]}
+      currentAgentKind="codex"
+      currentModel="pair-a-x-fast"
+      onChange={onChange}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  // The projected family row stands in for both members; clicking it while a
+  // sibling is selected retains the current member through the family intent.
+  // Target the projected family row by its list item id (the exact favorite
+  // of the representative renders beside it as `model-exact:…`).
+  await screen.findAllByText("Fusion");
+  const familyOption = screen
+    .getAllByRole("option")
+    .find((option) => option.id.endsWith("model:codex:pair-a-x"));
+  expect(familyOption).toBeDefined();
+  fireEvent.click(familyOption!);
+  await waitFor(() => expect(screen.queryByRole("combobox")).not.toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Model pairing" })).not.toBeInTheDocument();
+  await waitFor(() => {
+    expect(onChange).toHaveBeenCalledWith({
+      agentKind: "codex",
+      model: "pair-a-x",
+      selectionIntent: "family",
+    });
+  });
+
+  onChange.mockClear();
+  unmount();
+  const second = render(
+    <ProviderModelMenu
+      providers={[provider]}
+      currentAgentKind="codex"
+      currentModel="pair-a-x-fast"
+      onChange={onChange}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  // The exact favorite row of the representative keeps the exact UID and
+  // selects it outright — never collapsing into the family no-op.
+  const exactOption = screen
+    .getAllByRole("option")
+    .find((option) => option.id.endsWith("model-exact:codex:pair-a-x"));
+  expect(exactOption).toBeDefined();
+  fireEvent.click(exactOption!);
+  await waitFor(() => {
+    expect(onChange).toHaveBeenCalledWith({
+      agentKind: "codex",
+      model: "pair-a-x",
+      selectionIntent: "exact",
+    });
+  });
+  second.unmount();
 });

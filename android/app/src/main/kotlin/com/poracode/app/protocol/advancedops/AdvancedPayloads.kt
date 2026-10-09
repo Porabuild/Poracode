@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 
 object AdvancedPayloads {
     fun checkpoint(location: ProjectLocation, threadId: String, checkpointItemId: String) =
@@ -86,6 +87,12 @@ object AdvancedPayloads {
         nextParentPath?.let { put("nextParentPath", it) }
     }
 
+    /**
+     * Raw generation fields become the protocol-13 canonical utility `selection`
+     * with exact presence: no field set omits it (existing utility default), and a
+     * missing model beside a set axis is the canonical `""` implicit model. Raw form
+     * values never mint a selection binding.
+     */
     fun generation(
         location: ProjectLocation,
         agentKind: String,
@@ -98,9 +105,13 @@ object AdvancedPayloads {
         baseBranch: String? = null,
     ) = owned(location, "projectLocation") {
         put("agentKind", agentKind)
-        model?.let { put("model", it) }
-        effort?.let { put("effort", it) }
-        fast?.let { put("fast", it) }
+        if (model != null || effort != null || fast != null) {
+            putJsonObject("selection") {
+                put("model", model ?: "")
+                effort?.let { put("effort", it) }
+                fast?.let { put("fast", it) }
+            }
+        }
         language?.let { put("language", it) }
         prompt?.let { put("prompt", it) }
         branch?.let { put("branch", it) }

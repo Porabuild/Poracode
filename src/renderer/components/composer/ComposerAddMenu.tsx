@@ -8,6 +8,7 @@ import {
   Paperclip,
   Plus,
   Server,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { Selection } from "@heroui/react";
 import { Dropdown, Label, Separator } from "@heroui/react";
@@ -27,6 +28,8 @@ import {
 } from "./ComposerAddMenuParts";
 import { COMPUTER_USE_MCP_ID } from "./composerMcpServers";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
+import type { ProviderSessionMenuAction } from "../providers/providerSessionControls";
+import { ComposerSessionActionsMenu } from "./ComposerSessionActionsMenu";
 import {
   ComposerMcpServersMobileList,
   ComposerMcpServersSubmenuContent,
@@ -49,7 +52,7 @@ export type ComposerMcpMenuItem = {
 const EMPTY_PLUGIN_LABELS: Readonly<Record<string, string>> = {};
 
 /** Mobile sheet drill-in target: the root list swaps to a sub-list in place. */
-type MobileView = "root" | "plugins" | "mcp";
+type MobileView = "root" | "plugins" | "mcp" | "session";
 
 export function ComposerAddMenu(props: {
   /** First-party plugin MCP servers, listed under "Plugins". */
@@ -92,9 +95,11 @@ export function ComposerAddMenu(props: {
    * same as the plugin's `@`-mention instead of naming the raw server.
    */
   pluginLabels?: Readonly<Record<string, string>>;
+  sessionActions?: readonly ProviderSessionMenuAction[];
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse, experiment } = props;
   const customMcpServers = props.customMcpServers ?? [];
+  const sessionActions = props.sessionActions ?? [];
   // Both draft and existing-thread composers share this menu. The focused
   // sidebar has no settings destination, but still shows its server bindings.
   const canManageMcpServers = !isChatSidebarSurface();
@@ -127,7 +132,14 @@ export function ComposerAddMenu(props: {
     (showComputerUse && computerUse.enabled ? 1 : 0);
   const enabledMcpServerCount = customMcpServers.filter((server) => server.enabled).length;
 
-  if (!showFileOption && !hasPluginsMenu && !hasMcpServersMenu && !experiment) return null;
+  if (
+    !showFileOption &&
+    !hasPluginsMenu &&
+    !hasMcpServersMenu &&
+    !experiment &&
+    !sessionActions.length
+  )
+    return null;
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -249,6 +261,15 @@ export function ComposerAddMenu(props: {
           <ChevronRight className="size-4 shrink-0 text-muted" />
         </button>
       ) : null}
+      {sessionActions.length > 0 ? (
+        <button type="button" className="m-sheet-action" onClick={() => setMobileView("session")}>
+          <SlidersHorizontal className="size-4 text-muted" />
+          <span className="flex-1 truncate">
+            <Trans>Session actions</Trans>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-muted" />
+        </button>
+      ) : null}
     </div>
   );
 
@@ -332,7 +353,14 @@ export function ComposerAddMenu(props: {
         contentClassName="p-0"
         dialogClassName="overflow-hidden"
       >
-        {mobileView === "plugins" && hasPluginsMenu ? (
+        {mobileView === "session" ? (
+          <ComposerSessionActionsMenu
+            actions={sessionActions}
+            mobile
+            onBack={() => setMobileView("root")}
+            onSelected={closeMenu}
+          />
+        ) : mobileView === "plugins" && hasPluginsMenu ? (
           mobilePluginsList
         ) : mobileView === "mcp" && hasMcpServersMenu ? (
           <ComposerMcpServersMobileList
@@ -360,7 +388,7 @@ export function ComposerAddMenu(props: {
     ? ({ placement: "top", offset: 0, className: stackedPopoverClassName } as const)
     : {};
   return (
-    <Dropdown>
+    <Dropdown isOpen={isOpen} onOpenChange={handleOpenChange}>
       {button}
       <Dropdown.Popover placement="top start" {...rootPopoverProps}>
         <Dropdown.Menu
@@ -507,6 +535,9 @@ export function ComposerAddMenu(props: {
                 <ComposerMcpServersSubmenuContent {...mcpServersMenuProps} />
               </Dropdown.Popover>
             </Dropdown.SubmenuTrigger>
+          ) : null}
+          {sessionActions.length > 0 ? (
+            <ComposerSessionActionsMenu actions={sessionActions} onSelected={closeMenu} />
           ) : null}
         </Dropdown.Menu>
       </Dropdown.Popover>

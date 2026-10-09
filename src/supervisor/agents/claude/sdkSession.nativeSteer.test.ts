@@ -1,9 +1,9 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { Query, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
-import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
-import type { StructuredSessionUpdate } from "../base";
-import { ClaudeSdkSession } from "./sdkSession";
-import * as prompts from "./sdkPrompt";
+import {
+  createNativeSteerSession,
+  nativeSteerConfig as config,
+} from "./sdkSessionNativeSteerTestHarness";
 import {
   assistantMessage,
   createClaudeTestQuery,
@@ -16,49 +16,11 @@ const sdk = vi.hoisted(() => ({
 }));
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({ query: sdk.query }));
 vi.mock("../binaryResolver", () => ({ resolveAgentBinaryPath: () => "/test-bin/claude" }));
-const config: ThreadConfig = { model: "sonnet", mode: "agent", approvalPolicy: "acceptEdits" };
-const sessions: ClaudeSdkSession[] = [];
-afterEach(async () => {
-  await Promise.all(sessions.splice(0).map((s) => s.dispose()));
-  vi.restoreAllMocks();
-});
-async function createSession() {
-  const fake = createClaudeTestQuery();
-  sdk.query.mockReturnValue(fake.runtime);
-  const events: RuntimeEvent[] = [];
-  const updates: StructuredSessionUpdate[] = [];
-  const session = await ClaudeSdkSession.create({
-    threadId: "native-steer",
-    projectLocation: { kind: "posix", path: process.cwd() },
-    config,
-    presentationMode: "gui",
-  });
-  sessions.push(session);
-  session.setListener({
-    onRuntimeEvent: (e) => events.push(e),
-    onUpdate: (u) => updates.push(u),
-    onError: () => {},
-    onClose: () => {},
-  });
-  const id = await session.openThread(config);
-  const inputs = sdk.query.mock.calls.at(-1)![0].prompt[Symbol.asyncIterator]();
-  fake.output.write({
-    type: "system",
-    subtype: "init",
-    session_id: id,
-    capabilities: ["interrupt_cancel_queued_v1"],
-  } as unknown as SDKMessage);
-  await flushSdkMessages();
-  await session.startTurn("first", config);
-  await inputs.next();
-  const echo = async (message: SDKUserMessage) => {
-    fake.output.write({ ...message, session_id: id, isReplay: true } as SDKMessage);
-    await flushSdkMessages();
-  };
-  return { ...fake, session, id, inputs, events, updates, echo };
-}
+const createSession = () => createNativeSteerSession(sdk.query);
 
-it("delivers at the tool boundary and keeps one turn with intact live Bash output", async () => {
+import * as prompts from "./sdkPrompt";
+
+it("delivers immediately and keeps one turn with intact live Bash output", async () => {
   const h = await createSession();
   h.output.write({
     type: "assistant",
@@ -79,11 +41,12 @@ it("delivers at the tool boundary and keeps one turn with intact live Bash outpu
   });
   const message = (await h.inputs.next()).value!;
   expect(message).toMatchObject({
-    priority: "next",
+    priority: "now",
     uuid: expect.any(String),
     message: { content: "skip the remaining commands" },
   });
   expect(h.interrupt).not.toHaveBeenCalled();
+  expect(h.backgroundTasks).toHaveBeenCalledWith("tool");
   h.output.write({
     type: "user",
     session_id: h.id,
@@ -130,8 +93,8 @@ it("holds working across the first result until a queued steer is replayed and a
   h.output.write(assistantMessage(h.id, "second reply"));
   h.output.write(resultMessage(h.id));
   await flushSdkMessages();
-  expect(h.events.filter((e) => e.type === "turn.started")).toHaveLength(2);
-  expect(h.events.filter((e) => e.type === "turn.completed")).toHaveLength(2);
+  expect(h.events.filter((e) => e.type === "turn.started")).toHaveLength(1);
+  expect(h.events.filter((e) => e.type === "turn.completed")).toHaveLength(1);
   expect(h.updates.filter((u) => u.status === "idle")).toHaveLength(1);
 });
 
@@ -149,7 +112,7 @@ it("accounts for multiple steers coalesced into one subsequent SDK turn", async 
   h.output.write(assistantMessage(h.id, "combined"));
   h.output.write(resultMessage(h.id));
   await flushSdkMessages();
-  expect(h.events.filter((e) => e.type === "turn.started")).toHaveLength(2);
+  expect(h.events.filter((e) => e.type === "turn.started")).toHaveLength(1);
   expect(h.updates.at(-1)?.status).toBe("idle");
 });
 

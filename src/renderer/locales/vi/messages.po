@@ -309,6 +309,11 @@ msgstr "{0} prompt - {when}"
 msgid "{0} queued for update to v{1}"
 msgstr "{0} đang chờ cập nhật lên v{1}"
 
+#. placeholder {0}: column.label
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+msgid "{0} reasoning"
+msgstr "Suy luận của {0}"
+
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} run"
@@ -320,6 +325,16 @@ msgstr "{0} lần chạy"
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "{0} lần chạy"
+
+#. placeholder {0}: names.join(", ")
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
+msgstr "{0} dùng chung đăng nhập riêng của hồ sơ này và sẽ mất đăng nhập cho đến khi chọn chủ sở hữu khác."
+
+#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
+msgstr "{0} đang dùng chung đăng nhập riêng của hồ sơ này. Hãy chuyển chúng sang chủ sở hữu khác trước — máy chủ từ chối thay đổi khiến chúng mất đăng nhập."
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
@@ -590,6 +605,10 @@ msgstr "{projectLocation} (bị vô hiệu hóa)"
 msgid "{projectName} Settings"
 msgstr "Cài đặt {projectName}"
 
+#: src/renderer/components/providers/usageProviders.ts
+msgid "{provider} {profile}"
+msgstr "{provider} {profile}"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
 msgstr "{provider} không hỗ trợ tạo một lượt"
@@ -712,6 +731,10 @@ msgstr "<0>{passed}</0> trong số {0} kiểm tra đã được thông qua"
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · ước tính."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "~/.config/devin/config.json"
+msgstr "~/.config/devin/config.json"
+
 #. placeholder {0}: Math.round(projection.projectedPercent)
 #: src/renderer/components/providers/usageFormat.ts
 msgid "≈{0}% by reset"
@@ -774,6 +797,10 @@ msgstr "Không thể xác nhận việc xóa tin nhắn. Hãy làm mới để �
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "Một Poracode Helper đang sở hữu kết nối này nhưng không phản hồi. Hãy dừng helper từ xa rồi kết nối lại."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "A profile can carry at most 100 repositories."
+msgstr "Một hồ sơ có thể chứa tối đa 100 kho lưu trữ."
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1157,6 +1184,7 @@ msgstr "Chuyển kết nối cũ"
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. Để trống để dùng tự động."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -1219,6 +1247,10 @@ msgstr "Tiếp tục tác nhân: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "Kích thước phông chữ terminal của tác nhân"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Agent type"
+msgstr "Loại tác nhân"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Agent update available"
@@ -1422,6 +1454,10 @@ msgstr "Đã được dùng bởi {conflict}"
 msgid "Always"
 msgstr "Luôn luôn"
 
+#: src/renderer/components/providers/devin/sessionListings.tsx
+msgid "Always applied"
+msgstr "Luôn áp dụng"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "Luôn bị loại trừ"
@@ -1433,6 +1469,10 @@ msgstr "Hồ phách"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "An agent is fixing this PR."
 msgstr "Một tác nhân đang sửa PR này."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "An exact platform fails visibly when this Devin organization has no cloud machines of that kind."
+#~ msgstr "Chọn nền tảng chính xác sẽ thất bại rõ ràng khi tổ chức Devin này không có máy đám mây thuộc loại đó."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -1526,6 +1566,18 @@ msgstr "Giao diện"
 msgid "Appearance mode"
 msgstr "Chế độ giao diện"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Applied to a new or pending cloud chat before its first message — a cloud chat that already has its workspace keeps it. Leaving a choice on \"Keep Devin's current choice\" leaves the decision to Devin; it does not restore an earlier setting."
+#~ msgstr "Áp dụng cho một cuộc trò chuyện đám mây mới hoặc đang chờ trước tin nhắn đầu tiên của nó — cuộc trò chuyện đám mây đã có không gian làm việc sẽ giữ nguyên không gian đó. Để một lựa chọn ở \"Giữ lựa chọn hiện tại của Devin\" nghĩa là để Devin quyết định; điều này không khôi phục cài đặt trước đó."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+msgstr "Áp dụng cho chế độ xem cấu hình của hồ sơ này (devin.org_id). Poracode không thể liệt kê các tổ chức mà một đăng nhập thuộc về; Devin xác thực id khi khởi động và tổ chức chưa được ủy quyền sẽ thất bại rõ ràng."
+
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+msgid "Applies to both models"
+msgstr "Áp dụng cho cả hai mô hình"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
 msgstr "Áp dụng cấu hình nhà cung cấp"
@@ -1577,9 +1629,19 @@ msgstr "Lưu trữ tất cả"
 msgid "Archive done threads"
 msgstr "Lưu trữ các luồng đã xong"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#: src/renderer/components/providers/devin/sessionArchiveControl.tsx
+#~ msgid "Archive session"
+#~ msgstr "Lưu trữ phiên"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "Lưu trữ luồng hiện tại"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Archive this session?"
+#~ msgstr "Lưu trữ phiên này?"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -1838,6 +1900,10 @@ msgstr "Tự động"
 msgid "Availability"
 msgstr "Phạm vi khả dụng"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Availability depends on your Devin organization."
+msgstr "Tính khả dụng phụ thuộc vào tổ chức Devin của bạn."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
 msgstr "có sẵn"
@@ -1862,6 +1928,7 @@ msgstr "Đang chờ xem xét"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2268,6 +2335,11 @@ msgstr "Không thể tải danh sách cổng"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "Không thể kết nối tới máy chủ từ xa. Hãy kiểm tra máy chủ đang trực tuyến rồi kết nối lại."
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Can't use this model selection on that surface"
+msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
+
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -2422,6 +2494,10 @@ msgstr "Các thay đổi áp dụng toàn cục cho môi trường này."
 msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
 msgstr "Thay đổi áp dụng cho cuộc trò chuyện mới. Nhà cung cấp hỗ trợ tải lại skill trực tiếp có thể cập nhật sớm hơn."
 
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Changes apply to this running Devin session."
+#~ msgstr "Thay đổi áp dụng cho phiên Devin đang chạy này."
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Changes in PR"
 msgstr "Những thay đổi trong PR"
@@ -2444,6 +2520,7 @@ msgstr "Kênh"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 msgid "Chat"
 msgstr "Trò chuyện"
 
@@ -2626,6 +2703,10 @@ msgstr "Chọn ngôn ngữ hiển thị cho giao diện của Poracode."
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the structured runtime for new Cursor GUI threads. Running threads keep their current runtime."
 #~ msgstr "Chọn môi trường chạy có cấu trúc cho các luồng GUI Cursor mới. Các luồng đang chạy sẽ giữ môi trường hiện tại."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Choose the workspace for new cloud chats. Existing cloud sessions keep their workspace."
+msgstr "Chọn workspace cho các cuộc trò chuyện đám mây mới. Các phiên đám mây hiện có giữ nguyên workspace của chúng."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -3025,6 +3106,38 @@ msgstr "Đóng bảng quy trình làm việc"
 msgid "Closed"
 msgstr "Đã đóng"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Cloud"
+msgstr "Đám mây"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud chat setup"
+msgstr "Thiết lập trò chuyện đám mây"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud persona"
+msgstr "Persona đám mây"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud platform"
+msgstr "Nền tảng đám mây"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud repositories"
+msgstr "Kho lưu trữ đám mây"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud repository list"
+msgstr "Danh sách kho lưu trữ đám mây"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+#~ msgid "Cloud sessions run on Devin's cloud VM: local workspace files, paths, and MCP servers configured on this machine are not reachable there."
+#~ msgstr "Các phiên đám mây chạy trên máy ảo đám mây của Devin: tệp workspace cục bộ, đường dẫn và máy chủ MCP cấu hình trên máy này không thể truy cập từ đó."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Cloud sessions use their own workspace. Local files and local MCP processes are unavailable."
+msgstr "Các phiên đám mây dùng workspace riêng của chúng. Tệp cục bộ và tiến trình MCP cục bộ không khả dụng."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Cmd+Enter"
 msgstr "Cmd+Enter"
@@ -3111,6 +3224,10 @@ msgstr "Thu gọn thanh việc cần làm"
 msgid "Collapse warning"
 msgstr "Thu gọn cảnh báo"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
+#~ msgstr "Các mục chủ/số tên phân tách bằng dấu phẩy, ví dụ acme/website, acme/api. Danh sách được gửi tới Devin chính xác như đã nhập."
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -3136,6 +3253,10 @@ msgstr "Không tìm thấy lệnh."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Command Prompt"
 msgstr "Dấu nhắc Lệnh"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Command to revise"
+msgstr "Lệnh cần sửa"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -3346,6 +3467,18 @@ msgstr "Đã bật Sử dụng máy tính — tác nhân điều khiển ứng d
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Thư mục cấu hình"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Config file (optional)"
+msgstr "Tệp cấu hình (tùy chọn)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Config file path (optional)"
+msgstr "Đường dẫn tệp cấu hình (tùy chọn)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Configuration from a newer Poracode"
+msgstr "Cấu hình từ Poracode mới hơn"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -3744,6 +3877,10 @@ msgid "Could not complete the merge"
 msgstr "Không thể hoàn tất việc hợp nhất"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Could not confirm that the Auto Fix thread \"{id}\" was stopped. Poracode keeps it recorded and will retry stopping it."
+msgstr "Không thể xác nhận luồng Tự động sửa \"{id}\" đã dừng. Poracode vẫn giữ bản ghi và sẽ thử dừng lại lần nữa."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Could not create the project folder."
 msgstr "Không thể tạo thư mục dự án."
 
@@ -4125,6 +4262,11 @@ msgstr "chuỗi ngày hiện tại"
 msgid "Current streak"
 msgstr "Chuỗi ngày hiện tại"
 
+#. placeholder {0}: setting.currentValue
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Current value: {0}"
+#~ msgstr "Giá trị hiện tại: {0}"
+
 #: src/renderer/components/providers/cursor/manifest.ts
 msgid "Cursor"
 msgstr "Cursor"
@@ -4299,6 +4441,10 @@ msgstr "Mặc định"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Default auto-refresh (minutes)"
 msgstr "Tự động làm mới mặc định (phút)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Default coding agent"
+msgstr "Tác nhân lập trình mặc định"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4625,9 +4771,74 @@ msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy c�
 msgid "Devin"
 msgstr "Devin"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin {0} profile saved."
+msgstr "Đã lưu hồ sơ {0} của Devin."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Devin applies the new title first; the conversation list updates after it confirms."
+#~ msgstr "Devin áp dụng tiêu đề mới trước; danh sách hội thoại cập nhật sau khi nó xác nhận."
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Devin CLI with terminal and structured chat support."
 msgstr "Devin CLI hỗ trợ thiết bị đầu cuối và trò chuyện có cấu trúc."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin cloud"
+msgstr "Đám mây Devin"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+#~ msgid "Devin cloud chats don't take a root agent type. Saving this profile removes any agent type stored on it."
+#~ msgstr "Các cuộc trò chuyện đám mây của Devin không nhận loại tác nhân gốc. Lưu hồ sơ này sẽ xóa mọi loại tác nhân đã lưu trong đó."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Devin did not confirm the rename."
+#~ msgstr "Devin chưa xác nhận việc đổi tên."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Devin did not confirm the setting change."
+#~ msgstr "Devin chưa xác nhận thay đổi cài đặt."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Devin did not return a revised command."
+msgstr "Devin không trả về lệnh đã sửa."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin organization id"
+msgstr "Id tổ chức Devin"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile"
+msgstr "Hồ sơ Devin"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile changes were not confirmed by the host; the editor rolled back to the stored settings."
+msgstr "Máy chủ chưa xác nhận các thay đổi của hồ sơ Devin; trình chỉnh sửa đã hoàn nguyên về cài đặt đã lưu."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile config file"
+msgstr "Tệp cấu hình hồ sơ Devin"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile name"
+msgstr "Tên hồ sơ Devin"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Devin proposes a revised command; you review it before anything runs."
+msgstr "Devin đề xuất một lệnh đã sửa; bạn xem xét nó trước khi bất cứ thứ gì chạy."
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "Devin returned a persona catalog Poracode could not interpret."
+#~ msgstr "Devin trả về một danh mục persona mà Poracode không thể diễn giải."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Devin returned a settings listing Poracode could not interpret."
+#~ msgstr "Devin trả về một danh sách cài đặt mà Poracode không thể diễn giải."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin's own login (default)"
+msgstr "Đăng nhập riêng của Devin (mặc định)"
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -4711,6 +4922,7 @@ msgstr "Máy chủ bị tắt hoặc có tùy chọn gốc không được hỗ 
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Khi tắt một skill, skill đó được chuyển khỏi các thư mục skill đang hoạt động và các bản sao của nhà cung cấp do Poracode quản lý sẽ bị xóa. Các tệp vẫn được giữ lại để bạn có thể bật lại."
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
 msgstr "Hủy bỏ"
@@ -4955,6 +5167,10 @@ msgstr "ví dụ: Codex GPT-5.5 fast cho các tra cứu nhanh, OpenCode GLM cho 
 msgid "e.g. Work"
 msgstr "ví dụ: Work"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Each repository entry must be 1–512 characters without control characters."
+msgstr "Mỗi mục kho lưu trữ phải dài 1–512 ký tự và không chứa ký tự điều khiển."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
 msgid "Earlier text"
 msgstr "Văn bản trước đó"
@@ -5168,6 +5384,14 @@ msgstr "Tăng cường (Móc)"
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Nhập một URL gốc đầy đủ, ví dụ https://code.example.com, không kèm đường dẫn."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Enter a persona ID or keep the current choice."
+msgstr "Nhập ID persona hoặc giữ lựa chọn hiện tại."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Enter a persona name, or keep Devin's current choice."
+#~ msgstr "Nhập tên persona, hoặc giữ lựa chọn hiện tại của Devin."
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Enter a port from 1 to 65535."
 msgstr "Nhập cổng từ 1 đến 65535."
@@ -5219,6 +5443,10 @@ msgstr "Nhập một cấu hình máy chủ MCP."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "Vào chế độ kế hoạch"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Enter repository names separated by commas, such as acme/website, acme/api."
+msgstr "Nhập các tên kho lưu trữ phân tách bằng dấu phẩy, ví dụ acme/website, acme/api."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -5520,7 +5748,7 @@ msgstr "Nhà cung cấp bên ngoài"
 #~ msgid "External provider skills"
 #~ msgstr "Skill của nhà cung cấp bên ngoài"
 
-#: src/renderer/components/thread/threadDraftViewHelpers.ts
+#: src/renderer/components/common/effortLabel.ts
 msgid "Extra High"
 msgstr "Cực cao"
 
@@ -5603,6 +5831,7 @@ msgstr "Không thể ghi siêu dữ liệu của nhánh có chủ sở hữu: {d
 #~ msgid "Failed to update goal"
 #~ msgstr "Không thể cập nhật mục tiêu"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay.ts
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
@@ -5611,6 +5840,14 @@ msgstr "Không thể ghi siêu dữ liệu của nhánh có chủ sở hữu: {d
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "Nhanh"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+#~ msgid "Fast has no variant for this pairing"
+#~ msgstr "Chế độ nhanh không khả dụng cho tổ hợp này"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "Fast is unavailable for this pairing"
+msgstr "Chế độ nhanh không khả dụng cho tổ hợp này"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
@@ -5981,6 +6218,10 @@ msgstr "Đã tìm thấy {0, plural, one {# skill có thể nhập} other {# ski
 msgid "Found a signed-in {0} session."
 msgstr "Đã tìm thấy phiên đăng nhập {0}."
 
+#: src/renderer/components/providers/modelDescription.ts
+msgid "Free"
+msgstr "Miễn phí"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Frequency"
 msgstr "Tần suất"
@@ -6081,6 +6322,10 @@ msgstr "Đang tạo…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
 msgstr "Nhận một lần kiểm tra nhanh trong ngày làm việc."
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Get suggestion"
+msgstr "Nhận gợi ý"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -6185,6 +6430,7 @@ msgstr "toàn cục"
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Global"
@@ -6398,6 +6644,10 @@ msgstr "Ẩn skill từ {0}"
 msgid "Hide terminal"
 msgstr "Ẩn thiết bị đầu cuối"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "High"
+msgstr "Cao"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "History"
 msgstr "Lịch sử"
@@ -6422,6 +6672,19 @@ msgstr "phạm vi thư mục chính"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Homepage"
 msgstr "Trang chủ"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Hook entries are shown exactly as Devin reports them; their schema is not interpreted."
+#~ msgstr "Các mục hook được hiển thị đúng như Devin báo cáo; cấu trúc của chúng không được diễn giải."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Hooks"
+#~ msgstr "Hook"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Hooks in this session"
+#~ msgstr "Hook trong phiên này"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Host credential reference"
@@ -6608,6 +6871,10 @@ msgstr "Nhập vào phạm vi toàn cục"
 #~ msgid "Import to Project"
 #~ msgstr "Nhập vào dự án"
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Imported (.claude)"
+#~ msgstr "Đã nhập (.claude)"
+
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -6675,6 +6942,10 @@ msgstr "Kế thừa cài đặt chung (hiện tại {0})."
 msgid "Initialize Repository"
 msgstr "Khởi tạo kho lưu trữ"
 
+#: src/renderer/components/providers/modelDescription.ts
+msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
+msgstr "Giá đầu vào/đầu ra cho mỗi 1 triệu token của từng mô hình. Khoảng giá bao gồm các biến thể mô hình."
+
 #: src/renderer/components/providers/devin/modelPricing.ts
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "Giá đầu vào/đầu ra cho mỗi 1 triệu token. Khoảng giá bao gồm các biến thể của mô hình."
@@ -6694,6 +6965,10 @@ msgstr "Mức đầu vào"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Inputs must be a JSON object."
 #~ msgstr "Đầu vào phải là một đối tượng JSON."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Insert into composer"
+msgstr "Chèn vào bộ soạn"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -6978,6 +7253,10 @@ msgstr "Bị gián đoạn"
 msgid "Interrupted: agent session ended before completion."
 msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoàn thành."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Invalid configuration — kept, but disabled"
+msgstr "Cấu hình không hợp lệ — đã giữ lại nhưng bị tắt"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Nghiêng"
@@ -7013,6 +7292,14 @@ msgstr "Giữ lại ít nhất một không gian làm việc."
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Keep Branch"
 msgstr "Giữ nhánh"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Keep current choice"
+msgstr "Giữ lựa chọn hiện tại"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Keep Devin's current choice"
+#~ msgstr "Giữ lựa chọn hiện tại của Devin"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Keep me on track"
@@ -7118,6 +7405,15 @@ msgstr "Khởi chạy luồng"
 msgid "Launching…"
 msgstr "Đang khởi chạy…"
 
+#: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Lead"
+msgstr "Mô hình chính"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+#~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
+#~ msgstr "Giá của mô hình chính và mô hình phụ được tính cho mỗi 1 triệu token của từng mô hình. Khoảng giá bao gồm các biến thể mô hình."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
 #~ msgstr "Bộ nhớ định tuyến đã học"
@@ -7185,6 +7481,10 @@ msgstr "Liên kết đến nguồn"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Linked"
 msgstr "Đã liên kết"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Linux"
+msgstr "Linux"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7399,6 +7699,7 @@ msgstr "Đăng xuất"
 msgid "login"
 msgstr "đăng nhập"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -7415,6 +7716,14 @@ msgstr "Đăng nhập {0}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Login required"
 msgstr "Yêu cầu đăng nhập"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Login source"
+msgstr "Nguồn đăng nhập"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+msgstr "Nguồn đăng nhập, tệp cấu hình, tổ chức và môi trường chạy cho cấu hình này. Các tùy chọn của luồng như mô hình và phê duyệt vẫn ở bộ soạn."
 
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
@@ -7447,9 +7756,21 @@ msgstr "Đang tìm máy chủ phát triển…"
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "Các worktree và nhánh không được chọn sẽ bị xóa. Lịch sử phiên của chúng sẽ được giữ lại."
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Low"
+msgstr "Thấp"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
 msgstr "Máy"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "macOS"
+msgstr "macOS"
+
+#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+msgid "Main"
+msgstr "Mô hình chính"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
@@ -7621,6 +7942,10 @@ msgstr "Phân biệt chữ hoa/thường"
 msgid "Match your system, or force light or dark."
 msgstr "Theo hệ thống của bạn, hoặc buộc dùng giao diện sáng hoặc tối."
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Max"
+msgstr "Tối đa"
+
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Max active agent sessions"
@@ -7774,6 +8099,10 @@ msgstr "Không đọc được mcp.json nên đã bỏ qua các máy chủ của
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json nhắm tới phiên bản Agent Plugins mà bản dựng này không hỗ trợ."
+
+#: src/renderer/components/common/effortLabel.ts
+msgid "Medium"
+msgstr "Trung bình"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
@@ -7932,6 +8261,10 @@ msgstr "Kiểm tra micrô không có sẵn trong môi trường này."
 msgid "min"
 msgstr "phút"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Minimal"
+msgstr "Tối thiểu"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "MiniMax"
 msgstr "MiniMax"
@@ -8011,6 +8344,10 @@ msgstr "Nhãn mô hình"
 #~ msgid "Model order"
 #~ msgstr "Thứ tự mô hình"
 
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
+msgid "Model pairing"
+msgstr "Cặp mô hình"
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "Đã xóa mô hình khỏi mục yêu thích"
@@ -8023,6 +8360,12 @@ msgstr "Mô hình đã được chuyển từ {fromModel} sang {toModel}."
 msgid "Model usage"
 msgstr "Mức dùng mô hình"
 
+#. placeholder {0}: entry.model
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "model: {0}"
+#~ msgstr "mô hình: {0}"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8197,6 +8540,10 @@ msgstr "Đã chuyển các thay đổi của bạn sang một cây làm việc m
 msgid "Moving changes…"
 msgstr "Đang di chuyển các thay đổi…"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+msgstr "Nhiều cấu hình Devin dưới một đăng nhập — tệp cấu hình, tổ chức hoặc mặc định phê duyệt khác nhau — hoặc một đăng nhập thứ hai riêng biệt. Không bao giờ sao chép thông tin xác thực gốc."
+
 #: src/renderer/components/providers/muse/manifest.ts
 msgid "Muse Code"
 msgstr "Muse Code"
@@ -8210,6 +8557,7 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -8240,6 +8588,14 @@ msgstr "Đã cập nhật cấu hình MCP gốc. Hãy bắt đầu phiên CLI m�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP setup"
 msgstr "Thiết lập MCP gốc"
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
+#~ msgstr "Các tệp persona gốc được liệt kê ở chế độ chỉ đọc; Poracode không bao giờ chỉnh sửa các định nghĩa của Devin."
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Native personas"
+#~ msgstr "Persona gốc"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -8331,6 +8687,10 @@ msgstr "Khóa API của hồ sơ Cursor mới"
 #~ msgid "New Cursor profile name"
 #~ msgstr "Tên hồ sơ Cursor mới"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "New Devin profile config file (optional)"
+msgstr "Tệp cấu hình hồ sơ Devin mới (tùy chọn)"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
 msgstr "Môi trường mới"
@@ -8402,6 +8762,10 @@ msgstr "Lịch mới"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "New scheduled task"
 #~ msgstr "Tác vụ đã lên lịch mới"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "New session title"
+#~ msgstr "Tiêu đề phiên mới"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -8696,6 +9060,10 @@ msgstr "Không tìm thấy tài khoản GitHub CLI nào. Đăng nhập bằng <0
 msgid "No history yet"
 msgstr "Chưa có lịch sử"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "No hooks are attached to this session."
+#~ msgstr "Không có hook nào được gắn vào phiên này."
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "No host-owned environments on this server yet."
 msgstr "Máy chủ này chưa có môi trường thuộc máy chủ."
@@ -8784,10 +9152,15 @@ msgstr "Chưa có tin nhắn nào"
 msgid "No microphone found."
 msgstr "Không tìm thấy micrô."
 
+#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "Không tìm thấy mô hình nào"
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "No native persona definitions found."
+#~ msgstr "Không tìm thấy định nghĩa persona gốc nào."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
@@ -8821,6 +9194,10 @@ msgstr "Không có plugin nào khớp với tìm kiếm."
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
 msgstr "Không tìm thấy mã QR ghép nối Poracode."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
+msgstr "Chưa có hồ sơ nào có đăng nhập riêng của riêng nó. Hãy đặt một hồ sơ thành \"Đăng nhập riêng biệt\" và đăng nhập ở đó trước; nó sẽ xuất hiện tại đây."
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -8872,6 +9249,10 @@ msgstr "Không có cấu hình từ xa. Thêm một điều khiển từ xa đ�
 msgid "No remote environments connected yet."
 msgstr "Chưa có môi trường từ xa nào được kết nối."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "No repositories"
+msgstr "Không có kho lưu trữ"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No repositories found."
 msgstr "Không tìm thấy kho lưu trữ nào."
@@ -8881,6 +9262,10 @@ msgstr "Không tìm thấy kho lưu trữ nào."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Không có kết quả"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "No rules were listed for this session."
+msgstr "Không có quy tắc nào được liệt kê cho phiên này."
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "No runs yet."
@@ -8961,6 +9346,15 @@ msgstr "Không có luồng nào"
 msgid "No threads yet."
 msgstr "Chưa có luồng nào."
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#: src/renderer/components/providers/devin/sessionSettingsSearchPicker.tsx
+#~ msgid "No value"
+#~ msgstr "Không có giá trị"
+
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "No values were advertised for this option."
+#~ msgstr "Không có giá trị nào được cung cấp cho tùy chọn này."
+
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
 #~ msgstr "không nhận được phán quyết — CLI có thể đã chặn /goal (độ tin cậy không gian làm việc hoặc cài đặt hook) hoặc trình đánh giá không chạy được"
@@ -8985,6 +9379,7 @@ msgstr "Không ngắt dòng"
 msgid "none"
 msgstr "không có"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "Không có"
@@ -9560,6 +9955,14 @@ msgstr "Hoặc viết một câu trả lời tùy chỉnh"
 msgid "Orange"
 msgstr "Cam"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Organization"
+#~ msgstr "Tổ chức"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Organization (optional)"
+msgstr "Tổ chức (tùy chọn)"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
@@ -9609,9 +10012,17 @@ msgstr "Ghi đè {conflict}"
 msgid "Overriding the global setting for this project."
 msgstr "Ghi đè cài đặt chung cho dự án này."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Own isolated login"
+msgstr "Đăng nhập riêng biệt"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Owner unverified"
 msgstr "Chủ sở hữu chưa xác minh"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "owner/name, owner/name"
+msgstr "owner/name, owner/name"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Package"
@@ -9755,6 +10166,10 @@ msgstr "Chọn một phần"
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
 msgstr "Đã đạt"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Passed to Devin as its user config for this profile only. It does not isolate credentials, skills, MCP servers, or plugins — those stay shared with the login."
+msgstr "Được truyền cho Devin làm cấu hình người dùng chỉ dành cho hồ sơ này. Nó không tách biệt thông tin xác thực, kỹ năng, máy chủ MCP hay plugin — những thứ đó vẫn dùng chung với đăng nhập."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Passphrase (optional)"
@@ -9906,9 +10321,34 @@ msgstr "sự cho phép"
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "Mục tiêu bền vững, ngân sách và tự động tiếp tục với /goal."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona (optional)"
+msgstr "Persona (tùy chọn)"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona ID"
+msgstr "ID persona"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona IDs are limited to 512 characters."
+msgstr "ID persona giới hạn 512 ký tự."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Persona name"
+#~ msgstr "Tên persona"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Persona names are limited to 512 characters."
+#~ msgstr "Tên persona giới hạn 512 ký tự."
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Personal"
 msgstr "Cá nhân"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Personas"
+#~ msgstr "Persona"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -9926,6 +10366,10 @@ msgstr "Chọn phần tử"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionIconPicker.tsx
 msgid "Pick icon"
 msgstr "Chọn biểu tượng"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Pick the profile whose login to share"
+msgstr "Chọn hồ sơ có đăng nhập cần dùng chung"
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
@@ -9979,6 +10423,10 @@ msgstr "kế hoạch"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 msgid "Plan, ask, build…"
 msgstr "Lên kế hoạch, đặt câu hỏi, xây dựng…"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Platform (optional)"
+msgstr "Nền tảng (tùy chọn)"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -10069,6 +10517,15 @@ msgstr "Poracode"
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode và các tác tử chạy trên máy từ xa. SSH chỉ được dùng để khởi động môi trường từ xa và bảo vệ đường hầm cục bộ của môi trường đó."
 
+#. placeholder {0}: setting.controlType
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Poracode cannot edit this {0} control yet."
+#~ msgstr "Poracode chưa thể chỉnh sửa điều khiển {0} này."
+
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Poracode cannot edit this control yet."
+#~ msgstr "Poracode chưa thể chỉnh sửa điều khiển này."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode không tạo được thư mục dữ liệu của plugin này."
@@ -10108,6 +10565,10 @@ msgstr "Poracode Helper đã trả về phản hồi không hợp lệ."
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode có thể đang chờ dữ liệu đã lưu hoặc một dịch vụ nền. Bạn có thể tiếp tục chờ, khởi động lại hoặc cài đặt bản cập nhật hiện có."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Poracode never runs the suggestion — inserting only fills the composer for you to edit and send."
+#~ msgstr "Poracode không bao giờ chạy gợi ý — chèn chỉ điền vào bộ soạn để bạn chỉnh sửa và gửi."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -10345,6 +10806,10 @@ msgstr "Năng suất"
 msgid "Profile"
 msgstr "Hồ sơ"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Profile \"{profile}\" needs account owner \"{dependency}\". Reassign its account before changing or removing the owner."
+msgstr "Hồ sơ \"{profile}\" cần chủ sở hữu tài khoản \"{dependency}\". Hãy gán lại tài khoản của nó trước khi thay đổi hoặc xóa chủ sở hữu."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile {displayName} added."
 msgstr "Đã thêm hồ sơ {displayName}."
@@ -10375,6 +10840,7 @@ msgstr "Hồ sơ"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -10795,6 +11261,10 @@ msgstr "Đọc bảng Terminal của cây làm việc này và báo cáo bằng 
 msgid "Read the Terminal panel attached to this worktree and report what it is printing."
 msgstr "Đọc bảng Terminal của cây làm việc này và báo cáo nội dung đang in."
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "read-only"
+#~ msgstr "chỉ đọc"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "Đang đọc các thay đổi của từng ứng viên…"
@@ -10820,6 +11290,7 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "Sẵn sàng. Bật tùy chọn này để quảng bá URL HTTPS của Tailscale trong các mã ghép đôi mới."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "Suy luận"
 
@@ -11230,6 +11701,10 @@ msgstr "Xóa {profileName} sẽ xóa luôn khóa API đã lưu. Các luồng dù
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Xóa {profileName} sẽ bỏ các thiết lập Poracode của nó — biến môi trường, mô hình và effort. Thư mục cấu hình và thông tin đăng nhập Claude bên trong vẫn còn trên đĩa."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Removing {profileName} drops its Poracode settings only. Devin's own credentials, config files, and session history stay on disk, and other profiles are unaffected."
+msgstr "Xóa {profileName} chỉ loại bỏ cài đặt Poracode của nó. Thông tin xác thực gốc của Devin, tệp cấu hình và lịch sử phiên vẫn nằm trên đĩa, và các hồ sơ khác không bị ảnh hưởng."
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -11255,6 +11730,11 @@ msgstr "Đổi tên thử nghiệm"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "Đổi tên nhóm"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Rename session"
+#~ msgstr "Đổi tên phiên"
 
 #: src/renderer/commands/registry.ts
 msgid "Rename the current chat"
@@ -11317,6 +11797,10 @@ msgstr "Lặp lại"
 msgid "Report an Issue"
 msgstr "Báo cáo sự cố"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Repositories (optional)"
+msgstr "Kho lưu trữ (tùy chọn)"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "repository"
 msgstr "kho lưu trữ"
@@ -11325,6 +11809,10 @@ msgstr "kho lưu trữ"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Kho lưu trữ"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Repository entries must be unique."
+msgstr "Các mục kho lưu trữ phải là duy nhất."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
@@ -11519,6 +12007,14 @@ msgstr "Thử dọn dẹp lại"
 #~ msgid "Retry now"
 #~ msgstr "Thử lại ngay"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Retry session controls"
+msgstr "Thử lại điều khiển phiên"
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Retry session settings"
+#~ msgstr "Thử lại cài đặt phiên"
+
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
 msgstr "Thử lại với quản trị viên"
@@ -11589,6 +12085,14 @@ msgstr "Quay lại điểm kiểm tra này"
 msgid "Reverting…"
 msgstr "Đang hoàn tác…"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Review"
+msgstr "Xem lại"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
+msgstr "Xem lại và Tóm tắt là những loại tác nhân gốc duy nhất mà CLI của Devin chấp nhận. Persona gốc tùy chỉnh là định nghĩa tác nhân con được cấu hình trong tệp của chính Devin — không thể chọn ở đây."
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Review and track work across your GitHub accounts."
 msgstr "Xem xét và theo dõi công việc trên các tài khoản GitHub của bạn."
@@ -11650,6 +12154,15 @@ msgstr "Đang xem xét"
 #~ msgid "Reviewing each candidate's changes to recommend a winner."
 #~ msgstr "Đang xem xét các thay đổi của từng ứng viên để đề xuất ứng viên thắng."
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Revise command"
+msgstr "Sửa lệnh"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Revision note (optional)"
+msgstr "Ghi chú sửa đổi (tùy chọn)"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "Thu hồi {name}"
@@ -11666,6 +12179,15 @@ msgstr "Bảng bên phải"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "Nhấp chuột phải để đổi vòng"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Rules"
+msgstr "Quy tắc"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Rules in this session"
+msgstr "Quy tắc trong phiên này"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -11796,6 +12318,10 @@ msgstr "Chạy trước khi cây làm việc bị xóa (ví dụ: <0>rm -rf node
 msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 msgstr "Chạy trong terminal sau khi cây làm việc mới được tạo (ví dụ: <0>pnpm install</0>)."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Runs on"
+msgstr "Chạy trên"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Runs on this server. Credentials stay on the server."
 msgstr "Chạy trên máy chủ này. Thông tin xác thực vẫn ở trên máy chủ."
@@ -11827,6 +12353,14 @@ msgstr "Gỡ lỗi thời gian chạy"
 msgid "Runtime options"
 msgstr "Tùy chọn thời gian chạy"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Runtime target"
+msgstr "Đích thực thi"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Same login as Devin"
+msgstr "Cùng đăng nhập với Devin"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
@@ -11837,6 +12371,7 @@ msgid "Saturation and brightness"
 msgstr "Độ bão hòa và độ sáng"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -11880,6 +12415,10 @@ msgstr "Lưu tên hồ sơ Cursor"
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Save Cursor SDK API key"
 msgstr "Lưu khóa API Cursor SDK"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Save Devin profile"
+msgstr "Lưu hồ sơ Devin"
 
 #: src/renderer/commands/registry.ts
 msgid "Save File"
@@ -12102,6 +12641,7 @@ msgstr "Tìm kiếm máy chủ MCP..."
 msgid "Search models"
 msgstr "Tìm kiếm mô hình"
 
+#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
@@ -12363,6 +12903,28 @@ msgstr "Máy chủ ngoại tuyến — cuộc trò chuyện này có thể đã 
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "Các máy chủ mà plugin này khai báo trong mcp.json. Poracode chuyển chúng tới mọi agent được hỗ trợ."
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+msgid "Session actions"
+msgstr "Thao tác phiên"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Session actions are unavailable for this thread."
+msgstr "Thao tác phiên không khả dụng cho luồng này."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Session renamed."
+#~ msgstr "Đã đổi tên phiên."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Session settings"
+#~ msgstr "Cài đặt phiên"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Session title"
+#~ msgstr "Tiêu đề phiên"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "Đặt màu nhóm"
@@ -12391,6 +12953,10 @@ msgstr "Được cố định khi phiên này bắt đầu — hãy tạo luồn
 #~ msgid "Set when this session started — start a new thread to change servers"
 #~ msgstr "Được cố định khi phiên này bắt đầu — hãy tạo luồng mới để thay đổi máy chủ"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Setting"
+#~ msgstr "Cài đặt"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -12400,6 +12966,10 @@ msgstr "Được cố định khi phiên này bắt đầu — hãy tạo luồn
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
 msgstr "Cài đặt"
+
+#: src/renderer/state/sharedSettingsStore.ts
+msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
+msgstr "Cài đặt chưa khả dụng nên không thể lưu các thay đổi của bạn. Vui lòng thử lại."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -12413,6 +12983,10 @@ msgstr "Hình dạng và ký hiệu"
 msgid "Share"
 msgstr "Chia sẻ"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Share another profile's isolated login"
+msgstr "Dùng chung đăng nhập riêng của hồ sơ khác"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Chia sẻ hoạt động của bạn"
@@ -12420,6 +12994,29 @@ msgstr "Chia sẻ hoạt động của bạn"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Shared"
 msgstr "Dùng chung"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shared login owner"
+msgstr "Chủ sở hữu đăng nhập dùng chung"
+
+#. placeholder {0}: owner.displayName ?? owner.id
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares {0}"
+msgstr "Dùng chung {0}"
+
+#. placeholder {0}: props.ownerName
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares {0}'s isolated login. Manage sign-in on that profile's page."
+msgstr "Dùng chung đăng nhập riêng của {0}. Quản lý đăng nhập tại trang của hồ sơ đó."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares another profile's isolated login. Manage sign-in on that profile's page."
+msgstr "Dùng chung đăng nhập riêng của một hồ sơ khác. Quản lý đăng nhập tại trang của hồ sơ đó."
+
+#. placeholder {0}: auth.ownerId
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares missing owner {0}"
+msgstr "Dùng chung chủ sở hữu đã mất {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -12647,6 +13244,12 @@ msgstr "Độ mờ thanh bên"
 msgid "Sidebar shortcuts"
 msgstr "Lối tắt thanh bên"
 
+#: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Sidekick"
+msgstr "Mô hình phụ"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
@@ -12666,6 +13269,11 @@ msgstr "Đăng nhập trên máy tính đã ghép đôi, rồi làm mới trạn
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Sign in required"
 msgstr "Yêu cầu đăng nhập"
+
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Sign in to {0}"
+msgstr "Đăng nhập vào {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
@@ -12899,6 +13507,14 @@ msgstr "Nguồn"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Space separated; use quotes around spaces"
 msgstr "Tách bằng dấu cách; đặt giá trị chứa dấu cách trong dấu ngoặc kép"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Specific persona"
+msgstr "Persona cụ thể"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Specific repositories"
+msgstr "Kho lưu trữ cụ thể"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"
@@ -13228,6 +13844,10 @@ msgstr "Lưu dưới dạng văn bản thuần"
 msgid "Store as secret (encrypted at rest)"
 msgstr "Lưu dưới dạng bí mật (mã hóa khi lưu trữ)"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Stored in a newer Poracode format — kept, but disabled"
+msgstr "Được lưu ở định dạng Poracode mới hơn — đã giữ lại nhưng bị tắt"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Stored on this device; the desktop keeps its own values."
 msgstr "Được lưu trên thiết bị này; máy tính để bàn giữ các giá trị riêng."
@@ -13244,6 +13864,10 @@ msgstr "Môi trường chạy có cấu trúc"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "Tác nhân phụ"
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Subagent definitions Devin discovers in its own files. This list is a scan of candidate definitions, not a confirmation that Devin loaded them."
+#~ msgstr "Các định nghĩa tác nhân con mà Devin phát hiện trong tệp của chính nó. Danh sách này là quét các định nghĩa ứng viên, không phải xác nhận rằng Devin đã tải chúng."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 #~ msgid "Subagent Delegation"
@@ -13306,6 +13930,14 @@ msgstr "Gửi đánh giá"
 msgid "Succeeded"
 msgstr "Thành công"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Suggested command — review before use"
+msgstr "Lệnh được đề xuất — xem xét trước khi dùng"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Suggested command inserted into the composer."
+msgstr "Đã chèn lệnh đề xuất vào bộ soạn."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "Gợi ý"
@@ -13313,6 +13945,10 @@ msgstr "Gợi ý"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "Tóm tắt tiến độ tuần này, công việc chưa hoàn thành và những rủi ro quan trọng nhất cho tuần tới."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Summarizer"
+msgstr "Bản tóm tắt"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Summarizing…"
@@ -13571,6 +14207,7 @@ msgstr "Cho nhà cung cấp mục tiêu biết phải làm gì tiếp theo..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
@@ -13642,6 +14279,10 @@ msgstr "Tab đầu cuối"
 msgid "Test microphone"
 msgstr "Kiểm tra micrô"
 
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "That combination isn’t available"
+msgstr "Không thể sử dụng tổ hợp này"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "Cuộc trò chuyện đó không còn khả dụng."
@@ -13686,6 +14327,10 @@ msgstr "Tác nhân"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "the app"
 msgstr "ứng dụng"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The app's data is not ready for these settings. Restart or update the app and try again."
+msgstr "Dữ liệu ứng dụng chưa sẵn sàng cho các cài đặt này. Hãy khởi động lại hoặc cập nhật ứng dụng rồi thử lại."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "the base branch"
@@ -13821,6 +14466,10 @@ msgstr "Thông báo lịch sử không đầy đủ đã thay đổi trên máy 
 msgid "the Linux user"
 msgstr "người dùng Linux"
 
+#: src/renderer/components/providers/devin/sessionListings.tsx
+msgid "The listing could not be read."
+msgstr "Không thể đọc danh sách."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the macOS user"
 msgstr "người dùng macOS"
@@ -13841,11 +14490,31 @@ msgstr "Kích thước ngữ cảnh mới áp dụng từ tin nhắn tiếp theo
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đoán bên dưới được hiển thị trước khi tải lại để có thể điều tra lỗi."
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "The organization is fixed while this session runs — change it in the Devin profile settings, then start a new session."
+#~ msgstr "Tổ chức được cố định trong khi phiên này chạy — hãy thay đổi trong cài đặt hồ sơ Devin, sau đó bắt đầu phiên mới."
+
 #: src/renderer/state/remoteServers/environmentManagement.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
 msgstr "Máy chủ đã ghép nối sở hữu môi trường này chưa kết nối."
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "The persona catalog could not be read."
+#~ msgstr "Không thể đọc danh mục persona."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "The persona must exist in Devin's own configuration; an unknown name fails visibly when the cloud chat starts."
+#~ msgstr "Persona phải tồn tại trong cấu hình riêng của Devin; tên không rõ sẽ thất bại rõ ràng khi cuộc trò chuyện đám mây bắt đầu."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "The profile this profile shared a login with ({ownerName}) no longer exists or is not usable. Pick another owner or switch the login source — nothing is lost until you save."
+msgstr "Hồ sơ mà hồ sơ này từng dùng chung đăng nhập ({ownerName}) không còn tồn tại hoặc không dùng được. Hãy chọn chủ sở hữu khác hoặc đổi nguồn đăng nhập — chưa lưu thì không mất gì."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The project moved or was removed before the thread could launch. Review the project and try again."
+msgstr "Dự án đã bị di chuyển hoặc xóa trước khi luồng có thể khởi chạy. Kiểm tra dự án và thử lại."
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."
@@ -13915,6 +14584,26 @@ msgstr "Máy chủ trả về phản hồi MCP không hợp lệ."
 msgid "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
 msgstr "Máy chủ mà plugin này khởi chạy do bên thứ ba duy trì, không phải dịch vụ mà nó kết nối tới. Hãy xem mã nguồn trước khi bật."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The session action failed. Try again or reopen the session."
+msgstr "Thao tác phiên thất bại. Hãy thử lại hoặc mở lại phiên."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The session rejected the requested configuration. Review the selected settings and try again."
+msgstr "Phiên đã từ chối cấu hình được yêu cầu. Hãy xem lại các cài đặt đã chọn và thử lại."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "The session returned a hooks listing Poracode could not interpret."
+#~ msgstr "Phiên trả về danh sách hook mà Poracode không thể diễn giải."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "The session returned a rules listing Poracode could not interpret."
+msgstr "Phiên trả về danh sách quy tắc mà Poracode không thể diễn giải."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "The session settings could not be read."
+#~ msgstr "Không thể đọc cài đặt phiên."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "The skill description is missing."
 msgstr "Thiếu phần mô tả skill."
@@ -13950,6 +14639,10 @@ msgstr "Không thể tải marketplace skill."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode không tương thích."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
+msgstr "Cấu hình đã lưu không hợp lệ. Các giá trị đã lưu được giữ lại; lưu bên dưới sẽ thay thế chúng bằng nội dung của biểu mẫu này."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -14016,6 +14709,18 @@ msgstr "Các máy chủ MCP tích hợp sẵn này được chia sẻ giữa cá
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "Các máy chủ MCP tích hợp sẵn này được chia sẻ giữa các luồng OpenCode. Việc lưu sẽ cập nhật các dự án GUI đang chạy; xóa một máy chủ có thể làm gián đoạn lượt đang hoạt động. Các luồng terminal sẽ nhận thay đổi ở lần khởi chạy tiếp theo."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "These choices apply to Chat. In CLI mode, configure the workspace from the terminal."
+msgstr "Các lựa chọn này áp dụng cho trò chuyện. Ở chế độ CLI, hãy cấu hình workspace từ terminal."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "These defaults apply to cloud chats started from Poracode. Terminal and one-shot Devin runs make their repository, persona, and platform choices in the native Devin CLI."
+#~ msgstr "Các mặc định này áp dụng cho các cuộc trò chuyện đám mây bắt đầu từ Poracode. Các lần chạy terminal và chạy một lần của Devin thực hiện lựa chọn kho lưu trữ, persona và nền tảng trong Devin CLI gốc."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "These model settings contain unsupported selection data. Update the app before changing them."
+msgstr "Các cài đặt mô hình này chứa dữ liệu lựa chọn không được hỗ trợ. Hãy cập nhật ứng dụng trước khi thay đổi chúng."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
 msgstr "Các máy chủ này đến từ plugin. Bật hoặc tắt chúng từ Plugin; không thể chỉnh sửa ở đây."
@@ -14026,6 +14731,10 @@ msgstr "Các máy chủ này đến từ plugin. Bật hoặc tắt chúng từ 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Đang suy nghĩ"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support the selected model options. Choose different options and try again."
+msgstr "Tác nhân này không hỗ trợ các tùy chọn mô hình đã chọn. Hãy chọn tùy chọn khác và thử lại."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
@@ -14132,6 +14841,10 @@ msgstr "Thư mục này trống."
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "Liên kết này mở ứng dụng mà Poracode phục vụ trong mạng của bạn. Ứng dụng được host chạy qua HTTPS, nên trình duyệt chặn việc kết nối tới desktop dùng HTTP thuần."
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "This list is incomplete because the scan reached its limit."
+#~ msgstr "Danh sách này chưa đầy đủ vì quá trình quét đã đạt giới hạn."
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "máy này"
@@ -14139,6 +14852,10 @@ msgstr "máy này"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "This machine"
 msgstr "Máy này"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This machine (local)"
+msgstr "Máy này (cục bộ)"
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
@@ -14183,9 +14900,23 @@ msgstr "Cài đặt Poracode của plugin này bị bỏ qua vì không hợp l�
 msgid "This plugin's skills could not be read."
 msgstr "Không đọc được các skill của plugin này."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
+msgstr "Hồ sơ này không thể khởi chạy với đăng nhập và cấu hình hiện tại. Hãy xem lại cài đặt hồ sơ và thử lại."
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "Hồ sơ này chạy trên Cursor SDK. Cursor CLI và ACP dùng chung một lần đăng nhập trên máy, nên chúng ở lại ô Cursor chính."
+
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This profile's isolated login ({0})."
+msgstr "Đăng nhập riêng của hồ sơ này ({0})."
+
+#. placeholder {0}: String(props.view.formatVersion)
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This profile's settings were written by a newer Poracode version (config format {0}). They are preserved exactly and the profile stays disabled until Poracode learns that format. Nothing is overwritten here."
+msgstr "Cài đặt của hồ sơ này được một phiên bản Poracode mới hơn ghi (định dạng cấu hình {0}). Chúng được giữ nguyên vẹn và hồ sơ vẫn tắt cho đến khi Poracode học được định dạng đó. Không có gì bị ghi đè ở đây."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
@@ -14242,6 +14973,10 @@ msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\" và đóng {1, p
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\", sau đó xóa nhánh."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This scheduled task changed or was removed before it could run. Review the schedule and try again."
+msgstr "Tác vụ đã lên lịch này đã bị thay đổi hoặc xóa trước khi chạy. Hãy kiểm tra lịch và thử lại."
+
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
 msgid "This server does not support the bounded catalog read."
 msgstr "Máy chủ này không hỗ trợ đọc danh mục giới hạn."
@@ -14258,9 +14993,17 @@ msgstr "Máy chủ này yêu cầu xác thực trước khi Poracode có thể k
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "Máy chủ này chạy trên máy này và không khả dụng cho dự án WSL."
 
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "This session did not advertise any settings."
+#~ msgstr "Phiên này không cung cấp cài đặt nào."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Phím tắt toàn hệ thống này không khả dụng. Hãy chọn tổ hợp phím khác."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
+msgstr "Không thể mở cuộc trò chuyện này với các thư mục đã được cấp quyền. Hãy cập nhật máy chủ hoặc kiểm tra quyền truy cập thư mục rồi thử lại."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
@@ -15419,6 +16162,10 @@ msgstr "Sử dụng skill {name}."
 #~ msgid "Use the default branch"
 #~ msgstr "Dùng nhánh mặc định"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Use the ID of a persona available in your Devin cloud organization."
+msgstr "Dùng ID của một persona có sẵn trong tổ chức đám mây Devin của bạn."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "Sử dụng tài khoản này để theo dõi việc sử dụng hoặc thay đổi người dùng trong trình duyệt trước khi tiếp tục."
@@ -15471,6 +16218,10 @@ msgstr "Dùng cho các phiên tương tác mới trong bảng terminal."
 msgid "user@host"
 msgstr "user@host"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
+msgstr "Dùng đăng nhập riêng của Devin trên máy này. Hãy đăng nhập/đăng xuất từ trang gốc Devin — nó vẫn là đăng nhập toàn cục duy nhất."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "Đang dùng danh sách mô hình Claude tích hợp sẵn."
@@ -15483,6 +16234,10 @@ msgstr "v{0} có sẵn"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "giá trị"
+
+#: src/renderer/components/providers/devin/sessionActionControls.tsx
+#~ msgid "Value"
+#~ msgstr "Giá trị"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
@@ -15743,6 +16498,10 @@ msgstr "Đánh giá hằng tuần"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "Những gì Crossagents học được từ các lựa chọn rõ ràng. Chỉnh sửa thẻ hoặc xóa mục để định hình lại định tuyến."
 
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "What should change? (optional)"
+msgstr "Cần thay đổi gì? (tùy chọn)"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"
 #~ msgstr "Tác nhân nên làm gì?"
@@ -15830,6 +16589,7 @@ msgid "Will run in {0}:"
 msgstr "Sẽ chạy trong {0}:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx

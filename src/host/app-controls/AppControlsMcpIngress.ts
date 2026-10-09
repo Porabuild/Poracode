@@ -6,7 +6,11 @@ import {
   type StreamableHttpMcpIngressInfo,
 } from "../mcp/StreamableHttpMcpIngress";
 import type { ScheduleService } from "../schedules/ScheduleService";
-import type { CreateAppThreadRequest, CreateAppThreadResult } from "../threads/appThreadLauncher";
+import type {
+  CreateAppThreadLaunchOptions,
+  CreateAppThreadRequest,
+  CreateAppThreadResult,
+} from "../threads/appThreadLauncher";
 import { ThreadStateBroker } from "../threads/threadStateBroker";
 import {
   APP_CONTROLS_MCP_INSTRUCTIONS,
@@ -39,7 +43,11 @@ export interface AppControlsMcpIngressDeps {
   settings: AppControlsSettingsGateway;
   getAppInfo(): AppControlsAppInfo;
   supervisor: AppControlsSupervisorCaller;
-  createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
+  /** Per-call launch admission options stay host-only and ephemeral. */
+  createThread(
+    request: CreateAppThreadRequest,
+    options?: CreateAppThreadLaunchOptions,
+  ): Promise<CreateAppThreadResult>;
   emitRemoteThreadCommand(command: RemoteThreadCommand): boolean | Promise<boolean>;
   /** Fails closed when durable experiment ownership cannot be read. */
   isExperimentGroup(groupId: string): boolean;

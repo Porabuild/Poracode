@@ -133,6 +133,11 @@
         "structuredRuntime": "acp",
         "sdkApiKey": "fixture-secret-never-surface"
       }
+    },
+    "wslTitleGenSelection": {
+      "model": "member-b",
+      "effort": "high",
+      "fast": true
     }
   },
   "settingsResponse": {
@@ -188,6 +193,29 @@
       "wslConflictResolverEffort": "",
       "wslConflictResolverFast": false,
       "wslConflictResolverPresentationMode": "gui",
+      "commitGenSelection": {
+        "model": "member-a",
+        "effort": "",
+        "fast": false,
+        "thinking": false,
+        "contextSize": "default",
+        "selectionBinding": {
+          "version": 1,
+          "kind": "family-member",
+          "owner": {
+            "agentKind": "sample-agent",
+            "presentationMode": "terminal"
+          },
+          "model": "member-a",
+          "inertValues": {
+            "effort": "",
+            "fast": false
+          }
+        }
+      },
+      "titleGenSelection": {
+        "model": ""
+      },
       "worktreeStorageMode": "global",
       "worktreeBasePath": "",
       "wslWorktreeBasePath": "",

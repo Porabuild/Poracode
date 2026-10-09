@@ -42,7 +42,7 @@ class ProjectionSource {
 
 function descriptor(): RemoteEnvironmentDescriptor {
   return {
-    protocolVersion: 12,
+    protocolVersion: 13,
     hostMode: "helper",
     desktopId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     label: "Remote",

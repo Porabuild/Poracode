@@ -1,0 +1,24 @@
+{
+  "$comment": "Neutral fixture: partial record plus unrepresented controls. Only effort:'default' is recorded; Fast false and a meaningful contextSize are present actual controls with no recorded entry. The record still matches (it proves only its entries) but grants no exemption for the unrepresented controls, and mutations never erase an unrecorded actual control.",
+  "config": {
+    "model": "lead-a+sidekick-b",
+    "effort": "default",
+    "contextSize": "high",
+    "fast": false,
+    "mode": "agent",
+    "selectionBinding": {
+      "version": 1,
+      "kind": "family-member",
+      "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+      "model": "lead-a+sidekick-b",
+      "inertValues": { "effort": "default" }
+    }
+  },
+  "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+  "expect": {
+    "bindingRecognized": true,
+    "matches": true,
+    "unrepresentedControls": ["contextSize", "fast"],
+    "coldLaunch": "conservative-catalog-required"
+  }
+}

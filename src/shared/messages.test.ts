@@ -8,6 +8,23 @@ import {
 } from "./messages";
 
 describe("friendlyErrorWithDetail", () => {
+  it("localizes unsupported model options after source-language IPC serialization", () => {
+    setMessageResolver((key) =>
+      key === "modelSelection.unsupportedOptions" ? "Elige otras opciones de modelo." : undefined,
+    );
+    try {
+      expect(
+        friendlyError(
+          new Error(
+            "Error invoking remote method 'generatePrSummary': Error: This agent does not support the selected model options. Choose different options and try again.",
+          ),
+        ),
+      ).toBe("Elige otras opciones de modelo.");
+    } finally {
+      setMessageResolver(undefined);
+    }
+  });
+
   it("localizes static source-language messages received over IPC", () => {
     setMessageResolver((key) =>
       key === "voice.connectionFailed" ? "La conexión de voz falló." : undefined,
@@ -24,6 +41,25 @@ describe("friendlyErrorWithDetail", () => {
       setMessageResolver(undefined);
     }
   });
+  it("localizes a named profile dependency refusal across the string IPC channel", () => {
+    setMessageResolver((key, params) =>
+      key === "profile.dependencyUnavailable"
+        ? `Perfil ${params?.profile}: cuenta ${params?.dependency}`
+        : undefined,
+    );
+    try {
+      expect(
+        friendlyError(
+          new Error(
+            'Profile "Work" needs account owner "Owner". Reassign its account before changing or removing the owner.',
+          ),
+        ),
+      ).toBe("Perfil Work: cuenta Owner");
+    } finally {
+      setMessageResolver(undefined);
+    }
+  });
+
   it("returns the raw message and no details for plain errors", () => {
     const result = friendlyErrorWithDetail(new Error("something broke"));
     expect(result).toEqual({ summary: "something broke", details: "" });

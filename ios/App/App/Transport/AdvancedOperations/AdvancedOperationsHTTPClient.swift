@@ -72,6 +72,7 @@ actor AdvancedOperationsHTTPClient: AdvancedOperationsHTTPExecuting {
       RemoteRequestHeaders.authorizationValue(for: credential),
       forHTTPHeaderField: RemoteRequestHeaders.authorization
     )
+    request.declareCurrentRemoteWriterProtocol()
     do {
       try await authorization.authorize(&request)
     } catch let error as RemoteClientError {

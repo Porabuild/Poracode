@@ -3,13 +3,17 @@ import { ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Monitor } from "lucide-react";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
+import type { ModelFamilyConfig } from "@/shared/modelFamilySelection";
+import { modelFamilyForModel } from "@/shared/modelFamilySelection";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas";
+import { SELECTION_AXES } from "@/shared/selectionBinding";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
-import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
+  resolveModelSelectionEdit,
 } from "@/renderer/components/thread/buildModelPickerControls";
 import { ThreadComposer } from "@/renderer/components/thread/ThreadComposer";
 import {
@@ -28,8 +32,20 @@ import {
   resolveTitleGenConfig,
 } from "@/renderer/components/providers/titleGen";
 import { sortByAutoPreference } from "@/renderer/components/providers/utilityTask";
+import {
+  readUtilitySelection,
+  relationForResolvedMember,
+  type UtilityPresetEdit,
+} from "@/renderer/utils/utilitySelection";
+import {
+  createUtilityPresetSetter,
+  setUtilityPresentation,
+  utilitySettingsKeys,
+} from "./utilityPreset";
 import { TuxIcon } from "@/renderer/components/common";
 import { SettingsPage } from "./SettingsForm";
+
+export { createUtilityPresetSetter } from "./utilityPreset";
 
 type EnvKind = "windows" | "wsl";
 type Mode = "auto" | "custom" | "disabled";
@@ -47,6 +63,7 @@ export function GenConfigSection(props: {
   model: string;
   effort: string;
   fast: boolean;
+  selection?: ModelSelection | undefined;
   resolve: (
     agent: AgentStatus | undefined,
     model: string,
@@ -56,7 +73,14 @@ export function GenConfigSection(props: {
   allowDisabled?: boolean;
   defaultsHint?: string | undefined;
   agentStatuses: AgentStatus[];
-  onConfigChange: (provider: string, model: string, effort: string, fast: boolean) => void;
+  /** Deliberate preset edit: legacy scalars plus the eventful edit descriptor. */
+  onConfigChange: (
+    provider: string,
+    model: string,
+    effort: string,
+    fast: boolean,
+    edit: UtilityPresetEdit,
+  ) => void;
   /** Extra controls rendered below the model/effort toolbar (e.g. presentation mode picker). */
   extraControls?: ReactNode;
   /** When set, model lists mirror the selected thread presentation surface (CLI vs Chat/ACP). */
@@ -76,15 +100,15 @@ export function GenConfigSection(props: {
     heading,
     description,
     provider,
-    model,
-    effort,
-    fast,
     resolve,
     getCandidates,
     agentStatuses,
     onConfigChange,
     presentationMode,
   } = props;
+
+  const selection = readUtilitySelection(props.selection, props);
+  const { model, effort = "", fast = false } = selection;
 
   const installedAgents = agentStatuses.filter((a) => a.installed);
   // One-shot sections (title / commit) only offer providers that can run a
@@ -109,7 +133,7 @@ export function GenConfigSection(props: {
     customAgent === undefined &&
     installedAgents.some((a) => a.kind === provider && a.capabilities.supportsOneShot !== true);
   useEffect(() => {
-    if (savedProviderIneligible) onConfigChange("auto", "", "", false);
+    if (savedProviderIneligible) onConfigChange("auto", "", "", false, { kind: "reset" });
   }, [savedProviderIneligible, onConfigChange]);
   // In Auto mode, ask the section's candidate helper so the toolbar mirrors the
   // runtime fallback chain — including the "skip provider without preferred model"
@@ -124,13 +148,18 @@ export function GenConfigSection(props: {
       capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
     };
   }
-  const displayResolved = agentForPresentation(displayAgent)
+  const legacyResolved = agentForPresentation(displayAgent)
     ? resolve(
         agentForPresentation(displayAgent),
         mode === "custom" ? model : "",
         mode === "custom" ? effort : "",
       )
     : undefined;
+
+  const displayResolved =
+    props.selection && legacyResolved
+      ? { ...legacyResolved, model: model === "" ? legacyResolved.model : model, effort }
+      : legacyResolved;
 
   const providers = buildProviderModelMenuProviders(eligibleAgents, {
     ...(presentationMode ? { presentationMode } : {}),
@@ -139,24 +168,24 @@ export function GenConfigSection(props: {
   function changeMode(next: Mode) {
     if (next === mode) return;
     if (next === "auto") {
-      onConfigChange("auto", "", "", false);
+      onConfigChange("auto", "", "", false, { kind: "reset" });
       return;
     }
     if (next === "disabled") {
-      onConfigChange("disabled", "", "", false);
+      onConfigChange("disabled", "", "", false, { kind: "reset" });
       return;
     }
     const first = sortByAutoPreference(eligibleAgents)[0];
     if (!first) return;
     const r = resolve(agentForPresentation(first), "", "");
-    onConfigChange(first.kind, r.model, r.effort, false);
+    onConfigChange(first.kind, r.model, r.effort, false, { kind: "model" });
   }
 
   const showToolbar = (mode === "custom" || mode === "auto") && displayAgent && displayResolved;
   const isReadOnly = mode === "auto";
-  // Fast mode is only meaningful in Custom mode for a fast-capable model — Auto
-  // never opts a utility task into fast, so the read-only mirror shows it off.
-  const resolvedFast = mode === "custom" ? fast : false;
+  // Modern presets display their actual controls; legacy Auto keeps its
+  // existing read-only default view.
+  const resolvedFast = props.selection || mode === "custom" ? fast : false;
 
   const modelPickerControls =
     showToolbar && displayAgent && displayResolved
@@ -166,6 +195,8 @@ export function GenConfigSection(props: {
           model: displayResolved.model,
           effort: displayResolved.effort,
           fast: resolvedFast,
+          ...(selection.thinking !== undefined ? { thinking: selection.thinking } : {}),
+          ...(selection.contextSize !== undefined ? { contextSize: selection.contextSize } : {}),
           capabilities:
             agentForPresentation(displayAgent)?.capabilities ?? displayAgent.capabilities,
           ...(presentationMode ? { presentationMode } : {}),
@@ -174,19 +205,79 @@ export function GenConfigSection(props: {
           onProviderModelChange: (next) => {
             const nextAgent = installedAgents.find((a) => a.kind === next.agentKind);
             const presented = agentForPresentation(nextAgent);
-            const r = resolve(presented, next.model, effort);
-            // Drop fast when the newly selected model can't actually use it.
-            const nextFast = presented ? resolveFastValue(presented, r.model, fast) : false;
-            onConfigChange(next.agentKind, r.model, r.effort, nextFast);
-          },
-          onConfigPatch: (patch) => {
-            if (!customAgent || !displayResolved) return;
-            if (patch.fast !== undefined) {
-              onConfigChange(provider, displayResolved.model, displayResolved.effort, patch.fast);
+            // A pick touching a family relation resolves through the shared
+            // edit helper exactly like the thread composer: a projected
+            // family row keeps the family's current member, an exact row
+            // selects its member, `null` is rejected visibly by the helper,
+            // and `{}` is a family-row no-op.
+            const familyCaps = presented?.capabilities;
+            if (
+              familyCaps &&
+              (familyCaps.modelFamilies?.length ?? 0) > 0 &&
+              (modelFamilyForModel(familyCaps, next.model) ||
+                modelFamilyForModel(familyCaps, model))
+            ) {
+              const familyConfig: ModelFamilyConfig = selection;
+              const patch = resolveModelSelectionEdit(
+                familyCaps,
+                familyConfig,
+                next.selectionIntent === "family"
+                  ? { kind: "family", model: next.model }
+                  : { kind: "model", model: next.model },
+              );
+              if (patch === null) return;
+              if (Object.keys(patch).length === 0) {
+                onConfigChange(next.agentKind, model, effort, fast, { kind: "family-noop" });
+                return;
+              }
+              const nextModel = patch.model ?? model;
+              // Origin follows the row's intent, never the resolved patch:
+              // only a family row may carry a minting relation, while an
+              // exact/favorite/recent pick — same UID included — revokes.
+              const relation =
+                next.selectionIntent === "family"
+                  ? relationForResolvedMember(familyCaps, nextModel)
+                  : undefined;
+              onConfigChange(
+                next.agentKind,
+                nextModel,
+                patch.effort ?? effort,
+                patch.fast ?? fast,
+                relation ? { kind: "model", relation, patch } : { kind: "model", patch },
+              );
               return;
             }
-            if (patch.effort !== undefined) {
-              onConfigChange(provider, displayResolved.model, patch.effort, fast);
+            onConfigChange(next.agentKind, next.model, effort, fast, { kind: "model" });
+          },
+          onConfigPatch: (patch, origin) => {
+            if (!customAgent || !displayResolved) return;
+            if (patch.model !== undefined) {
+              // Only a member patch the shared edit helper resolved carries
+              // its projected relation, so only that edit can mint.
+              const presented = agentForPresentation(customAgent);
+              const relation =
+                origin?.kind === "family-resolved"
+                  ? relationForResolvedMember(
+                      presented?.capabilities ?? customAgent.capabilities,
+                      patch.model,
+                    )
+                  : undefined;
+              onConfigChange(
+                provider,
+                patch.model,
+                patch.effort ?? effort,
+                patch.fast ?? fast,
+                relation ? { kind: "model", relation, patch } : { kind: "model", patch },
+              );
+              return;
+            }
+            const axes = SELECTION_AXES.filter((axis) => Object.hasOwn(patch, axis));
+            if (axes.length > 0) {
+              onConfigChange(provider, model, patch.effort ?? effort, patch.fast ?? fast, {
+                kind: "carrier",
+                axes,
+                patch,
+              });
             }
           },
         })
@@ -298,61 +389,56 @@ export function AISettings() {
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
   const hasWsl = wslAgentStatuses.length > 0;
   const activeStatuses = envKind === "wsl" ? wslAgentStatuses : agentStatuses;
+  const wsl = envKind === "wsl";
 
+  const titleGenSelection = useSharedSettings((s) =>
+    wsl ? s.wslTitleGenSelection : s.titleGenSelection,
+  );
   const titleGenProvider = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslTitleGenProvider : s.titleGenProvider,
+    wsl ? s.wslTitleGenProvider : s.titleGenProvider,
   );
-  const titleGenModel = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslTitleGenModel : s.titleGenModel,
-  );
-  const titleGenEffort = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslTitleGenEffort : s.titleGenEffort,
-  );
-  const titleGenFast = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslTitleGenFast : s.titleGenFast,
-  );
+  const titleGenModel = useSharedSettings((s) => (wsl ? s.wslTitleGenModel : s.titleGenModel));
+  const titleGenEffort = useSharedSettings((s) => (wsl ? s.wslTitleGenEffort : s.titleGenEffort));
+  const titleGenFast = useSharedSettings((s) => (wsl ? s.wslTitleGenFast : s.titleGenFast));
   const setTitleGenConfig = useSharedSettings((s) =>
-    envKind === "wsl" ? s.setWslTitleGenConfig : s.setTitleGenConfig,
+    wsl ? s.setWslTitleGenConfig : s.setTitleGenConfig,
   );
 
+  const commitGenSelection = useSharedSettings((s) =>
+    wsl ? s.wslCommitGenSelection : s.commitGenSelection,
+  );
   const commitGenProvider = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslCommitGenProvider : s.commitGenProvider,
+    wsl ? s.wslCommitGenProvider : s.commitGenProvider,
   );
-  const commitGenModel = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslCommitGenModel : s.commitGenModel,
-  );
+  const commitGenModel = useSharedSettings((s) => (wsl ? s.wslCommitGenModel : s.commitGenModel));
   const commitGenEffort = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslCommitGenEffort : s.commitGenEffort,
+    wsl ? s.wslCommitGenEffort : s.commitGenEffort,
   );
-  const commitGenFast = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslCommitGenFast : s.commitGenFast,
-  );
+  const commitGenFast = useSharedSettings((s) => (wsl ? s.wslCommitGenFast : s.commitGenFast));
   const setCommitGenConfig = useSharedSettings((s) =>
-    envKind === "wsl" ? s.setWslCommitGenConfig : s.setCommitGenConfig,
+    wsl ? s.setWslCommitGenConfig : s.setCommitGenConfig,
   );
 
+  const conflictResolverSelection = useSharedSettings((s) =>
+    wsl ? s.wslConflictResolverSelection : s.conflictResolverSelection,
+  );
   const conflictResolverProvider = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslConflictResolverProvider : s.conflictResolverProvider,
+    wsl ? s.wslConflictResolverProvider : s.conflictResolverProvider,
   );
   const conflictResolverModel = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslConflictResolverModel : s.conflictResolverModel,
+    wsl ? s.wslConflictResolverModel : s.conflictResolverModel,
   );
   const conflictResolverEffort = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslConflictResolverEffort : s.conflictResolverEffort,
+    wsl ? s.wslConflictResolverEffort : s.conflictResolverEffort,
   );
   const conflictResolverFast = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslConflictResolverFast : s.conflictResolverFast,
+    wsl ? s.wslConflictResolverFast : s.conflictResolverFast,
   );
   const setConflictResolverConfig = useSharedSettings((s) =>
-    envKind === "wsl" ? s.setWslConflictResolverConfig : s.setConflictResolverConfig,
+    wsl ? s.setWslConflictResolverConfig : s.setConflictResolverConfig,
   );
   const conflictResolverPresentationMode = useSharedSettings((s) =>
-    envKind === "wsl" ? s.wslConflictResolverPresentationMode : s.conflictResolverPresentationMode,
-  );
-  const setConflictResolverPresentationMode = useSharedSettings((s) =>
-    envKind === "wsl"
-      ? s.setWslConflictResolverPresentationMode
-      : s.setConflictResolverPresentationMode,
+    wsl ? s.wslConflictResolverPresentationMode : s.conflictResolverPresentationMode,
   );
 
   return (
@@ -392,13 +478,18 @@ export function AISettings() {
         description={t`Generates short titles for new threads.`}
         defaultsHint={getTitleGenDefaultsHint()}
         agentStatuses={activeStatuses}
+        selection={titleGenSelection}
         provider={titleGenProvider}
         model={titleGenModel}
         effort={titleGenEffort}
         fast={titleGenFast}
         resolve={resolveTitleGenConfig}
         getCandidates={getTitleGenCandidates}
-        onConfigChange={setTitleGenConfig}
+        onConfigChange={createUtilityPresetSetter({
+          keys: utilitySettingsKeys("titleGen", wsl),
+          presentation: undefined,
+          setScalars: setTitleGenConfig,
+        })}
       />
 
       <GenConfigSection
@@ -408,13 +499,18 @@ export function AISettings() {
         description={t`Generates commit messages from staged changes.`}
         defaultsHint={getCommitGenDefaultsHint()}
         agentStatuses={activeStatuses}
+        selection={commitGenSelection}
         provider={commitGenProvider}
         model={commitGenModel}
         effort={commitGenEffort}
         fast={commitGenFast}
         resolve={resolveCommitGenConfig}
         getCandidates={getCommitGenCandidates}
-        onConfigChange={setCommitGenConfig}
+        onConfigChange={createUtilityPresetSetter({
+          keys: utilitySettingsKeys("commitGen", wsl),
+          presentation: undefined,
+          setScalars: setCommitGenConfig,
+        })}
       />
 
       <GenConfigSection
@@ -423,19 +519,26 @@ export function AISettings() {
         description={t`Resolves merge conflicts during rebase or merge.`}
         defaultsHint={getConflictResolverDefaultsHint()}
         agentStatuses={activeStatuses}
+        selection={conflictResolverSelection}
         provider={conflictResolverProvider}
         model={conflictResolverModel}
         effort={conflictResolverEffort}
         fast={conflictResolverFast}
         resolve={resolveConflictResolverConfig}
         getCandidates={getConflictResolverCandidates}
-        onConfigChange={setConflictResolverConfig}
+        onConfigChange={createUtilityPresetSetter({
+          keys: utilitySettingsKeys("conflictResolver", wsl),
+          // The conflict resolver's existing declaration: the target
+          // presentation is its presentation-mode setting.
+          presentation: conflictResolverPresentationMode,
+          setScalars: setConflictResolverConfig,
+        })}
         presentationMode={conflictResolverPresentationMode}
         extraControls={
           <PresentationModeToggle
             ariaLabel={t`Open conflict resolver in`}
             value={conflictResolverPresentationMode}
-            onChange={setConflictResolverPresentationMode}
+            onChange={(mode) => setUtilityPresentation(wsl, mode)}
           />
         }
       />

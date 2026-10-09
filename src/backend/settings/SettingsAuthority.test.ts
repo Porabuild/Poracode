@@ -16,7 +16,7 @@ import {
   type SettingsSubject,
 } from "@/shared/settingsTransactions";
 import { SettingsAuthority, type SettingsAuthorityOptions } from "./SettingsAuthority";
-import { SETTINGS_DOCUMENT_VERSION_KEY } from "./settingsDocument";
+import { SETTINGS_DOCUMENT_VERSION, SETTINGS_DOCUMENT_VERSION_KEY } from "./settingsDocument";
 
 describe("SettingsAuthority", () => {
   let root: string;
@@ -36,6 +36,8 @@ describe("SettingsAuthority", () => {
   });
   async function open(options: Partial<Omit<SettingsAuthorityOptions, "lease">> = {}) {
     const authority = await SettingsAuthority.open({
+      // Explicit unit admission stub; this suite does not qualify SQLite preparation.
+      assertPreparedDatabaseForWrite: () => {},
       lease: {
         paths: { dataRoot: root },
         generation,
@@ -84,7 +86,7 @@ describe("SettingsAuthority", () => {
       authority.mutate(request(before, [set(before, theme, "light")]), allow),
     ).resolves.toMatchObject({ status: "committed" });
     expect(await disk()).toMatchObject({
-      [SETTINGS_DOCUMENT_VERSION_KEY]: 1,
+      [SETTINGS_DOCUMENT_VERSION_KEY]: SETTINGS_DOCUMENT_VERSION,
       themeMode: "light",
       futureSettings: unknown,
       browser: { futureCapability: unknown },
@@ -402,7 +404,7 @@ describe("SettingsAuthority", () => {
   it.each([
     ["malformed JSON", '{"themeMode":'],
     ["invalid existing field", '{"themeMode":17}'],
-    ["future format", '{"$poracodeSettingsVersion":2,"themeMode":"dark"}'],
+    ["future format", '{"$poracodeSettingsVersion":3,"themeMode":"dark"}'],
     ["malformed format", '{"$poracodeSettingsVersion":"1"}'],
     ["nonobject", "[]"],
   ])("refuses %s without changing exact bytes", async (_name, contents) => {

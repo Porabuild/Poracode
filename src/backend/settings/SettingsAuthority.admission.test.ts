@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -26,6 +26,8 @@ describe("settings authority admission and publication", () => {
   });
   async function open(options: Partial<Omit<SettingsAuthorityOptions, "lease">> = {}) {
     const authority = await SettingsAuthority.open({
+      // Explicit unit admission stub; this suite does not qualify SQLite preparation.
+      assertPreparedDatabaseForWrite: () => {},
       lease: { paths: { dataRoot: root }, generation: randomUUID(), assertActive: () => {} },
       ...options,
     });
@@ -217,5 +219,103 @@ describe("settings authority admission and publication", () => {
     expect(deleted.revisions[settingsSubjectId(entry)]).toBe("missing");
     expect(deleted.changes).toHaveLength(1);
     expect(deleted.changes[0]?.subject).toEqual(field);
+  });
+
+  it("requires prepared admission only after authorization and CAS, never for reads", async () => {
+    const assertion = vi.fn<() => void>(() => {
+      throw new Error("fixture database unavailable");
+    });
+    const authority = await open({ assertPreparedDatabaseForWrite: assertion });
+    const snapshot = authority.snapshot();
+    expect(authority.readSettings()).toEqual(snapshot.settings);
+    expect(assertion).not.toHaveBeenCalled();
+    await expect(
+      authority.mutate(request(snapshot, "themeMode", "light"), () => false),
+    ).rejects.toThrow("not authorized");
+    await expect(
+      authority.mutate(
+        { ...request(snapshot, "themeMode", "light"), authorityId: randomUUID() },
+        () => true,
+      ),
+    ).resolves.toMatchObject({ status: "conflict" });
+    const stale = request(snapshot, "themeMode", "light");
+    stale.edits[0]!.expectedRevision = `s1:${"0".repeat(64)}`;
+    await expect(authority.mutate(stale, () => true)).resolves.toMatchObject({
+      status: "conflict",
+    });
+    expect(assertion).not.toHaveBeenCalled();
+    await expect(
+      authority.mutate(request(snapshot, "themeMode", "light"), () => true),
+    ).rejects.toThrow("fixture database unavailable");
+    expect(assertion).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed for a runtime caller omitting the required callback while reads remain available", async () => {
+    const options = {
+      lease: { paths: { dataRoot: root }, generation: "fixture", assertActive: () => {} },
+    };
+    // Intentionally model an untyped caller; the TypeScript interface must reject omission.
+    // @ts-expect-error Prepared database admission is required.
+    const authority = await SettingsAuthority.open(options);
+    authorities.push(authority);
+    const snapshot = authority.snapshot();
+    expect(authority.readSettings()).toEqual(snapshot.settings);
+    await expect(
+      authority.mutate(request(snapshot, "themeMode", "light"), () => true),
+    ).rejects.toThrow("assertPreparedDatabaseForWrite");
+    expect(await readdir(root)).toEqual([]);
+  });
+
+  it.each([1, 2, 3, 4, 5, 6])(
+    "revalidates database admission at persistence checkpoint %s without advancing state on refusal",
+    async (checkpoint) => {
+      const original = '{"themeMode":"dark"}\n';
+      await writeFile(join(root, "settings.json"), original);
+      let calls = 0;
+      const onCommitted = vi.fn<() => void>();
+      const authority = await open({
+        assertPreparedDatabaseForWrite: () => {
+          if (++calls === checkpoint) throw new Error("fixture database changed");
+        },
+        onCommitted,
+      });
+      const snapshot = authority.snapshot();
+      await expect(
+        authority.mutate(request(snapshot, "themeMode", "light"), () => true),
+      ).rejects.toThrow("fixture database changed");
+      expect(calls).toBe(checkpoint);
+      expect(authority.snapshot()).toEqual(snapshot);
+      expect(onCommitted).not.toHaveBeenCalled();
+      expect(await readFile(join(root, "settings.json"), "utf8")).toBe(original);
+      expect(await readdir(root)).toEqual(["settings.json"]);
+      await expect(
+        authority.mutate(request(snapshot, "themeMode", "light"), () => true),
+      ).resolves.toMatchObject({ status: "committed", sequence: 1 });
+      expect(calls).toBe(checkpoint + 6);
+    },
+  );
+
+  it("rechecks queued commits and drains admitted work after close", async () => {
+    let prepared = true;
+    const authority = await open({
+      assertPreparedDatabaseForWrite: () => {
+        if (!prepared) throw new Error("fixture database changed");
+      },
+    });
+    const snapshot = authority.snapshot();
+    const hold = holdFirstWrite();
+    const first = authority.mutate(request(snapshot, "themeMode", "light"), () => true);
+    await hold.ready;
+    const queued = authority.mutate(request(snapshot, "guiChatFontSize", 18), () => true);
+    const results = Promise.allSettled([first, queued]);
+    const closing = authority.close();
+    prepared = false;
+    hold.release();
+    await closing;
+    expect(await results).toEqual([
+      { status: "rejected", reason: new Error("fixture database changed") },
+      { status: "rejected", reason: new Error("fixture database changed") },
+    ]);
+    expect(await readdir(root)).toEqual([]);
   });
 });

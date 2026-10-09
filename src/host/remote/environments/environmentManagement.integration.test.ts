@@ -2,6 +2,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { composeHostEnvironments } from "@/host/environments/composeHostEnvironments";
 import type { EnvironmentPublicProjection } from "@/shared/environments";
 import type { RemoteAccessScope } from "@/shared/remote";
@@ -65,7 +69,11 @@ async function startHost(mode: "complete" | "runtime-only" | "absent" = "complet
   const request = (path: string, accessToken: string, body?: unknown, signal?: AbortSignal) =>
     fetch(new URL(path, info.httpBaseUrl), {
       method: body === undefined ? "GET" : "POST",
-      headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       ...(signal ? { signal } : {}),
     });

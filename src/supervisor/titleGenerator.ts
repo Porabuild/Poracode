@@ -1,8 +1,10 @@
 import type { ProjectLocation } from "@/shared/contracts";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
 import { assertAgentLaunchAllowed } from "./agentLaunchGuard";
 import {
+  legacyOneShotPositionals,
   resolveAgentProjectLocation,
-  resolveOneShotEffectiveModel,
+  resolveOneShotSelection,
   withCommandBaseSpawnEnv,
   type AgentAdapter,
 } from "./agents/base";
@@ -98,10 +100,8 @@ export async function generateTitle(
   location: ProjectLocation,
   adapter: AgentAdapter,
   prompt: string,
-  model?: string,
-  effort?: string,
+  selection?: ModelSelection,
   language?: string,
-  fast?: boolean,
 ): Promise<string> {
   if (!adapter.runOneShot && !adapter.buildOneShotCommand) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
@@ -110,7 +110,7 @@ export async function generateTitle(
   assertAgentLaunchAllowed("one-shot");
   const signal = timeoutSignal(TITLE_GEN_TIMEOUT_MS);
   const executionLocation = await resolveAgentProjectLocation(location, undefined, signal);
-  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+  const effectiveSelection = resolveOneShotSelection(adapter, selection, () => {
     return new Error(`No default one-shot model configured for ${adapter.label}`);
   });
 
@@ -122,21 +122,11 @@ export async function generateTitle(
   const raw = adapter.runOneShot
     ? await adapter.runOneShot({
         location: executionLocation,
-        model: effectiveModel,
-        effort,
-        fast,
+        selection: effectiveSelection,
         prompt: finalPrompt,
         signal,
       })
-    : await runViaCli(
-        executionLocation,
-        adapter,
-        effectiveModel,
-        effort,
-        finalPrompt,
-        fast,
-        signal,
-      );
+    : await runViaCli(executionLocation, adapter, effectiveSelection, finalPrompt, signal);
 
   const title = cleanTitle(raw);
   if (!title) {
@@ -148,13 +138,22 @@ export async function generateTitle(
 async function runViaCli(
   location: ProjectLocation,
   adapter: AgentAdapter,
-  model: string,
-  effort: string | undefined,
+  selection: ModelSelection,
   prompt: string,
-  fast: boolean | undefined,
   signal: AbortSignal | undefined,
 ): Promise<string> {
-  const cmd = await adapter.buildOneShotCommand!(model, effort, prompt, location, fast);
+  // Legacy builder-call boundary: the positionals are a checked projection of
+  // the one selection, derived once and passed alongside the full selection
+  // in argument 6 so the builder can validate them before any effect.
+  const positionals = legacyOneShotPositionals(selection);
+  const cmd = await adapter.buildOneShotCommand!(
+    positionals.model,
+    positionals.effort,
+    prompt,
+    location,
+    positionals.fast,
+    { selection },
+  );
   if (!cmd) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }

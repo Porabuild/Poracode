@@ -1,3 +1,9 @@
+import { assertThreadWorkspaceGrantsSchema } from "./threadWorkspaceGrantsSchema";
+import { createThreadWorkspaceGrantsSchema } from "./threadWorkspaceGrantsSchema55";
+import {
+  assertThreadWorkspaceGrantsPreflight,
+  createThreadWorkspaceGrantsSchema56,
+} from "./threadWorkspaceGrantsSchema56";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
@@ -873,6 +879,35 @@ export const DATABASE_MIGRATIONS = [
     rollback: "forward-only",
     migrate: createRuntimePayloadOriginSchema,
   },
+  {
+    version: 55,
+    name: "thread workspace grant custody",
+    // Older code cannot honor committed authorization or pending replacement custody.
+    rollback: "forward-only",
+    migrate: createThreadWorkspaceGrantsSchema,
+  },
+  {
+    version: 56,
+    name: "thread workspace owner fencing",
+    // Old readers cannot distinguish owner-only revisions from explicitly committed scope.
+    rollback: "forward-only",
+    migrate: (sqlite) => {
+      // Divergent legacy schemas may still lack safe owner columns. Repair them
+      // before the backfill UPDATE evaluates the frozen schema55 custody guards.
+      // Repair preflights custody DDL and the persistent trigger inventory first;
+      // its own backfill must not execute a conflicting authority-table trigger.
+      repairSafeSchemaDrift(sqlite);
+      createThreadWorkspaceGrantsSchema56(sqlite);
+    },
+  },
+  {
+    version: 57,
+    name: "model selection intent writer boundary",
+    // Writer semantics changed; historical selections must never be stamped
+    // or rewritten by this forward-only, deliberately data-no-op boundary.
+    rollback: "forward-only",
+    migrate: () => {},
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1027,6 +1062,7 @@ const SAFE_COLUMN_REPAIRS = [
  */
 export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
   sqlite.transaction(() => {
+    assertThreadWorkspaceGrantsPreflight(sqlite);
     for (const [table, column, definition] of SAFE_COLUMN_REPAIRS) {
       addColumnIfMissing(sqlite, table, column, definition);
     }
@@ -1037,7 +1073,17 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
   })();
 }
 
+// Grant columns/journal/guards are deliberately NOT SAFE_COLUMN_REPAIRS:
+// losing custody at schema 55/56 must refuse, not recreate an empty grant or journal.
 const REQUIRED_COLUMNS = {
+  thread_workspace_grant_operations: [
+    "thread_id",
+    "operation_token",
+    "expected_revision",
+    "owner_json",
+    "candidate_json",
+    "state",
+  ],
   projects: [
     "id",
     "name",
@@ -1059,6 +1105,10 @@ const REQUIRED_COLUMNS = {
     "created_at",
   ],
   threads: [
+    "additional_directories",
+    "workspace_grant_revision",
+    "workspace_owner_incarnation",
+    "workspace_grants_initialized",
     "id",
     "project_id",
     "title",
@@ -1218,4 +1268,5 @@ export function assertRequiredDatabaseSchema(sqlite: SqliteDatabase): void {
     throw new Error(`Database schema is incomplete; missing: ${missing.join(", ")}.`);
   }
   assertRuntimePayloadOriginSchema(sqlite);
+  assertThreadWorkspaceGrantsSchema(sqlite);
 }

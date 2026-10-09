@@ -1,0 +1,23 @@
+{
+  "$comment": "Neutral fixture: stale recorded axis. The record names effort:'default' but the actual effort carrier now holds ''. Changing or removing any recorded value invalidates the entire record; stale evidence is never repaired by rewriting controls to recorded values.",
+  "config": {
+    "model": "lead-a+sidekick-b",
+    "effort": "",
+    "fast": false,
+    "mode": "agent",
+    "selectionBinding": {
+      "version": 1,
+      "kind": "family-member",
+      "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+      "model": "lead-a+sidekick-b",
+      "inertValues": { "effort": "default", "fast": false }
+    }
+  },
+  "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+  "expect": {
+    "bindingRecognized": true,
+    "matches": false,
+    "invalidReason": "recorded-axis-mismatch",
+    "coldLaunch": "conservative-catalog-required"
+  }
+}

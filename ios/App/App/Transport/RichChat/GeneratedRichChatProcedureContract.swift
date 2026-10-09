@@ -15,11 +15,13 @@ enum RichChatProcedure: String, Sendable {
   case pauseThreadFollowUps
   case resumeThreadFollowUps
   case getThreadFollowUpQueue
+  case listThreadSessionActions
+  case invokeThreadSessionAction
 
   var returnsJSON: Bool {
     switch self {
     case .createFileCheckpoint, .finalizeFileCheckpoint, .listFileCheckpoints,
-      .getThreadFollowUpQueue:
+      .getThreadFollowUpQueue, .listThreadSessionActions, .invokeThreadSessionAction:
       true
     case .rollbackThreadConversation, .restoreFileCheckpoint, .stageThreadInput,
       .queueThreadFollowUp, .removeQueuedThreadFollowUp, .reorderQueuedThreadFollowUp,
@@ -180,6 +182,30 @@ extension GeneratedRemoteV3Contract {
     )
   }
 
+  /// Neutral session-action inventory read for one thread.
+  static func richListSessionActionsRequest(threadID: String) throws -> Data {
+    try richProcedureRequest(
+      .listThreadSessionActions,
+      payload: ["threadId": .string(threadID)]
+    )
+  }
+
+  /// Single-attempt neutral session-action mutation, addressed by id only.
+  static func richInvokeSessionActionRequest(
+    threadID: String,
+    actionID: String,
+    payload: [String: RichJSON]
+  ) throws -> Data {
+    try richProcedureRequest(
+      .invokeThreadSessionAction,
+      payload: [
+        "threadId": .string(threadID),
+        "actionId": .string(actionID),
+        "payload": .object(payload),
+      ]
+    )
+  }
+
   static func richProcedureResult(_ procedure: RichChatProcedure, envelope: Data) throws
     -> RichJSON?
   {
@@ -221,6 +247,18 @@ extension GeneratedRemoteV3Contract {
         raw,
         codec: RemoteRootCodecs.procedureU2EGetThreadFollowUpQueueU2EResult,
         boundary: "get thread follow-up queue result"
+      )
+    case .listThreadSessionActions:
+      canonical = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EListThreadSessionActionsU2EResult,
+        boundary: "list thread session actions result"
+      )
+    case .invokeThreadSessionAction:
+      canonical = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EInvokeThreadSessionActionU2EResult,
+        boundary: "invoke thread session action result"
       )
     case .rollbackThreadConversation, .restoreFileCheckpoint, .stageThreadInput,
       .queueThreadFollowUp, .removeQueuedThreadFollowUp, .reorderQueuedThreadFollowUp,
@@ -321,6 +359,18 @@ extension GeneratedRemoteV3Contract {
         raw,
         codec: RemoteRootCodecs.procedureU2EGetThreadFollowUpQueueU2ERequest,
         boundary: "get thread follow-up queue request"
+      )
+    case .listThreadSessionActions:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EListThreadSessionActionsU2ERequest,
+        boundary: "list thread session actions request"
+      )
+    case .invokeThreadSessionAction:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EInvokeThreadSessionActionU2ERequest,
+        boundary: "invoke thread session action request"
       )
     }
     let payloadValue = try RichJSON.decode(canonicalPayload)

@@ -65,10 +65,8 @@ export class GenerationService {
         generateCommitMessage(
           payload.projectLocation,
           adapter,
-          payload.model,
-          payload.effort,
+          payload.selection,
           payload.language,
-          payload.fast,
         ),
       ),
     };
@@ -82,10 +80,8 @@ export class GenerationService {
           payload.projectLocation,
           adapter,
           payload.prompt,
-          payload.model,
-          payload.effort,
+          payload.selection,
           payload.language,
-          payload.fast,
         ),
       ),
     };
@@ -99,8 +95,7 @@ export class GenerationService {
         adapter,
         payload.branch,
         payload.baseBranch,
-        payload.model,
-        payload.effort,
+        payload.selection,
         payload.language,
       ),
     );
@@ -118,9 +113,7 @@ export class GenerationService {
           adapter,
           payload.prompt,
           payload.candidates,
-          payload.model,
-          payload.effort,
-          payload.fast,
+          payload.selection,
           {
             signal: abortController.signal,
             ...(this.deps.wslBridgeClient ? { wslClient: this.deps.wslBridgeClient } : {}),
@@ -156,8 +149,7 @@ export class GenerationService {
             adapter,
             payload.sessionRef,
             payload.worktreePath,
-            payload.model,
-            payload.effort,
+            payload.selection,
             abortController.signal,
           );
         } catch {
@@ -170,8 +162,7 @@ export class GenerationService {
               payload.agentKind,
               payload.sessionRef.providerSessionId,
               payload.worktreePath,
-              payload.model,
-              payload.effort,
+              payload.selection,
               abortController.signal,
             );
           }

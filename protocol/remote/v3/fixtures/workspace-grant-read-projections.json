@@ -1,0 +1,296 @@
+{
+  "valid": [
+    {
+      "id": "legacy",
+      "thread": {
+        "id": "thread-fixture-001",
+        "projectId": "project-fixture-001",
+        "title": "Fixture thread",
+        "agentKind": "codex",
+        "config": {
+          "model": "gpt-5"
+        },
+        "status": "idle",
+        "attention": "none",
+        "presentationMode": "gui",
+        "createdAt": "2026-08-12T10:01:00.000Z",
+        "updatedAt": "2026-08-12T10:02:00.000Z"
+      }
+    },
+    {
+      "id": "empty",
+      "thread": {
+        "id": "thread-fixture-001",
+        "projectId": "project-fixture-001",
+        "title": "Fixture thread",
+        "agentKind": "codex",
+        "config": {
+          "model": "gpt-5"
+        },
+        "status": "idle",
+        "attention": "none",
+        "presentationMode": "gui",
+        "createdAt": "2026-08-12T10:01:00.000Z",
+        "updatedAt": "2026-08-12T10:02:00.000Z",
+        "additionalDirectories": [],
+        "workspaceGrantRevision": 0
+      }
+    },
+    {
+      "id": "unicode-ordered",
+      "thread": {
+        "id": "thread-fixture-001",
+        "projectId": "project-fixture-001",
+        "title": "Fixture thread",
+        "agentKind": "codex",
+        "config": {
+          "model": "gpt-5"
+        },
+        "status": "idle",
+        "attention": "none",
+        "presentationMode": "gui",
+        "createdAt": "2026-08-12T10:01:00.000Z",
+        "updatedAt": "2026-08-12T10:02:00.000Z",
+        "additionalDirectories": [
+          {
+            "kind": "posix",
+            "path": "/srv/東京/😀",
+            "remoteServerId": "host-α"
+          },
+          {
+            "kind": "posix",
+            "path": "/srv/é/next"
+          },
+          {
+            "kind": "posix",
+            "path": "/srv/東京/😀",
+            "remoteServerId": "host-α"
+          }
+        ],
+        "workspaceGrantRevision": 42
+      }
+    },
+    {
+      "id": "windows",
+      "thread": {
+        "id": "thread-fixture-001",
+        "projectId": "project-fixture-001",
+        "title": "Fixture thread",
+        "agentKind": "codex",
+        "config": {
+          "model": "gpt-5"
+        },
+        "status": "idle",
+        "attention": "none",
+        "presentationMode": "gui",
+        "createdAt": "2026-08-12T10:01:00.000Z",
+        "updatedAt": "2026-08-12T10:02:00.000Z",
+        "additionalDirectories": [
+          {
+            "kind": "windows",
+            "path": "C:\\資料\\first"
+          },
+          {
+            "kind": "windows",
+            "path": "D:\\two"
+          }
+        ],
+        "workspaceGrantRevision": 9007199254740991
+      }
+    },
+    {
+      "id": "wsl",
+      "thread": {
+        "id": "thread-fixture-001",
+        "projectId": "project-fixture-001",
+        "title": "Fixture thread",
+        "agentKind": "codex",
+        "config": {
+          "model": "gpt-5"
+        },
+        "status": "idle",
+        "attention": "none",
+        "presentationMode": "gui",
+        "createdAt": "2026-08-12T10:01:00.000Z",
+        "updatedAt": "2026-08-12T10:02:00.000Z",
+        "additionalDirectories": [
+          {
+            "kind": "wsl",
+            "distro": "Ubuntu-東京",
+            "linuxPath": "/home/α/one",
+            "uncPath": "\\\\wsl.localhost\\Ubuntu-東京\\home\\α\\one",
+            "remoteServerId": "host-windows"
+          },
+          {
+            "kind": "wsl",
+            "distro": "Ubuntu-東京",
+            "linuxPath": "/home/α/two",
+            "uncPath": "\\\\wsl.localhost\\Ubuntu-東京\\home\\α\\two"
+          }
+        ],
+        "workspaceGrantRevision": 7
+      }
+    },
+    {
+      "id": "roots-only",
+      "thread": {
+        "id": "thread-fixture-001",
+        "projectId": "project-fixture-001",
+        "title": "Fixture thread",
+        "agentKind": "codex",
+        "config": {
+          "model": "gpt-5"
+        },
+        "status": "idle",
+        "attention": "none",
+        "presentationMode": "gui",
+        "createdAt": "2026-08-12T10:01:00.000Z",
+        "updatedAt": "2026-08-12T10:02:00.000Z",
+        "additionalDirectories": []
+      }
+    },
+    {
+      "id": "revision-only",
+      "thread": {
+        "id": "thread-fixture-001",
+        "projectId": "project-fixture-001",
+        "title": "Fixture thread",
+        "agentKind": "codex",
+        "config": {
+          "model": "gpt-5"
+        },
+        "status": "idle",
+        "attention": "none",
+        "presentationMode": "gui",
+        "createdAt": "2026-08-12T10:01:00.000Z",
+        "updatedAt": "2026-08-12T10:02:00.000Z",
+        "workspaceGrantRevision": 1
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "null-roots",
+      "fields": {
+        "additionalDirectories": null
+      }
+    },
+    {
+      "id": "object-roots",
+      "fields": {
+        "additionalDirectories": {}
+      }
+    },
+    {
+      "id": "null-location",
+      "fields": {
+        "additionalDirectories": [null]
+      }
+    },
+    {
+      "id": "unknown-kind",
+      "fields": {
+        "additionalDirectories": [
+          {
+            "kind": "future",
+            "path": "/root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "empty-path",
+      "fields": {
+        "additionalDirectories": [
+          {
+            "kind": "posix",
+            "path": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "numeric-path",
+      "fields": {
+        "additionalDirectories": [
+          {
+            "kind": "posix",
+            "path": 12
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-wsl-unc",
+      "fields": {
+        "additionalDirectories": [
+          {
+            "kind": "wsl",
+            "distro": "Ubuntu",
+            "linuxPath": "/root"
+          }
+        ]
+      }
+    },
+    {
+      "id": "null-host-id",
+      "fields": {
+        "additionalDirectories": [
+          {
+            "kind": "posix",
+            "path": "/root",
+            "remoteServerId": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "empty-host-id",
+      "fields": {
+        "additionalDirectories": [
+          {
+            "kind": "posix",
+            "path": "/root",
+            "remoteServerId": ""
+          }
+        ]
+      }
+    },
+    {
+      "id": "null-revision",
+      "fields": {
+        "workspaceGrantRevision": null
+      }
+    },
+    {
+      "id": "negative-revision",
+      "fields": {
+        "workspaceGrantRevision": -1
+      }
+    },
+    {
+      "id": "fractional-revision",
+      "fields": {
+        "workspaceGrantRevision": 0.5
+      }
+    },
+    {
+      "id": "unsafe-revision",
+      "fields": {
+        "workspaceGrantRevision": 9007199254740992
+      }
+    },
+    {
+      "id": "string-revision",
+      "fields": {
+        "workspaceGrantRevision": "1"
+      }
+    },
+    {
+      "id": "bool-revision",
+      "fields": {
+        "workspaceGrantRevision": true
+      }
+    }
+  ]
+}

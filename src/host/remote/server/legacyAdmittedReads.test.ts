@@ -13,6 +13,7 @@ import {
   LEGACY_READ_TOO_LARGE_CODE,
 } from "@/shared/remote/legacyReadContract";
 import type { RemoteServerContext } from "./context";
+import { SessionConfigInventory } from "./sessionConfigInventory";
 import { LegacyBulkReadAdmission } from "./legacyBulkReadAdmission";
 import {
   handleLegacyAdmittedShellSnapshot,
@@ -102,6 +103,7 @@ function context(admission: LegacyBulkReadAdmission): RemoteServerContext {
     options: { gitSummaries: () => ({}) },
     seq: 7,
     legacyBulkReadAdmission: admission,
+    sessionConfigInventory: new SessionConfigInventory(),
   } as unknown as RemoteServerContext;
 }
 
@@ -118,6 +120,7 @@ function historyContext(admission: LegacyBulkReadAdmission): RemoteServerContext
     seq: 7,
     legacyBulkReadAdmission: admission,
     backgroundTasksByThread: new Map(),
+    sessionConfigInventory: new SessionConfigInventory(),
   } as unknown as RemoteServerContext;
 }
 
@@ -264,6 +267,7 @@ describe.skipIf(!sqliteAvailable)("legacy admitted reads", () => {
       },
       seq: 7,
       legacyBulkReadAdmission: admission,
+      sessionConfigInventory: new SessionConfigInventory(),
     } as unknown as RemoteServerContext;
     await expect(
       handleLegacyAdmittedShellSnapshot(callFor(ctx, new FakeResponse())),

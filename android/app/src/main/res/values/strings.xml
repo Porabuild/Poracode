@@ -92,6 +92,8 @@
     <string name="home_start">Start</string>
     <string name="home_quick_compose_agent">Agent</string>
     <string name="home_quick_compose_presentation">Presentation</string>
+    <string name="model_selection_lead">Lead</string>
+    <string name="model_selection_sidekick">Sidekick</string>
     <string name="home_quick_compose_chat">Chat</string>
     <string name="home_quick_compose_terminal">Terminal</string>
     <string name="home_quick_compose_controls">Launch settings</string>

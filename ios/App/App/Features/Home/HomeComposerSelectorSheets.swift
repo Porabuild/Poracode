@@ -89,6 +89,13 @@ extension HomeQuickComposeView {
         return
       }
       selectedAgentKind = agent.kind
+      // Clicking the family row while already inside the family preserves the
+      // actual selected member — the exact UID, its carriers, and any tuned
+      // controls stay untouched.
+      if effectiveModelIsRepresentedByRow(model) {
+        selector = nil
+        return
+      }
       selectedModel = model.modelID
       selectedEffort = defaultEffort(for: agent, modelID: model.modelID)
       fast = false
@@ -101,13 +108,18 @@ extension HomeQuickComposeView {
           .foregroundStyle(.secondary)
         VStack(alignment: .leading, spacing: 2) {
           Text(model.label).foregroundStyle(.primary)
-          if let subProvider = model.subProviderLabel {
-            Text(subProvider).font(.caption).foregroundStyle(.secondary)
+          // Provider-content pricing and the sub-provider hint share the
+          // muted caption line, joined like the desktop row hints.
+          let hints = [model.subProviderLabel, model.modelDescription].compactMap(\.self)
+          if !hints.isEmpty {
+            Text(hints.joined(separator: " · "))
+              .font(.caption)
+              .foregroundStyle(.secondary)
           }
         }
         Spacer()
         if (selectedAgentKind ?? defaults?.agentKind) == model.agentKind,
-          effectiveConfiguration?.model == model.modelID
+          effectiveModelIsRepresentedByRow(model)
         {
           Image(systemName: "checkmark").foregroundStyle(.tint)
         }
@@ -116,6 +128,19 @@ extension HomeQuickComposeView {
     }
     .buttonStyle(.plain)
     .poracodeDrawerRowSurface()
+  }
+
+  /// Whether the effective model is the row's own id or a member the row
+  /// represents (a family row stands in for every one of its exact members).
+  private func effectiveModelIsRepresentedByRow(_ model: HomeComposerModel) -> Bool {
+    guard let effectiveModel = effectiveConfiguration?.model else { return false }
+    if effectiveModel == model.modelID { return true }
+    guard let agent = availableAgents.first(where: { $0.kind == model.agentKind }) else {
+      return false
+    }
+    let capabilities = HomeComposerCatalog.capabilities(
+      for: agent, presentationMode: presentationMode)
+    return ModelFamilies.family(for: effectiveModel, in: capabilities)?.model == model.modelID
   }
 
   @ViewBuilder

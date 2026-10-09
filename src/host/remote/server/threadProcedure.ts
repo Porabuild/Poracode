@@ -16,6 +16,7 @@ import { remoteCommandId } from "./httpRouteHandlers.shared";
 import { readJsonBody } from "./requestBody";
 import { runRemoteCommand } from "./remoteCommandIdempotency";
 import { authorizeProjectProcedurePayload } from "./projectProcedureAuthorization";
+import { requireCurrentRemoteProtocolVersion } from "./writerProtocolAdmission";
 
 /**
  * Generic desktop-supervisor passthrough. The PWA reuses desktop-backed
@@ -44,6 +45,16 @@ export async function runRemoteProcedure(
     );
   }
   ctx.security.requireBearer(req, [REMOTE_PROCEDURE_SPECS[procedure].scope]);
+  // Fence 1 (remote 13): this shared dispatch hosts both reads and writes, so
+  // the actual resolved procedure scope is the writer classification — never a
+  // client-supplied mutation hint. A non-`session:read` procedure requires the
+  // exact current writer generation, checked after authentication and scope
+  // authorization but before the audit line, the per-procedure payload parse,
+  // or any supervisor effect. Read-scoped procedures stay open to undeclared
+  // (old) clients.
+  if (REMOTE_PROCEDURE_SPECS[procedure].scope !== "session:read") {
+    requireCurrentRemoteProtocolVersion(req);
+  }
   // Deep-review fix (S7 coverage): the procedure passthrough is the remote
   // surface's most powerful route (pushes, PR merges, project/file writes,
   // deletions) and previously recorded no audit line while far weaker events

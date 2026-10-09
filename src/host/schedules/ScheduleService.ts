@@ -6,12 +6,20 @@ import {
   type ScheduledTaskInput,
   type ScheduledTaskRun,
 } from "@/shared/contracts";
+import type { ScheduleRuntimePatch } from "@/host/db/schedules";
 import { nextScheduleRunAt } from "@/shared/schedules";
 
 export interface ScheduleStore {
   list(): ScheduledTask[];
   get(id: string): ScheduledTask | null;
   upsert(task: ScheduledTask): void;
+  /**
+   * Narrow runtime-bookkeeping write (enablement, next-run, interruption, and
+   * settle fields). Unlike {@link ScheduleStore.upsert} it must never replace
+   * the stored config bytes and never resurrect a deleted row — a missing id
+   * is a no-op.
+   */
+  patchRuntime(id: string, patch: ScheduleRuntimePatch): void;
   delete(id: string): void;
 }
 
@@ -25,6 +33,13 @@ export interface ScheduleServiceOptions {
    * working unchanged.
    */
   onStartupInterrupted?(scheduleId: string): void;
+  /**
+   * Reports per-task failures that must not abort the loop: a refused running
+   * save for one due task, a failed settlement write, or a failing startup
+   * normalization. Timer processing continues with the remaining tasks either
+   * way. Optional so existing callers/tests keep working unchanged.
+   */
+  onError?(scheduleId: string, error: unknown): void;
   listRuns?(scheduleId: string): ScheduledTaskRun[];
   now?: () => number;
   tickIntervalMs?: number;
@@ -118,7 +133,14 @@ export class ScheduleService {
     const now = this.now();
     for (const task of this.options.store.list()) {
       if (!task.enabled || !task.nextRunAt || Date.parse(task.nextRunAt) > now) continue;
-      this.startRun(task, true);
+      try {
+        this.startRun(task, true);
+      } catch (error) {
+        // Isolated per task: a refused save for one due task (for example a
+        // protected sibling the full save guard rejects) must not starve the
+        // remaining due tasks.
+        this.report(task.id, error);
+      }
     }
   }
 
@@ -137,20 +159,27 @@ export class ScheduleService {
       lastError: null,
       updatedAt: new Date(now).toISOString(),
     };
-    this.runningIds.add(task.id);
     this.options.store.upsert(running);
+    this.runningIds.add(task.id);
 
-    void this.options
-      .runTask(running)
-      .then((output) => this.settle(task.id, "succeeded", output, null))
-      .catch((error: unknown) =>
-        this.settle(
-          task.id,
-          "failed",
-          null,
-          error instanceof Error ? error.message : String(error),
-        ),
+    // runTask is invoked synchronously; a synchronous throw must not strand
+    // the just-added running ID, so it is caught into a failed settlement.
+    // The two-argument handlers keep a failed settlement write from being
+    // re-caught into a second, recursive failed settlement.
+    try {
+      void Promise.resolve(this.options.runTask(running)).then(
+        (output) => this.settle(task.id, "succeeded", output, null),
+        (error: unknown) =>
+          this.settle(
+            task.id,
+            "failed",
+            null,
+            error instanceof Error ? error.message : String(error),
+          ),
       );
+    } catch (error) {
+      this.settle(task.id, "failed", null, error instanceof Error ? error.message : String(error));
+    }
     return running;
   }
 
@@ -162,38 +191,61 @@ export class ScheduleService {
   ): void {
     this.runningIds.delete(id);
     if (this.disposed) return;
-    const current = this.options.store.get(id);
-    if (!current) return;
-    const now = this.now();
-    this.options.store.upsert({
-      ...current,
-      lastCompletedAt: new Date(now).toISOString(),
-      lastStatus: status,
-      lastResult: result,
-      lastError: error,
-      updatedAt: new Date(now).toISOString(),
-    });
+    try {
+      // Narrow patch: settlement must not reserialize stored config bytes or
+      // resurrect a task deleted while its run was in flight. A persistence
+      // failure is reported exactly once — it is never re-thrown into the
+      // run's failure handler, which would convert it into another failed
+      // settlement.
+      const now = this.now();
+      this.options.store.patchRuntime(id, {
+        lastCompletedAt: new Date(now).toISOString(),
+        lastStatus: status,
+        lastResult: result,
+        lastError: error,
+        updatedAt: new Date(now).toISOString(),
+      });
+    } catch (failure) {
+      this.report(id, failure);
+    }
   }
 
   private normalizeAfterStartup(): void {
     const now = this.now();
+    const updatedAt = new Date(now).toISOString();
     for (const task of this.options.store.list()) {
-      const { enabled, nextRunAt } = this.resolveEnablement(task.recurrence, task.enabled, now);
-      const wasRunning = task.lastStatus === "running";
-      if (wasRunning) this.options.onStartupInterrupted?.(task.id);
-      this.options.store.upsert({
-        ...task,
-        enabled,
-        nextRunAt,
-        ...(wasRunning
-          ? {
-              lastCompletedAt: new Date(now).toISOString(),
-              lastStatus: "failed" as const,
-              lastError: null,
-            }
-          : {}),
-        updatedAt: new Date(now).toISOString(),
-      });
+      try {
+        const { enabled, nextRunAt } = this.resolveEnablement(task.recurrence, task.enabled, now);
+        const wasRunning = task.lastStatus === "running";
+        if (wasRunning) this.options.onStartupInterrupted?.(task.id);
+        // Narrow patch: startup normalization must leave stored config bytes
+        // — including unsupported raw metadata the full-save guard retains —
+        // exact, and must not resurrect a concurrently deleted row.
+        this.options.store.patchRuntime(task.id, {
+          enabled,
+          nextRunAt,
+          ...(wasRunning
+            ? {
+                lastCompletedAt: new Date(now).toISOString(),
+                lastStatus: "failed" as const,
+                lastError: null,
+              }
+            : {}),
+          updatedAt,
+        });
+      } catch (error) {
+        this.report(task.id, error);
+      }
+    }
+  }
+
+  /** One report per failure; a throwing reporter must not starve the rest. */
+  private report(id: string, error: unknown): void {
+    try {
+      this.options.onError?.(id, error);
+    } catch {
+      // Swallowed deliberately: the caller's own failure handling already
+      // isolated this task from its siblings.
     }
   }
 

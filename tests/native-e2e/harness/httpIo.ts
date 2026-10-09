@@ -1,5 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { readBoundedNodeRequestBody } from "@/shared/http";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote/protocol/core";
 import { MAX_JSON_BODY_BYTES } from "./constants.ts";
 import { LabHttpError } from "./labAuth.ts";
 
@@ -91,6 +95,20 @@ export async function readBoundedJsonBody(
   const raw = (await readBoundedRawBody(req, maxBytes)).toString("utf8");
   if (!raw.trim()) return {};
   return JSON.parse(raw) as unknown;
+}
+
+/**
+ * Writer-generation declaration (remote 13) of an authentic CURRENT client,
+ * mirroring `RemoteClientTransport`: every authenticated non-GET request
+ * carries the compiled generation; GETs carry nothing. Callers attach it only
+ * alongside a bearer — auth-free calls (pairing exchange) never declare it.
+ * Old-client and opaque-proxy cases must model the header's absence
+ * explicitly and never route through this helper; proxies forward it verbatim.
+ */
+export function currentClientProtocolHeaders(method = "GET"): Record<string, string> {
+  return method.toUpperCase() === "GET"
+    ? {}
+    : { [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE };
 }
 
 export function headerValue(req: IncomingMessage, name: string): string | undefined {

@@ -2,6 +2,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import type { Thread } from "@/shared/contracts";
 import { REMOTE_HTTP_ROUTES } from "@/shared/remote/contract";
 import { REMOTE_COMMAND_OUTCOME_UNCERTAIN_CODE } from "@/shared/remote/clientErrors";
@@ -244,6 +248,7 @@ async function postJson(
     headers: {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
       ...(commandId ? { "x-poracode-command-id": commandId } : {}),
     },
     body: JSON.stringify(body),

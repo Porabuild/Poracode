@@ -44,6 +44,7 @@ import {
   resolvePrincipalAdmissionLimits,
 } from "./server/principalAdmission";
 import { LegacyBulkReadAdmission } from "./server/legacyBulkReadAdmission";
+import { SessionConfigInventory } from "./server/sessionConfigInventory";
 import {
   type IngressRequestClassification,
   type IngressWorkClass,
@@ -222,6 +223,7 @@ export class RemoteAccessServer {
   private readonly desktopInternalClients = new Set<WebSocket>();
   private readonly desktopReplayingClients = new Set<WebSocket>();
   private readonly backgroundTasksByThread = new Map<string, readonly BackgroundTask[]>();
+  private readonly sessionConfigInventory = new SessionConfigInventory();
   private readonly context: RemoteServerContext;
   private readonly maxConcurrentIngressWork: number;
   private readonly maxConcurrentIngressWorkPerSource: number;
@@ -398,6 +400,7 @@ export class RemoteAccessServer {
       boundedCatalogChangeClients: this.boundedCatalogChangeClients,
       eventBuffer: this.eventBuffer,
       backgroundTasksByThread: this.backgroundTasksByThread,
+      sessionConfigInventory: this.sessionConfigInventory,
       get seq() {
         return server.seq;
       },
@@ -605,11 +608,13 @@ export class RemoteAccessServer {
     publishCatalogChangedRows(this.asHost(), projects);
   }
 
-  /** Drops every cached background-task level. The supervisor process that
-   * reported them is gone after a crash-restart; its fresh sessions report
-   * their own levels, so stale entries must not shadow the live read. */
+  /** Drops every cached background-task level and the volatile session-control
+   * inventory. The supervisor process that reported them is gone after a
+   * crash-restart; its fresh sessions report their own levels, so stale
+   * entries must not shadow the live read. */
   clearBackgroundTaskLevels(): void {
     this.backgroundTasksByThread.clear();
+    this.sessionConfigInventory.clear();
   }
 
   /**

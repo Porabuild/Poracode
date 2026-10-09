@@ -13,6 +13,12 @@ import com.poracode.app.model.asObjectOrNull
 import com.poracode.app.model.stringOrNull
 import com.poracode.app.model.threads.ThreadPresentationMode
 import com.poracode.app.session.replay.HostReplayCacheUi
+import com.poracode.app.ui.components.EffortOrder
+import com.poracode.app.ui.components.FamilyPickerRow
+import com.poracode.app.ui.components.ModelFamilyMemberRef
+import com.poracode.app.ui.components.ModelFamilySelectorMenu
+import com.poracode.app.ui.components.ModelVisibility
+import com.poracode.app.ui.components.ProjectedModelFamilies
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -22,6 +28,8 @@ import kotlinx.serialization.json.decodeFromJsonElement
 internal data class HomeQuickComposeOption(
     val id: String,
     val label: String,
+    /** Provider-content pricing text, surfaced verbatim as a muted row hint. */
+    val modelDescription: String? = null,
 )
 
 /** A host-advertised slash command that can optionally carry a skill segment. */
@@ -49,13 +57,67 @@ internal class HomeQuickComposeCatalog(
     private val status: AgentStatusEntry,
     private val presentationMode: ThreadPresentationMode,
     configuration: ThreadConfig,
+    /** Shared settings override from the active host settings document. */
+    private val userHiddenModels: JsonObject? = null,
 ) {
     private val capabilities = resolveCapabilities(status, presentationMode)
 
+    /**
+     * Surface-scoped family relations intersected with the raw accepted
+     * inventory. Absent or invalid descriptors collapse to the raw-model
+     * fallback; the raw `models` list below stays the compatible authority.
+     */
+    private val families: ProjectedModelFamilies = ProjectedModelFamilies.project(
+        capabilities["modelFamilies"],
+        options(capabilities["models"]).map(HomeQuickComposeOption::id),
+    )
+
     val agentLabel: String = status.label.ifBlank { humanized(status.kind) }
+
+    /**
+     * Raw choices with the hidden ids removed (user override, then provider
+     * defaults; the current selection is re-admitted so a configured model
+     * stays labeled and launchable) and every visible represented family
+     * member collapsed into one row per family.
+     */
     val models: List<HomeQuickComposeOption> = buildList {
-        addAll(options(capabilities["models"]))
-        if (none { it.id == configuration.model }) {
+        val raw = options(capabilities["models"])
+        val hidden = ModelVisibility.hiddenModelIds(
+            capabilities,
+            userHiddenModels,
+            status.kind,
+            runtimeVariant = if (presentationMode == ThreadPresentationMode.Gui)
+                ModelVisibility.declaredGuiVariant(status) else null,
+        )
+        val visibleIds = ModelVisibility.visiblePickerIds(
+            raw.map(HomeQuickComposeOption::id),
+            hidden,
+            configuration.model,
+        ).toSet()
+        val visible = raw.filter { it.id in visibleIds }
+        // Picker-scope projection: hidden members leave the relation and a
+        // hidden representative substitutes, so collapsed rows track what the
+        // menu can actually show. The full projection above keeps resolving
+        // edits and controls for the configured model.
+        val pickerFamilies = ProjectedModelFamilies.project(
+            capabilities["modelFamilies"],
+            visible.map(HomeQuickComposeOption::id),
+        )
+        addAll(
+            pickerFamilies.collapsePicker(visible) { it.id }.map { row ->
+                when (row) {
+                    is FamilyPickerRow.Kept -> row.option
+                    is FamilyPickerRow.FamilyRow ->
+                        // A projected family row stands for all of its
+                        // members: it never claims the representative's cost
+                        // as the family's price.
+                        HomeQuickComposeOption(row.family.model, row.family.label)
+                }
+            },
+        )
+        // A retained family member stays behind its collapsed family row; only
+        // a truly unknown current model gains its own leading raw row.
+        if (none { it.id == configuration.model } && !families.containsModel(configuration.model)) {
             add(0, HomeQuickComposeOption(configuration.model, humanized(configuration.model)))
         }
     }
@@ -66,6 +128,11 @@ internal class HomeQuickComposeCatalog(
         slashCommands(capabilities["slashCommands"])
 
     fun effortOptions(modelId: String): List<HomeQuickComposeOption> {
+        val ref = families.familyForModel(modelId)
+        if (ref != null && ref.family.effortEncoded) {
+            return EffortOrder.sortIds(families.encodedEfforts(ref))
+                .map { HomeQuickComposeOption(it, humanized(it)) }
+        }
         val modelEfforts = capabilities["modelEfforts"] as? JsonObject
         return options(modelEfforts?.get(modelId) ?: capabilities["efforts"])
     }
@@ -80,11 +147,80 @@ internal class HomeQuickComposeCatalog(
         return all.filter { it.id in allowed }
     }
 
-    fun supportsFast(modelId: String): Boolean = modelId in stringArray("fastModels")
+    /** Family-aware Fast availability: an encoded family needs an opposite-Fast sibling. */
+    fun supportsFast(modelId: String): Boolean {
+        val ref = families.familyForModel(modelId)
+        if (ref != null && ref.family.fastEncoded) return families.fastAvailable(ref)
+        return modelId in stringArray("fastModels")
+    }
 
     fun supportsThinking(modelId: String): Boolean = modelId in stringArray("thinkingModels")
 
+    /**
+     * One explicit model pick from the collapsed picker list. The row's own
+     * origin carries the intent: a projected family row retains/adopts through
+     * the relation, an exact member row always selects that exact UID (the
+     * representative included — never a family-row no-op), and raw choices
+     * keep the established generic model-change defaulting.
+     */
     fun applyModel(configuration: ThreadConfig, modelId: String): ThreadConfig {
+        if (families.isFamilyRow(modelId)) {
+            return families.applyFamilyRowEdit(configuration, modelId) ?: configuration
+        }
+        if (families.containsModel(modelId)) {
+            return families.applyModelEdit(configuration, modelId) ?: configuration
+        }
+        return applyRawModel(configuration, modelId)
+    }
+
+    fun applySelector(configuration: ThreadConfig, selectorId: String, optionId: String): ThreadConfig =
+        families.applySelectorEdit(configuration, selectorId, optionId) ?: configuration
+
+    fun applyEffort(configuration: ThreadConfig, effortId: String): ThreadConfig =
+        families.applyEffortEdit(configuration, effortId) ?: configuration
+
+    fun applyFast(configuration: ThreadConfig, fast: Boolean): ThreadConfig =
+        families.applyFastEdit(configuration, fast) ?: configuration
+
+    /**
+     * The family-derived display for the current selection — encoded
+     * Effort/Fast read from the member, never written back — or null when no
+     * family applies or a meaningful stored override keeps the raw saved view.
+     */
+    fun familyDisplay(configuration: ThreadConfig): ModelFamilyMemberRef? {
+        val ref = families.familyForModel(configuration.model) ?: return null
+        return ref.takeIf { families.displayApplies(it, configuration) }
+    }
+
+    /** Selector menus reachable from the current member; empty outside families. */
+    fun selectorMenus(configuration: ThreadConfig): List<ModelFamilySelectorMenu> {
+        val ref = familyDisplay(configuration) ?: return emptyList()
+        return families.selectorMenus(ref, configuration)
+    }
+
+    /** The displayed effort: encoded from the member inside a family, else stored. */
+    fun displayEffort(configuration: ThreadConfig): String? {
+        val ref = families.familyForModel(configuration.model) ?: return configuration.effort
+        return families.displayEffort(ref, configuration)
+    }
+
+    /** The displayed Fast state: encoded from the member inside a family, else stored. */
+    fun displayFast(configuration: ThreadConfig): Boolean? {
+        val ref = families.familyForModel(configuration.model) ?: return configuration.fast
+        return families.displayFast(ref, configuration)
+    }
+
+    /**
+     * The model-menu selection id: a family member highlights its collapsed
+     * family row while the persisted model keeps the exact member UID.
+     */
+    fun displaySelectionId(configuration: ThreadConfig): String {
+        val family = families.familyForModel(configuration.model)?.family ?: return configuration.model
+        return models.firstOrNull { row -> family.members.any { it.model == row.id } }?.id
+            ?: configuration.model
+    }
+
+    private fun applyRawModel(configuration: ThreadConfig, modelId: String): ThreadConfig {
         val efforts = effortOptions(modelId).mapTo(mutableSetOf()) { it.id }
         val contexts = contextOptions(modelId).mapTo(mutableSetOf()) { it.id }
         val nextEffort = configuration.effort?.takeIf { it in efforts }
@@ -102,23 +238,47 @@ internal class HomeQuickComposeCatalog(
     }
 
     fun normalize(configuration: ThreadConfig): ThreadConfig {
-        val model = configuration.model.takeIf { it in models.map(HomeQuickComposeOption::id) }
-            ?: models.firstOrNull()?.id
-            ?: configuration.model
+        val model = if (models.any { it.id == configuration.model } || families.containsModel(configuration.model)) {
+            configuration.model
+        } else {
+            models.firstOrNull()?.id
+                ?: configuration.model
+        }
         val base = if (model == configuration.model) configuration else applyModel(configuration, model)
+        // A model-bound relation owns Effort/Fast as encoded coordinates:
+        // restore and save keep the exact UID and the stored seeds — inert or
+        // meaningful — untouched, so legacy overrides stay with the supervisor.
+        val ref = families.familyForModel(base.model)
+        val relationBound = ref != null && (ref.family.effortEncoded || ref.family.fastEncoded)
         return base.copy(
-            effort = normalizeOptional(
-                base.effort,
-                effortOptions(base.model),
-                defaultEffort(base.model),
-            ),
-            contextSize = normalizeOptional(
-                base.contextSize,
-                contextOptions(base.model),
-                capabilities["defaultContextSize"]?.stringOrNull(),
-            ),
-            fast = base.fast?.let { if (supportsFast(base.model)) it else false },
-            thinking = base.thinking?.let { if (supportsThinking(base.model)) it else false },
+            effort = if (ref != null && ref.family.effortEncoded) {
+                base.effort
+            } else {
+                normalizeOptional(
+                    base.effort,
+                    effortOptions(base.model),
+                    defaultEffort(base.model),
+                )
+            },
+            contextSize = if (relationBound) {
+                base.contextSize
+            } else {
+                normalizeOptional(
+                    base.contextSize,
+                    contextOptions(base.model),
+                    capabilities["defaultContextSize"]?.stringOrNull(),
+                )
+            },
+            fast = if (ref != null && ref.family.fastEncoded) {
+                base.fast
+            } else {
+                base.fast?.let { if (supportsFast(base.model)) it else false }
+            },
+            thinking = if (relationBound) {
+                base.thinking
+            } else {
+                base.thinking?.let { if (supportsThinking(base.model)) it else false }
+            },
             mode = normalizeOptional(base.mode, modes),
             approvalPolicy = normalizeOptional(base.approvalPolicy, approvalPolicies),
         )
@@ -158,6 +318,9 @@ internal class HomeQuickComposeCatalog(
             "thinkingModels",
             "subProviders",
             "modelSubProvider",
+            // Surface-scoped family relations: an override re-declares its own
+            // relation, and the root relation never leaks across a surface.
+            "modelFamilies",
         )
 
         fun resolveCapabilities(
@@ -194,7 +357,11 @@ internal class HomeQuickComposeCatalog(
                         ?: return@mapNotNull null
                     val label = objectValue["label"]?.stringOrNull()?.takeIf(String::isNotBlank)
                         ?: humanized(id)
-                    HomeQuickComposeOption(id, label)
+                    HomeQuickComposeOption(
+                        id,
+                        label,
+                        objectValue["description"]?.stringOrNull(),
+                    )
                 }
             }.distinctBy(HomeQuickComposeOption::id)
 

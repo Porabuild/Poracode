@@ -7,6 +7,10 @@ import { setTimeout as delay } from "node:timers/promises";
 import { once } from "node:events";
 import { WebSocket } from "ws";
 import { expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { closeDatabase, dbGetState, dbSetState, initDatabase } from "@/host/db";
 import { sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import { RemoteAuthStore } from "./auth";
@@ -66,7 +70,10 @@ it.skipIf(!sqliteAvailable).each([
       const cancellation = new AbortController();
       response = fetch(new URL("/api/host-update/check", info.httpBaseUrl), {
         method: "POST",
-        headers: { authorization: `Bearer ${accessToken}` },
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
         signal: cancellation.signal,
       }).catch((error: unknown) => error as Error);
       await admitted.promise;
@@ -252,7 +259,7 @@ it("refuses another request on an already connected socket once shutdown starts"
     await once(client, "connect");
     const request =
       `POST /api/host-update/check HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\n` +
-      `Authorization: Bearer ${accessToken}\r\nContent-Length: 0\r\n\r\n`;
+      `Authorization: Bearer ${accessToken}\r\n${REMOTE_PROTOCOL_VERSION_HEADER}: ${REMOTE_PROTOCOL_VERSION_HEADER_VALUE}\r\nContent-Length: 0\r\n\r\n`;
     client.write(request);
     await admitted.promise;
     stopping = server.dispose();
@@ -293,14 +300,18 @@ it("bounds admitted HTTP continuations with an explicit busy response", async ()
   let first: Promise<Response> | undefined;
   try {
     const info = await server.start();
+    const writerHeaders = {
+      authorization: `Bearer ${accessToken}`,
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    };
     first = fetch(new URL("/api/host-update/check", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${accessToken}` },
+      headers: writerHeaders,
     });
     await admitted.promise;
     const second = await fetch(new URL("/api/host-update/check", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${accessToken}` },
+      headers: writerHeaders,
     });
     expect(second.status).toBe(503);
     await expect(second.json()).resolves.toMatchObject({

@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentStatus, GenerateCommitMessagePayload } from "@/shared/contracts";
 import {
+  registerCommitGenDefaults,
   generateCommitMessageWithFallback,
   generateCommitMessageWithFallbackDetails,
   getCommitGenCandidates,
@@ -178,17 +179,17 @@ describe("generateCommitMessageWithFallback", () => {
       }),
     ).resolves.toBe("fix(git): restore commit generation");
 
+    // The request carries the complete nested selection per candidate — the
+    // scalar triple is gone from the payload.
     expect(invoke).toHaveBeenNthCalledWith(1, {
       projectLocation,
       agentKind: "codex",
-      model: "gpt-5.6-terra",
-      effort: "low",
+      selection: { model: "gpt-5.6-terra", effort: "low", fast: false },
     });
     expect(invoke).toHaveBeenNthCalledWith(2, {
       projectLocation,
       agentKind: "claude",
-      model: "sonnet",
-      effort: "medium",
+      selection: { model: "sonnet", effort: "medium", fast: false },
     });
   });
 
@@ -218,14 +219,14 @@ describe("generateCommitMessageWithFallback", () => {
     capabilities: { ...claudeStatus.capabilities, fastModels: ["claude-opus-4-7"] },
   };
 
-  it("forwards fast mode when the resolved model supports it", async () => {
+  it("keeps the false Fast carrier present when the resolved model cannot use it", async () => {
     const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
 
     await generateCommitMessageWithFallback({
       projectLocation,
       agentStatuses: [fastClaude],
       provider: "claude",
-      model: "claude-opus-4-7",
+      model: "sonnet",
       effort: "high",
       fast: true,
       invoke,
@@ -234,20 +235,18 @@ describe("generateCommitMessageWithFallback", () => {
     expect(invoke).toHaveBeenCalledWith({
       projectLocation,
       agentKind: "claude",
-      model: "claude-opus-4-7",
-      effort: "high",
-      fast: true,
+      selection: { model: "sonnet", effort: "high", fast: false },
     });
   });
 
-  it("omits fast mode when the resolved model is not fast-capable", async () => {
+  it("keeps the true Fast carrier when the resolved model supports it", async () => {
     const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
 
     await generateCommitMessageWithFallback({
       projectLocation,
       agentStatuses: [fastClaude],
       provider: "claude",
-      model: "sonnet",
+      model: "claude-opus-4-7",
       effort: "high",
       fast: true,
       invoke,
@@ -256,8 +255,103 @@ describe("generateCommitMessageWithFallback", () => {
     expect(invoke).toHaveBeenCalledWith({
       projectLocation,
       agentKind: "claude",
+      selection: { model: "claude-opus-4-7", effort: "high", fast: true },
+    });
+  });
+
+  it("converts absent scalar inputs to the exact unstamped tuple (empty effort present)", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
+
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [fastClaude],
+      provider: "claude",
+      invoke,
+    });
+
+    expect(invoke).toHaveBeenCalledWith({
+      projectLocation,
+      agentKind: "claude",
+      selection: { model: "sonnet", effort: "medium", fast: false },
+    });
+  });
+
+  it("a present canonical selection is the sole tuple: scalars are ignored and extras ride along", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
+    const binding = {
+      version: 1 as const,
+      kind: "family-member" as const,
+      owner: { agentKind: "claude", presentationMode: "terminal" as const },
       model: "sonnet",
-      effort: "high",
+      inertValues: { effort: "medium" },
+    };
+
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [fastClaude],
+      provider: "claude",
+      model: "ignored-scalar-model",
+      effort: "xhigh",
+      fast: true,
+      selection: {
+        model: "sonnet",
+        effort: "medium",
+        fast: false,
+        thinking: true,
+        contextSize: "default",
+        selectionBinding: binding,
+      },
+      invoke,
+    });
+
+    expect(invoke).toHaveBeenCalledWith({
+      projectLocation,
+      agentKind: "claude",
+      selection: {
+        model: "sonnet",
+        effort: "medium",
+        fast: false,
+        thinking: true,
+        contextSize: "default",
+        selectionBinding: binding,
+      },
+    });
+  });
+
+  it("carries mismatching intent unchanged for validation by the actual provider", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
+    const binding = {
+      version: 1 as const,
+      kind: "family-member" as const,
+      owner: { agentKind: "claude", presentationMode: "terminal" as const },
+      model: "sonnet",
+      inertValues: { effort: "medium" },
+    };
+
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [fastClaude],
+      provider: "claude",
+      selection: {
+        model: "claude-opus-4-7",
+        effort: "high",
+        fast: false,
+        selectionBinding: binding,
+      },
+      invoke,
+    });
+
+    // Actual controls and metadata both reach consumption unchanged; the
+    // provider must reject the mismatching record as evidence.
+    expect(invoke).toHaveBeenCalledWith({
+      projectLocation,
+      agentKind: "claude",
+      selection: {
+        model: "claude-opus-4-7",
+        effort: "high",
+        fast: false,
+        selectionBinding: binding,
+      },
     });
   });
 
@@ -277,5 +371,100 @@ describe("generateCommitMessageWithFallback", () => {
     ).rejects.toThrow("Codex CLI not found: codex");
 
     expect(invoke).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("complete modern utility payloads", () => {
+  const projectLocation = { kind: "posix" as const, path: "/fixture" };
+  const kind = "fixture-profile:utility";
+  const agent: AgentStatus = {
+    kind,
+    label: "Fixture",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      ...claudeStatus.capabilities,
+      models: [
+        { id: "m", label: "M" },
+        { id: "default-model", label: "Default" },
+      ],
+      efforts: ["low", "high"],
+      modelEfforts: {},
+      defaultEffort: "high",
+      supportsOneShot: true,
+      fastModels: [],
+    },
+  };
+  registerCommitGenDefaults(kind, { model: "default-model", effort: "low" });
+  it.each([
+    { model: "m" },
+    { model: "m", effort: "", fast: false },
+    { model: "exact-uid-not-in-catalog", effort: "high", fast: false },
+    { model: "m", effort: "high", fast: true },
+    { model: "m", effort: "unsupported", thinking: true, contextSize: "large" },
+    { model: "m", thinking: false, contextSize: "" },
+    { model: "" },
+  ])("preserves modern tuple %j at the actual transport boundary", async (selection) => {
+    const invoke = vi
+      .fn<(payload: GenerateCommitMessagePayload) => Promise<{ title: string; message: string }>>()
+      .mockResolvedValue({ title: "Title", message: "Message" });
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [agent],
+      provider: kind,
+      model: "stale",
+      effort: "high",
+      fast: true,
+      selection,
+      invoke,
+    });
+    expect(invoke.mock.calls[0]?.[0].selection).toStrictEqual({
+      ...selection,
+      model: selection.model === "" ? "default-model" : selection.model,
+    });
+  });
+  it("retains absent-object legacy default normalization", async () => {
+    const invoke = vi
+      .fn<(payload: GenerateCommitMessagePayload) => Promise<{ title: string; message: string }>>()
+      .mockResolvedValue({ title: "Title", message: "Message" });
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [agent],
+      provider: kind,
+      model: "",
+      effort: "",
+      fast: false,
+      invoke,
+    });
+    expect(invoke.mock.calls[0]?.[0].selection).toStrictEqual({
+      model: "default-model",
+      effort: "low",
+      fast: false,
+    });
+  });
+  it("preserves the complete request across provider fallback", async () => {
+    const other = { ...agent, kind: `${kind}:other` };
+    registerCommitGenDefaults(other.kind, { model: "default-model", effort: "low" });
+    const selection = {
+      model: "exact-uid",
+      effort: "",
+      fast: true,
+      thinking: false,
+      contextSize: "large",
+    };
+    const invoke = vi
+      .fn<(payload: GenerateCommitMessagePayload) => Promise<{ title: string; message: string }>>()
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValue({ title: "Title", message: "Message" });
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [agent, other],
+      provider: "auto",
+      selection,
+      invoke,
+    });
+    expect(invoke).toHaveBeenCalledTimes(2);
+    for (const [payload] of invoke.mock.calls) expect(payload.selection).toStrictEqual(selection);
+    expect(invoke.mock.calls[0]?.[0].agentKind).not.toBe(invoke.mock.calls[1]?.[0].agentKind);
   });
 });

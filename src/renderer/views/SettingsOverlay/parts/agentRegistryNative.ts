@@ -1,5 +1,9 @@
 import type { ComponentType, ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
+import {
+  DevinAgentSettingsPanel,
+  devinProfileSupport,
+} from "@/renderer/components/providers/devin/profileSettings";
 import type { MessageDescriptor } from "@lingui/core";
 import type {
   AgentInstanceConfig,
@@ -436,6 +440,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   },
   {
     id: "devin",
+    settingsPanel: DevinAgentSettingsPanel,
+    profiles: devinProfileSupport,
     description: msg`Devin CLI with terminal and structured chat support.`,
     docsUrl: "https://docs.devin.ai/cli",
     installCommand: (project) =>

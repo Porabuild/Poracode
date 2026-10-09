@@ -9,6 +9,7 @@ import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteShellSnapshot
 import com.poracode.app.model.RemoteThreadSnapshot
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.storage.HostCatalog
 import com.poracode.app.storage.HostCatalogCredentialRepository
 import com.poracode.app.storage.HostOperationKind
@@ -139,7 +140,7 @@ class HostCapabilityRefreshTest {
             appVersion = "12.0.0",
             scopes = listOf("session:read"),
             pairedAtEpochMs = 1,
-            protocolVersion = 12,
+            protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
         )
 
         suspend fun seed(): Fixture {
@@ -169,7 +170,7 @@ class HostCapabilityRefreshTest {
         sshVersions: List<Int>,
         browserVersions: List<Int>,
     ) = RemoteEnvironmentDescriptor(
-        protocolVersion = 12,
+        protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
         desktopId = "desktop",
         label = "Host",
         appVersion = "12.0.0",

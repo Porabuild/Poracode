@@ -360,6 +360,11 @@ export class ServerInstance {
     this.restartTimer = timer;
   }
 
+  /** Status alone can outlive a closed transport; callers must check the live connection. */
+  isReady(): boolean {
+    return !this.disposed && this.attempt?.ready === true && this.connection !== null;
+  }
+
   /** Forward a raw JSON-RPC message from the renderer to the language server. */
   async sendMessage(message: unknown): Promise<unknown> {
     const connection = this.connection;

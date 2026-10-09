@@ -19,6 +19,7 @@ import {
   parseIpcProcedureArgs,
   type PoracodeBridge,
 } from "@/shared/ipc";
+import { createClientProcedureInvocation } from "@/shared/ipc/invocation";
 import { isCompactLayoutViewport } from "./adaptiveLayout";
 import { isRemoteRoutableProcedure } from "./remoteProcedureRoutes";
 import { routeRemoteProcedure } from "./remoteProcedureRouter";
@@ -257,7 +258,11 @@ export function installAttachedElectronClientRuntime(
         pushDesktopSettingsDiff(getRemoteBridgeClient(), settings);
         return;
       }
-      return host.invokeProcedure(name, args);
+      // Hop 17: this fallback is the attached RENDERER producer of the
+      // invocation envelope (the managed preload transport is the other) —
+      // the declared version is minted here from this bundle's compiled
+      // constant and crosses preload unchanged.
+      return host.invokeProcedure(createClientProcedureInvocation(name, args));
     }, hostCapabilities),
   );
   const procedures = createProcedureBridge(requestActiveHost);

@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import com.poracode.app.R
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.model.threads.ThreadPresentationMode
+import com.poracode.app.ui.components.modelFamilySelectorLabel
 
 @Composable
 internal fun homeQuickComposePresentationOptions(
@@ -82,17 +83,28 @@ internal fun HomeQuickComposeControlsSheet(
             HomeQuickComposeDropdown(
                 label = stringResource(R.string.rich_chat_model),
                 options = catalog.models,
-                selection = draft.model,
+                selection = catalog.displaySelectionId(draft),
                 onSelect = { draft = catalog.applyModel(draft, it) },
             )
+
+            catalog.selectorMenus(draft).forEach { selector ->
+                HomeQuickComposeDropdown(
+                    label = modelFamilySelectorLabel(selector.labelKey),
+                    options = selector.options.map { option ->
+                        HomeQuickComposeOption(option.id, option.label)
+                    },
+                    selection = selector.selectionId,
+                    onSelect = { draft = catalog.applySelector(draft, selector.selectorId, it) },
+                )
+            }
 
             val efforts = catalog.effortOptions(draft.model)
             if (efforts.size > 1) {
                 HomeQuickComposeDropdown(
                     label = stringResource(R.string.rich_chat_effort),
                     options = efforts,
-                    selection = draft.effort ?: efforts.first().id,
-                    onSelect = { draft = draft.copy(effort = it) },
+                    selection = catalog.displayEffort(draft) ?: efforts.first().id,
+                    onSelect = { draft = catalog.applyEffort(draft, it) },
                 )
             }
             val contexts = catalog.contextOptions(draft.model)
@@ -107,8 +119,8 @@ internal fun HomeQuickComposeControlsSheet(
             if (catalog.supportsFast(draft.model)) {
                 HomeQuickComposeToggleRow(
                     label = stringResource(R.string.rich_chat_fast_mode),
-                    checked = draft.fast == true,
-                ) { draft = draft.copy(fast = it) }
+                    checked = catalog.displayFast(draft) == true,
+                ) { draft = catalog.applyFast(draft, it) }
             }
             if (catalog.supportsThinking(draft.model)) {
                 HomeQuickComposeToggleRow(
@@ -207,7 +219,21 @@ internal fun HomeQuickComposeDropdown(
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.label) },
+                    text = {
+                        // Provider-content pricing rides as a muted second line.
+                        if (option.modelDescription == null) {
+                            Text(option.label)
+                        } else {
+                            Column {
+                                Text(option.label)
+                                Text(
+                                    option.modelDescription,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
                     onClick = {
                         onSelect(option.id)
                         expanded = false

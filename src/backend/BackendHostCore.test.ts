@@ -57,6 +57,13 @@ const mocks = vi.hoisted(() => ({
   supervisorConstructorError: null as Error | null,
 }));
 
+// This fixture mocks the application DB. Admission is an explicit unit dependency;
+// real SQLite/Core qualification lives in BackendHostCore.settingsAdmission.test.ts.
+vi.mock("@/host/db/preparedDatabaseWriteAdmission", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/host/db/preparedDatabaseWriteAdmission")>()),
+  capturePreparedDatabaseWriteAdmission: () => () => {},
+}));
+
 vi.mock("@/host/db", async () => ({
   assertCheckpointRevertOperationTargetMatches: (
     await import("@/host/db/checkpointRevertOperations")

@@ -26,6 +26,7 @@ final class RichChatControllerSuite {
       || checkpoints.state.requiresAuthoritativeRefresh
       || media.state.requiresAuthoritativeRefresh
       || terminal.state.requiresAuthoritativeRefresh
+      || sessionActions.state.requiresAuthoritativeRefresh
   }
 
   let transcript: RichChatTranscriptController
@@ -37,6 +38,8 @@ final class RichChatControllerSuite {
   /// B1 durable history notices: an owner of its own so the transcript never
   /// grows the notice's retention/recovery state.
   let notice: RichChatNoticeController
+  /// Neutral live session actions (inventory + single-attempt invokes).
+  let sessionActions: RichChatSessionActionsController
 
   init(
     gateway: any RichChatSessionGateway,
@@ -76,6 +79,7 @@ final class RichChatControllerSuite {
       watchIDGenerator: watchIDGenerator,
       refreshRequester: refreshRequester
     )
+    sessionActions = RichChatSessionActionsController(gateway: gateway)
   }
 
   func select(access: RichChatSessionAccess, threadID: String) {
@@ -96,6 +100,7 @@ final class RichChatControllerSuite {
     checkpoints.activate(access: access, threadID: threadID)
     media.activate(access: access, threadID: threadID)
     terminal.activate(access: access, threadID: threadID)
+    sessionActions.activate(access: access, threadID: threadID)
   }
 
   func updateAccess(_ access: RichChatSessionAccess) {
@@ -111,6 +116,7 @@ final class RichChatControllerSuite {
     checkpoints.updateAccess(access)
     media.updateAccess(access)
     terminal.updateAccess(access)
+    sessionActions.updateAccess(access)
   }
 
   func deselect() {
@@ -122,6 +128,7 @@ final class RichChatControllerSuite {
     checkpoints.deactivate()
     media.deactivate()
     terminal.deactivate()
+    sessionActions.deactivate()
   }
 
   func enterBackground() {
@@ -134,6 +141,7 @@ final class RichChatControllerSuite {
     checkpoints.enterBackground()
     media.enterBackground()
     terminal.enterBackground()
+    sessionActions.enterBackground()
   }
 
   /// Foregrounding only re-enables work. It intentionally does not replay a cancelled request;
@@ -152,6 +160,7 @@ final class RichChatControllerSuite {
     checkpoints.leaveBackground(access: access)
     media.leaveBackground(access: access)
     terminal.leaveBackground(access: access)
+    sessionActions.leaveBackground(access: access)
   }
 
   func receiveRuntimePayloads(
@@ -207,6 +216,7 @@ final class RichChatControllerSuite {
       checkpoints.acknowledgeAuthoritativeRefresh()
       media.acknowledgeAuthoritativeRefresh()
       terminal.acknowledgeAuthoritativeRefresh()
+      sessionActions.acknowledgeAuthoritativeRefresh()
     case .idle, .loading, .failed:
       break
     }
