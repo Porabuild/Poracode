@@ -62,22 +62,23 @@ describe("remote v3 native binding generator", () => {
         // selection/binding schemas to the wire and moves the authoritative
         // hashes with them. The canonical schedule/PR-watch selection config
         // and the seven persisted AI-utility selections move the IR source
-        // hash again (manifest itself is schema-free and unchanged).
+        // hash again. The seven additive media routes then regenerate
+        // both authority hashes and all native mirrors from the combined source.
         // Provider-only conversation snapshots add one optional structural type.
-        sourceHash: "sha256:b96278fcda223ebf8b1d0532de2fa2920e138518d6d45976c40752f96328f35b",
-        manifestHash: "sha256:1347fa335c587f46d569d680592c56c490d6d3950c495a0bacc79114bd9eb713",
+        sourceHash: "sha256:29eeb13c59db14907d271af26a312c8ac3a4adcb9e5387c0a54a3e732b57f7ee",
+        manifestHash: "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
         counts: {
-          routes: 88,
+          routes: 95,
           procedures: 128,
           voidProcedureResults: 50,
           jsonProcedureResults: 78,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 409,
-          structuralTypes: 962,
+          schemaRoots: 425,
+          structuralTypes: 970,
           semanticValidators: 18,
-          swiftFiles: 61,
+          swiftFiles: 62,
           kotlinFiles: 53,
           stateMachines: 5,
         },
@@ -317,7 +318,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(409);
+        expect(adapters).toHaveLength(425);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)

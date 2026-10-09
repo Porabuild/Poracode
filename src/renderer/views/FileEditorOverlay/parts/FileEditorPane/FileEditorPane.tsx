@@ -9,6 +9,7 @@ import {
   useIsActiveBufferDirty,
   useTabPaths,
 } from "@/renderer/state/fileEditorSelectors";
+import { isSvgFile } from "@/shared/fileMedia";
 import { getBasename, isMarkdownFile } from "@/shared/pathUtils";
 import { useResolvedTheme } from "./parts/monacoThemes";
 import { SortableTab } from "./parts/SortableTab";
@@ -38,13 +39,13 @@ export function FileEditorPane(props: {
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
   const theme = useResolvedTheme();
 
-  const isMarkdown = activePath ? isMarkdownFile(activePath) : false;
+  const hasSourcePreview = activePath ? isMarkdownFile(activePath) || isSvgFile(activePath) : false;
 
   const { notifyDidSave } = useLspLifecycle(monacoInstance);
 
   // Derived from the store so the eye button, the shortcut, and fresh mounts
   // always agree on the preview state.
-  const showPreview = Boolean(activePath && isMarkdown && markdownPreviewPath === activePath);
+  const showPreview = Boolean(activePath && hasSourcePreview && markdownPreviewPath === activePath);
 
   async function handleSave(path: string) {
     try {
@@ -99,7 +100,7 @@ export function FileEditorPane(props: {
       {props.mobileControls && activePath ? (
         <MobileFileEditorActions
           isDirty={isDirty}
-          isMarkdown={isMarkdown}
+          isMarkdown={hasSourcePreview}
           showPreview={showPreview}
           onSave={() => void handleSave(activePath)}
           onTogglePreview={togglePreview}
@@ -109,7 +110,7 @@ export function FileEditorPane(props: {
       {props.showTabs ? (
         <TabStripHeader
           isDirty={isDirty}
-          isMarkdown={isMarkdown}
+          isMarkdown={hasSourcePreview}
           showPreview={showPreview}
           onTogglePreview={togglePreview}
           activePath={activePath}
@@ -136,7 +137,7 @@ export function FileEditorPane(props: {
               </span>
               <div className="flex-1" />
               <EditorToolbar
-                isMarkdown={isMarkdown}
+                isMarkdown={hasSourcePreview}
                 showPreview={showPreview}
                 onTogglePreview={togglePreview}
                 isDirty={isDirty}
@@ -155,7 +156,7 @@ export function FileEditorPane(props: {
             monacoTheme={monacoTheme}
             onMonacoReady={setMonacoInstance}
             showPreview={showPreview}
-            isMarkdown={isMarkdown}
+            isMarkdown={hasSourcePreview}
             onSave={(path) => void handleSave(path)}
           />
         </>

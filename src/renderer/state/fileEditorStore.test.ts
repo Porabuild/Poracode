@@ -710,3 +710,79 @@ describe("fileEditorStore remote roots", () => {
     });
   });
 });
+
+describe("fileEditorStore media reload and SVG preview", () => {
+  afterEach(() => useFileEditorStore.getState().clearSession());
+  it("refreshes binary/large media while keeping dirty source edits", async () => {
+    const readProjectFile = vi.fn<PoracodeBridge["readProjectFile"]>(async ({ path }) => ({
+      path,
+      status: "binary",
+      modifiedAtMs: 2,
+    }));
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: { readProjectFile },
+    });
+    const rootContext: FileEditorRootContext = {
+      projectId: "media-project",
+      projectName: "Media",
+      projectLocation: { kind: "posix", path: "/media" },
+      rootLabel: "Media",
+    };
+    useFileEditorStore.setState({
+      rootContext,
+      tabs: ["image.png", "clip.mp4", "dirty.svg"],
+      activePath: "image.png",
+      buffers: {
+        "image.png": { ...makeBuffer("image.png"), status: "binary" },
+        "clip.mp4": { ...makeBuffer("clip.mp4"), status: "too_large" },
+        "dirty.svg": { ...makeBuffer("dirty.svg"), isDirty: true },
+      },
+    });
+    await useFileEditorStore.getState().refreshOpenBuffers();
+    expect(readProjectFile).toHaveBeenCalledTimes(2);
+    expect(useFileEditorStore.getState().buffers["image.png"]?.modifiedAtMs).toBe(2);
+    expect(useFileEditorStore.getState().buffers["clip.mp4"]?.status).toBe("binary");
+    expect(useFileEditorStore.getState().buffers["dirty.svg"]?.content).toBe("dirty.svg");
+  });
+  it("preserves unchanged media buffer and map identity while refreshing an actual disk stat change", async () => {
+    const readProjectFile = vi.fn<PoracodeBridge["readProjectFile"]>(async ({ path }) => ({
+      path,
+      status: "binary",
+      modifiedAtMs: 1,
+    }));
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: { readProjectFile },
+    });
+    const buffer = { ...makeBuffer("clip.mp4"), status: "binary" as const };
+    const buffers = { "clip.mp4": buffer };
+    useFileEditorStore.setState({
+      rootContext: {
+        projectId: "media",
+        projectName: "Media",
+        projectLocation: { kind: "posix", path: "/media" },
+        rootLabel: "Media",
+      },
+      tabs: ["clip.mp4"],
+      activePath: "clip.mp4",
+      buffers,
+    });
+    await useFileEditorStore.getState().refreshOpenBuffers();
+    expect(useFileEditorStore.getState().buffers).toBe(buffers);
+    expect(useFileEditorStore.getState().buffers["clip.mp4"]).toBe(buffer);
+    readProjectFile.mockResolvedValue({ path: "clip.mp4", status: "binary", modifiedAtMs: 2 });
+    await useFileEditorStore.getState().refreshOpenBuffers();
+    expect(useFileEditorStore.getState().buffers["clip.mp4"]).not.toBe(buffer);
+    expect(useFileEditorStore.getState().buffers["clip.mp4"]?.modifiedAtMs).toBe(2);
+  });
+  it("toggles SVG source/preview through the existing shared preview command", () => {
+    useFileEditorStore.setState({ activePath: "icon.svg", markdownPreviewPath: null });
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("icon.svg");
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
+  });
+});

@@ -128,6 +128,7 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   // Gate 6 item 4.6 (S6): the image routes' `<img>` credential is the one-time
   // path-scoped ticket; the raw bearer query parameter is gone from the wire.
   "local-image": [param("path", "string", false), param("ticket", "string", true)],
+  "file-media": [param("ticket", "string", false)],
   "runtime-image": [param("path", "JSON-string", false), param("ticket", "string", true)],
   "attachment-upload": [param("threadId", "string", false), param("name", "string", false)],
   "schedule-runs-read": [param("id", "string", false)],

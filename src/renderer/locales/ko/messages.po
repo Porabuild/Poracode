@@ -1759,6 +1759,10 @@ msgstr "시도"
 msgid "Audio"
 msgstr "오디오"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "오디오 미리보기"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "인증"
@@ -7623,6 +7627,11 @@ msgstr "작업 불러오는 중"
 msgid "Loading marketplace…"
 msgstr "마켓플레이스 로드 중…"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "미디어 미리보기 로드 중…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "메모 로드 중…"
@@ -9760,6 +9769,7 @@ msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 msgid "Open image {0} of {1}"
 msgstr "이미지 {0}/{1} 열기"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -11478,6 +11488,10 @@ msgstr "새로고침"
 msgid "Reload browser page"
 msgstr "브라우저 페이지 새로고침"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "미리보기 새로고침"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11550,6 +11564,7 @@ msgstr "원격 프로젝트를 찾을 수 없습니다."
 #~ msgid "Remote server"
 #~ msgstr "원격 서버"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -14455,6 +14470,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "데스크톱 자체 서버가 아직 연결되지 않았습니다."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "데스크톱 자체 서버가 연결되어 있지 않습니다."
@@ -14579,6 +14595,7 @@ msgstr "일반 앱 셸을 렌더링할 수 없습니다. 아래 진단은 다시
 #~ msgstr "이 세션이 실행되는 동안에는 조직을 변경할 수 없습니다 — Devin 프로필 설정에서 변경한 후 새 세션을 시작하세요."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14945,6 +14962,10 @@ msgstr "이 기기"
 msgid "This machine (local)"
 msgstr "이 머신(로컬)"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "이 미디어 미리보기를 사용할 수 없습니다."
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "이 메시지는 더 이상 대기열에 없습니다. 편집 중인 내용은 계속 복사할 수 있습니다."
@@ -15084,6 +15105,10 @@ msgstr "이 서버는 이 컴퓨터에서 실행되며 WSL 프로젝트에서는
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "이 세션은 어떤 설정도 알리지 않았습니다."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "이 SVG를 표시할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -16357,6 +16382,10 @@ msgstr "버전"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "{0}을(를) 통해"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "동영상 미리보기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

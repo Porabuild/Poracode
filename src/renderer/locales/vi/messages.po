@@ -1759,6 +1759,10 @@ msgstr "Lần thử"
 msgid "Audio"
 msgstr "Âm thanh"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "Xem trước âm thanh"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "Xác thực"
@@ -7623,6 +7627,11 @@ msgstr "Đang tải công việc"
 msgid "Loading marketplace…"
 msgstr "Đang tải marketplace…"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "Đang tải bản xem trước nội dung đa phương tiện…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "Đang tải ghi chú…"
@@ -9760,6 +9769,7 @@ msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải h
 msgid "Open image {0} of {1}"
 msgstr "Mở hình ảnh {0}/{1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -11478,6 +11488,10 @@ msgstr "Tải lại"
 msgid "Reload browser page"
 msgstr "Tải lại trang trình duyệt"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "Tải lại bản xem trước"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11550,6 +11564,7 @@ msgstr "Không tìm thấy dự án từ xa."
 #~ msgid "Remote server"
 #~ msgstr "Máy chủ từ xa"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -14455,6 +14470,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "Máy chủ riêng của máy tính chưa được kết nối."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "Máy chủ riêng của máy tính để bàn chưa kết nối."
@@ -14579,6 +14595,7 @@ msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đo
 #~ msgstr "Tổ chức được cố định trong khi phiên này chạy — hãy thay đổi trong cài đặt hồ sơ Devin, sau đó bắt đầu phiên mới."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14945,6 +14962,10 @@ msgstr "Máy này"
 msgid "This machine (local)"
 msgstr "Máy này (cục bộ)"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "Bản xem trước nội dung đa phương tiện này không khả dụng."
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Tin nhắn này không còn trong hàng đợi. Bạn vẫn có thể sao chép nội dung đang chỉnh sửa."
@@ -15084,6 +15105,10 @@ msgstr "Máy chủ này chạy trên máy này và không khả dụng cho dự 
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "Phiên này không cung cấp cài đặt nào."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Không thể hiển thị SVG này."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -16357,6 +16382,10 @@ msgstr "Phiên bản"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "qua {0}"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "Xem trước video"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

@@ -10,6 +10,8 @@ const FIXTURE_UUID = "123e4567-e89b-42d3-a456-426614174000";
 const FIXTURE_FINGERPRINT = `SHA256:${"A".repeat(43)}`;
 const FIXTURE_RUNTIME_HASH = "a".repeat(64);
 const FIXTURE_BASE_COMMIT = "b".repeat(40);
+// Deterministic contract example only; never a production playback credential.
+export const FIXTURE_MEDIA_TICKET = `pc_media_${"m".repeat(43)}`;
 
 const STRING_EXAMPLES: Readonly<Record<string, string>> = {
   absolutePath: "/tmp/native-e2e-fixture/README.md",
@@ -112,6 +114,7 @@ function numericExample(schema: JsonSchema): number {
 }
 
 function stringExample(schema: JsonSchema, propertyName?: string): string {
+  if (schema.pattern === "^pc_media_[A-Za-z0-9_-]{43}$") return FIXTURE_MEDIA_TICKET;
   if (schema.format === "date-time") return FIXTURE_TIME;
   if (schema.format === "uuid") return FIXTURE_UUID;
   if (schema.format === "uri") return "https://example.test/fixture";

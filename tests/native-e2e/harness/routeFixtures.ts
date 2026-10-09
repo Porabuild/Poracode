@@ -4,14 +4,14 @@ import { generatedRoute } from "./generatedContract.ts";
 import { LabHttpError } from "./labAuth.ts";
 import type { LabRuntime } from "./labRuntime.ts";
 import { validateRouteRequest, type ValidatedRouteRequest } from "./requestValidation.ts";
-import { schemaExample } from "./schemaExamples.ts";
+import { FIXTURE_MEDIA_TICKET, schemaExample } from "./schemaExamples.ts";
 
 const PNG_1X1 = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
 );
 
-const SPECIAL_ROUTES = new Set(["forward-enter", "local-image", "runtime-image"]);
+const SPECIAL_ROUTES = new Set(["forward-enter", "local-image", "runtime-image", "file-media"]);
 const MUTATION_FOLLOW_UPS: Readonly<Record<string, string>> = {
   "browser-command": "browser-state",
   "host-update-check": "host-update",
@@ -59,6 +59,15 @@ export class LabRouteWorkspace {
   response(routeId: string, input: ValidatedRouteRequest): unknown {
     const body = input.body as Record<string, unknown>;
     switch (routeId) {
+      case "file-media-ticket":
+        // The wire lab proves contract-shaped mock I/O, not playback-grant authorization.
+        return {
+          ticket: FIXTURE_MEDIA_TICKET,
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          sizeBytes: PNG_1X1.length,
+          modifiedAtMs: 1,
+          contentType: "image/png",
+        };
       case "settings-read":
         return this.settings ?? generatedJsonResponse(routeId);
       case "agent-statuses":

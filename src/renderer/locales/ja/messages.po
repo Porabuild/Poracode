@@ -1758,6 +1758,10 @@ msgstr "試行"
 msgid "Audio"
 msgstr "オーディオ"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "音声プレビュー"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "認証"
@@ -7622,6 +7626,11 @@ msgstr "ジョブを読み込み中"
 msgid "Loading marketplace…"
 msgstr "マーケットプレイスを読み込み中…"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "メディアのプレビューを読み込み中…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "メモを読み込んでいます…"
@@ -9758,6 +9767,7 @@ msgstr "git review を右側のパネルまたはページ全体として開き�
 msgid "Open image {0} of {1}"
 msgstr "画像 {0}/{1} を開く"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -11476,6 +11486,10 @@ msgstr "リロード"
 msgid "Reload browser page"
 msgstr "ブラウザのページをリロード"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "プレビューを再読み込み"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11548,6 +11562,7 @@ msgstr "リモートプロジェクトが見つかりません。"
 #~ msgid "Remote server"
 #~ msgstr "リモートサーバー"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -14453,6 +14468,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "デスクトップ自身のサーバーはまだ接続されていません。"
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "デスクトップ自身のサーバーが接続されていません。"
@@ -14577,6 +14593,7 @@ msgstr "通常のアプリシェルをレンダリングできませんでした
 #~ msgstr "このセッションの実行中は組織を変更できません — Devin プロファイル設定で変更し、新しいセッションを開始してください。"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14943,6 +14960,10 @@ msgstr "このマシン"
 msgid "This machine (local)"
 msgstr "このマシン（ローカル）"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "このメディアのプレビューは利用できません。"
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "このメッセージはキューから削除されました。編集中のテキストは引き続きコピーできます。"
@@ -15082,6 +15103,10 @@ msgstr "このサーバーはこのコンピューターで動作するため、
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "このセッションは設定を何も公開していません。"
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "この SVG は表示できません。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -16355,6 +16380,10 @@ msgstr "バージョン"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "{0}経由"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "動画プレビュー"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

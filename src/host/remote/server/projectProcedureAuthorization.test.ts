@@ -53,6 +53,24 @@ describe("project procedure authorization", () => {
     expect(payload.worktreeLocation).toEqual({ kind: "posix", path: "/worktrees/one" });
   });
 
+  it("binds project/canonical location independently of shared-worktree thread order and equivalent path spelling", () => {
+    const a = { ...testThread(), id: "a", worktreePath: "/worktrees/one" };
+    const c = { ...a, id: "c", worktreePath: "/worktrees/one/./" };
+    const owner = () =>
+      authorizeProjectProcedurePayload("readProjectFile", {
+        projectLocation: { kind: "posix", path: "/worktrees/one" },
+      })?.projectLocation;
+    vi.mocked(dbGetThreads).mockReturnValue([a]);
+    const original = owner();
+    expect(original).toBeDefined();
+    for (const threads of [[c, a], [a, c], [c]]) {
+      vi.mocked(dbGetThreads).mockReturnValue(threads);
+      expect(owner()).toBe(original);
+    }
+    vi.mocked(dbGetThreads).mockReturnValue([]);
+    expect(owner).toThrow("Project location is not registered");
+  });
+
   it("replaces forged WSL UNC and distro values with stored identity", () => {
     const location: ProjectLocation = {
       kind: "wsl",
@@ -64,6 +82,30 @@ describe("project procedure authorization", () => {
     const payload = { projectLocation: { ...location, distro: "ubuntu", uncPath: "C:\\private" } };
     authorizeProjectProcedurePayload("readProjectFile", payload);
     expect(payload.projectLocation).toEqual(location);
+  });
+
+  it("binds the stored WSL UNC root while preserving canonical equivalent UNC spelling", () => {
+    // Public-helper policy proof only; this does not exercise Windows or WSL I/O.
+    const location: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/home/user/repo",
+      uncPath: String.raw`\\wsl.localhost\Ubuntu\home\user\repo`,
+    };
+    const owner = () =>
+      authorizeProjectProcedurePayload("readProjectFile", {
+        projectLocation: { ...location },
+      })?.projectLocation;
+    register(location);
+    const original = owner();
+    expect(original).toBeDefined();
+    register({ ...location, uncPath: `${location.uncPath.toUpperCase()}\\` });
+    expect(owner()).toBe(original);
+    // Distro and Linux path stay the same; only the trusted host route changes.
+    register({ ...location, uncPath: String.raw`\\wsl.localhost\Ubuntu\other\repo` });
+    const changed = owner();
+    expect(changed).toBeDefined();
+    expect(changed).not.toBe(original);
   });
 
   it("preserves broad management and optional global procedures", () => {
