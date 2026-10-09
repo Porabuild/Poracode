@@ -57,11 +57,12 @@ export function TerminalFontPicker({
         </FontPickerFocusOwner>
         <ComboBox.Popover
           placement="bottom end"
+          maxHeight={248}
           className="min-w-0 max-w-[calc(100vw-16px)] p-1"
           style={{ width: "var(--trigger-width)" }}
         >
           <FontPickerFocusOwner onCommit={commit} onCancel={() => setDraft(value)}>
-            <ListBox className="poracode-menu max-h-60 overflow-y-auto">
+            <ListBox className="poracode-menu">
               {(option: SelectOption) => (
                 <ListBox.Item
                   id={option.id}

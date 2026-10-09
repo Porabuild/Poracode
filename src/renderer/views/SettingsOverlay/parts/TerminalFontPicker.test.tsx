@@ -79,14 +79,16 @@ describe("TerminalFontPicker", () => {
     expect(onChange).toHaveBeenLastCalledWith("");
   });
 
-  it("opens a field-width, bounded popup and commits keyboard-selected suggestions", async () => {
+  it("bounds scrolling at the field-width popup and commits keyboard-selected suggestions", async () => {
     const { input, onChange } = setup("");
     fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
     const list = await screen.findByRole("listbox");
     const popup = list.closest('[data-slot="combo-box-popover"]');
     expect(popup).toHaveStyle({ width: "var(--trigger-width)" });
     expect(popup).toHaveClass("max-w-[calc(100vw-16px)]");
-    expect(list).toHaveClass("max-h-60", "overflow-y-auto");
+    expect(list).toHaveClass("poracode-menu");
+    expect(list).not.toHaveClass("max-h-60");
+    expect(list).not.toHaveClass("overflow-y-auto");
     fireEvent.keyDown(input, { key: "ArrowDown", code: "ArrowDown" });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
     await waitFor(() => expect(onChange).toHaveBeenCalled());
