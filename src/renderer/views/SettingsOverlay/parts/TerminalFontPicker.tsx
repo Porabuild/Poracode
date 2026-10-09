@@ -57,7 +57,6 @@ export function TerminalFontPicker({
         </FontPickerFocusOwner>
         <ComboBox.Popover
           placement="bottom end"
-          maxHeight={240}
           className="min-w-0 max-w-[calc(100vw-16px)] p-1"
           style={{ width: "var(--trigger-width)" }}
         >
@@ -70,7 +69,7 @@ export function TerminalFontPicker({
                   className="min-w-0 pe-7"
                 >
                   <div className="min-w-0 flex-1">
-                    <Label className="block truncate">{option.label}</Label>
+                    <Label className="block max-w-full truncate">{option.label}</Label>
                     {option.detail ? (
                       <Description className="block truncate text-xs">{option.detail}</Description>
                     ) : null}

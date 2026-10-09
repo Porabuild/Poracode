@@ -182,4 +182,20 @@ describe("TerminalFontPicker", () => {
       expect(onChange).toHaveBeenLastCalledWith(label);
     },
   );
+  it("keeps long suggestion text bounded while committing the full family name", async () => {
+    const family = "Bricolage Grotesque 72pt SemiCondensed";
+    const onChange = vi.fn<(value: string) => void>();
+    render(
+      <TerminalFontPicker
+        value=""
+        options={[options[0]!, { id: `font:${family}`, label: family }]}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
+    const row = await screen.findByRole("option", { name: family });
+    expect(screen.getByText(family)).toHaveClass("max-w-full", "truncate");
+    fireEvent.click(row);
+    expect(onChange).toHaveBeenLastCalledWith(family);
+  });
 });
