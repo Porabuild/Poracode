@@ -80,7 +80,8 @@ describe("terminalPrewarm", () => {
   });
 
   it("warms a hidden terminal with the WebGL renderer, then tears it down", async () => {
-    const { prewarmTerminalSurface, TERMINAL_FONT_FAMILY } = await loadPrewarm();
+    const { prewarmTerminalSurface } = await loadPrewarm();
+    const { TERMINAL_FONT_FAMILY } = await import("./terminalFonts");
 
     await prewarmTerminalSurface();
 

@@ -4,8 +4,6 @@ import { Terminal } from "@xterm/xterm";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
 
-export { TERMINAL_FONT_FAMILY } from "./terminalFonts";
-
 /** Matches XTermSurface's default `baseFontSize`; the warm-up renders at it. */
 const PREWARM_FONT_SIZE = 12;
 
