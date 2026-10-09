@@ -25,7 +25,7 @@ import {
   type RemotePushRegistrationResult,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
-import { RemoteClientThreadsApi } from "./clientApiThreads";
+import { RemoteClientMediaApi } from "./clientApiMedia";
 import { RemoteClientError } from "./clientErrors";
 import { parseResponse } from "./clientParse";
 import { endpointUrl, LONG_REMOTE_REQUEST_TIMEOUT_MS } from "./clientTypes";
@@ -37,7 +37,7 @@ import {
 /** Pre-existing project-command kinds with their complete-list semantics. */
 type RemoteProjectLegacyCommand = Exclude<RemoteProjectCommand, RemoteProjectCatalogCommand>;
 
-export abstract class RemoteClientWorkspaceApi extends RemoteClientThreadsApi {
+export abstract class RemoteClientWorkspaceApi extends RemoteClientMediaApi {
   /**
    * Add (existing folder / scratch / clone) or remove a project on the paired
    * desktop or server. Requires the `projects:manage` scope. Legacy kinds

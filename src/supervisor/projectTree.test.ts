@@ -125,6 +125,27 @@ describe("ProjectTreeService", () => {
     expect(result.status).toBe("binary");
   });
 
+  it("returns stat-only media metadata regardless of text cap and refuses media symlink escapes", async () => {
+    writeFileSync(join(tempDir, "small.png"), "synthetic-image-bytes");
+    writeFileSync(join(tempDir, "large.mp4"), Buffer.alloc(1_000_001, 1));
+    for (const path of ["small.png", "large.mp4"]) {
+      const result = await service.readProjectFile({ projectLocation: location, path });
+      expect(result.status).toBe("binary");
+      expect(result).not.toHaveProperty("content");
+      expect(result).not.toHaveProperty("contentBase64");
+    }
+    const outside = mkdtempSync(join(tmpdir(), "poracode-media-outside-"));
+    try {
+      writeFileSync(join(outside, "outside.mp4"), "outside");
+      symlinkSync(join(outside, "outside.mp4"), join(tempDir, "escape.mp4"));
+      await expect(
+        service.readProjectFile({ projectLocation: location, path: "escape.mp4" }),
+      ).rejects.toThrow("escapes");
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   it("treats PDFs as binary without loading body bytes", async () => {
     const pdf = Buffer.from("%PDF-1.7\npreview\0bytes");
     writeFileSync(join(tempDir, "document.pdf"), pdf);
@@ -659,5 +680,45 @@ describe("ProjectTreeService.browseHostDirectory", () => {
     await expect(service.browseHostDirectory({ path: join(tempDir, "file.txt") })).rejects.toThrow(
       "Not a directory.",
     );
+  });
+});
+
+describe("WSL media metadata containment", () => {
+  it("requests followed regular-file stat and refuses missing/escape rows without retrying broad reads", async () => {
+    const stat = vi.fn<WslBridgeClient["stat"]>().mockResolvedValue({
+      stats: [
+        {
+          path: "/repo/clip.mp4",
+          exists: true,
+          isFile: true,
+          isDirectory: false,
+          isSymlink: false,
+          size: 2,
+          mtimeMs: 123,
+        },
+      ],
+    });
+    const bridge = {
+      stat,
+      readFile: vi.fn<WslBridgeClient["readFile"]>(),
+    } as unknown as WslBridgeClient;
+    const service = new ProjectTreeService();
+    service.setWslClient(bridge);
+    const projectLocation = {
+      kind: "wsl" as const,
+      distro: "Ubuntu",
+      linuxPath: "/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+    };
+    expect(await service.readProjectFile({ projectLocation, path: "clip.mp4" })).toMatchObject({
+      status: "binary",
+      modifiedAtMs: 123,
+    });
+    expect(stat).toHaveBeenLastCalledWith(projectLocation, ["/repo/clip.mp4"], { follow: true });
+    stat.mockResolvedValue({ stats: [{ path: "/repo/clip.mp4", exists: false, code: "ESCAPE" }] });
+    await expect(
+      service.readProjectFile({ projectLocation, path: "clip.mp4" }),
+    ).rejects.toMatchObject({ code: "ESCAPE" });
+    expect(bridge.readFile).not.toHaveBeenCalled();
   });
 });

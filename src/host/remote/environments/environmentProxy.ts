@@ -17,6 +17,7 @@ import { writeError } from "../server/httpResponses";
 import { rejectUpgrade } from "../server/wsConnections";
 import { EnvironmentDescriptorTransform } from "./environmentDescriptorTransform";
 import { EnvironmentProxyLegs } from "./environmentProxyLegs";
+import { EnvironmentMediaGrants } from "./environmentMediaGrants";
 import {
   ENVIRONMENT_DESCRIPTOR_MAX_BYTES,
   ENVIRONMENT_DESCRIPTOR_TIMEOUT_MS,
@@ -101,11 +102,17 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
   private readonly transform: EnvironmentDescriptorTransform;
   private readonly webSocketTicketTtlMs: number;
   private disposed = false;
+  private readonly mediaGrants: EnvironmentMediaGrants;
 
   constructor(options: EnvironmentProxyGatewayOptions) {
     this.targets = options.targets;
     this.authority = options.authority;
     this.legs = new EnvironmentProxyLegs(options.principalAdmission);
+    this.mediaGrants = new EnvironmentMediaGrants(
+      this.authority,
+      (id) => this.resolveTarget(id),
+      this.legs,
+    );
     this.transform = new EnvironmentDescriptorTransform({
       legs: this.legs,
       baseUrls: options.baseUrls,
@@ -148,19 +155,27 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
     });
   }
 
-  // -------------------------------------------------------------------------
-  // Revocation
-  // -------------------------------------------------------------------------
+  mintMediaTicket(input: Parameters<EnvironmentMediaGrants["mintMediaTicket"]>[0]) {
+    return this.mediaGrants.mintMediaTicket(input);
+  }
+  renewMediaTicket(input: Parameters<EnvironmentMediaGrants["renewMediaTicket"]>[0]) {
+    return this.mediaGrants.renewMediaTicket(input);
+  }
+  releaseMediaTicket(input: Parameters<EnvironmentMediaGrants["releaseMediaTicket"]>[0]) {
+    this.mediaGrants.releaseMediaTicket(input);
+  }
 
   /** Parent session revocation: aborts every leg this session owns; each
    * leg's admission leases release only when its transport settles. */
   revokeSession(sessionId: string): void {
+    this.mediaGrants.revokeSession(sessionId);
     this.legs.revokeSession(sessionId);
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.mediaGrants.clear();
     this.legs.dispose();
     this.transform.dispose();
   }
@@ -199,8 +214,42 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
     try {
       security.enforceHostHeader(req);
       let session: { readonly sessionId: string };
+      let playbackSignal: AbortSignal | undefined;
       try {
-        session = this.authenticateParentRequest(req);
+        const query = new URLSearchParams(input.rawQuery);
+        if (query.has("parentMediaTicket")) {
+          if (
+            req.method !== "GET" ||
+            input.rawChildPath !== "/api/files/media" ||
+            query.getAll("parentMediaTicket").length !== 1 ||
+            query.getAll("ticket").length !== 1 ||
+            [...query.keys()].some((key) => key !== "ticket" && key !== "parentMediaTicket")
+          ) {
+            throw new RemoteHttpError(
+              "invalid_media_ticket",
+              "Invalid environment media request.",
+              401,
+            );
+          }
+          const grant = this.mediaGrants.read(query.get("parentMediaTicket")!);
+          const target = this.resolveTarget(input.environmentId);
+          target.assertCurrent();
+          if (
+            grant.value.environmentId !== input.environmentId ||
+            grant.value.childTicket !== query.get("ticket") ||
+            grant.value.generation !== target.generation ||
+            grant.value.childDesktopId !== target.childDesktopId ||
+            !this.authority.authenticateSession
+          ) {
+            throw new RemoteHttpError(
+              "invalid_media_ticket",
+              "Invalid environment media ownership.",
+              401,
+            );
+          }
+          session = this.authority.authenticateSession(grant.sessionId, ENVIRONMENT_USE_SCOPES);
+          playbackSignal = grant.signal;
+        } else session = this.authenticateParentRequest(req);
       } catch (error) {
         // Mark ONLY the authentication step's own 401/403 (missing or invalid
         // parent credential, missing parent scope) as parent-origin. The CORS
@@ -213,7 +262,7 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
         }
         throw error;
       }
-      await this.proxyHttpLeg(req, res, session.sessionId, input);
+      await this.proxyHttpLeg(req, res, session.sessionId, input, playbackSignal);
     } catch (error) {
       if (res.destroyed) return;
       if (!res.headersSent) {
@@ -247,6 +296,7 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
       readonly rawChildPath: string;
       readonly rawQuery: string;
     },
+    playbackSignal?: AbortSignal,
   ): Promise<void> {
     // The descriptor route is GET-only: answer HEAD truthfully instead of
     // letting an empty body reach the JSON transform (which would turn it
@@ -266,9 +316,21 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
     const target = this.resolveTarget(input.environmentId);
     const workClass = environmentProxyChildWorkClass(req.method ?? "GET", input.rawChildPath);
     const leg = this.legs.begin(sessionId, input.environmentId, target);
+    const abortPlayback = () => leg.controller.abort();
     const leases = this.legs.admit(sessionId, workClass, leg);
-    const childQuery = stripParentTicket(input.rawQuery);
+    const childQuery = stripParentTicket(input.rawQuery)
+      .split("&")
+      .filter((part) => {
+        try {
+          return decodeURIComponent(part.split("=")[0] ?? "") !== "parentMediaTicket";
+        } catch {
+          return true;
+        }
+      })
+      .join("&");
     try {
+      playbackSignal?.addEventListener("abort", abortPlayback, { once: true });
+      if (playbackSignal?.aborted) abortPlayback();
       await proxyLoopbackHttpRequest(
         req,
         res,
@@ -302,6 +364,7 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
         },
       );
     } finally {
+      playbackSignal?.removeEventListener("abort", abortPlayback);
       this.legs.end(leg, leases);
     }
   }

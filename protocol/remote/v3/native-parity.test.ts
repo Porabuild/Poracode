@@ -58,7 +58,7 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 88,
+  httpRoutes: 95,
   procedures: 128,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
@@ -268,6 +268,23 @@ const PLANNED_ABSENCE_TOKENS: Record<
   // until the disposition is flipped with production evidence.
   ...Object.fromEntries(
     ENVIRONMENT_MANAGEMENT_ROUTE_IDS.map((id) => [
+      id,
+      [
+        { platform: "ios" as Platform, token: id },
+        { platform: "android" as Platform, token: id },
+      ],
+    ]),
+  ),
+  ...Object.fromEntries(
+    [
+      "file-media-ticket",
+      "file-media",
+      "file-media-release",
+      "file-media-renew",
+      "environment-media-ticket",
+      "environment-media-release",
+      "environment-media-renew",
+    ].map((id) => [
       id,
       [
         { platform: "ios" as Platform, token: id },

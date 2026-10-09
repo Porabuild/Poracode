@@ -21,7 +21,7 @@ describe("operation-map inventory lock", () => {
     expect(live.manifestHash).toBe(computeManifestHash(manifest, inventorySourceHash()));
     if (live.manifestHash !== committed.manifestHash) {
       // The generated inventory changed without regenerating the committed
-      // operation map; name the refresh command instead of diffing 268 keys.
+      // operation map; name the refresh command instead of diffing 275 keys.
       throw new Error(
         "tests/native-e2e/harness/operation-map.json manifestHash is stale: the protocol manifest " +
           "or protocol/remote/v3/generated/inventory.json changed without regenerating the " +
@@ -34,7 +34,7 @@ describe("operation-map inventory lock", () => {
     expect(live).toEqual(committed);
     expect(committed.keyCount).toBe(EXPECTED_OPERATION_KEY_COUNT);
     expect(committed.counts).toEqual({
-      route: 88,
+      route: 95,
       procedure: 128,
       "ws-client": 9,
       "ws-server": 11,

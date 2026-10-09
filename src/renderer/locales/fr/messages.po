@@ -1747,6 +1747,10 @@ msgstr "Tentative"
 msgid "Audio"
 msgstr "Audio"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "Aperçu audio"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "S'authentifier"
@@ -7599,6 +7603,11 @@ msgstr "Chargement des tâches"
 msgid "Loading marketplace…"
 msgstr "Chargement de la place de marché…"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "Chargement de l’aperçu multimédia…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "Chargement des notes…"
@@ -9735,6 +9744,7 @@ msgstr "Ouvrez git review sous forme de panneau de droite ou de page complète."
 msgid "Open image {0} of {1}"
 msgstr "Ouvrir l'image {0} sur {1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -11453,6 +11463,10 @@ msgstr "Recharger"
 msgid "Reload browser page"
 msgstr "Recharger la page du navigateur"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "Recharger l’aperçu"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11524,6 +11538,7 @@ msgstr "Projet distant introuvable."
 #~ msgid "Remote server"
 #~ msgstr "Serveur distant"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -14418,6 +14433,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "Le propre serveur du bureau n'est pas encore connecté."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "Le serveur propre au bureau n'est pas connecté."
@@ -14542,6 +14558,7 @@ msgstr "Le shell d'application normal n'a pas pu être rendu. Les diagnostics ci
 #~ msgstr "L'organisation est fixe pendant l'exécution de cette session — modifiez-la dans les paramètres du profil Devin, puis démarrez une nouvelle session."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14904,6 +14921,10 @@ msgstr "Cette machine"
 msgid "This machine (local)"
 msgstr "Cette machine (local)"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "Cet aperçu multimédia n’est pas disponible."
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Ce message ne figure plus dans la file. Vous pouvez toujours copier votre texte modifié."
@@ -15043,6 +15064,10 @@ msgstr "Ce serveur s'exécute sur cet ordinateur et n'est pas disponible pour le
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "Cette session n'annonce aucun paramètre."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Ce SVG ne peut pas être affiché."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -16312,6 +16337,10 @@ msgstr "Version"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "via {0}"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "Aperçu vidéo"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

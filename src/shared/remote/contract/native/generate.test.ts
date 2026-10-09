@@ -62,21 +62,22 @@ describe("remote v3 native binding generator", () => {
         // selection/binding schemas to the wire and moves the authoritative
         // hashes with them. The canonical schedule/PR-watch selection config
         // and the seven persisted AI-utility selections move the IR source
-        // hash again (manifest itself is schema-free and unchanged).
-        sourceHash: "sha256:aeb0aa9a39d015d50ddc87be0459c4963a0fcbd7228c61fbf7acc55a9b70d089",
-        manifestHash: "sha256:1347fa335c587f46d569d680592c56c490d6d3950c495a0bacc79114bd9eb713",
+        // hash again. The seven additive media routes then regenerate
+        // both authority hashes and all native mirrors from the combined source.
+        sourceHash: "sha256:7de70d42d86eee3cffe4f7f67c10dbb5b6c41607404c46bdd8b6986432c90e55",
+        manifestHash: "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
         counts: {
-          routes: 88,
+          routes: 95,
           procedures: 128,
           voidProcedureResults: 50,
           jsonProcedureResults: 78,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 409,
-          structuralTypes: 961,
+          schemaRoots: 425,
+          structuralTypes: 969,
           semanticValidators: 18,
-          swiftFiles: 61,
+          swiftFiles: 62,
           kotlinFiles: 53,
           stateMachines: 5,
         },
@@ -316,7 +317,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(409);
+        expect(adapters).toHaveLength(425);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)

@@ -1747,6 +1747,10 @@ msgstr "Попытка"
 msgid "Audio"
 msgstr "Звук"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "Предпросмотр аудио"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "Войти"
@@ -7599,6 +7603,11 @@ msgstr "Загрузка заданий"
 msgid "Loading marketplace…"
 msgstr "Загрузка маркетплейса…"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "Загрузка предпросмотра медиа…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "Загрузка заметок…"
@@ -9736,6 +9745,7 @@ msgstr "Открывать просмотр Git как панель справа
 msgid "Open image {0} of {1}"
 msgstr "Открыть изображение {0} из {1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -11454,6 +11464,10 @@ msgstr "Перезагрузить"
 msgid "Reload browser page"
 msgstr "Перезагрузить страницу браузера"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "Обновить предпросмотр"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11525,6 +11539,7 @@ msgstr "Удалённый проект не найден."
 #~ msgid "Remote server"
 #~ msgstr "Удалённый сервер"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -14419,6 +14434,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "Собственный сервер рабочего стола ещё не подключён."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "Собственный сервер рабочего стола не подключён."
@@ -14543,6 +14559,7 @@ msgstr "Обычная оболочка приложения не смогла �
 #~ msgstr "Организация зафиксирована на время работы этой сессии — измените её в настройках профиля Devin и запустите новую сессию."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14905,6 +14922,10 @@ msgstr "Этот компьютер"
 msgid "This machine (local)"
 msgstr "Эта машина (локально)"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "Предпросмотр этого медиафайла недоступен."
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Этого сообщения больше нет в очереди. Вы всё ещё можете скопировать отредактированный текст."
@@ -15044,6 +15065,10 @@ msgstr "Этот сервер работает на этом компьютер�
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "Эта сессия не объявила ни одной настройки."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Не удалось отобразить этот SVG."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -16313,6 +16338,10 @@ msgstr "Версия"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "через {0}"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "Предпросмотр видео"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

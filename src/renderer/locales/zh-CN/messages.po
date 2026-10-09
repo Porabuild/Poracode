@@ -1747,6 +1747,10 @@ msgstr "尝试次数"
 msgid "Audio"
 msgstr "音频"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "音频预览"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "身份验证"
@@ -7599,6 +7603,11 @@ msgstr "正在加载作业"
 msgid "Loading marketplace…"
 msgstr "正在加载市场…"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "正在加载媒体预览…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "正在加载笔记..."
@@ -9735,6 +9744,7 @@ msgstr "将 git review 作为右侧面板或整页打开。"
 msgid "Open image {0} of {1}"
 msgstr "打开图片 {0}/{1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -11453,6 +11463,10 @@ msgstr "重新加载"
 msgid "Reload browser page"
 msgstr "重新加载浏览器页面"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "重新加载预览"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11524,6 +11538,7 @@ msgstr "未找到远程项目。"
 #~ msgid "Remote server"
 #~ msgstr "远程服务器"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -14418,6 +14433,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "桌面自身的服务器尚未连接。"
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "桌面自身的服务器未连接。"
@@ -14542,6 +14558,7 @@ msgstr "正常的应用程序外壳无法呈现。以下诊断信息在重新加
 #~ msgstr "此会话运行期间组织不可更改——请在 Devin 配置文件设置中更改，然后启动新会话。"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14904,6 +14921,10 @@ msgstr "此设备"
 msgid "This machine (local)"
 msgstr "本机（本地）"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "此媒体预览不可用。"
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "此消息已不在队列中。你仍然可以复制正在编辑的内容。"
@@ -15043,6 +15064,10 @@ msgstr "此服务器在本机运行，WSL 项目无法使用。"
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "此会话未提供任何设置。"
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "无法显示此 SVG。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -16312,6 +16337,10 @@ msgstr "版本"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "通过{0}"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "视频预览"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
