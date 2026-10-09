@@ -35,7 +35,13 @@ vi.mock("@/renderer/components/common", () => ({
 vi.mock("@/renderer/components/providers/ProviderUsageCircle", () => ({
   ProviderUsageCircle: () => <span />,
 }));
-vi.mock("./UsageDisplaySettings", () => ({ UsageDisplaySettings: () => null }));
+const display = vi.hoisted(() => ({ providers: [] as readonly { id: string; label: string }[] }));
+vi.mock("./UsageDisplaySettings", () => ({
+  UsageDisplaySettings: (props: { providers: readonly { id: string; label: string }[] }) => {
+    display.providers = props.providers;
+    return null;
+  },
+}));
 vi.mock("@dnd-kit/react/sortable", () => ({
   useSortable: () => ({ ref: () => {}, handleRef: () => {}, isDragging: false }),
 }));
@@ -221,5 +227,11 @@ describe("remote usage settings", () => {
     store.fail("connection", store.begin("connection", true), true);
     render(<HostUsageSettings connectionId="connection" selector={null} />);
     expect(screen.getByText(/Update this host to refresh usage remotely/)).toBeTruthy();
+  });
+  it("keeps sidebar visibility choices available before any usage has been collected", () => {
+    render(<HostUsageSettings connectionId="connection" selector={null} />);
+    expect(display.providers.length).toBeGreaterThan(0);
+    expect(display.providers.every((provider) => provider.label.length > 0)).toBe(true);
+    expect(screen.getByText("Loading usage…")).toBeTruthy();
   });
 });

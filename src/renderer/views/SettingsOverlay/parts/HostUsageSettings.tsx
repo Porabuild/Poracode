@@ -18,13 +18,12 @@ export function HostUsageSettings(props: { connectionId: string; selector: React
   const collapsed = useSharedSettings((state) => state.usage.collapsedProviders);
   const setUsageSetting = useSharedSettings((state) => state.setUsageSetting);
   const labels = new Map(usageProvidersForAgentInstances(undefined).map((p) => [p.id, p.label]));
-  for (const agent of view.agents?.windows ?? []) labels.set(agent.kind, agent.label);
-  const providers = view.canRead
-    ? view.usage.snapshots.map((snapshot) => ({
-        id: snapshot.providerId,
-        label: labels.get(snapshot.providerId) ?? snapshot.providerId,
-      }))
-    : [];
+  if (view.canRead) {
+    for (const agent of view.agents?.windows ?? []) labels.set(agent.kind, agent.label);
+    for (const snapshot of view.usage.snapshots)
+      if (!labels.has(snapshot.providerId)) labels.set(snapshot.providerId, snapshot.providerId);
+  }
+  const providers = [...labels].map(([id, label]) => ({ id, label }));
   return (
     <SettingsPage
       title={t`Provider Usage`}
