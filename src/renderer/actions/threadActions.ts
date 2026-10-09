@@ -373,11 +373,19 @@ export function reopenStoredThread(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
   if (!thread) return;
-  if (!shouldRelaunchThreadOnOpen(thread) || store.pendingThreadLaunches[thread.id] !== undefined) {
+  if (
+    !shouldRelaunchThreadOnOpen(thread) ||
+    store.pendingThreadLaunches[thread.id] !== undefined ||
+    store.connectingThreadIds[thread.id] !== undefined
+  ) {
     return;
   }
 
-  const isGuiReconnect = thread.presentationMode === "gui" && thread.sessionRef !== undefined;
+  const isGuiReconnect = thread.presentationMode === "gui";
+  // Match ThreadSessionManager.sendThreadInput's inactive/no-session refusal.
+  // Opening a saved pane must not silently start a fresh GUI session under
+  // its existing transcript.
+  if (isGuiReconnect && !thread.sessionRef && !thread.canResumeWithConfig) return;
   startTransition(() => {
     store.updateThreadRuntime(thread.id, {
       status: isGuiReconnect ? "idle" : "launching",

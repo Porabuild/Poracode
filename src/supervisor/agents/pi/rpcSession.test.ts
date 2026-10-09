@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent, SessionRef } from "@/shared/contracts";
-import type { StructuredSessionUpdate } from "../base";
+import { applyRuntimeEventsToState } from "@/renderer/state/slices/runtimeEventReducer";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import type { AppStoreState } from "@/renderer/state/slices/shared";
+import { createKnownSessionRef, type StructuredSessionUpdate } from "../base";
 import { PiRpcClient } from "./rpcClient";
 import { PiRpcSession } from "./rpcSession";
 
@@ -170,6 +173,122 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     });
     return { session, events, updates };
   }
+
+  function makeHistory(savedItems: RuntimeChatItem[] = []) {
+    const state = {
+      threads: [],
+      runtimeItemIdsByThread: { "thread-mock": savedItems.map((item) => item.id) },
+      runtimeItemsByIdByThread: {
+        "thread-mock": Object.fromEntries(savedItems.map((item) => [item.id, item])),
+      },
+      runtimeRequestsByThread: {},
+      runtimeContextByThread: {},
+      runtimeBackgroundTasksByThread: {},
+      runtimeStructuralVersionByThread: {},
+      runtimeCompletedTurnsByThread: {},
+      runtimeOpenTurnByThread: {},
+    } as unknown as AppStoreState;
+    return {
+      state,
+      apply(events: RuntimeEvent[]) {
+        Object.assign(state, applyRuntimeEventsToState(state, "thread-mock", events));
+      },
+    };
+  }
+
+  it("keeps canonical item and turn identities distinct when resuming in a new RPC process", async () => {
+    const first = await createSession();
+    try {
+      const providerSessionId = await first.session.openThread();
+      await first.session.startTurn("ECHO_FIRST", { model: "mock/model", effort: "off" });
+      await first.session.startTurn("ECHO_FOLLOWUP", { model: "mock/model", effort: "off" });
+      const firstHistory = makeHistory();
+      firstHistory.apply(first.events);
+      const savedItems = Object.values(firstHistory.state.runtimeItemsByIdByThread["thread-mock"]!);
+      await first.session.dispose();
+      const resumed = await createSession(createKnownSessionRef(providerSessionId));
+      try {
+        expect(await resumed.session.openThread()).toBe(providerSessionId);
+        await resumed.session.startTurn("ECHO_SECOND", { model: "mock/model", effort: "off" });
+        const events = [...first.events, ...resumed.events];
+        const itemIds = events
+          .filter((event) => event.type === "item.started")
+          .map((event) => event.itemId);
+        const assistantIds = events.flatMap((event) =>
+          event.type === "item.started" && event.itemType === "assistant_message"
+            ? [event.itemId]
+            : [],
+        );
+        const turnIds = events
+          .filter((event) => event.type === "turn.started")
+          .map((event) => event.turnId);
+        expect(assistantIds).toHaveLength(3);
+        expect(new Set(assistantIds).size).toBe(3);
+        expect(new Set(itemIds).size).toBe(itemIds.length);
+        expect(turnIds).toHaveLength(3);
+        expect(new Set(turnIds).size).toBe(3);
+        const reopenedHistory = makeHistory(savedItems);
+        reopenedHistory.apply(resumed.events);
+        const items = reopenedHistory.state.runtimeItemsByIdByThread["thread-mock"]!;
+        expect(savedItems.map((item) => items[item.id])).toEqual(savedItems);
+        expect(reopenedHistory.state.runtimeItemIdsByThread["thread-mock"]).toHaveLength(6);
+        expect(
+          Object.values(items)
+            .filter((item) => item.type === "assistant_message")
+            .map((item) => item.streams.assistant_text),
+        ).toEqual(["SAW:ECHO_FIRST", "SAW:ECHO_FOLLOWUP", "SAW:ECHO_SECOND"]);
+      } finally {
+        await resumed.session.dispose();
+      }
+    } finally {
+      await first.session.dispose();
+    }
+  });
+
+  it("preserves legacy saved replies across resumed failure, stop and the next live turn", async () => {
+    const legacy = {
+      id: "pi-assistant-2",
+      type: "assistant_message" as const,
+      state: "completed" as const,
+      payload: { content: [] },
+      streams: { assistant_text: "OLD_SAVED_REPLY" },
+    };
+    const history = makeHistory([legacy]);
+    const { session, events } = await createSession(createKnownSessionRef("mock-session-1"));
+    const config = { model: "mock/model", effort: "off" };
+    try {
+      await session.openThread();
+      await session.startTurn("ECHO_RESUMED", config);
+      await session.startTurn("FAIL", config);
+      const stoppedTurn = session.startTurn("DIALOG", config);
+      await waitFor(events, (event) => event.type === "request.opened");
+      await session.interruptTurn();
+      session.forceCompleteTurn();
+      await stoppedTurn;
+      await session.startTurn("ECHO_AFTER_STOP", config);
+      history.apply(events);
+      const items = history.state.runtimeItemsByIdByThread["thread-mock"]!;
+      expect(items[legacy.id]).toMatchObject(legacy);
+      expect(
+        Object.values(items)
+          .filter((item) => item.type === "assistant_message")
+          .map((item) => item.streams.assistant_text),
+      ).toEqual([
+        "OLD_SAVED_REPLY",
+        "SAW:ECHO_RESUMED",
+        "DIALOG_DONE:cancelled",
+        "SAW:ECHO_AFTER_STOP",
+      ]);
+      expect(
+        events.filter((event) => event.type === "turn.completed").map((event) => event.state),
+      ).toEqual(["completed", "failed", "cancelled", "completed"]);
+      expect(events.filter((event) => event.type === "request.resolved")).toEqual([
+        expect.objectContaining({ outcome: "cancelled" }),
+      ]);
+    } finally {
+      await session.dispose();
+    }
+  });
 
   it.each([false, true])(
     "confirms the CLI session identity before a turn (resume=%s)",

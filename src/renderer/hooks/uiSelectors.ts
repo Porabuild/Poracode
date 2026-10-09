@@ -84,6 +84,7 @@ export function useFocusedThreadId(): string | null {
   return useAppStore(selectFocusedThreadId);
 }
 
+/** Visible pane ids used by the sidebar's pinned Done rows. */
 export function useCurrentThreadIds(): string[] {
   return useAppStore(useShallow((s) => (s.view.kind === "thread" ? s.view.panes : EMPTY_STRINGS)));
 }

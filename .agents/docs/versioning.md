@@ -3016,3 +3016,11 @@ are restored together, preventing a fast thread switch from saving a transient
 empty attachment list. Existing draft storage version and saved content remain
 compatible; the regression begins with an existing populated draft and checks
 late-picker completion, persistence and reload.
+
+The follow-up v2 integration keeps saved GUI recovery gated by session identity
+or config resumability and requires an explicit prompt to recover an error.
+Identity-less saved GUI threads remain read-only. Pi live item/turn IDs now
+include a process-incarnation UUID so a resumed process cannot overwrite saved
+canonical replies when its counters restart. IDs remain opaque strings; existing
+rows, draft formats, database and wire versions stay valid. Pre-upgrade saved
+reply regressions cover the transition without rewriting historical content.

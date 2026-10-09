@@ -618,6 +618,7 @@ msgstr "{projectLocation} (devre dışı)"
 msgid "{projectName} Settings"
 msgstr "{projectName} Ayarları"
 
+#: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
@@ -5098,6 +5099,10 @@ msgstr "Bağlantıyı kes"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Disconnected"
 msgstr "Bağlantı kesildi"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "Bağlantı kesildi — yeniden bağlanmak için bir mesaj gönderin"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -15403,6 +15408,10 @@ msgstr "Bu SVG görüntülenemiyor."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Bu sistem genelindeki kısayol kullanılamıyor. Başka bir tuş birleşimi seçin."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Bu konu sürdürülemiyor. Devam etmek için yeni bir konu başlatın."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."

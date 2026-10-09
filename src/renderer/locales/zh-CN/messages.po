@@ -618,6 +618,7 @@ msgstr "{projectLocation}（已禁用）"
 msgid "{projectName} Settings"
 msgstr "{projectName}设置"
 
+#: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
@@ -5098,6 +5099,10 @@ msgstr "断开连接"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Disconnected"
 msgstr "已断开"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "连接已断开 — 发送消息以重新连接"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -15402,6 +15407,10 @@ msgstr "无法显示此 SVG。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "此全局快捷键不可用。请选择其他按键组合。"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "此线程无法恢复。请新建线程以继续。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."

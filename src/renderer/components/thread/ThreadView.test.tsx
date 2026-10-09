@@ -16,6 +16,7 @@ import { ThreadView } from "./ThreadView";
 const { bridge, captureFileCheckpoint, runtimeActions } = vi.hoisted(() => ({
   bridge: {
     startThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    ensureThreadRunning: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     queueThreadFollowUp: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -457,63 +458,74 @@ describe("ThreadView", () => {
     await waitFor(() => expect(bridge.startThread).toHaveBeenCalled());
   });
 
-  it("clears the renderer reconnect flag after a stored GUI session connects", async () => {
-    const thread: Thread = {
-      id: "thread-gui-reconnect",
-      projectId: "project-1",
-      title: "Reconnecting chat thread",
-      agentKind: "codex",
-      config: { model: "gpt-5.4" },
-      status: "idle",
-      attention: "none",
-      canResumeWithConfig: true,
-      sessionRef: {
-        providerSessionId: "session-gui-reconnect",
-        discoveredAt: new Date().toISOString(),
-      },
-      archived: false,
-      done: false,
-      starred: false,
-      presentationMode: "gui",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    useAppStore.setState({
-      threads: [thread],
-      connectingThreadIds: { [thread.id]: "connection-1" },
-    });
-
-    renderThreadView({
-      thread,
-      agentStatus: {
-        kind: "codex",
-        label: "Codex",
-        installed: true,
-        authState: "authenticated",
-        capabilities: {
-          models: [{ id: "gpt-5.4", label: "5.4" }],
-          efforts: ["low"],
-          modelEfforts: {},
-          modes: ["agent"],
-          approvalPolicies: [{ id: "on-request", label: "On Request" }],
-          sandboxModes: [{ id: "read-only", label: "Read Only" }],
-          supportsResume: true,
-          supportsDirectInput: true,
-          liveInputMode: "server",
-          presentationMode: "gui",
-          settingDefs: [],
+  it.each(["success", "failure"])(
+    "settles a stored GUI reconnect on %s without another start",
+    async (outcome) => {
+      const onLaunchFailed = vi.fn<(message: string) => void>();
+      if (outcome === "failure")
+        bridge.ensureThreadRunning.mockRejectedValueOnce(new Error("resume unavailable"));
+      const thread: Thread = {
+        id: "thread-gui-reconnect",
+        projectId: "project-1",
+        title: "Reconnecting chat thread",
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        sessionRef: {
+          providerSessionId: "session-gui-reconnect",
+          discoveredAt: new Date().toISOString(),
         },
-      },
-      projectLocation: { kind: "windows", path: "C:\\repo" },
-      pendingLaunchPrompt: "",
-      onLaunchConsumed: () => undefined,
-    });
+        archived: false,
+        done: false,
+        starred: false,
+        presentationMode: "gui",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      useAppStore.setState({
+        threads: [thread],
+        connectingThreadIds: { [thread.id]: "connection-1" },
+      });
 
-    await waitFor(() => expect(bridge.startThread).toHaveBeenCalled());
-    await waitFor(() => {
-      expect(useAppStore.getState().connectingThreadIds[thread.id]).toBeUndefined();
-    });
-  });
+      renderThreadView({
+        thread,
+        agentStatus: {
+          kind: "codex",
+          label: "Codex",
+          installed: true,
+          authState: "authenticated",
+          capabilities: {
+            models: [{ id: "gpt-5.4", label: "5.4" }],
+            efforts: ["low"],
+            modelEfforts: {},
+            modes: ["agent"],
+            approvalPolicies: [{ id: "on-request", label: "On Request" }],
+            sandboxModes: [{ id: "read-only", label: "Read Only" }],
+            supportsResume: true,
+            supportsDirectInput: true,
+            liveInputMode: "server",
+            presentationMode: "gui",
+            settingDefs: [],
+          },
+        },
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        pendingLaunchPrompt: "",
+        onLaunchConsumed: () => undefined,
+        onLaunchFailed,
+      });
+
+      await waitFor(() => expect(bridge.ensureThreadRunning).toHaveBeenCalledTimes(1));
+      expect(bridge.startThread).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(useAppStore.getState().connectingThreadIds[thread.id]).toBeUndefined();
+      });
+      expect(onLaunchFailed.mock.calls).toEqual(
+        outcome === "failure" ? [["resume unavailable"]] : [],
+      );
+    },
+  );
 
   it("forwards launch rejection messages to the launch failure callback", async () => {
     bridge.startThread.mockRejectedValueOnce(new Error("launcher boom"));

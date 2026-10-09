@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-09T23:49:24.464960+00:00",
+  "updatedAt": "2026-10-09T23:58:22.843323+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -45,7 +45,7 @@
     "requiredAgent": null,
     "lastAgent": "01bd44a75657,78510f4ad378,e4b3d8fabc04,008d01257bf1 completed/joined; provider141,GUI138,runtime108+1existing skip,flat-order83 focused passes; source/test evidence reviewed.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "master-merge-verified-ready-to-commit",
+    "agentState": "new-v2-merge-verified-ready-to-commit",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -55,7 +55,7 @@
       "state": "Exact pushed b24d6fc6b product bytes equal frozen R245; retained19434-test/fullcheck/build and exact-head core19/native6+4policy-skip CI PASS. R255 saved compact qualification PASS-scoped; full PWA/mobile and resource gates remain open."
     },
     "buildSession": null,
-    "nextAction": "Commit the resolved latest-master merge with normal hooks, then run final full regression and isolated mock GUI smoke on the committed tree. Broad performance/mobile/genuine-tool qualification remains open under existing limits.",
+    "nextAction": "Commit catch-up v2 merge b41e0d30a (#815), then run final full regression and current isolated mock GUI smoke. Latest master e56fcc87 is already merged; broad goal remains active.",
     "lastResult": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
     "lastDeclaration": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/launcher-declaration.json",
     "liveRootHandles": [],
@@ -2935,7 +2935,7 @@
       "frozenArtifactsRepresentCurrentHead": false
     },
     "remoteIntegration": {
-      "status": "verified-ready-for-merge-commit",
+      "status": "master-committed-new-v2-catchup-ready",
       "localCommits": ["ad91fcb54", "e6787bebf9c95b0d2eb142baa6750aaab94aca6f"],
       "remoteV2": "38fb96cb80254568238c9673ac4d9d6fd39a79b7",
       "remoteV2Merge": "ebf105ccabeaee7f2f6de60da4d148fc32740403",
@@ -2991,7 +2991,18 @@
       "protocolCheck": "pass after flat-command native regeneration",
       "format": "all-repository pass",
       "architecture": "pass",
-      "smoke": "pending current merged source; previous runtime candidate remains stale"
+      "smoke": "pending current merged source; previous runtime candidate remains stale",
+      "masterMergeCommit": "ed7c50d5f",
+      "newRemoteV2": "b41e0d30af50271d481ee6cd276d15003e2c7ef3",
+      "newRemoteV2ConflictPaths": 2,
+      "newRemoteV2FocusedPassed": 360,
+      "sidebarCouplingPassed": 29,
+      "newRemoteV2Typecheck": "pass",
+      "newRemoteV2Lint": "pass",
+      "newRemoteV2I18n": "0 missing in all12;3891 translated entries",
+      "resolution": "incoming saved/error GUI recovery + Pi incarnation IDs; preserve restoration checkpoint fix, undo and draft coverage; retain current-pane selector required by master sidebar",
+      "interruptedFinalRun": "tests-committed-final.log/exit130 after new remote tip discovered; not counted as complete",
+      "sourceCandidate": "new integrated tree; old compiled qualification remains stale"
     },
     "interactiveTestCredentialIsolation": {
       "status": "implemented_independent_review_pass_root_verified_full_smoke_partial",
@@ -6659,6 +6670,10 @@
     {
       "at": "2026-10-09T23:49:24.464960+00:00",
       "summary": "Latest-master integration ready for local merge commit after all63 conflict resolutions. Fixed concrete GUI draft-restoration race (1fails before/138passes after) and capability-gated durable flat order (83passes; realSQLite close/reopen, HTTP exactreceipt replay, source membership/default projectguard, second-client global convergence and old/retired capability refusal). All required agents joined. Regenerated native sourcepins/protocol check,13native-generator tests, full typecheck/lint/format/architecture and all12locale0missing pass. Originalfull22741PASS/20FAIL/110skip preserved; affected corrections/reruns complete, final fullrun/current mockGUI pending. No new resource/p95/toolcoverage claim;13/18 and2/6 unchanged."
+    },
+    {
+      "at": "2026-10-09T23:58:22.843323+00:00",
+      "summary": "Committed latest-master integration ed7c50d5f with normal hooks and clean tree. Ancestry check detected newly fetched remotev2 b41e0d30a (#815), not yet included in the first merge; interrupted finalfull run/exit130 and preserved partial log. Resolved2composer conflicts preserving new draft restoration fix and master undo, incoming safe saved/error recovery and Pi per-incarnation canonical IDs. Restored current-pane selector still required by master sidebar.360focused/29sidebar tests, full typecheck/lint and all12locale0missing pass. Catchup merge commit next; no push/app replacement or new resource/toolcoverage/taskclosure claim; goal active13/18,2/6."
     }
   ],
   "tasks": [

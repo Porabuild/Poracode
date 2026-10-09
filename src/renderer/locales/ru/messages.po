@@ -618,6 +618,7 @@ msgstr "{projectLocation} (отключено)"
 msgid "{projectName} Settings"
 msgstr "Настройки {projectName}"
 
+#: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
@@ -5098,6 +5099,10 @@ msgstr "Отключить"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Disconnected"
 msgstr "Отключено"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "Соединение разорвано — отправьте сообщение, чтобы подключиться снова"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -15403,6 +15408,10 @@ msgstr "Не удалось отобразить этот SVG."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Это общесистемное сочетание клавиш недоступно. Выберите другое сочетание."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Этот тред нельзя возобновить. Создайте новый тред, чтобы продолжить."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."

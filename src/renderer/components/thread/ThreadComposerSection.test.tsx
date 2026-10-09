@@ -4,7 +4,7 @@ import {
   createComposerDraftStorage,
 } from "@/renderer/state/composerDraftStorage";
 import type { DraftContent } from "@/renderer/state/slices/types";
-import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +15,7 @@ import type {
   GitStatusResult,
   Thread,
 } from "@/shared/contracts";
+import { RemoteClientError } from "@/shared/remote/client";
 import "@/renderer/components/providers/bootstrap";
 import * as skills from "@/renderer/components/skills/useSkills";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -24,6 +25,7 @@ import {
   worktreeComposerInboxKey,
 } from "@/renderer/state/composerInputInbox";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
@@ -161,7 +163,12 @@ vi.mock("./ThreadComposer", () => ({
           stop
         </button>
       ) : null}
-      <button type="button" data-submit-disabled={props.submitDisabled} onClick={props.onSubmit}>
+      <button
+        type="button"
+        data-submit-disabled={props.submitDisabled}
+        disabled={props.submitDisabled}
+        onClick={props.onSubmit}
+      >
         send
       </button>
     </div>
@@ -274,7 +281,10 @@ function pasteImageFile(editor: HTMLElement, file: File) {
 }
 
 describe("ThreadComposerSection", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    resetAdaptiveLayoutForTest();
+    vi.unstubAllGlobals();
+  });
 
   beforeEach(() => {
     composerDraftStorage()?.flush();
@@ -289,6 +299,7 @@ describe("ThreadComposerSection", () => {
       byThreadId: {},
     });
     useAppStore.setState({
+      threads: [],
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
@@ -702,10 +713,16 @@ describe("ThreadComposerSection", () => {
     });
   });
 
-  it("uses the live session ladder in the existing composer control", () => {
+  it.each([
+    { status: "idle" as const, resumable: true },
+    { status: "inactive" as const, resumable: true },
+    { status: "inactive" as const, resumable: false },
+  ])("uses live session options without granting recovery eligibility: %j", (state) => {
     renderComposer({
       thread: {
         ...guiThread,
+        status: state.status,
+        ...(state.resumable ? {} : { sessionRef: undefined, canResumeWithConfig: false }),
         config: { ...guiThread.config, effort: "high" },
         sessionConfigOptions: [
           {
@@ -742,6 +759,20 @@ describe("ThreadComposerSection", () => {
       },
     });
     expect(screen.getByTestId("effort-options")).toHaveTextContent("low,medium,high,xhigh,max");
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "contenteditable",
+      state.resumable ? "true" : "false",
+    );
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "aria-placeholder",
+      state.status === "idle"
+        ? `Ask ${codexGuiStatus.label} anything about this workspace`
+        : state.resumable
+          ? "Disconnected — send a message to reconnect"
+          : "This thread cannot be resumed. Start a new thread to continue.",
+    );
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
+    expect(runtimeActions.submitThreadInput).not.toHaveBeenCalled();
   });
 
   it("omits client-inherent tools from chat controls without altering session bindings", () => {
@@ -2559,6 +2590,257 @@ describe("ThreadComposerSection", () => {
     },
   );
 
+  it("keeps the ordinary placeholder and submit path after a live GUI turn error", async () => {
+    const { onSubmitInput } = renderComposer({ thread: { ...guiThread, status: "error" } });
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveAttribute(
+      "aria-placeholder",
+      `Ask ${codexGuiStatus.label} anything about this workspace`,
+    );
+    typeComposerText(editor, "try another turn");
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() =>
+      expect(onSubmitInput).toHaveBeenCalledExactlyOnceWith("try another turn", [
+        { kind: "text", content: "try another turn" },
+      ]),
+    );
+    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+    expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("This thread cannot be resumed. Start a new thread to continue."),
+    ).toBeNull();
+  });
+
+  it.each([
+    { sessionRef: guiThread.sessionRef, canResumeWithConfig: true },
+    { sessionRef: guiThread.sessionRef, canResumeWithConfig: false },
+    { sessionRef: undefined, canResumeWithConfig: true },
+  ])("accepts a follow-up for a resumable inactive GUI thread: %j", async (resume) => {
+    const { onSubmitInput } = renderComposer({
+      thread: { ...guiThread, status: "inactive", ...resume },
+    });
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveAttribute("contenteditable", "true");
+    expect(editor).toHaveAttribute(
+      "aria-placeholder",
+      "Disconnected — send a message to reconnect",
+    );
+    expect(
+      screen.queryByText("This thread cannot be resumed. Start a new thread to continue."),
+    ).toBeNull();
+    typeComposerText(editor, "follow up after restart");
+    fireEvent.keyDown(editor, { key: "Enter" });
+    await waitFor(() =>
+      expect(onSubmitInput).toHaveBeenCalledExactlyOnceWith("follow up after restart", [
+        { kind: "text", content: "follow up after restart" },
+      ]),
+    );
+  });
+
+  it("explains why a non-resumable inactive GUI composer is disabled", () => {
+    renderComposer({
+      thread: {
+        ...guiThread,
+        status: "inactive",
+        sessionRef: undefined,
+        canResumeWithConfig: false,
+      },
+    });
+    expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "aria-placeholder",
+      "This thread cannot be resumed. Start a new thread to continue.",
+    );
+    expect(
+      screen.getByText("This thread cannot be resumed. Start a new thread to continue."),
+    ).toHaveAttribute("role", "status");
+  });
+
+  it.each([false, true])(
+    "keeps the inactive explanation visible with a preserved draft (compact: %s)",
+    async (compact) => {
+      vi.stubGlobal(
+        "matchMedia",
+        vi.fn((query: string) => ({
+          media: query,
+          matches: compact && query === "(max-width: 767px)",
+          onchange: null,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          dispatchEvent: () => true,
+        })),
+      );
+      initializeAdaptiveLayout();
+      const thread = {
+        ...guiThread,
+        status: "inactive" as const,
+        sessionRef: undefined,
+        canResumeWithConfig: false,
+      };
+      const draft = {
+        segments: [{ kind: "text" as const, content: "unsent follow up" }],
+        attachments: [],
+      };
+      const history = { [thread.id]: ["original-message"] };
+      useAppStore.setState({
+        threads: [thread],
+        threadDraftContents: { [thread.id]: draft },
+        runtimeItemIdsByThread: history,
+      });
+      const { onSubmitInput, unmount } = renderComposer({ thread });
+      const editor = screen.getByRole("textbox");
+      expect(editor).toHaveTextContent("unsent follow up");
+      expect(editor).toHaveAttribute("contenteditable", "false");
+      const notice = screen.getByText(
+        "This thread cannot be resumed. Start a new thread to continue.",
+      );
+      expect(notice).toHaveAttribute("role", "status");
+      expect(notice).toBeVisible();
+      expect(notice).toHaveTextContent(
+        "This thread cannot be resumed. Start a new thread to continue.",
+      );
+      expect(notice.closest('[aria-hidden="true"], [inert], .m-compose-bubble')).toBeNull();
+      const dock = editor.closest(".m-thread-compose-dock");
+      expect(dock !== null).toBe(compact);
+      expect(dock?.hasAttribute("data-expanded") ?? false).toBe(false);
+      fireEvent.keyDown(editor, { key: "Enter" });
+      fireEvent.click(screen.getByText("send"));
+      await act(async () => Promise.resolve());
+      expect(onSubmitInput).not.toHaveBeenCalled();
+      expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+      expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+      unmount();
+      expect(useAppStore.getState().threadDraftContents[thread.id]).toEqual(draft);
+      expect(useAppStore.getState().runtimeItemIdsByThread).toBe(history);
+      expect(useAppStore.getState().threads[0]).toBe(thread);
+    },
+  );
+
+  it.each([false, true])(
+    "keeps inactive terminal input and placeholder unchanged (resumable: %s)",
+    (resumable) => {
+      renderComposer({
+        thread: {
+          ...terminalThread,
+          status: "inactive",
+          sessionRef: resumable ? guiThread.sessionRef : undefined,
+          canResumeWithConfig: resumable,
+        },
+        agentStatus: claudeTerminalStatus,
+      });
+      expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
+      expect(screen.getByRole("textbox")).toHaveAttribute("aria-placeholder", "Send a message...");
+      expect(
+        screen.queryByText("This thread cannot be resumed. Start a new thread to continue."),
+      ).toBeNull();
+    },
+  );
+
+  it("keeps authentication guidance ahead of inactive non-resumable guidance", () => {
+    renderComposer({
+      thread: {
+        ...guiThread,
+        status: "inactive",
+        sessionRef: undefined,
+        canResumeWithConfig: false,
+      },
+      agentStatus: { ...codexGuiStatus, authState: "missing" },
+    });
+    expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
+    expect(
+      screen.queryByText("This thread cannot be resumed. Start a new thread to continue."),
+    ).toBeNull();
+    expect(screen.getByText("Sign in required")).toBeInTheDocument();
+  });
+
+  it("keeps approval feedback ahead of inactive non-resumable guidance", () => {
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "inactive-approval",
+            threadId: guiThread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run first" },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+    renderComposer({
+      thread: {
+        ...guiThread,
+        status: "inactive",
+        sessionRef: undefined,
+        canResumeWithConfig: false,
+      },
+    });
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "aria-placeholder",
+      "Deny and tell the agent what to do differently…",
+    );
+    expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
+    expect(screen.getByText("Run first")).toBeInTheDocument();
+    expect(
+      screen.queryByText("This thread cannot be resumed. Start a new thread to continue."),
+    ).toBeNull();
+  });
+
+  it("does not send a resumable inactive GUI prompt while authentication is missing", async () => {
+    const { onSubmitInput } = renderComposer({
+      thread: { ...guiThread, status: "inactive" },
+      agentStatus: { ...codexGuiStatus, authState: "missing" },
+    });
+    typeComposerText(screen.getByRole("textbox"), "keep until authenticated");
+    fireEvent.click(screen.getByText("send"));
+    await act(async () => Promise.resolve());
+    expect(onSubmitInput).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox")).toHaveTextContent("keep until authenticated");
+  });
+
+  it("restores a recovery draft after a definite failure and permits explicit retry", async () => {
+    const onSubmitInput = vi
+      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
+      .mockRejectedValueOnce(new Error("reconnect failed"))
+      .mockResolvedValueOnce(undefined);
+    renderComposer({ thread: { ...guiThread, status: "inactive" }, onSubmitInput });
+    typeComposerText(screen.getByRole("textbox"), "preserve this follow up");
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(toastDangerSpy).toHaveBeenCalledWith("reconnect failed"));
+    expect(screen.getByRole("textbox")).toHaveTextContent("preserve this follow up");
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "preserve this follow up" },
+    ]);
+    // The error toast precedes finally releasing the in-flight submission guard.
+    await waitFor(() => expect(screen.getByText("send")).not.toBeDisabled());
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(onSubmitInput).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByRole("textbox")).not.toHaveTextContent("preserve this follow up"),
+    );
+  });
+
+  it("saves an uncertain recovery draft without restoring or automatically resending it", async () => {
+    const onSubmitInput = vi
+      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
+      .mockRejectedValueOnce(new RemoteClientError("Uncertain", 409, "command_outcome_uncertain"));
+    renderComposer({ thread: { ...guiThread, status: "inactive" }, onSubmitInput });
+    typeComposerText(screen.getByRole("textbox"), "do not duplicate this follow up");
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => {
+      expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+        { kind: "text", content: "do not duplicate this follow up" },
+      ]);
+    });
+    expect(screen.getByRole("textbox")).not.toHaveTextContent("do not duplicate this follow up");
+    fireEvent.click(screen.getByText("send"));
+    await act(async () => Promise.resolve());
+    expect(onSubmitInput).toHaveBeenCalledTimes(1);
+    expect(toastDangerSpy).not.toHaveBeenCalled();
+  });
+
   it("does not submit or steer while a stored GUI session is reconnecting", async () => {
     useAppStore.setState({ connectingThreadIds: { [guiThread.id]: "connection-1" } });
     const onSubmitInput = vi
@@ -3467,7 +3749,8 @@ describe("ThreadComposerSection", () => {
     expect(screen.queryByRole("button", { name: "Deny" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Scope$/u }));
-    fireEvent.click(await screen.findByRole("option", { name: "Scope B" }));
+    const listbox = await screen.findByRole("listbox");
+    fireEvent.click(within(listbox).getByRole("option", { name: "Scope B" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Confirm" }));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
