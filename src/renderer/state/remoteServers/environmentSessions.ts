@@ -54,7 +54,7 @@ import {
  *   `managedEnvironment.<hostDesktopId>.<envId>` for the managed parent) and
  *   the PARENT TLS pin (remote parents only). Grant ownership is fenced: a
  *   delayed rotation from a replaced/removed session can never write.
- * - A session is rebuilt when its endpoint, child token, parent endpoint,
+ * - A session is rebuilt when its canonical proxy endpoint, child token,
  *   parent identity, or the parent's approved TLS pin changes (re-pair, parent
  *   transport reconnect); the old client is disposed (in-flight images aborted,
  *   object URLs revoked) and its grant ownership released. An ordinary parent
@@ -458,10 +458,14 @@ function approvedParentPin(ref: EnvironmentParentRef): string | undefined {
 }
 
 /**
- * Identity of a child session: connection key, the record's own endpoint and
- * child bearer, the verified child identity, the discriminated parent identity,
- * the live parent endpoint, and the parent's currently approved TLS pin. The
- * child client captures the pin at construction, so a re-pair that replaces,
+ * Identity of a child session: connection key, the canonical proxy endpoint,
+ * child bearer, verified child identity, discriminated parent identity, and
+ * parent's currently approved TLS pin. The stored endpoint is a derived hint:
+ * reconnect normalizes it, while construction always uses the current parent
+ * endpoint and environment ID. That normalization must not retire a mounted
+ * preview's issuing client. The canonical endpoint still binds both the parent
+ * location and environment ID, including a target change at an unchanged hint.
+ * The child client captures the pin at construction, so a re-pair that replaces,
  * adds, or removes it must rebuild the child instead of serving the stale pin.
  * The parent's LIVE access token is deliberately excluded — the child client
  * attaches it dynamically per request (`authorityFor.accessToken()`), so a
@@ -471,15 +475,14 @@ function approvedParentPin(ref: EnvironmentParentRef): string | undefined {
 function environmentSessionFingerprint(
   server: RemoteServerRecord,
   ref: EnvironmentParentRef,
-  parentEndpoint: string,
+  endpoint: string,
 ): string {
   return [
     remoteConnectionKey(server),
-    server.endpoint,
+    endpoint,
     server.accessToken,
     server.transport?.kind === "environment" ? (server.transport.childDesktopId ?? "") : "",
     environmentParentCacheKey(ref),
-    parentEndpoint,
     approvedParentPin(ref) ?? "",
   ].join("\u0000");
 }
@@ -682,12 +685,12 @@ export function environmentSessionForServer(
   const parentEndpoint = environmentParentEndpointFor(ref);
   if (parentEndpoint === undefined) return undefined;
   const connectionKey = remoteConnectionKey(server);
-  const fingerprint = environmentSessionFingerprint(server, ref, parentEndpoint);
+  const endpoint = environmentProxyEndpoint(parentEndpoint, transport.environmentId);
+  const fingerprint = environmentSessionFingerprint(server, ref, endpoint);
   const existing = environmentSessions.get(connectionKey);
   if (existing?.fingerprint === fingerprint) return existing.session;
 
   existing?.session.dispose();
-  const endpoint = environmentProxyEndpoint(parentEndpoint, transport.environmentId);
   const created = createEnvironmentClientForPairing({
     parent: ref,
     environmentId: transport.environmentId,

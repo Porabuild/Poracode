@@ -2836,3 +2836,17 @@ from that combined source, rather than choosing either generated merge side.
 Devin-specific payload parsing remains inside its provider plugin. Native
 media transport/editor adoption remains planned and real Windows/WSL/media
 acceptance remains unverified until its serialized QA grant.
+
+### Environment media issuer lifetime during reconnect
+
+Environment client identity uses the canonical proxy endpoint derived from the
+current parent authority and environment ID. Normalizing a stored endpoint hint
+on ordinary reconnect preserves the issuing client, playback tickets and URL.
+Changes to that canonical endpoint, child bearer/identity, parent reference or
+approved TLS pin still retire the old client and release both playback grants.
+Only the window-local client cache key changes: persisted records, protocol 13,
+client-host hop 17, native bindings and all grant authorization, file identity,
+natural expiry and bounded renewal rules keep their existing shapes. No version
+bump or generated artifact change is required; bundle content hashes identify
+the fix. Owned HTTP-socket regressions cover reconnect after the first renewal,
+continued ranges through 147/180/220 seconds and real ownership retirement.
