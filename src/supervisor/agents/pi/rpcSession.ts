@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   AgentSlashCommand,
   PromptSegment,
@@ -121,6 +122,9 @@ export class PiRpcSession implements StructuredSessionHandle {
   private readonly unsubscribeExit: () => void;
   private readonly cleanupMcp: (() => Promise<void>) | undefined;
   private dialogSequence = 0;
+  // These counters identify new live events, not messages replayed from Pi's
+  // saved session. A resumed RPC process must not reuse persisted item/turn IDs.
+  private readonly runtimeId = randomUUID();
   private itemSequence = 0;
   private turnSequence = 0;
   private currentTurnId: string | undefined;
@@ -373,7 +377,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   }
 
   private beginTurn(prompt: string, userMessageItemId?: string): void {
-    this.currentTurnId = `pi-turn-${++this.turnSequence}`;
+    this.currentTurnId = `pi-turn-${this.runtimeId}-${++this.turnSequence}`;
     this.interruptRequested = false;
     this.agentStarted = false;
     this.turnErrorMessage = undefined;
@@ -1002,7 +1006,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   }
 
   private nextItemId(kind: string): string {
-    return `pi-${kind}-${++this.itemSequence}`;
+    return `pi-${kind}-${this.runtimeId}-${++this.itemSequence}`;
   }
 
   private emit(event: RuntimeEvent): void {
