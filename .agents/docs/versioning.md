@@ -55,6 +55,27 @@ restart. Regression tests start with prior read shapes and cover privacy bounds,
 saved/per-call policy sources, explicit empty chains, batch/cursor isolation,
 workflow selection and winning-session continuation.
 
+Side chats use additive, same-build native IPC and volatile ownership, opening in
+the right panel by default. Detach and attach transfer the same bootstrap and
+bound child identity without restarting the provider. The main process retains
+both across renderer reloads; app restart discards surface ownership. Panel
+visibility is volatile and requires no preference migration. Child conversations use the
+existing thread, config, session and parentThreadId formats. Existing application
+preferences remain valid and auxiliary windows cannot overwrite the main view.
+Main/preload/renderer ship together and changed bundle hashes identify the implementation. Regressions cover native
+ownership recovery, hydration with an existing child, and unchanged preference
+writes, as well as independent bounded history reads with existing page proofs.
+
+Provider-only conversation snapshots extend the existing optional per-turn
+clientContext envelope with a bounded 50,000-character field. They are not painted
+or persisted as chat messages. Remote hosts advertise conversationSnapshots v1;
+clients require that advertisement before opening the side chat, since older
+hosts strip unknown context fields. Protocol 13, persisted rows and deployed
+helpers remain compatible and unchanged. Remote-v3 schemas, inventory hashes,
+Swift and Kotlin bindings are regenerated together. Existing clients omit the
+field and continue unchanged. Regressions cover old-host refusal, bounded payloads,
+provider-only delivery and unchanged visible user messages.
+
 Codex resume requests use the existing optional `excludeTurns` protocol field
 and a resume-only two-minute timeout. Saved transcripts and provider session IDs
 remain valid; UI history is already persisted independently of this response.

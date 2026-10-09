@@ -64,7 +64,8 @@ describe("remote v3 native binding generator", () => {
         // and the seven persisted AI-utility selections move the IR source
         // hash again. The seven additive media routes then regenerate
         // both authority hashes and all native mirrors from the combined source.
-        sourceHash: "sha256:7de70d42d86eee3cffe4f7f67c10dbb5b6c41607404c46bdd8b6986432c90e55",
+        // Provider-only conversation snapshots add one optional structural type.
+        sourceHash: "sha256:29eeb13c59db14907d271af26a312c8ac3a4adcb9e5387c0a54a3e732b57f7ee",
         manifestHash: "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
         counts: {
           routes: 95,
@@ -75,7 +76,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 425,
-          structuralTypes: 969,
+          structuralTypes: 970,
           semanticValidators: 18,
           swiftFiles: 62,
           kotlinFiles: 53,

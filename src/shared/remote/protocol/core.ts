@@ -282,6 +282,7 @@ export type RemoteBoundedCatalogChangesCapability = z.infer<
  * advertised capability instead of assuming they took effect.
  */
 export const REMOTE_THREAD_LAUNCH_METADATA_VERSION = 1 as const;
+export const REMOTE_CONVERSATION_SNAPSHOTS_VERSION = 1 as const;
 export const remoteThreadLaunchMetadataCapabilitySchema = z.object({
   versions: remoteCapabilityVersionsSchema,
 });
@@ -333,6 +334,8 @@ export const remoteExperimentsCapabilitySchema = z.object({
 export type RemoteExperimentsCapability = z.infer<typeof remoteExperimentsCapabilitySchema>;
 
 export const remoteEnvironmentCapabilitiesSchema = z.object({
+  /** Provider-only conversation snapshots in per-turn client context. */
+  conversationSnapshots: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
   browserForward: remoteBrowserForwardCapabilitySchema.optional(),

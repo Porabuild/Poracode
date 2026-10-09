@@ -138,6 +138,21 @@ const bridge: ElectronHostBridge = {
   chromeVersion: process.versions.chrome ?? "unknown",
   isDev: resolveIsDev(),
   windowKind: resolveWindowKind(),
+  openSideChatWindow: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatOpen, input),
+  openSideChatPanel: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, input),
+  attachSideChatWindow: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatAttach, input),
+  closeSideChatPanel: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatPanelClose),
+  getSideChatWindowInfo: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatInfo),
+  bindSideChatThread: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatBindThread, input),
+  getSideChatThreadIds: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatThreadIds),
+  onSideChatWindowsChanged: (listener) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: import("@/shared/ipc/sideChat").SideChatWindowsChanged,
+    ) => listener(payload);
+    ipcRenderer.on(IPC_EVENT_CHANNELS.sideChatWindowsChanged, handler);
+    return () => ipcRenderer.removeListener(IPC_EVENT_CHANNELS.sideChatWindowsChanged, handler);
+  },
   channel: resolveChannel(),
   hostCapabilities: resolveHostCapabilities(),
   ...(homeDir ? { homeDir } : {}),

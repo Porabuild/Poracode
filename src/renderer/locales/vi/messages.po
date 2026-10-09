@@ -1694,6 +1694,14 @@ msgstr "Đối số"
 msgid "Ask {0} anything about this workspace"
 msgstr "Hỏi {0} bất cứ điều gì về không gian làm việc này"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "Đặt câu hỏi trong một cuộc trò chuyện phụ riêng"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "Đặt câu hỏi phụ"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Hỏi mỗi lần"
@@ -1725,6 +1733,10 @@ msgstr "Đính kèm"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "Đính kèm tập tin"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "Gắn cuộc trò chuyện bên"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3050,6 +3062,10 @@ msgstr "Đóng trình quét"
 msgid "Close search"
 msgstr "Đóng tìm kiếm"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "Đóng cuộc trò chuyện bên"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -3913,6 +3929,10 @@ msgstr "Không thể tải pull request cho {0}."
 msgid "Could not read file."
 msgstr "Không thể đọc tập tin."
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "Không thể đọc ngữ cảnh luồng cho cuộc trò chuyện phụ. Hãy thử lại."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "Không thể đăng nhập vào {serverName}: {message}"
@@ -4697,6 +4717,10 @@ msgstr "Cài đặt máy tính"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "Đích"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "Tách cuộc trò chuyện bên"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -11535,6 +11559,7 @@ msgstr "Tên từ xa"
 #~ msgid "Remote project"
 #~ msgstr "Dự án từ xa"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Không tìm thấy dự án từ xa."
@@ -12030,6 +12055,7 @@ msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -12896,9 +12922,9 @@ msgstr "Chọn…"
 #~ msgid "Selected project"
 #~ msgstr "Dự án đã chọn"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "Gửi"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "Gửi"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13284,6 +13310,16 @@ msgstr "Hiển thị ở thanh bên và bộ chọn mô hình."
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "Hiển thị cạnh tên dự án."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "Trò chuyện phụ"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "Trò chuyện phụ: {0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -14853,6 +14889,10 @@ msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. 
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "Kết nối này sở hữu các bản ghi môi trường thuộc máy chủ trên thiết bị này. Xóa nó cũng xóa các bản ghi cục bộ đó và quyền của thiết bị. Máy chủ vẫn giữ các môi trường của mình."
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "Cuộc trò chuyện này sử dụng bản chụp của luồng. Các câu trả lời chỉ ở đây."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Máy tính này"
@@ -16049,6 +16089,10 @@ msgstr "Cập nhật SDK"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Cập nhật nhiệm vụ"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "Cập nhật máy chủ từ xa để sử dụng cuộc trò chuyện phụ với ngữ cảnh ẩn."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"

@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
+import { AgentPanelTitleRow } from "./AgentPanelTitleRow";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
 import { PanelDockDropZone } from "@/renderer/components/layout/PanelDock/PanelDockDropZone";
 import { PanelSectionHeader } from "@/renderer/components/layout/PanelDock/PanelSectionHeader";
@@ -46,7 +47,9 @@ export function UnifiedRightPanel(props: {
   portsContent?: ReactNode;
   docksContent?: ReactNode;
   subagentContent?: ReactNode;
-  subagentModel?: ReactNode;
+  sideChatContent?: ReactNode;
+  showSideChatTab?: boolean;
+  conversationModel?: ReactNode;
   subagentTitle?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the usage tab is active. */
   usageHeaderActions?: ReactNode;
@@ -101,7 +104,9 @@ export function UnifiedRightPanel(props: {
     portsContent,
     docksContent,
     subagentContent,
-    subagentModel,
+    sideChatContent,
+    showSideChatTab = false,
+    conversationModel,
     subagentTitle,
     usageHeaderActions,
     portsHeaderActions,
@@ -163,7 +168,7 @@ export function UnifiedRightPanel(props: {
     defaultPercent: 50,
     minPercent: 20,
   });
-  const hasSubagentModel = activeTab === "subagent" && subagentModel !== undefined;
+  const hasConversationModel = conversationModel !== undefined;
   const hasSubagentTitle = activeTab === "subagent" && subagentTitle !== undefined;
 
   /** Inline opacity/transition so animation is not dropped if Tailwind misses dynamic class strings. */
@@ -180,6 +185,14 @@ export function UnifiedRightPanel(props: {
   const dragCtl = "poracode-overlay-header__controls";
   const labels = usePanelTabLabels();
   const tabs = [
+    {
+      id: "sideChat",
+      label: labels.sideChat,
+      icon: PANEL_TAB_ICONS.sideChat,
+      content: sideChatContent,
+      visible: showSideChatTab,
+      onOpen: undefined,
+    },
     {
       id: "docks",
       label: labels.docks,
@@ -304,8 +317,8 @@ export function UnifiedRightPanel(props: {
           ref={headerLeadingRef}
           className="flex min-w-0 max-w-[55%] shrink-0 items-center gap-1.5 overflow-hidden"
         >
-          {hasSubagentModel ? (
-            <div className="flex min-w-0 flex-1 items-center">{subagentModel}</div>
+          {hasConversationModel ? (
+            <div className="flex min-w-0 flex-1 items-center">{conversationModel}</div>
           ) : projectName ? (
             <PanelHeaderProjectName
               name={projectName}
@@ -473,31 +486,36 @@ export function UnifiedRightPanel(props: {
         </button>
       </div>
       {hasSubagentTitle ? (
-        <div className="poracode-right-panel-subagent-meta flex h-6 shrink-0 items-center gap-2 border-b border-[color:var(--border)] px-3">
-          {onBackSubagent ? (
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              className={`${dragCtl} ${panelHeaderIconButtonClass} size-5 min-h-0 min-w-0`}
-              aria-label={t`Back to Thread Info`}
-              onPress={onBackSubagent}
-            >
-              <ArrowLeft className="size-3.5" />
-            </Button>
-          ) : null}
-          <div className="min-w-0 flex-1">{subagentTitle}</div>
-          {!onBackSubagent && onCloseSubagent ? (
-            <button
-              type="button"
-              className={`${dragCtl} ${panelHeaderIconButtonClass}`}
-              title={t`Close subagent`}
-              onClick={onCloseSubagent}
-            >
-              <X className="size-3.5" />
-            </button>
-          ) : null}
-        </div>
+        <AgentPanelTitleRow
+          className="poracode-right-panel-subagent-meta"
+          title={subagentTitle}
+          leading={
+            onBackSubagent ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className={`${dragCtl} ${panelHeaderIconButtonClass} size-5 min-h-0 min-w-0`}
+                aria-label={t`Back to Thread Info`}
+                onPress={onBackSubagent}
+              >
+                <ArrowLeft className="size-3.5" />
+              </Button>
+            ) : null
+          }
+          actions={
+            !onBackSubagent && onCloseSubagent ? (
+              <button
+                type="button"
+                className={`${dragCtl} ${panelHeaderIconButtonClass}`}
+                title={t`Close subagent`}
+                onClick={onCloseSubagent}
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null
+          }
+        />
       ) : null}
 
       {/* Content — stacked layers cross-fade on tab change; a dropped panel-tab

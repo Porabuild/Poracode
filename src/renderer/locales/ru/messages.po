@@ -1694,6 +1694,14 @@ msgstr "Аргументы"
 msgid "Ask {0} anything about this workspace"
 msgstr "Спросите {0} о чём угодно в этом рабочем пространстве"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "Задать вопрос в отдельном боковом чате"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "Задать дополнительный вопрос"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Спрашивать каждый раз"
@@ -1725,6 +1733,10 @@ msgstr "Прикрепить"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "Прикрепить файлы"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "Прикрепить боковой чат"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3050,6 +3062,10 @@ msgstr "Закрыть сканер"
 msgid "Close search"
 msgstr "Закрыть поиск"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "Закрыть боковой чат"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -3913,6 +3929,10 @@ msgstr "Не удалось загрузить pull request для {0}."
 msgid "Could not read file."
 msgstr "Не удалось прочитать файл."
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "Не удалось прочитать контекст ветки для дополнительного чата. Попробуйте ещё раз."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "Не удалось войти в {serverName}: {message}"
@@ -4697,6 +4717,10 @@ msgstr "Настройки десктопа"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "Назначение"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "Открепить боковой чат"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -11535,6 +11559,7 @@ msgstr "Имя удалённого репозитория"
 #~ msgid "Remote project"
 #~ msgstr "Удалённый проект"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Удалённый проект не найден."
@@ -12030,6 +12055,7 @@ msgstr "Возобновить сообщения из очереди"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -12896,9 +12922,9 @@ msgstr "Выбрать…"
 #~ msgid "Selected project"
 #~ msgstr "Выбранный проект"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "Отправить"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "Отправить"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13284,6 +13310,16 @@ msgstr "Отображается на боковой панели и в селе
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "Отображается рядом с названием проекта."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "Боковой чат"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "Боковой чат: {0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -14853,6 +14889,10 @@ msgstr "Это подключение может просматривать пр
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "Это подключение владеет записями сред узла на этом устройстве. Его удаление также удалит эти локальные записи и их разрешения устройства. Узел сохраняет свои среды."
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "Этот разговор использует снимок ветки. Ответы остаются здесь."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Этот компьютер"
@@ -16049,6 +16089,10 @@ msgstr "Обновить SDK"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Обновить задачу"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "Обновите удалённый хост, чтобы использовать дополнительный чат со скрытым контекстом."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"

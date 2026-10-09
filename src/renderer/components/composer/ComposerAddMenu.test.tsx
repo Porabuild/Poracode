@@ -38,6 +38,20 @@ function openMcpServersSubmenu() {
 }
 
 describe("ComposerAddMenu", () => {
+  it("offers side chat as a separate top-level item and closes the menu after opening it", () => {
+    const onOpenSideChat = vi.fn<() => void>();
+    const onPickFiles = vi.fn<() => void>();
+    render(
+      <ComposerAddMenu mcpServers={[]} onPickFiles={onPickFiles} onOpenSideChat={onOpenSideChat} />,
+    );
+    openMenu();
+    const sideChat = screen.getByRole("menuitem", { name: /Side chat/ });
+    expect(sideChat).toHaveAttribute("data-key", "side-chat");
+    fireEvent.click(sideChat);
+    expect(onOpenSideChat).toHaveBeenCalledTimes(1);
+    expect(onPickFiles).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menuitem", { name: /Side chat/ })).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     bridgeMock.isRemoteSession.mockReturnValue(false);
   });

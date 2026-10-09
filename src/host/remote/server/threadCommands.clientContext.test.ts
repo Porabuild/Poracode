@@ -20,37 +20,41 @@ const project: Project = {
 };
 
 describe("remote start command client context", () => {
-  it("forwards the launch's context to the supervisor only, never to the durable row", async () => {
-    vi.mocked(dbGetProjects).mockReturnValue([project]);
-    vi.mocked(dbGetThreads).mockReturnValue([]);
-    const callSupervisor = vi.fn<(name: string, payload: unknown) => Promise<unknown>>(
-      async () => ({ threadId: "t-1" }),
-    );
-    const ctx = { options: { callSupervisor } } as unknown as RemoteServerContext;
-    const clientContext = {
-      browserFocus: { activeTab: { tabId: 12, title: "Release notes", url: "https://r.test/" } },
-    };
-    const command = remoteThreadCommandSchema.parse({
-      kind: "start",
-      threadId: "t-1",
-      projectId: project.id,
-      agentKind: "fixture-agent",
-      config: { model: "m" },
-      prompt: "summarize",
-      presentationMode: "gui",
-      clientContext,
-    });
+  it.each([
+    { browserFocus: { activeTab: { tabId: 12, title: "Release notes", url: "https://r.test/" } } },
+    { conversationSnapshot: { text: "private parent marker" } },
+  ])(
+    "forwards the launch's context to the supervisor only, never to the durable row",
+    async (clientContext) => {
+      vi.mocked(dbGetProjects).mockReturnValue([project]);
+      vi.mocked(dbGetThreads).mockReturnValue([]);
+      const callSupervisor = vi.fn<(name: string, payload: unknown) => Promise<unknown>>(
+        async () => ({ threadId: "t-1" }),
+      );
+      const ctx = { options: { callSupervisor } } as unknown as RemoteServerContext;
+      const command = remoteThreadCommandSchema.parse({
+        kind: "start",
+        threadId: "t-1",
+        projectId: project.id,
+        agentKind: "fixture-agent",
+        config: { model: "m" },
+        prompt: "summarize",
+        presentationMode: "gui",
+        clientContext,
+      });
 
-    await applyRemoteThreadCommand(ctx, command);
+      await applyRemoteThreadCommand(ctx, command);
 
-    expect(callSupervisor).toHaveBeenCalledWith(
-      "startThread",
-      expect.objectContaining({ threadId: "t-1", prompt: "summarize", clientContext }),
-    );
-    const row = vi.mocked(dbUpsertThread).mock.calls[0]?.[0];
-    expect(row?.title).toBe("summarize");
-    expect(JSON.stringify(row)).not.toContain("r.test");
-  });
+      expect(callSupervisor).toHaveBeenCalledWith(
+        "startThread",
+        expect.objectContaining({ threadId: "t-1", prompt: "summarize", clientContext }),
+      );
+      const row = vi.mocked(dbUpsertThread).mock.calls[0]?.[0];
+      expect(row?.title).toBe("summarize");
+      expect(JSON.stringify(row)).not.toContain("r.test");
+      expect(JSON.stringify(row)).not.toContain("private parent marker");
+    },
+  );
 
   it("omits context from a start that carried none", async () => {
     vi.mocked(dbGetProjects).mockReturnValue([project]);

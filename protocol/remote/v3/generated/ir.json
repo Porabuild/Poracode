@@ -3217,6 +3217,20 @@
                 },
                 "type": "object",
                 "x-poracode-unknownFields": "strip"
+              },
+              "conversationSnapshot": {
+                "additionalProperties": true,
+                "properties": {
+                  "text": {
+                    "maxLength": 50000,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
               }
             },
             "type": "object",
@@ -17000,6 +17014,20 @@
                 },
                 "type": "object",
                 "x-poracode-unknownFields": "strip"
+              },
+              "conversationSnapshot": {
+                "additionalProperties": true,
+                "properties": {
+                  "text": {
+                    "maxLength": 50000,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
               }
             },
             "type": "object",
@@ -20802,6 +20830,20 @@
                     "x-poracode-unknownFields": "strip"
                   }
                 },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "conversationSnapshot": {
+                "additionalProperties": true,
+                "properties": {
+                  "text": {
+                    "maxLength": 50000,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
                 "type": "object",
                 "x-poracode-unknownFields": "strip"
               }
@@ -25666,6 +25708,19 @@
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
                 },
+                "conversationSnapshots": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "versions": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "versions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
                 "experiments": {
                   "additionalProperties": true,
                   "properties": {
@@ -27654,6 +27709,19 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "catalogMutations": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "versions": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "versions"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "conversationSnapshots": {
                   "additionalProperties": true,
                   "properties": {
                     "versions": {
@@ -45464,6 +45532,20 @@
                       },
                       "type": "object",
                       "x-poracode-unknownFields": "strip"
+                    },
+                    "conversationSnapshot": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "text": {
+                          "maxLength": 50000,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
                     }
                   },
                   "type": "object",
@@ -49884,6 +49966,20 @@
                   },
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
+                },
+                "conversationSnapshot": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "text": {
+                      "maxLength": 50000,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
                 }
               },
               "type": "object",
@@ -50574,6 +50670,20 @@
                       "x-poracode-unknownFields": "strip"
                     }
                   },
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "conversationSnapshot": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "text": {
+                      "maxLength": 50000,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
                 }
@@ -51431,6 +51541,20 @@
                   },
                   "type": "object",
                   "x-poracode-unknownFields": "strip"
+                },
+                "conversationSnapshot": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "text": {
+                      "maxLength": 50000,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
                 }
               },
               "type": "object",
@@ -52280,7 +52404,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:7de70d42d86eee3cffe4f7f67c10dbb5b6c41607404c46bdd8b6986432c90e55",
+  "sourceHash": "sha256:29eeb13c59db14907d271af26a312c8ac3a4adcb9e5387c0a54a3e732b57f7ee",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

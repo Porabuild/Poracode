@@ -28,6 +28,9 @@ import {
   SubAgentHeaderText,
 } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
 import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel";
+import { SideChatModelText } from "@/renderer/components/thread/SideChat/SideChatModelText";
+import { SideChatBody } from "@/renderer/components/thread/SideChat/SideChatBody";
+import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
 import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
@@ -92,6 +95,8 @@ export function ProjectAuxiliaryPanel(props: {
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
   const filesPanelContext = usePanelStore((s) => s.filesPanelContext);
   const subAgentPanelContext = usePanelStore((s) => s.subAgentPanelContext);
+  const sideChatEntry = useSideChatPanelStore((s) => s.entry);
+  const sideChatPanelOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
   const rightPanelSplit = usePanelStore((s) => s.rightPanelSplit);
   const bottomDocks = useBottomDockedTabs();
@@ -192,7 +197,8 @@ export function ProjectAuxiliaryPanel(props: {
         rightPanelTab === "notes" ||
         rightPanelTab === "ports" ||
         rightPanelTab === "docks" ||
-        rightPanelTab === "subagent"
+        rightPanelTab === "subagent" ||
+        rightPanelTab === "sideChat"
       ? rightPanelTab
       : "git";
 
@@ -200,6 +206,7 @@ export function ProjectAuxiliaryPanel(props: {
     // A bottom-docked tab already renders in the bottom row.
     if (isBottomDocked(requestedTab)) return false;
     if (requestedTab === "subagent") return subAgentInCurrentThread;
+    if (requestedTab === "sideChat") return sideChatPanelOpen && sideChatEntry !== null;
     if (requestedTab === "docks") return docksTabAvailable;
     // The browser panel is dismissed out-of-band when its last tab closes (the
     // browser sync clears browserPanelOpen but leaves rightPanelTab pointing at
@@ -216,6 +223,7 @@ export function ProjectAuxiliaryPanel(props: {
   }
 
   function fallbackActiveTab(): RightPanelTab {
+    if (sideChatPanelOpen && sideChatEntry) return "sideChat";
     if (docksInCurrentThread) return "docks";
     if (subAgentInCurrentThread) return "subagent";
     if (filesPanelOpen && !isBottomDocked("files")) return "files";
@@ -472,6 +480,24 @@ export function ProjectAuxiliaryPanel(props: {
           />
         ) : undefined
       }
+      sideChatContent={
+        sideChatEntry ? (
+          <SideChatBody key={sideChatEntry.id} entry={sideChatEntry} surface="panel" />
+        ) : undefined
+      }
+      showSideChatTab={sideChatEntry !== null}
+      conversationModel={
+        activeTab === "sideChat" && sideChatEntry ? (
+          <SideChatModelText entry={sideChatEntry} />
+        ) : activeTab === "subagent" && renderSubAgentContent ? (
+          <SubAgentHeaderText
+            threadId={subAgentPanelContext.threadId}
+            parentItemId={subAgentPanelContext.parentItemId}
+            compact
+            part="description"
+          />
+        ) : undefined
+      }
       usageHeaderActions={
         <UsagePanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
       }
@@ -493,14 +519,6 @@ export function ProjectAuxiliaryPanel(props: {
       showSubagentTab={renderSubAgentContent}
       {...(renderSubAgentContent
         ? {
-            subagentModel: (
-              <SubAgentHeaderText
-                threadId={subAgentPanelContext.threadId}
-                parentItemId={subAgentPanelContext.parentItemId}
-                compact
-                part="description"
-              />
-            ),
             subagentTitle: (
               <SubAgentHeaderText
                 threadId={subAgentPanelContext.threadId}
