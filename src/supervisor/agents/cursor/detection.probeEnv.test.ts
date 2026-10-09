@@ -139,8 +139,7 @@ describe("Cursor detection probe integration", () => {
       stdout: [
         "composer-2.5-medium - Composer 2.5 Medium",
         "grok-4.6-low - Grok 4.6 Low",
-        "gpt-5.5-high - GPT-5.5 High",
-        "gpt-5.5-extra-high - GPT-5.5 Extra High",
+        "gpt-5.5-medium - GPT-5.5 Medium",
       ].join("\n"),
       stderr: "",
     });
@@ -171,12 +170,12 @@ describe("Cursor detection probe integration", () => {
     const result = await cursorDetectionSpec.capabilitiesProbe?.(probeCtx(undefined));
 
     expect(result?.presentationCapabilities?.gui).toMatchObject({
-      efforts: ["high", "xhigh"],
+      efforts: ["medium", "high", "xhigh"],
       defaultEffort: "high",
       modelEfforts: {
         "composer-2.5": [],
         "grok-4.6": ["high", "xhigh"],
-        "gpt-5.5": ["high", "xhigh"],
+        "gpt-5.5": ["medium"],
       },
       modelDefaultEfforts: { "grok-4.6": "xhigh" },
       fastModels: ["grok-4.6"],
@@ -195,6 +194,7 @@ describe("Cursor detection probe integration", () => {
     expect(result?.modelEfforts).toMatchObject({
       "composer-2.5": ["medium"],
       "grok-4.6": ["low"],
+      "gpt-5.5": ["medium"],
     });
   });
 });
