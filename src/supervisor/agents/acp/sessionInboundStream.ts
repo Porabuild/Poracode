@@ -19,6 +19,8 @@ export interface AcpInboundStreamOptions {
   maxFrameBytes?: number;
   /** Future source gate: runs before another frame, including a buffered line. */
   beforeRead?(): Promise<void>;
+  /** Synchronous hook after queued writes, immediately before issuing the encoded bytes. */
+  onBeforeWrite?(message: AnyMessage): void;
   /** Metadata only; excludes the parsed message's separate downstream custody. */
   onRetainedBytes?(bytes: number): void;
 }
@@ -51,6 +53,7 @@ export function createAcpInboundStream(
     const write = writeTail.then(async () => {
       const writer = output.getWriter();
       try {
+        options.onBeforeWrite?.(message);
         await writer.write(bytes);
       } finally {
         writer.releaseLock();

@@ -19,6 +19,7 @@ import {
   ClientSideConnection,
   PROTOCOL_VERSION,
   RequestError,
+  type AnyMessage,
   type Client,
   type CompleteElicitationNotification,
   type ContentBlock,
@@ -497,14 +498,34 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    */
   private bufferedRuntimeEvents: RuntimeEvent[] = [];
   /**
-   * True while `loadSession` is replaying historical `session/update`
+   * True while load/resume is replaying historical `session/update`
    * notifications. Poracode persists thread history in its own DB, so
    * surfacing the replay as new canonical events would duplicate every
    * message in the chat pane. We drop ACP→canonical mapping for the duration
-   * and let normal mapping resume once the load completes.
+   * and suppress its late tail until the deadline or a new prompt byte write.
    */
   private isReplayingHistory = false;
   private replayHistoryUntil = 0;
+
+  private endHistoryReplay(message: AnyMessage): void {
+    if (
+      !("method" in message) ||
+      !("id" in message) ||
+      message.method !== "session/prompt" ||
+      !this.sessionId ||
+      typeof message.params !== "object" ||
+      message.params === null ||
+      !("sessionId" in message.params) ||
+      message.params.sessionId !== this.sessionId
+    ) {
+      return;
+    }
+    // Both the SDK and framing stream queue writes. Reset only when issuing
+    // prompt bytes: live updates may precede write completion. Untagged ACP
+    // updates after this dispatch cannot distinguish late history from live work.
+    this.isReplayingHistory = false;
+    this.replayHistoryUntil = 0;
+  }
 
   private constructor(
     child: ChildProcess,
@@ -705,7 +726,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         size: (chunk: Uint8Array) => chunk.byteLength,
       },
     }) as ReadableStream<Uint8Array>;
-    const stream = createAcpInboundStream(toAgent, fromAgent);
+    const stream = createAcpInboundStream(toAgent, fromAgent, {
+      onBeforeWrite: (message) => session.endHistoryReplay(message),
+    });
 
     const connection = new ClientSideConnection(
       (_agent): Client => ({

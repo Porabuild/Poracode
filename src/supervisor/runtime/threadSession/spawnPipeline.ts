@@ -441,17 +441,23 @@ export class SpawnPipeline {
       initialPrompt.length > 0 &&
       adapter.isReadyForInitialPrompt !== undefined;
 
-    // Optimistic user_message: for GUI threads with a fresh prompt, surface
-    // the user's typed text in the chat pane immediately — before the slow
+    // Preparation can yield to Stop before a provider handle exists. Preserve
+    // its settled state instead of admitting new input after the abort.
+    if (ctx.pendingStartAborts.delete(payload.threadId)) {
+      ctx.pendingStartInterrupts.delete(payload.threadId);
+      payload.resourceLease?.cancel();
+      return { threadId: payload.threadId };
+    }
+
+    // Optimistic user_message: an explicit GUI prompt is new input on a fresh
+    // or resumed open. An empty prompt stays load-only. Surface the user's
+    // typed text in the chat pane immediately — before the slow
     // structured-session work (process spawn + ACP handshake +
     // newSession/loadSession) runs. When the renderer has already painted an
     // optimistic message and shipped its id with the payload, we reuse that
     // id end-to-end so the chat pane never sees a duplicate.
     let optimisticUserMessageItemId =
-      !payload.providerSwitch &&
-      !usesTerminalPresentation &&
-      initialPrompt.length > 0 &&
-      !payload.sessionRef
+      !payload.providerSwitch && !usesTerminalPresentation && initialPrompt.length > 0
         ? ctx.emitOptimisticUserMessage(
             payload.threadId,
             initialPrompt,
@@ -739,12 +745,8 @@ export class SpawnPipeline {
         throw error;
       }
       unpublishedAttempt.detach();
-      if (
-        !startInterrupted &&
-        !payload.sessionRef &&
-        initialPrompt.length > 0 &&
-        structuredSession.startTurn
-      ) {
+      // openThread loads the reference; only startTurn can deliver new input.
+      if (!startInterrupted && initialPrompt.length > 0 && structuredSession.startTurn) {
         const startOptions = {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
