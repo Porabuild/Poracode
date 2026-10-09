@@ -23,6 +23,7 @@ import type { PrincipalAdmissionController } from "./principalAdmission";
 import type { LegacyBulkReadAdmission } from "./legacyBulkReadAdmission";
 import type { TerminalCursorSyncRegistry } from "./terminalCursorSync";
 import type { TerminalBaselineStreamScheduler } from "./terminalBaselineStream";
+import type { SessionConfigInventory } from "./sessionConfigInventory";
 
 export type RemoteBroadcastEvent =
   | SupervisorEvent
@@ -100,6 +101,13 @@ export interface RemoteServerContext {
   readonly eventBuffer: BufferedSupervisorEvent[];
   /** Latest replayable background-task level, updated synchronously with live events. */
   readonly backgroundTasksByThread: ReadonlyMap<string, readonly BackgroundTask[]>;
+  /**
+   * Volatile latest per-thread `sessionConfigOptions` inventory, updated
+   * synchronously with live `thread-state` events. Pull surfaces overlay it
+   * onto served db rows because the durable store cannot hold the field; see
+   * `sessionConfigInventory.ts`.
+   */
+  readonly sessionConfigInventory: SessionConfigInventory;
   /** Live in-memory event sequence; read through a getter so replays see the
    * current value rather than a snapshot taken at context-build time. */
   readonly seq: number;

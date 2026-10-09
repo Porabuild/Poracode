@@ -14,6 +14,7 @@ import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
 import type { HostResourceAdmission } from "../hostResourceAdmission";
 import type { AgentAdapter, AgentNativePlugin } from "../../agents/base";
 import type { WindowsShellPreference } from "../../shellPreference";
+import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
 
 export interface ThreadSessionManagerOptions {
   /**
@@ -28,6 +29,11 @@ export interface ThreadSessionManagerOptions {
   readDisableCliHookPlugin(): boolean;
   adapters: Map<AgentKind, AgentAdapter>;
   resolveWindowsShell(runtime?: "preferred" | "powershell"): WindowsShellPreference;
+  /** Live host diagnostics for the exact execution location; unavailable is distinct from empty. */
+  readHostDiagnostics?(
+    location: ProjectLocation,
+    signal: AbortSignal,
+  ): Promise<HostDiagnosticsSnapshot | undefined>;
   /**
    * Optional: the supervisor's one host execution-slot owner. When absent (unit
    * harnesses), the manager creates its own explicit-unlimited owner so

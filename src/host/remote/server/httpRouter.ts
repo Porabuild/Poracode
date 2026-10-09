@@ -20,6 +20,7 @@ import type { RemoteServerContext } from "./context";
 import { writeError, writeHtml, writeText } from "./httpResponses";
 import type { HttpRouteCall, HttpRouteHandler } from "./httpRouteHandlers";
 import { auditRouteEvent, ROUTE_HANDLERS } from "./httpRouteHandlers";
+import { requireCurrentRemoteProtocolVersion } from "./writerProtocolAdmission";
 
 export { mapCheckpointRevertCompletedResponse } from "./httpRouteHandlers";
 
@@ -227,6 +228,17 @@ export async function handleHttp(
         } catch {
           // Missing or ticket-only credentials are not a dispatcher failure.
         }
+      }
+      // Fence 1 (remote 13): a route declared `requiresCurrentProtocol` must
+      // carry the exact current writer generation — checked after bearer
+      // authentication and scope authorization (unauthorized requests still
+      // surface 401/403) but before the audit line, principal admission,
+      // payload parsing, or any handler effect. Auth-free routes and
+      // read-class POSTs never declare the flag, so already-paired old
+      // clients keep pairing, reads, and ticket mints while their writer
+      // requests are refused with the typed 409.
+      if (route.requiresCurrentProtocol === true) {
+        requireCurrentRemoteProtocolVersion(req);
       }
       const call: HttpRouteCall = {
         ctx,

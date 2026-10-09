@@ -208,11 +208,16 @@ export function buildShellSnapshot(
   let gitSummariesByThread: RemoteShellSnapshot["gitSummariesByThread"];
   if (options.threadListLimit === undefined) {
     threads = dbGetThreads();
+    // The unbounded list observed the FULL catalog, so it can vouch for
+    // absence: drop inventory entries whose thread row is gone (deletions
+    // have no dedicated event). A bounded page cannot, so it never prunes.
+    ctx.sessionConfigInventory.retainThreads(new Set(threads.map((thread) => thread.id)));
+    threads = threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread));
     summariesByThread = runtimeSummariesFor(threads);
     gitSummariesByThread = ctx.options.gitSummaries?.() ?? {};
   } else {
     const page = dbGetThreadsPage({ limit: options.threadListLimit });
-    threads = page.threads;
+    threads = page.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread));
     summariesByThread = runtimeSummariesFor(threads);
     gitSummariesByThread = gitSummariesFor(ctx, threads);
     threadsNextCursor = page.nextCursor;
@@ -262,7 +267,7 @@ export function buildThreadListPage(
     );
   }
   return remoteThreadListPageSchema.parse({
-    threads: page.threads,
+    threads: page.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread)),
     runtimeSummariesByThread: runtimeSummariesFor(page.threads),
     gitSummariesByThread: gitSummariesFor(ctx, page.threads),
     nextCursor: page.nextCursor,
@@ -438,6 +443,21 @@ export async function buildThreadSnapshot(
       return parsed.success ? parsed.data : undefined;
     })
     .catch(() => undefined);
+  // Seed the volatile session-control inventory from the supervisor's internal
+  // runtime snapshot (no remote RPC serves it): a server that started after a
+  // session went live has seen no `thread-state` events, so without the seed
+  // its pulls would serve rows with the key absent until the next event. The
+  // token is captured before the await; the store rejects the seed if any
+  // inventory event lands while it is in flight. A failed or old-host call
+  // keeps the event-projected (or absent) state — never a resurrected stale
+  // value.
+  const inventorySeedToken = ctx.sessionConfigInventory.beginSeed();
+  const inventorySeedPromise = Promise.resolve()
+    .then(() => ctx.options.callSupervisor("getThreadSnapshots", {}))
+    .then((snapshots) => {
+      ctx.sessionConfigInventory.applySeed(inventorySeedToken, snapshots);
+    })
+    .catch(() => undefined);
   let backgroundTasks: BackgroundTask[] = [];
   try {
     const [scrollback, size, tasks] = await Promise.all([
@@ -467,15 +487,19 @@ export async function buildThreadSnapshot(
   // with an older `working` status and the client will conservatively treat
   // the history as non-authoritative. A state newer than the cursor is
   // re-delivered by replay, so this cannot disagree silently.
+  const followUpQueue = await followUpQueuePromise;
+  await inventorySeedPromise;
+  // Read after ALL async continuations: a provider switch or deletion during
+  // the inventory seed must not return the previously read owner/row.
   const thread = dbGetThread(threadId);
   if (!thread) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
-  const followUpQueue = await followUpQueuePromise;
+  const enrichedThread = ctx.sessionConfigInventory.enrichThreadRow(thread);
   return remoteThreadSnapshotSchema.parse(
     withStableUpdatedAt(`thread:${threadId}`, {
       snapshotSeq,
-      thread,
+      thread: enrichedThread,
       // Inline image bytes are replaced by host-minted references: they are ~89%
       // of runtime payload bytes and the client fetches each one on demand.
       runtimeItems: projectRuntimeItemsImageRefs(threadId, runtimeItemsWithGoal),

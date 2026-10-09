@@ -1,3 +1,4 @@
+import { keyDownAt } from "@/renderer/testUtils/keyboard";
 import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
@@ -116,6 +117,7 @@ vi.mock("./ThreadComposer", () => ({
       label?: string;
       currentModel?: string;
       effortValue?: string;
+      efforts?: Array<{ id: string; label: string }>;
     }>;
     fixedContent?: ReactNode;
     attachmentBar?: ReactNode;
@@ -137,6 +139,12 @@ vi.mock("./ThreadComposer", () => ({
       {typeof props.afterControls === "function" ? props.afterControls() : props.afterControls}
       <output data-testid="control-kinds">
         {props.controls?.map((control) => control.kind ?? control.label ?? "").join(",") ?? ""}
+      </output>
+      <output data-testid="effort-options">
+        {props.controls
+          ?.find((control) => control.kind === "effort-context")
+          ?.efforts?.map((option) => option.id)
+          .join(",") ?? ""}
       </output>
       <output data-testid="attach-files-enabled">{props.onAttachFiles ? "yes" : "no"}</output>
       {props.onStop && props.submitDisabled ? (
@@ -440,6 +448,167 @@ describe("ThreadComposerSection", () => {
     const result = render(composerElement({ ...opts, onSubmitInput }));
     return { ...result, onSubmitInput };
   }
+
+  describe.each([
+    ["GUI", guiThread, codexGuiStatus],
+    ["CLI", terminalThread, claudeTerminalStatus],
+  ] as const)("IME keyboard handling in the %s composer", (_surface, thread, agentStatus) => {
+    it.each([
+      { isComposing: true, keyCode: 13 },
+      { isComposing: false, keyCode: 229 },
+    ])(
+      "preserves candidate-confirming Enter and its replay before exactly one ordinary submit (isComposing=$isComposing, keyCode=$keyCode)",
+      async (compositionFlags) => {
+        const { onSubmitInput } = renderComposer({ thread, agentStatus });
+        const editor = screen.getByRole("textbox");
+        typeComposerText(editor, "日本語");
+
+        for (const modifiers of [{}, { ctrlKey: true }, { metaKey: true }]) {
+          const confirmation = keyDownAt(
+            editor,
+            {
+              key: "Enter",
+              ...compositionFlags,
+              ...modifiers,
+            },
+            100,
+          );
+          fireEvent(editor, confirmation);
+          fireEvent.compositionEnd(editor, { data: "日本語" });
+          fireEvent.keyUp(editor, { key: "Enter" });
+          const replay = keyDownAt(editor, { key: "Enter", keyCode: 13, ...modifiers }, 100);
+          fireEvent(editor, replay);
+          await act(async () => Promise.resolve());
+          expect(confirmation.defaultPrevented).toBe(false);
+          expect(replay.defaultPrevented).toBe(true);
+          expect(editor).toHaveTextContent("日本語");
+          expect(onSubmitInput).not.toHaveBeenCalled();
+          expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+          expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+        }
+
+        const nextPress = keyDownAt(editor, { key: "Enter", keyCode: 13 }, 101);
+        fireEvent(editor, nextPress);
+        await waitFor(() => {
+          expect(onSubmitInput).toHaveBeenCalledExactlyOnceWith("日本語", [
+            { kind: "text", content: "日本語" },
+          ]);
+          expect(editor).toBeEmptyDOMElement();
+        });
+      },
+    );
+
+    it.each([
+      { isComposing: true, keyCode: 13 },
+      { isComposing: false, keyCode: 229 },
+    ])(
+      "keeps slash autocomplete open during IME confirmation (isComposing=$isComposing, keyCode=$keyCode)",
+      async (compositionFlags) => {
+        const { onSubmitInput } = renderComposer({
+          thread: {
+            ...thread,
+            slashCommands: [{ id: "review", label: "Review code", section: "skills" }],
+          },
+          agentStatus,
+        });
+        const editor = screen.getByRole("textbox");
+        typeComposerText(editor, "/rev");
+        expect(await screen.findByRole("option", { name: /review/i })).toBeInTheDocument();
+
+        const confirmation = keyDownAt(editor, { key: "Enter", ...compositionFlags }, 100);
+        fireEvent(editor, confirmation);
+        const replay = keyDownAt(editor, { key: "Enter", keyCode: 13 }, 100);
+        fireEvent(editor, replay);
+        await act(async () => Promise.resolve());
+        expect(confirmation.defaultPrevented).toBe(false);
+        expect(replay.defaultPrevented).toBe(true);
+        expect(editor).toHaveTextContent("/rev");
+        expect(editor.querySelector("[data-slash-command]")).toBeNull();
+        expect(screen.getByRole("option", { name: /review/i })).toBeInTheDocument();
+        expect(onSubmitInput).not.toHaveBeenCalled();
+
+        const selection = keyDownAt(editor, { key: "Enter" }, 101);
+        fireEvent(editor, selection);
+        expect(editor.querySelector("[data-slash-command]")).toHaveAttribute(
+          "data-slash-command",
+          "review",
+        );
+        expect(screen.queryByRole("option", { name: /review/i })).not.toBeInTheDocument();
+        expect(onSubmitInput).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([{}, { ctrlKey: true }, { metaKey: true }])(
+      "submits ASCII exactly once with non-composing Enter and modifiers %j",
+      async (modifiers) => {
+        const { onSubmitInput } = renderComposer({ thread, agentStatus });
+        const editor = screen.getByRole("textbox");
+        typeComposerText(editor, "hello");
+        fireEvent.keyDown(editor, { key: "Enter", keyCode: 13, ...modifiers });
+        await waitFor(() =>
+          expect(onSubmitInput).toHaveBeenCalledExactlyOnceWith("hello", [
+            { kind: "text", content: "hello" },
+          ]),
+        );
+      },
+    );
+
+    it("leaves Shift+Enter available for a newline after IME confirmation", async () => {
+      const { onSubmitInput } = renderComposer({ thread, agentStatus });
+      const editor = screen.getByRole("textbox");
+      typeComposerText(editor, "日本語");
+      fireEvent(editor, keyDownAt(editor, { key: "Enter", keyCode: 229 }, 100));
+      const newline = keyDownAt(editor, { key: "Enter", keyCode: 13, shiftKey: true }, 101);
+      fireEvent(editor, newline);
+      await act(async () => Promise.resolve());
+
+      expect(newline.defaultPrevented).toBe(false);
+      expect(editor).toHaveTextContent("日本語");
+      expect(onSubmitInput).not.toHaveBeenCalled();
+    });
+  });
+
+  it("uses the live session ladder in the existing composer control", () => {
+    renderComposer({
+      thread: {
+        ...guiThread,
+        config: { ...guiThread.config, effort: "high" },
+        sessionConfigOptions: [
+          {
+            id: "model-select",
+            type: "select",
+            role: "model",
+            currentValue: guiThread.config.model,
+            values: [{ value: guiThread.config.model, name: "Example model" }],
+            groups: [],
+          },
+          {
+            id: "reasoning-select",
+            type: "select",
+            role: "effort",
+            currentValue: "high",
+            values: ["low", "medium", "high", "xhigh", "max"].map((value) => ({ value })),
+            groups: [],
+          },
+        ],
+      },
+      agentStatus: {
+        ...codexGuiStatus,
+        capabilities: {
+          ...codexGuiStatus.capabilities,
+          modelEfforts: { [guiThread.config.model]: ["medium", "high", "max"] },
+          presentationCapabilities: {
+            gui: {
+              models: codexGuiStatus.capabilities.models,
+              efforts: ["medium", "high", "max"],
+              modelEfforts: { [guiThread.config.model]: ["medium", "high", "max"] },
+            },
+          },
+        },
+      },
+    });
+    expect(screen.getByTestId("effort-options")).toHaveTextContent("low,medium,high,xhigh,max");
+  });
 
   it("omits client-inherent tools from chat controls without altering session bindings", () => {
     const thread = { ...guiThread, config: { ...guiThread.config, chromeMcp: true } };
@@ -1862,16 +2031,46 @@ describe("ThreadComposerSection", () => {
     expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
   });
 
-  it("does not apply the follow-up shortcut while composing text", async () => {
-    renderComposer({ thread: { ...guiThread, status: "working" } });
-    const editor = screen.getByRole("textbox");
-    typeComposerText(editor, "unfinished input");
-    fireEvent.keyDown(editor, { key: "Enter", ctrlKey: true, isComposing: true });
-    await act(async () => Promise.resolve());
-    expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
-    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
-    expect(editor).toHaveTextContent("unfinished input");
-  });
+  it.each([
+    { isComposing: true, keyCode: 13 },
+    { isComposing: false, keyCode: 229 },
+  ])(
+    "does not apply GUI follow-up shortcuts to IME confirmation (isComposing=$isComposing, keyCode=$keyCode)",
+    async (compositionFlags) => {
+      renderComposer({ thread: { ...guiThread, status: "working" } });
+      const editor = screen.getByRole("textbox");
+      typeComposerText(editor, "unfinished input");
+      for (const modifier of ["ctrlKey", "metaKey"] as const) {
+        const confirmation = keyDownAt(
+          editor,
+          {
+            key: "Enter",
+            [modifier]: true,
+            ...compositionFlags,
+          },
+          100,
+        );
+        fireEvent(editor, confirmation);
+        const replay = keyDownAt(editor, { key: "Enter", [modifier]: true, keyCode: 13 }, 100);
+        fireEvent(editor, replay);
+        await act(async () => Promise.resolve());
+        expect(confirmation.defaultPrevented).toBe(false);
+        expect(replay.defaultPrevented).toBe(true);
+        expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+        expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+        expect(editor).toHaveTextContent("unfinished input");
+      }
+
+      const nextPress = keyDownAt(editor, { key: "Enter", ctrlKey: true, keyCode: 13 }, 101);
+      fireEvent(editor, nextPress);
+      await waitFor(() =>
+        expect(bridgeMock.queueThreadFollowUp).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({ prompt: "unfinished input" }),
+        ),
+      );
+      expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not submit or steer while a stored GUI session is reconnecting", async () => {
     useAppStore.setState({ connectingThreadIds: { [guiThread.id]: "connection-1" } });

@@ -54,9 +54,20 @@ it.each([false, true])(
       expect(first.accessToken !== second.accessToken).toBe(separateCredentials);
       const snapshot = await first.fetchJson("snapshot", "/api/snapshot");
       expectOk(snapshot.status, "snapshot", snapshot.body);
+      // Select the harness-owned git fixture by name, never by list position:
+      // only that fixture may be written to.
       const project = (
-        snapshot.body as { projects: Array<{ location: { kind: string; path: string } }> }
-      ).projects[0]!;
+        snapshot.body as {
+          projects: Array<{ name: string; location: { kind: string; path: string } }>;
+        }
+      ).projects.find((entry) => entry.name === "native-e2e-fixture");
+      if (!project) {
+        throw new Error(
+          `seeded project native-e2e-fixture must exist (blockers: ${host.blockers
+            .map((blocker) => blocker.code)
+            .join(",")})`,
+        );
+      }
       expect(project.location.kind).toBe("posix");
       utimesSync(
         join(project.location.path, "README.md"),

@@ -37,6 +37,11 @@ struct RichChatComposerAttachmentButton: View {
   var openSkills: (() -> Void)?
   var openControls: (() -> Void)?
   var compactToolbar = false
+  var sessionActionEntries: [RichChatSessionActionEntryTarget] = []
+  var sessionActionsDisabled = false
+  var sessionActionsFailure: String?
+  var openSessionAction: (RichChatSessionActionPanelKind) -> Void = { _ in }
+  var retrySessionActions: () -> Void = {}
 
   @State private var presentation: RichChatComposerAttachmentPresentation?
   @State private var photoKind: RichChatComposerPhotoKind?
@@ -118,6 +123,20 @@ struct RichChatComposerAttachmentButton: View {
     if let openSkills {
       Button(SettingsIntegrationsStrings.skills, systemImage: "wand.and.stars") {
         openSkills()
+      }
+    }
+    if !sessionActionEntries.isEmpty || sessionActionsFailure != nil {
+      Menu(RichChatSessionActionStrings.entryLabel) {
+        ForEach(sessionActionEntries, id: \.panel) { entry in
+          Button(RichChatSessionActionStrings.label(for: entry.panel)) {
+            openSessionAction(entry.panel)
+          }
+          .disabled(sessionActionsDisabled)
+        }
+        if let failure = sessionActionsFailure {
+          Text(failure.isEmpty ? RichChatSessionActionStrings.entryFailed : failure)
+          Button(RichChatStrings.retry, action: retrySessionActions)
+        }
       }
     }
     Button(HomeStrings.photos, systemImage: "photo") { presentPhotos(.photo) }

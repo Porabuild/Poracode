@@ -90,6 +90,7 @@ import {
   wslAcpRegistryAgentInstallDir,
 } from "./acpRegistry";
 import { isEncryptedSecret } from "../secretStorage";
+import { fileSettingsTarget } from "../runtime/supervisorSettingsWriter.testFixtures";
 
 describe("ACP registry installs", () => {
   beforeEach(() => {
@@ -132,7 +133,7 @@ describe("ACP registry installs", () => {
       const installed = await removeAcpRegistryAgent({
         agentId: "codex-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
       });
 
       expect(installed).toEqual([]);
@@ -188,7 +189,7 @@ describe("ACP registry installs", () => {
       const installed = await installAcpRegistryAgent({
         agentId: "antigravity-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
         registry: antigravityRegistry("1.0.0"),
         adapterKind: "antigravity",
@@ -229,14 +230,18 @@ describe("ACP registry installs", () => {
         installAcpRegistryAgent({
           agentId: "antigravity-acp",
           baseDir: dir,
-          settingsPath,
+          ...fileSettingsTarget(settingsPath),
           iconsDir: join(dir, "acp-icons"),
           registry: antigravityRegistry("1.0.0"),
           adapterKind: "antigravity",
           installKind: "first-class",
         });
       await install();
-      await removeAcpRegistryAgent({ agentId: "antigravity-acp", baseDir: dir, settingsPath });
+      await removeAcpRegistryAgent({
+        agentId: "antigravity-acp",
+        baseDir: dir,
+        ...fileSettingsTarget(settingsPath),
+      });
 
       // Auto-install reads this list, so a manual removal has to stick.
       expect(readAcpRegistrySettings(settingsPath).acpRegistryAutoInstallOptOuts).toEqual([
@@ -273,7 +278,7 @@ describe("ACP registry installs", () => {
       const install = installAcpRegistryAgent({
         agentId: "antigravity-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
         registry: antigravityRegistry("1.0.0"),
         adapterKind: "antigravity",
@@ -302,7 +307,7 @@ describe("ACP registry installs", () => {
     }
   });
 
-  it("persists adoption of an existing generic Antigravity ACP install", () => {
+  it("persists adoption of an existing generic Antigravity ACP install", async () => {
     const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-migration-"));
     const settingsPath = join(dir, "settings.json");
     writeFileSync(
@@ -338,7 +343,9 @@ describe("ACP registry installs", () => {
       }),
     );
 
-    expect(persistAcpRegistrySettingsMigrations(settingsPath)).toBe(true);
+    await expect(
+      persistAcpRegistrySettingsMigrations(fileSettingsTarget(settingsPath)),
+    ).resolves.toBe(true);
     const migrated = readAcpRegistrySettings(settingsPath);
     expect(migrated.acpRegistryInstalledAgents["antigravity-acp"]).toMatchObject({
       adapterKind: "antigravity",
@@ -352,10 +359,12 @@ describe("ACP registry installs", () => {
     expect(raw.agentInstances.unrelated?.environment?.API_KEY?.value).toBe(
       "lc-safe:v1:invalid:payload",
     );
-    expect(persistAcpRegistrySettingsMigrations(settingsPath)).toBe(false);
+    await expect(
+      persistAcpRegistrySettingsMigrations(fileSettingsTarget(settingsPath)),
+    ).resolves.toBe(false);
   });
 
-  it("does not persist a schema-collapsed collection when adopting", () => {
+  it("does not persist a schema-collapsed collection when adopting", async () => {
     const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-acp-collapse-"));
     const settingsPath = join(dir, "settings.json");
     writeFileSync(
@@ -388,7 +397,9 @@ describe("ACP registry installs", () => {
       "utf8",
     );
 
-    expect(persistAcpRegistrySettingsMigrations(settingsPath)).toBe(true);
+    await expect(
+      persistAcpRegistrySettingsMigrations(fileSettingsTarget(settingsPath)),
+    ).resolves.toBe(true);
     const raw = JSON.parse(readFileSync(settingsPath, "utf8")) as {
       agentInstances: Record<string, unknown>;
       providerOrder: string[];
@@ -413,7 +424,7 @@ describe("ACP registry installs", () => {
         installAcpRegistryAgent({
           agentId: "antigravity-acp",
           baseDir: dir,
-          settingsPath,
+          ...fileSettingsTarget(settingsPath),
           iconsDir: join(dir, "acp-icons"),
           registry: antigravityRegistry("1.0.0"),
           adapterKind: "antigravity",
@@ -445,7 +456,7 @@ describe("ACP registry installs", () => {
       await installAcpRegistryAgent({
         agentId: "antigravity-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
         registry: antigravityRegistry("1.0.0"),
         adapterKind: "antigravity",
@@ -459,7 +470,7 @@ describe("ACP registry installs", () => {
       const installed = await installAcpRegistryAgent({
         agentId: "antigravity-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
         registry: antigravityRegistry("1.0.0"),
         adapterKind: "antigravity",
@@ -500,7 +511,7 @@ describe("ACP registry installs", () => {
       const installed = await installAcpRegistryAgent({
         agentId: "antigravity-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
         registry,
         adapterKind: "antigravity",
@@ -548,18 +559,23 @@ describe("ACP registry installs", () => {
       await installAcpRegistryAgent({
         agentId: "antigravity-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
         registry: antigravityRegistry("1.0.0"),
         adapterKind: "antigravity",
         installKind: "first-class",
       });
-      setAcpRegistryAgentAuth({
+      await setAcpRegistryAgentAuth({
         agentId: "antigravity-acp",
         environment: { GOOGLE_TOKEN: "secret" },
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
       });
-      setAcpGenericAgentAuthAcknowledged(settingsPath, "antigravity-acp", undefined, true);
+      await setAcpGenericAgentAuthAcknowledged(
+        fileSettingsTarget(settingsPath),
+        "antigravity-acp",
+        undefined,
+        true,
+      );
       const before = readAcpRegistrySettings(settingsPath);
       writeFileSync(
         settingsPath,
@@ -569,7 +585,7 @@ describe("ACP registry installs", () => {
       const installed = await updateAcpRegistryAgent({
         agentId: "antigravity-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
         registry: antigravityRegistry("1.1.0"),
         adapterKind: "antigravity",
@@ -607,7 +623,7 @@ describe("ACP registry installs", () => {
       installAcpRegistryAgent({
         agentId: "antigravity-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
         registry,
         adapterKind: "antigravity",
@@ -629,7 +645,7 @@ describe("ACP registry installs", () => {
         installAcpRegistryAgent({
           agentId: "antigravity-acp",
           baseDir: dir,
-          settingsPath,
+          ...fileSettingsTarget(settingsPath),
           iconsDir: join(dir, "acp-icons"),
           registry: antigravityRegistry("1.0.0"),
           adapterKind: "antigravity",
@@ -667,7 +683,7 @@ describe("ACP registry installs", () => {
     await installAcpRegistryAgent({
       agentId: "factory-droid",
       baseDir: dir,
-      settingsPath,
+      ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
       registry,
     });
@@ -703,7 +719,7 @@ describe("ACP registry installs", () => {
       const installed = await installAcpRegistryAgent({
         agentId: "codex-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
       });
 
@@ -776,7 +792,7 @@ describe("ACP registry installs", () => {
         await installAcpRegistryAgent({
           agentId: "binary-agent",
           baseDir: dir,
-          settingsPath,
+          ...fileSettingsTarget(settingsPath),
           iconsDir: join(dir, "acp-icons"),
           registry,
         });
@@ -868,7 +884,7 @@ describe("ACP registry installs", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       await expect(
-        backfillAcpRegistryAgentIcons({ registry, settingsPath, iconsDir }),
+        backfillAcpRegistryAgentIcons({ registry, ...fileSettingsTarget(settingsPath), iconsDir }),
       ).resolves.toBe(true);
       const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
         acpRegistryInstalledAgents: Record<string, { icon?: string; version?: string }>;
@@ -884,7 +900,7 @@ describe("ACP registry installs", () => {
       // Calling backfill again with the same registry should be a no-op
       // because the cached entry already resolves to the stored local URL.
       await expect(
-        backfillAcpRegistryAgentIcons({ registry, settingsPath, iconsDir }),
+        backfillAcpRegistryAgentIcons({ registry, ...fileSettingsTarget(settingsPath), iconsDir }),
       ).resolves.toBe(false);
     } finally {
       vi.unstubAllGlobals();
@@ -939,7 +955,9 @@ describe("ACP registry installs", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     try {
-      await expect(cacheLocalAcpRegistryIcons({ settingsPath, iconsDir })).resolves.toBe(true);
+      await expect(
+        cacheLocalAcpRegistryIcons({ ...fileSettingsTarget(settingsPath), iconsDir }),
+      ).resolves.toBe(true);
       const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
         acpRegistryInstalledAgents: Record<string, { icon?: string }>;
         agentInstances: Record<string, { icon?: string }>;
@@ -956,14 +974,16 @@ describe("ACP registry installs", () => {
       // Second launch: every icon is already local, so it's a no-op with no
       // further network access.
       fetchMock.mockClear();
-      await expect(cacheLocalAcpRegistryIcons({ settingsPath, iconsDir })).resolves.toBe(false);
+      await expect(
+        cacheLocalAcpRegistryIcons({ ...fileSettingsTarget(settingsPath), iconsDir }),
+      ).resolves.toBe(false);
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
-  it("stores ACP registry auth env vars on the installed generic instance", () => {
+  it("stores ACP registry auth env vars on the installed generic instance", async () => {
     const dir = mkdtempSync(join(tmpdir(), "poracode-acp-registry-"));
     const settingsPath = join(dir, "settings.json");
     writeFileSync(
@@ -996,10 +1016,10 @@ describe("ACP registry installs", () => {
       "utf8",
     );
 
-    setAcpRegistryAgentAuth({
+    await setAcpRegistryAgentAuth({
       agentId: "glm-acp-agent",
       environment: { Z_AI_API_KEY: "sk-test" },
-      settingsPath,
+      ...fileSettingsTarget(settingsPath),
     });
     const raw = readFileSync(settingsPath, "utf8");
     expect(raw).not.toContain("sk-test");
@@ -1099,19 +1119,19 @@ describe("ACP registry installs", () => {
       await installAcpRegistryAgent({
         agentId: "codex-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
       });
-      setAcpRegistryAgentAuth({
+      await setAcpRegistryAgentAuth({
         agentId: "codex-acp",
         environment: { OPENAI_API_KEY: "sk-secret" },
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
       });
 
       const installed = await updateAcpRegistryAgent({
         agentId: "codex-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
       });
       expect(installed).toMatchObject([{ id: "codex-acp", version: "1.1.0" }]);
@@ -1137,7 +1157,7 @@ describe("ACP registry installs", () => {
       updateAcpRegistryAgent({
         agentId: "codex-acp",
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
       }),
     ).rejects.toThrow(/not installed/i);
@@ -1193,7 +1213,7 @@ describe("ACP registry installs", () => {
     const result = await autoUpdateAcpRegistryAgents({
       registry,
       baseDir: dir,
-      settingsPath,
+      ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
     });
     expect(result.updated).toEqual(["codex-acp"]);
@@ -1241,7 +1261,7 @@ describe("ACP registry installs", () => {
     const result = await autoUpdateAcpRegistryAgents({
       registry: antigravityRegistry("1.0.0"),
       baseDir: dir,
-      settingsPath,
+      ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
       firstClassAgents: { "antigravity-acp": "antigravity" },
     });
@@ -1322,7 +1342,7 @@ describe("ACP registry installs", () => {
       const result = await autoUpdateAcpRegistryAgents({
         registry,
         baseDir: dir,
-        settingsPath,
+        ...fileSettingsTarget(settingsPath),
         iconsDir: join(dir, "acp-icons"),
       });
 
@@ -1393,7 +1413,7 @@ describe("ACP registry installs", () => {
     const result = await autoUpdateAcpRegistryAgents({
       registry,
       baseDir: dir,
-      settingsPath,
+      ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
     });
     expect(result.updated).toEqual([]);
@@ -1454,7 +1474,7 @@ describe("ACP registry installs", () => {
     const result = await autoUpdateAcpRegistryAgents({
       registry,
       baseDir: dir,
-      settingsPath,
+      ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
     });
 
@@ -1526,7 +1546,9 @@ describe("ACP registry install layout repair", () => {
     const settingsPath = writeLegacyLayoutSettings(dir);
     batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: true, stdout: "" }]);
 
-    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(true);
+    await expect(
+      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+    ).resolves.toBe(true);
 
     expect(batchWslCommandsAsyncMock).toHaveBeenCalledExactlyOnceWith("Ubuntu", [
       "chmod -R 755 '/home/tester/.poracode/acp-registry/antigravity-acp/1.0.0/bin'",
@@ -1551,7 +1573,9 @@ describe("ACP registry install layout repair", () => {
     });
 
     // Stamped records never touch the distro again.
-    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(false);
+    await expect(
+      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+    ).resolves.toBe(false);
     expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(1);
   });
 
@@ -1560,7 +1584,9 @@ describe("ACP registry install layout repair", () => {
     const settingsPath = writeLegacyLayoutSettings(dir);
     batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
 
-    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(true);
+    await expect(
+      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+    ).resolves.toBe(true);
 
     const record =
       readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["antigravity-acp"];
@@ -1568,7 +1594,9 @@ describe("ACP registry install layout repair", () => {
     expect(record?.installations?.wsl?.Ubuntu?.layoutVersion).toBeUndefined();
 
     batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: true, stdout: "" }]);
-    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(true);
+    await expect(
+      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+    ).resolves.toBe(true);
     expect(
       readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["antigravity-acp"]
         ?.installations?.wsl?.Ubuntu?.layoutVersion,
@@ -1580,7 +1608,9 @@ describe("ACP registry install layout repair", () => {
     const settingsPath = writeLegacyLayoutSettings(dir, 2);
     const before = readFileSync(settingsPath, "utf8");
 
-    await expect(repairAcpRegistryInstallLayouts({ settingsPath })).resolves.toBe(false);
+    await expect(
+      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+    ).resolves.toBe(false);
 
     expect(batchWslCommandsAsyncMock).not.toHaveBeenCalled();
     expect(readFileSync(settingsPath, "utf8")).toBe(before);

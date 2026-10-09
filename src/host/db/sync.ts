@@ -18,6 +18,11 @@ import { rehomeProjectReferences, remapProjectViewJson } from "./projectDeduplic
 import { notifyThreadsDeleted } from "./deletedThreadNotifications";
 import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 import {
+  assertProjectMergeSelectionsReplaceable,
+  assertStoredProjectDraftReplaceable,
+  assertStoredThreadSelectionReplaceable,
+} from "./persistedSelectionData";
+import {
   prepareProjectUpsertStatement,
   prepareThreadUpsertStatement,
   runProjectUpsert,
@@ -49,6 +54,11 @@ export function dbSyncChanges(payload: {
   const deletedThreadIds = new Set(payload.deletedThreadIds);
   sqlite
     .transaction(() => {
+      // A delete/cascade must not erase the original before replacement admission.
+      for (const { project } of payload.projects)
+        assertStoredProjectDraftReplaceable(sqlite, project.id);
+      for (const { thread } of payload.threads)
+        assertStoredThreadSelectionReplaceable(sqlite, thread.id);
       const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
       const deleteProjectNotes = sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?");
       const listProjectThreadIds = sqlite.prepare("SELECT id FROM threads WHERE project_id = ?");
@@ -144,6 +154,8 @@ export function dbSyncAll(
 
   const repaired = sqlite
     .transaction(() => {
+      for (const project of projectsData) assertStoredProjectDraftReplaceable(sqlite, project.id);
+      for (const thread of threadsData) assertStoredThreadSelectionReplaceable(sqlite, thread.id);
       const existingThreads = sqlite.prepare("SELECT id, project_id FROM threads").all() as Array<{
         id: string;
         project_id: string;
@@ -166,6 +178,7 @@ export function dbSyncAll(
         [...projectsData, ...persistedDuplicates],
         identityOptions,
       );
+      assertProjectMergeSelectionsReplaceable(sqlite, duplicateIds);
       const recoveredProjectIds = new Set(
         incomingProjects
           .filter((project) => !rendererProjectIds.has(project.id))

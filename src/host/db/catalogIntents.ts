@@ -6,6 +6,10 @@ import {
 } from "@/shared/catalogOrder";
 import { getSqlite } from "./connection";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
+import {
+  assertSelectionDataReplaceable,
+  assertStoredProjectDraftReplaceable,
+} from "./persistedSelectionData";
 
 /**
  * Narrow catalog intents for managed-root clients (no catalog mirror):
@@ -319,9 +323,16 @@ export function dbSetProjectLastDraftConfig(
   lastDraftConfig: ProjectDraftConfig | null,
   onCommitted?: CatalogIntentCommittedSignal,
 ): boolean {
-  const result = getSqlite()
-    .prepare("UPDATE projects SET last_draft_config = ? WHERE id = ?")
-    .run(lastDraftConfig === null ? null : JSON.stringify(lastDraftConfig), projectId);
+  const sqlite = getSqlite();
+  const result = sqlite
+    .transaction(() => {
+      assertStoredProjectDraftReplaceable(sqlite, projectId);
+      assertSelectionDataReplaceable(lastDraftConfig);
+      return sqlite
+        .prepare("UPDATE projects SET last_draft_config = ? WHERE id = ?")
+        .run(lastDraftConfig === null ? null : JSON.stringify(lastDraftConfig), projectId);
+    })
+    .immediate();
   if (result.changes === 0) return false;
   onCommitted?.();
   notifyProjectThreadDataChanged();

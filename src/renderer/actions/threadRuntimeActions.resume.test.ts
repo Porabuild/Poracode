@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, PromptSegment, SendThreadInputPayload, Thread } from "@/shared/contracts";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 
 const mocks = vi.hoisted(() => ({
   appState: {
     threads: [] as Thread[],
     projects: [] as Project[],
     applyRuntimeEvent: vi.fn<(threadId: string, event: unknown) => void>(),
+    markThreadConfigSubmitted: vi.fn<(threadId: string, config: unknown) => void>(),
+    finishThreadConfigSubmission: vi.fn<(...args: unknown[]) => void>(),
     updateThreadRuntime: vi.fn<(threadId: string, input: { status: string }) => void>(),
     touchThread: vi.fn<(threadId: string) => void>(),
   },
@@ -112,6 +115,40 @@ describe("performThreadInputSubmit unknown-session resume", () => {
       segments,
       userMessageItemId: expect.stringMatching(/^user-/),
     });
+    expect(rollbackCalls()).toEqual([]);
+  });
+
+  it("resumes on the host's typed 422 unknown_thread_session RemoteClientError like the plain-error cases", async () => {
+    const thread = createThread();
+    const resumeLaunch = vi.fn<(args: unknown) => Promise<void>>().mockResolvedValue(undefined);
+    // The real HTTP-path shape: the host answers the supervisor's typed
+    // missing-session refusal with a definite 422 that preserves the refusal
+    // message. The exact-ref resume fires exactly once and the failed send is
+    // never repeated.
+    const transport = {
+      sendThreadInput: vi.fn<() => Promise<void>>(() =>
+        Promise.reject(
+          new RemoteClientError("Unknown thread session: thread-1", 422, "unknown_thread_session"),
+        ),
+      ),
+    };
+
+    await expect(
+      performThreadInputSubmit({
+        thread,
+        prompt: "hello",
+        segments,
+        transport,
+        resumeLaunch,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(resumeLaunch).toHaveBeenCalledExactlyOnceWith({
+      prompt: "hello",
+      segments,
+      userMessageItemId: expect.stringMatching(/^user-/),
+    });
+    expect(transport.sendThreadInput).toHaveBeenCalledTimes(1);
     expect(rollbackCalls()).toEqual([]);
   });
 

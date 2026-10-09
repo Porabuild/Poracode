@@ -864,7 +864,7 @@ describe("SkillsService", () => {
     expect(activeScan.effectiveSkillIds).toContain(builtIn.id);
   });
 
-  it.each(["1.2.1", "1.5.0", "1.6.0", "1.7.0"])(
+  it.each(["1.2.1", "1.5.0", "1.6.0", "1.7.0", "1.8.0"])(
     "uses updated user Crossagents skills over bundled %s",
     async (version) => {
       const pkg = await writePluginPackage(root, "subagent-delegation", [

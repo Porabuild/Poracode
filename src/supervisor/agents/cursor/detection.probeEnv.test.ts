@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fileURLToPath } from "node:url";
+import type { probeAcpCapabilities } from "../acp";
+import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
 
 const mocks = vi.hoisted(() => ({
   readCursorAgentCommandOutput:
@@ -10,15 +13,7 @@ const mocks = vi.hoisted(() => ({
         options?: { env?: Record<string, string> },
       ) => Promise<{ ok: boolean; stdout: string; stderr: string }>
     >(),
-  probeAcpCapabilities:
-    vi.fn<
-      (
-        command: string,
-        args: string[],
-        cwd: string,
-        options?: { env?: Record<string, string> },
-      ) => Promise<undefined>
-    >(),
+  probeAcpCapabilities: vi.fn<typeof probeAcpCapabilities>(),
   readCommandOutputAsync:
     vi.fn<
       (
@@ -55,7 +50,7 @@ vi.mock("../base", async (importOriginal) => ({
   readWslLoginShellCommandOutputAsync: mocks.readWslLoginShellCommandOutputAsync,
 }));
 
-import { cursorDetectionSpec } from "./detection";
+import { cursorDefaultCapabilities, cursorDetectionSpec } from "./detection";
 import { primeWslLaunchEnvironment, type DetectionSpec } from "../base";
 
 type ProbeCtx = Parameters<NonNullable<DetectionSpec["capabilitiesProbe"]>>[0];
@@ -68,7 +63,7 @@ function probeCtx(probeEnv: Record<string, string> | undefined): ProbeCtx {
   } as ProbeCtx;
 }
 
-describe("cursor detection probes honor ctx.probeEnv", () => {
+describe("Cursor detection probe integration", () => {
   beforeEach(() => {
     mocks.readCursorAgentCommandOutput
       .mockReset()
@@ -138,5 +133,107 @@ describe("cursor detection probes honor ctx.probeEnv", () => {
     expect(mocks.probeAcpCapabilities.mock.calls[0]?.[1].at(-1)).toContain(
       "export CURSOR_API_KEY='profile-key';",
     );
+  });
+
+  it("publishes parameterized ACP controls without replacing confirmed effort ladders from CLI", async () => {
+    mocks.readCommandOutputAsync.mockResolvedValue({
+      ok: true,
+      stdout: [
+        "composer-2.5-medium - Composer 2.5 Medium",
+        "grok-4.6-low - Grok 4.6 Low",
+        "gpt-5.5-medium - GPT-5.5 Medium",
+      ].join("\n"),
+      stderr: "",
+    });
+    mocks.probeAcpCapabilities.mockImplementation(async (_command, _args, _cwd, options) => {
+      if (options?.clientCapabilitiesMeta?.parameterizedModelPicker !== true) {
+        return { models: [{ id: "grok-4.6[reasoning=high]", label: "Grok 4.6 High" }] };
+      }
+      return {
+        models: [
+          { id: "composer-2.5", label: "Composer 2.5" },
+          { id: "grok-4.6", label: "Grok 4.6" },
+          { id: "gpt-5.5", label: "GPT-5.5" },
+        ],
+        efforts: ["high", "xhigh"],
+        defaultEffort: "high",
+        modelEfforts: { "composer-2.5": [], "grok-4.6": ["high", "xhigh"] },
+        modelDefaultEfforts: { "grok-4.6": "xhigh" },
+        fastModels: ["grok-4.6"],
+        thinkingModels: ["grok-4.6"],
+        contextSizes: [
+          { id: "272k", label: "272K" },
+          { id: "1m", label: "1M" },
+        ],
+        modelContextSizes: { "grok-4.6": ["272k", "1m"] },
+      };
+    });
+
+    const result = await cursorDetectionSpec.capabilitiesProbe?.(probeCtx(undefined));
+
+    expect(result?.presentationCapabilities?.gui).toMatchObject({
+      efforts: ["medium", "high", "xhigh"],
+      defaultEffort: "high",
+      modelEfforts: {
+        "composer-2.5": [],
+        "grok-4.6": ["high", "xhigh"],
+        "gpt-5.5": ["medium"],
+      },
+      modelDefaultEfforts: { "grok-4.6": "xhigh" },
+      fastModels: ["grok-4.6"],
+      thinkingModels: ["grok-4.6"],
+      contextSizes: [
+        { id: "272k", label: "272K" },
+        { id: "1m", label: "1M" },
+      ],
+      modelContextSizes: { "grok-4.6": ["272k", "1m"] },
+    });
+    expect(result?.presentationCapabilities?.gui?.models?.map((model) => model.id)).toEqual([
+      "composer-2.5",
+      "gpt-5.5",
+      "grok-4.6",
+    ]);
+    expect(result?.modelEfforts).toMatchObject({
+      "composer-2.5": ["medium"],
+      "grok-4.6": ["low"],
+      "gpt-5.5": ["medium"],
+    });
+  });
+
+  it("keeps a real ACP-confirmed absent effort selector distinct from an unprobed model", async () => {
+    mocks.readCommandOutputAsync.mockResolvedValue({
+      ok: true,
+      stdout: "composer-2.5-medium - Composer 2.5 Medium\ngpt-5.5-medium - GPT-5.5 Medium",
+      stderr: "",
+    });
+    mocks.probeAcpCapabilities.mockImplementation(async (_command, _args, cwd, options) => {
+      const { probeAcpCapabilities } = await import("../acp/probe");
+      // Replace only the provider executable with the protocol fixture; keep
+      // the adapter's probe options and shared capability sweep real.
+      return probeAcpCapabilities(
+        process.execPath,
+        [fileURLToPath(new URL("../acp/fixtures/fake-acp-agent.mjs", import.meta.url))],
+        cwd,
+        options,
+      );
+    });
+    const result = await cursorDetectionSpec.capabilitiesProbe?.({
+      ...probeCtx({
+        FAKE_MODELS: "grok-4.6,composer-2.5,gpt-5.5",
+        FAKE_REASONING_EFFORT: "1",
+        FAKE_EFFORTS: "high,xhigh",
+        FAKE_NO_EFFORT_MODELS: "composer-2.5",
+        FAKE_REJECT_MODEL: "gpt-5.5",
+      }),
+    });
+    const gui = capabilitiesForPresentation({ ...cursorDefaultCapabilities, ...result }, "gui");
+
+    expect(gui.modelEfforts).toMatchObject({
+      "grok-4.6": ["high", "xhigh"],
+      "composer-2.5": [],
+      "gpt-5.5": ["medium"],
+    });
+    expect(modelSelectionFor(gui, "composer-2.5").reasoning.values).toEqual([]);
+    expect(modelSelectionFor(gui, "gpt-5.5").reasoning.values).toEqual(["medium"]);
   });
 });

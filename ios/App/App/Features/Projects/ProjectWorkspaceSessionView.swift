@@ -466,15 +466,20 @@ struct ProjectWorkspaceSessionView: View {
       : usable.first?.kind
     guard let agentKind else { throw AdvancedOperationFailure.invalidRequest }
 
+    let model = settings.commitGenModel.nilIfEmpty
+    let effort = settings.commitGenEffort.nilIfEmpty
+    let selection =
+      model != nil || effort != nil
+      ? AdvancedModelSelection(model: model ?? "", effort: effort)
+      : nil
     let request = AdvancedOperationRequest.generatePrSummary(
       .init(
         projectLocation: projectLocation,
         agentKind: agentKind,
         branch: branch,
         baseBranch: baseBranch,
-        effort: settings.commitGenEffort.nilIfEmpty,
-        language: AIContentLanguagePreference.stored().modelLanguageName(),
-        model: settings.commitGenModel.nilIfEmpty
+        selection: selection,
+        language: AIContentLanguagePreference.stored().modelLanguageName()
       )
     )
     let result = try await prGenerationComposition.gateway.call(request, lease: access.lease)

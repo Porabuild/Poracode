@@ -1,3 +1,4 @@
+import { retainPendingThreadConfigs } from "./pendingThreadConfig";
 import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
 import type { Thread } from "@/shared/contracts";
@@ -14,6 +15,7 @@ import type { AppStoreState } from "./slices/shared";
 import { createSubAgentOverlaySlice } from "./slices/subAgentOverlaySlice";
 import { createThreadSlice } from "./slices/threadSlice";
 import { createViewSlice } from "./slices/viewSlice";
+import { stripVolatileSessionConfigOptions } from "./volatileSessionConfigOptions";
 import { dedupeProjects } from "@/shared/projectIdentity";
 import {
   currentProjectIdentityOptions,
@@ -89,8 +91,18 @@ export const useAppStore = create<AppStoreState>()(
               : currentState.projects;
           const deduped = dedupeProjects(selectedProjects, currentProjectIdentityOptions());
           const projects = deduped.projects;
+          // Persisted rows may still carry the volatile `sessionConfigOptions`
+          // inventory from before the write-side strip (same-version rows, an
+          // older host): it belongs to a session incarnation the durable row
+          // cannot vouch for, so normalize it away in memory. Only persisted
+          // rows are stripped — rows already live in the store keep their
+          // event-delivered inventory untouched.
+          const persistedThreads =
+            state.threads !== undefined
+              ? state.threads.map(stripVolatileSessionConfigOptions)
+              : undefined;
           const selectedThreads = persistedCatalog
-            ? (state.threads ?? currentState.threads).map((thread) => ({
+            ? (persistedThreads ?? currentState.threads).map((thread) => ({
                 ...normalizeStoredThreadStatus(thread),
                 ...(thread.archived ? { archivedAt: thread.archivedAt ?? thread.updatedAt } : {}),
                 done: thread.done ?? false,
@@ -130,6 +142,10 @@ export const useAppStore = create<AppStoreState>()(
             draftContentDiscardRequests: remapProjectRecord(
               state.draftContentDiscardRequests ?? currentState.draftContentDiscardRequests,
               deduped.duplicateIds,
+            ),
+            pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+              currentState.pendingThreadConfigByThreadId,
+              threads,
             ),
             lastRuntimeConfigByThreadId: Object.fromEntries(
               threads.map((thread) => [thread.id, thread.config]),

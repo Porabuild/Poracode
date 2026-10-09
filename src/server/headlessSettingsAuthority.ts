@@ -2,7 +2,7 @@ import type { McpServer } from "@/shared/contracts";
 import type { RemoteSettings, RemoteSettingsPatch } from "@/shared/remote";
 import { pickRemoteSettings } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
-import type { SettingsMutationResult } from "@/shared/settingsTransactions";
+import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/settingsTransactions";
 import { reportSettingsError } from "@/backend/BackendSettingsNotifications";
 import { SettingsAuthority } from "@/backend/settings/SettingsAuthority";
 import { SettingsCompatWriter } from "@/backend/settings/settingsCompatWrites";
@@ -29,6 +29,8 @@ export interface HeadlessSettingsComposition {
     field: F,
     compute: (current: SharedSettings) => SharedSettings[F] | undefined,
   ): Promise<SettingsMutationResult>;
+  /** Trusted owner-runtime subject edits (supervisor registry records). */
+  commitOwnerEdits(edits: readonly SettingsOwnerEdit[]): Promise<void>;
   /** Remote `POST /api/settings` patch as scoped CAS edits. */
   updateRemoteSettings(patch: RemoteSettingsPatch): Promise<RemoteSettings>;
   /** The MCP settings gateway, persisting global servers through the authority. */
@@ -58,6 +60,7 @@ export interface HeadlessSettingsComposition {
 export async function composeHeadlessSettingsAuthority(
   runtime: OwnedHostRuntime,
   options: {
+    assertPreparedDatabaseForWrite(): void;
     readSettings(): SharedSettings;
     readProject: Parameters<typeof createRemoteMcpSettingsGateway>[0]["readProject"];
     writeProject: Parameters<typeof createRemoteMcpSettingsGateway>[0]["writeProject"];
@@ -71,6 +74,7 @@ export async function composeHeadlessSettingsAuthority(
   runtime.lease.assertActive();
   const authority = await SettingsAuthority.open({
     lease: runtime.lease,
+    assertPreparedDatabaseForWrite: options.assertPreparedDatabaseForWrite,
     assertPersistentCredentials: () => runtime.credentialCapabilities.assertCanPersistSecrets(),
     ...(options.reportError ? { reportError: options.reportError } : {}),
   });
@@ -95,6 +99,7 @@ export async function composeHeadlessSettingsAuthority(
       void writes.commitCompatSnapshot(next).catch(report);
     },
     editSettingsField: (field, compute) => writes.editSettingsField(field, compute),
+    commitOwnerEdits: (edits) => writes.commitOwnerEdits(edits),
     updateRemoteSettings: async (patch) =>
       pickRemoteSettings(await writes.commitCompatPatch(patch)),
     mcpSettings,

@@ -26,6 +26,10 @@ import {
 } from "@/shared/remote";
 import { runtimeHistoryNoticeTokensEqual } from "@/shared/runtimeHistoryNotice";
 import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
+import {
+  THREAD_SESSION_ABSENCE_REFUSAL_CODE,
+  isThreadSessionAbsenceRefusal,
+} from "@/shared/threadSessionRefusal";
 import { msg } from "@/shared/messages";
 import { dbGetProject, dbGetThread, dbGetThreads } from "@/host/db";
 import { RemoteHttpError } from "../auth";
@@ -430,17 +434,44 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
       ...(typeof body === "object" && body !== null ? body : {}),
       threadId,
     });
-    const result = await runRemoteCommand({
-      commandId: remoteCommandId(req),
-      route: url.pathname,
-      principalId: session?.sessionId ?? null,
-      requestPayload: payload,
-      operation: async (markDispatched) => {
-        markDispatched();
-        await ctx.options.callSupervisor("sendThreadInput", payload);
-        return { ok: true };
-      },
-    });
+    let result: { ok: true };
+    try {
+      result = await runRemoteCommand({
+        commandId: remoteCommandId(req),
+        route: url.pathname,
+        principalId: session?.sessionId ?? null,
+        requestPayload: payload,
+        // The supervisor's typed missing-session refusal is proven pre-effect:
+        // `sendThreadInput` throws it before the prompt is formatted or any
+        // turn starts, and this route performs no earlier effect after the
+        // dispatch mark. Admission refusals stay unproven here (conservative
+        // uncertain), so the predicate is scoped to the absence refusal only.
+        isPreEffectFailure: isThreadSessionAbsenceRefusal,
+        operation: async (markDispatched) => {
+          markDispatched();
+          await ctx.options.callSupervisor("sendThreadInput", payload);
+          return { ok: true };
+        },
+      });
+    } catch (error) {
+      // Only the PROVED typed refusal is answered as a definite failure: the
+      // supervisor had no session, so no input was delivered and an exact-ref
+      // resume is safe. A message-only "unknown thread session" error (an old
+      // supervisor), provider prose that merely mentions a session, and every
+      // post-effect or transport failure keep the raw mapping (generic 500 and
+      // the conservative uncertain receipt). No message fallback is applied on
+      // the host — the code is the only proof.
+      if (isThreadSessionAbsenceRefusal(error)) {
+        throw new RemoteHttpError(
+          THREAD_SESSION_ABSENCE_REFUSAL_CODE,
+          error instanceof Error && error.message.length > 0
+            ? error.message
+            : "The host has no session for this thread.",
+          422,
+        );
+      }
+      throw error;
+    }
     writeJson(res, 200, result);
   },
 

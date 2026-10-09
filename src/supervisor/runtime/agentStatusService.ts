@@ -114,7 +114,21 @@ const execFileAsync = promisify(execFile);
 // v40 invalidates the post-v35 parents: V2 v39 caches still hold skill
 // invocations in the pre-`invocationForSkill` form, and master v34 lacks V2's
 // SDK installation and capability metadata, so every cache below v40 re-probes.
-export const STATUS_CACHE_VERSION = 40;
+// v41 refreshes profile-scoped auth, native resource discovery, negotiated modes
+// and model identities that older snapshots collapsed into family defaults.
+// v42 preserves adapter identities in profile detection; inventories that
+// omitted profiles after rejecting a base identity must be re-probed.
+// v43 refreshes negotiated reasoning controls previously suppressed in GUI inventories.
+// v44 refreshes raw flat composite model inventories and their legacy composite
+// Fast declarations: family-relation projection derives from fresh capability
+// data, so caches carrying the stale flat composite rows must re-probe.
+// v46 refreshes presentation-scoped family relations and provider default visibility.
+// Older valid-shaped snapshots must not retain obsolete menus or control bindings.
+// v47 refreshes surface-scoped family intent declarations before deliberate edits.
+// v48 re-probes confirmed empty per-model effort ladders so models without
+// an effort selector cannot inherit unsupported global/CLI choices. This also
+// invalidates the integrated v47 inventory and the prior branch's v41 cache.
+export const STATUS_CACHE_VERSION = 48;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

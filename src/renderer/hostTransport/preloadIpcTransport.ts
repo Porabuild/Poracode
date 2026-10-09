@@ -2,6 +2,7 @@ import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import { UNKNOWN_HOST_SERVICE_CAPABILITIES } from "@/shared/hostControlProtocol";
 import type { IpcProcedureName, SupervisorEvent } from "@/shared/ipc";
+import { createClientProcedureInvocation } from "@/shared/ipc/invocation";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import { isRemoteRoutableProcedure } from "@/renderer/remoteProcedureRoutes";
 import { snapshotRendererEventInterests } from "@/renderer/state/rendererEventInterests";
@@ -58,7 +59,10 @@ export class PreloadIpcTransport implements HostTransport {
         new Error(`IPC data plane removed for ${name}; loopback HTTP is required`),
       );
     }
-    return this.host.invokeProcedure(name, args);
+    // Hop 17: this transport is the managed RENDERER producer of the
+    // invocation envelope — the declared version is minted here from this
+    // bundle's compiled constant and crosses preload unchanged.
+    return this.host.invokeProcedure(createClientProcedureInvocation(name, args));
   }
 
   /** Delivers one sequenced event from a named space (per-session cursor). */

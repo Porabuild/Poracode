@@ -393,8 +393,8 @@ export function refreshManagedRootCatalogSoon(): void {
  * (an ordinary paint pass applies the host order, and a failed intent starts
  * its own recovery), so invalidation is never a permanent abandonment.
  *
- * A failed or non-bounded recovery requests one bounded ordinary paint
- * refresh of the kind instead of relying on an unrelated future event. The
+ * A failed, non-bounded, or locally invalidated recovery requests one bounded
+ * ordinary paint refresh instead of relying on an unrelated future event. The
  * request is coalesced per kind, so a failed recovery cannot busy-loop.
  */
 export async function resyncManagedRootCatalogOrder(kind: CatalogKind): Promise<void> {
@@ -469,7 +469,13 @@ export async function resyncManagedRootCatalogOrder(kind: CatalogKind): Promise<
       kind === "threads"
         ? readRootCatalogThreads().map((thread) => thread.id)
         : readRootCatalogProjects().map((project) => project.id);
-    if (!arraysEqual(localOrderNow, localOrderAtStart)) return;
+    if (!arraysEqual(localOrderNow, localOrderAtStart)) {
+      // Membership can change the projection without advancing the order
+      // generation. Keep the stale-paint guard, but do not strand a failed
+      // optimistic order when, for example, its deleted anchor disappears.
+      requestManualPaintRefresh(MANAGED_ROOT_CATALOG_KEY, kind);
+      return;
+    }
     // The recovered order is itself a newer authoritative paint: it bumps the
     // generation so an earlier in-flight pass cannot apply over it.
     bumpManagedRootOrderGenerationFor(kind);

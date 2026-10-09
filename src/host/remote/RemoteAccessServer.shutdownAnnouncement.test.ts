@@ -2,6 +2,10 @@ import { once } from "node:events";
 import { connect } from "node:net";
 import { WebSocket } from "ws";
 import { expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { RemoteAuthStore } from "./auth";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "./RemoteAccessServer";
 
@@ -127,7 +131,7 @@ it("joins an in-flight HTTP write whose transport is destroyed at the deadline",
     await once(client, "connect");
     client.write(
       `POST /api/host-update/check HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\n` +
-        `Authorization: Bearer ${accessToken}\r\nContent-Length: 0\r\n\r\n`,
+        `Authorization: Bearer ${accessToken}\r\n${REMOTE_PROTOCOL_VERSION_HEADER}: ${REMOTE_PROTOCOL_VERSION_HEADER_VALUE}\r\nContent-Length: 0\r\n\r\n`,
     );
     await admitted.promise;
     const closed = once(client, "close");

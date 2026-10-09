@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { CreateElicitationRequest } from "@agentclientprotocol/sdk";
 import type { CreateStructuredSessionInput } from "../base";
 import { AcpStructuredSession } from "./session";
 import { createAcpStructuredSession } from "./sessionFactory";
@@ -27,6 +28,59 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
       .spyOn(AcpStructuredSession, "create")
       .mockReturnValue({ sessionId: "session-1" } as unknown as AcpStructuredSession);
   }
+
+  it("forwards user-approved roots only on the structured GUI path", () => {
+    const create = spyOnCreate();
+    const additionalDirectories = [{ kind: "windows" as const, path: "C:\\extra" }];
+    createAcpStructuredSession(
+      { command: "test-agent", args: [] },
+      makeInput({ presentationMode: "gui", additionalDirectories }),
+    );
+    expect(create.mock.calls[0]?.[3]).toMatchObject({ additionalDirectories });
+  });
+
+  it.each([undefined, "terminal"] as const)(
+    "rejects extra roots for a TUI handoff (%s), including resume",
+    (presentationMode) => {
+      const create = spyOnCreate();
+      for (const sessionRef of [
+        undefined,
+        { providerSessionId: "saved", discoveredAt: "2026-10-08T00:00:00Z" },
+      ]) {
+        expect(() =>
+          createAcpStructuredSession(
+            { command: "test-agent", args: [] },
+            makeInput({
+              ...(presentationMode ? { presentationMode } : {}),
+              ...(sessionRef ? { sessionRef } : {}),
+              additionalDirectories: [{ kind: "windows", path: "C:\\extra" }],
+            }),
+          ),
+        ).toThrow("structured GUI");
+      }
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
+
+  it("forwards disabled host services for remote execution", () => {
+    const createSpy = spyOnCreate();
+    const projectElicitationPresentation = (request: CreateElicitationRequest) => request;
+    createAcpStructuredSession(
+      { command: "test-agent", args: ["acp"] },
+      makeInput({
+        acpFsTextCapability: false,
+        acpTerminalCapability: false,
+        acpLocalResourceResolution: false,
+        acpElicitationPresentation: projectElicitationPresentation,
+      }),
+    );
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
+      fsTextCapability: false,
+      terminalCapability: false,
+      localResourceResolution: false,
+      projectElicitationPresentation,
+    });
+  });
 
   it("forwards the declared mode resolver", () => {
     const createSpy = spyOnCreate();
@@ -169,5 +223,83 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
     });
 
     expect(createSpy.mock.calls[0]?.[3]).toMatchObject({ textStreamExtension });
+  });
+
+  it("forwards the opened-session hook and unlisted-select guard", () => {
+    const createSpy = spyOnCreate();
+    const configureOpenedSession = () => {};
+    const allowUnlistedSelectValue = () => false;
+
+    createAcpStructuredSession({ command: "vendor-acp", args: [] }, makeInput(), {
+      configureOpenedSession,
+      allowUnlistedSelectValue,
+    });
+
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
+      configureOpenedSession,
+      allowUnlistedSelectValue,
+    });
+  });
+});
+
+describe("createAcpStructuredSession extension lifecycle pass-through", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function spyOnCreate() {
+    return vi
+      .spyOn(AcpStructuredSession, "create")
+      .mockReturnValue({ sessionId: "session-1" } as unknown as AcpStructuredSession);
+  }
+
+  it("forwards the extension request handler, timeout, actions, and boolean capability", () => {
+    const createSpy = spyOnCreate();
+    const handler = () => ({ handled: false as const });
+    const actions = [{ id: "fixture.action", invoke: async () => ({}) }];
+
+    createAcpStructuredSession(
+      { command: "agent", args: ["acp"] },
+      makeInput({
+        acpExtensionRequestHandler: handler,
+        acpExtensionRequestTimeoutMs: 4_000,
+        acpSessionActions: actions,
+        acpBooleanConfigOptions: true,
+      }),
+    );
+
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
+      extensionRequestHandler: handler,
+      extensionRequestTimeoutMs: 4_000,
+      sessionActions: actions,
+      booleanConfigOptions: true,
+    });
+  });
+
+  it("forwards the provider config-options normalizer", () => {
+    const createSpy = spyOnCreate();
+    const normalizer = (options: readonly unknown[]) => options;
+
+    createAcpStructuredSession(
+      { command: "agent", args: ["acp"] },
+      makeInput({ acpConfigOptionsNormalizer: normalizer }),
+    );
+
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({ configOptionsNormalizer: normalizer });
+  });
+
+  it("omits the optional extension surfaces when the adapter declares none", () => {
+    const createSpy = spyOnCreate();
+
+    createAcpStructuredSession({ command: "agent", args: ["acp"] }, makeInput());
+
+    const options = createSpy.mock.calls[0]?.[3] as Record<string, unknown>;
+    expect(options).not.toHaveProperty("extensionRequestHandler");
+    expect(options).not.toHaveProperty("extensionRequestTimeoutMs");
+    expect(options).not.toHaveProperty("sessionActions");
+    expect(options).not.toHaveProperty("booleanConfigOptions");
+    expect(options).not.toHaveProperty("configOptionsNormalizer");
+    expect(options).not.toHaveProperty("configureOpenedSession");
+    expect(options).not.toHaveProperty("allowUnlistedSelectValue");
   });
 });

@@ -309,6 +309,11 @@ msgstr "{0}件のプロンプト - {when}"
 msgid "{0} queued for update to v{1}"
 msgstr "{0}はv{1}への更新待ち"
 
+#. placeholder {0}: column.label
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+msgid "{0} reasoning"
+msgstr "{0}の推論"
+
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} run"
@@ -320,6 +325,16 @@ msgstr "{0}回の実行"
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "{0}回の実行"
+
+#. placeholder {0}: names.join(", ")
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
+msgstr "{0} はこのプロファイルの分離ログインを共有しており、別のオーナーを選ぶまでサインインできません。"
+
+#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
+msgstr "{0} はこのプロファイルの分離ログインを共有しています。先に別のオーナーへ移行してください — ホストはログインを失う変更を拒否します。"
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
@@ -589,6 +604,10 @@ msgstr "{projectLocation}(無効)"
 msgid "{projectName} Settings"
 msgstr "{projectName}設定"
 
+#: src/renderer/components/providers/usageProviders.ts
+msgid "{provider} {profile}"
+msgstr "{provider} {profile}"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
 msgstr "{provider} はワンショット生成をサポートしていません"
@@ -711,6 +730,10 @@ msgstr "<0>{passed}</0> 件の{0}チェックに合格しました"
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens}·{0}· 推定。"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "~/.config/devin/config.json"
+msgstr "~/.config/devin/config.json"
+
 #. placeholder {0}: Math.round(projection.projectedPercent)
 #: src/renderer/components/providers/usageFormat.ts
 msgid "≈{0}% by reset"
@@ -773,6 +796,10 @@ msgstr "メッセージの削除を確認できませんでした。更新して
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "Poracode Helper がこの接続を所有していますが、応答していません。リモートのヘルパーを停止してから、再接続してください。"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "A profile can carry at most 100 repositories."
+msgstr "1 つのプロファイルに含められるリポジトリは最大 100 件です。"
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1156,6 +1183,7 @@ msgstr "旧接続を引き継ぐ"
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "カスタムのベースURLを通知します（例: リバースプロキシやトンネル）。空欄の場合は自動的に設定されます。"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -1218,6 +1246,10 @@ msgstr "エージェント再開:{subagent}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "エージェント端末のフォントサイズ"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Agent type"
+msgstr "エージェントタイプ"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Agent update available"
@@ -1421,6 +1453,10 @@ msgstr "{conflict}で既に使用されています"
 msgid "Always"
 msgstr "いつも"
 
+#: src/renderer/components/providers/devin/sessionListings.tsx
+msgid "Always applied"
+msgstr "常に適用"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "常に除外される"
@@ -1432,6 +1468,10 @@ msgstr "アンバー"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "An agent is fixing this PR."
 msgstr "エージェントがこのPRを修正しています。"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "An exact platform fails visibly when this Devin organization has no cloud machines of that kind."
+#~ msgstr "この Devin 組織にその種類のクラウドマシンがない場合、正確なプラットフォームの指定は目に見えて失敗します。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -1525,6 +1565,18 @@ msgstr "外観"
 msgid "Appearance mode"
 msgstr "外観モード"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Applied to a new or pending cloud chat before its first message — a cloud chat that already has its workspace keeps it. Leaving a choice on \"Keep Devin's current choice\" leaves the decision to Devin; it does not restore an earlier setting."
+#~ msgstr "新規または保留中のクラウドチャットの最初のメッセージの前に適用されます — すでにワークスペースを持つクラウドチャットはそれを維持します。選択を「Devin に現在の選択を任せる」のままにすると、決定は Devin に委ねられ、以前の設定に戻るわけではありません。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+msgstr "このプロファイルの設定ビュー（devin.org_id）に適用されます。Poracode はログインが属する組織を一覧できません。Devin が起動時に ID を検証し、未認可の組織は目に見える形で失敗します。"
+
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+msgid "Applies to both models"
+msgstr "両方のモデルに適用"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
 msgstr "プロバイダープリセットを適用"
@@ -1576,9 +1628,19 @@ msgstr "すべてをアーカイブする"
 msgid "Archive done threads"
 msgstr "完了したスレッドをアーカイブ"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#: src/renderer/components/providers/devin/sessionArchiveControl.tsx
+#~ msgid "Archive session"
+#~ msgstr "セッションをアーカイブ"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "現在のスレッドをアーカイブ"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Archive this session?"
+#~ msgstr "このセッションをアーカイブしますか？"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -1849,6 +1911,10 @@ msgstr "自動操縦"
 msgid "Availability"
 msgstr "利用範囲"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Availability depends on your Devin organization."
+msgstr "利用可否は Devin 組織によって異なります。"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
 msgstr "利用可能"
@@ -1873,6 +1939,7 @@ msgstr "レビュー保留中"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2279,6 +2346,11 @@ msgstr "ポートを読み込めません"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "リモートサーバーに接続できません。オンラインであることを確認してから再接続してください。"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Can't use this model selection on that surface"
+msgstr "この画面ではこのモデル設定を使用できません"
+
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -2433,6 +2505,10 @@ msgstr "変更はこの環境全体に適用されます。"
 msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
 msgstr "変更は新しいチャットに適用されます。スキルのライブ再読み込みに対応するプロバイダーでは、より早く更新される場合があります。"
 
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Changes apply to this running Devin session."
+#~ msgstr "変更は実行中のこの Devin セッションに適用されます。"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Changes in PR"
 msgstr "PR の変更点"
@@ -2455,6 +2531,7 @@ msgstr "チャンネル"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 msgid "Chat"
 msgstr "チャット"
 
@@ -2637,6 +2714,10 @@ msgstr "Poracode のインターフェースの表示言語を選択します。
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the structured runtime for new Cursor GUI threads. Running threads keep their current runtime."
 #~ msgstr "新しい Cursor GUI スレッドで使用する構造化ランタイムを選択します。実行中のスレッドでは現在のランタイムが維持されます。"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Choose the workspace for new cloud chats. Existing cloud sessions keep their workspace."
+msgstr "新しいクラウドチャットのワークスペースを選択します。既存のクラウドセッションはそれぞれのワークスペースを維持します。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -3040,6 +3121,38 @@ msgstr "ワークフローパネルを閉じる"
 msgid "Closed"
 msgstr "クローズ"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Cloud"
+msgstr "クラウド"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud chat setup"
+msgstr "クラウドチャットの設定"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud persona"
+msgstr "クラウドペルソナ"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud platform"
+msgstr "クラウドプラットフォーム"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud repositories"
+msgstr "クラウドリポジトリ"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud repository list"
+msgstr "クラウドリポジトリリスト"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+#~ msgid "Cloud sessions run on Devin's cloud VM: local workspace files, paths, and MCP servers configured on this machine are not reachable there."
+#~ msgstr "クラウドセッションは Devin のクラウド VM で実行されます。このマシン上のワークスペースファイル、パス、MCP サーバーにはそこからアクセスできません。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Cloud sessions use their own workspace. Local files and local MCP processes are unavailable."
+msgstr "クラウドセッションは独自のワークスペースを使用します。ローカルのファイルやローカルの MCP プロセスは利用できません。"
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Cmd+Enter"
 msgstr "Cmd+Enter"
@@ -3126,6 +3239,10 @@ msgstr "todo ドックを折りたたむ"
 msgid "Collapse warning"
 msgstr "警告を折りたたむ"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
+#~ msgstr "owner/name エントリをカンマ区切りで指定します（例: acme/website, acme/api）。リストは入力したとおりにそのまま Devin に送られます。"
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -3151,6 +3268,10 @@ msgstr "コマンドが見つかりません。"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Command Prompt"
 msgstr "コマンド プロンプト"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Command to revise"
+msgstr "修正するコマンド"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -3361,6 +3482,18 @@ msgstr "Computer Use は有効です — エージェントはデスクトップ
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "設定ディレクトリ"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Config file (optional)"
+msgstr "設定ファイル（省略可）"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Config file path (optional)"
+msgstr "設定ファイルのパス（省略可）"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Configuration from a newer Poracode"
+msgstr "より新しい Poracode からの設定"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -3754,9 +3887,17 @@ msgstr "コミットされていない変更をここにコピーします (こ�
 msgid "Could not abort the merge: {detail}"
 msgstr "マージを中止できませんでした:{detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "インストール済みフォントにアクセスできませんでした。保存済みフォントを保持するか、「デフォルト」を選択できます。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "マージを完了できませんでした"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Could not confirm that the Auto Fix thread \"{id}\" was stopped. Poracode keeps it recorded and will retry stopping it."
+msgstr "自動修正スレッド「{id}」が停止したことを確認できませんでした。Poracode は記録を保持し、停止を再試行します。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not create the project folder."
@@ -4144,6 +4285,11 @@ msgstr "現在の連続日数"
 msgid "Current streak"
 msgstr "現在の連続日数"
 
+#. placeholder {0}: setting.currentValue
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Current value: {0}"
+#~ msgstr "現在の値: {0}"
+
 #: src/renderer/components/providers/cursor/manifest.ts
 msgid "Cursor"
 msgstr "Cursor"
@@ -4311,6 +4457,8 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "デフォルト"
 
@@ -4318,6 +4466,10 @@ msgstr "デフォルト"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Default auto-refresh (minutes)"
 msgstr "既定の自動更新 (分)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Default coding agent"
+msgstr "デフォルトのコーディングエージェント"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4648,9 +4800,74 @@ msgstr "このデスクトップに到達できる間、デバイスをペアリ
 msgid "Devin"
 msgstr "Devin"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin {0} profile saved."
+msgstr "Devin プロファイル {0} を保存しました。"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Devin applies the new title first; the conversation list updates after it confirms."
+#~ msgstr "Devin が先に新しいタイトルを適用し、確認後に会話リストが更新されます。"
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Devin CLI with terminal and structured chat support."
 msgstr "ターミナルと構造化チャットに対応した Devin CLI。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin cloud"
+msgstr "Devin クラウド"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+#~ msgid "Devin cloud chats don't take a root agent type. Saving this profile removes any agent type stored on it."
+#~ msgstr "Devin のクラウドチャットはルートエージェントタイプを受け付けません。このプロファイルを保存すると、保存されていたエージェントタイプは削除されます。"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Devin did not confirm the rename."
+#~ msgstr "Devin が名前変更を確認しませんでした。"
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Devin did not confirm the setting change."
+#~ msgstr "Devin が設定の変更を確認しませんでした。"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Devin did not return a revised command."
+msgstr "Devin が修正済みのコマンドを返しませんでした。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin organization id"
+msgstr "Devin 組織 ID"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile"
+msgstr "Devin プロファイル"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile changes were not confirmed by the host; the editor rolled back to the stored settings."
+msgstr "ホストが Devin プロファイルの変更を確認しなかったため、エディターは保存済みの設定にロールバックしました。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile config file"
+msgstr "Devin プロファイルの設定ファイル"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile name"
+msgstr "Devin プロファイル名"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Devin proposes a revised command; you review it before anything runs."
+msgstr "Devin が修正案を提案します。実行前に内容を確認できます。"
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "Devin returned a persona catalog Poracode could not interpret."
+#~ msgstr "Devin が Poracode が解釈できないペルソナカタログを返しました。"
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Devin returned a settings listing Poracode could not interpret."
+#~ msgstr "Devin が Poracode が解釈できない設定リストを返しました。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin's own login (default)"
+msgstr "Devin 自身のログイン（デフォルト）"
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -4734,6 +4951,7 @@ msgstr "サーバーが無効、またはネイティブ設定で未対応のオ
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "スキルを無効にすると、アクティブなスキルフォルダーから移動され、Poracode が管理するプロバイダーのコピーが削除されます。ファイルは保持されるため、再度有効にできます。"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
 msgstr "破棄"
@@ -4978,6 +5196,10 @@ msgstr "例：クイックな調査には Codex GPT-5.5 fast、大量のリフ�
 msgid "e.g. Work"
 msgstr "例: 仕事"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Each repository entry must be 1–512 characters without control characters."
+msgstr "各リポジトリエントリは 1〜512 文字で、制御文字を含んではいけません。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
 msgid "Earlier text"
 msgstr "前のテキスト"
@@ -5187,9 +5409,21 @@ msgstr "音声チャットを終了"
 msgid "Enhanced (Hooks)"
 msgstr "強化（フック）"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "制御文字を含まない256文字以内のフォントファミリーを入力してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "https://code.example.com のような完全なオリジン URL を入力してください（パスは含めないでください）。"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Enter a persona ID or keep the current choice."
+msgstr "ペルソナ ID を入力するか、現在の選択を維持してください。"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Enter a persona name, or keep Devin's current choice."
+#~ msgstr "ペルソナ名を入力するか、Devin に現在の選択を任せてください。"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Enter a port from 1 to 65535."
@@ -5242,6 +5476,10 @@ msgstr "MCPサーバー設定を1つ入力してください。"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "計画モードに入る"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Enter repository names separated by commas, such as acme/website, acme/api."
+msgstr "リポジトリ名をカンマで区切って入力します（例：acme/website、acme/api）。"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -5543,7 +5781,7 @@ msgstr "外部プロバイダー"
 #~ msgid "External provider skills"
 #~ msgstr "外部プロバイダーのスキル"
 
-#: src/renderer/components/thread/threadDraftViewHelpers.ts
+#: src/renderer/components/common/effortLabel.ts
 msgid "Extra High"
 msgstr "エクストラハイ"
 
@@ -5626,6 +5864,7 @@ msgstr "所有権付きブランチのメタデータを記録できませんで
 #~ msgid "Failed to update goal"
 #~ msgstr "目標を更新できませんでした"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay.ts
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
@@ -5634,6 +5873,14 @@ msgstr "所有権付きブランチのメタデータを記録できませんで
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "速い"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+#~ msgid "Fast has no variant for this pairing"
+#~ msgstr "この組み合わせでは高速モードを利用できません"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "Fast is unavailable for this pairing"
+msgstr "この組み合わせでは高速モードを利用できません"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
@@ -5928,6 +6175,14 @@ msgstr "このプロジェクトのワークツリーを格納するフォルダ
 msgid "Follow-up behavior"
 msgstr "フォローアップの動作"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "エージェントのターミナルとターミナルパネルのフォント。フォントがない場合はデフォルトを使用します。"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "エージェントのターミナルとターミナルパネルのフォントです。ファミリー名を入力するか、インストール済みのフォントを選択してください。見つからない場合は既定のフォントを使用します。"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
 msgstr "フォントとスクロール"
@@ -6003,6 +6258,10 @@ msgstr "{0, plural, one {インポート可能なスキルが # 個見つかり�
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Found a signed-in {0} session."
 msgstr "サインインした{0}セッションが見つかりました。"
+
+#: src/renderer/components/providers/modelDescription.ts
+msgid "Free"
+msgstr "無料"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Frequency"
@@ -6104,6 +6363,10 @@ msgstr "生成中…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
 msgstr "勤務中に短いチェックインを受け取ります。"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Get suggestion"
+msgstr "提案を取得"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -6208,6 +6471,7 @@ msgstr "グローバル"
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Global"
@@ -6421,6 +6685,10 @@ msgstr "{0} のスキルを非表示"
 msgid "Hide terminal"
 msgstr "ターミナルを隠す"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "High"
+msgstr "高"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "History"
 msgstr "履歴"
@@ -6445,6 +6713,19 @@ msgstr "ホームスコープ"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Homepage"
 msgstr "ホームページ"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Hook entries are shown exactly as Devin reports them; their schema is not interpreted."
+#~ msgstr "フックエントリは Devin が報告したとおりに表示され、そのスキーマは解釈されません。"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Hooks"
+#~ msgstr "フック"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Hooks in this session"
+#~ msgstr "このセッションのフック"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Host credential reference"
@@ -6631,6 +6912,10 @@ msgstr "グローバルにインポート"
 #~ msgid "Import to Project"
 #~ msgstr "プロジェクトにインポート"
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Imported (.claude)"
+#~ msgstr "インポート（.claude）"
+
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -6698,6 +6983,10 @@ msgstr "グローバル設定 (現在{0}) を継承します。"
 msgid "Initialize Repository"
 msgstr "リポジトリの初期化"
 
+#: src/renderer/components/providers/modelDescription.ts
+msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
+msgstr "各モデルの100万トークンあたりの入力/出力料金です。範囲はモデルの各バリエーションを含みます。"
+
 #: src/renderer/components/providers/devin/modelPricing.ts
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "100万トークンあたりの入力・出力料金です。価格帯にはモデルの各バリアントが含まれます。"
@@ -6717,6 +7006,10 @@ msgstr "入力レベル"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Inputs must be a JSON object."
 #~ msgstr "入力は JSON オブジェクトである必要があります。"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Insert into composer"
+msgstr "コンポーザーに挿入"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -6966,6 +7259,10 @@ msgstr "インストール済み"
 msgid "Installed {0}."
 msgstr "{0} をインストールしました。"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "このクライアントではインストール済みフォントを選択できません。"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7000,6 +7297,10 @@ msgstr "中断"
 #: src/renderer/state/slices/staleSubAgents.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "中断されました: エージェントセッションが完了前に終了しました。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Invalid configuration — kept, but disabled"
+msgstr "無効な設定 — 保持されていますが無効化されています"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
@@ -7036,6 +7337,14 @@ msgstr "ワークスペースは少なくとも1つ残してください。"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Keep Branch"
 msgstr "ブランチを維持する"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Keep current choice"
+msgstr "現在の選択を維持"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Keep Devin's current choice"
+#~ msgstr "Devin に現在の選択を任せる"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Keep me on track"
@@ -7141,6 +7450,15 @@ msgstr "スレッドを起動する"
 msgid "Launching…"
 msgstr "起動中…"
 
+#: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Lead"
+msgstr "主モデル"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+#~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
+#~ msgstr "主モデルと補助モデルの料金は、それぞれの100万トークンあたりの価格です。範囲はモデルの各バリエーションを含みます。"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
 #~ msgstr "学習済みルーティングメモリ"
@@ -7209,6 +7527,10 @@ msgstr "ソースにリンク"
 msgid "Linked"
 msgstr "リンク済み"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Linux"
+msgstr "Linux"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -7251,6 +7573,10 @@ msgstr "このスレッドではリアルタイム音声を利用できません
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "リアルタイム音声を利用するには、このプロバイダーのサブスクリプションアカウントでログインしてください。"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "インストール済みフォントを読み込む"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7279,6 +7605,10 @@ msgstr "環境を読み込み中…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "ファイルをロード中…"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "フォントを読み込み中…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
@@ -7422,6 +7752,7 @@ msgstr "ログアウト中"
 msgid "login"
 msgstr "ログイン"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -7438,6 +7769,14 @@ msgstr "ログイン{0}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Login required"
 msgstr "ログインが必要です"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Login source"
+msgstr "ログインソース"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+msgstr "この設定のログインソース、設定ファイル、組織、ランタイムです。モデルや承認などのスレッド設定はコンポーザーにあります。"
 
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
@@ -7470,9 +7809,21 @@ msgstr "開発サーバーを検索しています…"
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "敗者のワークツリーとブランチは削除されます。セッション履歴は保持されます。"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Low"
+msgstr "低"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
 msgstr "マシン"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "macOS"
+msgstr "macOS"
+
+#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+msgid "Main"
+msgstr "主モデル"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
@@ -7644,6 +7995,10 @@ msgstr "大文字と小文字を区別"
 msgid "Match your system, or force light or dark."
 msgstr "システムに合わせたり、明暗を強制したりできます。"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Max"
+msgstr "最大"
+
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Max active agent sessions"
@@ -7797,6 +8152,10 @@ msgstr "mcp.json を読み取れなかったため、このプラグインのサ
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json はこのビルドが対応していない Agent Plugins バージョンを指定しています。"
+
+#: src/renderer/components/common/effortLabel.ts
+msgid "Medium"
+msgstr "中"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
@@ -7954,6 +8313,10 @@ msgstr "この環境ではマイクテストは利用できません。"
 msgid "min"
 msgstr "分"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Minimal"
+msgstr "最小"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "MiniMax"
 msgstr "MiniMax"
@@ -8033,6 +8396,10 @@ msgstr "モデルラベル"
 #~ msgid "Model order"
 #~ msgstr "モデルオーダー"
 
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
+msgid "Model pairing"
+msgstr "モデルの組み合わせ"
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "モデルをお気に入りから削除しました"
@@ -8045,6 +8412,12 @@ msgstr "モデルが {fromModel} から {toModel} に切り替えられました
 msgid "Model usage"
 msgstr "モデルの使用状況"
 
+#. placeholder {0}: entry.model
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "model: {0}"
+#~ msgstr "モデル: {0}"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8219,6 +8592,10 @@ msgstr "変更内容を「{newBranch}」の新しいワークツリーに移動�
 msgid "Moving changes…"
 msgstr "変更を移動中…"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+msgstr "1 つのログイン配下に複数の Devin 設定 — 異なる設定ファイル、組織、承認デフォルト — または分離された第 2 ログイン。ネイティブの資格情報は決してコピーされません。"
+
 #: src/renderer/components/providers/muse/manifest.ts
 msgid "Muse Code"
 msgstr "Muse Code"
@@ -8232,6 +8609,7 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -8262,6 +8640,14 @@ msgstr "ネイティブMCP設定を更新しました。新しいCLIセッショ
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP setup"
 msgstr "ネイティブMCP設定"
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
+#~ msgstr "ネイティブペルソナファイルは読み取り専用で一覧表示され、Poracode が Devin 自身の定義を編集することはありません。"
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Native personas"
+#~ msgstr "ネイティブペルソナ"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -8353,6 +8739,10 @@ msgstr "新しいCursorプロファイルのAPIキー"
 #~ msgid "New Cursor profile name"
 #~ msgstr "新しいCursorプロファイル名"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "New Devin profile config file (optional)"
+msgstr "新しい Devin プロファイルの設定ファイル（省略可）"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
 msgstr "新しい環境"
@@ -8424,6 +8814,10 @@ msgstr "新しいスケジュール"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "New scheduled task"
 #~ msgstr "新しいスケジュールタスク"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "New session title"
+#~ msgstr "新しいセッションタイトル"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -8718,6 +9112,10 @@ msgstr "GitHub CLI アカウントが見つかりません。 <0>gh auth login</
 msgid "No history yet"
 msgstr "履歴はまだありません"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "No hooks are attached to this session."
+#~ msgstr "このセッションにはフックがアタッチされていません。"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "No host-owned environments on this server yet."
 msgstr "このサーバーにはまだホスト所有環境がありません。"
@@ -8806,10 +9204,15 @@ msgstr "まだメッセージはありません"
 msgid "No microphone found."
 msgstr "マイクが見つかりません。"
 
+#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "モデルが見つかりません"
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "No native persona definitions found."
+#~ msgstr "ネイティブペルソナの定義は見つかりませんでした。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
@@ -8843,6 +9246,10 @@ msgstr "検索条件に一致するプラグインはありません。"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
 msgstr "Poracode のペアリング QR コードが見つかりません。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
+msgstr "専用の分離ログインを持つプロファイルはまだありません。先にプロファイルを「専用の分離ログイン」に設定してそこでサインインすると、ここに表示されます。"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -8894,6 +9301,10 @@ msgstr "リモートが設定されていません。リモートを追加して
 msgid "No remote environments connected yet."
 msgstr "接続済みのリモート環境はまだありません。"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "No repositories"
+msgstr "リポジトリなし"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No repositories found."
 msgstr "リポジトリが見つかりません。"
@@ -8903,6 +9314,10 @@ msgstr "リポジトリが見つかりません。"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "結果なし"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "No rules were listed for this session."
+msgstr "このセッションのルールはリストされませんでした。"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "No runs yet."
@@ -8983,6 +9398,15 @@ msgstr "スレッドがありません"
 msgid "No threads yet."
 msgstr "まだスレッドがありません。"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#: src/renderer/components/providers/devin/sessionSettingsSearchPicker.tsx
+#~ msgid "No value"
+#~ msgstr "値なし"
+
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "No values were advertised for this option."
+#~ msgstr "このオプションに選択可能な値はありません。"
+
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
 #~ msgstr "判定が届きませんでした — CLIが/goalをブロックしたか（ワークスペースの信頼またはフック設定）、評価器を実行できませんでした"
@@ -9007,6 +9431,7 @@ msgstr "ラップなし"
 msgid "none"
 msgstr "なし"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "なし"
@@ -9582,6 +10007,14 @@ msgstr "またはカスタムの回答を作成します"
 msgid "Orange"
 msgstr "オレンジ"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Organization"
+#~ msgstr "組織"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Organization (optional)"
+msgstr "組織（省略可）"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
@@ -9631,9 +10064,17 @@ msgstr "{conflict} を上書き"
 msgid "Overriding the global setting for this project."
 msgstr "このプロジェクトのグローバル設定をオーバーライドします。"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Own isolated login"
+msgstr "専用の分離ログイン"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Owner unverified"
 msgstr "所有者が未確認"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "owner/name, owner/name"
+msgstr "owner/name, owner/name"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Package"
@@ -9777,6 +10218,10 @@ msgstr "一部チェック済み"
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
 msgstr "成功"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Passed to Devin as its user config for this profile only. It does not isolate credentials, skills, MCP servers, or plugins — those stay shared with the login."
+msgstr "このプロファイル専用のユーザー設定として Devin に渡されます。資格情報、スキル、MCP サーバー、プラグインは分離されず、ログインと共有されたままです。"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Passphrase (optional)"
@@ -9928,9 +10373,34 @@ msgstr "許可"
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "/goal による永続的な目標、予算、自動継続。"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona (optional)"
+msgstr "ペルソナ（省略可）"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona ID"
+msgstr "ペルソナ ID"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona IDs are limited to 512 characters."
+msgstr "ペルソナ ID は 512 文字までです。"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Persona name"
+#~ msgstr "ペルソナ名"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Persona names are limited to 512 characters."
+#~ msgstr "ペルソナ名は 512 文字までです。"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Personal"
 msgstr "個人"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Personas"
+#~ msgstr "ペルソナ"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -9948,6 +10418,10 @@ msgstr "要素を選択します"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionIconPicker.tsx
 msgid "Pick icon"
 msgstr "アイコンを選択します"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Pick the profile whose login to share"
+msgstr "共有するログインのプロファイルを選択"
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
@@ -10001,6 +10475,10 @@ msgstr "計画"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 msgid "Plan, ask, build…"
 msgstr "計画、質問、構築…"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Platform (optional)"
+msgstr "プラットフォーム（省略可）"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -10091,6 +10569,15 @@ msgstr "Poracode"
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode とエージェントはリモートマシン上で実行されます。SSH はリモート環境の起動とローカルトンネルの保護にのみ使用されます。"
 
+#. placeholder {0}: setting.controlType
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Poracode cannot edit this {0} control yet."
+#~ msgstr "Poracode はこの {0} コントロールをまだ編集できません。"
+
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Poracode cannot edit this control yet."
+#~ msgstr "Poracode はこのコントロールをまだ編集できません。"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode はこのプラグインのデータフォルダを作成できませんでした。"
@@ -10130,6 +10617,10 @@ msgstr "Poracode Helper から無効な応答が返されました。"
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode は保存済みデータまたはバックグラウンドサービスを待機している可能性があります。待機を続けるか、再起動するか、利用可能なアップデートをインストールできます。"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Poracode never runs the suggestion — inserting only fills the composer for you to edit and send."
+#~ msgstr "Poracode が提案を実行することはありません。挿入はコンポーザーを埋めるだけで、編集と送信はあなたが行います。"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -10267,6 +10758,10 @@ msgstr "リモート環境を準備中…"
 msgid "Presets"
 msgstr "プリセット"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Enterキーで適用します。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "ショートカットを押してください…"
@@ -10367,6 +10862,10 @@ msgstr "生産性"
 msgid "Profile"
 msgstr "プロフィール"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Profile \"{profile}\" needs account owner \"{dependency}\". Reassign its account before changing or removing the owner."
+msgstr "プロファイル「{profile}」にはアカウントオーナー「{dependency}」が必要です。オーナーを変更または削除する前に、そのアカウントを再割り当てしてください。"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile {displayName} added."
 msgstr "プロファイル {displayName} を追加しました。"
@@ -10397,6 +10896,7 @@ msgstr "プロファイル"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -10817,6 +11317,10 @@ msgstr "このワークツリーのターミナルパネルを読み、根拠を
 msgid "Read the Terminal panel attached to this worktree and report what it is printing."
 msgstr "このワークツリーのターミナルパネルを読み、表示内容を報告します。"
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "read-only"
+#~ msgstr "読み取り専用"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "各候補の変更を読み込んでいます…"
@@ -10842,6 +11346,7 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "準備完了。オンにすると、新しいペアリングコードで Tailscale HTTPS URL が通知されます。"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "推論"
 
@@ -11253,6 +11758,10 @@ msgstr "{profileName} を削除すると、保存されたAPIキーも削除さ�
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName} を削除すると、Poracodeの設定（環境変数、モデル、Effort）が失われます。設定ディレクトリとその中のClaude認証情報はディスクに残ります。"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Removing {profileName} drops its Poracode settings only. Devin's own credentials, config files, and session history stay on disk, and other profiles are unaffected."
+msgstr "{profileName} を削除しても Poracode の設定だけが消えます。Devin 自身の資格情報、設定ファイル、セッション履歴はディスクに残り、他のプロファイルには影響しません。"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -11278,6 +11787,11 @@ msgstr "実験の名前を変更"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "グループ名の変更"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Rename session"
+#~ msgstr "セッションの名前を変更"
 
 #: src/renderer/commands/registry.ts
 msgid "Rename the current chat"
@@ -11340,6 +11854,10 @@ msgstr "繰り返し"
 msgid "Report an Issue"
 msgstr "問題を報告する"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Repositories (optional)"
+msgstr "リポジトリ（省略可）"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "repository"
 msgstr "リポジトリ"
@@ -11348,6 +11866,10 @@ msgstr "リポジトリ"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "リポジトリ"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Repository entries must be unique."
+msgstr "リポジトリエントリは重複できません。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
@@ -11543,6 +12065,14 @@ msgstr "クリーンアップを再試行"
 #~ msgid "Retry now"
 #~ msgstr "今すぐ再試行"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Retry session controls"
+msgstr "セッションコントロールを再試行"
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Retry session settings"
+#~ msgstr "セッション設定を再試行"
+
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
 msgstr "管理者で再試行してください"
@@ -11613,6 +12143,14 @@ msgstr "このチェックポイントに戻る"
 msgid "Reverting…"
 msgstr "戻しています…"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Review"
+msgstr "レビュー"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
+msgstr "レビューと要約は Devin の CLI が受け付ける唯一のルートエージェントタイプです。カスタムネイティブペルソナは Devin 自身のファイルに設定されたサブエージェント定義であり、ここでは選択できません。"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Review and track work across your GitHub accounts."
 msgstr "GitHub アカウント全体の作業をレビュー・追跡します。"
@@ -11674,6 +12212,15 @@ msgstr "レビュー中"
 #~ msgid "Reviewing each candidate's changes to recommend a winner."
 #~ msgstr "各候補の変更を確認して勝者を推薦します。"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Revise command"
+msgstr "コマンドを修正"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Revision note (optional)"
+msgstr "修正メモ（省略可）"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "{name}を取り消す"
@@ -11690,6 +12237,15 @@ msgstr "右パネル"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "右クリックでリングを切り替え"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Rules"
+msgstr "ルール"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Rules in this session"
+msgstr "このセッションのルール"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -11820,6 +12376,10 @@ msgstr "ワークツリーが削除される前に実行されます (例: <0>rm
 msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 msgstr "新しいワークツリーが作成された後にターミナルで実行されます (<0>pnpm install</0> など)。"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Runs on"
+msgstr "実行環境"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Runs on this server. Credentials stay on the server."
 msgstr "このサーバー上で実行されます。認証情報はサーバーに残ります。"
@@ -11851,6 +12411,14 @@ msgstr "ランタイムデバッグ"
 msgid "Runtime options"
 msgstr "実行時オプション"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Runtime target"
+msgstr "ランタイムターゲット"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Same login as Devin"
+msgstr "Devin と同じログイン"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
@@ -11861,6 +12429,7 @@ msgid "Saturation and brightness"
 msgstr "彩度と明度"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -11905,6 +12474,10 @@ msgstr "Cursorプロファイル名を保存"
 msgid "Save Cursor SDK API key"
 msgstr "Cursor SDK API キーを保存"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Save Devin profile"
+msgstr "Devin プロファイルを保存"
+
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "ファイルの保存"
@@ -11932,6 +12505,10 @@ msgstr "ショートカットを保存"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all machines."
 msgstr "保存された認証情報はすべてのマシンで共有されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "保存済みフォント"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
@@ -12126,6 +12703,7 @@ msgstr "MCPサーバーを検索..."
 msgid "Search models"
 msgstr "モデルを検索する"
 
+#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
@@ -12387,6 +12965,28 @@ msgstr "サーバーがオフラインです。この会話は最新でない可
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "このプラグインが mcp.json で宣言しているサーバーです。Poracode はサポートされているすべてのエージェントに渡します。"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+msgid "Session actions"
+msgstr "セッション操作"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Session actions are unavailable for this thread."
+msgstr "このスレッドではセッションアクションを利用できません。"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Session renamed."
+#~ msgstr "セッションの名前を変更しました。"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Session settings"
+#~ msgstr "セッション設定"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Session title"
+#~ msgstr "セッションタイトル"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "グループの色を設定"
@@ -12415,6 +13015,10 @@ msgstr "このセッションの開始時に確定されます — プラグイ�
 #~ msgid "Set when this session started — start a new thread to change servers"
 #~ msgstr "このセッションの開始時に確定されます — サーバーを変更するには新しいスレッドを開始してください"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Setting"
+#~ msgstr "設定"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -12424,6 +13028,10 @@ msgstr "このセッションの開始時に確定されます — プラグイ�
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
 msgstr "設定"
+
+#: src/renderer/state/sharedSettingsStore.ts
+msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
+msgstr "設定はまだ利用できないため、変更を保存できませんでした。もう一度お試しください。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -12437,6 +13045,10 @@ msgstr "図形と記号"
 msgid "Share"
 msgstr "共有"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Share another profile's isolated login"
+msgstr "他のプロファイルの分離ログインを共有"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "アクティビティを共有"
@@ -12444,6 +13056,29 @@ msgstr "アクティビティを共有"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Shared"
 msgstr "共有"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shared login owner"
+msgstr "共有ログインのオーナー"
+
+#. placeholder {0}: owner.displayName ?? owner.id
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares {0}"
+msgstr "{0} と共有"
+
+#. placeholder {0}: props.ownerName
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares {0}'s isolated login. Manage sign-in on that profile's page."
+msgstr "{0} の分離ログインを共有しています。サインインはそのプロファイルのページで管理してください。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares another profile's isolated login. Manage sign-in on that profile's page."
+msgstr "別のプロファイルの分離ログインを共有しています。サインインはそのプロファイルのページで管理してください。"
+
+#. placeholder {0}: auth.ownerId
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares missing owner {0}"
+msgstr "存在しないオーナー {0} を共有"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -12529,6 +13164,10 @@ msgstr "ドックを右パネルに表示"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
 msgstr "推定コストを表示"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "フォントの候補を表示"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12681,6 +13320,12 @@ msgstr "サイドバーのすりガラス効果"
 msgid "Sidebar shortcuts"
 msgstr "サイドバーのショートカット"
 
+#: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Sidekick"
+msgstr "補助モデル"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
@@ -12700,6 +13345,11 @@ msgstr "ペアリング済みのデスクトップでサインインしてから
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Sign in required"
 msgstr "サインインが必要です"
+
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Sign in to {0}"
+msgstr "{0} にサインイン"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
@@ -12933,6 +13583,14 @@ msgstr "ソース"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Space separated; use quotes around spaces"
 msgstr "スペース区切り。スペースを含む値は引用符で囲んでください"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Specific persona"
+msgstr "特定のペルソナ"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Specific repositories"
+msgstr "特定のリポジトリ"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"
@@ -13262,6 +13920,10 @@ msgstr "平文で保存"
 msgid "Store as secret (encrypted at rest)"
 msgstr "シークレットとして保存（保存時に暗号化）"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Stored in a newer Poracode format — kept, but disabled"
+msgstr "より新しい Poracode 形式で保存されています — 保持されていますが無効化されています"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Stored on this device; the desktop keeps its own values."
 msgstr "このデバイスに保存されます。デスクトップ側の値は変更されません。"
@@ -13278,6 +13940,10 @@ msgstr "構造化ランタイム"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "サブエージェント"
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Subagent definitions Devin discovers in its own files. This list is a scan of candidate definitions, not a confirmation that Devin loaded them."
+#~ msgstr "Devin が自身のファイルで見つけたサブエージェント定義です。このリストは候補定義のスキャンであり、Devin がロードしたことの確認ではありません。"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 #~ msgid "Subagent Delegation"
@@ -13340,6 +14006,14 @@ msgstr "レビューを送信する"
 msgid "Succeeded"
 msgstr "成功"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Suggested command — review before use"
+msgstr "提案されたコマンド — 使用前に確認"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Suggested command inserted into the composer."
+msgstr "提案されたコマンドをコンポーザーに挿入しました。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "提案"
@@ -13347,6 +14021,10 @@ msgstr "提案"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "今週の進捗、未完了の作業、来週の重要なリスクをまとめてください。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Summarizer"
+msgstr "要約"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Summarizing…"
@@ -13605,6 +14283,7 @@ msgstr "ターゲットプロバイダーに次に何をすべきかを伝えま
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
@@ -13613,6 +14292,12 @@ msgstr "ターミナル"
 #: src/renderer/components/terminal/TerminalFeedStatus.tsx
 msgid "Terminal access denied."
 msgstr "ターミナルへのアクセスが拒否されました。"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "ターミナルのフォント"
 
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
@@ -13676,6 +14361,10 @@ msgstr "ターミナルタブ"
 msgid "Test microphone"
 msgstr "マイクをテスト"
 
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "That combination isn’t available"
+msgstr "この組み合わせは利用できません"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "その会話は利用できなくなりました。"
@@ -13720,6 +14409,10 @@ msgstr "エージェント"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "the app"
 msgstr "アプリ"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The app's data is not ready for these settings. Restart or update the app and try again."
+msgstr "アプリのデータがこれらの設定を使用できる状態ではありません。アプリを再起動または更新して、もう一度お試しください。"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "the base branch"
@@ -13855,6 +14548,10 @@ msgstr "不完全な履歴の通知がサーバー上で変更されました。
 msgid "the Linux user"
 msgstr "Linux ユーザー"
 
+#: src/renderer/components/providers/devin/sessionListings.tsx
+msgid "The listing could not be read."
+msgstr "リストを読み込めませんでした。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the macOS user"
 msgstr "macOS ユーザー"
@@ -13875,11 +14572,31 @@ msgstr "新しいコンテキストサイズは次のメッセージから適用
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "通常のアプリシェルをレンダリングできませんでした。障害を調査できるよう、リロード前に以下の診断情報を表示しています。"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "The organization is fixed while this session runs — change it in the Devin profile settings, then start a new session."
+#~ msgstr "このセッションの実行中は組織を変更できません — Devin プロファイル設定で変更し、新しいセッションを開始してください。"
+
 #: src/renderer/state/remoteServers/environmentManagement.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
 msgstr "この環境を所有するペアリング済みサーバーが接続されていません。"
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "The persona catalog could not be read."
+#~ msgstr "ペルソナカタログを読み込めませんでした。"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "The persona must exist in Devin's own configuration; an unknown name fails visibly when the cloud chat starts."
+#~ msgstr "ペルソナは Devin 自身の設定に存在する必要があります。不明な名前はクラウドチャットの開始時に目に見えて失敗します。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "The profile this profile shared a login with ({ownerName}) no longer exists or is not usable. Pick another owner or switch the login source — nothing is lost until you save."
+msgstr "このプロファイルがログインを共有していたプロファイル（{ownerName}）は、もう存在しないか利用できません。別のオーナーを選ぶかログインソースを変更してください — 保存するまで何も失われません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The project moved or was removed before the thread could launch. Review the project and try again."
+msgstr "スレッドを開始する前にプロジェクトが移動または削除されました。プロジェクトを確認して、もう一度お試しください。"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."
@@ -13949,6 +14666,26 @@ msgstr "サーバーから無効なMCPレスポンスが返されました。"
 msgid "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
 msgstr "このプラグインが起動するサーバーは、接続先のサービスではなく第三者によって保守されています。有効にする前にソースを確認してください。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The session action failed. Try again or reopen the session."
+msgstr "セッションアクションが失敗しました。再試行するか、セッションを開き直してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The session rejected the requested configuration. Review the selected settings and try again."
+msgstr "セッションが要求された設定を拒否しました。選択した設定を確認して再試行してください。"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "The session returned a hooks listing Poracode could not interpret."
+#~ msgstr "セッションが Poracode が解釈できないフックリストを返しました。"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "The session returned a rules listing Poracode could not interpret."
+msgstr "セッションが Poracode が解釈できないルールリストを返しました。"
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "The session settings could not be read."
+#~ msgstr "セッション設定を読み取れませんでした。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "The skill description is missing."
 msgstr "スキルの説明がありません。"
@@ -13984,6 +14721,10 @@ msgstr "スキルマーケットプレイスを読み込めませんでした。
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH トンネルは互換性のない Poracode サーバーに接続しました。"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
+msgstr "保存済みの設定は無効です。保存済みの値は保持され、下で保存するとこのフォームの内容で置き換えられます。"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -14050,6 +14791,18 @@ msgstr "これらの組み込みMCPサーバーはOpenCode 2スレッド間で�
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "これらの組み込みMCPサーバーはOpenCodeスレッド間で共有されます。保存すると実行中のGUIプロジェクトが更新されますが、サーバーを削除すると進行中のターンが中断される場合があります。ターミナルスレッドには次回起動時に変更が反映されます。"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "These choices apply to Chat. In CLI mode, configure the workspace from the terminal."
+msgstr "これらの選択はチャットに適用されます。CLI モードでは、ターミナルからワークスペースを設定してください。"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "These defaults apply to cloud chats started from Poracode. Terminal and one-shot Devin runs make their repository, persona, and platform choices in the native Devin CLI."
+#~ msgstr "これらのデフォルトは Poracode から開始したクラウドチャットに適用されます。ターミナルやワンショットの Devin 実行では、リポジトリ・ペルソナ・プラットフォームの選択はネイティブの Devin CLI で行います。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "These model settings contain unsupported selection data. Update the app before changing them."
+msgstr "これらのモデル設定には未対応の選択データが含まれています。変更する前にアプリを更新してください。"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
 msgstr "これらのサーバーはプラグインが提供します。プラグインから有効または無効にしてください。ここでは編集できません。"
@@ -14060,6 +14813,10 @@ msgstr "これらのサーバーはプラグインが提供します。プラグ
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "思考中"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support the selected model options. Choose different options and try again."
+msgstr "このエージェントは選択されたモデルの設定に対応していません。別の設定を選んで、もう一度お試しください。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
@@ -14170,6 +14927,10 @@ msgstr "このフォルダーは空です。"
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "このリンクは Poracode がネットワーク上で提供しているアプリを開きます。ホスト版のアプリは HTTPS で配信されるため、ブラウザは平文 HTTP のデスクトップに接続できません。"
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "This list is incomplete because the scan reached its limit."
+#~ msgstr "スキャンが上限に達したため、この一覧は不完全です。"
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "このマシン"
@@ -14177,6 +14938,10 @@ msgstr "このマシン"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "This machine"
 msgstr "このマシン"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This machine (local)"
+msgstr "このマシン（ローカル）"
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
@@ -14221,9 +14986,23 @@ msgstr "このプラグインの Poracode 設定は無効なため無視され�
 msgid "This plugin's skills could not be read."
 msgstr "このプラグインのスキルを読み取れませんでした。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
+msgstr "このプロファイルは現在のログインと設定では起動できません。プロファイル設定を確認して再試行してください。"
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "このプロファイルは Cursor SDK 上で動作します。Cursor CLI と ACP はマシンで 1 つのログインを共有するため、メインの Cursor タイルに残ります。"
+
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This profile's isolated login ({0})."
+msgstr "このプロファイルの分離ログイン（{0}）。"
+
+#. placeholder {0}: String(props.view.formatVersion)
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This profile's settings were written by a newer Poracode version (config format {0}). They are preserved exactly and the profile stays disabled until Poracode learns that format. Nothing is overwritten here."
+msgstr "このプロファイルの設定は、より新しい Poracode バージョンによって書き込まれました（設定形式 {0}）。設定はそのまま保持され、Poracode がその形式に対応するまでプロファイルは無効のままです。ここで何かが上書きされることはありません。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
@@ -14280,6 +15059,10 @@ msgstr "これにより、「{0}」のワークツリーが削除され、{1, pl
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "これにより、「{0}」のワークツリーが削除され、その後ブランチが削除されます。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This scheduled task changed or was removed before it could run. Review the schedule and try again."
+msgstr "このスケジュールタスクは、実行前に変更または削除されました。スケジュールを確認して、もう一度お試しください。"
+
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
 msgid "This server does not support the bounded catalog read."
 msgstr "このサーバーは制限付きカタログ読み取りに対応していません。"
@@ -14296,9 +15079,17 @@ msgstr "Poracode が確認するには、事前にこのサーバーでの認証
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "このサーバーはこのコンピューターで動作するため、WSL プロジェクトでは利用できません。"
 
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "This session did not advertise any settings."
+#~ msgstr "このセッションは設定を何も公開していません。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "このシステム全体のショートカットは使用できません。別のキーの組み合わせを選択してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
+msgstr "許可されたフォルダーでこのスレッドを開けません。ホストを更新するか、フォルダーの権限を確認してから、もう一度お試しください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
@@ -14994,6 +15785,10 @@ msgstr "未割り当て"
 msgid "Unavailable"
 msgstr "利用不可"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "利用不可 — デフォルトを使用"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -15427,6 +16222,10 @@ msgstr "既存のブラウザーセッションが必要なタスクでは Chrom
 msgid "Use config"
 msgstr "構成を使用する"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "既定のフォントを使用"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "検出されたセッションを使用しますか?"
@@ -15460,6 +16259,10 @@ msgstr "{name} スキルを使用します。"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Use the default branch"
 #~ msgstr "デフォルトブランチを使用"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Use the ID of a persona available in your Devin cloud organization."
+msgstr "Devin クラウド組織で利用できるペルソナの ID を使用してください。"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
@@ -15513,6 +16316,10 @@ msgstr "新しい対話型ターミナルパネルセッションに使用しま
 msgid "user@host"
 msgstr "user@host"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
+msgstr "このマシンでは Devin 自身のログインを使用します。Devin のベースページからサインイン/サインアウトしてください — それが唯一のグローバルログインのままです。"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "組み込みのClaudeモデル一覧を使用しています。"
@@ -15525,6 +16332,10 @@ msgstr "v{0}が利用可能"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "値"
+
+#: src/renderer/components/providers/devin/sessionActionControls.tsx
+#~ msgid "Value"
+#~ msgstr "値"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
@@ -15785,6 +16596,10 @@ msgstr "週次レビュー"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "Crossagents が明示的な選択から学習した内容です。タグを編集するかエントリを削除して、ルーティングを再形成します。"
 
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "What should change? (optional)"
+msgstr "何を変更しますか？（省略可）"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"
 #~ msgstr "エージェントに何をさせますか？"
@@ -15872,6 +16687,7 @@ msgid "Will run in {0}:"
 msgstr "{0}で実行されます:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx

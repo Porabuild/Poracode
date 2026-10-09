@@ -15,6 +15,8 @@ import {
 } from "@/renderer/state/threadFollowUpQueueStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
+import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 import { showUserNotification } from "@/renderer/notifications";
 import {
   toRuntimeChatItem,
@@ -364,11 +366,29 @@ function syncThreadMetadataFromSnapshot(
       // state of a thread the user is currently watching. openThread clears
       // it optimistically, but a slower authoritative history response can
       // otherwise paint the same stale badge back onto the open thread.
-      return isVisible && snapshot.thread.status === "finished"
-        ? { ...snapshot.thread, status: "idle" as const }
-        : snapshot.thread;
+      const replacement =
+        isVisible && snapshot.thread.status === "finished"
+          ? { ...snapshot.thread, status: "idle" as const }
+          : snapshot.thread;
+      // The snapshot is inventory-aware (the host overlays its live
+      // `sessionConfigInventory` entry onto the served row), so an explicit
+      // value is authoritative; a host with no entry serves the key absent,
+      // and that absence retains the live inventory the event stream already
+      // applied — same owner/session only.
+      return preservePendingThreadConfig(
+        carryVolatileSessionConfigOptions(thread, replacement),
+        current.pendingThreadConfigByThreadId[thread.id],
+      );
     });
-    return changed ? { threads } : {};
+    return changed
+      ? {
+          threads,
+          pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+            current.pendingThreadConfigByThreadId,
+            threads,
+          ),
+        }
+      : {};
   });
 }
 

@@ -1,0 +1,24 @@
+{
+  "$comment": "Neutral fixture: stale binding model. A later raw pick left config.model on another UID while the record still names the old member. The whole record is unproven; mutations drop it; all stored controls physically preserved.",
+  "config": {
+    "model": "raw-model-x",
+    "effort": "default",
+    "fast": false,
+    "mode": "agent",
+    "selectionBinding": {
+      "version": 1,
+      "kind": "family-member",
+      "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+      "model": "lead-a+sidekick-b",
+      "inertValues": { "effort": "default", "fast": false }
+    }
+  },
+  "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+  "expect": {
+    "bindingRecognized": true,
+    "matches": false,
+    "invalidReason": "binding-model-mismatch",
+    "coldLaunch": "conservative-catalog-required",
+    "controlsPreserved": true
+  }
+}

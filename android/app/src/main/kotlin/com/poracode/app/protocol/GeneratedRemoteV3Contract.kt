@@ -56,7 +56,7 @@ object GeneratedRemoteV3Contract {
     /** Alias of [ProtocolConstants.REMOTE_PROTOCOL_VERSION] so a protocol bump stays one line. */
     const val PROTOCOL_VERSION = ProtocolConstants.REMOTE_PROTOCOL_VERSION
     const val BINDING_FORMAT_VERSION = 2
-    const val GENERATOR_VERSION = 3
+    const val GENERATOR_VERSION = 4
     const val NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION = 5
 
     private val serverMessageTypes = RemoteContractMetadata.webSocketVariants

@@ -41,6 +41,8 @@ async function fixture(mode: "headless" | "session-only" = "headless") {
     runtime.credentialCapabilities.assertCanPersistSecrets(),
   );
   const authority = await SettingsAuthority.open({
+    // Explicit unit admission stub; this suite does not qualify SQLite preparation.
+    assertPreparedDatabaseForWrite: () => {},
     lease: runtime.lease,
     assertPersistentCredentials: assertCanPersistSecrets,
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeMigrationRollbackPolicy, LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
+import { describeMigrationRollbackPolicy } from "@/host/db/migrations";
 import {
   candidateMigrationPolicyFromEntries,
   parseCandidateMigrationPolicy,
@@ -64,8 +64,8 @@ describe("migration rollback policy (D4)", () => {
 
   it("requires a backup for the real schema-53 payload-origin custody upgrade", () => {
     const candidate = candidateMigrationPolicyFromEntries(
-      LATEST_SCHEMA_VERSION,
-      describeMigrationRollbackPolicy(),
+      54,
+      describeMigrationRollbackPolicy().filter(({ version }) => version <= 54),
     );
     const migration = {
       version: 54,

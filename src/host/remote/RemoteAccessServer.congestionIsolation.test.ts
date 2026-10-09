@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
+import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
   type RemoteAccessServerOptions,
@@ -86,7 +90,11 @@ async function postThreadRoute(
 ): Promise<RouteResult> {
   const response = await fetch(new URL(`/api/threads/thread-1${suffix}`, info.httpBaseUrl), {
     method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    },
     body: JSON.stringify(body),
   });
   if (response.ok) {

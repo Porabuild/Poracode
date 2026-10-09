@@ -5,6 +5,9 @@ import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAcpStructuredSession } from "../acp";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   buildAgentCommand,
   createKnownSessionRef,
   detectAgentInstall,
@@ -231,11 +234,32 @@ export function createGeminiAdapter(): AgentAdapter {
 
     defaultOneShotModel: "gemini-2.5-flash",
 
-    buildOneShotCommand(model, _effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // The gemini CLI maps neither effort nor Fast in this lane (no baseline
+      // effort ladder; probes can add one, but this argv path has no flag for
+      // either). The legacy default carriers stay accepted as declared-inactive
+      // so default utility selections keep flowing; a meaningful control
+      // refuses visibly instead of being silently dropped.
+      assertOneShotControlsMapped(selection, {
+        effort: { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       if (!prompt) return undefined;
       return { command: "gemini", args: ["-p", prompt, "--model", model], stdin: "" };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, _location, model, options) {
+      const selection = resolveCheckedOneShotResumeSelection(model, options);
+      // Same provider policy as the one-shot lane: only the model maps here,
+      // so meaningful effort/Fast (and any thinking/context carrier) refuse
+      // before the command is built.
+      assertOneShotControlsMapped(selection, {
+        effort: { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       return {
         command: "gemini",
         args: [

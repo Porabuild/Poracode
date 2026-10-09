@@ -307,10 +307,8 @@ final class EnvironmentTransportFactoryAuthorityTests: XCTestCase {
                     projectLocation: .posix(path: "/workspace"),
                     agentKind: "claude",
                     prompt: "hello",
-                    effort: nil,
-                    fast: nil,
-                    language: nil,
-                    model: nil
+                    selection: nil,
+                    language: nil
                 )
             )
         )

@@ -326,6 +326,9 @@ export function UnifiedRightPanel(props: {
               triggerClassName={dragCtl}
             />
           ) : null}
+        </div>
+        <div className="flex-1" />
+        <div ref={headerAccessoryRef} className="flex shrink-0 items-center gap-1.5 empty:hidden">
           {activeTab === "git" && onExpandGitToOverlay && (
             <button
               type="button"
@@ -368,12 +371,6 @@ export function UnifiedRightPanel(props: {
           )}
           {activeTab === "usage" ? usageHeaderActions : null}
           {activeTab === "ports" ? portsHeaderActions : null}
-        </div>
-        <div className="flex-1" />
-        <div
-          ref={headerAccessoryRef}
-          className={activeTab === "docks" && docksHeaderActions ? "flex shrink-0" : "hidden"}
-        >
           {activeTab === "docks" ? docksHeaderActions : null}
         </div>
         <div className="mx-0.5 h-3 w-px bg-border" />

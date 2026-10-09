@@ -1,5 +1,6 @@
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import {
+  dbAdmitScheduleExecution,
   dbDeleteThread,
   dbGetProject,
   dbGetProjectNotes,
@@ -39,8 +40,9 @@ import { isThreadTurnActive } from "@/shared/contracts";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
-import type { SettingsMutationResult } from "@/shared/settingsTransactions";
+import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/settingsTransactions";
 import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
+import { observeSupervisorSettingsEditsEvent } from "./BackendSupervisorSettingsEdits";
 import { runThreadHousekeeping } from "./ThreadHousekeepingService";
 
 export interface BackendDurableServicesOptions {
@@ -59,6 +61,10 @@ export interface BackendDurableServicesOptions {
     field: F,
     compute: (current: SharedSettings) => SharedSettings[F] | undefined,
   ): Promise<SettingsMutationResult>;
+  /** Supervisor-owned records (ACP registry installs, hook verdicts) committed
+   * through the composition's settings authority; the supervisor never writes
+   * settings.json itself. */
+  commitOwnerSettingsEdits(edits: readonly SettingsOwnerEdit[]): Promise<void>;
   sendThreadCommand(command: RemoteThreadCommand): boolean;
   emitRemoteThreadCommand?(command: RemoteThreadCommand): boolean | Promise<boolean>;
   publishProjectsChanged(): void;
@@ -118,6 +124,7 @@ export class BackendDurableServices {
   constructor(private readonly options: BackendDurableServicesOptions) {
     const { supervisor } = options;
     this.scheduleCoordinator = new ScheduleRunCoordinator({
+      admitScheduleExecution: dbAdmitScheduleExecution,
       startThread: (payload) => supervisor.call("startThread", payload),
       getAgentStatuses: (wslDistros) => supervisor.call("getAgentStatuses", { wslDistros }),
       sendThreadCommand: options.sendThreadCommand,
@@ -137,6 +144,9 @@ export class BackendDurableServices {
     });
     this.scheduleService = createDeviceScheduleService({
       runTask: (task) => this.scheduleCoordinator.runScheduleAsThread(task),
+      ...(options.reportError
+        ? { onError: (_scheduleId: string, error: unknown) => options.reportError?.(error) }
+        : {}),
       onStartupInterrupted: (scheduleId) =>
         dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
     });
@@ -182,6 +192,8 @@ export class BackendDurableServices {
         this.gitStateService.applyObservedPullRequest(watch, pr, details);
       },
       createThread: sharedAppControlsDeps.createThread,
+      retireObsoleteLaunchThread: (_watch, threadId) => this.closeThreadConfirmed(threadId),
+      ...(options.reportError ? { reportError: options.reportError } : {}),
       isThreadActive: (threadId) => {
         const status = dbGetThread(threadId)?.status;
         return status !== undefined && isThreadTurnActive(status);
@@ -300,24 +312,7 @@ export class BackendDurableServices {
       // never allowed to start a supervisor, and a no-start refusal counts as
       // confirmed retirement only when the lifecycle owner positively proves no
       // process or transition can still act.
-      closeThreadConfirmed: async (threadId) => {
-        try {
-          const result = await this.options.supervisor.call(
-            "closeThreadConfirmed",
-            { threadId },
-            { startIfNeeded: false },
-          );
-          return result.confirmed;
-        } catch (error) {
-          if (
-            error instanceof SupervisorUnavailableError &&
-            this.options.supervisor.isSupervisorProvenAbsent()
-          ) {
-            return true;
-          }
-          throw error;
-        }
-      },
+      closeThreadConfirmed: (threadId) => this.closeThreadConfirmed(threadId),
       deleteThread: dbDeleteThread,
       publishThreadsChanged: (threadIds) => this.options.publishThreadsChanged?.(threadIds),
       ...(this.options.reportError ? { reportError: this.options.reportError } : {}),
@@ -333,11 +328,32 @@ export class BackendDurableServices {
   observeSupervisorEvent(event: SupervisorEvent): boolean {
     if (this.disposed) return true;
     if (observeRoutingSettingsEvent(this.options, event)) return true;
+    if (observeSupervisorSettingsEditsEvent(this.options, event)) return true;
     this.appControls.observeSupervisorEvent(event);
     this.scheduleCoordinator.observeSupervisorEvent(event);
     this.prWatchService.observeSupervisorEvent(event);
     this.gitStateService.observeSupervisorEvent(event);
     return false;
+  }
+
+  /** Confirm retirement without starting a new supervisor or releasing row custody. */
+  private async closeThreadConfirmed(threadId: string): Promise<boolean> {
+    try {
+      const result = await this.options.supervisor.call(
+        "closeThreadConfirmed",
+        { threadId },
+        { startIfNeeded: false },
+      );
+      return result.confirmed;
+    } catch (error) {
+      if (
+        error instanceof SupervisorUnavailableError &&
+        this.options.supervisor.isSupervisorProvenAbsent()
+      ) {
+        return true;
+      }
+      throw error;
+    }
   }
 
   dispose(): Promise<void> {
@@ -368,7 +384,12 @@ export class BackendDurableServices {
         () => this.appControls.dispose(),
       ],
       "Backend durable services did not shut down cleanly.",
-    ).then(barrier.resolve, barrier.reject);
-    return this.disposal;
+    ).then(barrier.resolve, (error: unknown) => {
+      // A refused retirement retains its owned thread. A later explicit close
+      // must be able to retry that custody barrier once the supervisor settles.
+      this.disposal = null;
+      barrier.reject(error);
+    });
+    return barrier.promise;
   }
 }

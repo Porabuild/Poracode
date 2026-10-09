@@ -32,6 +32,50 @@ final class AdvancedOperationsFormTests: XCTestCase {
     )
   }
 
+  func testGenerateFieldsBecomeAnUnstampedSelectionWithExactPresence() throws {
+    let owner = AdvancedOperationOwner.projectLocation(.posix(path: "/srv/advanced"))
+    func selection(
+      _ procedure: AdvancedOperationProcedure,
+      _ edit: (inout AdvancedOperationDraft) -> Void
+    ) throws -> AdvancedModelSelection? {
+      var draft = AdvancedOperationDraft(procedure: procedure)
+      draft.setValue("codex", for: .agentKind)
+      draft.setValue("Prompt", for: .prompt)
+      draft.setValue("feature", for: .branch)
+      draft.setValue("main", for: .baseBranch)
+      edit(&draft)
+      switch try AdvancedOperationsRequestBuilder.request(draft, owner: owner) {
+      case .generateCommitMessage(let value): return value.selection
+      case .generateTitle(let value): return value.selection
+      case .generatePrSummary(let value): return value.selection
+      default: throw AdvancedFormValidationError.ownerMismatch
+      }
+    }
+
+    for procedure in [AdvancedOperationProcedure.generateCommitMessage, .generateTitle] {
+      XCTAssertNil(try selection(procedure) { _ in }, procedure.rawValue)
+      XCTAssertEqual(
+        try selection(procedure) { $0.setFlag(.off, for: .fast) },
+        AdvancedModelSelection(model: "", fast: false),
+        procedure.rawValue
+      )
+      XCTAssertEqual(
+        try selection(procedure) {
+          $0.setValue("model-1", for: .model)
+          $0.setValue("high", for: .effort)
+          $0.setFlag(.on, for: .fast)
+        },
+        AdvancedModelSelection(model: "model-1", effort: "high", fast: true),
+        procedure.rawValue
+      )
+    }
+    XCTAssertNil(try selection(.generatePrSummary) { _ in })
+    XCTAssertEqual(
+      try selection(.generatePrSummary) { $0.setValue("high", for: .effort) },
+      AdvancedModelSelection(model: "", effort: "high")
+    )
+  }
+
   func testFormNeverCollectsOwnerBoundValues() {
     for procedure in AdvancedOperationProcedure.allCases {
       let keys = AdvancedOperationsForm.fields(for: procedure).map(\.key)

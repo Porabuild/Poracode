@@ -17,12 +17,11 @@ import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy"
 import {
   IPC_EVENT_CHANNELS,
   IPC_WINDOW_CHANNELS,
-  ipcProcedureMap,
   parseIpcProcedureArgs,
   quickComposerSubmissionSchema,
-  type IpcProcedureName,
 } from "@/shared/ipc";
 import { isAttachDeviceProcedure } from "@/shared/ipc/attachProcedureAllowlist";
+import { parseClientProcedureInvocation } from "@/shared/ipc/invocation";
 import type { KeybindingsFile } from "@/shared/keybindings";
 import { readKeybindingsFile } from "../keybindingsFile";
 import { applyKeybindingsWrite } from "../keybindingsApply";
@@ -97,75 +96,67 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
 
   const keybindingsPath = join(deps.profileNamespace, "keybindings.json");
 
-  ipcMain.handle(
-    IPC_WINDOW_CHANNELS.clientProcedureInvoke,
-    (event, request: { name?: unknown; args?: unknown }) => {
-      if (!attachSenderWindow(event.sender, deps)) {
-        throw new Error("Unknown client procedure sender.");
+  ipcMain.handle(IPC_WINDOW_CHANNELS.clientProcedureInvoke, (event, request: unknown) => {
+    if (!attachSenderWindow(event.sender, deps)) {
+      throw new Error("Unknown client procedure sender.");
+    }
+    // Hop 17 checked exchange: the renderer-supplied envelope declares the hop
+    // version, asserted BEFORE any shape parse or device effect (see
+    // `shared/ipc/invocation.ts`). The device allowlist still applies after
+    // admission — version 17 admits nothing beyond the attach surface.
+    const { name, args } = parseClientProcedureInvocation(request);
+    if (!isAttachDeviceProcedure(name)) {
+      throw new Error(`Client procedure '${name}' is not available in standalone attach.`);
+    }
+    switch (name) {
+      case "getKeybindings":
+        return readKeybindingsFile(keybindingsPath);
+      case "setKeybindings": {
+        // Managed parity via the shared write-with-rollback helper: un-
+        // suspend capture, re-apply the device shortcuts, then persist; on
+        // write failure roll the shortcuts back to the file still on disk.
+        const file = parseIpcProcedureArgs("setKeybindings", args);
+        deps.setShortcutsSuspended?.(false);
+        return applyKeybindingsWrite({
+          path: keybindingsPath,
+          file,
+          ...(deps.onKeybindingsChanged ? { onKeybindingsChanged: deps.onKeybindingsChanged } : {}),
+        });
       }
-      if (
-        typeof request?.name !== "string" ||
-        !Object.hasOwn(ipcProcedureMap, request.name) ||
-        !Array.isArray(request.args)
-      ) {
-        throw new Error("Invalid client procedure request.");
+      case "setGlobalShortcutsSuspended":
+        deps.setShortcutsSuspended?.(
+          parseIpcProcedureArgs("setGlobalShortcutsSuspended", args).suspended,
+        );
+        return;
+      case "focusWindow": {
+        const mainWindow = deps.getMainWindow();
+        if (mainWindow && !mainWindow.isDestroyed()) showAndFocusWindow(mainWindow);
+        return;
       }
-      const name = request.name as IpcProcedureName;
-      if (!isAttachDeviceProcedure(name)) {
+      case "getUpdateStatus":
+        return autoUpdater.getStatus();
+      // Real updater actions on the same controller managed uses: check and
+      // download resolve (the controller owns status/error reporting), and
+      // install keeps its quit semantics via beforeInstall -> markQuitting.
+      // No update is ever installed by tests: delegation is observed through
+      // the controller, never by running an installer.
+      case "checkForUpdate":
+        return autoUpdater.checkForUpdate();
+      case "startUpdateDownload":
+        return autoUpdater.startUpdateDownload();
+      case "installUpdate":
+        return autoUpdater.installUpdate();
+      case "probeTlsCertificateFingerprint":
+        return probeTlsCertificateFingerprint(
+          parseIpcProcedureArgs("probeTlsCertificateFingerprint", args).url,
+        );
+      default:
+        // Unreachable: the allowlist check above already rejected anything
+        // else, but kept as a throw so a future list/desync can never fall
+        // through to an undefined reply.
         throw new Error(`Client procedure '${name}' is not available in standalone attach.`);
-      }
-      switch (name) {
-        case "getKeybindings":
-          return readKeybindingsFile(keybindingsPath);
-        case "setKeybindings": {
-          // Managed parity via the shared write-with-rollback helper: un-
-          // suspend capture, re-apply the device shortcuts, then persist; on
-          // write failure roll the shortcuts back to the file still on disk.
-          const file = parseIpcProcedureArgs("setKeybindings", request.args);
-          deps.setShortcutsSuspended?.(false);
-          return applyKeybindingsWrite({
-            path: keybindingsPath,
-            file,
-            ...(deps.onKeybindingsChanged
-              ? { onKeybindingsChanged: deps.onKeybindingsChanged }
-              : {}),
-          });
-        }
-        case "setGlobalShortcutsSuspended":
-          deps.setShortcutsSuspended?.(
-            parseIpcProcedureArgs("setGlobalShortcutsSuspended", request.args).suspended,
-          );
-          return;
-        case "focusWindow": {
-          const mainWindow = deps.getMainWindow();
-          if (mainWindow && !mainWindow.isDestroyed()) showAndFocusWindow(mainWindow);
-          return;
-        }
-        case "getUpdateStatus":
-          return autoUpdater.getStatus();
-        // Real updater actions on the same controller managed uses: check and
-        // download resolve (the controller owns status/error reporting), and
-        // install keeps its quit semantics via beforeInstall -> markQuitting.
-        // No update is ever installed by tests: delegation is observed through
-        // the controller, never by running an installer.
-        case "checkForUpdate":
-          return autoUpdater.checkForUpdate();
-        case "startUpdateDownload":
-          return autoUpdater.startUpdateDownload();
-        case "installUpdate":
-          return autoUpdater.installUpdate();
-        case "probeTlsCertificateFingerprint":
-          return probeTlsCertificateFingerprint(
-            parseIpcProcedureArgs("probeTlsCertificateFingerprint", request.args).url,
-          );
-        default:
-          // Unreachable: the allowlist check above already rejected anything
-          // else, but kept as a throw so a future list/desync can never fall
-          // through to an undefined reply.
-          throw new Error(`Client procedure '${name}' is not available in standalone attach.`);
-      }
-    },
-  );
+    }
+  });
 
   // Quick-composer device lifecycle: the shared state machine owns
   // open/ready/submit/pending-flush/dismiss/picker-focus with managed parity,

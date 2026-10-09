@@ -68,7 +68,7 @@ enum PortForwardingRemoteV3Contract {
     let expected = route.expected
     guard RemoteContractMetadata.protocolVersion == protocolVersion,
       RemoteContractMetadata.bindingFormatVersion == 2,
-      RemoteContractMetadata.generatorVersion == 3,
+      RemoteContractMetadata.generatorVersion == 4,
       let generated = RemoteContractMetadata.routes.first(where: { $0.id == route.rawValue }),
       generated.method == expected.method,
       generated.path == expected.path,

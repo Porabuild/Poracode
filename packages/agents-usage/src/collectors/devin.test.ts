@@ -46,6 +46,27 @@ describe("Devin quota collector", () => {
     );
     expect(parseDevinUsage({}, 1).status).toBe("error");
   });
+  it.each([0, "0"])("retains explicit exhausted balance %s", (balance) => {
+    expect(
+      parseDevinUsage(response({ ...quota, overageBalanceMicros: balance }), 1).credits,
+    ).toEqual({
+      balance: 0,
+      currency: "USD",
+    });
+  });
+  it("retains a balance-only account without inventing quota windows", () => {
+    expect(
+      parseDevinUsage(
+        response({ planInfo: { planName: "Pro" }, overageBalanceMicros: "2000000" }),
+        1,
+      ),
+    ).toMatchObject({
+      status: "ok",
+      windows: [],
+      plan: "Pro",
+      credits: { balance: 2, currency: "USD" },
+    });
+  });
   it("does not make requests without credentials", async () => {
     const onRequest = vi.fn<(request: HttpRequest) => void>();
     expect((await collectDevin(createFakeHost({ onRequest }))).status).toBe("auth-missing");

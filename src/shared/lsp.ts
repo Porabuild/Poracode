@@ -22,6 +22,30 @@ export interface LspMessagePayload {
 
 export type LspSessionStatus = "starting" | "ready" | "error" | "stopped";
 
+/** Current host language-server diagnostics, independent of any agent wire format. */
+export interface HostDiagnostic {
+  range: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+  message: string;
+  severity?: 1 | 2 | 3 | 4;
+  source?: string;
+  code?: string | number;
+}
+
+export interface HostDiagnosticDocument {
+  uri: string;
+  languageId: string;
+  diagnostics: readonly HostDiagnostic[];
+}
+
+/** Detached snapshot of published diagnostics; truncation never shortens individual messages. */
+export interface HostDiagnosticsSnapshot {
+  documents: readonly HostDiagnosticDocument[];
+  truncated: boolean;
+}
+
 // ── File URI helpers ────────────────────────────────────────
 
 function normalizeProjectRoot(location: ProjectLocation): string {

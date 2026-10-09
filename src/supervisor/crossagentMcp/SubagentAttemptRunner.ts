@@ -13,6 +13,7 @@ import {
   type StructuredDisposalCustody,
 } from "@/supervisor/runtime/threadSession/structuredDisposalCustody";
 import { SubagentAttemptCustody } from "./SubagentAttemptCustody";
+import { bindHostDiagnosticsReader } from "../lsp/hostDiagnosticsReader";
 import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
 import type { PreparedSubagentRun, ResolvedSpawnAttempt } from "./spawnPlan";
 import type { SubagentRunHost, SubagentRunStatus } from "./types";
@@ -233,6 +234,14 @@ export class SubagentAttemptRunner {
             projectLocation,
             config,
             presentationMode: "gui",
+            ...(this.host.readHostDiagnostics
+              ? {
+                  readHostDiagnostics: bindHostDiagnosticsReader(
+                    projectLocation,
+                    this.host.readHostDiagnostics,
+                  ),
+                }
+              : {}),
             ...(resumeSessionRef ? { sessionRef: resumeSessionRef } : {}),
             // Same contract as SpawnPipeline.createStructuredSession: the shared
             // runtime — not the provider — supplies `baseSpawnEnv`, so a structured
@@ -300,7 +309,7 @@ export class SubagentAttemptRunner {
             throw new Error("Subagent resumed a different session; follow-up was not sent");
           }
           if (active() && sessionId) {
-            state.sessionRef = {
+            state.sessionRef = handle.getSessionRef?.() ?? {
               providerSessionId: sessionId,
               discoveredAt: new Date().toISOString(),
             };

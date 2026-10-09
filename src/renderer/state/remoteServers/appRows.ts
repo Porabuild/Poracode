@@ -2,6 +2,12 @@ import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "../appStore";
 import { useRemoteServersStore } from "../remoteServersStore";
+import {
+  preservePendingThreadConfig,
+  retainPendingThreadConfigs,
+  type PendingThreadConfig,
+} from "../pendingThreadConfig";
+import { carryVolatileSessionConfigOptions } from "../volatileSessionConfigOptions";
 import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../remoteProjection";
 import { refreshGitProject } from "../gitRefresh";
 import { useGitStore } from "../gitStore";
@@ -20,20 +26,61 @@ let remoteProjectRowsSyncDepth = 0;
  * unchanged, so a source-reference hit reuses the previous projection for free;
  * a changed source pays one content compare and still keeps the old object
  * when the projection is equal.
+ *
+ * `resident` extends the same stability contract to the volatile inventory
+ * carry (`carryVolatileSessionConfigOptions`): a carried row is cached per
+ * (source row, carried inventory) pair, so a mirror refresh re-serves the same
+ * carried object while neither changed, and only a live inventory update (a
+ * new object from the event stream) or a page change installs a new row.
  */
-const projectedThreadCache = new Map<string, { source: Thread; projected: Thread }>();
+const projectedThreadCache = new Map<
+  string,
+  {
+    source: Thread;
+    projected: Thread;
+    carried?: {
+      inventory: Thread["sessionConfigOptions"];
+      pending: PendingThreadConfig | undefined;
+      row: Thread;
+    };
+  }
+>();
 
-function projectThreadIdentityPreserving(desktopId: string, thread: Thread): Thread {
+function projectThreadIdentityPreserving(
+  desktopId: string,
+  thread: Thread,
+  resident?: Thread,
+): Thread {
   const key = remoteThreadId(desktopId, thread.id);
-  const cached = projectedThreadCache.get(key);
-  if (cached && cached.source === thread) return cached.projected;
-  const projected = projectRemoteThread(desktopId, thread);
-  if (cached && JSON.stringify(cached.projected) === JSON.stringify(projected)) {
-    cached.source = thread;
+  let cached = projectedThreadCache.get(key);
+  if (!cached || cached.source !== thread) {
+    const projected = projectRemoteThread(desktopId, thread);
+    if (cached && JSON.stringify(cached.projected) === JSON.stringify(projected)) {
+      cached.source = thread;
+    } else {
+      cached = { source: thread, projected };
+      projectedThreadCache.set(key, cached);
+    }
+  }
+  if (!resident) return cached.projected;
+  const pending = useAppStore.getState().pendingThreadConfigByThreadId[resident.id];
+  const carried = preservePendingThreadConfig(
+    carryVolatileSessionConfigOptions(resident, cached.projected),
+    pending,
+  );
+  if (carried === cached.projected) {
+    delete cached.carried;
     return cached.projected;
   }
-  projectedThreadCache.set(key, { source: thread, projected });
-  return projected;
+  if (
+    cached.carried &&
+    cached.carried.inventory === resident.sessionConfigOptions &&
+    cached.carried.pending === pending
+  ) {
+    return cached.carried.row;
+  }
+  cached.carried = { inventory: resident.sessionConfigOptions, pending, row: carried };
+  return carried;
 }
 
 function dropProjectedThreadCache(desktopId: string): void {
@@ -186,14 +233,23 @@ export function syncRemoteAppRows(
     };
   });
   const appState = useAppStore.getState();
+  const residentMirrorRows = new Map(
+    threads
+      ? appState.threads
+          .filter((thread) => thread.remoteServerId === desktopId)
+          .map((thread) => [thread.id, thread])
+      : [],
+  );
   const projectedThreads = threads?.map((thread) => {
+    const appRowId = remoteThreadId(desktopId, thread.id);
     if (options.preserveThreadIds?.has(thread.id)) {
-      const liveRow = appState.threads.find(
-        (candidate) => candidate.id === remoteThreadId(desktopId, thread.id),
-      );
+      const liveRow = residentMirrorRows.get(appRowId);
       if (liveRow) return liveRow;
     }
-    return projectThreadIdentityPreserving(desktopId, thread);
+    // A projected row is host-durable state: when it omits the volatile
+    // inventory the resident mirror's live value is re-attached instead of
+    // erased — same owner/session only, per `carryVolatileSessionConfigOptions`.
+    return projectThreadIdentityPreserving(desktopId, thread, residentMirrorRows.get(appRowId));
   });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
   if (projectedProjects && !partial) {
@@ -226,6 +282,18 @@ export function syncRemoteAppRows(
               state.projects.some((project) => project.id === thread.projectId),
           )
         : [];
+      const nextThreads = projectedThreads
+        ? partial
+          ? upsertRemoteMirrorRows(state.threads, desktopId, [
+              ...provisioningThreads,
+              ...projectedThreads,
+            ])
+          : [
+              ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
+              ...provisioningThreads,
+              ...projectedThreads,
+            ]
+        : state.threads;
       return {
         ...(projectedProjects
           ? {
@@ -239,16 +307,11 @@ export function syncRemoteAppRows(
           : {}),
         ...(projectedThreads
           ? {
-              threads: partial
-                ? upsertRemoteMirrorRows(state.threads, desktopId, [
-                    ...provisioningThreads,
-                    ...projectedThreads,
-                  ])
-                : [
-                    ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
-                    ...provisioningThreads,
-                    ...projectedThreads,
-                  ],
+              threads: nextThreads,
+              pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+                state.pendingThreadConfigByThreadId,
+                nextThreads,
+              ),
             }
           : {}),
       };

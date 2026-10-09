@@ -9,6 +9,7 @@ import com.poracode.app.chat.RichRemoteImageRef
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.RemoteJson
+import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.transport.richchat.RequestResolution
 import kotlinx.serialization.json.JsonArray
@@ -298,4 +299,21 @@ object RichChatUiLogic {
     )
     private const val MAX_IMAGES_PER_ITEM = 8
     private const val MAX_IMAGE_DEPTH = 8
+
+    /**
+     * Owner identity for live session-action UI: every field that distinguishes
+     * "the same live session this thread is showing" — thread row id, provider
+     * kind and instance, presentation mode, and the supervisor's `SessionRef`
+     * (provider session id + execution identity). A change in any axis means a
+     * new owner: local panel state resets and in-flight results are dropped.
+     * `status` is deliberately absent — working→idle is the same session.
+     */
+    fun sessionActionOwnerKey(thread: RemoteThread?): String = listOf(
+        thread?.id.orEmpty(),
+        thread?.agentKind.orEmpty(),
+        thread?.agentInstanceId.orEmpty(),
+        thread?.presentationMode.orEmpty(),
+        thread?.sessionRef?.providerSessionId.orEmpty(),
+        thread?.sessionRef?.executionIdentity.orEmpty(),
+    ).joinToString("|")
 }

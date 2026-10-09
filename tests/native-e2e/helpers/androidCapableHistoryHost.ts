@@ -26,6 +26,7 @@ import {
   type RemoteRuntimeGapReadResult,
   type RemoteRuntimeHistoryNotice,
 } from "@/shared/remote";
+import { currentClientProtocolHeaders } from "../harness/httpIo.ts";
 import { pairingTokenFromPairingUrl } from "../harness/realHostProcess.ts";
 import { capableHistoryItemText } from "./androidCapableHistorySeed.ts";
 
@@ -269,6 +270,7 @@ export async function startExistingThread(input: {
       authorization: `Bearer ${input.accessToken}`,
       "content-type": "application/json",
       [REMOTE_COMMAND_ID_HEADER]: input.commandId,
+      ...currentClientProtocolHeaders("POST"),
     },
     body: JSON.stringify({
       threadId: input.threadId,
@@ -313,6 +315,7 @@ export async function sendThreadInput(input: {
         authorization: `Bearer ${input.accessToken}`,
         "content-type": "application/json",
         [REMOTE_COMMAND_ID_HEADER]: input.commandId,
+        ...currentClientProtocolHeaders("POST"),
       },
       body: JSON.stringify({ prompt: input.prompt, config: input.config }),
     },
@@ -335,7 +338,13 @@ export async function postThreadRoute(input: {
 }): Promise<{ status: number; errorCode: string | null }> {
   const response = await fetch(
     new URL(`/api/threads/${encodeURIComponent(input.threadId)}/${input.route}`, input.httpBaseUrl),
-    { method: "POST", headers: { authorization: `Bearer ${input.accessToken}` } },
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${input.accessToken}`,
+        ...currentClientProtocolHeaders("POST"),
+      },
+    },
   );
   const text = await response.text();
   const body = text ? (JSON.parse(text) as Record<string, unknown>) : null;

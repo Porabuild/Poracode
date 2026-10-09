@@ -2,6 +2,7 @@ package com.poracode.app.transport
 
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.protocol.CleartextPolicy
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.transport.environments.EnvironmentRequestCoordinator
 import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaType
@@ -73,6 +74,7 @@ internal class RemoteHttpExecutor(
         if (authorized) {
             if (!token.isNullOrBlank()) {
                 requestBuilder.header("Authorization", "Bearer $token")
+                declareWriterProtocol(requestBuilder, method)
             }
         }
         environment.applyAuthority(requestBuilder)
@@ -178,6 +180,7 @@ internal class RemoteHttpExecutor(
         if (authorized) {
             accessToken()?.takeIf(String::isNotBlank)?.let {
                 requestBuilder.header("Authorization", "Bearer $it")
+                declareWriterProtocol(requestBuilder, method)
             }
         }
         environment.applyAuthority(requestBuilder)
@@ -200,6 +203,15 @@ internal class RemoteHttpExecutor(
     }
 
     companion object {
+        private fun declareWriterProtocol(builder: Request.Builder, method: String) {
+            if (method != "GET") {
+                builder.header(
+                    ProtocolConstants.PROTOCOL_VERSION_HEADER,
+                    ProtocolConstants.REMOTE_PROTOCOL_VERSION.toString(),
+                )
+            }
+        }
+
         private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
         private val EMPTY_MEDIA = "application/json; charset=utf-8".toMediaType()
         private val EMPTY_BODY = ByteArray(0).toRequestBody(EMPTY_MEDIA)

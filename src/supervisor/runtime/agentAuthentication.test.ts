@@ -1,9 +1,50 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolvePoracodePaths } from "@/shared/poracodePaths";
+import { join, sep } from "node:path";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import type { AgentKind } from "@/shared/contracts";
 import { defaultSharedSettings } from "@/shared/settings";
+
+// Isolation (a first harness wrote into the real ~/.poracode/settings.json):
+// the service gets explicit temp paths, the home and data dir resolve to a temp
+// dir, and every native process, native-runtime and network entry point throws
+// and is asserted unused. No SupervisorRuntime is built, so its boot-time
+// native Node prefetch (a login-shell probe) never starts.
+const isolatedHome = await vi.hoisted(async () => {
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "poracode-auth-home-"));
+  vi.stubEnv("HOME", home);
+  vi.stubEnv("USERPROFILE", home);
+  vi.stubEnv("PORACODE_DATA_DIR", home);
+  return home;
+});
+// A plain array, not a mock: `clearMocks` must not erase import-time attempts.
+const nativeAttempts = vi.hoisted((): string[] => []);
+const nativeDispatch = vi.hoisted(() => (entry: string): never => {
+  nativeAttempts.push(entry);
+  throw new Error(`Native dispatch is blocked in this test: ${entry}`);
+});
+vi.hoisted(() => vi.stubGlobal("fetch", () => nativeDispatch("fetch")));
+
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  const blocked = Object.fromEntries(
+    ["spawn", "spawnSync", "exec", "execSync", "execFile", "execFileSync", "fork"].map((name) => [
+      name,
+      () => nativeDispatch(`child_process.${name}`),
+    ]),
+  );
+  return { ...actual, ...blocked, default: { ...actual, ...blocked } };
+});
+vi.mock("node-pty", () => ({ spawn: () => nativeDispatch("node-pty.spawn") }));
+vi.mock("../native/runtime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../native/runtime")>()),
+  resolveNativeNode: () => nativeDispatch("resolveNativeNode"),
+  probeUserNode: () => nativeDispatch("probeUserNode"),
+  installNativeRuntime: () => nativeDispatch("installNativeRuntime"),
+}));
 
 const dispatchAcpAuthenticateMock = vi.hoisted(() =>
   vi.fn<
@@ -35,55 +76,42 @@ vi.mock("../agents/acp-generic", async (importActual) => {
   };
 });
 
-import { SupervisorRuntime } from "../supervisorRuntime";
+import { AgentRegistryService } from "./agentRegistryService";
+import type { AgentStatusService } from "./agentStatusService";
+import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
+import { fileSettingsWriter } from "./supervisorSettingsWriter.testFixtures";
 
 const tempDirs: string[] = [];
-const runtimesToDispose: SupervisorRuntime[] = [];
-const poracodeDataDirBeforeTests = process.env.PORACODE_DATA_DIR;
 
-function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "poracode-runtime-auth-"));
-  tempDirs.push(dir);
-  return dir;
-}
-
-function makeRuntime(emit: ConstructorParameters<typeof SupervisorRuntime>[0]): SupervisorRuntime {
-  const runtime = new SupervisorRuntime(emit);
-  runtimesToDispose.push(runtime);
-  // `authenticateAcpAgent` fires `void refreshAffectedAgentStatus(...)`, a
-  // fire-and-forget host-detection sweep that runs after our assertions and is
-  // never awaited. Left real, it spawns the native agent probes — including the
-  // Claude Agent SDK subprocess and a billed fast-mode turn — then leaks an
-  // unhandled `EPIPE` when this unit test tears the runtime down mid-probe (the
-  // racing stdin write lives inside the SDK and has no error listener we can
-  // attach). This test only exercises auth-ack persistence, so stub the status
-  // service's two detection entry points to inert no-ops.
-  const statusService = (
-    runtime as unknown as {
-      agentStatusService: {
-        listWslDistros: () => Promise<string[]>;
-        refreshAgentStatuses: (payload: unknown) => Promise<unknown>;
-      };
-    }
-  ).agentStatusService;
-  vi.spyOn(statusService, "listWslDistros").mockResolvedValue([]);
-  vi.spyOn(statusService, "refreshAgentStatuses").mockResolvedValue({
-    windows: [],
-    wsl: [],
-    fromCache: false,
+function makeService(settingsPath: string, root: string): AgentRegistryService {
+  if (!settingsPath.startsWith(`${tmpdir()}${sep}`)) {
+    throw new Error("Auth tests must use an explicit temp settings path.");
+  }
+  // Stand in for the backend settings owner on this test's file only.
+  const service = new AgentRegistryService({
+    adapters: new Map(),
+    settingsPath,
+    settingsWriter: fileSettingsWriter(settingsPath),
+    baseDir: root,
+    acpIconsDir: join(root, "icons"),
+    sharedSettingsCache: { invalidate: () => {} } as unknown as SupervisorSharedSettingsCache,
+    // `authenticateAcpAgent` fires an unawaited status refresh; keep it inert.
+    getAgentStatusService: () =>
+      ({
+        invalidateAgentStatuses: () => {},
+        refreshAgentStatuses: async () => ({ windows: [], wsl: [], fromCache: false }),
+      }) as unknown as AgentStatusService,
+    getActiveWslProjectDistros: () => [],
+    closeThreadsForAgentKind: async (_agentKind: AgentKind) => {},
   });
-  return runtime;
+  service.refreshAgentRegistryAdapters();
+  return service;
 }
 
 afterEach(() => {
-  for (const runtime of runtimesToDispose.splice(0)) {
-    runtime.dispose();
-  }
-  if (poracodeDataDirBeforeTests === undefined) {
-    delete process.env.PORACODE_DATA_DIR;
-  } else {
-    process.env.PORACODE_DATA_DIR = poracodeDataDirBeforeTests;
-  }
+  // Fails the test that made the attempt, including one a caller swallowed.
+  const attempts = nativeAttempts.splice(0);
+  if (attempts.length > 0) throw new Error(`Native dispatch attempted: ${attempts.join(", ")}`);
   dispatchAcpAuthenticateMock.mockReset();
   verifyAcpGenericAuthenticationMock.mockReset();
   for (const dir of tempDirs.splice(0)) {
@@ -91,11 +119,19 @@ afterEach(() => {
   }
 });
 
-function writeGenericAcpSettings(
-  dataDir: string,
-  authAcknowledged?: { native?: boolean; wsl?: Record<string, boolean> },
-): string {
-  const { settingsPath } = resolvePoracodePaths(dataDir);
+afterAll(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  rmSync(isolatedHome, { recursive: true, force: true });
+});
+
+function writeGenericAcpSettings(authAcknowledged?: {
+  native?: boolean;
+  wsl?: Record<string, boolean>;
+}): { root: string; settingsPath: string } {
+  const root = mkdtempSync(join(tmpdir(), "poracode-runtime-auth-"));
+  tempDirs.push(root);
+  const settingsPath = join(root, "settings.json");
   writeFileSync(
     settingsPath,
     JSON.stringify(
@@ -121,19 +157,16 @@ function writeGenericAcpSettings(
     ),
     "utf8",
   );
-  return settingsPath;
+  return { root, settingsPath };
 }
 
 describe("authenticateAcpAgent", () => {
   it("persists generic ACP auth only after verification succeeds", async () => {
-    const dataDir = makeTempDir();
-    process.env.PORACODE_DATA_DIR = dataDir;
-    const settingsPath = writeGenericAcpSettings(dataDir);
+    const { root, settingsPath } = writeGenericAcpSettings();
     dispatchAcpAuthenticateMock.mockResolvedValue(undefined);
     verifyAcpGenericAuthenticationMock.mockResolvedValueOnce(true);
 
-    const runtime = makeRuntime(() => {});
-    await runtime.agentRegistryService.authenticateAcpAgent({
+    await makeService(settingsPath, root).authenticateAcpAgent({
       agentKind: "acp-generic:my-acp",
       methodId: "browser-login",
     });
@@ -152,15 +185,12 @@ describe("authenticateAcpAgent", () => {
   });
 
   it("clears generic ACP auth when browser login does not complete", async () => {
-    const dataDir = makeTempDir();
-    process.env.PORACODE_DATA_DIR = dataDir;
-    const settingsPath = writeGenericAcpSettings(dataDir, { native: true });
+    const { root, settingsPath } = writeGenericAcpSettings({ native: true });
     dispatchAcpAuthenticateMock.mockResolvedValue(undefined);
     verifyAcpGenericAuthenticationMock.mockResolvedValueOnce(false);
 
-    const runtime = makeRuntime(() => {});
     await expect(
-      runtime.agentRegistryService.authenticateAcpAgent({
+      makeService(settingsPath, root).authenticateAcpAgent({
         agentKind: "acp-generic:my-acp",
         methodId: "browser-login",
       }),

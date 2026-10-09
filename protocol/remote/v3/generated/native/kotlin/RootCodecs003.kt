@@ -5,6 +5,18 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EProjectU2DListU2EQuery: RemoteRootCodec<RouteprojectU2DListQuery_5e1b33a494>
+    get() = RemoteRootCodec("route.project-list.query", serializer<RouteprojectU2DListQuery_5e1b33a494>(), schema_5e1b33a49482671a)
+
+val RemoteRootCodecs.routeU2EProjectU2DListU2EResponse: RemoteRootCodec<RouteprojectU2DListResponse_dc806546b8>
+    get() = RemoteRootCodec("route.project-list.response", serializer<RouteprojectU2DListResponse_dc806546b8>(), schema_dc806546b8007d0d)
+
+val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EPath: RemoteRootCodec<RouteprojectU2DNotesU2DReadPath_05812a27bb>
+    get() = RemoteRootCodec("route.project-notes-read.path", serializer<RouteprojectU2DNotesU2DReadPath_05812a27bb>(), schema_05812a27bb4846c1)
+
+val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a>
+    get() = RemoteRootCodec("route.project-notes-read.response", serializer<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a>(), schema_d1eba06c8a5dc0a7)
+
 val RemoteRootCodecs.routeU2EProjectU2DNotesU2DWriteU2EPath: RemoteRootCodec<RouteprojectU2DNotesU2DReadPath_05812a27bb>
     get() = RemoteRootCodec("route.project-notes-write.path", serializer<RouteprojectU2DNotesU2DReadPath_05812a27bb>(), schema_05812a27bb4846c1)
 
@@ -59,29 +71,29 @@ val RemoteRootCodecs.routeU2EScheduleU2DRunsU2DReadU2EQuery: RemoteRootCodec<Rou
 val RemoteRootCodecs.routeU2EScheduleU2DRunsU2DReadU2EResponse: RemoteRootCodec<RoutescheduleU2DRunsU2DReadResponse_dc9dbbe080>
     get() = RemoteRootCodec("route.schedule-runs-read.response", serializer<RoutescheduleU2DRunsU2DReadResponse_dc9dbbe080>(), schema_dc9dbbe08067c690)
 
-val RemoteRootCodecs.routeU2ESchedulesU2DCommandU2ERequest: RemoteRootCodec<RouteschedulesU2DCommandRequest_72e4a424a2>
-    get() = RemoteRootCodec("route.schedules-command.request", serializer<RouteschedulesU2DCommandRequest_72e4a424a2>(), schema_72e4a424a2d9ffca)
+val RemoteRootCodecs.routeU2ESchedulesU2DCommandU2ERequest: RemoteRootCodec<RouteschedulesU2DCommandRequest_af3ecd102c>
+    get() = RemoteRootCodec("route.schedules-command.request", serializer<RouteschedulesU2DCommandRequest_af3ecd102c>(), schema_af3ecd102cdfd768)
 
-val RemoteRootCodecs.routeU2ESchedulesU2DCommandU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_320890c24c>
-    get() = RemoteRootCodec("route.schedules-command.response", serializer<RouteschedulesU2DCommandResponse_320890c24c>(), schema_320890c24cdd032a)
+val RemoteRootCodecs.routeU2ESchedulesU2DCommandU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_f0f46abc2f>
+    get() = RemoteRootCodec("route.schedules-command.response", serializer<RouteschedulesU2DCommandResponse_f0f46abc2f>(), schema_f0f46abc2f28aef5)
 
-val RemoteRootCodecs.routeU2ESchedulesU2DReadU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_320890c24c>
-    get() = RemoteRootCodec("route.schedules-read.response", serializer<RouteschedulesU2DCommandResponse_320890c24c>(), schema_320890c24cdd032a)
+val RemoteRootCodecs.routeU2ESchedulesU2DReadU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_f0f46abc2f>
+    get() = RemoteRootCodec("route.schedules-read.response", serializer<RouteschedulesU2DCommandResponse_f0f46abc2f>(), schema_f0f46abc2f28aef5)
 
-val RemoteRootCodecs.routeU2ESettingsU2DReadU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_49437ffdd8>
-    get() = RemoteRootCodec("route.settings-read.response", serializer<RoutesettingsU2DReadResponse_49437ffdd8>(), schema_49437ffdd8ca324e)
+val RemoteRootCodecs.routeU2ESettingsU2DReadU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_b6f35acff2>
+    get() = RemoteRootCodec("route.settings-read.response", serializer<RoutesettingsU2DReadResponse_b6f35acff2>(), schema_b6f35acff2a3428a)
 
-val RemoteRootCodecs.routeU2ESettingsU2DWriteU2ERequest: RemoteRootCodec<RoutesettingsU2DWriteRequest_f310784fe2>
-    get() = RemoteRootCodec("route.settings-write.request", serializer<RoutesettingsU2DWriteRequest_f310784fe2>(), schema_f310784fe2d9f3f1)
+val RemoteRootCodecs.routeU2ESettingsU2DWriteU2ERequest: RemoteRootCodec<RoutesettingsU2DWriteRequest_c0fd8ffb30>
+    get() = RemoteRootCodec("route.settings-write.request", serializer<RoutesettingsU2DWriteRequest_c0fd8ffb30>(), schema_c0fd8ffb30138ef5)
 
-val RemoteRootCodecs.routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_49437ffdd8>
-    get() = RemoteRootCodec("route.settings-write.response", serializer<RoutesettingsU2DReadResponse_49437ffdd8>(), schema_49437ffdd8ca324e)
+val RemoteRootCodecs.routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_b6f35acff2>
+    get() = RemoteRootCodec("route.settings-write.response", serializer<RoutesettingsU2DReadResponse_b6f35acff2>(), schema_b6f35acff2a3428a)
 
 val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EQuery: RemoteRootCodec<RouteshellU2DSnapshotQuery_b2ca36e3fa>
     get() = RemoteRootCodec("route.shell-snapshot.query", serializer<RouteshellU2DSnapshotQuery_b2ca36e3fa>(), schema_b2ca36e3fa7743ad)
 
-val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_e3aefb7ea0>
-    get() = RemoteRootCodec("route.shell-snapshot.response", serializer<RouteshellU2DSnapshotResponse_e3aefb7ea0>(), schema_e3aefb7ea079ef07)
+val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_cd6e0861b4>
+    get() = RemoteRootCodec("route.shell-snapshot.response", serializer<RouteshellU2DSnapshotResponse_cd6e0861b4>(), schema_cd6e0861b40e2a3f)
 
 val RemoteRootCodecs.routeU2ETerminalU2DCloseU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.terminal-close.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
@@ -137,8 +149,8 @@ val RemoteRootCodecs.routeU2EThreadU2DCloseU2EResponse: RemoteRootCodec<Routeenv
 val RemoteRootCodecs.routeU2EThreadU2DCommandU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-command.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.routeU2EThreadU2DCommandU2ERequest: RemoteRootCodec<RoutethreadU2DCommandRequest_5218e6e770>
-    get() = RemoteRootCodec("route.thread-command.request", serializer<RoutethreadU2DCommandRequest_5218e6e770>(), schema_5218e6e77092bb2e)
+val RemoteRootCodecs.routeU2EThreadU2DCommandU2ERequest: RemoteRootCodec<RoutethreadU2DCommandRequest_873324ea83>
+    get() = RemoteRootCodec("route.thread-command.request", serializer<RoutethreadU2DCommandRequest_873324ea83>(), schema_873324ea83b53c3f)
 
 val RemoteRootCodecs.routeU2EThreadU2DCommandU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35>
     get() = RemoteRootCodec("route.thread-command.response", serializer<RouteenvironmentU2DDeleteResponse_badd682f35>(), schema_badd682f3501e022)
@@ -167,8 +179,8 @@ val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EPath: RemoteRootCodec<Procedurec
 val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryQuery_c94252b9b1>
     get() = RemoteRootCodec("route.thread-history.query", serializer<RoutethreadU2DHistoryQuery_c94252b9b1>(), schema_c94252b9b19bd8f3)
 
-val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryResponse_2140820cb8>
-    get() = RemoteRootCodec("route.thread-history.response", serializer<RoutethreadU2DHistoryResponse_2140820cb8>(), schema_2140820cb8240229)
+val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryResponse_052ddaf6f1>
+    get() = RemoteRootCodec("route.thread-history.response", serializer<RoutethreadU2DHistoryResponse_052ddaf6f1>(), schema_052ddaf6f112c52e)
 
 val RemoteRootCodecs.routeU2EThreadU2DInterruptU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-interrupt.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
@@ -182,8 +194,8 @@ val RemoteRootCodecs.routeU2EThreadU2DInterruptU2EResponse: RemoteRootCodec<Rout
 val RemoteRootCodecs.routeU2EThreadU2DListU2EQuery: RemoteRootCodec<RoutethreadU2DListQuery_64900cfb16>
     get() = RemoteRootCodec("route.thread-list.query", serializer<RoutethreadU2DListQuery_64900cfb16>(), schema_64900cfb16aa539e)
 
-val RemoteRootCodecs.routeU2EThreadU2DListU2EResponse: RemoteRootCodec<RoutethreadU2DListResponse_989c2d06cc>
-    get() = RemoteRootCodec("route.thread-list.response", serializer<RoutethreadU2DListResponse_989c2d06cc>(), schema_989c2d06cc986156)
+val RemoteRootCodecs.routeU2EThreadU2DListU2EResponse: RemoteRootCodec<RoutethreadU2DListResponse_ae046e1dbb>
+    get() = RemoteRootCodec("route.thread-list.response", serializer<RoutethreadU2DListResponse_ae046e1dbb>(), schema_ae046e1dbbf4f6c7)
 
 val RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-runtime-gap-acknowledge.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
@@ -218,14 +230,14 @@ val RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DTruncateU2EResponse: RemoteRootC
 val RemoteRootCodecs.routeU2EThreadU2DSendU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-send.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.routeU2EThreadU2DSendU2ERequest: RemoteRootCodec<RoutethreadU2DSendRequest_0db742d170>
-    get() = RemoteRootCodec("route.thread-send.request", serializer<RoutethreadU2DSendRequest_0db742d170>(), schema_0db742d1703c0e8a)
+val RemoteRootCodecs.routeU2EThreadU2DSendU2ERequest: RemoteRootCodec<RoutethreadU2DSendRequest_b79408ad0d>
+    get() = RemoteRootCodec("route.thread-send.request", serializer<RoutethreadU2DSendRequest_b79408ad0d>(), schema_b79408ad0d1e448a)
 
 val RemoteRootCodecs.routeU2EThreadU2DSendU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35>
     get() = RemoteRootCodec("route.thread-send.response", serializer<RouteenvironmentU2DDeleteResponse_badd682f35>(), schema_badd682f3501e022)
 
-val RemoteRootCodecs.routeU2EThreadU2DStartU2DExistingU2ERequest: RemoteRootCodec<RoutethreadU2DStartU2DExistingRequest_c04f6b6175>
-    get() = RemoteRootCodec("route.thread-start-existing.request", serializer<RoutethreadU2DStartU2DExistingRequest_c04f6b6175>(), schema_c04f6b617521c661)
+val RemoteRootCodecs.routeU2EThreadU2DStartU2DExistingU2ERequest: RemoteRootCodec<RoutethreadU2DStartU2DExistingRequest_11de304cb1>
+    get() = RemoteRootCodec("route.thread-start-existing.request", serializer<RoutethreadU2DStartU2DExistingRequest_11de304cb1>(), schema_11de304cb19d42a8)
 
 val RemoteRootCodecs.routeU2EThreadU2DStartU2DExistingU2EResponse: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-start-existing.response", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
@@ -242,8 +254,8 @@ val RemoteRootCodecs.routeU2EThreadU2DSteerU2DClearU2EResponse: RemoteRootCodec<
 val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-steer-set.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2ERequest: RemoteRootCodec<RoutethreadU2DSteerU2DSetRequest_9ee52320d5>
-    get() = RemoteRootCodec("route.thread-steer-set.request", serializer<RoutethreadU2DSteerU2DSetRequest_9ee52320d5>(), schema_9ee52320d5f42c3a)
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2ERequest: RemoteRootCodec<RoutethreadU2DSteerU2DSetRequest_fd25f4111c>
+    get() = RemoteRootCodec("route.thread-steer-set.request", serializer<RoutethreadU2DSteerU2DSetRequest_fd25f4111c>(), schema_fd25f4111cf28a8a)
 
 val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35>
     get() = RemoteRootCodec("route.thread-steer-set.response", serializer<RouteenvironmentU2DDeleteResponse_badd682f35>(), schema_badd682f3501e022)

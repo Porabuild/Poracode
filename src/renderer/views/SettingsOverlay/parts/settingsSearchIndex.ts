@@ -293,6 +293,13 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "terminal",
+    anchor: "terminal.terminalFontFamily",
+    title: msg`Terminal font face`,
+    description: msg`Font for agent terminals and the terminal panel. Missing fonts use the default.`,
+    keywords: "font face family typeface installed monospace",
+  },
+  {
+    section: "terminal",
     anchor: "terminal.agentTerminalFontSize",
     title: msg`Agent terminal font size`,
     description: msg`Base font size for agent terminals. Auto-shrinks in narrow or short panes.`,

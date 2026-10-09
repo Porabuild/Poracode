@@ -33,6 +33,7 @@ import { ensureHomeProjectRow } from "@/host/schedules";
 import {
   createAppThread,
   resolveAddWorktreeArgs,
+  type CreateAppThreadLaunchOptions,
   type CreateAppThreadRequest,
   type CreateAppThreadResult,
 } from "@/host/threads/appThreadLauncher";
@@ -62,7 +63,14 @@ export interface SharedAppControlsIngressDeps {
   directoryExists(path: string): boolean;
   applyProjectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult>;
   updateProject(project: Project): void;
-  createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
+  /**
+   * Launch a thread; the optional per-call admission options stay host-only
+   * and ephemeral (never part of the wire request).
+   */
+  createThread(
+    request: CreateAppThreadRequest,
+    options?: CreateAppThreadLaunchOptions,
+  ): Promise<CreateAppThreadResult>;
   /** Fails closed when durable experiment ownership cannot be read. */
   isExperimentGroup(groupId: string): boolean;
   updateThreadRow(threadId: string, mutate: (thread: Thread) => Thread): void;
@@ -157,7 +165,7 @@ export function buildSharedAppControlsIngressDeps(
       dbUpdateProject(project);
       publishProjectsChanged();
     },
-    createThread: async (request) => {
+    createThread: async (request, options) => {
       const result = await createAppThread(
         {
           startThread: (payload) => call("startThread", payload),
@@ -183,6 +191,7 @@ export function buildSharedAppControlsIngressDeps(
           threadExists: (threadId) => dbGetThread(threadId) != null,
         },
         request,
+        options,
       );
       // The new row bypassed the renderer→RPC `databaseChanged` funnel, so its
       // membership invalidation must be published explicitly (headless hosts

@@ -166,8 +166,12 @@ const bridge: ElectronHostBridge = {
   getDroppedFilePaths(files) {
     return files.map((file) => webUtils.getPathForFile(file)).filter((path) => path.length > 0);
   },
-  invokeProcedure(name, args) {
-    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.clientProcedureInvoke, { name, args });
+  // Hop 17: forwards the renderer-produced invocation envelope UNCHANGED.
+  // Preload never manufactures or overwrites the declared generation — a
+  // legacy positional call arrives here as a bare first argument and is
+  // forwarded as-is, so main's version gate refuses it before any effect.
+  invokeProcedure(invocation) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.clientProcedureInvoke, invocation);
   },
   remoteHttpBridgeVersion: REMOTE_HTTP_BRIDGE_VERSION,
   openRemoteHttpBridge(request) {

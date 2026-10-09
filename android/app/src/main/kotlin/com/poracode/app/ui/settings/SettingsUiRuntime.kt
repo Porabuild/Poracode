@@ -70,6 +70,9 @@ class SettingsUiComposition(
     private val mutableMcpProjects = MutableStateFlow(globalMcpProjectsOf(appState.value))
     val mcpProjects: StateFlow<List<GlobalMcpProject>> = mutableMcpProjects.asStateFlow()
     val globalMcp = GlobalMcpSettingsController(hostLease, gateway, runtimeScope)
+    private val visibilityObservation = runtimeScope.launch {
+        hostLease.collect { controller.refreshModelVisibility() }
+    }
     private val observation = runtimeScope.launch {
         appState.collect { state ->
             val previous = hostLease.value?.key
@@ -93,10 +96,14 @@ class SettingsUiComposition(
 
     fun close() {
         observation.cancel()
+        visibilityObservation.cancel()
         runtimeScope.cancel()
     }
 
-    fun onForeground() = globalMcp.onForeground()
+    fun onForeground() {
+        globalMcp.onForeground()
+        controller.refreshModelVisibility()
+    }
 
     fun onBackground() = globalMcp.onBackground()
 }
@@ -111,6 +118,18 @@ class SettingsUiController internal constructor(
     val mutation: StateFlow<SettingsMutationState> = mutableMutation.asStateFlow()
     private val profileRevision = AtomicLong()
     private val settingsRevision = AtomicLong()
+
+    /** Reuses the settings JSON gateway and its lease fencing; a failed read leaves defaults usable. */
+    fun refreshModelVisibility() {
+        scope.launch {
+            val current = lease.value ?: return@launch
+            if (!current.online || !current.ready) return@launch
+            if (com.poracode.app.session.settings.SettingsInformationSlot.Settings in
+                information.state.value.entries[current.key]?.loading.orEmpty()
+            ) return@launch
+            information.loadSettings()
+        }
+    }
 
     fun refresh(pane: SettingsPane) {
         when (pane) {

@@ -1,0 +1,39 @@
+[
+  {
+    "id": "one-code-point",
+    "minLength": 1,
+    "maxLength": 1,
+    "cases": [
+      { "unit": "😀", "repeat": 1, "valid": true },
+      { "unit": "x", "repeat": 1, "valid": true },
+      { "unit": "é", "repeat": 1, "valid": true },
+      { "unit": "é", "repeat": 1, "valid": false },
+      { "unit": "😀", "repeat": 1, "suffix": "x", "valid": false }
+    ]
+  },
+  {
+    "id": "two-code-points",
+    "minLength": 2,
+    "maxLength": 2,
+    "cases": [
+      { "unit": "é", "repeat": 1, "valid": true },
+      { "unit": "😀", "repeat": 1, "suffix": "x", "valid": true },
+      { "unit": "😀", "repeat": 1, "valid": false },
+      { "unit": "é", "repeat": 1, "valid": false },
+      { "unit": "é", "repeat": 1, "suffix": "x", "valid": false }
+    ]
+  },
+  {
+    "id": "4096-code-points",
+    "minLength": 1,
+    "maxLength": 4096,
+    "cases": [
+      { "unit": "😀", "repeat": 4096, "valid": true },
+      { "unit": "😀", "repeat": 4097, "valid": false },
+      { "unit": "é", "repeat": 2048, "valid": true },
+      { "unit": "é", "repeat": 2048, "suffix": "x", "valid": false },
+      { "unit": "x", "repeat": 4096, "valid": true },
+      { "unit": "x", "repeat": 4097, "valid": false }
+    ]
+  }
+]

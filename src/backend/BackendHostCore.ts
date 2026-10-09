@@ -23,12 +23,17 @@ import {
   type RuntimeProducerSignal,
   type RuntimeShutdownReport,
 } from "@/host/db";
+import {
+  capturePreparedDatabaseWriteAdmission,
+  PreparedDatabaseUnavailableError,
+} from "@/host/db/preparedDatabaseWriteAdmission";
 import type {
   RuntimeHistoryGapAcknowledgeResult,
   RuntimeHistoryGapDescriptor,
 } from "@/shared/runtimeHistoryNotice";
 import { SupervisorClient, type SupervisorClientOptions } from "@/host/supervisor/SupervisorClient";
 import { ensureHomeProjectRow } from "@/host/schedules/homeProject";
+import { readWorkspaceLaunchSelection } from "@/host/threads/workspaceLaunchScope";
 import { HostDataFence } from "@/backend/ownership/hostDataFence";
 import {
   persistSupervisorEvent,
@@ -165,6 +170,7 @@ export class BackendHostCore {
   private persistenceProducerControl: HostPersistenceProducerControl | null = null;
   private canonicalAdmissionControl: HostCanonicalAdmissionControl | null = null;
   private databaseOpen = false;
+  private preparedDatabaseWriteAdmission: ((settingsRoot: string) => void) | null = null;
   private closing = false;
   private supervisorJoined = false;
   private supervisorDisposal: Promise<void> | null = null;
@@ -183,11 +189,14 @@ export class BackendHostCore {
     }
     this.databaseOpen = true;
     try {
-      if (options.databaseSchemaMode) {
-        initDatabase(options.dbPath, { schemaMode: options.databaseSchemaMode });
-      } else {
-        initDatabase(options.dbPath);
-      }
+      const database = options.databaseSchemaMode
+        ? initDatabase(options.dbPath, { schemaMode: options.databaseSchemaMode })
+        : initDatabase(options.dbPath);
+      this.preparedDatabaseWriteAdmission = capturePreparedDatabaseWriteAdmission(
+        database,
+        options.baseDir,
+        options.dbPath,
+      );
       if (options.databaseSchemaMode !== "validate") {
         // Eager runtime-owned durable-gap arm: one write per boot, committed
         // before any canonical event can be admitted. Storage failure is
@@ -241,6 +250,9 @@ export class BackendHostCore {
           }
           return prepared;
         },
+        // Only the owning host database supplies grant-bearing launch intent.
+        // A composition-provided callback or replica cannot replace this authority.
+        prepareWorkspaceLaunch: readWorkspaceLaunchSelection,
         onEvent: (event, custody) => {
           // Persistence must never throw into the supervisor IPC handler: the
           // bounded controller classifies storage failures and raises producer
@@ -323,6 +335,7 @@ export class BackendHostCore {
             closeDatabase();
             retained = false;
             this.databaseOpen = false;
+            this.preparedDatabaseWriteAdmission = null;
             this.dataFence?.release();
             this.dataFence = null;
           },
@@ -335,6 +348,7 @@ export class BackendHostCore {
         throw error;
       }
       this.databaseOpen = false;
+      this.preparedDatabaseWriteAdmission = null;
       this.dataFence?.release();
       this.dataFence = null;
       throw error;
@@ -391,6 +405,15 @@ export class BackendHostCore {
           assertActive: (expectedGeneration) => fence.assertActive(expectedGeneration),
         }
       : null;
+  }
+
+  /** Revalidate the successfully prepared connection and root at every write checkpoint.
+   * Headless callers additionally hold their outer kernel lease. */
+  assertPreparedDatabaseForWrite(dataRoot: string): void {
+    this.dataFence?.assertActive();
+    if (!this.preparedDatabaseWriteAdmission)
+      throw new PreparedDatabaseUnavailableError("connection");
+    this.preparedDatabaseWriteAdmission(dataRoot);
   }
 
   /** Shutdown drain outcome from the last close attempt, if any. */
@@ -941,6 +964,7 @@ export class BackendHostCore {
       throw error;
     }
     this.databaseOpen = false;
+    this.preparedDatabaseWriteAdmission = null;
     this.persistenceProducerControl?.dispose();
     this.persistenceProducerControl = null;
     this.canonicalAdmissionControl?.dispose();

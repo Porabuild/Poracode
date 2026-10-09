@@ -89,6 +89,8 @@
     <string name="home_start">Başlat</string>
     <string name="home_quick_compose_agent">Aracı</string>
     <string name="home_quick_compose_presentation">Sunum</string>
+    <string name="model_selection_lead">Ana model</string>
+    <string name="model_selection_sidekick">Yardımcı model</string>
     <string name="home_quick_compose_chat">Sohbet</string>
     <string name="home_quick_compose_terminal">Terminal</string>
     <string name="home_quick_compose_controls">Başlatma ayarları</string>
