@@ -124,6 +124,36 @@ describe("FileEditorOverlay", () => {
   });
 
   it.each([false, true])(
+    "opens a remote project file through its host-owned tree (compact=%s)",
+    async (compact) => {
+      layout.compact = compact;
+      useFileEditorStore
+        .getState()
+        .setRootContext({ ...rootContext, remoteServerId: "paired-host" });
+      useFileEditorStore.getState().setOverlayMode("fullscreen");
+      render(<FileEditorOverlay onClose={() => {}} />);
+
+      const file = await screen.findByText("README.md");
+      expect(bridge.listProjectTree).toHaveBeenCalledWith({
+        projectLocation: { ...rootContext.projectLocation, remoteServerId: "paired-host" },
+        directoryPath: "",
+      });
+      fireEvent.click(file);
+      await waitFor(() => expect(screen.getByTestId("monaco-editor")).toBeInTheDocument());
+      expect(bridge.readProjectFile).toHaveBeenCalledWith({
+        projectLocation: { ...rootContext.projectLocation, remoteServerId: "paired-host" },
+        path: "README.md",
+      });
+      if (compact) {
+        fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      }
+      expect(Boolean(screen.queryByTestId("monaco-editor"))).toBe(!compact);
+      expect(screen.getByRole("button", { name: "README.md" })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Search files")).toBeInTheDocument();
+    },
+  );
+
+  it.each([false, true])(
     "waits for file content before offering an editor (compact=%s)",
     async (compact) => {
       layout.compact = compact;

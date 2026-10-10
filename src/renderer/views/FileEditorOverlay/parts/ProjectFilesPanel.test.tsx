@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -46,4 +46,17 @@ describe("ProjectFilesPanel", () => {
 
     expect(openFile).toHaveBeenCalledWith("README.md", "modal", true);
   });
+
+  it.each([false, true])(
+    "suspends the covered tree until fullscreen closes (compact=%s)",
+    (compact) => {
+      render(<ProjectFilesPanel rootContext={rootContext} compact={compact} />);
+      expect(screen.getByRole("button", { name: "README.md" })).toBeInTheDocument();
+      act(() => useFileEditorStore.getState().setOverlayMode("fullscreen"));
+      expect(screen.queryByRole("button", { name: "README.md" })).not.toBeInTheDocument();
+      act(() => useFileEditorStore.getState().setOverlayMode(null));
+      fireEvent.click(screen.getByRole("button", { name: "README.md" }));
+      expect(openFile).toHaveBeenCalledWith("README.md", compact ? "fullscreen" : "modal", true);
+    },
+  );
 });

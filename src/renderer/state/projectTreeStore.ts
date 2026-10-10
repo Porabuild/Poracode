@@ -4,7 +4,7 @@ import type { ProjectTreeEntry } from "@/shared/contracts";
 const EMPTY_ENTRIES: ProjectTreeEntry[] = [];
 
 interface ProjectTreeState {
-  /** Invalidates async directory loads when the active remote desktop changes. */
+  /** Invalidates async directory loads when their root or active remote desktop changes. */
   generation: number;
   /** rootKey (projectId:worktreePath) of the currently-loaded tree. State resets when this changes. */
   rootKey: string;
@@ -40,6 +40,7 @@ export const useProjectTreeStore = create<ProjectTreeState>()((set) => ({
     set((state) => {
       if (state.rootKey === rootKey) return {};
       return {
+        generation: state.generation + 1,
         rootKey,
         expandedPaths: { "": true },
         loadingPaths: {},

@@ -144,7 +144,7 @@ describe("RuntimeEventBuffer healthy acknowledgement batching", () => {
     expect(timerOnly).toEqual({
       envelopes: 63,
       emittedEvents: 2_071,
-      estimatorCalls: 9_513,
+      estimatorCalls: 7_442,
       flushCalls: 63,
       acknowledgements: 63,
       firstEnvelopeAt: 16,
@@ -176,6 +176,61 @@ describe("RuntimeEventBuffer healthy acknowledgement batching", () => {
 });
 
 describe("RuntimeEventBuffer held batch release", () => {
+  it.each(["capacity", "sender"])(
+    "refreshes later chunk sizes after a %s callback changes their payload",
+    (callback) => {
+      const events = [
+        delta("t1", "seed", "i1"),
+        delta("t1", "seed", "i2"),
+        delta("t1", "seed", "i3"),
+        delta("t1", "seed", "i4"),
+        delta("t1", "seed", "i5"),
+        delta("t2", "seed", "i6"),
+      ];
+      const chunkLimit = Math.max(...events.map(runtimeEventSize.estimateRuntimeEventBytes));
+      let armed = false;
+      const changeLaterChunk = () => {
+        if (!armed) return;
+        armed = false;
+        const later = events[3]!;
+        if (later.type !== "content.delta") throw new Error("Expected a delta");
+        later.delta = "changed λ 😀".repeat(1_000);
+      };
+      const received: RuntimeEvent[] = [];
+      const groups: string[][] = [];
+      const buffer = new RuntimeEventBuffer(
+        (envelope, meta) => {
+          const sent = eventsOf(envelope);
+          expect(meta?.estimatedBytes).toBe(
+            256 +
+              sent.reduce(
+                (sum, event) => sum + runtimeEventSize.estimateRuntimeEventBytes(event),
+                0,
+              ),
+          );
+          received.push(...sent);
+          groups.push(sent.map((event) => ("itemId" in event ? event.itemId : "")));
+          if (callback === "sender") changeLaterChunk();
+        },
+        {
+          maxEnvelopeBytesPerThread: chunkLimit,
+          maxEnvelopeBytesTotal: 2 * (256 + chunkLimit),
+          canonicalCapacity: () => {
+            if (callback === "capacity") changeLaterChunk();
+            return Number.POSITIVE_INFINITY;
+          },
+        },
+      );
+      for (const event of events) buffer.append(event.threadId, event);
+      armed = true;
+      buffer.flush();
+      expect(armed).toBe(false);
+      expect(received).toEqual(events);
+      expect(groups).toEqual([["i1", "i2"], ["i3"], ["i4"], ["i5", "i6"]]);
+      expect(buffer.pendingStats()).toEqual({ events: 0, bytes: 0, threads: 0 });
+    },
+  );
+
   it("does not repeat global overflow notifications after nested child admission", () => {
     let capacity = 0;
     const notified: string[] = [];

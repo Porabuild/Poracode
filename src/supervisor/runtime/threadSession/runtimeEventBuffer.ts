@@ -4,6 +4,7 @@ import { coalesceRuntimeEvents } from "@/shared/coalesce";
 import { estimateRuntimeEventBytes } from "@/shared/runtimeEventSize";
 
 const RUNTIME_EVENT_BATCH_MS = 16;
+const RUNTIME_EVENT_ENVELOPE_ESTIMATED_OVERHEAD_BYTES = 256;
 const DEFAULT_MAX_PENDING_EVENTS_GLOBAL = 20_000;
 const DEFAULT_MAX_PENDING_BYTES_GLOBAL = 8 * 1024 * 1024;
 const DEFAULT_MAX_PENDING_EVENTS_PER_THREAD = 2_000;
@@ -64,6 +65,11 @@ interface PendingBatch {
   events: RuntimeEvent[];
   bytes: number;
   overflowNotified: boolean;
+}
+
+interface RuntimeEventChunk {
+  events: RuntimeEvent[];
+  bytes: number;
 }
 
 /**
@@ -295,7 +301,7 @@ export class RuntimeEventBuffer {
     const merged = coalesceRuntimeEvents(batch.events);
     const chunks = this.chunkEvents(merged);
     let emitted = 0;
-    for (const chunk of chunks) {
+    for (const { events: chunk } of chunks) {
       const envelope: SupervisorEvent =
         chunk.length === 1
           ? { type: "thread-runtime-event", threadId, event: chunk[0]! }
@@ -318,9 +324,13 @@ export class RuntimeEventBuffer {
     let current: Array<{ threadId: string; events: RuntimeEvent[] }> = [];
     let currentBytes = 0;
     let held = false;
+    let chunkEstimatesFresh = false;
 
     const flushCurrent = (): boolean => {
       if (current.length === 0) return true;
+      // Remeasure later chunks after capacity/sender callbacks can change them.
+      // The triggering chunk keeps its existing pre-flush packing estimate.
+      chunkEstimatesFresh = false;
       const envelope: SupervisorEvent = { type: "thread-runtime-events-multi", batches: current };
       const bytes = estimateEnvelopeBytes(envelope);
       if (this.canonicalCapacity() < bytes) {
@@ -345,12 +355,12 @@ export class RuntimeEventBuffer {
     outer: for (const [threadId, batch] of entries) {
       const merged = coalesceRuntimeEvents(batch.events);
       mergedByThread.set(threadId, merged);
-      for (const chunk of this.chunkEvents(merged)) {
-        const estimate = estimateEnvelopeBytes({
-          type: "thread-runtime-events",
-          threadId,
-          events: chunk,
-        });
+      const chunks = this.chunkEvents(merged);
+      chunkEstimatesFresh = true;
+      for (const { events: chunk, bytes } of chunks) {
+        const estimate = chunkEstimatesFresh
+          ? RUNTIME_EVENT_ENVELOPE_ESTIMATED_OVERHEAD_BYTES + bytes
+          : estimateEnvelopeBytes({ type: "thread-runtime-events", threadId, events: chunk });
         if (current.length > 0 && currentBytes + estimate > this.maxEnvelopeBytesTotal) {
           if (!flushCurrent()) break outer;
         }
@@ -458,26 +468,26 @@ export class RuntimeEventBuffer {
    * single event above the bound is emitted alone (it was already bounded by
    * `maxSingleEventBytes` at append time).
    */
-  private chunkEvents(events: readonly RuntimeEvent[]): RuntimeEvent[][] {
-    const chunks: RuntimeEvent[][] = [];
+  private chunkEvents(events: readonly RuntimeEvent[]): RuntimeEventChunk[] {
+    const chunks: RuntimeEventChunk[] = [];
     let current: RuntimeEvent[] = [];
     let currentBytes = 0;
     for (const event of events) {
       const bytes = estimateRuntimeEventBytes(event);
       if (current.length > 0 && currentBytes + bytes > this.maxEnvelopeBytesPerThread) {
-        chunks.push(current);
+        chunks.push({ events: current, bytes: currentBytes });
         current = [];
         currentBytes = 0;
       }
       current.push(event);
       currentBytes += bytes;
       if (currentBytes >= this.maxEnvelopeBytesPerThread) {
-        chunks.push(current);
+        chunks.push({ events: current, bytes: currentBytes });
         current = [];
         currentBytes = 0;
       }
     }
-    if (current.length > 0) chunks.push(current);
+    if (current.length > 0) chunks.push({ events: current, bytes: currentBytes });
     return chunks;
   }
 
@@ -561,7 +571,7 @@ function estimateEnvelopeBytes(event: SupervisorEvent): number {
         : event.type === "thread-runtime-events"
           ? event.events
           : event.batches.flatMap((batch) => batch.events);
-    let total = 256;
+    let total = RUNTIME_EVENT_ENVELOPE_ESTIMATED_OVERHEAD_BYTES;
     for (const runtimeEvent of events) total += estimateRuntimeEventBytes(runtimeEvent);
     return total;
   }

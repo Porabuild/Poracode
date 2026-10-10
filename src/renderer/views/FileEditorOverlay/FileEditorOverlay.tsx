@@ -31,8 +31,7 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
   const hasDirtyBuffers = Object.values(buffers).some(
     (buffer) => buffer.status === "ready" && buffer.isDirty,
   );
-  const showTree =
-    rootContext.remoteServerId === undefined && !isHomeProjectId(rootContext.projectId);
+  const showTree = !isHomeProjectId(rootContext.projectId);
 
   function requestClose() {
     if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {

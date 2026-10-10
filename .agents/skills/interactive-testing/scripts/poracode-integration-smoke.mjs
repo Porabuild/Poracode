@@ -21,6 +21,8 @@ import { runSettingsScenario } from "./smoke-settings.mjs";
 import { mockQuickComposerGate } from "./smoke-quick-composer.mjs";
 import { mockSideChatGate } from "./smoke-side-chat.mjs";
 import { runWelcomeDismissalScenario } from "./smoke-welcome.mjs";
+import { verifyProjectMcpImport } from "./smoke-mcp-import.mjs";
+import { mockEditorMediaGate } from "./smoke-editor-media.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
@@ -895,27 +897,14 @@ async function mcpServersSectionDeepDive(client, mcpFixture) {
     client,
     `[...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Import to project").click()`,
   );
-  await waitForValue(
-    () =>
-      evaluate(
-        client,
-        `!document.body.innerText.includes("Import external agent MCP servers") && Boolean(document.querySelector('button[aria-label="Delete smoke_external"]')?.getClientRects().length)`,
-      ),
-    Boolean,
-    "MCP project import persistence",
-  );
-  const persisted = await evaluate(
+  await verifyProjectMcpImport({
     client,
-    `(async () => {
-    const { loopback } = await window.__poracodeDev.loadHostDiagnostics();
-    const activation = loopback.readManagedLoopbackActivation();
-    if (!activation) throw new Error("Managed host is not active for MCP persistence verification");
-    const settings = await activation.client.projectSettings("smoke-project");
-    return settings.mcpServers?.some(server => server.name === "smoke_external") === true;
-  })()`,
-    true,
-  );
-  assert(persisted, "MCP import was visible but absent from authoritative project settings");
+    evaluate,
+    waitForValue,
+    projectId: "smoke-project",
+    serverName: "smoke_external",
+    timeoutMs,
+  });
   await evaluate(
     client,
     `document.querySelector('button[aria-label="Delete smoke_external"]')?.click()`,
@@ -1310,7 +1299,12 @@ async function runMockIntegrations(report, client, gates) {
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       recordManualGate(report, gate, "fail", detail);
-      report.automated.push({ id: `mock:${gate}`, status: "fail", detail });
+      report.automated.push({
+        id: `mock:${gate}`,
+        status: "fail",
+        detail,
+        ...(error?.coverage ? { coverage: error.coverage } : {}),
+      });
       console.log(`MOCK FAIL: ${gate} - ${detail}`);
     }
   }
@@ -1325,6 +1319,16 @@ async function runMockGate(client, gate, fixture) {
   switch (gate) {
     case "live-voice":
       return mockLiveVoiceGate({ client, evaluate, waitForValue, screenshot, outDir, fixture });
+    case "editor-media":
+      return mockEditorMediaGate({
+        client,
+        evaluate,
+        waitForValue,
+        bridgeInvoke,
+        screenshot,
+        outDir,
+        fixture,
+      });
     case "changed-surface":
       return "covered by baseline and diff-selected automated scenarios";
     case "file-editor": {
@@ -1613,6 +1617,7 @@ async function runMockGate(client, gate, fixture) {
           }
         })()
       `,
+        true,
       );
       assert(result === true, "host usage isolation, retirement, or late-result fence failed");
       return "separate host accounts, late-result fencing, and retirement passed against the bundled usage store";

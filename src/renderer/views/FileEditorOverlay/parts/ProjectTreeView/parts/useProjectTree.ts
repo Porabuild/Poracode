@@ -42,6 +42,7 @@ export function useProjectTree(props: {
   async function reloadPaths(paths: string[]) {
     const uniquePaths = [...new Set(paths.flatMap((path) => [getParentPath(path), path]))];
     const treeStore = useProjectTreeStore.getState();
+    if (treeStore.rootKey !== rootKey) return;
     const generation = treeStore.generation;
     for (const path of uniquePaths) treeStore.setLoading(path, true);
 
@@ -63,6 +64,7 @@ export function useProjectTree(props: {
         }
       }),
     ).catch((error: unknown) => {
+      if (useProjectTreeStore.getState().generation !== generation) return [];
       toast.danger(error instanceof Error ? error.message : String(error));
       return [];
     });

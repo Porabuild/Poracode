@@ -25,13 +25,28 @@ const pendingBuildAssets = new Map();
 const buildAssetQueue = [];
 let activeBuildAssetFills = 0;
 
+function isHtmlResponse(response) {
+  return (response.headers.get("content-type") ?? "").toLowerCase().startsWith("text/html");
+}
+
+async function cacheBuildAsset(cache, url) {
+  const response = await fetch(url);
+  // A deployment's SPA fallback may return HTTP 200 for a missing hashed
+  // asset. Validate before writing so a concurrent reader never sees HTML
+  // under a script/style URL.
+  if (!response.ok || isHtmlResponse(response)) {
+    throw new Error(`Unavailable build asset: ${url}`);
+  }
+  await cache.put(url, response);
+}
+
 async function fillBuildAsset(job) {
   try {
     const cached = await job.cache.match(job.url, { ignoreVary: true });
     // Preserve the opportunity to repair a legacy HTML fallback entry instead
     // of treating that stale asset as an immutable cache hit.
-    if (!cached || (cached.headers.get("content-type") ?? "").startsWith("text/html")) {
-      await job.cache.add(job.url);
+    if (!cached || isHtmlResponse(cached)) {
+      await cacheBuildAsset(job.cache, job.url);
     }
     job.resolve();
   } catch (error) {
@@ -73,11 +88,16 @@ function shellAssetUrls(html) {
 
 async function cacheShell() {
   const cache = await caches.open(CACHE_NAME);
-  await Promise.allSettled(SHELL_URLS.map((url) => cache.add(url)));
+  // Reject installation if the runnable shell is incomplete. Otherwise the
+  // replacement could activate and retire the previous usable offline build.
+  await cache.add(shellUrl("./"));
   const shell = await cache.match(shellUrl("./"));
-  if (!shell) return;
+  if (!shell) throw new Error("Unavailable application shell");
   const assets = shellAssetUrls(await shell.text());
-  await Promise.allSettled(assets.map((url) => cache.add(url)));
+  if (assets.length === 0) throw new Error("Application shell has no build assets");
+  await Promise.all(assets.map((url) => cacheBuildAsset(cache, url)));
+  // Branding/install metadata are best-effort, not startup prerequisites.
+  await Promise.allSettled(SHELL_URLS.slice(1).map((url) => cache.add(url)));
 }
 
 function validBuildAssetUrls(value) {
@@ -205,13 +225,12 @@ self.addEventListener("fetch", (event) => {
       // do; matching Vary would strand a fully cached PWA at a blank shell.
       caches.match(request, { ignoreVary: true }).then(
         (cached) =>
-          cached ||
+          (cached && !isHtmlResponse(cached) ? cached : null) ||
           fetch(request).then((response) => {
             // The SPA fallback rewrites missing assets to the HTML shell. A
             // hashed build asset that returns HTML is stale — the deployment
             // replaced it. Serve a clean 404 instead of a MIME-type violation.
-            const contentType = response.headers.get("content-type") ?? "";
-            if (response.ok && contentType.startsWith("text/html")) {
+            if (response.ok && isHtmlResponse(response)) {
               return new Response("Not found", { status: 404, statusText: "Not Found" });
             }
             if (response.ok) {

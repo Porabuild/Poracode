@@ -21,8 +21,7 @@ export function FileEditorModal() {
   const hasDirtyBuffers = Object.values(buffers).some(
     (buffer) => buffer.status === "ready" && buffer.isDirty,
   );
-  const canBrowseProject =
-    rootContext?.remoteServerId === undefined && !isHomeProjectId(rootContext?.projectId);
+  const canBrowseProject = !isHomeProjectId(rootContext?.projectId);
 
   function requestClose() {
     if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {

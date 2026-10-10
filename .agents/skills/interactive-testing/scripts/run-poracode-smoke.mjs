@@ -3,6 +3,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { assertSmokeDesktopUnlocked } from "./smoke-desktop-state.mjs";
+import { parseSmokeRunnerArgs, smokeRunnerHelp } from "./smoke-runner-cli.mjs";
 import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,7 +29,11 @@ import {
 
 const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
-const args = parseArgs(process.argv.slice(2));
+const args = parseSmokeRunnerArgs(process.argv.slice(2));
+if (args.help) {
+  process.stdout.write(smokeRunnerHelp);
+  process.exit(0);
+}
 const scope = String(args.scope ?? "changed");
 const mode = String(args.mode ?? "mock");
 // Slow cold transforms need a larger launch allowance without loosening scenario checks.
@@ -361,22 +366,6 @@ try {
   await releaseRootLock?.();
   process.off("SIGINT", requestStop);
   process.off("SIGTERM", requestStop);
-}
-
-function parseArgs(argv) {
-  const parsed = {};
-  for (let index = 0; index < argv.length; index += 1) {
-    const value = argv[index];
-    if (!value.startsWith("--")) continue;
-    const key = value.slice(2);
-    const next = argv[index + 1];
-    if (next === undefined || next.startsWith("--")) parsed[key] = true;
-    else {
-      parsed[key] = next;
-      index += 1;
-    }
-  }
-  return parsed;
 }
 
 async function createFixture() {

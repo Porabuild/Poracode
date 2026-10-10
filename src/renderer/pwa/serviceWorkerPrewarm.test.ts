@@ -18,15 +18,20 @@ function workerFixture() {
         ? { headers: new Headers({ "content-type": "application/javascript" }) }
         : undefined,
     ),
-    add: vi.fn<(url: string) => Promise<void>>(async (url) => {
+    put: vi.fn<(url: string, response: Response) => Promise<void>>(async (url, _response) => {
       ready.add(url);
     }),
   };
+  const fetch = vi.fn<(url: string) => Promise<Response>>(
+    async (_url) =>
+      new Response("export default 1", { headers: { "content-type": "application/javascript" } }),
+  );
   type MessageEvent = { data: unknown; waitUntil(work: Promise<unknown>): void };
   const listeners = new Map<string, (event: MessageEvent) => void>();
   const open = vi.fn<() => Promise<typeof cache>>(async () => cache);
   runInNewContext(workerSource, {
     URL,
+    fetch,
     caches: { open },
     self: {
       location: new URL("https://app.example/hosted/service-worker.js"),
@@ -37,6 +42,7 @@ function workerFixture() {
   });
   return {
     cache,
+    fetch,
     ready,
     open,
     post(urls: string[]): Promise<unknown> {
@@ -58,7 +64,7 @@ describe("service-worker build asset prewarming", () => {
     const fixture = workerFixture();
     fixture.ready.add("/hosted/assets/entry.js");
     await fixture.post(["https://app.example/hosted/assets/entry.js"]);
-    expect(fixture.cache.add).not.toHaveBeenCalled();
+    expect(fixture.fetch).not.toHaveBeenCalled();
     expect(fixture.cache.match).toHaveBeenCalledWith("/hosted/assets/entry.js", {
       ignoreVary: true,
     });
@@ -68,9 +74,9 @@ describe("service-worker build asset prewarming", () => {
   it("joins overlapping snapshots while retaining each newly discovered asset", async () => {
     const fixture = workerFixture();
     const gate = Promise.withResolvers<void>();
-    fixture.cache.add.mockImplementation(async (url) => {
+    fixture.fetch.mockImplementation(async (_url) => {
       await gate.promise;
-      fixture.ready.add(url);
+      return new Response("export default 1");
     });
     const first = fixture.post([
       "/hosted/assets/a.js",
@@ -83,7 +89,7 @@ describe("service-worker build asset prewarming", () => {
       joined = true;
     });
     try {
-      await vi.waitFor(() => expect(fixture.cache.add).toHaveBeenCalledTimes(3));
+      await vi.waitFor(() => expect(fixture.fetch).toHaveBeenCalledTimes(3));
       expect(joined).toBe(false);
     } finally {
       gate.resolve();
@@ -101,23 +107,23 @@ describe("service-worker build asset prewarming", () => {
     const gate = Promise.withResolvers<void>();
     let active = 0;
     let peak = 0;
-    fixture.cache.add.mockImplementation(async (url) => {
+    fixture.fetch.mockImplementation(async (_url) => {
       peak = Math.max(peak, ++active);
       await gate.promise;
-      fixture.ready.add(url);
       active--;
+      return new Response("export default 1");
     });
     const urls = Array.from({ length: 16 }, (_, index) => `/hosted/assets/${index}.js`);
     const first = fixture.post(urls.slice(0, 8));
     const second = fixture.post(urls.slice(8));
     try {
-      await vi.waitFor(() => expect(fixture.cache.add).toHaveBeenCalledTimes(4));
+      await vi.waitFor(() => expect(fixture.fetch).toHaveBeenCalledTimes(4));
       expect(peak).toBe(4);
     } finally {
       gate.resolve();
       await Promise.all([first, second]);
     }
-    expect(fixture.cache.add).toHaveBeenCalledTimes(16);
+    expect(fixture.fetch).toHaveBeenCalledTimes(16);
     expect(fixture.ready.size).toBe(16);
     expect(peak).toBe(4);
     expect(active).toBe(0);
@@ -125,12 +131,12 @@ describe("service-worker build asset prewarming", () => {
 
   it("retires failed fills so a later notification can retry", async () => {
     const fixture = workerFixture();
-    fixture.cache.add.mockRejectedValueOnce(new Error("offline"));
+    fixture.fetch.mockRejectedValueOnce(new Error("offline"));
     await fixture.post(["/hosted/assets/retry.js"]);
     expect(fixture.ready.size).toBe(0);
     await fixture.post(["/hosted/assets/retry.js"]);
     expect(fixture.ready.has("/hosted/assets/retry.js")).toBe(true);
-    expect(fixture.cache.add).toHaveBeenCalledTimes(2);
+    expect(fixture.fetch).toHaveBeenCalledTimes(2);
   });
 
   it("keeps legacy HTML fallback entries eligible for repair", async () => {
@@ -139,7 +145,7 @@ describe("service-worker build asset prewarming", () => {
       headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
     });
     await fixture.post(["/hosted/assets/stale.js"]);
-    expect(fixture.cache.add).toHaveBeenCalledExactlyOnceWith("/hosted/assets/stale.js");
+    expect(fixture.fetch).toHaveBeenCalledExactlyOnceWith("/hosted/assets/stale.js");
   });
 
   it("refills an evicted asset without retaining a permanent completion index", async () => {
@@ -149,7 +155,7 @@ describe("service-worker build asset prewarming", () => {
     fixture.ready.delete(url);
     await fixture.post([url]);
     expect(fixture.ready.has(url)).toBe(true);
-    expect(fixture.cache.add).toHaveBeenCalledTimes(2);
+    expect(fixture.fetch).toHaveBeenCalledTimes(2);
   });
 
   it("keeps other origins, runtime endpoints and other build roots outside prewarming", async () => {

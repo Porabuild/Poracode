@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { RefreshCw } from "lucide-react";
@@ -8,16 +8,32 @@ import { getBasename } from "@/shared/pathUtils";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useFileMediaSource } from "@/renderer/components/media/useFileMediaSource";
 import { ImageFileView } from "@/renderer/components/media/ImageFileView";
-import { NativeMediaView } from "@/renderer/components/media/NativeMediaView";
+import {
+  NativeMediaView,
+  type MediaPlaybackPosition,
+} from "@/renderer/components/media/NativeMediaView";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobilePageBottomAction } from "@/renderer/components/layout/MobilePageBottomActions";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 
-export function EditorMediaViews(props: { path: string; projectLocation: ProjectLocation | null }) {
+interface EditorMediaViewsProps {
+  path: string;
+  projectLocation: ProjectLocation | null;
+}
+
+export function EditorMediaViews(props: EditorMediaViewsProps) {
+  // File/location changes get a fresh owner; grant renewals and explicit reloads do not.
+  return (
+    <EditorMediaDocument key={JSON.stringify([props.projectLocation, props.path])} {...props} />
+  );
+}
+
+function EditorMediaDocument(props: EditorMediaViewsProps) {
   const { t } = useLingui();
   const compact = useCompactLayout();
   const version = useFileEditorStore((state) => state.buffers[props.path]?.modifiedAtMs ?? 0);
   const [reload, setReload] = useState(0);
+  const playbackPosition = useRef<MediaPlaybackPosition>({ time: 0, paused: true });
   const { source, failed } = useFileMediaSource(props.projectLocation, props.path, version, reload);
   const media = fileMediaType(props.path);
   const fallback = (
@@ -66,6 +82,7 @@ export function EditorMediaViews(props: { path: string; projectLocation: Project
               src={source.url}
               sizeBytes={source.sizeBytes}
               fallback={fallback}
+              playbackPositionRef={playbackPosition}
             />
           )
         ) : failed ? (

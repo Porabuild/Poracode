@@ -1,5 +1,13 @@
 # Versioned State & Protocols
 
+Multi-thread runtime-buffer packing reuses freshly computed chunk byte sums.
+Later chunks are remeasured after capacity or sender callbacks; the triggering
+chunk keeps its existing pre-flush packing estimate. Final envelope admission
+and retained-tail sizing still read current events. Canonical payloads,
+coalescing, custody metadata, credit charges, persisted state and wire/helper
+formats are unchanged. No migration or version bump is needed; source/content
+hashes identify the rebuilt consumers.
+
 Settings normalization reuses two process-local Zod validators instead of
 constructing them for each field/root migration. Each read still parses fresh
 bytes and returns the same per-field fallbacks, tolerant machine entries and
@@ -2975,6 +2983,15 @@ whether 13 joins both lists and add matching regressions on both platforms
 
 ### File-editor media playback — additive HTTP routes, no version bump
 
+Explicit preview reloads retain only a document-owned playback time and paused
+state while the old media ticket and player retire. File or project-location
+changes reset that snapshot; an undecoded replacement cannot overwrite it with
+its default position. This snapshot is renderer process-local: no persisted
+state, cache, wire contract, service-worker format or deployed helper changes.
+The renderer bundle content hash identifies the behavior update; compatibility
+versions remain valid. Regression checks cover desktop/compact audio and
+video, shortened files, rapid reload and late grants after document closure.
+
 The desktop and adaptive web editor use seven new HTTP routes: file media mint,
 stream, release and authenticated renewal, plus environment parent media mint,
 release and authenticated renewal. Existing file-read
@@ -3143,3 +3160,27 @@ so later callers cannot replace a queued turn's context. No queue projection or
 canonical user message exposes the private snapshot; existing queue entries and
 storage/wire shapes remain compatible. Regression coverage begins with accepted
 queued contexts and checks ordinary drain, caller mutation, edit and queued steer.
+
+### PWA startup cache integrity
+
+The hosted worker now rejects installation when its canonical shell or a
+shell-referenced build asset cannot be cached. Optional manifest/icon fills
+remain best-effort. Install and optional prewarming reject HTML fallback
+responses before writing a build asset, and asset reads refuse legacy HTML
+cache hits. The cache/message shapes stay compatible. `finalize-web-build.mjs`
+hashes the worker bytes together with the finalized shell into `BUILD_VERSION`,
+so this change gets a new `poracode-pwa-<version>` namespace without reusing a
+released worker identity. The previous worker and usable cache remain until
+the replacement successfully installs and naturally activates; no forced
+activation or wire/native version bump is introduced. Upgrade regressions begin
+with the previous cached shell/modules and cover missing startup downloads,
+HTML responses, valid retirement and optional metadata failures.
+
+The editor's directory tree cache is renderer-local, transient state. Changing
+its root advances the existing generation so replies from a departed root,
+including a later return to the same root, cannot repopulate the current cache.
+The covered Files panel unmounts its tree while the fullscreen editor owns it.
+Remote projects use the existing host-routed tree procedures; Home stays
+file-only. No persisted cache, editor context, IPC or remote protocol shape
+changes, so no compatibility version or migration is required. Regressions
+cover delayed replies, root return, stale refresh and dock reopening.

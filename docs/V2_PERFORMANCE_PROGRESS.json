@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "goalRecovery": {
     "objective": "Continue optimizing Poracode v2 across the server, Electron GUI chat and real PTY chats/ordinary terminals, desktop and compact/mobile browsers/PWA. Reduce measured interaction latency and whole-application CPU, GPU, RAM and I/O costs; profile the current final build to distinguish parser/layout/compositor work, native allocations, live history retention and metadata caches; fix proven bottlenecks and unnecessary retained references without shifting costs, dropping canonical data or regressing reader/scroll/replay/authorization behavior. Prioritize residual chat input tails, GPU/compositor activity, long-lived RAM growth, retired measurement IDs and mixed fast-server supervisor CPU. Cover representative rich text, tool-call mixes including create/edit/view/images/groups, subagents/crossagents and workflows, keeping genuine tool-handler execution distinct from scripted presentation fixtures. Verify each substantive change with focused tests, real UI checks and appropriately matched production measurements; disclose unmeasured hardware/private dimensions and protected/oversize exceptions. Preserve provider isolation, React Compiler conventions, localization and versioned compatibility. Prioritize representative p95 and regression confidence over spending excessive time on marginal ~3% improvements; do not chase 100% optimization for every parameter. Preserve existing plans, verified evidence, failed runs and consumed diagnostic/cohort limits. Finish the current remaining qualification and final requirement-by-requirement audit without narrowing the scope. Do not commit, push, publish or replace the installed app.",
-    "statusLastVerified": "active",
+    "statusLastVerified": "blocked",
     "controllerThreadId": "01a0f42d-27e9-7e32-a538-747787b0f182",
     "verifiedAt": "2026-10-09T12:48:37.075130+00:00",
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T04:59:32.228Z",
+  "updatedAt": "2026-10-10T16:18:50.178719+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -16,7 +16,7 @@
     "completedMilestones": 2,
     "totalMilestones": 6,
     "inProgress": ["F3", "F4", "F5", "F6"],
-    "blocked": [],
+    "blocked": ["F2-pwa", "F3", "F4", "F5"],
     "pending": [],
     "completedScopedTasks": [
       "F1-editor",
@@ -39,14 +39,15 @@
       "percent": 72.2,
       "meaning": "Unweighted checklist only, not optimization savings/remaining effort/final signoff."
     },
-    "completedMilestoneIds": ["F1", "F2"]
+    "completedMilestoneIds": ["F1", "F2"],
+    "recordedCompletionCounterEvidenceScope": "13/18tasks and2/6milestones are preservedhistoricalchecklistcounts. Currentevidencecustodyaudit findsF1/F2originalreceiptsets whollymissing; countsdo notestablishcurrentfinalcompletion."
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "4e2409354877 completed_joined; read-only worktree preflight review",
+    "lastAgent": "352e5a887d4f",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "completed_joined",
-    "nativeSessionsLive": [],
+    "agentState": "completed-joined;18reviewinputSHAandreviewdigestverified;42affectednormalenvchecksPASS",
+    "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
@@ -63,8 +64,8 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Commit all local verified changes under latest explicit user instruction, pull remote v2, merge latest master and resolve any conflicts; verify integration. Then remaining reader/tool-family, GUI/browser/compact/PWA and matched whole-application CPU/GPU/RAM/p95 gates. Preserve all previous failed attempts and limits; GUI still requires desktop unlock.",
-    "lastResult": "Current dirty source sealed with 5437 files and 698 copied packages. Nine actual private worktree/Git calls independently pass: stage, commit, fast-forward merge, exact listings, refusal while referenced, archive, successful removal with branch retained; 27 canonical items preserved through shutdown. All 30 owned handles joined, 32 known PIDs absent, 4 ports closed. Original failed attempt and observer-lifetime diagnostic preserved. Broad qualification remains unfinished.",
+    "nextAction": "Review and commit pending changes, pull and integrate origin/poracode/v2, verify affected source and push. Resume the prepared rich saved PWA qualification only after final source reconciliation; preserve original evidence, failures and exhausted cohorts. No publication or installed-app replacement; no new resource, gain, all-tools or device claim.",
+    "lastResult": "Recoveredpromotedoldprofile read-only:32savedcanonicalrows+1turn; exactoriginalfullarraySHA543b2c/302102bytes/24scriptedcases/2childcards/3imageblocks. FreshprivatecurrentAPIowner seed preservesall32rows/5heads/19blocks/turn andemptyorigins/gaps/notices, ownerreboundonly; fullmaterializedreceiptexact/originalDBmainhashunchanged/no newcommits. 3failedpreparationsretained; sourcePK/foreignownerpreflightPASS, finalprepPASS;0app/browser/executionattempts.40sealedresourcehelpers stillmissing/28exact;6currentselectedsourcesmatch. Historicalmilestonecounts preserved withcustodylimit; currentfullscopeincomplete.",
     "lastDeclaration": "One normalization-only diagnostic plus one source-fix allocation validation, no unchanged usage/wholeapp cohort or renderer attribution restart. Differential syntax error caused shell to continue into validation before corrected110case preflight; originalincorrectdeclaration/failedlog retained and sequencing annotated offline, no measurement rerun. CachechurnoneattemptFAIL retained; source cleanup/bounds/data scope distinct from collectionproof.",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
@@ -182,23 +183,22 @@
     },
     "goalControllerObserved": {
       "status": "active",
-      "at": "2026-10-09T22:28:51.127028+00:00",
-      "repositoryTrackerStatus": "active",
-      "userRequest": "I removed goal make sure it is not removed",
-      "broadObjectivePreserved": true
+      "at": "2026-10-10T15:47:38.131518+00:00",
+      "objectivePreserved": true,
+      "audit": "tmp/v2-finalization-20261010/current-requirement-audit.json"
     },
     "commitPolicy": {
-      "authorizedBy": "User: commit all current changes; commit per completed big chunk; push and fix CI",
+      "authorizedBy": "User, 2026-10-10: we have a lot to commit, pull, and push",
       "localCompletedVerifiedChunks": true,
-      "push": false,
+      "push": true,
       "publish": false,
       "installedAppReplacement": false,
-      "currentGoalOverride": "Latest user instruction: when local changes are committed, pull remote changes, then pull and resolve conflicts with latest master. This authorizes the local commit and branch integration."
+      "currentGoalOverride": "The latest explicit Git instruction authorizes committing current work, pulling and integrating origin/poracode/v2, then pushing. It overrides the earlier commit/push restriction while preserving the active performance goal and its qualification limits."
     },
     "lastLocalCommit": {
-      "sha": "b24d6fc6be72353f62793443e397525104c9b84b",
-      "title": "fix(chat): preserve failed tool outcomes in saved history",
-      "scope": "Pushed earlier; exact-head core/native CI PASS. Current continuation performs no commits or pushes."
+      "sha": "4958e0429aa9b161f978f554acda658679499117",
+      "title": "perf(settings): reuse normalization validators and record qualification",
+      "scope": "Earlier explicit manual Git instruction fulfilled; not committed by this optimization turn."
     },
     "dependencyUpdate": {
       "state": "committed-and-scoped-native-verified",
@@ -5669,10 +5669,13 @@
       "conservativeClosedRootCpuUpperBound": "UNKNOWN",
       "reviewJoined": true
     },
-    "previousGoalTurnClassification": "progress: corrected GUI resumed prompt admission and early Stop race;53 coupled tests/static checks/final source-bound build and targeted review pass. Genuine final qualification remains open.",
+    "previousGoalTurnClassification": {
+      "classification": "progress",
+      "reason": "239loadedchecksPASS;1instrumentedfulloriginaljoined,ACP1002.236msPASS;5newfailuresprovenharness-induced bycheckout-localTMPDIR,independentreview18hashesverified and42affectednormalenvchecksPASS. Earlier4561msACPcauseunproven. Desktopnativefreshlocked;preparedPWAoffline/reconnectunused."
+    },
     "goalTurnClassification": {
       "classification": "progress",
-      "reason": "Current production MCP probe, delivered75-tool inventory and genuine ordinaryPTY/live read/closed-read refusal qualify with8realcalls,24canonicalrows,2samePIDttyinput echoes,8knownPIDabsence and4portsclosed. Source-dependent schemaswait/status changed; historicalreplay not treatedcurrent. FullGUI/workflow/matchedresources remainopen."
+      "reason": "Corrected7stalecurrent requirementrows;5454candidate source rows plus1QA-onlyadded input reverified. RemainingliveUI/runtime qualification stilllockedacross3goalturns; independentrequiredworkcomplete, goalblockedafteraudit."
     },
     "configurationToolBatch": {
       "runId": "8ce5a834d5d4",
@@ -5720,11 +5723,11 @@
       "wholeTasksClosed": 0
     },
     "currentDesktopAvailability": {
-      "state": "locked",
-      "at": "2026-10-10T04:21:14.910Z",
-      "evidence": "tmp/v2-normalization-allocation-20261010/desktop-state.json",
-      "guiLaunches": 0,
-      "protectedSimulatorTouched": false
+      "at": "2026-10-10T07:42:20.286Z",
+      "required": true,
+      "screenLocked": false,
+      "evidence": "tmp/v2-media-playback-20261010/desktop-state.json",
+      "limit": "Fresh prelaunch probe only. Old full-run console state at the109–2133ms visibility-loss transition was unobserved; later unlocked observations cannot prove it. Original UI FAIL retained."
     },
     "metadataMutationToolBatch": {
       "state": "PASS_SCOPED",
@@ -6124,27 +6127,23 @@
       "realExternalProvidersGuiPaintHardwareResourcesOrMatchedP95Claims": false
     },
     "latestProductionCandidate": {
-      "status": "SEALED_PRODUCTION",
-      "manifest": "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
+      "identity": "tmp/v2-browser-editor-media-20261010-racefix/frozen-production/runtime-manifest.json",
       "source": {
-        "revision": "ccb151a2c49a7ea4c36bcf9a01ce468e906d778f",
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
         "dirty": true,
-        "sha256": "97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de",
-        "files": 5437,
-        "bytes": 57007277
+        "sha256": "e8ef82791efc9186f4924a26b4c104ac58b62b00a85ec1e68e6f9d9c8415ec06",
+        "files": 5454,
+        "bytes": 57171807
       },
       "artifact": {
-        "sha256": "d334d43206e1817af8bac0e864ebe1fbd83cfdad38fa203e185338d91820d8d5",
-        "files": 91748,
-        "bytes": 2387912427
+        "sha256": "f0f1e15d1c2478872f6e07024456d5d6cd62ffbd4226ababecf4bb8de89ca0bd",
+        "files": 91767,
+        "bytes": 2391053942
       },
       "packages": 698,
-      "renderer": "frozen-production-electron-and-web",
-      "sourceExactFrozen": true,
-      "priorCandidateRetained": "tmp/v2-finalization-20261010/production-mcp-fix/runtime-manifest.json",
-      "fullMatrixAndPerformanceQualified": false,
-      "currentEntireSourceQualified": false,
-      "externalProviderAndModelFilesAttested": false
+      "sourceExactAtFreeze": true,
+      "servedManifest": "tmp/v2-browser-editor-media-20261010-racefix/served-production-manifest.json",
+      "appOrBrowserQualification": "one fresh source-corrected attempt starting; no PASS or resource gain claimed"
     },
     "currentCrossagentCancellationWorkflowResidual": {
       "status": "SCOPED_CURRENT_PRODUCTION_PASS",
@@ -6184,35 +6183,55 @@
       "realExternalProvidersGuiPaintHardwarePrivateRamOrMatchedP95Claim": false
     },
     "latestSourceQuality": {
-      "source": {
-        "revision": "ccb151a2c49a7ea4c36bcf9a01ce468e906d778f",
-        "dirty": true,
-        "sha256": "97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de",
-        "files": 5437,
-        "bytes": 57007277
-      },
-      "repositoryHead": "ccb151a2c",
-      "dirty": true,
-      "filesPassed": 2001,
-      "filesSkipped": 6,
-      "testsPassed": 22967,
+      "state": "FOCUSED_PASS_FULL_SUITE_ONE_DEADLINE_FAIL_ISOLATED_PASS",
+      "focusedTestsPassed": 384,
+      "focusedFilesPassed": 17,
+      "evidence": "tmp/v2-browser-editor-media-20261010-racefix/root-verification.json",
+      "priorCompleteTestsPassed": 22986,
+      "priorCompleteFilesPassed": 2003,
+      "priorSkipped": 102,
+      "currentFullSuiteRerun": true,
+      "typecheck": "PASS",
+      "lint": "PASS",
+      "typeAwareLint": "PASS",
+      "format": "PASS",
+      "independentReview": "tmp/v2-browser-editor-media-20261010-correction/root-review-verification.json",
+      "reviewInputHashesMatched": 9,
+      "testsPassed": 22994,
+      "testsFailed": 1,
       "testsSkipped": 102,
-      "testsFailed": 0,
-      "testSeconds": 231.2,
-      "checks": [
-        "typecheck",
-        "lint",
-        "format",
-        "protocol:remote:v3:check",
-        "production-main-build",
-        "production-Electron-renderer-build",
-        "production-web-renderer-build",
-        "WSL-stage",
-        "agent-plugin-stage",
-        "embeddedSSH-build"
-      ],
-      "evidenceRoot": "tmp/v2-normalization-allocation-20261010/quality",
-      "rendererEnvironment": "jsdom and compileonly; canvas/negative-case logs retained, no paintedGUI/GPUqualification"
+      "filesPassed": 2003,
+      "filesFailed": 1,
+      "filesSkipped": 6,
+      "fullSuiteQualified": false,
+      "deadlineFailureIsolatedPassed": true,
+      "deadlineFailureCauseEstablished": false,
+      "sourceRowsAfterAllChecksVerifiedUnchanged": 5454,
+      "qaHelperChecks": {
+        "testsPassed": 41,
+        "log": "tmp/v2-native-insert-20261010/partial-cleanup-after.log",
+        "touchedTypeAwareLint": "PASS",
+        "touchedFormat": "PASS",
+        "productChanges": 0
+      },
+      "instrumentedFullSuite": {
+        "evidence": "tmp/v2-acp-full-deadline-20261010/root-verification.json",
+        "testsPassed": 22990,
+        "testsFailed": 5,
+        "testsSkipped": 102,
+        "filesPassed": 2002,
+        "filesFailed": 2,
+        "filesSkipped": 6,
+        "ACPDeadlineCasePassed": true,
+        "qualified": false,
+        "newFailuresCausalReviewPending": false,
+        "historicalFailureRetained": true,
+        "newFailuresHarnessInduced": true,
+        "review": "tmp/v2-acp-full-deadline-20261010/root-review-verification.json",
+        "normalEnvironmentAffectedTestsPassed": 42,
+        "normalEnvironmentAffectedFilesPassed": 2,
+        "newWholeSuiteQualified": false
+      }
     },
     "currentRequirementAudit": "tmp/v2-finalization-20261010/current-requirement-audit.json",
     "currentGuiStructuredControlResidual": {
@@ -6522,20 +6541,22 @@
       "genuineHandlersOrApplicationNativeRssOrPaintClaim": false
     },
     "currentProductionBuildsAwaitFrozenClosure": {
-      "pass": true,
       "source": {
-        "revision": "ccb151a2c49a7ea4c36bcf9a01ce468e906d778f",
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
         "dirty": true,
-        "sha256": "97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de",
+        "sha256": "dd29fa7dac2ba30233fa9b6ff3fe4809e6be8f568109b27dcd3eb06ff9308942",
         "files": 5437,
-        "bytes": 57007277
+        "bytes": 57009973
       },
+      "bufferSha256": "aff33b0e945e10d8b5cbb503b89a04a5ddead39f890abd6c5237ada7a29ae677",
+      "traceSourceSha256": "bd25a6fc081b1b9bed99b973a1be356d41cedffce0d2959ec343798650de75cb",
+      "postTraceDelta": "Only shared literal256 constant and clarified comment; reconstructing the trace source gives the exact recorded hash. No trace rerun or whole-app performance claim.",
       "outputs": [
         {
           "path": "dist/main",
-          "sha256": "993aaa307fea24c86fef77b650347d9c36fc1fc5c8e12431026ffa0ac3998a81",
+          "sha256": "807fa935dfe773b166c1107c00b7cf7dc598e0c203483c5f927f7e7018a9bb24",
           "files": 52,
-          "bytes": 61056075
+          "bytes": 61057030
         },
         {
           "path": "dist/renderer",
@@ -6563,24 +6584,18 @@
         },
         {
           "path": "resources/web-ssh-runtime",
-          "sha256": "fa22e960e579f8cf7502d9e558400125af703ffe4c2d204a8c38acf2b049cda1",
+          "sha256": "05d79f2182b0b4c04684fc08e8874c32224c18e4aa76e042d7decffec24908f3",
           "files": 2,
-          "bytes": 2953749
+          "bytes": 2953875
         }
       ],
-      "productionCodeBuilds": [
-        "main/host/workers",
-        "Electron renderer",
-        "web renderer",
-        "WSL staging",
-        "agent-plugin staging",
-        "embeddedSSH"
-      ],
+      "mainAndSshRebuilt": true,
+      "rendererNativeAndPluginAssetsByteIdenticalToPriorBuilds": true,
       "fullFrozenRuntimeClosureCreated": true,
       "appLaunched": false,
-      "installedAppReplaced": false,
-      "priorImmutableCandidateRetained": true,
-      "frozenManifest": "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json"
+      "requiredAgentsJoined": ["c1e4451c465c", "6a2e58bbf8d0", "66b10f1bab5a"],
+      "pass": true,
+      "frozenManifest": "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json"
     },
     "currentWorktreeQualification": {
       "status": "SCOPED_CURRENT_PRODUCTION_PASS",
@@ -6616,6 +6631,2232 @@
       "oneAffectedResidualUsed": true,
       "unchangedFurtherRetryAllowed": false,
       "guiPaintExternalProviderHardwareGpuPrivateRamMatchedP95Claim": false
+    },
+    "currentRuntimeBufferSizingFix": {
+      "status": "SOURCE_FIX_REGRESSION_AND_SCOPED_SIZING_WORK_PASS",
+      "evidence": "tmp/v2-buffer-sizing-20261010/root-verification.json",
+      "source": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "dd29fa7dac2ba30233fa9b6ff3fe4809e6be8f568109b27dcd3eb06ff9308942",
+        "files": 5437,
+        "bytes": 57009973
+      },
+      "mixedSizingSerializationsPerEvent": {
+        "before": 4,
+        "after": 3
+      },
+      "singleThreadSizingSerializationsPerEvent": 3,
+      "cadenceEstimatorCalls": {
+        "before": 9513,
+        "after": 7442
+      },
+      "wholeApplicationCpuMemoryGpuOrP95GainMeasured": false,
+      "parsedEventsCached": false,
+      "unchangedFurtherRetryAllowed": false
+    },
+    "currentRowRetentionReview": {
+      "evidence": "tmp/v2-retention-followup-20261010/agent-review.json",
+      "sourceOwnershipDefectDemonstrated": false,
+      "originalWeakReferenceCollectionFailurePreserved": true,
+      "actualFailedObjectRetainingPathUnobserved": true,
+      "churnRerun": false
+    },
+    "currentRowRetirementQualification": {
+      "status": "SCOPED_CURRENT_CACHE_SOURCE_PASS",
+      "evidence": "tmp/v2-row-retainer-20261010/root-verification.json",
+      "source": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "dd29fa7dac2ba30233fa9b6ff3fe4809e6be8f568109b27dcd3eb06ff9308942",
+        "files": 5437,
+        "bytes": 57009973
+      },
+      "cacheSourceHash": "f96a70cd8fddce17e2c7ded9d421d16c73c02b19118a034f106802efee2064bf",
+      "ownersVisited": 10000,
+      "rowsPerSnapshot": 256,
+      "retainedOwnersBound": 16,
+      "retainedRowsBound": 4096,
+      "retiredReadsEmpty": true,
+      "retiredSnapshotCollected": true,
+      "diagnosticStackRootObserved": true,
+      "originalChurnOverallFailPreserved": true,
+      "originalFailedObjectPathUnobserved": true,
+      "oldRoutingChurnReplayed": false,
+      "affectedCacheOnlyCorrectionUsed": 1,
+      "unchangedFurtherRetryAllowed": false,
+      "nativePrivateLongSessionApplicationRamGainClaim": false
+    },
+    "currentMixedRuntimeQualificationPlan": {
+      "status": "EXECUTED_SCOPED_CURRENT_PRODUCTION_PASS",
+      "plan": "tmp/v2-buffer-sizing-20261010/mixed-runtime-plan.json",
+      "sourceSeals": "tmp/v2-buffer-sizing-20261010/mixed-runtime-source-seals.json",
+      "requiredObserver": "Original authenticated raw WebSocket event with nonempty rich batches for two distinct private GUI structured threads; renderer wrappers do not prove supervisor multi.",
+      "proposedGenuineLocalCalls": 2,
+      "proposedScriptedPairedRichRounds": 16,
+      "qualificationAppAttemptsUsed": 1,
+      "performanceOrFullMatrixClaim": false,
+      "qualificationEvidence": "tmp/v2-mixed-runtime-20261010/root-verification.json",
+      "actualGenuineLocalCalls": 2,
+      "actualScriptedPairedRichRounds": 16
+    },
+    "currentMixedRuntimeQualification": {
+      "status": "SCOPED_CURRENT_SOURCE_PRODUCTION_FUNCTIONAL_PASS",
+      "evidence": "tmp/v2-mixed-runtime-20261010/root-verification.json",
+      "sourceSha256": "dd29fa7dac2ba30233fa9b6ff3fe4809e6be8f568109b27dcd3eb06ff9308942",
+      "artifactSha256": "02ea63d9369461525510efb1ad80d9d539d455ae775622aca2fe6e7ffe9ac24a",
+      "rawFrameCount": 42,
+      "rawFrameBytes": 89697,
+      "sameOriginalFrameTwoDistinctRichThreadWitness": true,
+      "genuineLocalHandlerCalls": 2,
+      "genuineHandlerNames": ["get_current_thread"],
+      "pairedScriptedRichRounds": 16,
+      "canonicalItems": 72,
+      "indexedHeads": 64,
+      "indexedHeadBlocks": 64,
+      "bothThreadsFiveTablesLiveToStoppedExact": true,
+      "settingsAndConfigsExact": true,
+      "joinedOriginalHandles": 4,
+      "knownPidsFreshlyAbsent": 7,
+      "trackedPortsClosed": 4,
+      "fixtureTestsPassed": 23,
+      "elapsedMs": 22224,
+      "applicationAttemptsUsed": 1,
+      "applicationAttemptLimit": 1,
+      "retries": 0,
+      "performanceClaim": false,
+      "guiPaintClaim": false,
+      "allToolsClaim": false,
+      "realExternalProviderClaim": false,
+      "originalOfflineVerifierFailuresPreserved": true,
+      "limits": "Affected current-source functional qualification; genuine get_current_thread only. Rich text/tool payload/plan are scripted ACP presentation. No p95, CPU/GPU/native-RAM, live UI paint, physical mobile, packing threshold or reentrant runtime qualification."
+    },
+    "currentLocalToolingRepair": {
+      "pass": true,
+      "evidence": "tmp/v2-mixed-runtime-20261010/tooling-repair.json",
+      "metadataByteMatchedFrozen": true,
+      "typecheck": "PASS",
+      "affectedBufferTests": 23,
+      "lint": "PASS",
+      "touchedFormatting": "PASS",
+      "allHandlesJoined": true
+    },
+    "currentDevelopmentGuiSmoke": {
+      "evidence": "tmp/v2-next-qualification-20261010/root-verification.json",
+      "changedScope": "PASS",
+      "changedSource": "dd29fa7dac2ba30233fa9b6ff3fe4809e6be8f568109b27dcd3eb06ff9308942",
+      "automatedPassed": ["welcome-dismissal", "baseline", "thread-search", "mock-integrations"],
+      "mockGatesPassed": 3,
+      "suiteErrors": 0,
+      "searchScreenshotReviewed": true,
+      "richLiveChatOrProductionPerformanceClaim": false
+    },
+    "currentFullMockRegression": {
+      "status": "FAIL_ORIGINAL_PRESERVED",
+      "evidence": "tmp/v2-next-qualification-20261010/root-verification.json",
+      "report": "tmp/v2-next-qualification-20261010/full-artifacts/smoke-report.json",
+      "applicationAttemptsUsed": 1,
+      "applicationAttemptLimit": 1,
+      "unchangedRetryAllowed": false,
+      "failedAutomatedIds": [
+        "welcome-dismissal",
+        "baseline",
+        "settings",
+        "browser",
+        "mock:editor-media",
+        "mock:quick-composer",
+        "mock:remote-usage",
+        "mock-integrations"
+      ],
+      "mockGatesPassed": 17,
+      "mockGatesFailed": 3,
+      "recordedSuiteErrors": 0,
+      "welcomeHiddenDespiteConsoleUnlocked": true,
+      "settingsImportPersistenceQualified": false,
+      "editorMediaMockImplemented": true,
+      "quickComposerPositiveGuiQualified": false,
+      "hostUsageGateAsyncSourceCorrectedAfterRun": true,
+      "normalQuitClaim": false,
+      "cleanupScope": "2owned sessionsstopped,2runtimesremoved,4knownPIDsfreshabsent/4ephemeralportsclosed.2loggedserviceports reusedby laterdifferentdebugroot; not falselydeclaredclosed or killed.",
+      "laterMediaQualification": "tmp/v2-browser-editor-media-20261010-attributes/root-verification.json",
+      "originalFailureRelabeled": false
+    },
+    "currentQualificationToolingFixes": {
+      "evidence": "tmp/v2-next-qualification-20261010/root-verification.json",
+      "helpNeverStartsSession": true,
+      "unknownOrInvalidArgsFailBeforeLaunch": true,
+      "hostUsageAsyncEvaluationAwaited": true,
+      "actualStoreBeforeRegression": "FAIL1/2 with exactoriginalisolationerror",
+      "currentHelperTestsPassed": 12,
+      "lint": "PASS",
+      "touchedFormat": "PASS",
+      "toolingOnlySourceDelta": true,
+      "currentSource": {
+        "sha256": "524b03628249473fa8106c2f41ef690651e7e0032bb0e46e08817be2cf21421b",
+        "files": 5440,
+        "bytes": 57018031
+      },
+      "productInputsExactToSealed": {
+        "sha256": "92ff137a00c317e838946190dfa8da8860e7503700ca3b47f9ca40a13cc50985",
+        "files": 5397,
+        "bytes": 56592013
+      },
+      "versionAudit": "PrivateCLI/testobserver behavior only; no persisted/cache/wire/deployedhelper boundary change and no artifactversion bump required.",
+      "historicalOnly": true,
+      "entireCurrentSourceToolingOnly": false
+    },
+    "currentMediaReloadCorrection": {
+      "state": "DESKTOP_MEDIA_4_DIMENSIONS_PASS_PAIRED_COMPACT_UNQUALIFIED",
+      "evidence": "tmp/v2-media-playback-20261010/source-verification.json",
+      "focusedTestsPassed": 20,
+      "helperTestsPassed": 27,
+      "typecheck": "PASS",
+      "lint": "PASS",
+      "format": "PASS",
+      "review": "Sol6.1Max completed/joined;0 Important findings;5 current source hashes verified",
+      "uiDeclaration": "tmp/v2-media-playback-20261010/ui-declaration.json",
+      "pairedCompactPwaQualified": false,
+      "wholeProductionCandidateSealed": false,
+      "resourceGainMeasured": false,
+      "interactive": {
+        "state": "stopped-joined",
+        "handle": 3540,
+        "exitCode": 1,
+        "wholeRunPass": false,
+        "requiredPairedCompactUnqualified": true,
+        "desktopMediaDimensions": [
+          {
+            "id": "image",
+            "status": "pass",
+            "checks": 4
+          },
+          {
+            "id": "svg-source-preview",
+            "status": "pass",
+            "checks": 3
+          },
+          {
+            "id": "audio",
+            "status": "pass",
+            "checks": 5
+          },
+          {
+            "id": "video",
+            "status": "pass",
+            "checks": 5
+          }
+        ],
+        "welcomeDismissal": "pass",
+        "baseline": "pass",
+        "threadSearch": "pass",
+        "otherMockGatesPassed": 6,
+        "rendererRuntimeErrors": 0,
+        "nativeStartupSslWarning": true,
+        "forcedOwnerShutdownShellStateWarning": true,
+        "normalAppQuitQualified": false,
+        "source": {
+          "revision": "4958e0429aa9b161f978f554acda658679499117",
+          "dirty": true,
+          "sha256": "068b4c1faf583363705c37a42acf323c99ee2dff9bec15f4387e9dafea07a3bd",
+          "files": 5449,
+          "bytes": 57107225
+        },
+        "artifact": {
+          "sha256": "a89a836261e7b75728a554547c8f3004a16620697898810529b938fff1aaf4e1",
+          "files": 90027,
+          "bytes": 2384885965
+        },
+        "renderer": "frozen-development-build",
+        "report": "tmp/v2-media-playback-20261010/ui-artifacts/smoke-report.json",
+        "reportSha256": "942737a8ab9096b48a278ed3f639982ce23085a00cacfd920f9bc647962b1794",
+        "coverage": "tmp/v2-media-playback-20261010/ui-artifacts/editor-media-coverage.json",
+        "coverageSha256": "c7f07330121279596c27cda11740a3cb723922d0c85b88488abf2cce5232f5d5",
+        "teardown": "tmp/v2-media-playback-20261010/teardown.json",
+        "screenshotsReviewed": [
+          {
+            "path": "tmp/v2-media-playback-20261010/ui-artifacts/editor-media-image-lightbox.png",
+            "sha256": "97b926bc592e1aa6f86e1c542db15cd8c9dbcdb39aa31b1f53f73c587cb136bf"
+          },
+          {
+            "path": "tmp/v2-media-playback-20261010/ui-artifacts/editor-media-svg-unsaved-preview.png",
+            "sha256": "1a046d5fd35223c31a76dc113ed19c5d94493026b6a2e688a0273054359a8c97"
+          },
+          {
+            "path": "tmp/v2-media-playback-20261010/ui-artifacts/editor-media-audio-reloaded.png",
+            "sha256": "156718cc02275a4d895236797d23267306063577a364b6e3de32918512541e5e"
+          },
+          {
+            "path": "tmp/v2-media-playback-20261010/ui-artifacts/editor-media-video-reloaded.png",
+            "sha256": "c606bc5e9ece3a1248087fd0bcda9237b219d694148e4d97f8b9499a9368f796"
+          }
+        ]
+      }
+    },
+    "windowReadinessDiagnosis": {
+      "evidence": "tmp/v2-window-readiness-20261010/diagnosis.json",
+      "consoleAtOriginalVisibilityLoss": "UNOBSERVED",
+      "clicksDispatched": 0,
+      "originalFailurePreserved": true
+    },
+    "settingsImportDiagnosis": {
+      "evidence": "tmp/v2-settings-import-20261010/stopped-state.json",
+      "stoppedDatabaseContainsExpectedServer": true,
+      "readOnlyDatabaseHashUnchanged": true,
+      "saveTimeAndUiOutcomeQualified": false,
+      "oracle": "Authoritative persistence then presentation, one shared deadline;5 focused helpertestsPASS"
+    },
+    "currentPairedBrowserMediaPreparation": {
+      "state": "PAIRED_CURRENT_PRODUCTION_EDITOR_MEDIA_PASS",
+      "controller": "tmp/v2-browser-editor-media-20261010-attributes/execute.mjs",
+      "productionManifest": "tmp/v2-browser-editor-media-20261010-racefix/frozen-production/runtime-manifest.json",
+      "servedManifest": "tmp/v2-browser-editor-media-20261010-racefix/served-production-manifest.json",
+      "result": "tmp/v2-browser-editor-media-20261010-attributes/execution-result.json",
+      "originalFailure": "tmp/v2-browser-editor-media-20261010/execution-result.json",
+      "fixtureNavigationCorrectedFailure": "tmp/v2-browser-editor-media-20261010-correction/execution-result.json",
+      "materialSourceCorrection": "Restore host-routed non-Home remote tree; suspend covered dock; invalidate departed and ABA directory replies and stale refreshes. Existing procedures/authorization and Home file-only unchanged.",
+      "applicationAttemptsThisCase": 1,
+      "browserAttemptsThisCase": 1,
+      "retries": 0,
+      "noOriginalCohortReset": true,
+      "pwaUpgradeQualified": false,
+      "physicalMobileQualified": false,
+      "wholeApplicationResourceGainQualified": false,
+      "applicationAttemptLimit": 1,
+      "browserAttemptLimit": 1,
+      "appOrBrowserLaunched": true,
+      "priorSourceCorrectedRun": "tmp/v2-browser-editor-media-20261010-treefix/execution-result.json",
+      "priorNativeEditContextRun": "tmp/v2-browser-editor-media-20261010-editcontext/execution-result.json",
+      "priorNativeSelectAllRun": "tmp/v2-browser-editor-media-20261010-selection/execution-result.json",
+      "originalCorrectedSourceAppAttemptConsumed": 1,
+      "currentMaterialQaCaseApplicationLimit": 1,
+      "currentMaterialQaCaseBrowserLimit": 1,
+      "qaRuntimeEquivalence": "tmp/v2-browser-editor-media-20261010-attributes/qa-runtime-reconciliation.json",
+      "sameProductionArtifact": true,
+      "productChangesThisTurn": 0,
+      "helperTestsPassed": 35,
+      "pureNativeInputDiagnostic": "tmp/v2-native-insert-20261010/result.json",
+      "priorFailuresPreserved": true,
+      "rootVerification": "tmp/v2-browser-editor-media-20261010-attributes/root-verification.json",
+      "surfacesQualified": ["desktop-web", "compact-web"],
+      "mediaDimensionsPassed": 8,
+      "requiredMediaOraclesPassed": 38,
+      "rendererErrors": 0,
+      "processesJoined": 4,
+      "portsClosed": [57003, 57004, 47824],
+      "canonicalRuntimeUnchanged": true,
+      "artifactUnchanged": true,
+      "fixtureCleanup": "pass",
+      "notQualified": [
+        "PWA natural upgrade/offline/reconnect",
+        "Safari/iOS",
+        "physical devices",
+        "native mobile clients",
+        "native player pointer controls",
+        "full codec breadth",
+        "SVG disk/autosave audit",
+        "normal background resource behavior",
+        "CPU/GPU/RAM/p95 gains"
+      ],
+      "independentReview": {
+        "previousRun": "ac9e46863984",
+        "previousStatus": "failed-joined",
+        "previousError": "API429 subscription does not include GLM5.3FlashX",
+        "currentRun": "62a6c4666cf9",
+        "status": "completed-joined-important-QA-cleanup-finding-fixed",
+        "correctionRun": "10893702d5de",
+        "correctionVerdict": "no Important findings",
+        "correctionRootVerification": "tmp/v2-native-insert-20261010/partial-cleanup-root-verification.json",
+        "actualUiProofUsesPrior35CheckQaSnapshot": true
+      },
+      "currentQaHelperTestsPassed": 41
+    },
+    "previousProductionCandidateBeforeMediaRefreeze": {
+      "status": "RETAINED_PRIOR_PRODUCTION_CURRENT_RENDERER_CHANGED",
+      "manifest": "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json",
+      "source": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "dd29fa7dac2ba30233fa9b6ff3fe4809e6be8f568109b27dcd3eb06ff9308942",
+        "files": 5437,
+        "bytes": 57009973
+      },
+      "artifact": {
+        "sha256": "02ea63d9369461525510efb1ad80d9d539d455ae775622aca2fe6e7ffe9ac24a",
+        "files": 91748,
+        "bytes": 2387916204
+      },
+      "packages": 698,
+      "renderer": "frozen-production-electron-and-web",
+      "sourceExactFrozen": false,
+      "priorCandidateRetained": "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
+      "fullMatrixAndPerformanceQualified": false,
+      "currentEntireSourceQualified": false,
+      "externalProviderAndModelFilesAttested": false,
+      "postProbeArtifactRecheck": "tmp/v2-row-retainer-20261010/frozen-artifact-recheck.json",
+      "sourceExactAtFreeze": true,
+      "toolingOnlyLaterSourceDelta": {
+        "currentSource": {
+          "sha256": "524b03628249473fa8106c2f41ef690651e7e0032bb0e46e08817be2cf21421b",
+          "files": 5440,
+          "bytes": 57018031
+        },
+        "productInputsExactToSealed": {
+          "sha256": "92ff137a00c317e838946190dfa8da8860e7503700ca3b47f9ca40a13cc50985",
+          "files": 5397,
+          "bytes": 56592013
+        },
+        "evidence": "tmp/v2-next-qualification-20261010/root-verification.json",
+        "productionArtifactRefreshed": false,
+        "reason": "All5397 noninteractive-testing-source inputs equal frozenproduct source. Currentwhole-source changes are QA helpers/tests only; sealedproduction remainsdd29identity, no claim5440-source snapshotsealed.",
+        "historicalOnly": true
+      },
+      "postFreezeProductDelta": {
+        "evidence": "tmp/v2-media-playback-20261010/source-verification.json",
+        "reason": "Two production renderer views now changed; prior 5397-product-input equality applied before this media correction and is no longer current.",
+        "currentProductInputsExactToSealed": false,
+        "rendererCompilation": "Electron and webPASS",
+        "wholeProductionArtifactRefreshed": false
+      }
+    },
+    "previousProductionCandidateBeforePwaIntegrity": {
+      "status": "SEALED_PRODUCTION_CURRENT_MEDIA_SOURCE",
+      "manifest": "tmp/v2-browser-editor-media-20261010/frozen-production/runtime-manifest.json",
+      "source": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "babd0e4a791a02a3f4442a57989919dce1c065d6af6b3e5916eed5ed967ce304",
+        "files": 5452,
+        "bytes": 57154412
+      },
+      "artifact": {
+        "sha256": "96a29dd01c79d7a5b2d3921c43e93b1447236c6fbf71ea97e33e81b3cd4ca302",
+        "files": 91765,
+        "bytes": 2391034342
+      },
+      "packages": 698,
+      "renderer": "frozen-production-electron-and-finalized-web",
+      "sourceExactFrozen": true,
+      "sourceExactAtFreeze": true,
+      "currentSourceFilesReverified": 5452,
+      "fullMatrixAndPerformanceQualified": false,
+      "currentEntireSourceQualified": false,
+      "externalProviderAndModelFilesAttested": false,
+      "evidence": "tmp/v2-browser-editor-media-20261010/root-preparation-verification.json",
+      "priorCandidateRetained": "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json"
+    },
+    "previousSourceQualityBeforePwaIntegrity": {
+      "source": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "babd0e4a791a02a3f4442a57989919dce1c065d6af6b3e5916eed5ed967ce304",
+        "files": 5452,
+        "bytes": 57154412
+      },
+      "testsPassed": 22978,
+      "testsSkipped": 102,
+      "filesPassed": 2002,
+      "filesSkipped": 6,
+      "testSeconds": 228.86,
+      "typecheck": "PASS",
+      "fullLintIncludingTypeAware": "PASS",
+      "fullFormat": "PASS",
+      "helperTestsPassed": 58,
+      "evidence": "tmp/v2-browser-editor-media-20261010/root-preparation-verification.json",
+      "wholeApplicationPerformanceQualified": false,
+      "wholeFunctionalMatrixQualified": false
+    },
+    "currentPwaCacheIntegrityCorrection": {
+      "state": "SOURCE_REGRESSION_REVIEW_AND_CURRENT_REAL_NATURAL_UPGRADE_PASS_OFFLINE_RESIDUAL_PENDING",
+      "worker": "public/service-worker.js",
+      "workerSha256": "311347ccc9f741a3f3cd45f4d051d2612d804b609c99d4e5f0d20c9ae03d2532",
+      "originalWorkerSha256": "576a8557f711c2f50259ade8682375d88016a8b272a3f5647543e2a2deba0eaa",
+      "correctedBehavior": [
+        "Reject incomplete mandatory startup shell/assets before install completion",
+        "Reject HTML fallback assets before cache writes",
+        "Refuse and repair legacy HTML asset cache hits",
+        "Keep manifest/icon best-effort and existing four-fill/dedupe/retry behavior"
+      ],
+      "beforeRegressionFailures": 5,
+      "focusedTestsPassed": 31,
+      "independentReview": "096122290723 completed-joined; no Important findings;10VMchecksPASS;3currentinputhashesverified",
+      "originalReview": "5cf8446d569f completed-joined;17original retained input hashes parent-verified",
+      "versionBoundary": "Content-hashed worker/shell produces new cache namespace d7f9f22923f7; no message/cache shape change or forced activation",
+      "evidence": "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
+      "review": "tmp/v2-pwa-cache-integrity-20261010/review.json",
+      "historicalFiveSecondActivationCauseProven": false,
+      "historicalR261R262RawEvidencePresent": false,
+      "pwaNaturalUpgradeQualified": true,
+      "wholeOfflineRecoveryQualified": false,
+      "performanceGainClaim": false,
+      "fullSuiteEvidence": "tmp/v2-pwa-cache-integrity-20261010/full-suite-verification.json",
+      "actualQualification": "tmp/v2-pwa-natural-upgrade-20261010-deployfix/root-scoped-verification.json",
+      "qualifiedCurrentCacheVersion": "fd595c662bd6"
+    },
+    "blockedAudit": {
+      "state": "blocked-confirmed-sameMaclock3consecutivegoalturns",
+      "evidence": "tmp/v2-goal-preflight-20261010-after-acp/blocked-audit.json",
+      "resumedGoalTurnCountAtLeast": 3,
+      "allRequiredAgentsJoined": true,
+      "crossagentRunningCount": 0,
+      "noLiveOwnedNativeSessions": true,
+      "noLiveRootHandles": true,
+      "preparedOfflineReconnectUnused": true,
+      "scopeAndOlderBudgetsRetained": true,
+      "impasseNow": true
+    },
+    "workState": "blocked:requirednativeUI/runtimequalificationawaitsunlockedMac",
+    "goalToolStateObserved": "blocked",
+    "desktopBlockerResolved": false,
+    "previousProductionCandidateBeforeRemoteTreeCorrection": {
+      "status": "SEALED_PRODUCTION_CURRENT_PWA_CACHE_INTEGRITY_SOURCE",
+      "manifest": "tmp/v2-pwa-cache-integrity-20261010/frozen-production/runtime-manifest.json",
+      "source": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "dae020b45f08ff3dde61309a8afa22d03ee8a474b725b0140fd62bdc863ce4ca",
+        "files": 5453,
+        "bytes": 57165305
+      },
+      "artifact": {
+        "sha256": "91473b1f3dfc9b60845944931c1ebcf8af9755fb9c17f0392ca9e3ff2d9821c9",
+        "files": 91766,
+        "bytes": 2391046983
+      },
+      "packages": 698,
+      "renderer": "frozen-production-electron-and-finalized-web",
+      "sourceExactFrozen": true,
+      "sourceExactAtFreeze": true,
+      "currentSourceFilesReverified": 5453,
+      "fullMatrixAndPerformanceQualified": false,
+      "currentEntireSourceQualified": false,
+      "externalProviderAndModelFilesAttested": false,
+      "evidence": "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
+      "priorCandidateRetained": "tmp/v2-browser-editor-media-20261010/frozen-production/runtime-manifest.json"
+    },
+    "previousSourceQualityBeforeRemoteTreeCorrection": {
+      "source": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "dae020b45f08ff3dde61309a8afa22d03ee8a474b725b0140fd62bdc863ce4ca",
+        "files": 5453,
+        "bytes": 57165305
+      },
+      "focusedPwaTestsPassed": 31,
+      "focusedPwaFilesPassed": 4,
+      "regressionsFailedBeforeFix": 5,
+      "typecheck": "PASS",
+      "fullLintIncludingTypeAware": "PASS",
+      "touchedFormat": "PASS",
+      "fullFormat": "PASS",
+      "currentFullSuiteRerun": true,
+      "previousFullSuite": {
+        "source": {
+          "revision": "4958e0429aa9b161f978f554acda658679499117",
+          "dirty": true,
+          "sha256": "babd0e4a791a02a3f4442a57989919dce1c065d6af6b3e5916eed5ed967ce304",
+          "files": 5452,
+          "bytes": 57154412
+        },
+        "testsPassed": 22978,
+        "testsSkipped": 102,
+        "filesPassed": 2002,
+        "filesSkipped": 6,
+        "testSeconds": 228.86,
+        "typecheck": "PASS",
+        "fullLintIncludingTypeAware": "PASS",
+        "fullFormat": "PASS",
+        "helperTestsPassed": 58,
+        "evidence": "tmp/v2-browser-editor-media-20261010/root-preparation-verification.json",
+        "wholeApplicationPerformanceQualified": false,
+        "wholeFunctionalMatrixQualified": false
+      },
+      "unchangedSmokeHelperInputsReconciled": true,
+      "scratchProtocolAndFixtureTestsPassed": 6,
+      "independentReviewVmChecksPassed": 10,
+      "evidence": "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
+      "wholeApplicationPerformanceQualified": false,
+      "wholeFunctionalMatrixQualified": false,
+      "qualityCommands": {
+        "typecheck": "pnpm run typecheck",
+        "lint": "pnpm run lint",
+        "format": "pnpm run fmt:check",
+        "logs": [
+          "tmp/v2-pwa-cache-integrity-20261010/full-typecheck.log",
+          "tmp/v2-pwa-cache-integrity-20261010/full-lint.log",
+          "tmp/v2-pwa-cache-integrity-20261010/full-format.log"
+        ]
+      },
+      "testsPassed": 22986,
+      "testsSkipped": 102,
+      "filesPassed": 2003,
+      "filesSkipped": 6,
+      "testSeconds": 217.63,
+      "fullSuiteEvidence": "tmp/v2-pwa-cache-integrity-20261010/full-suite-verification.json"
+    },
+    "desktopAvailabilityCurrent": {
+      "state": "locked-native-rechecked-current-goal-continuation",
+      "evidence": "tmp/v2-goal-preflight-20261010-after-acp/desktop-state.json",
+      "checkedAt": "2026-10-10T14:28:29.113Z",
+      "screenLocked": true,
+      "appOrBrowserLaunched": false,
+      "noQualificationAttemptConsumed": true
+    },
+    "currentExternalQualificationGaps": [
+      "physical mobile unavailable",
+      "hardware GPU/VRAM/privateRAM unmeasured"
+    ],
+    "historicalBlockedAudit": "tmp/v2-pwa-cache-integrity-20261010/blocked-audit.json",
+    "currentSvgInterruptedCleanupCorrection": {
+      "state": "QA_ONLY_FOUR_BEFORE_FAILURES_41_CURRENT_PASS_REVIEW_HASHES_VERIFIED",
+      "evidence": "tmp/v2-native-insert-20261010/partial-cleanup-root-verification.json",
+      "actualSuccessfulUiReplayed": false,
+      "unrelatedSourceRefusalPreserved": true,
+      "productChanges": 0
+    },
+    "currentAcpDeadlineDiagnosis": {
+      "state": "LOADED_AND_FULL_OBSERVED_DEADLINE_PASS_HARNESS_FAILURES_DIAGNOSED_TARGETED_NORMAL_ENV_PASS_HISTORICAL_CAUSE_OPEN",
+      "evidence": "tmp/v2-acp-full-deadline-20261010/root-review-verification.json",
+      "review": "a1c5faddf094 completed-joined",
+      "inputsRehashed": 31,
+      "originalRunnerJoined": true,
+      "fixtureExitsAndCloses": 23,
+      "deadlineCaseElapsedMs": 1002,
+      "recordedFullSuiteElapsedMs": 4561,
+      "fullSuiteFailureRetained": true,
+      "causeEstablished": false,
+      "productBugProven": false,
+      "deadlineModelRpcCoverage": 0,
+      "nextAction": "Retainoriginal4561msACP failurecauseunproven; no deadlinewiden/no furtherunchangedwhole reruns. FinishpreparedunusedPWAoffline/reconnect onlyafter verifiednativeunlock, then outstandingfunctional/resources/audit.",
+      "loadedConcurrencyEvidence": "tmp/v2-acp-loaded-deadline-20261010/root-verification.json",
+      "loadedTestsPassed": 239,
+      "loadedTestsSkipped": 23,
+      "loadedDeadlineElapsedMs": 1004.493791,
+      "instrumentedFullEvidence": "tmp/v2-acp-full-deadline-20261010/root-verification.json",
+      "instrumentedFullDeadlineElapsedMs": 1002.2358749999985,
+      "instrumentedFullTestsPassed": 22990,
+      "instrumentedFullTestsFailed": 5,
+      "instrumentedFullTestsSkipped": 102,
+      "instrumentedFullOriginalHandle": 9619,
+      "instrumentedFullOriginalRunnerJoined": true,
+      "instrumentedFullObservedFixturesRetired": 30,
+      "instrumentedFullSuiteQualified": false,
+      "newFailureReviewRun": "352e5a887d4f",
+      "newFailureReviewState": "completed-joined",
+      "newFailureReviewInputHashesVerified": 18,
+      "newFailureCausalDiagnosis": "diagnosticharness checkout-localTMPDIR created fixture rootsinsideGitcheckout;4CDPcases rejectedoutside-repoguard,1Gitcase inheritedparentrepository",
+      "affectedNormalEnvironmentTestsPassed": 42,
+      "affectedNormalEnvironmentFilesPassed": 2,
+      "affectedNormalEnvironmentOriginalHandle": 7350,
+      "affectedNormalEnvironmentOriginalRunnerJoined": true,
+      "noProductBugProvenForNewFiveFailures": true
+    },
+    "currentPwaAffectedQualification": {
+      "state": "FIVE_ACTUAL_NATURAL_UPGRADE_GATES_AND_COMPACT_OFFLINE_RECONNECT_PASS_RICH_LONG_DEVICE_RESOURCE_OPEN",
+      "controller": "tmp/v2-pwa-natural-upgrade-20261010-deployfix/execute.mjs",
+      "seed": "tmp/v2-pwa-natural-upgrade-20261010/seed.json",
+      "qaReconciliation": "tmp/v2-pwa-natural-upgrade-20261010/qa-runtime-reconciliation.json",
+      "applicationLimit": 1,
+      "applicationUsed": 1,
+      "browserLimit": 1,
+      "browserUsed": 1,
+      "retries": 0,
+      "resetOlderCohorts": false,
+      "materialSourceCorrection": "mandatory-cache HTML refusal before replacement activation and invalid legacy asset repair",
+      "oldBuild": "11a492223f72",
+      "currentBuild": "fd595c662bd6",
+      "prelaunchReview": "1b3ce6a36274 completed-joined,2harnessfindings corrected",
+      "requiredCorrectionReview": null,
+      "scope": [
+        "actual public pairing",
+        "oldAactive cache preservation after incompleteBinstall",
+        "completeBwaiting",
+        "naturalBactivation after old document retires",
+        "new compact offline current shell",
+        "fresh paired API tree response after reconnect"
+      ],
+      "notQualified": [
+        "rich saved chat offline/reconnect",
+        "Safari/physical/native mobile",
+        "long session/background",
+        "CPU/GPU/RAM/p95 gains"
+      ],
+      "correctionReview": "225990dadc2a completed-joined noImportant",
+      "rootPrelaunchVerification": "tmp/v2-pwa-natural-upgrade-20261010/root-prelaunch-verification.json",
+      "sealedRendererGraphsParentVerified": 2,
+      "desktopBlocked": false,
+      "originalRunFailure": "tmp/v2-pwa-natural-upgrade-20261010/root-failure-verification.json",
+      "originalApplicationAndBrowserAttemptsConsumed": 1,
+      "currentMaterialCorrectionApplicationLimit": 1,
+      "currentMaterialCorrectionBrowserLimit": 1,
+      "guardRegressionsBeforeFailed": 3,
+      "guardRegressionsCurrentPassed": 5,
+      "productEdits": 0,
+      "noUnchangedRetry": true,
+      "guardCorrectedFailure": "tmp/v2-pwa-natural-upgrade-20261010-guardfix/root-failure-verification.json",
+      "priorOriginalAndGuardCorrectedApplicationAttemptsConsumed": 2,
+      "deploymentFixtureHttpTestsPassed": 2,
+      "fixtureFaultNormalizedToActualRequest": true,
+      "oldImmutableAssetsRetained": true,
+      "sameDeadlines": true,
+      "actualSourceCorrectionResult": "tmp/v2-pwa-natural-upgrade-20261010-deployfix/root-scoped-verification.json",
+      "actualGatesPassed": 5,
+      "mandatoryAssetsVerified": 19,
+      "pwaNaturalUpgradeQualified": true,
+      "offlineQualified": true,
+      "reconnectReached": true,
+      "originalExecutionFailuresRetained": true,
+      "applicationAttemptsConsumedThisPwaLineage": 6,
+      "browserAttemptsConsumedThisPwaLineage": 5,
+      "plainReferenceBrowserDiagnostic": "tmp/v2-pwa-network-reference-20261010/root-verification.json",
+      "plainReferenceNoAppQualification": true,
+      "currentPreparedResidual": "tmp/v2-pwa-offline-reconnect-20261010-documentfix/execute.mjs",
+      "currentPreparedApplicationLimit": 1,
+      "currentPreparedApplicationUsed": 1,
+      "currentPreparedBrowserLimit": 1,
+      "currentPreparedBrowserUsed": 1,
+      "preparedScope": "offline/reconnect only; no repeat5qualifiedupgradegates",
+      "nativeNetworkControlPureTestsPassed": 4,
+      "historicalExactFailedOfflineBooleanProven": false,
+      "nativeReferenceNewDocumentOnLineResetProven": true,
+      "qaCorrectionNoAppStateInjection": true,
+      "uncachedOnlineOfflineRestoredOwnHostProbesIncluded": true,
+      "freshFilesResponseQualified": true,
+      "originalDocumentNetworkResult": "tmp/v2-pwa-offline-reconnect-20261010-documentfix/execution-result.json",
+      "hoverCorrectionFixtureFailure": "tmp/v2-pwa-reconnect-files-20261010-hoverfix/execution-result.json",
+      "currentResidualResult": "tmp/v2-pwa-reconnect-files-20261010-profilefix/root-verification.json",
+      "noFurtherUnchangedRetry": true
+    },
+    "desktopAvailabilityPreviousUnlocked": {
+      "state": "unlocked-before-completed-validation",
+      "evidence": "tmp/v2-browser-editor-media-20261010-attributes/execution-desktop-state.json",
+      "appOrBrowserLaunched": true,
+      "applicationAttemptsConsumed": 1,
+      "browserAttemptsConsumed": 1,
+      "qualifiedScope": "paired editor media; not continuous availability"
+    },
+    "currentTurnCompletedSubgates": [
+      {
+        "scope": "paired production editor media",
+        "status": "PASS",
+        "evidence": "tmp/v2-browser-editor-media-20261010-attributes/root-verification.json"
+      },
+      {
+        "scope": "interrupted SVG QA cleanup",
+        "status": "PASS",
+        "evidence": "tmp/v2-native-insert-20261010/partial-cleanup-root-verification.json"
+      },
+      {
+        "scope": "bounded ACP diagnostic",
+        "status": "24PASS; full-suite cause unresolved",
+        "evidence": "tmp/v2-acp-deadline-20261010/root-verification.json"
+      },
+      {
+        "scope": "PWA affected qualification preparation",
+        "status": "reviewed ready; no launches consumed",
+        "evidence": "tmp/v2-pwa-natural-upgrade-20261010/root-prelaunch-verification.json"
+      },
+      {
+        "scope": "PWA mandatory-cache rejection, waiting/old-cache preservation, natural activation and current online shell",
+        "status": "5SCOPED_ACTUAL_PASS; original overall offlineFAIL retained",
+        "evidence": "tmp/v2-pwa-natural-upgrade-20261010-deployfix/root-scoped-verification.json"
+      },
+      {
+        "scope": "Current production PWA compact offline/reconnect and fresh Files host response",
+        "status": "PASS_SCOPED",
+        "evidence": "tmp/v2-pwa-reconnect-files-20261010-profilefix/root-verification.json"
+      },
+      {
+        "scope": "CurrentfrozenDEV Settings/MCPimport/usage/Browser/quickcomposer mockcontrols",
+        "status": "PASS_SCOPED",
+        "evidence": "tmp/v2-settings-usage-20261010-affected/root-verification.json"
+      },
+      {
+        "scope": "Readonlycanonicalcorpusrecoveryandfreshprivatecurrenthostseed",
+        "status": "PASS_PREPARATION_ONLY",
+        "evidence": "tmp/v2-rich-saved-pwa-20261010-preparation/seed-verification.json"
+      }
+    ],
+    "currentPwaNativeNetworkDiagnostic": {
+      "state": "NATIVE_REFERENCE_TWO_CASES_REPRODUCE_QA_NAVIGATOR_RESET",
+      "evidence": "tmp/v2-pwa-network-reference-20261010/root-verification.json",
+      "review": "tmp/v2-pwa-offline-assertion-20261010/root-review-verification.json",
+      "originalHandle": 44229,
+      "originalHandleJoinedExitCode": 0,
+      "originalBrowserJoinedZero": true,
+      "portsClosed": 2,
+      "noRuntimeExceptions": true,
+      "notPoracodeAppQualification": true,
+      "noAppProductBugProven": true
+    },
+    "currentRequirementReconciliation": "tmp/v2-goal-preflight-20261010-after-acp/requirement-reconciliation.json",
+    "currentPwaOfflineReconnectQualification": {
+      "at": "2026-10-10T15:46:55.596943+00:00",
+      "pass": true,
+      "scope": "Current sealed production desktop-paired compact PWA offline shell and fresh host Files response after reconnect",
+      "originalHandle": 98091,
+      "originalJoinedExitCode": 0,
+      "evidence": "tmp/v2-pwa-reconnect-files-20261010-profilefix/execution-result.json",
+      "gatesPassed": 3,
+      "build": "fd595c662bd6",
+      "productionSource": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "e8ef82791efc9186f4924a26b4c104ac58b62b00a85ec1e68e6f9d9c8415ec06",
+        "files": 5454,
+        "bytes": 57171807
+      },
+      "productionArtifact": {
+        "sha256": "e528db5db6d6dbd69bc2c2af343f36fd8e757f217fc8593a846cd09df8169e8b",
+        "files": 91617,
+        "bytes": 2298431441
+      },
+      "offlineNativeStateFalse": true,
+      "uncachedHostRequestOfflineFails": true,
+      "sameUncachedHostRequestRestored200": true,
+      "freshFileTreeCompletedHttp200": [
+        {
+          "requestId": "53069.1025",
+          "path": "/api/git/call",
+          "status": 200,
+          "bodySha256": "5952c96245b773f320b1c53a7a4211cd8e7b43b9b77c42f4965903b9c956caf7",
+          "includesOwnedFixtureFile": true
+        },
+        {
+          "requestId": "53069.1026",
+          "path": "/api/git/call",
+          "status": 200,
+          "bodySha256": "5952c96245b773f320b1c53a7a4211cd8e7b43b9b77c42f4965903b9c956caf7",
+          "includesOwnedFixtureFile": true
+        }
+      ],
+      "ownedProcessesJoinedZero": 4,
+      "portsClosed": [
+        {
+          "port": 61965,
+          "closed": true
+        },
+        {
+          "port": 61966,
+          "closed": true
+        },
+        {
+          "port": 61967,
+          "closed": true
+        },
+        {
+          "port": 47823,
+          "closed": true
+        }
+      ],
+      "canonicalTablesUnchanged": true,
+      "artifactUnchanged": true,
+      "runtimeExceptions": 0,
+      "expectedOfflineNetworkErrors": 7,
+      "screenshotsViewed": ["current-B-compact-offline.png", "current-B-compact-reconnected.png"],
+      "noProductEdits": true,
+      "priorFailuresPreserved": [
+        "tmp/v2-pwa-offline-reconnect-20261010-documentfix/execution-result.json",
+        "tmp/v2-pwa-reconnect-files-20261010-hoverfix/execution-result.json"
+      ],
+      "attemptAccounting": {
+        "documentNetworkApp": 1,
+        "documentNetworkBrowser": 1,
+        "hoverApp": 1,
+        "hoverBrowser": 0,
+        "profileApp": 1,
+        "profileBrowser": 1,
+        "oldLineageAppTotal": 6,
+        "oldLineageBrowserTotal": 5,
+        "budgetsReset": false
+      },
+      "notQualified": [
+        "rich saved chat offline/reconnect",
+        "longsession/background",
+        "Safari/physical/native mobile",
+        "CPU/GPU/RAM/p95 gain"
+      ],
+      "goalComplete": false
+    },
+    "currentSettingsUsageBrowserComposerQualification": {
+      "at": "2026-10-10T15:51:33.217607+00:00",
+      "pass": true,
+      "scope": "CurrentfrozenDEV Settings/MCPimport/usage, nativeembeddedBrowser and mockedquickcomposercontrolandIPCqualification; no productionperformance/resource/providerclaim",
+      "runtimeManifest": "/Users/svecherenko/.poracode-smoke/v2-settings-usage-20261010-1555/runtime-manifest.json",
+      "source": {
+        "revision": "4958e0429aa9b161f978f554acda658679499117",
+        "dirty": true,
+        "sha256": "27034865609a9f1d2748b12d34c113917934e60f3171c84adc7b9f36096cd732",
+        "files": 5455,
+        "bytes": 57182557
+      },
+      "artifact": {
+        "sha256": "6d39a5438665cd3bd22fc79851b7585aff99a238d76febaf20a7ffe31a09bb48",
+        "files": 90033,
+        "bytes": 2384964130
+      },
+      "renderer": "frozen-development-build",
+      "originalManagedHandle": 20761,
+      "originalManagedJoinedExitCode": 0,
+      "affectedScenarioHandle": 82723,
+      "affectedScenarioJoinedExitCode": 0,
+      "browserHandle": 53028,
+      "browserJoinedExitCode": 0,
+      "quickComposerHandle": 21902,
+      "quickComposerJoinedExitCode": 0,
+      "runtimeVerificationHandle": 91708,
+      "runtimeVerificationJoinedExitCode": 0,
+      "runtimeVerificationPassed": true,
+      "settingsSections": [
+        "profile",
+        "general",
+        "audio",
+        "appearance",
+        "terminal",
+        "threads",
+        "git",
+        "worktrees",
+        "notifications",
+        "ai",
+        "search",
+        "shortcuts",
+        "remoteAccess",
+        "remoteServers",
+        "agentsGeneral",
+        "skills",
+        "mcpServers",
+        "plugins",
+        "browser",
+        "usage",
+        "archived",
+        "changelog",
+        "about"
+      ],
+      "authoritativeMcpImportPersistenceAndVisibleRowQualifiedByUnchangedTwoPhaseOracle": true,
+      "mcpImportReceiptReturnedButNotPersistedIndividually": true,
+      "mockUsagePass": true,
+      "browserPassMarkers": [
+        "PASS: App target - expected http://127.0.0.1:62111/?poracodeDebugSession=7c5193c7-b70f-4158-9768-a5295af62bcc, got http://127.0.0.1:62111/?poracodeDebugSession=7c5193c7-b70f-4158-9768-a5295af62bcc",
+        "PASS: App boot - renderer body contains rendered app controls",
+        "PASS: Create tab - browser state has at least one tab",
+        "PASS: Active tab - browser state has an active tab",
+        "PASS: Navigate - active tab reached first smoke URL",
+        "PASS: Embedded page DOM - browser target exposes expected page text",
+        "PASS: Toolbar URL input - URL input exists",
+        "PASS: Toolbar URL input enabled - URL input is enabled for active tab",
+        "PASS: Back availability - active tab can go back",
+        "PASS: Forward availability - active tab can go forward",
+        "PASS: Forward navigation - active tab returned to second URL",
+        "PASS: Browser settings - Browser settings page is reachable",
+        "PASS: Renderer console errors - no renderer errors collected"
+      ],
+      "quickComposerMockHandoffPass": true,
+      "helperTestsPassed": 7,
+      "rendererRuntimeErrors": 0,
+      "screenshotsViewed": [
+        "artifacts/smoke-02-mcp-import.png",
+        "browser/smoke-browser-04-navigation.png",
+        "quick-composer/quick-composer-ready-to-submit.png"
+      ],
+      "cleanup": {
+        "at": "2026-10-10T15:50:47.814Z",
+        "session": "/Users/svecherenko/.poracode-smoke/v2-settings-usage-20261010-1555/session.json",
+        "state": "stopped",
+        "originalManagedHandle": 20761,
+        "originalManagedHandleJoinedExit": 0,
+        "originalStopHandle": 49492,
+        "originalStopHandleJoinedExit": 0,
+        "runtimeRemoved": true,
+        "knownPids": [
+          {
+            "pid": 54794,
+            "absent": true
+          }
+        ],
+        "ports": [
+          {
+            "port": 62110,
+            "closed": true
+          },
+          {
+            "port": 62111,
+            "closed": true
+          },
+          {
+            "port": 47823,
+            "closed": true
+          },
+          {
+            "port": 49153,
+            "closed": true
+          }
+        ],
+        "allOwnedProcessesCensusClaim": false,
+        "normalNativeQuitClaim": false,
+        "shutdownWarning": "failed to persist shell state window-bounds: Backend host is shutting down; originalmanagedowneroutputretained",
+        "pass": true
+      },
+      "oldFullFailureUnmodified": true,
+      "newAppLaunches": 1,
+      "affectedSettingsUsageRuns": 1,
+      "standaloneBrowserRuns": 1,
+      "standaloneQuickComposerRuns": 1,
+      "retries": 0,
+      "noExhaustedCohortReset": true,
+      "notQualified": [
+        "Realquickcomposerglobalshortcut/tray/OSdrag/visualmotion/providerhandoff",
+        "Richlivechat/reader/scroll/currentrealPTY",
+        "Productionmatchedp95/CPU/GPU/RAM/I/O",
+        "NormalnativeQuit/bounds",
+        "Physical/Safari/nativemobile"
+      ],
+      "goalComplete": false
+    },
+    "resourceReferenceRevalidation": "tmp/v2-goal-resume-20261010-qualification/resource-reference-revalidation.json",
+    "currentResourceEvidenceRecovery": {
+      "at": "2026-10-10T15:55:21.187316+00:00",
+      "previousTurnClassification": "progress:currentproductionPWAoffline/reconnect andcurrentDEVSettingsBrowserQuickComposer scopedpasses plusjoinedcleanup",
+      "scope": "Evidencecustody and executableprerequisites; no new app/resource/performance cohorts or product edits",
+      "searchRoots": ["/Users/svecherenko/work/Poracode", "/Users/svecherenko/.poracode-smoke"],
+      "backupRecoveryFound": false,
+      "originalBrowserMemoryDeclaration": "tmp/v2-memory-production-20261008-a79decb09/browser-memory-v8-f35f8f3d2cdc4cda/launcher-declaration.json",
+      "sealedHelperRows": [
+        {
+          "path": "/Users/svecherenko/work/Poracode/tests/native-e2e/fixtures/rich-tool-workload.mjs",
+          "bytes": 12166,
+          "sha256": "bc214e0531eda3eeff2c898f762cc694ba9f627677f7c618ff001352d4b5de2b",
+          "exists": true,
+          "currentSha256": "bc214e0531eda3eeff2c898f762cc694ba9f627677f7c618ff001352d4b5de2b",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-live-5e4b508912717c55/source-conservation.mjs",
+          "bytes": 1689,
+          "sha256": "3af86241e994282a645545f968f19b47248ed6a4872bfaf7aba6d0d274eb4e1d",
+          "exists": true,
+          "currentSha256": "3af86241e994282a645545f968f19b47248ed6a4872bfaf7aba6d0d274eb4e1d",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-live-5e4b508912717c55/source-settlement.mjs",
+          "bytes": 1170,
+          "sha256": "1c4abba86dc6352fbecc2b2b6d3f451025856d5057570b0a4bf14dba25d06bbb",
+          "exists": true,
+          "currentSha256": "1c4abba86dc6352fbecc2b2b6d3f451025856d5057570b0a4bf14dba25d06bbb",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-memory-canonical-receipt-v1/receipt.mjs",
+          "bytes": 924,
+          "sha256": "8e579c977e106c4bd0d9be50a3266746eb247600d53e18a6f1859be34f068526",
+          "exists": true,
+          "currentSha256": "8e579c977e106c4bd0d9be50a3266746eb247600d53e18a6f1859be34f068526",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-memory-canonical-receipt-v1/semantic-receipt.mjs",
+          "bytes": 1401,
+          "sha256": "2179b6dccb29cf1a2af462e6147ff64ab956f3fe4d762aa4e88d9476b66fdbb7",
+          "exists": true,
+          "currentSha256": "2179b6dccb29cf1a2af462e6147ff64ab956f3fe4d762aa4e88d9476b66fdbb7",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-memory-controls-v7/driver.mjs",
+          "bytes": 10290,
+          "sha256": "263d4d60af6b66d4cb264141771f264438fa9b4800d209cd72d19f9b96eaa338",
+          "exists": true,
+          "currentSha256": "263d4d60af6b66d4cb264141771f264438fa9b4800d209cd72d19f9b96eaa338",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-memory-observation-v7/observe.mjs",
+          "bytes": 5670,
+          "sha256": "7a2af773473a1b6ae4c8ae42f4d0d7c735bdcf4e1fde5b1930dafc65ebe687f0",
+          "exists": true,
+          "currentSha256": "7a2af773473a1b6ae4c8ae42f4d0d7c735bdcf4e1fde5b1930dafc65ebe687f0",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-pagination/collect-items.mjs",
+          "bytes": 1623,
+          "sha256": "d3e749c81ede1921194291b0c867fbe3ee55492f224185b484b10792404f22d9",
+          "exists": true,
+          "currentSha256": "d3e749c81ede1921194291b0c867fbe3ee55492f224185b484b10792404f22d9",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-teardown/classify.mjs",
+          "bytes": 1149,
+          "sha256": "81cd41c1ac71038a28a322fc7acddb8bc41839be977843fc9a88b10cadc339e4",
+          "exists": true,
+          "currentSha256": "81cd41c1ac71038a28a322fc7acddb8bc41839be977843fc9a88b10cadc339e4",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/controls.mjs",
+          "bytes": 14588,
+          "sha256": "dfbd6779941ffb2b64f391030f07a4e8f5acdc543f4c32a43e8dd7a82c47ac44",
+          "exists": true,
+          "currentSha256": "dfbd6779941ffb2b64f391030f07a4e8f5acdc543f4c32a43e8dd7a82c47ac44",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/dom-probes.mjs",
+          "bytes": 24387,
+          "sha256": "a1adf5e0fcbcb15d7e652916f6d9ebf66b60eabf96ca2807df4c40dc2c17b9a0",
+          "exists": true,
+          "currentSha256": "a1adf5e0fcbcb15d7e652916f6d9ebf66b60eabf96ca2807df4c40dc2c17b9a0",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/driver.mjs",
+          "bytes": 9264,
+          "sha256": "93e47c634c5018e3d019289871fd6ce080b64a3dfef08079339b816aeafb4ea2",
+          "exists": true,
+          "currentSha256": "93e47c634c5018e3d019289871fd6ce080b64a3dfef08079339b816aeafb4ea2",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/header-marker-diagnostics.mjs",
+          "bytes": 2024,
+          "sha256": "281dc9d8b53c6e2e8629bfa42763361d92803c06af291bf41b64ffda538f6a22",
+          "exists": true,
+          "currentSha256": "281dc9d8b53c6e2e8629bfa42763361d92803c06af291bf41b64ffda538f6a22",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/panel-close-scope.mjs",
+          "bytes": 245,
+          "sha256": "61c00ed34d1c5b2191a45f82b88260e644890997c0a194f56d572205ec098503",
+          "exists": true,
+          "currentSha256": "61c00ed34d1c5b2191a45f82b88260e644890997c0a194f56d572205ec098503",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/run-browser-controls.mjs",
+          "bytes": 7544,
+          "sha256": "846e12f46fd5488efe9f8df8350d582ac45174cbee631dab5e2ee9ace42dfeb6",
+          "exists": true,
+          "currentSha256": "846e12f46fd5488efe9f8df8350d582ac45174cbee631dab5e2ee9ace42dfeb6",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/ui-procedure.mjs",
+          "bytes": 13179,
+          "sha256": "c69d8b8c0fbbf68c9c0b813cad6f1ed479df7549e3a6349fc1a1217983960858",
+          "exists": true,
+          "currentSha256": "c69d8b8c0fbbf68c9c0b813cad6f1ed479df7549e3a6349fc1a1217983960858",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/viewport-alignment.mjs",
+          "bytes": 560,
+          "sha256": "755f936bab02bc488847597e182e7c997fed9cd60af74ff3b37db2427579f5f6",
+          "exists": true,
+          "currentSha256": "755f936bab02bc488847597e182e7c997fed9cd60af74ff3b37db2427579f5f6",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/wheel-points.mjs",
+          "bytes": 378,
+          "sha256": "8c664deb288f8e1ce2a68856fccb98524629d1f28e87fad50cf89a105143c37c",
+          "exists": true,
+          "currentSha256": "8c664deb288f8e1ce2a68856fccb98524629d1f28e87fad50cf89a105143c37c",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/workflow-header-observation.mjs",
+          "bytes": 1223,
+          "sha256": "d8746db46b9d64745d2fa1e0314a47ddc5b5610bbc0c693baec6f7b3fd89aeb2",
+          "exists": true,
+          "currentSha256": "d8746db46b9d64745d2fa1e0314a47ddc5b5610bbc0c693baec6f7b3fd89aeb2",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/cdp-native-errors-v1/cdp.mjs",
+          "bytes": 5600,
+          "sha256": "0b6390e09d221804ceb4b810c097d603607163d34d0f17f36268b90baddcfc95",
+          "exists": true,
+          "currentSha256": "0b6390e09d221804ceb4b810c097d603607163d34d0f17f36268b90baddcfc95",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/launch-declaration-guard-v1/guard.mjs",
+          "bytes": 1024,
+          "sha256": "d3d1fb4a86204883b8fe410b0dd9ea021580ceee346f2e7c41ec5fd3a6b5b495",
+          "exists": true,
+          "currentSha256": "d3d1fb4a86204883b8fe410b0dd9ea021580ceee346f2e7c41ec5fd3a6b5b495",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/mcp-disclosure-control-v2/mcp-disclosure.mjs",
+          "bytes": 6790,
+          "sha256": "119cc8c52a97c1fb1b3d08abf24a019db322e0852eed2c55445e92f6b424ac7b",
+          "exists": true,
+          "currentSha256": "119cc8c52a97c1fb1b3d08abf24a019db322e0852eed2c55445e92f6b424ac7b",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/native-binding.mjs",
+          "bytes": 1814,
+          "sha256": "9ce80f2083f28e2e01299b645217dd312f2afc94206e660d0a9bc44b4e14a9cc",
+          "exists": true,
+          "currentSha256": "9ce80f2083f28e2e01299b645217dd312f2afc94206e660d0a9bc44b4e14a9cc",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/run-browser-memory-v8.mjs",
+          "bytes": 33741,
+          "sha256": "68896f0ddbae9c360d22b5e1b409f5c6fe3134e69870cd8e7e724573acd50d18",
+          "exists": true,
+          "currentSha256": "68896f0ddbae9c360d22b5e1b409f5c6fe3134e69870cd8e7e724573acd50d18",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/workflow-fixture-v5/case-spec.mjs",
+          "bytes": 12220,
+          "sha256": "18e103098742d2a3e17b074871f87ca05681677431754a54d34ae3e946292e9a",
+          "exists": true,
+          "currentSha256": "18e103098742d2a3e17b074871f87ca05681677431754a54d34ae3e946292e9a",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/workflow-fixture-v5/entry.mjs",
+          "bytes": 217,
+          "sha256": "4603fa9607ed7182d5ff6c2cf7035fd4983af071b37b98e9b21eae7cb7ba4f5d",
+          "exists": true,
+          "currentSha256": "4603fa9607ed7182d5ff6c2cf7035fd4983af071b37b98e9b21eae7cb7ba4f5d",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/workflow-fixture-v5/rich-oracle.mjs",
+          "bytes": 2975,
+          "sha256": "96ab68f85c81f8c295835eebfc9c7338ee4ade1f8827b12110f778154fe49745",
+          "exists": true,
+          "currentSha256": "96ab68f85c81f8c295835eebfc9c7338ee4ade1f8827b12110f778154fe49745",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/workflow-fixture-v5/rich-tool-workload.mjs",
+          "bytes": 111,
+          "sha256": "9dab58abf7e61730c57887c719e0a2b711d5cc2ee7de64161b8d6705ffca27f8",
+          "exists": true,
+          "currentSha256": "9dab58abf7e61730c57887c719e0a2b711d5cc2ee7de64161b8d6705ffca27f8",
+          "matchesSealed": true
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/final-electron-host-v1/admission.mjs",
+          "bytes": 7022,
+          "sha256": "3ab8ed1fb4b4dbe627e475f63bd4782f142a443b3e4ee176824aa7e1b67480a8",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/final-electron-host-v1/coordinator.mjs",
+          "bytes": 701,
+          "sha256": "96ce03103d8eaa220cfd3766fd2d705ab7afabfd64cf928241048bbec4bdc7e5",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/final-electron-host-v1/owner-preparation.mjs",
+          "bytes": 2035,
+          "sha256": "0007dd1d82867cd375f8482dd5326f42d0acb766a5145b39dd76555134f601b1",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/final-electron-host-v1/paths.mjs",
+          "bytes": 4350,
+          "sha256": "559391f29e0ad3ae94a2095098887c541153701d4d5e0c7e6128a046b6fe0051",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/final-electron-host-v1/source-inventory.mjs",
+          "bytes": 920,
+          "sha256": "a9a9fdf354a3e37bdb2f8695b6e99c30b197680c664a9567a6477e06f072e115",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/final-electron-runtime-stage-v1/contract.mjs",
+          "bytes": 6567,
+          "sha256": "9d46ed47f56cfad9813992640749f44a1fba3ac082043508531347ec1d79dc16",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/final-electron-runtime-stage-v1/selected-heads.mjs",
+          "bytes": 5914,
+          "sha256": "6be4a3e42d71cdcc1040f477eae5149157ea7271642d48907d98fd3757a53db2",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/harness.mjs",
+          "bytes": 13466,
+          "sha256": "48937125df1bec5cb013d0fd50ae856ee53127ebf19a523c2d8d06b2be3bd8b3",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/lib.mjs",
+          "bytes": 8667,
+          "sha256": "54be71a28dc4c4d952b116703866e28fad4892a1da13491855eec48b041b40d9",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/probes.mjs",
+          "bytes": 11602,
+          "sha256": "2c3f631ad8f5fa500adf663836994de2cf87643de6b1acf7e0ccad9002bdd0d7",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/rich-tool-workload.mjs",
+          "bytes": 150,
+          "sha256": "d892a738c25c5d2dea36c9f92e0251f37f536b37b80f7655fe79131128741f2d",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round120/canonical-digest.mjs",
+          "bytes": 1439,
+          "sha256": "59bd93be0b0778ece5305d84c41b72b310c775a9cc24ecc28f045d6ff904b54a",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round159/diagnostic-rich-acp.mjs",
+          "bytes": 14576,
+          "sha256": "b28b7c346a53661fd586daf1cc078fd480fde71f235835b45d56b15ef78c1369",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round265/server-log-redactor.mjs",
+          "bytes": 1336,
+          "sha256": "48419dbcd766f76c9b713b9c485c0cc43769d7ab59111fa1e559ac1a5530547b",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round267/server-root-integration-corrected/root-bridge.mjs",
+          "bytes": 6782,
+          "sha256": "7835b9bc37297931e4e9b6e985821728730bcd460195a940dd3b695b348381af",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round277/electron-versioned-settings/admission.mjs",
+          "bytes": 6126,
+          "sha256": "92ec3b4cea43b47c9c8a71351f1f286593d0fadc4677c744d8321cab3930bfc8",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round277/electron-versioned-settings/paths.mjs",
+          "bytes": 9288,
+          "sha256": "5506a5cae9ac8e0ff7301983ffda50e157b367f1b7aae1ab00f5f153fa5e99c6",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round30/qualified-server-identity.mjs",
+          "bytes": 4793,
+          "sha256": "e255b87e8f573f0167c8e5925647d4d15ce2019263cd79d827b060730f25d9ee",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round34/native-memory-probe.mjs",
+          "bytes": 18083,
+          "sha256": "9517b77030f093b4bd5ae48ed18dfc20d217c53079b9f7d6e0b998133c3d050c",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round34/native-memory-tool-boundary.mjs",
+          "bytes": 7697,
+          "sha256": "6e7d558308ed0f6d8bf0658229b20dafea26d84064657254ded3b0a945d72069",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/cancelled-startup-assets.mjs",
+          "bytes": 2791,
+          "sha256": "c7327e7d44e25d955ed45d089564a91dd8999ddb12237e5d7d64bbb7f1c4383c",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/common.mjs",
+          "bytes": 6578,
+          "sha256": "fb1ad6dc2e54f69d0ae96983978090a84c396f202be41717aaf8a956dff5b10e",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/connectivity-receipts.mjs",
+          "bytes": 6582,
+          "sha256": "68a275a8c581de893ec4dbc6644911962a351250d83b08b25f91dce3f36ae9a3",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/launch.mjs",
+          "bytes": 15341,
+          "sha256": "20aa411e6e958d089bfda9497dd1c07d08b07ec37df6ab1aff937dc5d426cae0",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/native-identity-details.mjs",
+          "bytes": 2463,
+          "sha256": "a40ad4c287ff68ca339a3837127e0d20bf4d92158a649a205985506650ba1d7f",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/native-resize-control.mjs",
+          "bytes": 2077,
+          "sha256": "95531ba80bcf99a3f4746a43aa02b053ebefd7a9e2654fab6ec922d84a2ecacb",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/network.mjs",
+          "bytes": 29829,
+          "sha256": "0c21d5df0c36b39ec692a73f3ed89fbb7ccbc9fe17427c4ec95646dae57d8a25",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/owner.mjs",
+          "bytes": 22110,
+          "sha256": "0570ea0d8ea345e64ccfa6fecde64214cd65bf179f89b41c46e565b8b9a644d3",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/page-network-handoff.mjs",
+          "bytes": 2871,
+          "sha256": "1854d2a7e12d6457711ef3a6c7be52a2ea8823e6cf7af9aa745a676de54e46c9",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/pending-native-reads.mjs",
+          "bytes": 3071,
+          "sha256": "430906fba3f42336b4b049a998449a29d07fa57e05b6cc5e89b63edd509e4149",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/persistent-isolation.mjs",
+          "bytes": 35168,
+          "sha256": "c6b205ad1ebd5252de0711828ed2e03427588eba9a462069f64f084de1e7c8e2",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/process-custody.mjs",
+          "bytes": 1862,
+          "sha256": "1b6caa855d288aaf76cf038f54e660c2182b2465f1f23357ddf9febc9143fd24",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/reader-frame-probe.mjs",
+          "bytes": 9909,
+          "sha256": "b190d46e6e18702fa89407ceb9a3f792080288c5ad9c963ca2fa5b45302e598d",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/service-worker-lifetime.mjs",
+          "bytes": 12641,
+          "sha256": "e16514624e354e2d8495679305d0443c73e032bfdaf3a64fda840d8a3f06fad6",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/session-call-custody.mjs",
+          "bytes": 2081,
+          "sha256": "3f53e8684eed323ab64df0db86229341ae99afca739144a4c9003de790f03733",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/ui-reader-stall.mjs",
+          "bytes": 11041,
+          "sha256": "d6d211e6b171706862bc42ac579121c4a83ff8380ca27849f10fd00494fe0daa",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/unenrolled-diagnostic.mjs",
+          "bytes": 3412,
+          "sha256": "5abeaa64b3bda95daf6da6be644d4dbe8e1138a80b52cb8566abb23012ffde21",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/window-viewport.mjs",
+          "bytes": 6301,
+          "sha256": "cc676ed9d55ceddcaf570f61b659198e009290c08d0ec1078eb49c61914041b7",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-capture.mjs",
+          "bytes": 15987,
+          "sha256": "803cfbbdff4f6be3f2983fd5dda334726522e361bb4d94fca6d852626224c4a9",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-wire-extra.mjs",
+          "bytes": 4761,
+          "sha256": "826439490f35af64bfbb6ac5a21732f52aaa8358e058d88e255607573924449e",
+          "exists": false
+        }
+      ],
+      "sealedHelperTotal": 68,
+      "sealedHelperMissing": 40,
+      "sealedHelperMismatched": 0,
+      "retainedOldMemoryProfileExists": true,
+      "oldRichEntryDependencyMissing": "tmp/v2-streaming-perf-20260930/round159/diagnostic-rich-acp.mjs",
+      "originalMemoryObservationDoesNotClaimFullLongSession": true,
+      "currentSelectedProductInputs": [
+        {
+          "path": "src/renderer/state/timelineMeasurementCache.ts",
+          "currentSha256": "f96a70cd8fddce17e2c7ded9d421d16c73c02b19118a034f106802efee2064bf",
+          "frozenSha256": "f96a70cd8fddce17e2c7ded9d421d16c73c02b19118a034f106802efee2064bf",
+          "currentFrozenMatch": true
+        },
+        {
+          "path": "src/renderer/components/thread/ChatPane/parts/useTimelineMeasurements.ts",
+          "currentSha256": "28af45e00add50bf02e95f226d847e2db149379019acf11ef9e41fc29dba0138",
+          "frozenSha256": "28af45e00add50bf02e95f226d847e2db149379019acf11ef9e41fc29dba0138",
+          "currentFrozenMatch": true
+        },
+        {
+          "path": "src/renderer/state/inactiveRuntimeRetention.ts",
+          "currentSha256": "5aa19656942da994e3271ef4d46fc67183392302a9c925ab36c10bcf1f4d4713",
+          "frozenSha256": "5aa19656942da994e3271ef4d46fc67183392302a9c925ab36c10bcf1f4d4713",
+          "currentFrozenMatch": true
+        },
+        {
+          "path": "src/renderer/state/browserMetadataCacheRecords.ts",
+          "currentSha256": "42a60cdfd3fad9bb2f3e9918ec59493d32cbbc0fc111a3bf9c6c039b1b4d4f95",
+          "frozenSha256": "42a60cdfd3fad9bb2f3e9918ec59493d32cbbc0fc111a3bf9c6c039b1b4d4f95",
+          "currentFrozenMatch": true
+        },
+        {
+          "path": "src/renderer/state/chatRuntimePersister.ts",
+          "currentSha256": "cd8bf652aaa5ef5c22869454dae18df957dcc0f5aad748b96d9b8fddeeba6eca",
+          "frozenSha256": "cd8bf652aaa5ef5c22869454dae18df957dcc0f5aad748b96d9b8fddeeba6eca",
+          "currentFrozenMatch": true
+        },
+        {
+          "path": "src/supervisor/runtime/threadSession/runtimeEventBuffer.ts",
+          "currentSha256": "aff33b0e945e10d8b5cbb503b89a04a5ddead39f890abd6c5237ada7a29ae677",
+          "frozenSha256": "aff33b0e945e10d8b5cbb503b89a04a5ddead39f890abd6c5237ada7a29ae677",
+          "currentFrozenMatch": true
+        }
+      ],
+      "milestoneAndTaskReceipts": [
+        {
+          "group": "milestones",
+          "id": "F1",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 26,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round73/session-owner-review.json",
+            "tmp/v2-streaming-perf-20260930/round73/native-lifecycle-verification.json",
+            "tmp/v2-streaming-perf-20260930/round74/root-baseline-regressions.json",
+            "tmp/v2-streaming-perf-20260930/round74/server-owner-result.json",
+            "tmp/v2-streaming-perf-20260930/round74/root-combined-checks.json",
+            "tmp/v2-streaming-perf-20260930/round75/restart-baseline.json",
+            "tmp/v2-streaming-perf-20260930/round75/shared-pane-review.json",
+            "tmp/v2-streaming-perf-20260930/round75/root-source-checks.json",
+            "tmp/v2-streaming-perf-20260930/round75/retired-callback-baseline.log",
+            "tmp/v2-streaming-perf-20260930/round75/root-final-checks.json",
+            "tmp/v2-streaming-perf-20260930/round75/native-verification.json",
+            "tmp/v2-streaming-perf-20260930/round76/callback-review.json",
+            "tmp/v2-streaming-perf-20260930/round76/native-verification.json",
+            "tmp/v2-streaming-perf-20260930/round76/native-controls-verification.json",
+            "tmp/v2-streaming-perf-20260930/round76/retention-reconciliation.json",
+            "tmp/v2-streaming-perf-20260930/round77/root-round77-result.json",
+            "tmp/v2-streaming-perf-20260930/round77/historical-summary-review.json",
+            "tmp/v2-streaming-perf-20260930/round77/targeted-stop-probe-corrected-result.json",
+            "tmp/v2-streaming-perf-20260930/round77/targeted-stop-prelist-result.json",
+            "tmp/v2-streaming-perf-20260930/round80/legacy-summary-contract.json",
+            "tmp/v2-streaming-perf-20260930/round81/legacy-writer-seams.json",
+            "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+            "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+            "tmp/v2-streaming-perf-20260930/round186/root-round186-result.json",
+            "tmp/v2-streaming-perf-20260930/round188/lifecycle-audit/audit.json",
+            "tmp/v2-streaming-perf-20260930/round188/lifecycle-audit/root-verification.json"
+          ]
+        },
+        {
+          "group": "milestones",
+          "id": "F2",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 31,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round73/final-smoke.log",
+            "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
+            "tmp/v2-streaming-perf-20260930/round75/native-verification.json",
+            "tmp/v2-streaming-perf-20260930/round75/native-failed-probes.json",
+            "tmp/v2-streaming-perf-20260930/round76/native-verification.json",
+            "tmp/v2-streaming-perf-20260930/round76/native-controls-verification.json",
+            "tmp/v2-streaming-perf-20260930/round79/pwa-policy-preflight.json",
+            "tmp/v2-streaming-perf-20260930/round80/worker-control-d0-review.json",
+            "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
+            "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d2-review.json",
+            "tmp/v2-streaming-perf-20260930/round80/glm-session-tests-corrected-result.json",
+            "tmp/v2-streaming-perf-20260930/round81/pwa-d1-review.json",
+            "tmp/v2-streaming-perf-20260930/round81/pwa-d2-review.json",
+            "tmp/v2-streaming-perf-20260930/round81/pwa-d3-review.json",
+            "tmp/v2-streaming-perf-20260930/round81/pwa-d4-review.json",
+            "tmp/v2-streaming-perf-20260930/round81/root-round81-result.json",
+            "tmp/v2-streaming-perf-20260930/round82/root-round82-result.json",
+            "tmp/v2-streaming-perf-20260930/round83/root-round83-result.json",
+            "tmp/v2-streaming-perf-20260930/round84/sw-offline-d2-review.json",
+            "tmp/v2-streaming-perf-20260930/round84/root-round84-result.json",
+            "tmp/v2-streaming-perf-20260930/round85/root-round85-result.json",
+            "tmp/v2-streaming-perf-20260930/round93/root-round93-result.json",
+            "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
+            "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
+            "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+            "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
+            "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+            "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+            "tmp/v2-streaming-perf-20260930/round127/audit.json",
+            "tmp/v2-streaming-perf-20260930/round126/root-round126-result.json",
+            "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
+          ]
+        },
+        {
+          "group": "milestones",
+          "id": "F3",
+          "recordedStatus": "in_progress",
+          "present": 0,
+          "total": 15,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round38/server-supervisor-cpu-next-plan.json",
+            "tmp/v2-streaming-perf-20260930/round58/root-round58-result.json",
+            "tmp/v2-streaming-perf-20260930/round59/root-round59-result.json",
+            "tmp/v2-streaming-perf-20260930/round60/root-round60-result.json",
+            "tmp/v2-streaming-perf-20260930/round77/profiling-preflight.json",
+            "tmp/v2-streaming-perf-20260930/round78/build-identity.json",
+            "tmp/v2-streaming-perf-20260930/round78/candidate-verification.json",
+            "tmp/v2-streaming-perf-20260930/round79/current-server-d0-review.json",
+            "tmp/v2-streaming-perf-20260930/round79/supervisor-profile-d1-review.json",
+            "tmp/v2-streaming-perf-20260930/round79/supervisor-profile-rich-d2-review.json",
+            "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
+            "tmp/v2-streaming-perf-20260930/round82/root-round82-result.json",
+            "tmp/v2-streaming-perf-20260930/round83/root-round83-result.json",
+            "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+            "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+          ]
+        },
+        {
+          "group": "milestones",
+          "id": "F4",
+          "recordedStatus": "in_progress",
+          "present": 2,
+          "total": 15,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round43/root-workflow-live-review-d1.json",
+            "tmp/v2-streaming-perf-20260930/round59/root-round59-result.json",
+            "tmp/v2-streaming-perf-20260930/round69/root-round69-result.json",
+            "tmp/v2-streaming-perf-20260930/round79/crossagent-tool-inventory.json",
+            "tmp/v2-streaming-perf-20260930/round79/caller-tool-inventory.json",
+            "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
+            "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
+            "tmp/v2-streaming-perf-20260930/round103/root-round103-result.json",
+            "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+            "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json",
+            "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
+            "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+            "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+          ]
+        },
+        {
+          "group": "milestones",
+          "id": "F5",
+          "recordedStatus": "in_progress",
+          "present": 0,
+          "total": 2,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round45/root-round45-result.json",
+            "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+          ]
+        },
+        {
+          "group": "milestones",
+          "id": "F6",
+          "recordedStatus": "in_progress",
+          "present": 1,
+          "total": 2,
+          "missing": ["tmp/v2-streaming-perf-20260930/round127/audit.json"]
+        },
+        {
+          "group": "tasks",
+          "id": "F1-editor",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 1,
+          "missing": ["tmp/v2-streaming-perf-20260930/round76/root-round76-result.json"]
+        },
+        {
+          "group": "tasks",
+          "id": "F1-retention",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 1,
+          "missing": ["tmp/v2-streaming-perf-20260930/round76/retention-reconciliation.json"]
+        },
+        {
+          "group": "tasks",
+          "id": "F1-summary",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 7,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round77/historical-summary-review.json",
+            "tmp/v2-streaming-perf-20260930/round80/legacy-summary-contract.json",
+            "tmp/v2-streaming-perf-20260930/round81/legacy-writer-seams.json",
+            "tmp/v2-streaming-perf-20260930/round98/origin-storage-result.json",
+            "tmp/v2-streaming-perf-20260930/round99/custody-result.json",
+            "tmp/v2-streaming-perf-20260930/round99/root-projection-result.json",
+            "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F1-stop",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 4,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round77/root-round77-result.json",
+            "tmp/v2-streaming-perf-20260930/round98/root-scoped-progress.json",
+            "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+            "tmp/v2-streaming-perf-20260930/round109/root-round109-result.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F2-window",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 4,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round75/native-verification.json",
+            "tmp/v2-streaming-perf-20260930/round100/ordinary-smoke-verification.json",
+            "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+            "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F2-pwa",
+          "recordedStatus": "in_progress",
+          "present": 2,
+          "total": 36,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
+            "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
+            "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d2-review.json",
+            "tmp/v2-streaming-perf-20260930/round81/root-round81-result.json",
+            "tmp/v2-streaming-perf-20260930/round84/root-round84-result.json",
+            "tmp/v2-streaming-perf-20260930/round85/root-round85-result.json",
+            "tmp/v2-streaming-perf-20260930/round87/root-round87-result.json",
+            "tmp/v2-streaming-perf-20260930/round88/offline-prewarm-source-review.json",
+            "tmp/v2-streaming-perf-20260930/round89/candidate-verification.json",
+            "tmp/v2-streaming-perf-20260930/round90/catalog-d0-review.json",
+            "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
+            "tmp/v2-streaming-perf-20260930/round91/root-capture-handoff-review.json",
+            "tmp/v2-streaming-perf-20260930/round92/source-checkpoint.json",
+            "tmp/v2-streaming-perf-20260930/round92/git-fixture-source-check.json",
+            "tmp/v2-streaming-perf-20260930/round92/root-round92-result.json",
+            "tmp/v2-streaming-perf-20260930/round92/worker-wire-extra-evidence.json",
+            "tmp/v2-streaming-perf-20260930/round93/root-round93-result.json",
+            "tmp/v2-streaming-perf-20260930/round93/bounded-finalization-review.json",
+            "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
+            "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
+            "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+            "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+            "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
+            "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
+            "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
+            "tmp/v2-streaming-perf-20260930/round127/root-safari-result.json",
+            "tmp/v2-streaming-perf-20260930/round255/root-saved-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round258/root-pwa-seals-verification.json",
+            "tmp/v2-streaming-perf-20260930/round259/root-current-passive-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round261/root-natural-binding-verification.json",
+            "tmp/v2-streaming-perf-20260930/round261/root-natural-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round261/root-natural-command-receipts.json",
+            "tmp/v2-streaming-perf-20260930/round262/root-natural-review-verification.json",
+            "tmp/v2-streaming-perf-20260930/round263/root-metadata-correction-verification.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F3-snapshot",
+          "recordedStatus": "complete",
+          "present": 5,
+          "total": 15,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round78/build-identity.json",
+            "tmp/v2-streaming-perf-20260930/round78/candidate-verification.json",
+            "tmp/v2-streaming-perf-20260930/round99/candidate-verification.json",
+            "tmp/v2-streaming-perf-20260930/round99/runtime-dependency-verification.json",
+            "tmp/v2-streaming-perf-20260930/round100/candidate-verification.json",
+            "tmp/v2-streaming-perf-20260930/round104/candidate-verification.json",
+            "tmp/v2-streaming-perf-20260930/round104/runtime-dependency-verification.json",
+            "tmp/v2-streaming-perf-20260930/round105/candidate-verification.json",
+            "tmp/v2-streaming-perf-20260930/round105/runtime-dependency-verification.json",
+            "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F3-attribution",
+          "recordedStatus": "in_progress",
+          "present": 8,
+          "total": 35,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
+            "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
+            "tmp/v2-streaming-perf-20260930/round97/root-round97-result.json",
+            "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+            "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+            "tmp/v2-streaming-perf-20260930/round153/root-review-verification.json",
+            "tmp/v2-streaming-perf-20260930/round157/retained-ordinary-analysis.json",
+            "tmp/v2-streaming-perf-20260930/round161/root-round161-result.json",
+            "tmp/v2-streaming-perf-20260930/round217/resource-audit/summary.json",
+            "tmp/v2-streaming-perf-20260930/round220/accounting/root-calibration-verification.json",
+            "tmp/v2-streaming-perf-20260930/round223/root-io-verification.json",
+            "tmp/v2-streaming-perf-20260930/round224/root-io-observer-verification.json",
+            "tmp/v2-streaming-perf-20260930/round225/root-io-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round226/root-io-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round227/root-member-diagnosis-verification.json",
+            "tmp/v2-streaming-perf-20260930/round227/root-io-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round227/io-attribution/analysis.json",
+            "tmp/v2-streaming-perf-20260930/round227/root-io-attribution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round230/core-resources/derivation.json",
+            "tmp/v2-streaming-perf-20260930/round230/root-core-resource-verification.json",
+            "tmp/v2-streaming-perf-20260930/round257/root-native-unit-verification.json",
+            "tmp/v2-streaming-perf-20260930/round258/root-native-null-verification.json",
+            "tmp/v2-streaming-perf-20260930/round259/root-native-single-hook-verification.json",
+            "tmp/v2-streaming-perf-20260930/round259/root-actual-helper-binding-verification.json",
+            "tmp/v2-streaming-perf-20260930/round260/resource-adequacy/audit.json",
+            "tmp/native-runtime-retirement-20261009/root-verification.json",
+            "tmp/native-host-reuse-20261009/root-verification.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F4-matrix",
+          "recordedStatus": "in_progress",
+          "present": 30,
+          "total": 81,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
+            "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
+            "tmp/v2-streaming-perf-20260930/round103/root-round103-result.json",
+            "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+            "tmp/v2-streaming-perf-20260930/round107/root-round107-result.json",
+            "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+            "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+            "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+            "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
+            "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
+            "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
+            "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
+            "tmp/v2-streaming-perf-20260930/round144/root-round144-result.json",
+            "tmp/v2-streaming-perf-20260930/round147/root-round147-result.json",
+            "tmp/v2-streaming-perf-20260930/round156/root-round156-result.json",
+            "tmp/v2-streaming-perf-20260930/round218/root-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round223/root-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round223/root-settings-diagnosis-verification.json",
+            "tmp/v2-streaming-perf-20260930/round224/runtime/execution-review/final-review.json",
+            "tmp/v2-streaming-perf-20260930/round224/root-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round225/root-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round225/root-protected-cascade-verification.json",
+            "tmp/v2-streaming-perf-20260930/round225/runtime/execution-review/final-review.json",
+            "tmp/v2-streaming-perf-20260930/round228/root-compact-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round229/root-compact-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round230/root-composer-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round231/root-compact-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round231/root-compact-submission-diagnosis-verification.json",
+            "tmp/v2-streaming-perf-20260930/round232/root-compact-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round232/root-syntax-diagnosis-verification.json",
+            "tmp/v2-streaming-perf-20260930/round233/root-original-review-verification.json",
+            "tmp/v2-streaming-perf-20260930/round233/root-compact-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round235/root-saved-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round236/root-saved-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round237/root-saved-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round237/root-older-history-diagnosis-verification.json",
+            "tmp/v2-streaming-perf-20260930/round238/root-f4-reconciliation-verification.json",
+            "tmp/v2-streaming-perf-20260930/round239/root-underflow-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round240/root-underflow-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round246/root-pushed-ci-verification.json",
+            "tmp/v2-streaming-perf-20260930/round255/root-saved-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round259/root-current-passive-execution-verification.json",
+            "tmp/v2-streaming-perf-20260930/round261/root-f4-inventory-verification.json",
+            "tmp/v2-streaming-perf-20260930/round261/root-f4-category-verification.json",
+            "tmp/v2-streaming-perf-20260930/round261/root-f4-thought-verification.json",
+            "tmp/v2-streaming-perf-20260930/round263/root-mobile-audit-verification.json",
+            "tmp/v2-streaming-perf-20260930/round263/root-native-input-api-receipt.json",
+            "tmp/v2-streaming-perf-20260930/round264/root-rich-fixture-verification.json",
+            "tmp/v2-streaming-perf-20260930/round264/root-safari-scaffold-verification.json",
+            "tmp/native-runtime-retirement-20261009/root-verification.json",
+            "tmp/native-host-reuse-20261009/root-verification.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F5-matched",
+          "recordedStatus": "in_progress",
+          "present": 1,
+          "total": 4,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+            "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+            "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F6-audit",
+          "recordedStatus": "in_progress",
+          "present": 18,
+          "total": 20,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round127/audit.json",
+            "tmp/v2-streaming-perf-20260930/round258/root-checkpoint.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F2-connectivity-control",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 2,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
+            "tmp/v2-streaming-perf-20260930/round95/connectivity-d1-review.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F1-summary-storage",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 3,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round98/origin-storage-result.json",
+            "tmp/v2-streaming-perf-20260930/round98/root-storage-seal-verification.json",
+            "tmp/v2-streaming-perf-20260930/round98/root-readonly-storage-conservation.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F1-quit",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 7,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round100/shell-quit-result.json",
+            "tmp/v2-streaming-perf-20260930/round100/root-shutdown-budget-review-verification.json",
+            "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+            "tmp/v2-streaming-perf-20260930/round101/post-quit-bounds.json",
+            "tmp/v2-streaming-perf-20260930/round102/r107-affected-residual-gui/native-clean-quit.json",
+            "tmp/v2-streaming-perf-20260930/round109/root-round109-result.json",
+            "tmp/v2-streaming-perf-20260930/round127/lifecycle-input-reconciliation.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F4-web-bootstrap",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 1,
+          "missing": ["tmp/v2-streaming-perf-20260930/round103/root-round103-result.json"]
+        },
+        {
+          "group": "tasks",
+          "id": "F1-ranged-file-read",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 2,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+            "tmp/v2-streaming-perf-20260930/round104/root-fix-review-verification.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F4-actual-fs-source",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 5,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+            "tmp/v2-streaming-perf-20260930/round104/process-retirement-final-flow.json",
+            "tmp/v2-streaming-perf-20260930/round106/scoped-actual-child-read.json",
+            "tmp/v2-streaming-perf-20260930/round106/direct-dag-scoped-verification.json",
+            "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
+          ]
+        },
+        {
+          "group": "tasks",
+          "id": "F4-quality-tooling",
+          "recordedStatus": "complete",
+          "present": 0,
+          "total": 6,
+          "missing": [
+            "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json",
+            "tmp/v2-streaming-perf-20260930/round104/full-tests.log",
+            "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
+            "tmp/v2-streaming-perf-20260930/round105/full-tests-final.log",
+            "tmp/v2-streaming-perf-20260930/round105/root-review-verification.json",
+            "tmp/v2-streaming-perf-20260930/round121/source-cache-fix-quality.json"
+          ]
+        }
+      ],
+      "recordedTaskAndMilestoneCountersPreserved": true,
+      "historicalCompleteDoesNotProveCurrentCompletion": true,
+      "userBackupLocationQuestionPending": true,
+      "nativeSamplerReconstructed": false,
+      "originalBudgetsReset": false,
+      "newGainClaim": false,
+      "completionProven": false,
+      "nextAction": "Buildandsealcase-specific currentrichsavedPWAcontroller usingexistingproductionlaunch/network/strictpointer/cleanuphelpers andpreparedseed, verifycurrentcandidateanddesktopbeforeone declaredapp/browser attempt. Originalsampler/profiler/custodyreceiptsstillneedbackuprecoveryforF3/F5; do notrecreateunderoriginalhashes or reset exhaustedcohorts.",
+      "maintainedFallbackContractAudit": "tmp/v2-resource-recovery-20261010/current-instrumentation-contract-audit.json",
+      "sustainedDryRun": {
+        "log": "tmp/v2-resource-recovery-20261010/sustained-dry-run.log",
+        "exitCode": 2,
+        "appLaunches": 0,
+        "failure": "clean exactHEAD src precondition; current16changedsrcpaths",
+        "acceptanceBypassed": false
+      },
+      "directRequirementReceiptCustody": "tmp/v2-resource-recovery-20261010/requirement-evidence-custody.json",
+      "currentArtifactRecoveryImpasseFirstVerifiedThisTurn": false,
+      "previousUnpromotedProfileObservation": {
+        "path": "profile",
+        "exists": false,
+        "interpretationWasIncorrect": true
+      },
+      "retainedPromotedProfileCustody": "tmp/v2-resource-recovery-20261010/retained-rich-profile-custody.json",
+      "retainedRichCanonicalSemanticRecovery": "tmp/v2-resource-recovery-20261010/retained-rich-semantic-recovery.json",
+      "currentSavedRichSeedPreparation": "tmp/v2-rich-saved-pwa-20261010-preparation/seed-verification.json",
+      "requiredNativeResourceOriginalArtifactsStillMissing": true,
+      "availableIndependentRequiredWork": "Prepareonebounded current richsavedPWAoffline/reconnect qualification fromnewinitializedprivatehost/exactrecovered302102bytecanonicalcorpus; no live rich source replay/no originalresource budget reset."
+    },
+    "currentRichSavedPwaPreparation": {
+      "at": "2026-10-10T16:05:43.394Z",
+      "pass": true,
+      "scope": "Fresh current owner initialized by existing APIs; exact saved rich canonical tables imported with outer thread owner rebound only",
+      "sourceCorpus": {
+        "at": "2026-10-10T16:00:43.428Z",
+        "scope": "Readonlyretainedrichcorpusrecovery/puresemanticchecks; noliveexecutionorresourcequalification",
+        "sourceDb": "/Users/svecherenko/work/Poracode/tmp/v2-memory-production-20261008-a79decb09/browser-memory-v8-f35f8f3d2cdc4cda/profile.host-v1/state.sqlite",
+        "sourceDbSha256": "1b7ecfb5a9a2dc69199703d2beac69f145cf1e4c0f7cecb40e33f867930ad8fb",
+        "databaseUnchanged": true,
+        "canonicalArtifact": "tmp/v2-resource-recovery-20261010/retained-rich-canonical-items.json",
+        "canonicalArtifactSha256": "f680edc3baeddf98a4473890ebb745de9770448dc8f1d8f20b8fe1fd3d629a92",
+        "semantic": {
+          "version": 1,
+          "sha256": "543b2c722a158d2f9c0fc55bc426669a9c1cf6706613a62b85abc952151962df",
+          "bytes": 302102,
+          "rows": 32,
+          "maxItemBytes": 124666,
+          "algorithm": "canonical-json-array-v1",
+          "completeArrayConserved": true,
+          "richSemantics": {
+            "caseTypes": 24,
+            "topCalls": 24,
+            "childCalls": 2,
+            "imageBlocks": 3,
+            "scriptedOnly": true
+          },
+          "caseChecks": {
+            "create": 1,
+            "edit": 1,
+            "same-file-edit": 1,
+            "read": 1,
+            "list": 1,
+            "grep": 1,
+            "glob": 1,
+            "web-search": 1,
+            "fetch": 1,
+            "command": 1,
+            "command-error": 1,
+            "delete": 1,
+            "move": 1,
+            "think": 1,
+            "switch-mode": 1,
+            "mcp-json": 1,
+            "unknown": 1,
+            "image": 1,
+            "images": 1,
+            "subagent": 1,
+            "background-subagent": 1,
+            "workflow-card": 1,
+            "crossagents-mcp": 1,
+            "large-result": 1
+          }
+        },
+        "originalCanonicalRows": 32,
+        "originalCanonicalBytes": 302102,
+        "originalOverallPass": false,
+        "scriptedPresentationOnly": true,
+        "genuineHandlerExecution": false,
+        "originalBudgetsReset": false,
+        "pureReadInitialFailures": [
+          {
+            "code": "MODULE_NOT_FOUND",
+            "databaseOpened": false,
+            "reason": "Guessednativepath corrected tocurrentpassingpackagedbindingdefault"
+          },
+          {
+            "code": "CANONICAL_JSON_ONLY",
+            "reason": "WireJSONsemanticoracle givenpretransportmaterializerobject withpayloadundefined; corrected toexactnormalJSONserializedrepresentation, nofilter/dropofserializedfields"
+          }
+        ],
+        "originalFullCanonicalReceiptExact": true,
+        "originalFullReceiptPath": "tmp/v2-memory-production-20261008-a79decb09/browser-memory-v8-f35f8f3d2cdc4cda/result.json#memoryCanonicalBaseline"
+      },
+      "imported": {
+        "thread_runtime_items": {
+          "rows": 32,
+          "columns": [
+            "thread_id",
+            "item_id",
+            "position",
+            "type",
+            "state",
+            "payload",
+            "streams",
+            "parent_item_id"
+          ],
+          "sourceSha256": "e905adb838e50bffe2b04540d17c5ee2b23a51b6c1e6a858c8820b4a9a817284",
+          "mappedSha256": "6b65c7c4a093566dd12a48fdb643cc5c44076a639845c6767a8121699f01774b"
+        },
+        "thread_runtime_item_stream_chunks": {
+          "rows": 0,
+          "columns": ["thread_id", "item_id", "stream", "seq", "chars", "text"],
+          "sourceSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "thread_runtime_item_stream_state": {
+          "rows": 0,
+          "columns": ["thread_id", "item_id", "stream", "next_seq", "tail_chars", "elided_chars"],
+          "sourceSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "thread_runtime_item_stream_heads": {
+          "rows": 5,
+          "columns": [
+            "head_id",
+            "thread_id",
+            "item_id",
+            "stream_key",
+            "stream_order",
+            "seed_chars",
+            "head_chars",
+            "next_seq",
+            "open_seq",
+            "open_chars",
+            "head_wire_bytes",
+            "head_json_units",
+            "head_has_content",
+            "head_last_unit"
+          ],
+          "sourceSha256": "2be3f0e7c0745909afd7e7ffdb5fe53416e8661079bf69f44c4fbafe53db3b8e",
+          "mappedSha256": "2f6c9a6eab69f5ed1acad4aaf1fece8e0c94df10f480051600b15ddecbf038eb"
+        },
+        "thread_runtime_item_stream_head_blocks": {
+          "rows": 19,
+          "columns": ["head_id", "seq", "chars", "data"],
+          "sourceSha256": "0195754ef6740f1d936ade284bfd32933817ccdbbbd02627d90d4c9f80a77a80",
+          "mappedSha256": "0195754ef6740f1d936ade284bfd32933817ccdbbbd02627d90d4c9f80a77a80"
+        },
+        "thread_completed_turns": {
+          "rows": 1,
+          "columns": ["thread_id", "idx", "started_at", "ended_at", "anchor_item_id"],
+          "sourceSha256": "21528ed1433e23c8876aa6288e989cbe6225de5b2cd890bbef17e22ef95053e6",
+          "mappedSha256": "050960f27aa9ea741caa496be917e7ff67343ae5f62a846da29d2340b6e370d5"
+        },
+        "thread_context_usage": {
+          "rows": 0,
+          "columns": ["thread_id", "usage"],
+          "sourceSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "thread_runtime_item_payload_origins": {
+          "rows": 0,
+          "columns": ["thread_id", "item_id", "format_owner_key", "origin_format_version"],
+          "sourceSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "thread_runtime_gaps": {
+          "rows": 0,
+          "columns": [
+            "thread_id",
+            "reason",
+            "refused_events",
+            "refused_bytes",
+            "epoch",
+            "created_at",
+            "episode_id"
+          ],
+          "sourceSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "thread_runtime_gap_notices": {
+          "rows": 0,
+          "columns": [
+            "thread_id",
+            "acknowledged_token",
+            "source",
+            "reason",
+            "refused_events",
+            "refused_bytes",
+            "acknowledged_count",
+            "first_acknowledged_at",
+            "last_acknowledged_at"
+          ],
+          "sourceSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "schemaVersion": "57",
+      "fixtureGit": {
+        "sourceProject": "/Users/svecherenko/work/Poracode/tmp/v2-mixed-runtime-20261010/host/pwa-offline-documentfix-82221ef754274a2c/project",
+        "sourceHead": "d386ad16fd060f12e6cc768b546a3fdd94b7f247",
+        "createdCommits": 0,
+        "targetProject": "/Users/svecherenko/work/Poracode/tmp/v2-mixed-runtime-20261010/host/rich-saved-pwa-273f004f1bcb4dcd/project"
+      },
+      "sourceDatabaseUnchanged": true,
+      "completeMaterializedCanonicalReceiptExact": true,
+      "scriptedPresentationOnly": true,
+      "genuineToolExecution": false,
+      "appLaunches": 0,
+      "browserLaunches": 0,
+      "pwaOrResourcesQualified": false,
+      "priorCohortReset": false,
+      "preparationAttempts": 4,
+      "failedPreparations": [
+        {
+          "log": "tmp/v2-rich-saved-pwa-20261010-preparation/preparation-execution.log",
+          "code": "SQLITE_ERROR",
+          "reason": "Guessed obsoleteblocktablename; no canonical transactionstarted"
+        },
+        {
+          "log": "tmp/v2-rich-saved-pwa-20261010-preparation/preparation-corrected-execution.log",
+          "code": "SQLITE_ERROR",
+          "reason": "Headblocks are ownedviahead_id; no directthread_id; no canonical transactionstarted"
+        },
+        {
+          "log": "tmp/v2-rich-saved-pwa-20261010-preparation/preparation-head-ownership-execution.log",
+          "code": "SQLITE_ERROR",
+          "reason": "HeadblocktableWITHOUTROWID needsprimarykeyorder; no canonical transactionstarted"
+        }
+      ],
+      "sourceRowPreflight": "tmp/v2-rich-saved-pwa-20261010-preparation/source-row-preflight.json",
+      "preparationSourceFiles": [
+        {
+          "path": "tmp/v2-rich-saved-pwa-20261010-preparation/prepare.mjs",
+          "sha256": "accb5a91bf4617d030faa0c5a2ad0ea5d201b9bcff97d563a42047f5aa202528"
+        },
+        {
+          "path": "tmp/v2-rich-saved-pwa-20261010-preparation/read-owned-rows.mjs",
+          "sha256": "0514e7ad67cc05f4196ce4d1d7aee883e67aa4e4c2d21c87ca29bdb32400175b"
+        }
+      ],
+      "controllerPrepared": false,
+      "executionAttemptsUsed": 0,
+      "seedIsUiPass": false
+    },
+    "latestUserGitAuthorization": {
+      "at": "2026-10-10T16:18:50.178719+00:00",
+      "instruction": "we have a lot to commit, pull, and push",
+      "branch": "poracode/v2",
+      "qualificationControllerLaunched": false
     }
   },
   "milestones": [
@@ -6680,6 +8921,13 @@
         "currentNormalGuiStop": "R101 two exact provider receipt/ack/completion + owning UI disappearance before watchdog PASS",
         "currentSavedQuitBounds": "R109 detached cleanzeroexit/exactbounds PASS; R127 selected lifecycle/runtime dependencies unchanged. R126 normal quit not reached; no rewritten failure.",
         "actualChildFileIo": "R104 source-integration PASS genuine ACP create/read/edit/full view, bounded Unicode read through ordered workflow, wrong-content dependency rejection; no GUI or external-provider qualification."
+      },
+      "currentEvidenceCustody": {
+        "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
+        "receiptsPresent": 0,
+        "receiptsTotal": 26,
+        "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
+        "recordedCompleteRevalidated": false
       }
     },
     {
@@ -6746,6 +8994,13 @@
         "connectivityProbeReceipts": "R95 actual R89 page/service-worker/client-engine online/reconnect original Runtime body+native EOF; exact offline native failure; held inspector/normal reload records original worker session, earlier receipts and pre-cleanup detach/destroy. Source243tests,142PIDs/4ports/58seals/full deps/canonical/exactA pass. Scoped control only; R93 cause and full rich PWA remain open.",
         "currentProductionVisibleWindow": "R101 native BrowserWindow visible/not minimized on four owned R100 launches PASS",
         "currentCacheOfflineReconnect": "R124 PASS exact projected cached-tail DOM/image/reconnect; Safari R127 partial saved controls, no full PWA/mobile or resource sign-off."
+      },
+      "currentEvidenceCustody": {
+        "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
+        "receiptsPresent": 0,
+        "receiptsTotal": 31,
+        "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
+        "recordedCompleteRevalidated": false
       }
     },
     {
@@ -6806,7 +9061,14 @@
         }
       },
       "workMayStartBeforeDependenciesComplete": true,
-      "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now."
+      "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now.",
+      "currentEvidenceCustody": {
+        "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
+        "receiptsPresent": 0,
+        "receiptsTotal": 15,
+        "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
+        "recordedCompleteRevalidated": false
+      }
     },
     {
       "id": "F4",
@@ -6841,9 +9103,11 @@
         "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json",
         "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
-        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+        "tmp/v2-mixed-runtime-20261010/root-verification.json",
+        "tmp/v2-next-qualification-20261010/root-verification.json"
       ],
-      "nextAction": "Implement freshSafarihost/fixturestaging; R264richsource and input/admissionscaffold PASSoffline only, runtimeREFUSE. Actualmobile/live/media/offline+cleanup and naturalactivation/cache/finalsignoff remain; no productedits/commit/push.",
+      "nextAction": "CurrentproductionPWAcompactoffline/reconnect andcurrentfrozenDEVSettings/MCPimport/usage/Browser/quickcomposer mockgatesPASS. Preserve priorfailures/scopes, no unchangedreplay. Realshortcut/tray/OSdrag/provider,richreader/scroll/currentPTY,long/device/resource/matched andexactevidencerecovery gatesremainopen.",
       "workMayStartBeforeDependenciesComplete": true,
       "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now.",
       "qualifiedSubgates": {
@@ -6853,7 +9117,16 @@
         "fullQuality": "R24419434pass/100skip/type/lint/fmt/desktop+webbuildPASS; pushedb24 exacthead core19/native6+4policySKIP CI PASS. Unchanged product checks reused.",
         "enabledToolInventory": "R260 complete65 deliverednames;1realproduction+2executedmock+62descriptor-onlyUNTESTED;179static separate; root17sealsPASS. Does not qualify every handler or completeF4.",
         "naturalPwaWaitingAndOldClosure": "R261 actual7stages throughBwaiting/all2oldclientclosurePASS; activateB5scontrolFAIL; activation/cacheUNTESTED. Root21canon/alltiers/86PIDs/110inputs/0pending/errorverifyPASS. Fullnatural lifecycle NOTqualified.",
-        "representativeToolCategoryPresence": "R26175retainedactualrows classify6/7; separate actualThoughtDOM previews+persistedreasoning-text hash/unchangedsource corroboration covers seventhrepresentativepresence. Not exported rawthought-type/DOM-to-ID binding; no universalperrowDOM/category or handlerexecution claim."
+        "representativeToolCategoryPresence": "R26175retainedactualrows classify6/7; separate actualThoughtDOM previews+persistedreasoning-text hash/unchangedsource corroboration covers seventhrepresentativepresence. Not exported rawthought-type/DOM-to-ID binding; no universalperrowDOM/category or handlerexecution claim.",
+        "currentProductionMixedGuiRuntime": "dd29fa7d/02ea63d9 original raw rich multi includes two distinct GUI structured threads;2genuine get_current_thread calls,16pairedscriptedrichrounds,72items/64heads/64blocks conservedthroughstop,4handlesnormal0/7knownPIDsabsent/4portsclosed. NoGUIpaint/fullmatrix/resourcesgain.",
+        "currentChangedSourceMockGui": "Scopedchanged DEV smokePASS welcome/baseline/search/3mockgates; fullDEVrunFAIL hiddenwelcome,settings,browser,media,quickcomposer,usagegate. Usageobserver asyncbug fixedsourceonly; no richlive/provider/p95/resources/PWAqualification."
+      },
+      "currentEvidenceCustody": {
+        "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
+        "receiptsPresent": 2,
+        "receiptsTotal": 15,
+        "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
+        "recordedCompleteRevalidated": false
       }
     },
     {
@@ -6876,7 +9149,14 @@
         "tmp/v2-streaming-perf-20260930/round45/root-round45-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
       ],
-      "nextAction": "R118 fourarms/onecorrection exhausted; reuse scoped R116 backend pairs after input reconciliation. Finish only materially corrected required representative UI/PTY/browser/compact matched gates after functional preflight."
+      "nextAction": "R118 fourarms/onecorrection exhausted; reuse scoped R116 backend pairs after input reconciliation. Finish only materially corrected required representative UI/PTY/browser/compact matched gates after functional preflight.",
+      "currentEvidenceCustody": {
+        "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
+        "receiptsPresent": 0,
+        "receiptsTotal": 2,
+        "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
+        "recordedCompleteRevalidated": false
+      }
     },
     {
       "id": "F6",
@@ -6898,7 +9178,14 @@
         "docs/V2_PRODUCTION_READINESS.md",
         "tmp/v2-streaming-perf-20260930/round127/audit.json"
       ],
-      "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1–G4 remaining gates close."
+      "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1–G4 remaining gates close.",
+      "currentEvidenceCustody": {
+        "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
+        "receiptsPresent": 1,
+        "receiptsTotal": 2,
+        "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
+        "recordedCompleteRevalidated": false
+      }
     }
   ],
   "rules": {
@@ -7635,6 +9922,71 @@
     {
       "at": "2026-10-10T04:59:32.228Z",
       "summary": "Current dirty source sealed with 5437 files and 698 copied packages. Nine actual private worktree/Git calls independently pass: stage, commit, fast-forward merge, exact listings, refusal while referenced, archive, successful removal with branch retained; 27 canonical items preserved through shutdown. All 30 owned handles joined, 32 known PIDs absent, 4 ports closed. Original failed attempt and observer-lifetime diagnostic preserved. Broad qualification remains unfinished. Latest user instruction authorizes committing the completed local chunk and syncing remote v2/master. Checklist remains 13/18 tasks, 2/6 milestones; no whole-application optimization percentage claimed."
+    },
+    {
+      "at": "2026-10-10T05:21:17.980Z",
+      "summary": "Removed one redundant mixed-thread sizing serialization pass; eligible events4->3, singlethread3unchanged, cadence9513->7442 estimator calls with unchanged payloads/timers/ACKs. Two callback mutation cases preserve grouping/current charges. Full final22969tests/2001files PASS102skips; allstatic/protocol and affectedmain/SSHbuilds PASS. Independent reviews found no Important issues;2Nits fixed. No measured wholeapp CPU/GPU/RAM/p95 gain. Retention review found no proven cache-owned leak; originalweakrowcollectionFAIL remains unqualified. Current source dirty4958e0429/dd29fa7d; productionclosure refresh required. Previous turn classifiedprogress(localcommit/remotes integration); thisturnprogress(proven duplicate sizing correction/fullquality/retention attribution audit). Broad13/18tasks2/6milestones remain active; originalrequirements/caps/failures preserved."
+    },
+    {
+      "at": "2026-10-10T05:52:38.799Z",
+      "summary": "Current dirty dd29fa7d source sealed/rechecked with5437sourcefiles/698copiedpackages,91748artifacts/02ea63d9; three read-only source workers leftartifactunchanged. Tinycacheheap discriminant identifies survivingrowArray viaV8 Stackroots in suspended-module-shaped observer; completedfactorycollects. One affectedcache-only correction validates10000owners,16owner/4096rowbound,allretiredreadsempty,snapshotcollected withoriginal2GCpolicy; no routingchurn replay. OriginalFAIL preserved. All3workersnormal0/freshPIDsabsent. RawWS two-thread/genuine-read/16pairedrich-round plan independently researched and parent-checked; unexecuted. No actualapp/native/privateRAM/GPU/p95 gain claimed. Previousgoalturnprogress(sourcefix/full22969regressionproof); thisturnprogress(currentimmutableclosure/exactheapretainerdiscriminant/affectedcacheonlyqualification). Broad13/18tasks2/6milestones unchanged; alloriginal requirements/failures/consumedlimits retained."
+    },
+    {
+      "at": "2026-10-10T06:19:28.630470+00:00",
+      "summary": "Current sealed dd29fa7d production mixed-runtime regression gate PASS: one app attempt,2genuine get_current_thread calls,16pairedrichrounds, originalrawmulti2distinctthreads,72canonicalitems,64heads/64blocks,exactstreams/payloads/live-stop5tables/settings/configs.4ownedhandlesnormal0,7knownPIDsfreshabsent,4portsclosed,artifactunchanged,22.224s.23fixture/oraclepreflighttestsPASS; requiredSolMaxfixtureagentjoined/hashesverified. Offline verifier JSONundefined/stoppedinactive corrections preserved,noappreplay. Fresh2consoleflags indicateavailable byofficialskill; nopaintclaim.13/18tasks2/6milestonesstillactive; nofullmatrix/p95/CPU/GPU/nativeRAMgain or originalbudgetreset. Checkout-local frozen-lockfile install repaired a missing formatter package link; package/lock/workspace exact frozen bytes, typecheck23affectedbuffer/lint/touchedfmtPASS; no dependencyversion/source change or fullsuite replay."
+    },
+    {
+      "at": "2026-10-10T06:53:03.361927+00:00",
+      "summary": "Currentchanged DEV GUI smokePASS welcome/baseline/search/3mockgates,0suiteerrors/searchcapture reviewed. Distinct fullmock requiredgate executedonceFAIL8automatedentries: hiddenwelcome despiteunlockedconsole,settingsMCPimport,browser,missingeditorMedia mock,quickcomposerGUI,remoteusage asyncoracle,aggregate.17/20mockgatesPASS notexternalqualification. Launcher --help accidentaldefaultchanged launch preserved; nowstrictargs/helpfailbeforeeffects withtests. Asyncusagegate lackedawaitPromise; fixedtrue, actualcurrentstore/CDPpromise model regression originalFAIL/currentPASS.12helpertests/lint/fmtPASS.4knownPIDsfreshabsent/4ephemeralportsclosed;2serviceports attributedlaterforeigndebugroot notkilled/falselyclosed. Source524b0362/5440 includesQA-onlydelta;5397productinputs equal sealeddd29. Broad13/18tasks2/6milestones remainactive, fullFAIL/p95/PWA/nativegates retained, no arbitraryretry/capsreset."
+    },
+    {
+      "at": "2026-10-10T10:08:52.751728+00:00",
+      "summary": "PWA mandatory startup/cache integrity corrected;5prefixed regressions fail originally,31focused testsPASS.10independentVMchecksPASS/noImportant; whole typecheck/lint and touchedfmtPASS. Current5453sourcefiles/698packages/91473b1f frozen and rechecked, finalizedworker d7f9f22923f7 and standalone variant sealed.6scratchprotocol/fixturechecksPASS; unchanged private seed,0app/browser attempts. Fresh desktop10:06UTC locked; liveUI/PWA/resource evidence remains open.",
+      "evidence": "tmp/v2-pwa-cache-integrity-20261010/root-verification.json"
+    },
+    {
+      "at": "2026-10-10T10:18:36.062759+00:00",
+      "summary": "Current complete regression suite joined normal0:22986tests/2003filesPASS102skips6filesskipped. All5453 source inputs reverified unchanged. Fresh Mac console remains locked; private browser seed unchanged and no app/browser attempt consumed. Completion blocked by locked desktop across3goalturns; original scope and counts13/18,2/6 retained.",
+      "evidence": "tmp/v2-pwa-cache-integrity-20261010/full-suite-verification.json"
+    },
+    {
+      "at": "2026-10-10T11:23:26.862287+00:00",
+      "summary": "Two fresh paired production attempts failed and are preserved: first Files semantic locator + nonisolated Git fixture (3errors), correction reached fullscreen but all4media rows occluded (0errors). Product remote tree restriction fixed; independent review identified cross-root race, reproduced5FAIL2PASS then fixed by covered dock suspension, root generation invalidation and stale-root load refusal. Final focused384tests17filesPASS, typecheck and touched lint/format PASS. Current source-corrected production media validation running; 13/18 tasks and2/6 milestones unchanged.",
+      "evidence": "tmp/v2-browser-editor-media-20261010-correction/root-review-verification.json"
+    },
+    {
+      "at": "2026-10-10T11:24:42.273940+00:00",
+      "summary": "Remote editor tree browsing and cross-root cache corrections pass384focused tests17files; independent Codex6.1SolMax review closed/no remainingImportant,9currenthashesmatch. Current corrected candidatee8ef8279/f0f1e15d/served e528db5d sealed. Actual new-source media run refused by newly lockedMac before application/browser/declaration; original execution72863joined1,0attempts consumed. New fullsuite running under73611.",
+      "evidence": "tmp/v2-browser-editor-media-20261010-treefix/execution-prelaunch-failure.json"
+    },
+    {
+      "at": "2026-10-10T11:30:06.840290+00:00",
+      "summary": "Remote editor tree and cross-root ownership corrections focused384/17PASS,9reviewhashesverified/noImportant. Current fullsuite joined1:22994PASS1FAIL102SKIP across2003PASS1FAIL6SKIP files; unchangedACPdeadline4561msvs1500ms failed underfullsuite and passed named isolated1case. Fulltypecheck/lintPASS. Current5454source verified and correctedproductione8ef8279/f0f1e15d sealed. Actual correctedproductionUI remains unlaunched becauseMaclocked; no app/browser attempts consumed. Goal13/18tasks72.2% and2/6milestones remain unfinished.",
+      "evidence": "tmp/v2-browser-editor-media-20261010-racefix/root-verification.json"
+    },
+    {
+      "at": "2026-10-10T15:47:38.131518+00:00",
+      "summary": "Nativeconsoleunlocked; originalunusedPWAofflinecontroller executed and compactoffline/nativehostfailure/restored200PASS, overallFAILimmediatehiddenFilesclick. Exactestablishedhoverreadiness applied; firstvalidationfailedseedprofilecollisionbeforeChrome, preserved3cleanjoins. FreshcontrollerownedprofilevalidationPASS3gates/freshFilesresponses/4cleanjoins/4ports/canonical/artifactunchanged. Lineage6apps5browsersretained/noreset. Settings/MCPimport andremoteusage affectedoraclevalidationprepared7testsPASS; officialisolatedmocklaunch20761building. 13/18tasks2/6milestones; F3-F6 andrich/long/device/resources remainopen.",
+      "evidence": "tmp/v2-pwa-reconnect-files-20261010-profilefix/root-verification.json"
+    },
+    {
+      "at": "2026-10-10T15:51:33.217607+00:00",
+      "summary": "OneofficialisolatedfrozenDEVapp current5455source/698packages:all23Settingssections andauthoritativeMCPimportstorage→visiblepresentationPASS;usagepromiseisolationmockPASS; standaloneBrowser13PASSmarkers andquickcomposernativeclose/reopen/model/presentation/typing/submitIPChandoffmockPASS.0renderererrors;7pureoracle testsPASS. Originalhandles82723/53028/21902andruntime91708joined0. Officialowner20761/stop49492joined0; runtimeRemoved/ownerfreshESRCH/4portsclosed. Backendshuttingdownwindowboundswarningretained/no normalQuitclaim. Missing4remaining-resourceplanreceipts verifiedabsent; noresourcecohortreset. 13/18tasks2/6milestones/fullscopeincomplete.",
+      "evidence": "tmp/v2-settings-usage-20261010-affected/root-verification.json"
+    },
+    {
+      "at": "2026-10-10T15:58:37.033972+00:00",
+      "summary": "Currentresource recoveryaudit strengthenscustody:28/68browser-memoryhelpers remainexact;40sealeddependenciesandoldprofilearemissing,noalternatecopyfound.6cache/history/bufferinputs byte-match currentproduction. Current16requirementreceipts13present/3missing; all26F1/31F2historicalmilestonereceiptsmissing. Historical13/18/2of6counterspreservedbutexplicitlynotcurrentacceptance. MaintainedNode/Electrontelemetry lacks requiredbirth/terminal/diskwholefamilyaccounting; sustainedDEVcell dryrun refuses16dirtysrcpaths(exit2/0app), nofreeze bypassorcommit. Backup-locationquestionpending; no productedit/app/resourcecohort/reset. Firstartifactrecoveryimpasseverified,goalactive.",
+      "evidence": "tmp/v2-resource-recovery-20261010/recovery-audit.json"
+    },
+    {
+      "at": "2026-10-10T16:07:44.450838+00:00",
+      "summary": "Correctedunpromotedprofileabsenceinterpretation:profile.host-v1 DB survives. Readonlycorpus exactoriginal fullSHA543b2c/32rows/302102bytes/24scriptedtoolcases/2children/3images recovered. FreshcurrentAPIhost imports32items/5heads/19blocks/1turn pluszero gap/origin/context rows with onlyouterowner rebound; allrowbuffers andfullsemanticreceipt exact, originalDBhashunchanged, existingprivateGitcopied/0newcommits. Threefailedfixturepreps(logs retained) exposedactualblockname/headownership/WITHOUTROWID; purePKreaderpreflight verifiesforeignownerempty, finalprepPASS/0apps0browsers. Original40sealedprofilinghelpers stillmissing; backupquestionpending, separateoriginalresourcecohorts unchanged. CurrentrichsavedPWAcontrollerpreparation isnextavailablegate; no globalimpasse/nocompletionclaim.",
+      "evidence": "tmp/v2-rich-saved-pwa-20261010-preparation/seed-verification.json"
+    },
+    {
+      "at": "2026-10-10T16:18:50.178719+00:00",
+      "summary": "Latest user instruction explicitly authorizes committing current pending work, pulling and integrating the remote branch, and pushing. Earlier no-commit/no-push restriction is overridden for this Git work; performance objective, evidence limits, publication and installed-app restrictions remain in force."
     }
   ],
   "tasks": [
@@ -7707,7 +10059,7 @@
       "title": "PWA worker policy and offline recovery",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Retain bounded activation diagnosis and unqualified offline/reconnect requirements. Audit captured requests/source for a concrete correction independently of Electron media; no unchanged attempt or budget reset.",
+      "nextAction": "Current naturalupgrade5gates andcompactoffline/reconnect/freshhostFiles responsePASS; retain scope limits. Requiredrichsavedoffline/reconnect,long/background/Safari/device remainunqualified. No oldworker/upgradecohortreset.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -7742,7 +10094,9 @@
         "tmp/v2-streaming-perf-20260930/round261/root-natural-execution-verification.json",
         "tmp/v2-streaming-perf-20260930/round261/root-natural-command-receipts.json",
         "tmp/v2-streaming-perf-20260930/round262/root-natural-review-verification.json",
-        "tmp/v2-streaming-perf-20260930/round263/root-metadata-correction-verification.json"
+        "tmp/v2-streaming-perf-20260930/round263/root-metadata-correction-verification.json",
+        "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
+        "tmp/v2-pwa-natural-upgrade-20261010-deployfix/root-scoped-verification.json"
       ]
     },
     {
@@ -7765,7 +10119,9 @@
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
         "tmp/v2-qualification-20261010-continuation/production-corrected/runtime-manifest.json",
         "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
-        "tmp/v2-worktree-qualification-20261010/root-verification.json"
+        "tmp/v2-worktree-qualification-20261010/root-verification.json",
+        "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json",
+        "tmp/v2-row-retainer-20261010/root-verification.json"
       ]
     },
     {
@@ -7805,7 +10161,12 @@
         "tmp/native-host-reuse-20261009/root-verification.json",
         "tmp/v2-usage-profile-io-20261010/evidence.json",
         "tmp/v2-usage-real-io-20261010/root-verification.json",
-        "tmp/v2-normalization-allocation-20261010/root-verification.json"
+        "tmp/v2-normalization-allocation-20261010/root-verification.json",
+        "tmp/v2-buffer-sizing-20261010/root-verification.json",
+        "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json",
+        "tmp/v2-row-retainer-20261010/root-verification.json",
+        "tmp/v2-mixed-runtime-20261010/root-verification.json",
+        "tmp/v2-mixed-runtime-20261010/desktop-state.json"
       ],
       "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json"
     },
@@ -7815,7 +10176,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Freeze currentdirty5437file source97d3543385... with freshlybuiltmain/Electron/web and refreshedplugins/WSL/embeddedSSH, copiedclosed dependencies and unchanged-native-helper provenance before next required current-runtime qualification; preserve all old candidates/caps. No further marginalvalidator tuning; sourcechurn weakrowcollection FAIL remains unqualified. Then remaining worktree/alltool-family/reader/PTY/browser/compact/PWA plusmatchedwhole CPU/GPU/RAM/p95 gates. PaintedGUI waitsdesktopunlock; no commits/push/publish/installed replacement.",
+      "nextAction": "Current scoped Settings/MCPimport/usage/Browser andquickcomposer mockcontrols pass in oneisolatedfrozenDEVapp; currentproductioncompactPWAoffline/reconnectPASS. Remainingcurrentrichreader/scroll/PT Y/realmanual/device, fullqualityvariance andresourcequalification remainopen; recovermissingsealedprerequisiteswithoutunchangedreplays.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -7889,7 +10250,15 @@
         "tmp/v2-gui-controls-residual-20261010/root-verification.json",
         "tmp/v2-normalization-allocation-20261010/source-and-build-evidence.json",
         "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
-        "tmp/v2-worktree-qualification-20261010/root-verification.json"
+        "tmp/v2-worktree-qualification-20261010/root-verification.json",
+        "tmp/v2-buffer-sizing-20261010/root-verification.json",
+        "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json",
+        "tmp/v2-row-retainer-20261010/root-verification.json",
+        "tmp/v2-mixed-runtime-20261010/root-verification.json",
+        "tmp/v2-mixed-runtime-20261010/desktop-state.json",
+        "tmp/v2-next-qualification-20261010/root-verification.json",
+        "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
+        "tmp/v2-browser-editor-media-20261010-attributes/root-verification.json"
       ]
     },
     {
@@ -7928,7 +10297,13 @@
         "tmp/v2-usage-real-io-20261010/root-verification.json",
         "tmp/v2-normalization-allocation-20261010/root-verification.json",
         "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
-        "tmp/v2-worktree-qualification-20261010/root-verification.json"
+        "tmp/v2-worktree-qualification-20261010/root-verification.json",
+        "tmp/v2-buffer-sizing-20261010/root-verification.json",
+        "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json",
+        "tmp/v2-row-retainer-20261010/root-verification.json",
+        "tmp/v2-mixed-runtime-20261010/root-verification.json",
+        "tmp/v2-mixed-runtime-20261010/desktop-state.json",
+        "tmp/v2-next-qualification-20261010/root-verification.json"
       ]
     },
     {
