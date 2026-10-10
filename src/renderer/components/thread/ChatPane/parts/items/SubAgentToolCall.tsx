@@ -2,6 +2,7 @@ import { memo, useId, useState, type ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui as useLinguiContext } from "@lingui/react";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { Bot, ChevronDown, ChevronRight, CircleAlert, type LucideIcon } from "lucide-react";
 import { isWorkflowRunLive, type ToolCallPayload, type WorkflowRun } from "@/shared/contracts";
@@ -16,7 +17,7 @@ import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { getChildItemIdsStoreSelector } from "../../chatPaneSelectors";
-import { extractAcpResultPart } from "./acpToolPayload";
+import { delegatedAgentResultText } from "./delegatedAgentResult";
 import { ChatFilePath } from "./ChatFilePath";
 import {
   chatRowClass,
@@ -45,6 +46,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   item,
 }: SubAgentToolCallProps) {
   const { t } = useLingui();
+  const { _ } = useLinguiContext();
   const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, item.id)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
@@ -94,7 +96,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     ? normalizeCallTitleSeparator(display.parts.prefix)
     : undefined;
   const Icon: LucideIcon = display.Icon;
-  const completedResultText = isCompleted ? extractAcpResultPart(payload).text.trim() : "";
+  const completedResultText = isCompleted ? delegatedAgentResultText(payload, _) : "";
   const workflowResultText = workflow ? completedResultText : "";
   const resultText = workflow ? "" : completedResultText;
   // Surface tool_use_error inline (without XML tags) as a tooltip on the

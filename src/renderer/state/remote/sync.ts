@@ -28,6 +28,7 @@ import {
   requestsFromRuntimeItems,
 } from "./runtimeRequests";
 import { shouldReplaceRuntimeItemsFromSnapshot } from "./guards";
+import { mergeTerminalDelegatedAgentItems } from "./delegatedAgentSnapshot";
 import {
   seedOlderThreadRuntimeItemsCursor,
   alignThreadRuntimeHistoryControl,
@@ -248,6 +249,7 @@ export function applyThreadSnapshot(
       state.reconcileStaleSubAgents(threadId);
     }
   } else if (options.fromServer) {
+    if (!snapshotStale) mergeTerminalDelegatedAgentItems(threadId, snapshotItems);
     mergeMissedOlderSnapshotItems(threadId, snapshotItems);
     if (!snapshotStale && !hasHydratedThreadRuntimeItems(threadId)) {
       // Live items can beat the first snapshot to the pane. Rejecting its

@@ -20,6 +20,7 @@ import { mockLiveVoiceGate } from "./smoke-live-voice.mjs";
 import { runSettingsScenario } from "./smoke-settings.mjs";
 import { mockQuickComposerGate } from "./smoke-quick-composer.mjs";
 import { mockSideChatGate } from "./smoke-side-chat.mjs";
+import { mockDelegatedAgentRecoveryGate } from "./smoke-delegated-agent-recovery.mjs";
 import { runWelcomeDismissalScenario } from "./smoke-welcome.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -1633,6 +1634,8 @@ async function runMockGate(client, gate, fixture) {
       );
       return "runtime request store and resolution IPC contract were checked";
     }
+    case "delegated-agent-recovery":
+      return mockDelegatedAgentRecoveryGate({ client, evaluate, fixture });
     case "terminal-pty": {
       assert(fixture.bridgeKeys.includes("startThread"), "thread launch bridge is missing");
       await evaluate(

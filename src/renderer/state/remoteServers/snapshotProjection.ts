@@ -23,6 +23,8 @@ import {
 import { hostSupportsRuntimeHistoryNotices } from "@/renderer/state/remote/historyNoticeCapability";
 import { recordAuthoritativeHistoryInstall } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
+import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
+import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { applyCachedSlashCommandCatalogs, fetchSlashCommandCatalog } from "./slashCommandCatalogs";
 import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
@@ -41,6 +43,7 @@ import {
 import {
   addRemoteServerThreadItemInterest,
   bumpRemoteServerSnapshotSeq,
+  currentRemoteServerThreadItemInterests,
   currentRemoteServerGeneration,
   getRemoteServerEventSocketEntry,
   hasRemoteServerCursorSyncV2,
@@ -488,6 +491,14 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           currentRemoteServerGeneration(desktopId) === serverGenerationAtStart
         );
       };
+      const viewThreadId = remoteThreadId(desktopId, threadId);
+      if (
+        (previousOpenThread?.desktopId !== desktopId || previousOpenThread.threadId !== threadId) &&
+        !currentRemoteServerThreadItemInterests(desktopId).includes(threadId) &&
+        selectActiveSubAgentParentItemIds(useAppStore.getState(), viewThreadId).length === 0
+      ) {
+        resetRemoteThreadProjection(viewThreadId);
+      }
       setHydratingRemoteServerThreadItemInterest(desktopId, threadId, previousOpenThread);
       // Hydrate the thread's history into the shared, threadId-keyed runtime
       // store so the desktop ChatPane renders it (coexists with local threads).
@@ -571,7 +582,6 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         return false;
       }
       const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
-      const viewThreadId = projectedSnapshot.thread.id;
       // Retain the bounded tail cursor + page proof so older completed-turn
       // pages and older runtime-item pages can continue on this connection.
       if (boundedHistoryPage) {

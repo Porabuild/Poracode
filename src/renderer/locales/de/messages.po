@@ -7328,7 +7328,7 @@ msgstr "Interne Befehle und Agenten"
 msgid "Interrupted"
 msgstr "Unterbrochen"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Unterbrochen: Agentensitzung wurde vorzeitig beendet."
 

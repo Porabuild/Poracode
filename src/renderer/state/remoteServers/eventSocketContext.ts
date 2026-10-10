@@ -41,6 +41,8 @@ export interface EventSocketConnectionContext {
   readonly server: RemoteServerRecord;
   readonly entry: RemoteServerEventSocketEntry;
   readonly socket: RemoteSocketLike;
+  /** Resume cursor sent for this socket; HTTP snapshots cannot advance it. */
+  readonly resumeCursor: number;
   readonly client: RemoteDesktopClient;
   readonly get: () => RemoteServersState;
   readonly set: (

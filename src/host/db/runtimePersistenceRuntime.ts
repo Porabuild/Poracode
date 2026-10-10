@@ -60,6 +60,7 @@ export interface RuntimePersistenceHealthListener {
   onSignal?(signal: RuntimeProducerSignal): void;
   onStateChange?(info: RuntimePersistenceStateInfo): void;
   onCapacityChange?(change: RuntimeQueueCapacityChange): void;
+  onThreadAccessAvailable?(threadId: string): void;
 }
 
 const healthListeners = new Set<RuntimePersistenceHealthListener>();
@@ -86,6 +87,8 @@ export const runtimePersistenceController = new RuntimePersistenceController({
   atomicBatchWriter: applyRuntimeEventBatchesNow,
   onSignal: (signal) => notifyHealthListeners((listener) => listener.onSignal?.(signal)),
   onStateChange: (info) => notifyHealthListeners((listener) => listener.onStateChange?.(info)),
+  onThreadAccessAvailable: (threadId) =>
+    notifyHealthListeners((listener) => listener.onThreadAccessAvailable?.(threadId)),
   onCapacityChange: (change) =>
     notifyHealthListeners((listener) => listener.onCapacityChange?.(change)),
   onFailure: (error, errorClass, threadId) => {
@@ -371,6 +374,14 @@ export function hasPendingRuntimeWrites(threadId?: string): boolean {
 export function pendingRuntimeThreadIds(): string[] {
   bindCurrentConnection();
   return runtimePersistenceController.pendingThreadIds();
+}
+
+/** Accepted payload fragments captured before a retired producer can be replaced. */
+export function pendingRuntimeItemPayloadEvents(): ReturnType<
+  typeof runtimePersistenceController.pendingItemPayloadEvents
+> {
+  bindCurrentConnection();
+  return runtimePersistenceController.pendingItemPayloadEvents();
 }
 
 /**

@@ -147,6 +147,7 @@ const messages = {
   "supervisor.exited": "Background process exited unexpectedly",
   "supervisor.notRunning": "Background process is not running",
   "supervisor.proposedPlan": "Proposed plan",
+  "runtime.delegatedAgentInterrupted": "Interrupted: agent session ended before completion.",
   "supervisor.handoffTranscriptUnavailable":
     "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
   "supervisor.forkTranscriptUnavailable":
@@ -305,6 +306,17 @@ export function msg(key: MessageKey, params?: Record<string, string | number>): 
   const resolved = messageResolver?.(key, params);
   if (resolved != null) return resolved;
   return interpolate(messages[key], params);
+}
+
+/** Translate an exact static catalog source received from another process. */
+export function localizeMessageSource(
+  source: string,
+  resolve: MessageResolver = msg,
+): string | undefined {
+  for (const key of Object.keys(messages) as MessageKey[]) {
+    if (source === messages[key]) return resolve(key);
+  }
+  return undefined;
 }
 
 /**
@@ -592,9 +604,5 @@ export function friendlyErrorWithDetail(err: unknown): { summary: string; detail
 
   // Supervisor errors cross IPC as source-language strings. Static catalog
   // messages can be translated exactly without parsing provider error prose.
-  for (const key of Object.keys(messages) as MessageKey[]) {
-    if (rawSummary === messages[key]) return { summary: msg(key), details };
-  }
-
-  return { summary: rawSummary, details };
+  return { summary: localizeMessageSource(rawSummary) ?? rawSummary, details };
 }

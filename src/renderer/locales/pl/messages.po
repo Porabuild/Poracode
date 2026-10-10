@@ -7328,7 +7328,7 @@ msgstr "Polecenia wewnętrzne i agenci"
 msgid "Interrupted"
 msgstr "Przerwano"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Przerwano: sesja agenta zakończyła się przed jej ukończeniem."
 

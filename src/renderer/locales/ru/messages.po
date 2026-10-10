@@ -7328,7 +7328,7 @@ msgstr "Внутренние команды и агенты"
 msgid "Interrupted"
 msgstr "Прервано"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Прервано: сессия агента завершилась до окончания."
 

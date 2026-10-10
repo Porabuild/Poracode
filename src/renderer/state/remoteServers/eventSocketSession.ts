@@ -305,6 +305,7 @@ export async function startRemoteServerEventStream(
         server,
         entry,
         socket,
+        resumeCursor: lastSeenSeq,
         client,
         get,
         set,
