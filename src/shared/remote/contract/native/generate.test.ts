@@ -56,10 +56,10 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 13,
         bindingFormatVersion: 2,
         generatorVersion: 4,
-        // Protocol 13 selection/workspace-grant schemas, seven additive media
-        // routes and the two JSON usage procedures share one canonical authority.
-        // Usage adds four roots while preserving target wire/generator versions.
-        sourceHash: "sha256:f8cfb2d15e6ecc9eb7eb243d7c46406e8028c2db907cc98f9143f7cb21cf9d65",
+        // Protocol13/media and the two host-owned usage procedures share one
+        // authority with optional provider-only side-chat conversation snapshots.
+        // Usage retains four roots; side chat adds one optional structural type.
+        sourceHash: "sha256:2d18b0b635b1faa7d4d875d9e03b5907d57523e1c3eeb2018eda7ae24c12a552",
         manifestHash: "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982",
         counts: {
           routes: 95,
@@ -70,7 +70,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 429,
-          structuralTypes: 970,
+          structuralTypes: 971,
           semanticValidators: 18,
           swiftFiles: 61,
           kotlinFiles: 53,

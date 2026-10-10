@@ -45,6 +45,7 @@ import { useContinueInProviderStore } from "@/renderer/state/continueInProviderS
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
+import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { closePanelsForUnloadedThread } from "./panelActions";
 import { getCurrentProjectId } from "./currentProject";
 import { switchWorkspaceForProject } from "./workspaceActions";
@@ -373,11 +374,19 @@ export function reopenStoredThread(threadId: string): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
   if (!thread) return;
-  if (!shouldRelaunchThreadOnOpen(thread) || store.pendingThreadLaunches[thread.id] !== undefined) {
+  if (
+    !shouldRelaunchThreadOnOpen(thread) ||
+    store.pendingThreadLaunches[thread.id] !== undefined ||
+    store.connectingThreadIds[thread.id] !== undefined
+  ) {
     return;
   }
 
-  const isGuiReconnect = thread.presentationMode === "gui" && thread.sessionRef !== undefined;
+  const isGuiReconnect = thread.presentationMode === "gui";
+  // Match ThreadSessionManager.sendThreadInput's inactive/no-session refusal.
+  // Opening a saved pane must not silently start a fresh GUI session under
+  // its existing transcript.
+  if (isGuiReconnect && !thread.sessionRef && !thread.canResumeWithConfig) return;
   startTransition(() => {
     store.updateThreadRuntime(thread.id, {
       status: isGuiReconnect ? "idle" : "launching",
@@ -424,6 +433,7 @@ export function sweepStaleThreads(): void {
 
   const store = useAppStore.getState();
   const visibleThreadIds = new Set(store.view.kind === "thread" ? store.view.panes : []);
+  for (const id of auxiliaryThreadIds()) visibleThreadIds.add(id);
   if (store.view.kind === "experiment") {
     const experiment = useExperimentStore.getState().experiments[store.view.experimentId];
     for (const candidate of experiment?.candidates ?? []) {

@@ -10,9 +10,14 @@ import { buildCommandRegistry } from "@/renderer/commands/registry";
 const mocks = vi.hoisted(() => ({
   send: vi.fn<(payload: unknown) => Promise<void>>(),
   start: vi.fn<(payload: unknown) => Promise<{ threadId: string }>>(),
+  ensure: vi.fn<(payload: unknown) => Promise<void>>(),
 }));
 vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => ({ sendThreadInput: mocks.send, startThread: mocks.start }),
+  readBridge: () => ({
+    sendThreadInput: mocks.send,
+    startThread: mocks.start,
+    ensureThreadRunning: mocks.ensure,
+  }),
 }));
 vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   captureFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -139,6 +144,75 @@ function deferredFailure() {
   });
   return { promise, reject };
 }
+
+it.each([
+  { uncertain: false, newerEffort: undefined, expectedEffort: "high" },
+  { uncertain: false, newerEffort: "low", expectedEffort: "low" },
+  { uncertain: true, newerEffort: undefined, expectedEffort: "xhigh" },
+])(
+  "settles config once for an empty saved GUI reopen without replaying input: %j",
+  async (outcome) => {
+    const thread = seed();
+    const store = useAppStore.getState();
+    const failure = deferredFailure();
+    const draft = {
+      segments: [{ kind: "text" as const, content: "unsent saved followup" }],
+      attachments: [],
+    };
+    store.updateThreadRuntime(thread.id, {
+      status: "inactive",
+      attention: "none",
+      canResumeWithConfig: thread.canResumeWithConfig,
+    });
+    useAppStore.setState({
+      threadDraftContents: { [thread.id]: draft },
+      runtimeItemIdsByThread: { [thread.id]: ["saved-reply"] },
+    });
+    mocks.ensure.mockReturnValueOnce(failure.promise);
+    const reconnect = performInitialThreadLaunch({
+      thread: current(thread.id),
+      projectLocation: { kind: "posix", path: "/fixture" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+    });
+    const result = reconnect.catch((error: unknown) => error);
+    expect(mocks.ensure).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        threadId: thread.id,
+        prompt: "",
+        sessionRef: thread.sessionRef,
+        config: expect.objectContaining({ effort: "high" }),
+      }),
+    );
+    // A native acknowledgement must be visible while this captured config is in flight.
+    echo(thread.id);
+    expect(current(thread.id).config.effort).toBe("xhigh");
+    if (outcome.newerEffort) {
+      store.updateThreadConfig(thread.id, {
+        ...current(thread.id).config,
+        effort: outcome.newerEffort,
+      });
+    }
+    const error = outcome.uncertain
+      ? new RemoteClientError("Fixture uncertain", 409, "command_outcome_uncertain")
+      : new Error("definite reconnect rejection");
+    failure.reject(error);
+    await expect(result).resolves.toBe(error);
+    expect(current(thread.id).config.effort).toBe(outcome.expectedEffort);
+    expect(current(thread.id)).toMatchObject({
+      canResumeWithConfig: true,
+      sessionRef: thread.sessionRef,
+    });
+    expect(useAppStore.getState().threadDraftContents[thread.id]).toEqual(draft);
+    expect(useAppStore.getState().runtimeItemIdsByThread[thread.id]).toContain("saved-reply");
+    expect(
+      useAppStore.getState().pendingThreadConfigByThreadId[thread.id]?.submissions ?? [],
+    ).toEqual([]);
+    expect(mocks.ensure).toHaveBeenCalledTimes(1);
+    expect(mocks.start).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
+  },
+);
 
 it.each([false, true])(
   "does not restore over a newer model/effort edit, even if submitted=%s",

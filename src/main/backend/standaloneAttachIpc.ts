@@ -27,11 +27,14 @@ import { readKeybindingsFile } from "../keybindingsFile";
 import { applyKeybindingsWrite } from "../keybindingsApply";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import { requestTrackedRendererReload } from "../window/windowHardening";
+import { registerSideChatWindowIpc, isSideChatWindow } from "../window/sideChatWindows";
+import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
 import type { QuickComposerLifecycle } from "../window/quickComposerLifecycle";
 import { createAutoUpdaterController, type AutoUpdaterController } from "../updates/autoUpdater";
 import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
 
 export interface StandaloneAttachIpcDeps {
+  createSideChatWindow?: (bootstrap: SideChatBootstrap) => BrowserWindow;
   getMainWindow(): BrowserWindow | null;
   getQuickComposerWindow(): BrowserWindow | null;
   /** Owned profile namespace from the attach payload; device keybindings live here. */
@@ -61,7 +64,8 @@ function attachSenderWindow(
   if (!window || window.isDestroyed()) return null;
   const mainWindow = deps.getMainWindow();
   const quickComposerWindow = deps.getQuickComposerWindow();
-  if (window !== mainWindow && window !== quickComposerWindow) return null;
+  if (window !== mainWindow && window !== quickComposerWindow && !isSideChatWindow(window))
+    return null;
   return window;
 }
 
@@ -72,6 +76,13 @@ function attachSenderWindow(
  * attach auto-update controller (real updater, renderer notifications only).
  */
 export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): AutoUpdaterController {
+  registerSideChatWindowIpc({
+    getMainWindow: deps.getMainWindow,
+    createWindow: (bootstrap) => {
+      if (!deps.createSideChatWindow) throw new Error("Side chat windows are unavailable");
+      return deps.createSideChatWindow(bootstrap);
+    },
+  });
   const autoUpdater = createAutoUpdaterController(
     (status) => {
       deps.getMainWindow()?.webContents.send(IPC_EVENT_CHANNELS.updateStatus, status);

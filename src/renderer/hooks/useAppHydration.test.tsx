@@ -4,10 +4,12 @@ import type { Experiment, Project, Thread, ThreadRuntimeSnapshot } from "@/share
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useAppHydration } from "./useAppHydration";
+import { setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 
 const mocks = vi.hoisted(() => ({
   bridge: {
     getThreadSnapshots: vi.fn<() => Promise<ThreadRuntimeSnapshot[]>>(),
+    getSideChatThreadIds: vi.fn<() => Promise<string[]>>(),
     closeThread: vi.fn<(payload: { threadId: string }) => Promise<void>>(),
     onPrWatchMerged: vi.fn<() => () => void>(() => () => undefined),
     onPrWatchStatus: vi.fn<() => () => void>(() => () => undefined),
@@ -98,6 +100,8 @@ function snapshot(threadId: string): ThreadRuntimeSnapshot {
 describe("useAppHydration experiments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setAuxiliaryThreadIds([]);
+    mocks.bridge.getSideChatThreadIds.mockResolvedValue([]);
     mocks.compactClientRuntimeSurface = false;
     vi.spyOn(useAppStore.persist, "hasHydrated").mockReturnValue(true);
     vi.spyOn(useAppStore.persist, "onHydrate").mockReturnValue(() => undefined);
@@ -201,6 +205,24 @@ describe("useAppHydration experiments", () => {
     expect(mocks.bridge.closeThread).not.toHaveBeenCalledWith({ threadId: "candidate-2" });
     expect(mocks.hydrateThreadRuntimeItems).toHaveBeenCalledWith("candidate-1");
     expect(mocks.hydrateThreadRuntimeItems).toHaveBeenCalledWith("candidate-2");
+  });
+  it("waits for native window ownership before closing unrelated snapshots on reload", async () => {
+    let resolveIds!: (ids: string[]) => void;
+    mocks.bridge.getSideChatThreadIds.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveIds = resolve;
+      }),
+    );
+    renderHook(() => useAppHydration());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mocks.bridge.closeThread).not.toHaveBeenCalled();
+    await act(async () => {
+      resolveIds(["unrelated"]);
+    });
+    await waitFor(() => expect(mocks.bridge.getThreadSnapshots).toHaveBeenCalled());
+    expect(mocks.bridge.closeThread).not.toHaveBeenCalledWith({ threadId: "unrelated" });
   });
 
   it("shows persisted threads while live runtime snapshots reconcile in the background", async () => {

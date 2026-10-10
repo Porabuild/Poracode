@@ -1,4 +1,5 @@
 import type { PoracodeChannel } from "../channel";
+import type { SideChatBootstrap, SideChatThreadBinding, SideChatWindowsChanged } from "./sideChat";
 import type { RemoteThreadCommand } from "../contracts";
 import type { RemoteAccessPairingInfo } from "../remote";
 import type { SharedSettings } from "../settings";
@@ -44,6 +45,14 @@ export type PoracodeInvokeBridge = {
 };
 
 export type PoracodeBridge = PoracodeInvokeBridge & {
+  openSideChatWindow?: (input: SideChatBootstrap) => Promise<void>;
+  openSideChatPanel?: (input: SideChatBootstrap) => Promise<void>;
+  attachSideChatWindow?: (input: SideChatThreadBinding) => Promise<void>;
+  closeSideChatPanel?: () => Promise<void>;
+  getSideChatWindowInfo?: () => Promise<SideChatBootstrap | null>;
+  bindSideChatThread?: (input: SideChatThreadBinding) => Promise<void>;
+  getSideChatThreadIds?: () => Promise<string[]>;
+  onSideChatWindowsChanged?: (listener: (event: SideChatWindowsChanged) => void) => () => void;
   platform: NodeJS.Platform;
   appVersion: string;
   arch: string;

@@ -285,16 +285,27 @@ export async function performInitialThreadLaunch(input: {
         ),
       );
     } else {
+      // An empty saved-thread reopen is desired state. The owning supervisor
+      // must preserve a session another client already brought back to life.
+      const isEmptyReconnect =
+        !prompt &&
+        !segments?.length &&
+        !providerSwitch &&
+        !optimisticUserMessageItemId &&
+        (resumableSessionRef !== undefined ||
+          (presentation === "gui" && thread.canResumeWithConfig));
+      const bridge = readBridge();
+      const payload = {
+        threadId: thread.id,
+        projectLocation,
+        ...startInput,
+        ...(startInput.segments
+          ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
+          : {}),
+        ...mcpLaunchSnapshot,
+      };
       await withThreadConfigSubmission(thread.id, startInput.config, () =>
-        readBridge().startThread({
-          threadId: thread.id,
-          projectLocation,
-          ...startInput,
-          ...(startInput.segments
-            ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
-            : {}),
-          ...mcpLaunchSnapshot,
-        }),
+        isEmptyReconnect ? bridge.ensureThreadRunning(payload) : bridge.startThread(payload),
       );
     }
   } catch (error) {
@@ -716,7 +727,7 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
 }
 
 /** Surface a failed launch on the thread row (error item + error status). */
-function markThreadLaunchFailed(threadId: string, error: unknown): void {
+export function markThreadLaunchFailed(threadId: string, error: unknown): void {
   const store = useAppStore.getState();
   // The pending create+launch intent survives every failure: a definite
   // pre-effect failure was already re-armed as a fresh attempt by the launch

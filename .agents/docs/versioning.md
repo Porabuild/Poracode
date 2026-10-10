@@ -21,7 +21,16 @@ operation map are regenerated/audited together. The integration with pinned v2
 `38fb96cb80254568238c9673ac4d9d6fd39a79b7` combines media's seven routes
 with the two usage procedures: 95 routes, 130 procedures, 429 native schema
 roots, 970 structural types and 277 operation keys. All generated artifacts
-come from that combined canonical authority; no generator behavior changes. Native UI adoption is explicitly
+come from that combined canonical authority; no generator behavior changes.
+The later ordinary integration with pinned v2
+`7c3277e93596cda16c7455e572f8f2a717f8f31b` retains those 95 routes,
+130 procedures, 429 roots and 277 operation keys. The target's optional bounded
+provider-only conversation snapshot adds one structural type (971 total);
+all IR/schema/native mirrors and independent literal hash/count fixtures are
+regenerated from the combined authority. Protocol 13, binding 2, generator 4,
+native format 5, usage cache 10 and global-off collection semantics are unchanged.
+Side-chat same-build IPC and conversationSnapshots v1 capability policy remain
+the target's authority; usage adds no further boundary/version change. Native UI adoption is explicitly
 planned in the parity ledger. The new renderer cache and host selection are
 volatile, partitioned by connection plus host-owned provider/profile ID; they
 require no persisted-state migration. Connection retirement and request sequence
@@ -100,6 +109,27 @@ hosts do not advertise it. Trace expires under existing run retention and host
 restart. Regression tests start with prior read shapes and cover privacy bounds,
 saved/per-call policy sources, explicit empty chains, batch/cursor isolation,
 workflow selection and winning-session continuation.
+
+Side chats use additive, same-build native IPC and volatile ownership, opening in
+the right panel by default. Detach and attach transfer the same bootstrap and
+bound child identity without restarting the provider. The main process retains
+both across renderer reloads; app restart discards surface ownership. Panel
+visibility is volatile and requires no preference migration. Child conversations use the
+existing thread, config, session and parentThreadId formats. Existing application
+preferences remain valid and auxiliary windows cannot overwrite the main view.
+Main/preload/renderer ship together and changed bundle hashes identify the implementation. Regressions cover native
+ownership recovery, hydration with an existing child, and unchanged preference
+writes, as well as independent bounded history reads with existing page proofs.
+
+Provider-only conversation snapshots extend the existing optional per-turn
+clientContext envelope with a bounded 50,000-character field. They are not painted
+or persisted as chat messages. Remote hosts advertise conversationSnapshots v1;
+clients require that advertisement before opening the side chat, since older
+hosts strip unknown context fields. Protocol 13, persisted rows and deployed
+helpers remain compatible and unchanged. Remote-v3 schemas, inventory hashes,
+Swift and Kotlin bindings are regenerated together. Existing clients omit the
+field and continue unchanged. Regressions cover old-host refusal, bounded payloads,
+provider-only delivery and unchanged visible user messages.
 
 Codex resume requests use the existing optional `excludeTurns` protocol field
 and a resume-only two-minute timeout. Saved transcripts and provider session IDs

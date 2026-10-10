@@ -1698,6 +1698,14 @@ msgstr "Argumente"
 msgid "Ask {0} anything about this workspace"
 msgstr "Fragen Sie {0} etwas zu diesem Arbeitsbereich"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "Eine Frage in einem separaten Nebenchat stellen"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "Eine Nebenfrage stellen"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Fragen Sie jedes Mal"
@@ -1729,6 +1737,10 @@ msgstr "Anhängen"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "Dateien anhängen"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "Nebenchat andocken"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3058,6 +3070,10 @@ msgstr "Scanner schließen"
 msgid "Close search"
 msgstr "Suche schließen"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "Nebenchat schließen"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -3926,6 +3942,10 @@ msgstr "Die Nutzungsdaten konnten nicht geladen werden. Prüfe die Hostverbindun
 msgid "Could not read file."
 msgstr "Datei konnte nicht gelesen werden."
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "Der Thread-Kontext für den Nebenchat konnte nicht gelesen werden. Versuche es erneut."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "Anmeldung bei {serverName} fehlgeschlagen: {message}"
@@ -4711,6 +4731,10 @@ msgstr "Desktop-Einstellungen"
 msgid "Destination"
 msgstr "Ziel"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "Nebenchat abkoppeln"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
 msgstr "losgelöster HEAD"
@@ -5000,6 +5024,10 @@ msgstr "Trennen"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Disconnected"
 msgstr "Getrennt"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "Getrennt — sende eine Nachricht, um die Verbindung wiederherzustellen"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -11579,6 +11607,7 @@ msgstr "Remote-Name"
 #~ msgid "Remote project"
 #~ msgstr "Remote-Projekt"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Remote-Projekt nicht gefunden."
@@ -12074,6 +12103,7 @@ msgstr "Eingereihte Nachfragen fortsetzen"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -12940,9 +12970,9 @@ msgstr "Auswählen…"
 #~ msgid "Selected project"
 #~ msgstr "Ausgewähltes Projekt"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "Senden"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "Senden"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13328,6 +13358,16 @@ msgstr "Wird in der Seitenleiste und in der Modellauswahl angezeigt."
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "Wird neben dem Projektnamen angezeigt."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "Nebenchat"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "Nebenchat: {0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -14909,6 +14949,10 @@ msgstr "Diese Verbindung hat keine Berechtigung zum Aktualisieren der Nutzungsda
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "Diese Verbindung besitzt host-eigene Umgebungsdatensätze auf diesem Gerät. Beim Entfernen werden auch diese lokalen Datensätze und ihre Geräteberechtigungen entfernt. Der Host behält seine Umgebungen."
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "Diese Unterhaltung nutzt eine Momentaufnahme des Threads. Antworten bleiben hier."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Dieser Desktop"
@@ -15141,6 +15185,10 @@ msgstr "Diese SVG-Datei kann nicht angezeigt werden."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Diese systemweite Tastenkombination ist nicht verfügbar. Wähle eine andere Tastenkombination."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Dieser Thread kann nicht fortgesetzt werden. Starte einen neuen Thread, um fortzufahren."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
@@ -16109,6 +16157,10 @@ msgstr "SDK aktualisieren"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Aufgabe aktualisieren"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "Aktualisiere den Remote-Host, um den Nebenchat mit verborgenem Kontext zu verwenden."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

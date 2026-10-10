@@ -7,7 +7,7 @@ const threadMapCache = new WeakMap<Thread[], Map<string, Thread>>();
 const projectMapCache = new WeakMap<Project[], Map<string, Project>>();
 const getAppState = useAppStore.getState;
 
-function getThreadMap(threads: Thread[]) {
+export function getThreadMap(threads: Thread[]): ReadonlyMap<string, Thread> {
   let threadMap = threadMapCache.get(threads);
   if (!threadMap) {
     threadMap = new Map(threads.map((thread) => [thread.id, thread]));

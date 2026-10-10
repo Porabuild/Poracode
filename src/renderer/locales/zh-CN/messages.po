@@ -1698,6 +1698,14 @@ msgstr "参数"
 msgid "Ask {0} anything about this workspace"
 msgstr "向{0}询问有关此工作区的任何信息"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "在单独的侧边聊天中提问"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "提出旁支问题"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "每次都询问"
@@ -1729,6 +1737,10 @@ msgstr "附加"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "附加文件"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "停靠侧边聊天"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3058,6 +3070,10 @@ msgstr "关闭扫描器"
 msgid "Close search"
 msgstr "关闭搜索"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "关闭侧边聊天"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -3926,6 +3942,10 @@ msgstr "无法加载用量。请检查主机连接和权限，然后重试。"
 msgid "Could not read file."
 msgstr "无法读取文件。"
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "无法读取旁聊所需的对话上下文。请重试。"
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "无法登录 {serverName}：{message}"
@@ -4711,6 +4731,10 @@ msgstr "桌面设置"
 msgid "Destination"
 msgstr "目标位置"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "分离侧边聊天"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
 msgstr "分离的 HEAD"
@@ -5000,6 +5024,10 @@ msgstr "断开连接"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Disconnected"
 msgstr "已断开"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "连接已断开 — 发送消息以重新连接"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -11578,6 +11606,7 @@ msgstr "远程名称"
 #~ msgid "Remote project"
 #~ msgstr "远程项目"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "未找到远程项目。"
@@ -12073,6 +12102,7 @@ msgstr "恢复排队的后续消息"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -12939,9 +12969,9 @@ msgstr "选择…"
 #~ msgid "Selected project"
 #~ msgstr "所选项目"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "发送"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "发送"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13327,6 +13357,16 @@ msgstr "显示在侧边栏和模型选择器中。"
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "显示在项目名称旁。"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "侧边聊天"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "侧边聊天：{0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -14908,6 +14948,10 @@ msgstr "此连接没有刷新用量的权限。"
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "此连接拥有本设备上的主机环境记录。移除它还会移除这些本地记录及其设备授权。主机保留其环境。"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "此对话使用线程的快照。回复仅保留在这里。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "本桌面端"
@@ -15140,6 +15184,10 @@ msgstr "无法显示此 SVG。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "此全局快捷键不可用。请选择其他按键组合。"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "此线程无法恢复。请新建线程以继续。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
@@ -16108,6 +16156,10 @@ msgstr "更新 SDK"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "更新任务"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "请更新远程主机，以使用带有隐藏上下文的旁聊。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

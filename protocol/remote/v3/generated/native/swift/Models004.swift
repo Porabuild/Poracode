@@ -404,15 +404,30 @@ public struct ProcedureensureThreadRunningRequestU2DClientContextU2DBrowserFocus
   }
 }
 
-public struct ProcedureensureThreadRunningRequestU2DClientContext_ee890c7da4: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedureensureThreadRunningRequestU2DClientContextU2DConversationSnapshot_8532cee498: Codable, Sendable, RemoteModelMetadata {
+  public var text: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "text", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: 50000, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case text = "text"
+  }
+}
+
+public struct ProcedureensureThreadRunningRequestU2DClientContext_b23ca9582f: Codable, Sendable, RemoteModelMetadata {
   public var browserFocus: RemoteField<ProcedureensureThreadRunningRequestU2DClientContextU2DBrowserFocus_f9c97c26b1> = .missing
+  public var conversationSnapshot: RemoteField<ProcedureensureThreadRunningRequestU2DClientContextU2DConversationSnapshot_8532cee498> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "browserFocus", typeName: "ProcedureensureThreadRunningRequestU2DClientContextU2DBrowserFocus_f9c97c26b1", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "conversationSnapshot", typeName: "ProcedureensureThreadRunningRequestU2DClientContextU2DConversationSnapshot_8532cee498", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case browserFocus = "browserFocus"
+    case conversationSnapshot = "conversationSnapshot"
   }
 }
 
@@ -425,25 +440,3 @@ public enum ProcedureensureThreadRunningRequestU2DDisabledBuiltInMcpServerIdsU2D
 }
 
 public typealias ProcedureensureThreadRunningRequestU2DDisabledBuiltInMcpTools_fdad254a8b = [String: [String]]
-
-public struct ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09: Codable, Sendable, RemoteModelMetadata {
-  public var cols: Int64
-  public var rows: Int64
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "cols", typeName: "Int64", required: true, nullable: false, minimum: 20, maximum: 400, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "rows", typeName: "Int64", required: true, nullable: false, minimum: 5, maximum: 200, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case cols = "cols"
-    case rows = "rows"
-  }
-}
-
-public typealias ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1 = Bool
-
-public enum ProcedureensureThreadRunningRequestU2DProviderSwitchU2DContextStrategy_9136743498: String, Codable, Sendable {
-  case threadU2DTranscript = "thread-transcript"
-  case contextU2DFile = "context-file"
-}

@@ -1698,6 +1698,14 @@ msgstr "인수"
 msgid "Ask {0} anything about this workspace"
 msgstr "이 작업 공간에 대해 {0}에게 무엇이든 물어보세요"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "별도의 사이드 채팅에서 질문하기"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "사이드 질문하기"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "매번 물어보세요"
@@ -1729,6 +1737,10 @@ msgstr "첨부"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "파일 첨부"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "사이드 채팅 도킹"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3058,6 +3070,10 @@ msgstr "스캐너 닫기"
 msgid "Close search"
 msgstr "검색 닫기"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "사이드 채팅 닫기"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -3926,6 +3942,10 @@ msgstr "사용량을 불러오지 못했습니다. 호스트 연결과 권한을
 msgid "Could not read file."
 msgstr "파일을 읽을 수 없습니다."
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "보조 채팅을 위한 스레드 컨텍스트를 읽을 수 없습니다. 다시 시도하세요."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "{serverName}에 로그인할 수 없습니다: {message}"
@@ -4711,6 +4731,10 @@ msgstr "데스크톱 설정"
 msgid "Destination"
 msgstr "대상"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "사이드 채팅 분리"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
 msgstr "분리된 HEAD"
@@ -5000,6 +5024,10 @@ msgstr "연결 해제"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Disconnected"
 msgstr "연결 끊김"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "연결이 끊겼습니다 — 메시지를 보내 다시 연결하세요"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -11579,6 +11607,7 @@ msgstr "원격 이름"
 #~ msgid "Remote project"
 #~ msgstr "원격 프로젝트"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "원격 프로젝트를 찾을 수 없습니다."
@@ -12074,6 +12103,7 @@ msgstr "대기 중인 후속 메시지 재개"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -12940,9 +12970,9 @@ msgstr "선택…"
 #~ msgid "Selected project"
 #~ msgstr "선택한 프로젝트"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "보내기"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "보내기"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13328,6 +13358,16 @@ msgstr "사이드바와 모델 선택기에 표시됩니다."
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "프로젝트 이름 옆에 표시됩니다."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "사이드 채팅"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "사이드 채팅: {0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -14909,6 +14949,10 @@ msgstr "이 연결에는 사용량을 새로고칠 권한이 없습니다."
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "이 연결은 이 장치의 호스트 소유 환경 레코드를 소유합니다. 제거하면 해당 로컬 레코드와 장치 권한도 제거됩니다. 호스트는 환경을 유지합니다."
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "이 대화는 스레드의 스냅샷을 사용합니다. 답변은 여기에만 남습니다."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "이 데스크톱"
@@ -15141,6 +15185,10 @@ msgstr "이 SVG를 표시할 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "이 시스템 전역 단축키를 사용할 수 없습니다. 다른 키 조합을 선택하세요."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "이 스레드는 재개할 수 없습니다. 계속하려면 새 스레드를 시작하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
@@ -16109,6 +16157,10 @@ msgstr "SDK 업데이트"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "작업 업데이트"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "숨겨진 컨텍스트로 보조 채팅을 사용하려면 원격 호스트를 업데이트하세요."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

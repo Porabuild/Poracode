@@ -6,6 +6,21 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProcedureghCancelWorkflowRunRequest_eb12aad287(
+    @SerialName("ghAccount") val ghAccount: RemoteField<ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff> = RemoteField.Missing,
+    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
+    @SerialName("runId") val runId: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("ghAccount", "ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runId", "Long", true, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class ProcedureghCheckAvailableResult_e3b2f05936(
     @SerialName("available") val available: Boolean,
 ) {
@@ -426,13 +441,4 @@ sealed interface ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2D
             jsonEncoder.encodeJsonElement(element)
         }
     }
-}
-
-@Serializable
-enum class ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DType_f450768848 {
-    @SerialName("boolean") BOOLEAN,
-    @SerialName("choice") CHOICE,
-    @SerialName("environment") ENVIRONMENT,
-    @SerialName("number") NUMBER,
-    @SerialName("string") STRING,
 }

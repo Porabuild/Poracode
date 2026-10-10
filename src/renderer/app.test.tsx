@@ -484,6 +484,8 @@ describe("App", () => {
       threads: [],
       pendingThreadLaunches: {},
       pendingLaunchSegments: {},
+      // The ThreadView mock never settles reconnects; each test owns fresh tokens.
+      connectingThreadIds: {},
       pendingComposerFocusThreadId: null,
       lastViewedAtByThreadId: {},
       view: { kind: "home" },
@@ -1716,6 +1718,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-status", "idle");
       expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
+      expect(useAppStore.getState().connectingThreadIds["thread-1"]).toEqual(expect.any(String));
     });
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
@@ -1809,6 +1812,7 @@ describe("App", () => {
       );
       expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
+    expect(useAppStore.getState().connectingThreadIds["thread-1"]).toBeUndefined();
   });
 
   it("fetches unloaded WSL projects once at startup without recurring background fetches", async () => {

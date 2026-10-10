@@ -1,5 +1,37 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct ProceduregetGitDiffBatchRequest_64e71691dc: Codable, Sendable, RemoteModelMetadata {
+  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
+  public var untrackedPaths: RemoteField<[ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "untrackedPaths", typeName: "[ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case projectLocation = "projectLocation"
+    case untrackedPaths = "untrackedPaths"
+  }
+}
+
+public typealias ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67 = [String: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]
+
+public struct ProceduregetGitDiffBatchResult_0dde9dcede: Codable, Sendable, RemoteModelMetadata {
+  public var staged: ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67
+  public var unstaged: ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "staged", typeName: "ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "unstaged", typeName: "ProceduregetGitDiffBatchResultU2DStaged_e51d77fd67", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case staged = "staged"
+    case unstaged = "unstaged"
+  }
+}
+
 public struct ProceduregetGitDiffRequest_5513eb6f6f: Codable, Sendable, RemoteModelMetadata {
   public var filePath: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154

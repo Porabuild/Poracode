@@ -1697,6 +1697,14 @@ msgstr "引数"
 msgid "Ask {0} anything about this workspace"
 msgstr "このワークスペースについて{0}に何でも質問してください"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "別のサイドチャットで質問する"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "サイドチャットで質問する"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "毎回尋ねる"
@@ -1728,6 +1736,10 @@ msgstr "添付する"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "ファイルを添付する"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "サイドチャットをドッキング"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3057,6 +3069,10 @@ msgstr "スキャナーを閉じる"
 msgid "Close search"
 msgstr "検索を閉じる"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "サイドチャットを閉じる"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -3925,6 +3941,10 @@ msgstr "使用量を読み込めませんでした。ホストの接続と権限
 msgid "Could not read file."
 msgstr "ファイルを読み取れませんでした。"
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "サイドチャット用のスレッドコンテキストを読み取れませんでした。もう一度お試しください。"
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "{serverName} にサインインできませんでした: {message}"
@@ -4710,6 +4730,10 @@ msgstr "デスクトップ設定"
 msgid "Destination"
 msgstr "インポート先"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "サイドチャットを切り離す"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
 msgstr "デタッチされた HEAD"
@@ -4999,6 +5023,10 @@ msgstr "切断"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Disconnected"
 msgstr "切断済み"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "切断されています — メッセージを送信して再接続してください"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -11577,6 +11605,7 @@ msgstr "リモート名"
 #~ msgid "Remote project"
 #~ msgstr "リモートプロジェクト"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "リモートプロジェクトが見つかりません。"
@@ -12072,6 +12101,7 @@ msgstr "キューに入ったフォローアップを再開"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -12938,9 +12968,9 @@ msgstr "選択…"
 #~ msgid "Selected project"
 #~ msgstr "選択したプロジェクト"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "送信"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "送信"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13326,6 +13356,16 @@ msgstr "サイドバーとモデルセレクターに表示されます。"
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "プロジェクト名の横に表示されます。"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "サイドチャット"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "サイドチャット: {0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -14907,6 +14947,10 @@ msgstr "この接続には使用量を更新する権限がありません。"
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "この接続はこのデバイス上のホスト所有環境レコードを所有しています。削除すると、それらのローカルレコードとデバイス許可も削除されます。ホスト側の環境は保持されます。"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "この会話はスレッドのスナップショットを使用します。返信はここに留まります。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "このデスクトップ"
@@ -15139,6 +15183,10 @@ msgstr "この SVG は表示できません。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "このシステム全体のショートカットは使用できません。別のキーの組み合わせを選択してください。"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "このスレッドは再開できません。続けるには新しいスレッドを開始してください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
@@ -16107,6 +16155,10 @@ msgstr "SDK を更新"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "更新タスク"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "非表示のコンテキストでサイドチャットを使用するには、リモートホストを更新してください。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."

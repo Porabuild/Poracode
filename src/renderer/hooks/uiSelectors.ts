@@ -32,7 +32,6 @@ import {
   useThreadLiveWorkflowStore,
 } from "@/renderer/state/threadLiveWorkflowStore";
 
-const EMPTY_STRINGS: string[] = [];
 const EMPTY_THREADS: Thread[] = [];
 const EMPTY_AGENT_STATUSES: AgentStatus[] = [];
 
@@ -82,10 +81,6 @@ export function selectFocusedThreadId(s: ReturnType<typeof useAppStore.getState>
 
 export function useFocusedThreadId(): string | null {
   return useAppStore(selectFocusedThreadId);
-}
-
-export function useCurrentThreadIds(): string[] {
-  return useAppStore(useShallow((s) => (s.view.kind === "thread" ? s.view.panes : EMPTY_STRINGS)));
 }
 
 export function useCurrentThreadIdsCount(): number {

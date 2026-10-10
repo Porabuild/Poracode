@@ -148,6 +148,40 @@ function attach(manager: ThreadSessionManager, session: SessionRuntime): void {
 }
 
 describe("ThreadSessionManager structured transport close", () => {
+  it("does not resend delivered input after an identity-less structured transport closes", async () => {
+    const dead = createStructuredSession(async () => undefined);
+    const adapter = createAdapter();
+    const manager = createManager(() => undefined);
+    const session = createSession(adapter, dead);
+    delete session.sessionRef;
+    session.canResumeWithConfig = false;
+    attach(manager, session);
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "original task",
+      config: session.config,
+    });
+    expect(dead.startTurn).toHaveBeenCalledOnce();
+    expect(dead.startTurn).toHaveBeenCalledWith("original task", session.config, undefined, {
+      userMessageItemId: expect.stringMatching(/^user-/),
+    });
+    expect(session.sessionRef).toBeUndefined();
+
+    dead.listener()?.onClose();
+    expect(manager.sessions.get(THREAD_ID)?.status).toBe("inactive");
+    expect(session.canResumeWithConfig).toBe(false);
+    expect(session.sessionRef).toBeUndefined();
+    await expect(
+      manager.sendThreadInput({
+        threadId: THREAD_ID,
+        prompt: "follow up",
+        config: session.config,
+      }),
+    ).rejects.toThrow("This thread exited before a resumable session id was discovered.");
+    expect(dead.startTurn).toHaveBeenCalledOnce();
+  });
+
   it("relaunches and resumes on the next submit after the runtime process died", async () => {
     const events: SupervisorEvent[] = [];
     const dead = createStructuredSession(async () => {

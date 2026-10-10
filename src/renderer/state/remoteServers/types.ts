@@ -236,7 +236,7 @@ export interface RemoteServersState {
   openThread: OpenRemoteThread | null;
   launchRemoteThread(
     input: StartRemoteNewThreadInput & { readonly desktopId: string },
-    options?: { readonly isPendingLaunchOwned?: () => boolean },
+    options?: { readonly isPendingLaunchOwned?: () => boolean; readonly focus?: boolean },
   ): Promise<RemoteThreadLaunchResult>;
   /**
    * Hydrate a remote thread's history and focus it. Never rejects. Resolves
