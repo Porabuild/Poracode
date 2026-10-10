@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T00:46:07.448878+00:00",
+  "updatedAt": "2026-10-10T01:15:39.798669+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -43,9 +43,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "8c9a01cc9583 completed/joined;97readonly lifecycle/context tests,1confirmed queue-copy defect; root4fail-before/25pass-after correction plus282UI/13generator passes.",
+    "lastAgent": "c6f15c99bc20 completed/joined; bounded35-source private-host seed offline checks; root key-custody correction and preserved failed actual attempts.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "current-production-snapshot-and-isolated-server-preflight-pass",
+    "agentState": "partial-current-production-create-thread-proof-full-controls-incomplete",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -63,7 +63,7 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "After console unlock run current full managed mock GUI smoke. Use sealed production runtime for self-contained genuine thread controls and materially justified final qualification, preserving failed runs and consumed caps. Worker source unchanged: no exhausted natural-activation repeat without new evidence/correction.",
+    "nextAction": "Run full current managed mock GUI smoke when desktop actually unlocked. Carry remaining genuine send/wait/interrupt/steer/Stop/resume checks into materially justified required final qualification with corrected typed-result/config oracles; no unchanged headless retry or consumed-cap reset. Independent remaining tool categories and resource/PWA gates stay open.",
     "lastResult": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
     "lastDeclaration": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/launcher-declaration.json",
     "liveRootHandles": [],
@@ -5671,7 +5671,7 @@
     "previousGoalTurnClassification": "progress: corrected GUI resumed prompt admission and early Stop race;53 coupled tests/static checks/final source-bound build and targeted review pass. Genuine final qualification remains open.",
     "goalTurnClassification": {
       "classification": "progress",
-      "reason": "Complete current production snapshot built/sealed/rechecked; isolated compiled server/auth/control/capability/normal-stop preflight passes. Locked GUI and final genuine/resource/PWA qualification remain."
+      "reason": "Built self-contained ACP fixtures/private owner seed and production-bound canonical reader; identified/fixed seed ownership-key initialization, executed actual create_thread handler and GUI structured child turn, validated exact stopped MCP/canonical/config/settings artifacts after correcting oracle. Full11-call validation failed and caps remain consumed; no final signoff."
     },
     "configurationToolBatch": {
       "runId": "8ce5a834d5d4",
@@ -5793,7 +5793,29 @@
       "genuineProviderOrNewToolCoverageClaim": false,
       "serverLogErrorLines": 0
     },
-    "currentAcceptanceAuditMergedSource": "tmp/v2-qualification-20261010-continuation/qualification-gates.json"
+    "currentAcceptanceAuditMergedSource": "tmp/v2-qualification-20261010-continuation/qualification-gates.json",
+    "currentMergedGenuineThreadControls": {
+      "result": "tmp/v2-thread-control-qualification-20261010/root-result.json",
+      "scopedResult": "tmp/v2-thread-control-qualification-20261010/completed-create-scope.json",
+      "state": "PARTIAL_SCOPE_PASS_FULL_CONTROLS_INCOMPLETE",
+      "actualHandlerCallsCompleted": 1,
+      "names": ["create_thread"],
+      "callerCanonicalItems": 3,
+      "targetCanonicalItems": 2,
+      "fixtureChecksPassed": 7,
+      "fullSettingsKeysConserved": 120,
+      "full11CallQualificationPassed": false,
+      "remainingCallsUntested": 10,
+      "originalFailedRun": "tmp/v2-thread-control-qualification-20261010/host/execution-f0f8752b20576b24774ab2eacb393e57/result.json",
+      "correctionFailedRun": "/Users/svecherenko/work/Poracode/tmp/v2-thread-control-qualification-20261010/host/execution-c2a2e1ac34471bbca67f61e676dd0c41/result.json",
+      "knownPidsAbsent": true,
+      "portsClosed": true,
+      "artifactUnchanged": true,
+      "originalAppAttemptsUsed": 1,
+      "correctionValidationAttemptsUsed": 1,
+      "furtherUnchangedLaunchesAllowed": false,
+      "noGuiRenderOrResourceOrExternalProviderClaim": true
+    }
   },
   "milestones": [
     {
@@ -6772,6 +6794,10 @@
     {
       "at": "2026-10-10T00:46:07.448878+00:00",
       "summary": "Current merged production snapshot built/frozen with5418 sealed source files,698 copied installed packages/91736 artifacts. Production Electron/web/PWA/main/server/supervisor/workers/native release helper/WSL/plugins/SSH closure repeatedhash PASS. Original failedWSL-before-build setup retained; buildorder corrected. Real production isolated host/auth/control preflight PASS currentflat-order+snapshotcapabilities,401refusal,same-generationstatus,operatorpairing,authenticateddescription,normalstop;4originalhandles joined/knownPIDsabsent,bothportsclosed,artifactbytesunchanged,0servererrorlines. Desktoplocked/noGUIlaunch; workerbytesunchanged so exhaustedPWA lane not repeated. No new genuine75-tool/currentwhole-appCPU/GPU/RAM/I/O/p95/physicaldevicecredit; interimauditrecordsopenrequirements. Goalactive13/18,2/6 unchanged. Localverified-chunkcommitallowed,nopush/appreplacement."
+    },
+    {
+      "at": "2026-10-10T01:15:39.798669+00:00",
+      "summary": "Self-contained current host/private-owner seed+ACP fixture/canonical reader replaces missing inherited bindings. Delegated35-source/offline settings roundtrip120keys/6declared fields and byte-sealed productionruntime PASS; agentjoined. First actual app refused missingcredentialcustody beforeDB; root addedofficial headless keyinitialization underfreshlease beforeDB (guardunchanged),offlineverify PASS. One materialvalidation then executed create_thread and expected GUIstructuredruntime reply before oracle JSON-parsed structured rawOutput and failed. Root auditedactual source and recovered exact rawMCP request/response→canonicalcard,3caller+2targetrows,actualworkerprompt/stdoutcallback,model/fast/callerconfig/all120settings/project conservation PASS-scoped; raworiginalFAIL retained. Typed-result oracle corrected and7purefixtures/negativeproofchecks PASS. Both apps/3correctionhandles andknownPIDs joined/ESRCH,bothportsclosed,frozenbytesunchanged. Original1app+1keycorrectionvalidation consumed; no unchangedlaunch/reset/full11call/nativeUI/resumeStop/p95/CPU/GPU/RAM gaincredit. Currentmerged create_thread scoped only; older50/75 historical, broadergoal13/18 active unchanged."
     }
   ],
   "tasks": [
@@ -6947,7 +6973,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "After console unlock run current full managed mock GUI smoke. Use sealed production runtime for self-contained genuine thread controls and materially justified final qualification, preserving failed runs and consumed caps. Worker source unchanged: no exhausted natural-activation repeat without new evidence/correction.",
+      "nextAction": "Run full current managed mock GUI smoke when desktop actually unlocked. Carry remaining genuine send/wait/interrupt/steer/Stop/resume checks into materially justified required final qualification with corrected typed-result/config oracles; no unchanged headless retry or consumed-cap reset. Independent remaining tool categories and resource/PWA gates stay open.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -7009,7 +7035,9 @@
         "tmp/native-host-reuse-20261009/root-verification.json",
         "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
         "tmp/v2-qualification-20261010-continuation/server-preflight/result.json",
-        "tmp/v2-qualification-20261010-continuation/qualification-gates.json"
+        "tmp/v2-qualification-20261010-continuation/qualification-gates.json",
+        "tmp/v2-thread-control-qualification-20261010/root-result.json",
+        "tmp/v2-thread-control-qualification-20261010/completed-create-scope.json"
       ]
     },
     {
@@ -7036,7 +7064,8 @@
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round127/audit.json",
         "tmp/v2-streaming-perf-20260930/round258/root-checkpoint.json",
-        "tmp/v2-qualification-20261010-continuation/qualification-gates.json"
+        "tmp/v2-qualification-20261010-continuation/qualification-gates.json",
+        "tmp/v2-thread-control-qualification-20261010/root-result.json"
       ]
     },
     {
