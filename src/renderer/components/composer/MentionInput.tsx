@@ -317,6 +317,7 @@ export const MentionInput = forwardRef<
     compact?: boolean;
     disabled?: boolean;
     placeholder: string;
+    ariaDescribedBy?: string;
     projectLocation: ProjectLocation | undefined;
     projectId?: string;
     onTextChange: (hasText: boolean) => void;
@@ -954,6 +955,7 @@ export const MentionInput = forwardRef<
         role="textbox"
         tabIndex={0}
         aria-disabled={disabled || undefined}
+        aria-describedby={props.ariaDescribedBy}
         aria-multiline="true"
         aria-controls={commandListId}
         aria-activedescendant={commandActiveDescendant}
