@@ -1,9 +1,9 @@
-import type { PermissionRulesInput } from "./clientTypes";
+import type { SessionUpdateInput } from "./clientTypes";
 
-/** Session overrides, supported by beta-19500+, isolate each thread's policy. */
+/** Session overrides isolate each thread's policy. */
 export function buildOpenCode2SessionPermissions(
   approvalPolicy: string | undefined,
-): PermissionRulesInput["permissions"] {
+): NonNullable<SessionUpdateInput["permissions"]> {
   return [
     {
       action: "*",

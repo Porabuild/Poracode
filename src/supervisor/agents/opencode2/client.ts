@@ -3,7 +3,20 @@ import { resolve as resolveWindowsPath } from "node:path/win32";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveOpenCode2Binary } from "./binary";
 import { buildOpenCode2ServerCommand } from "./argv";
-import type { OpenCode2Client } from "./clientTypes";
+import type { CredentialEntry, OpenCode2Client } from "./clientTypes";
+import {
+  clearOpenCode2CredentialCompatibility,
+  revokeOpenCode2Credential,
+  synchronizeOpenCode2Credentials,
+} from "./credentialCompatibility";
+import {
+  cachedOpenCode2SessionDatabase,
+  clearOpenCode2SessionDatabases,
+  isOpenCode2SessionNotFound,
+  OPENCODE2_LEGACY_DATABASE_ENV,
+  rememberOpenCode2SessionDatabase,
+  type OpenCode2Database,
+} from "./database";
 import { buildOpenCode2McpServers, type OpenCode2McpServerConfig } from "./mcp";
 import { classifyOpenCode2Error, isOpenCode2ConnectionLoss } from "./opencode2Errors";
 import {
@@ -24,8 +37,9 @@ export function resolveOpenCode2SessionDirectory(location: ProjectLocation): str
   }
 }
 
-function poolKey(location: ProjectLocation): string {
-  return location.kind === "wsl" ? `wsl:${location.distro}` : location.kind;
+function poolKey(location: ProjectLocation, database: OpenCode2Database): string {
+  const runtime = location.kind === "wsl" ? `wsl:${location.distro}` : location.kind;
+  return `${runtime}:${database}`;
 }
 
 export interface AcquiredOpenCode2Server {
@@ -33,6 +47,7 @@ export interface AcquiredOpenCode2Server {
   client: OpenCode2Client;
   baseUrl: string;
   handle: OpenCode2ServerHandle;
+  database: OpenCode2Database;
   onServerExit?(callback: () => void): () => void;
   updateMcpServers(servers: readonly ResolvedMcpServer[]): Promise<void>;
   dispose(options?: { closeServerIfIdle?: boolean }): Promise<void>;
@@ -155,11 +170,18 @@ async function waitForOpenCode2Reachable(baseUrl: string, authorization: string)
   }
 }
 
-async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSnapshot> {
+async function spawnAndWire(
+  projectLocation: ProjectLocation,
+  database: OpenCode2Database,
+): Promise<ServerSnapshot> {
   const resolvedExecPath = await resolveOpenCode2Binary(projectLocation);
   if (!resolvedExecPath)
     throw new Error("OpenCode 2 is not installed or its executable is unavailable.");
-  const command = buildOpenCode2ServerCommand(projectLocation, resolvedExecPath, {});
+  const command = buildOpenCode2ServerCommand(
+    projectLocation,
+    resolvedExecPath,
+    database === "legacy-isolated" ? OPENCODE2_LEGACY_DATABASE_ENV : {},
+  );
   const handle = spawnOpenCode2Server(command);
 
   try {
@@ -188,6 +210,9 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
 export interface AcquireOpenCode2ServerInput {
   projectLocation: ProjectLocation;
   mcpServers?: readonly ResolvedMcpServer[];
+  /** Resume pre-upgrade sessions without copying or replacing their conversations. */
+  resumeSessionId?: string;
+  database?: OpenCode2Database;
 }
 
 async function addMcpServers(
@@ -269,18 +294,88 @@ async function syncLocationMcpServers(
 export async function acquireOpenCode2Server(
   input: AcquireOpenCode2ServerInput,
 ): Promise<AcquiredOpenCode2Server> {
-  return acquireOpenCode2ServerInner(input, true);
+  const acquired = await acquireResolvedOpenCode2Server(input);
+  try {
+    await synchronizeOpenCode2Credentials(input.projectLocation, acquired, (database) =>
+      acquireOpenCode2ServerInner({ projectLocation: input.projectLocation, database }, true),
+    );
+    return acquired;
+  } catch (error) {
+    await acquired.dispose();
+    throw error;
+  }
+}
+
+export async function removeOpenCode2Credential(
+  location: ProjectLocation,
+  id: string,
+): Promise<void> {
+  await revokeOpenCode2Credential(location, id, (database) =>
+    acquireOpenCode2ServerInner({ projectLocation: location, database }, true),
+  );
+}
+
+/** Legacy OAuth grants stay removable without duplicating their refresh tokens. */
+export async function listOpenCode2LegacyOAuthCredentials(
+  location: ProjectLocation,
+): Promise<CredentialEntry[]> {
+  const acquired = await acquireOpenCode2ServerInner(
+    { projectLocation: location, database: "legacy-isolated" },
+    true,
+  );
+  try {
+    return (await acquired.client.credential.list({ signal: AbortSignal.timeout(30_000) })).filter(
+      (entry) => entry.value.type === "oauth",
+    );
+  } finally {
+    await acquired.dispose();
+  }
+}
+
+async function acquireResolvedOpenCode2Server(
+  input: AcquireOpenCode2ServerInput,
+): Promise<AcquiredOpenCode2Server> {
+  const sessionID = input.resumeSessionId;
+  const known = sessionID
+    ? cachedOpenCode2SessionDatabase(input.projectLocation, sessionID)
+    : undefined;
+  if (input.database || known || !sessionID)
+    return acquireOpenCode2ServerInner(
+      { ...input, database: input.database ?? known ?? "native" },
+      true,
+    );
+
+  const native = await acquireOpenCode2ServerInner(input, true);
+  try {
+    await native.client.session.get({ sessionID });
+    rememberOpenCode2SessionDatabase(input.projectLocation, sessionID, "native");
+    return native;
+  } catch (error) {
+    await native.dispose();
+    if (!isOpenCode2SessionNotFound(error, sessionID)) throw error;
+  }
+
+  const legacy = await acquireOpenCode2ServerInner({ ...input, database: "legacy-isolated" }, true);
+  try {
+    await legacy.client.session.get({ sessionID });
+    rememberOpenCode2SessionDatabase(input.projectLocation, sessionID, "legacy-isolated");
+    return legacy;
+  } catch (error) {
+    await legacy.dispose({ closeServerIfIdle: true });
+    throw error;
+  }
 }
 
 async function acquireOpenCode2ServerInner(
   input: AcquireOpenCode2ServerInput,
   retryMcpConnectionLoss: boolean,
 ): Promise<AcquiredOpenCode2Server> {
-  const key = poolKey(input.projectLocation);
+  const database = input.database ?? "native";
+  const key = poolKey(input.projectLocation, database);
   let entry = pool.get(key);
 
   if (!entry) {
-    const ready = spawnAndWire(input.projectLocation);
+    const ready = spawnAndWire(input.projectLocation, database);
     const createdEntry: PoolEntry = {
       ready,
       locationMcp: new Map(),
@@ -357,6 +452,7 @@ async function acquireOpenCode2ServerInner(
     client: snapshot.client,
     baseUrl: snapshot.baseUrl,
     handle: snapshot.handle,
+    database,
     onServerExit: (callback) => {
       if (snapshot.handle.child.exitCode !== null) {
         queueMicrotask(callback);
@@ -390,5 +486,7 @@ async function acquireOpenCode2ServerInner(
 export function shutdownSpawnedOpenCode2Servers(): void {
   for (const entry of pool.values()) clearIdleShutdown(entry);
   pool.clear();
+  clearOpenCode2SessionDatabases();
+  clearOpenCode2CredentialCompatibility();
   disposeSpawnedOpenCode2ServerHandles();
 }

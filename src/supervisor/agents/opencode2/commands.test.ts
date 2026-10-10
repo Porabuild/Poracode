@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { structuredTurnTextOptions } from "../../runtime/turnClientContext";
 import type { OpenCode2Client } from "./clientTypes";
-import { mapOpenCode2Commands, submitOpenCode2Prompt } from "./commands";
+import { mapOpenCode2Commands, mapOpenCode2Skills, submitOpenCode2Prompt } from "./commands";
 import { buildOpenCode2PromptPayload } from "./promptText";
 
 function clientFixture() {
@@ -14,6 +14,18 @@ function clientFixture() {
 }
 
 describe("OpenCode 2 commands", () => {
+  it.each(["location", "path"] as const)("maps skill scope from the server's %s field", (field) => {
+    const commands = mapOpenCode2Skills(
+      [
+        { id: "review", name: "Review", [field]: "/repo/.agents/skills/review/SKILL.md" },
+        { id: "global", name: "Global", [field]: "/home/user/.agents/skills/global/SKILL.md" },
+      ],
+      "/repo",
+    );
+    expect(commands.map(({ skillScope }) => skillScope)).toEqual(["project", "global"]);
+    expect(commands[0]).toMatchObject({ skillName: "review", skillInvocation: "/skill review" });
+  });
+
   it("dispatches a registered nested command with arguments, attachments and delivery", async () => {
     const { client, session } = clientFixture();
     const files = [{ uri: "file:///repo/screenshot.png", name: "screenshot.png" }];
@@ -26,7 +38,7 @@ describe("OpenCode 2 commands", () => {
     );
     expect(session.command).toHaveBeenCalledWith({
       sessionID: "s",
-      command: "team/review",
+      name: "team/review",
       text: 'src "test coverage"',
       files,
       delivery: "steer",
@@ -81,7 +93,7 @@ describe("OpenCode 2 commands", () => {
       const session = await submit("/review src/a.ts");
       expect(session.command).toHaveBeenCalledWith({
         sessionID: "s",
-        command: "review",
+        name: "review",
         text: "src/a.ts",
       });
     });

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { arch, cpus, freemem, homedir, loadavg, platform, release, totalmem } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { AgentInstanceConfig } from "../../src/shared/contracts/agentInstance.ts";
 import type { RendererPerfSnapshot } from "../../src/renderer/diagnostics/rendererPerfDiagnostics.ts";
@@ -12,6 +12,7 @@ import {
   type ArmRecord,
 } from "./helpers/armFreeze.ts";
 import { ProfileClient } from "./helpers/concurrencyProfileClient.ts";
+import { reserveQualificationSessionRoot } from "./helpers/qualificationSessionRoot.ts";
 import { classifyServerFrame, FrameClassAccounting } from "./helpers/frameClassification.ts";
 import { summarizeNodePerfDirectory } from "./helpers/nodePerfSummary.ts";
 import { HostLoadSampler } from "./helpers/hostLoadSampler.ts";
@@ -313,13 +314,12 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
     });
 
     const remotePort = await allocateLoopbackPort();
-    const sessionRoot = join(
-      homedir(),
-      ".poracode-smoke",
-      "v2q",
-      `${basename(ARM_ROOT)}-${spec.id}`,
-    );
-    rmSync(sessionRoot, { recursive: true, force: true });
+    const sessionRoot = reserveQualificationSessionRoot({
+      parent: join(homedir(), ".poracode-smoke", "v2q"),
+      armRoot: ARM_ROOT,
+      cellId: spec.id,
+      evidenceDir: OUT_DIR,
+    });
 
     const structured = spec.structuredWorkload;
     if (structured) {

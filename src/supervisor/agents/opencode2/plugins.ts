@@ -1,3 +1,4 @@
+import { awaitOpenCode2Activation } from "./readiness";
 import { readOpenCode2TerminalPackages } from "./terminalPluginConfig";
 import type {
   AgentPluginPackage,
@@ -5,7 +6,7 @@ import type {
   ManageAgentPluginsResult,
 } from "@/shared/contracts";
 import { detectProbeLocation, readAgentCommandOutput } from "../base";
-import { OPENCODE2_ENV, resolveOpenCode2Binary } from "./binary";
+import { resolveOpenCode2Binary } from "./binary";
 import { acquireOpenCode2Server } from "./client";
 import type { PluginInfo } from "./clientTypes";
 
@@ -60,7 +61,7 @@ export async function manageOpenCode2Plugins(
           location,
           binary,
           ["plugin", input.action === "install" ? "add" : input.action, target],
-          { env: OPENCODE2_ENV, timeoutMs: 120_000 },
+          { timeoutMs: 120_000 },
         );
         if (!result.ok)
           throw new Error(
@@ -70,14 +71,13 @@ export async function manageOpenCode2Plugins(
       const acquired = await acquireOpenCode2Server({ projectLocation: location });
       try {
         const options = { signal: AbortSignal.timeout(60_000) };
-        await acquired.client.plugin.awaitActivation(undefined, options);
+        await awaitOpenCode2Activation(acquired.client, undefined, options);
         if (input.action === "update")
           await acquired.client.plugin.update(
             { targets: [validateOpenCode2PluginTarget(input.target ?? "")] },
             options,
           );
         const readPackages = async () => {
-          await acquired.client.plugin.awaitActivation(undefined, options);
           const result =
             input.action === "check"
               ? await acquired.client.plugin.check(undefined, options)

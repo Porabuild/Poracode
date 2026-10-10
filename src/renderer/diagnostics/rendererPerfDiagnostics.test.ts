@@ -1,3 +1,4 @@
+import { PerformanceObserver } from "node:perf_hooks";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PerfRingBuffer } from "./perfRingBuffer";
 import {
@@ -32,6 +33,19 @@ describe("PerfRingBuffer", () => {
   it("rejects a non-positive capacity", () => {
     expect(() => new PerfRingBuffer(0)).toThrow("capacity");
   });
+
+  it("preserves FIFO order across wraparound and clear/reuse", () => {
+    const ring = new PerfRingBuffer<number>(3);
+    for (let value = 0; value < 10; value += 1) ring.push(value);
+    expect(ring.toArray()).toEqual([7, 8, 9]);
+    expect(ring.droppedCount).toBe(7);
+    ring.clear();
+    ring.push(10);
+    ring.push(11);
+    expect(ring.toArray()).toEqual([10, 11]);
+    expect(ring.size).toBe(2);
+    expect(ring.droppedCount).toBe(7);
+  });
 });
 
 describe("isRendererPerfDiagnosticsRequested", () => {
@@ -50,6 +64,51 @@ describe("isRendererPerfDiagnosticsRequested", () => {
 });
 
 describe("RendererPerfDiagnostics", () => {
+  it("bounds native timing retention, including abandoned and disposed spans", () => {
+    const diagnostics = new RendererPerfDiagnostics({ spanCapacity: 3 });
+    const unrelated = "other-monitor:retention-test";
+    performance.mark(unrelated);
+    performance.measure(unrelated, { start: 0, duration: 1 });
+    try {
+      for (let index = 0; index < 10_000; index += 1) {
+        diagnostics.beginSpan("retention-test").end();
+      }
+      const abandoned = diagnostics.beginSpan("abandoned-test");
+      const ownEntries = () =>
+        performance.getEntries().filter((entry) => entry.name.startsWith("poracode:perf-diag:"));
+      expect(ownEntries()).toEqual([]);
+      expect(diagnostics.snapshot()).toMatchObject({ droppedSpans: 9_997 });
+      expect(diagnostics.snapshot().recentSpans).toHaveLength(3);
+      diagnostics.dispose();
+      abandoned.end();
+      diagnostics.beginSpan("disposed-test").end();
+      expect(ownEntries()).toEqual([]);
+      expect(performance.getEntriesByName(unrelated)).toHaveLength(2);
+      expect(diagnostics.snapshot().recentSpans).toHaveLength(3);
+    } finally {
+      diagnostics.dispose();
+      performance.clearMarks(unrelated);
+      performance.clearMeasures(unrelated);
+    }
+  });
+
+  it("delivers owned timing entries to observers after clearing the timeline", async () => {
+    const observed: string[] = [];
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) observed.push(entry.entryType);
+    });
+    observer.observe({ entryTypes: ["mark", "measure"] });
+    const diagnostics = new RendererPerfDiagnostics();
+    try {
+      diagnostics.beginSpan("observer-test").end();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(observed.sort()).toEqual(["mark", "measure"]);
+      expect(performance.getEntriesByName("poracode:perf-diag:observer-test")).toEqual([]);
+    } finally {
+      observer.disconnect();
+      diagnostics.dispose();
+    }
+  });
   it("classifies frame opportunities against the 120 Hz budget per phase", () => {
     const diagnostics = new RendererPerfDiagnostics({ now: () => 0 });
     diagnostics.setPhase("A-idle");

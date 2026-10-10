@@ -531,6 +531,10 @@ msgstr "{installedCount, plural, one {#エージェントの準備ができて�
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel} が各候補の変更を確認して勝者を推薦します。"
 
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{label} · Previous sessions; sign in again for new threads."
+#~ msgstr "{label} · 以前のセッション用。新しいスレッドでは再度ログインしてください。"
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{label} API key"
@@ -621,6 +625,10 @@ msgstr "{projectName}設定"
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} {version} is unsupported. Update {provider} to {minimumVersion} or newer in provider settings."
+#~ msgstr "{provider} {version} はサポートされていません。プロバイダー設定で {provider} を {minimumVersion} 以降に更新してください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
@@ -1531,6 +1539,10 @@ msgstr "別の Poracode クライアントがこの接続を準備していま�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
 msgstr "別の Poracode オーナーがこの接続のデータルートをすでに保持しています。リモートホストでそれを停止してから、再接続してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode process is updating these credentials. Wait and try again."
+msgstr "別の Poracode プロセスがこの認証情報を更新しています。しばらく待って再試行してください。"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -2724,6 +2736,10 @@ msgstr "フォルダーが存在しなくなったセッションのインポー
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "プロジェクトアイコンの画像を選択"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a saved credential to sign out."
+msgstr "ログアウトする保存済み認証情報を選択してください。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose an image inside the project folder."
@@ -11087,6 +11103,10 @@ msgstr "過去の実行"
 msgid "Previous sent message"
 msgstr "前の送信済みメッセージ"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Previous sessions; sign in again for new threads."
+msgstr "以前のセッション用。新しいスレッドでは再度ログインしてください。"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "前のタブ"
@@ -14920,6 +14940,10 @@ msgstr "ホストは同梱ランタイムでこの環境の所有者を停止し
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "不完全な履歴の通知がサーバー上で変更されました。続行する前に更新された詳細を確認してください。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The installed provider version is unsupported. Update it in provider settings."
+msgstr "インストール済みのプロバイダーバージョンはサポートされていません。プロバイダー設定で更新してください。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
 msgstr "Linux ユーザー"
@@ -14974,6 +14998,14 @@ msgstr "このプロファイルがログインを共有していたプロファ
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The project moved or was removed before the thread could launch. Review the project and try again."
 msgstr "スレッドを開始する前にプロジェクトが移動または削除されました。プロジェクトを確認して、もう一度お試しください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider is unavailable. Install or update it in provider settings."
+msgstr "プロバイダーを利用できません。プロバイダー設定でインストールまたは更新してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider's sign-in data could not be read. Try again or update Poracode."
+msgstr "プロバイダーのログインデータを読み取れませんでした。再試行するか Poracode を更新してください。"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."

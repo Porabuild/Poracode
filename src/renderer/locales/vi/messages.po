@@ -531,6 +531,10 @@ msgstr "{installedCount, plural, one {# tác nhân đã sẵn sàng} other {# t�
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel} đang xem xét các thay đổi của từng ứng viên để đề xuất ứng viên thắng."
 
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{label} · Previous sessions; sign in again for new threads."
+#~ msgstr "{label} · Phiên trước; đăng nhập lại cho các luồng mới."
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{label} API key"
@@ -622,6 +626,10 @@ msgstr "Cài đặt {projectName}"
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} {version} is unsupported. Update {provider} to {minimumVersion} or newer in provider settings."
+#~ msgstr "{provider} {version} không được hỗ trợ. Hãy cập nhật {provider} lên {minimumVersion} hoặc mới hơn trong cài đặt nhà cung cấp."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
@@ -1532,6 +1540,10 @@ msgstr "Một ứng dụng khách Poracode khác đang chuẩn bị kết nối 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
 msgstr "Một chủ sở hữu Poracode khác đã giữ thư mục gốc dữ liệu của kết nối này. Hãy dừng nó trên máy chủ từ xa rồi kết nối lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode process is updating these credentials. Wait and try again."
+msgstr "Một tiến trình Poracode khác đang cập nhật thông tin xác thực này. Hãy đợi rồi thử lại."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -2725,6 +2737,10 @@ msgstr "Chọn một dự án cho các phiên có thư mục không còn tồn t
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "Chọn ảnh biểu tượng dự án"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a saved credential to sign out."
+msgstr "Chọn thông tin xác thực đã lưu để đăng xuất."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose an image inside the project folder."
@@ -11089,6 +11105,10 @@ msgstr "Các lần chạy trước"
 msgid "Previous sent message"
 msgstr "Tin nhắn đã gửi trước"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Previous sessions; sign in again for new threads."
+msgstr "Phiên trước; đăng nhập lại cho các luồng mới."
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Tab trước"
@@ -14922,6 +14942,10 @@ msgstr "Máy chủ dừng và khởi động lại chủ sở hữu của môi t
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "Thông báo lịch sử không đầy đủ đã thay đổi trên máy chủ. Hãy xem chi tiết cập nhật trước khi tiếp tục."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The installed provider version is unsupported. Update it in provider settings."
+msgstr "Phiên bản nhà cung cấp đã cài đặt không được hỗ trợ. Hãy cập nhật trong cài đặt nhà cung cấp."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
 msgstr "người dùng Linux"
@@ -14976,6 +15000,14 @@ msgstr "Hồ sơ mà hồ sơ này từng dùng chung đăng nhập ({ownerName}
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The project moved or was removed before the thread could launch. Review the project and try again."
 msgstr "Dự án đã bị di chuyển hoặc xóa trước khi luồng có thể khởi chạy. Kiểm tra dự án và thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider is unavailable. Install or update it in provider settings."
+msgstr "Nhà cung cấp không khả dụng. Cài đặt hoặc cập nhật trong cài đặt nhà cung cấp."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider's sign-in data could not be read. Try again or update Poracode."
+msgstr "Không thể đọc dữ liệu đăng nhập của nhà cung cấp. Thử lại hoặc cập nhật Poracode."
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."

@@ -89,10 +89,10 @@ describe("OpenCode 1 vs OpenCode 2 CLI identity", () => {
     }
   });
 
-  it("lets OpenCode 2 take a PATH `opencode` that reports 2.0.0", () => {
-    expect(acceptOpenCode1Binary("/usr/bin/opencode", "2.0.0")).toBe(false);
-    expect(supportsOpenCode2Version("2.0.0")).toBe(true);
-    expect(acceptOpenCode2Binary("/usr/bin/opencode", "2.0.0")).toBe(true);
+  it("lets OpenCode 2 take a PATH `opencode` that reports 2.0.26", () => {
+    expect(acceptOpenCode1Binary("/usr/bin/opencode", "2.0.26")).toBe(false);
+    expect(supportsOpenCode2Version("2.0.26")).toBe(true);
+    expect(acceptOpenCode2Binary("/usr/bin/opencode", "2.0.26")).toBe(true);
   });
 });
 

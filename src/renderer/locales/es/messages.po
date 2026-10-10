@@ -531,6 +531,10 @@ msgstr "{installedCount, plural, one {# agente listo} other {# agentes listos}}"
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel} está revisando los cambios de cada candidato para recomendar un ganador."
 
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{label} · Previous sessions; sign in again for new threads."
+#~ msgstr "{label} · Sesiones anteriores; vuelve a iniciar sesión para los nuevos hilos."
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{label} API key"
@@ -622,6 +626,10 @@ msgstr "Ajustes de {projectName}"
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} {version} is unsupported. Update {provider} to {minimumVersion} or newer in provider settings."
+#~ msgstr "{provider} {version} no es compatible. Actualiza {provider} a {minimumVersion} o una versión posterior en los ajustes del proveedor."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
@@ -1532,6 +1540,10 @@ msgstr "Otro cliente de Poracode está preparando esta conexión. Inténtalo de 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
 msgstr "Otro propietario de Poracode ya ocupa la raíz de datos de esta conexión. Detenlo en el host remoto y vuelve a conectarte."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode process is updating these credentials. Wait and try again."
+msgstr "Otro proceso de Poracode está actualizando estas credenciales. Espera e inténtalo de nuevo."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -2725,6 +2737,10 @@ msgstr "Elige un proyecto para las sesiones cuya carpeta ya no existe."
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "Elige una imagen de icono del proyecto"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a saved credential to sign out."
+msgstr "Elige una credencial guardada para cerrar sesión."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose an image inside the project folder."
@@ -11089,6 +11105,10 @@ msgstr "Ejecuciones anteriores"
 msgid "Previous sent message"
 msgstr "Mensaje enviado anterior"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Previous sessions; sign in again for new threads."
+msgstr "Sesiones anteriores; vuelve a iniciar sesión para los nuevos hilos."
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Pestaña anterior"
@@ -14922,6 +14942,10 @@ msgstr "El host detiene y reinicia el propietario de este entorno con el runtime
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "El aviso de historial incompleto cambió en el servidor. Revisa los detalles actualizados antes de continuar."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The installed provider version is unsupported. Update it in provider settings."
+msgstr "La versión instalada del proveedor no es compatible. Actualízala en los ajustes del proveedor."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
 msgstr "el usuario de Linux"
@@ -14976,6 +15000,14 @@ msgstr "El perfil con el que este perfil compartía inicio de sesión ({ownerNam
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The project moved or was removed before the thread could launch. Review the project and try again."
 msgstr "El proyecto se movió o se eliminó antes de que pudiera iniciarse el hilo. Revisa el proyecto e inténtalo de nuevo."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider is unavailable. Install or update it in provider settings."
+msgstr "El proveedor no está disponible. Instálalo o actualízalo en los ajustes del proveedor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider's sign-in data could not be read. Try again or update Poracode."
+msgstr "No se pudieron leer los datos de inicio de sesión del proveedor. Inténtalo de nuevo o actualiza Poracode."
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."

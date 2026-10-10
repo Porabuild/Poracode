@@ -4,7 +4,6 @@ import JSON5 from "json5";
 import type { AgentPluginPackage, ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import { readAgentCommandOutput } from "../base";
-import { OPENCODE2_ENV } from "./binary";
 
 /** The native HTTP catalog excludes packages configured only in cli.json. */
 export function readTerminalPluginTargets(text: string): string[] {
@@ -38,7 +37,6 @@ export async function readOpenCode2TerminalPackages(
   binary: string,
 ): Promise<AgentPluginPackage[]> {
   const result = await readAgentCommandOutput(location, binary, ["debug", "paths", "config"], {
-    env: OPENCODE2_ENV,
     timeoutMs: 10_000,
   });
   if (!result.ok || !result.stdout.trim())

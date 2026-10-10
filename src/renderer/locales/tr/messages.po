@@ -531,6 +531,10 @@ msgstr "{installedCount, plural, one {# aracı hazır} other {# aracı hazır}}"
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel}, bir kazanan önermek için her adayın değişikliklerini inceliyor."
 
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{label} · Previous sessions; sign in again for new threads."
+#~ msgstr "{label} · Önceki oturumlar; yeni konular için yeniden giriş yapın."
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{label} API key"
@@ -622,6 +626,10 @@ msgstr "{projectName} Ayarları"
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} {version} is unsupported. Update {provider} to {minimumVersion} or newer in provider settings."
+#~ msgstr "{provider} {version} desteklenmiyor. Sağlayıcı ayarlarında {provider} uygulamasını {minimumVersion} veya daha yeni bir sürüme güncelleyin."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
@@ -1532,6 +1540,10 @@ msgstr "Başka bir Poracode istemcisi bu bağlantıyı hazırlıyor. Birazdan ye
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
 msgstr "Başka bir Poracode sahibi bu bağlantının veri kökünü zaten tutuyor. Uzak ana makinede durdurun ve yeniden bağlanın."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode process is updating these credentials. Wait and try again."
+msgstr "Başka bir Poracode işlemi bu kimlik bilgilerini güncelliyor. Bekleyip yeniden deneyin."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -2725,6 +2737,10 @@ msgstr "Klasörü artık bulunmayan oturumlar için bir proje seçin."
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "Proje simgesi görseli seçin"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a saved credential to sign out."
+msgstr "Çıkış yapmak için kayıtlı bir kimlik bilgisi seçin."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose an image inside the project folder."
@@ -11089,6 +11105,10 @@ msgstr "Önceki çalıştırmalar"
 msgid "Previous sent message"
 msgstr "Önceki gönderilen mesaj"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Previous sessions; sign in again for new threads."
+msgstr "Önceki oturumlar; yeni konular için yeniden giriş yapın."
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Önceki sekme"
@@ -14922,6 +14942,10 @@ msgstr "Ana makine bu ortamın sahibini paketlenmiş çalışma zamanıyla durdu
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "Eksik geçmiş bildirimi sunucuda değişti. Devam etmeden önce güncellenen ayrıntıları inceleyin."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The installed provider version is unsupported. Update it in provider settings."
+msgstr "Yüklü sağlayıcı sürümü desteklenmiyor. Sağlayıcı ayarlarında güncelleyin."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
 msgstr "Linux kullanıcısı"
@@ -14976,6 +15000,14 @@ msgstr "Bu profilin giriş paylaştığı profil ({ownerName}) artık yok veya k
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The project moved or was removed before the thread could launch. Review the project and try again."
 msgstr "İleti dizisi başlatılmadan önce proje taşındı veya kaldırıldı. Projeyi kontrol edip tekrar deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider is unavailable. Install or update it in provider settings."
+msgstr "Sağlayıcı kullanılamıyor. Sağlayıcı ayarlarında yükleyin veya güncelleyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider's sign-in data could not be read. Try again or update Poracode."
+msgstr "Sağlayıcının giriş verileri okunamadı. Yeniden deneyin veya Poracode uygulamasını güncelleyin."
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."

@@ -272,9 +272,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 44,
-      // v44 mirrors supervisor STATUS_CACHE_VERSION=48. Re-probe confirmed empty
-      // effort ladders, including inventories from either integration parent.
+      version: 45,
+      // v45 mirrors supervisor STATUS_CACHE_VERSION=49: re-probe native account
+      // catalogs and retain V2 model-family and per-model effort declarations.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

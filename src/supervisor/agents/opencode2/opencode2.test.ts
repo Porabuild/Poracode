@@ -1,8 +1,9 @@
+import { clearOpenCode2SessionDatabases, rememberOpenCode2SessionDatabase } from "./database";
 import { OpenCode2Session } from "./session";
 import { resolveSharedUpdateCommand } from "@/shared/agents/updateResolver";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOpenCode2Adapter } from ".";
 import { buildOpenCode2Args, buildOpenCode2ServerCommand } from "./argv";
 import {
@@ -18,6 +19,8 @@ vi.mock("./binary", async (importOriginal) => ({
   cachedOpenCode2Binary: () => undefined,
   resolveOpenCode2Binary: async () => undefined,
 }));
+
+afterEach(clearOpenCode2SessionDatabases);
 
 describe("buildOpenCode2Args", () => {
   it("emits no flags for a fresh launch with no prompt", () => {
@@ -70,7 +73,6 @@ describe("buildOpenCode2ServerCommand", () => {
       command: "/usr/local/bin/opencode2",
       args: ["serve", "--hostname=127.0.0.1", "--port=0", "--print-logs"],
       cwd: homedir(),
-      env: { OPENCODE_DB: "opencode-v2.db" },
     });
   });
 
@@ -97,7 +99,6 @@ describe("buildOpenCode2ServerCommand", () => {
       "/usr/bin/env",
       "PATH=/home/dev/.opencode2/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
       "OPENCODE_SERVER_PASSWORD=secret",
-      "OPENCODE_DB=opencode-v2.db",
       "/home/dev/.opencode2/bin/opencode2",
       "serve",
       "--hostname=127.0.0.1",
@@ -367,7 +368,7 @@ describe("detectOpenCode2TerminalStatus", () => {
 
 describe("createOpenCode2Adapter", () => {
   it.each(["posix", "windows", "wsl"] as const)(
-    "installs the published 2.0.0 CLI after self-update fails on %s",
+    "installs the published 2.0.26 CLI after self-update fails on %s",
     (envKind) => {
       expect(
         resolveSharedUpdateCommand({
@@ -380,8 +381,8 @@ describe("createOpenCode2Adapter", () => {
         strategy: "installer",
         args: expect.arrayContaining([
           envKind === "windows"
-            ? 'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.0'
-            : 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.0',
+            ? 'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.26'
+            : 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.26',
         ]),
       });
     },
@@ -447,6 +448,15 @@ describe("createOpenCode2Adapter", () => {
         }),
       ).rejects.toThrow("prepared");
       expect(create).toHaveBeenCalledTimes(1);
+      expect(() =>
+        adapter.buildResumeArgv(
+          { kind: "posix", path: "/repo" },
+          { model: "" },
+          "",
+          createKnownSessionRef("ses_resume"),
+          undefined,
+        ),
+      ).toThrow("database was not resolved");
     } finally {
       create.mockRestore();
     }
@@ -471,6 +481,8 @@ describe("createOpenCode2Adapter", () => {
 
   it("resumes through --session and forwards MCP config via the config overlay env", async () => {
     const adapter = createOpenCode2Adapter();
+    rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_launch", "native");
+    rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_resume", "native");
     const launch = await adapter.buildLaunchArgv(
       { kind: "posix", path: "/repo" },
       { model: "" },
@@ -501,8 +513,37 @@ describe("createOpenCode2Adapter", () => {
     expect(resume.env?.OPENCODE_CONFIG_CONTENT).toContain('"browser"');
   });
 
+  it("keeps the legacy database alongside MCP config for launch and resume", async () => {
+    const adapter = createOpenCode2Adapter();
+    const location = { kind: "posix", path: "/repo" } as const;
+    rememberOpenCode2SessionDatabase(location, "ses_old", "legacy-isolated");
+    const options = {
+      resumeThreadId: "ses_old",
+      mcpServers: [
+        {
+          id: "browser",
+          name: "browser",
+          timeoutMs: 30_000,
+          transport: { type: "http" as const, url: "http://127.0.0.1:9/mcp", headers: {} },
+        },
+      ],
+    };
+    const launch = await adapter.buildLaunchArgv(location, { model: "" }, "", undefined, options);
+    const resume = await adapter.buildResumeArgv(
+      location,
+      { model: "" },
+      "",
+      createKnownSessionRef("ses_old"),
+      options,
+    );
+    expect(launch.env).toEqual(resume.env);
+    expect(launch.env?.OPENCODE_DB).toBe("opencode-v2.db");
+    expect(launch.env?.OPENCODE_CONFIG_CONTENT).toContain('"browser"');
+  });
+
   it("omits the MCP env when a launch carries no servers", async () => {
     const adapter = createOpenCode2Adapter();
+    rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_resume", "native");
     const resume = await adapter.buildResumeArgv(
       { kind: "posix", path: "/repo" },
       { model: "", approvalPolicy: "yolo" },

@@ -82,11 +82,9 @@ export async function copyRuntimeDependencies(repoRoot, appRoot, names) {
       throw error;
     });
   const graphRoot = join(appRoot, ".runtime-dependencies");
-  async function copyPackage(name, resolver, ownerManifest) {
-    const source = await resolvePackageRoot(name, resolver, ownerManifest);
+  async function copyPackage({ source, manifest }) {
     const existing = copied.get(source);
     if (existing) return existing;
-    const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
     const id = createHash("sha256").update(source).digest("hex").slice(0, 20);
     // The public link keeps the alias. The physical package retains its real
     // name, including self-resolution and deduplication with non-aliased edges.
@@ -109,23 +107,22 @@ export async function copyRuntimeDependencies(repoRoot, appRoot, names) {
       ...Object.keys(manifest.peerDependencies ?? {}),
     ]);
     for (const child of children) {
-      let childSource;
+      let childPackage;
       try {
-        childSource = await resolvePackageRoot(child, resolverForPackage, manifest);
+        childPackage = await resolvePackageRoot(child, resolverForPackage, manifest);
       } catch (error) {
         if (optional.has(child) && error.code === "MODULE_NOT_FOUND") continue;
         throw error;
       }
       // Resolve before recursing so an optional package's broken installed graph is not ignored.
-      const childTarget =
-        copied.get(childSource) ?? (await copyPackage(child, resolverForPackage, manifest));
+      const childTarget = copied.get(childPackage.source) ?? (await copyPackage(childPackage));
       await linkPackage(childTarget, join(target, "node_modules", child));
     }
     return target;
   }
   for (const name of [...new Set(names)].sort()) {
     await linkPackage(
-      await copyPackage(name, sourceRequire, rootManifest),
+      await copyPackage(await resolvePackageRoot(name, sourceRequire, rootManifest)),
       join(appRoot, "node_modules", name),
     );
   }
@@ -152,7 +149,11 @@ function declaredPackageName(name, manifest) {
 async function resolvePackageRoot(name, resolver, ownerManifest) {
   const expectedName = declaredPackageName(name, ownerManifest);
   // Walking Node's search locations also supports packages that do not export package.json or their root.
-  for (const location of resolver.resolve.paths(name) ?? []) {
+  // Builtin identifiers have no search paths, but declared npm packages with
+  // those names still need copying. A package subpath requests ordinary paths.
+  const locations =
+    resolver.resolve.paths(name) ?? resolver.resolve.paths(`${name}/package.json`) ?? [];
+  for (const location of locations) {
     const candidate = join(location, name);
     try {
       const manifest = JSON.parse(await readFile(join(candidate, "package.json"), "utf8"));
@@ -163,7 +164,7 @@ async function resolvePackageRoot(name, resolver, ownerManifest) {
         error.code = "ERR_RUNTIME_PACKAGE_NAME";
         throw error;
       }
-      return await realpath(candidate);
+      return { source: await realpath(candidate), manifest };
     } catch (error) {
       if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
     }

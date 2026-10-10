@@ -13,7 +13,6 @@ vi.mock("../base", () => ({
   readAgentCommandOutput: mocks.command,
 }));
 vi.mock("./binary", () => ({
-  OPENCODE2_ENV: { OPENCODE_DB: "opencode-v2.db" },
   resolveOpenCode2Binary: mocks.resolve,
 }));
 vi.mock("./client", () => ({ acquireOpenCode2Server: mocks.acquire }));
@@ -47,7 +46,6 @@ function setup() {
         list,
         check: list,
         update,
-        awaitActivation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
     },
     dispose,
@@ -75,7 +73,7 @@ describe("OpenCode 2 native plugin manager", () => {
       expect(() => validateOpenCode2PluginTarget(target)).toThrow("Invalid plugin package");
     },
   );
-  it("passes a package as one argv value and retains the isolated database environment", async () => {
+  it("passes a package as one argv value using the native database", async () => {
     const { dispose } = setup();
     const result = await manageOpenCode2Plugins({
       env: { kind: "native" },
@@ -86,7 +84,7 @@ describe("OpenCode 2 native plugin manager", () => {
       expect.anything(),
       "/bin/provider",
       ["plugin", "add", "@vendor/goal"],
-      expect.objectContaining({ env: { OPENCODE_DB: "opencode-v2.db" } }),
+      expect.objectContaining({ timeoutMs: 120_000 }),
     );
     expect(result.packages).toHaveLength(1);
     expect(dispose).toHaveBeenCalledOnce();
@@ -133,12 +131,15 @@ describe("OpenCode 2 native plugin manager", () => {
 
 it("waits for the native watcher to remove a package before returning", async () => {
   const { list } = setup();
-  list.mockResolvedValueOnce({ data: [plugin] }).mockResolvedValueOnce({ data: [] });
+  list
+    .mockResolvedValueOnce({ data: [plugin] })
+    .mockResolvedValueOnce({ data: [plugin] })
+    .mockResolvedValueOnce({ data: [] });
   const result = await manageOpenCode2Plugins({
     env: { kind: "native" },
     action: "remove",
     target: "@vendor/goal",
   });
   expect(result.packages).toEqual([]);
-  expect(list).toHaveBeenCalledTimes(2);
+  expect(list).toHaveBeenCalledTimes(3);
 });

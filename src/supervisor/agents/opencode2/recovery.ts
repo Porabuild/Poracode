@@ -61,7 +61,7 @@ export async function readOpenCode2Recovery(client: OpenCode2Client, sessionID: 
   const [messages, permissions, forms] = await Promise.all([
     readOpenCode2Messages(client, sessionID),
     client.permission.list({ sessionID }, options),
-    client.form.list({ sessionID }, options),
+    client.session.form.list({ sessionID }, options),
   ]);
   const [active, session] = await Promise.all([
     client.session.active(options),

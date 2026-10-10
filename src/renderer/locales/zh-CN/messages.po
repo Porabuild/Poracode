@@ -531,6 +531,10 @@ msgstr "{installedCount, plural, one {# 个代理准备就绪} other {# 个代�
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel} 正在查看每个候选的更改以推荐优胜者。"
 
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{label} · Previous sessions; sign in again for new threads."
+#~ msgstr "{label} · 先前的会话；请重新登录以用于新线程。"
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{label} API key"
@@ -622,6 +626,10 @@ msgstr "{projectName}设置"
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} {version} is unsupported. Update {provider} to {minimumVersion} or newer in provider settings."
+#~ msgstr "不支持 {provider} {version}。请在提供商设置中将 {provider} 更新至 {minimumVersion} 或更新版本。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
@@ -1532,6 +1540,10 @@ msgstr "另一个 Poracode 客户端正在准备此连接。请稍后重试。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
 msgstr "另一个 Poracode 所有者已占用此连接的数据根目录。请在远程主机上停止它，然后重新连接。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode process is updating these credentials. Wait and try again."
+msgstr "另一个 Poracode 进程正在更新这些凭据。请稍后重试。"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -2725,6 +2737,10 @@ msgstr "为文件夹已不存在的会话选择一个项目。"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "选择项目图标图片"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a saved credential to sign out."
+msgstr "请选择要退出登录的已保存凭据。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose an image inside the project folder."
@@ -11088,6 +11104,10 @@ msgstr "历史运行"
 msgid "Previous sent message"
 msgstr "上一条已发送消息"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Previous sessions; sign in again for new threads."
+msgstr "先前的会话；请重新登录以用于新线程。"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "上一个选项卡"
@@ -14921,6 +14941,10 @@ msgstr "主机将使用内置运行时停止并重启此环境的所有者。不
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "不完整历史记录通知已在服务器上更改。继续之前请查看更新的详细信息。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The installed provider version is unsupported. Update it in provider settings."
+msgstr "不支持已安装的提供商版本。请在提供商设置中更新。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
 msgstr "Linux 用户"
@@ -14975,6 +14999,14 @@ msgstr "此配置文件曾与之共享登录的配置文件（{ownerName}）已�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The project moved or was removed before the thread could launch. Review the project and try again."
 msgstr "项目在线程启动前被移动或删除。请检查项目后重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider is unavailable. Install or update it in provider settings."
+msgstr "提供商不可用。请在提供商设置中安装或更新。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider's sign-in data could not be read. Try again or update Poracode."
+msgstr "无法读取提供商的登录数据。请重试或更新 Poracode。"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."

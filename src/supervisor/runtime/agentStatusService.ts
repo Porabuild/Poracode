@@ -128,7 +128,10 @@ const execFileAsync = promisify(execFile);
 // v48 re-probes confirmed empty per-model effort ladders so models without
 // an effort selector cannot inherit unsupported global/CLI choices. This also
 // invalidates the integrated v47 inventory and the prior branch's v41 cache.
-export const STATUS_CACHE_VERSION = 48;
+// v49 combines native-account catalogs and the current provider protocol with
+// V2 model-family/effort metadata. Both integrated parents (v48 and v36) must
+// re-probe; renderer persisted copy advances independently to v45.
+export const STATUS_CACHE_VERSION = 49;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

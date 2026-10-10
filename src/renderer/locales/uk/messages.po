@@ -531,6 +531,10 @@ msgstr "{installedCount, plural, one {# агент готовий} few {# аге
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel} переглядає зміни кожного кандидата, щоб порекомендувати переможця."
 
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{label} · Previous sessions; sign in again for new threads."
+#~ msgstr "{label} · Попередні сесії; увійдіть знову для нових тредів."
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{label} API key"
@@ -622,6 +626,10 @@ msgstr "Налаштування {projectName}"
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} {version} is unsupported. Update {provider} to {minimumVersion} or newer in provider settings."
+#~ msgstr "Версія {provider} {version} не підтримується. Оновіть {provider} до {minimumVersion} або новішої версії в налаштуваннях провайдера."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
@@ -1532,6 +1540,10 @@ msgstr "Інший клієнт Poracode готує це підключення.
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
 msgstr "Інший власник Poracode вже займає корінь даних цього підключення. Зупиніть його на віддаленому хості та підключіться знову."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode process is updating these credentials. Wait and try again."
+msgstr "Інший процес Poracode оновлює ці облікові дані. Зачекайте та спробуйте ще раз."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -2725,6 +2737,10 @@ msgstr "Виберіть проєкт для сесій, папка яких б�
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "Оберіть зображення іконки проєкту"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a saved credential to sign out."
+msgstr "Виберіть збережені облікові дані для виходу."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose an image inside the project folder."
@@ -11089,6 +11105,10 @@ msgstr "Попередні запуски"
 msgid "Previous sent message"
 msgstr "Попереднє надіслане повідомлення"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Previous sessions; sign in again for new threads."
+msgstr "Попередні сесії; увійдіть знову для нових тредів."
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Попередня вкладка"
@@ -14922,6 +14942,10 @@ msgstr "Хост зупиняє й перезапускає власника ц�
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "Сповіщення про неповну історію змінилося на сервері. Перегляньте оновлені відомості, перш ніж продовжити."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The installed provider version is unsupported. Update it in provider settings."
+msgstr "Установлена версія провайдера не підтримується. Оновіть її в налаштуваннях провайдера."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
 msgstr "користувача Linux"
@@ -14976,6 +15000,14 @@ msgstr "Профіль, чий вхід використовував цей пр
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The project moved or was removed before the thread could launch. Review the project and try again."
 msgstr "Проєкт було переміщено або видалено до запуску потоку. Перевірте проєкт і спробуйте знову."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider is unavailable. Install or update it in provider settings."
+msgstr "Провайдер недоступний. Установіть або оновіть його в налаштуваннях провайдера."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider's sign-in data could not be read. Try again or update Poracode."
+msgstr "Не вдалося прочитати дані входу провайдера. Спробуйте ще раз або оновіть Poracode."
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."

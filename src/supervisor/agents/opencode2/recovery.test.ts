@@ -77,8 +77,8 @@ describe("OpenCode 2 snapshot recovery", () => {
     const client = {
       message: { list },
       permission: { list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]) },
-      form: { list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]) },
       session: {
+        form: { list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]) },
         active,
         get: vi.fn<() => Promise<unknown>>().mockResolvedValue({ outcome: "completed" }),
       },

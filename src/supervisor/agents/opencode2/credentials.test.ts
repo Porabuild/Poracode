@@ -1,9 +1,79 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({
+  legacy: vi.fn<typeof import("./client").listOpenCode2LegacyOAuthCredentials>(),
+  acquire: vi.fn<typeof import("./client").acquireOpenCode2Server>(),
+  remove: vi.fn<typeof import("./client").removeOpenCode2Credential>(),
+}));
+vi.mock("./client", () => ({
+  listOpenCode2LegacyOAuthCredentials: mocks.legacy,
+  acquireOpenCode2Server: mocks.acquire,
+  removeOpenCode2Credential: mocks.remove,
+  resolveOpenCode2SessionDirectory: () => "/fixture",
+}));
 import {
   buildOpenCode2StatusFromIntegrations,
   openCode2ConnectedProviders,
   readOpenCode2Integrations,
+  readOpenCode2LegacyProviders,
+  manageOpenCode2Credentials,
 } from "./credentials";
+
+beforeEach(() => {
+  mocks.legacy.mockReset().mockResolvedValue([]);
+  mocks.acquire.mockReset();
+  mocks.remove.mockReset().mockResolvedValue(undefined);
+});
+
+it("shows removable legacy OAuth rows without reporting native authentication", async () => {
+  mocks.legacy.mockResolvedValue([
+    {
+      id: "legacy-oauth",
+      integrationID: "fixture",
+      label: "Work",
+      active: true,
+      value: {
+        type: "oauth",
+        methodID: "fixture",
+        access: "synthetic-access",
+        refresh: "synthetic-refresh",
+        expires: 200,
+      },
+    },
+  ]);
+  const legacy = await readOpenCode2LegacyProviders({ kind: "posix", path: "/fixture" }, []);
+  expect(legacy).toEqual([
+    {
+      id: "legacy-oauth",
+      label: "fixture · Work",
+      detail: "Previous sessions; sign in again for new threads.",
+    },
+  ]);
+  expect(buildOpenCode2StatusFromIntegrations([], legacy)).toEqual({
+    authState: "missing",
+    providerMetadata: { connectedProviders: legacy },
+  });
+});
+
+it("routes sign-out through the two-database revocation barrier", async () => {
+  const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  mocks.acquire.mockResolvedValue({
+    client: {
+      integration: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+    },
+    dispose,
+  } as unknown as import("./client").AcquiredOpenCode2Server);
+  const result = await manageOpenCode2Credentials({
+    env: { kind: "native" },
+    action: "remove",
+    credentialId: "legacy-oauth",
+  });
+  expect(mocks.remove).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ kind: process.platform === "win32" ? "windows" : "posix" }),
+    "legacy-oauth",
+  );
+  expect(result.providers).toEqual([]);
+  expect(dispose).toHaveBeenCalledTimes(1);
+});
 
 describe("readOpenCode2Integrations", () => {
   it("splits stored credentials from environment-backed providers", () => {

@@ -8,6 +8,15 @@
  */
 
 const messages = {
+  "provider.signInDataUnavailable":
+    "The provider's sign-in data could not be read. Try again or update Poracode.",
+  "provider.unavailable": "The provider is unavailable. Install or update it in provider settings.",
+  "provider.credentialRequired": "Choose a saved credential to sign out.",
+  "provider.credentialsBusy":
+    "Another Poracode process is updating these credentials. Wait and try again.",
+  "provider.previousSessionCredential": "Previous sessions; sign in again for new threads.",
+  "provider.versionUnsupported":
+    "The installed provider version is unsupported. Update it in provider settings.",
   "profile.executionUnavailable":
     "This profile cannot launch with its current login and configuration. Review the profile settings and try again.",
   "profile.dependencyUnavailable":

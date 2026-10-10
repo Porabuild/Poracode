@@ -531,6 +531,10 @@ msgstr "{installedCount, plural, one {# 에이전트 준비됨} other {# 에이�
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel}이(가) 각 후보의 변경 사항을 검토하여 우승자를 추천합니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{label} · Previous sessions; sign in again for new threads."
+#~ msgstr "{label} · 이전 세션용이며 새 스레드에서는 다시 로그인하세요."
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{label} API key"
@@ -622,6 +626,10 @@ msgstr "{projectName} 설정"
 #: src/renderer/components/providers/usageProviders.ts
 msgid "{provider} {profile}"
 msgstr "{provider} {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} {version} is unsupported. Update {provider} to {minimumVersion} or newer in provider settings."
+#~ msgstr "{provider} {version}은 지원되지 않습니다. 공급자 설정에서 {provider}를 {minimumVersion} 이상으로 업데이트하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
@@ -1532,6 +1540,10 @@ msgstr "다른 Poracode 클라이언트가 이 연결을 준비 중입니다. �
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
 msgstr "다른 Poracode 소유자가 이 연결의 데이터 루트를 이미 점유하고 있습니다. 원격 호스트에서 중지한 후 다시 연결하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode process is updating these credentials. Wait and try again."
+msgstr "다른 Poracode 프로세스가 이 인증 정보를 업데이트하고 있습니다. 잠시 후 다시 시도하세요."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -2725,6 +2737,10 @@ msgstr "폴더가 더 이상 존재하지 않는 세션을 가져올 프로젝�
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "프로젝트 아이콘 이미지 선택"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Choose a saved credential to sign out."
+msgstr "로그아웃할 저장된 인증 정보를 선택하세요."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose an image inside the project folder."
@@ -11089,6 +11105,10 @@ msgstr "이전 실행"
 msgid "Previous sent message"
 msgstr "이전에 보낸 메시지"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Previous sessions; sign in again for new threads."
+msgstr "이전 세션용이며 새 스레드에서는 다시 로그인하세요."
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "이전 탭"
@@ -14922,6 +14942,10 @@ msgstr "호스트는 번들 런타임으로 이 환경의 소유자를 중지하
 msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
 msgstr "불완전한 기록 알림이 서버에서 변경되었습니다. 계속하기 전에 업데이트된 세부 정보를 검토하세요."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The installed provider version is unsupported. Update it in provider settings."
+msgstr "설치된 공급자 버전은 지원되지 않습니다. 공급자 설정에서 업데이트하세요."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
 msgstr "Linux 사용자"
@@ -14976,6 +15000,14 @@ msgstr "이 프로필이 로그인을 공유하던 프로필({ownerName})이 더
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The project moved or was removed before the thread could launch. Review the project and try again."
 msgstr "스레드가 시작되기 전에 프로젝트가 이동되거나 삭제되었습니다. 프로젝트를 확인하고 다시 시도하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider is unavailable. Install or update it in provider settings."
+msgstr "공급자를 사용할 수 없습니다. 공급자 설정에서 설치하거나 업데이트하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The provider's sign-in data could not be read. Try again or update Poracode."
+msgstr "공급자의 로그인 데이터를 읽을 수 없습니다. 다시 시도하거나 Poracode를 업데이트하세요."
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."

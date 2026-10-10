@@ -5,18 +5,19 @@
     "statusLastVerified": "blocked",
     "controllerThreadId": "01a0f42d-27e9-7e32-a538-747787b0f182",
     "verifiedAt": "2026-10-09T12:48:37.075130+00:00",
-    "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
-    "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
+    "restoreInstruction": "Historical recovery objective, superseded by scopeRevision on 2026-10-11. If the goal controller has no active goal, restore scopeRevision.objective and preserve the existing progress, evidence, failure verdicts and consumed limits; do not restore this historical objective.",
+    "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app.",
+    "supersededByScopeRevision": true
   },
-  "updatedAt": "2026-10-10T17:28:06.882804+00:00",
+  "updatedAt": "2026-10-10T22:30:28.627897+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
-  "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
+  "scope": "Finalize poracode/v2 for a safe merge into master with practical performance and regression confidence, preserving historical progress and evidence.",
   "progress": {
     "completedMilestones": 2,
     "totalMilestones": 6,
     "inProgress": ["F3", "F4", "F5", "F6"],
-    "blocked": ["F2-pwa", "F3", "F4", "F5"],
+    "blocked": [],
     "pending": [],
     "completedScopedTasks": [
       "F1-editor",
@@ -40,7 +41,8 @@
       "meaning": "Unweighted checklist only, not optimization savings/remaining effort/final signoff."
     },
     "completedMilestoneIds": ["F1", "F2"],
-    "recordedCompletionCounterEvidenceScope": "13/18tasks and2/6milestones are preservedhistoricalchecklistcounts. Currentevidencecustodyaudit findsF1/F2originalreceiptsets whollymissing; countsdo notestablishcurrentfinalcompletion."
+    "recordedCompletionCounterEvidenceScope": "Historical13/18tasks and2/6milestones retained. Final-source merge readiness requires the five reconciled open tasks; historical scoped evidence is reused only where relevant inputs still match.",
+    "historicalCountersPreservedByExplicitScopeRevision": true
   },
   "currentWork": {
     "requiredAgent": null,
@@ -64,8 +66,8 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Continue bounded recovery of the ten missing original helper sources from captured log data and their historical edits, accepting only original byte-count/SHA seals. Native-memory probe and seven static imports remain unresolved; original raw resource/custody receipts still missing. Do not execute restored modules, reset consumed cohorts, rerun the exhausted saved-rich lane, or substitute maintained DEV readiness for current production measurements.",
-    "lastResult": "Merged953f15f83 production rebuilt and sealed; stale embedded SSH archive corrected in a preserved sibling,13 packaging regressions pass. One declared saved-rich app/browser attempt failed at the owning-pane observer; worker activation passes,0renderererrors,4owned processes exit0/4ports close,all32canonicalrows and10tables conserved. Nine pure saved-reader oracle checks pass without rerun. Original source recovery restores30modules with original byte-count/SHA seals:58/68exact,10missing,seven unresolved static imports; no historical raw measurements recovered. Both exact-head CI workflows pass with four native runtime/install journeys skipped. Broad resource,p95,rich offline and device qualification remains incomplete; no gain or completion claim.",
+    "nextAction": "Use prepared actual scroll-driven older-history hydration when admitted; prepare independent maintained GUI/PTY and existing-counter matched lanes against settled source. Old missing reports stay historical evidence gaps, not current preparation gates.",
+    "lastResult": "User-authorized unblock replaced obsolete fixture dependencies with freshly compiled frozen73 owner/reader and maintained source helpers.17focused checks PASS. Two current production app/browser runs activateworker/readinactive savedpane and retire8originalhandles with exactcanonical/artifact/ports conservation; both whole runs remainFAIL. Actual production reader proves intended initial1/cursor31 and next31 -> full32/302102bytes/exactdigest. Correct scroll-driven hydration prepared/tested, unexecuted; no third lane launch. Historical artifacts remainmissing but no longer current execution prerequisites. Fullgoal incomplete, no gain, commits/push/install.",
     "lastDeclaration": "One normalization-only diagnostic plus one source-fix allocation validation, no unchanged usage/wholeapp cohort or renderer attribution restart. Differential syntax error caused shell to continue into validation before corrected110case preflight; originalincorrectdeclaration/failedlog retained and sequencing annotated offline, no measurement rerun. CachechurnoneattemptFAIL retained; source cleanup/bounds/data scope distinct from collectionproof.",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
@@ -183,17 +185,16 @@
     },
     "goalControllerObserved": {
       "status": "active",
-      "at": "2026-10-10T15:47:38.131518+00:00",
-      "objectivePreserved": true,
-      "audit": "tmp/v2-finalization-20261010/current-requirement-audit.json"
+      "verifiedAt": "2026-10-10T20:03:57.451468+00:00",
+      "fullObjectivePreserved": true
     },
     "commitPolicy": {
-      "authorizedBy": "User, latest explicit instruction: we have a lot to commit, pull, and push",
-      "localCompletedVerifiedChunks": true,
-      "push": true,
+      "authorizedBy": "Resumed active performance goal; explicit master pull fulfilled separately",
+      "localCompletedVerifiedChunks": false,
+      "push": false,
       "publish": false,
       "installedAppReplacement": false,
-      "currentGoalOverride": "The latest Git instruction authorizes committing the pending progress record, pulling and integrating origin/poracode/v2, and pushing. Prior performance qualification limits and failed verdicts remain intact."
+      "currentGoalOverride": "Do not commit/push/publish/replace installed app during performance work. Separate master fast-forward created no new commit; user-selected master is not the V2goal source."
     },
     "lastLocalCommit": {
       "sha": "4958e0429aa9b161f978f554acda658679499117",
@@ -1790,7 +1791,9 @@
       "sourceEvidenceChecks": 166,
       "resolvedReviewFindings": 4,
       "rootVerification": "tmp/v2-streaming-perf-20260930/round278/root-resource-adapter-verification.json",
-      "independentReview": "tmp/v2-streaming-perf-20260930/final-electron-resource-v1/independent-review/review.json"
+      "independentReview": "tmp/v2-streaming-perf-20260930/final-electron-resource-v1/independent-review/review.json",
+      "originalProducingOutputEvidence": "tmp/v2-source-custody-audit-20261010/adapter-recorded-proof-objects.json",
+      "originalReportByteSealRecovered": false
     },
     "toolContractPreparation": {
       "state": "root_verified_source_contract_pass",
@@ -9298,6 +9301,41 @@
         "at": "2026-10-10T17:23:45.516497+00:00",
         "previous": "progress: restored28original sealed modules and found two further exact source candidates; all source extraction commands terminal",
         "current": "progress: revalidated interruption state, restored two further originals, verified30syntax trees and58/68exactseals, discriminated maintained DEV readiness from required production evidence"
+      },
+      {
+        "at": "2026-10-10T18:46:43.509262+00:00",
+        "previous": "progress: recovered one independently sealed historical aggregate report and reconciled the recorded 75-tool inventory; explicit user Git sync completed separately",
+        "current": "progress: report and two raw catalog seals revalidated; 805 current domain/library/dependency inputs compared, 785 unchanged and 20 changed; original create/Git/PTY receipt paths and hashes verified; evidence scopes saved in existing tracker and 16-requirement audit"
+      },
+      {
+        "at": "2026-10-10T18:47:44.720650+00:00",
+        "previous": "progress: original report/catalog/handler receipts revalidated and changed persistence/settings inputs discriminated; existing full-scope audit updated",
+        "current": "no progress: same missing prerequisites and consumed/no-ready runtime lanes revalidated; no safe new qualification action found"
+      },
+      {
+        "at": "2026-10-10T18:48:06.102971+00:00",
+        "previous": "no progress: same absent prerequisites and consumed/unready runtime lanes verified, second consecutive impasse",
+        "current": "no progress: third consecutive same impasse; no live work or permitted ready qualification action"
+      },
+      {
+        "at": "2026-10-10T19:27:30.282751+00:00",
+        "previous": "no progress: prior third impasse verified; controller marked blocked",
+        "current": "progress: user-referenced thread refreshed and original adapter-producing tool outputs recovered; current execution readiness distinguished from historical source-review passes"
+      },
+      {
+        "at": "2026-10-10T19:28:13.014416+00:00",
+        "previous": "progress: refreshed referenced thread and recovered original adapter-producing outputs, clarifying eight unfinished interfaces and absence of execution admission",
+        "current": "no progress: resumed second consecutive impasse; seven original prerequisites absent, adapter inert/unadmitted, no live handles and exhausted lanes unchanged"
+      },
+      {
+        "at": "2026-10-10T19:28:39.471888+00:00",
+        "previous": "no progress: second resumed impasse, seven prerequisites missing and adapter/runtime admission absent",
+        "current": "no progress: third resumed same impasse, absent inputs and consumed limits unchanged; latest referenced-thread handoff unchanged"
+      },
+      {
+        "at": "2026-10-10T20:03:32.806450+00:00",
+        "previous": "no progress: old artifact readiness/limits impasse controllerblocked",
+        "current": "progress: user-authorized repaired fixture/helper/current-source dependency path, 17 focused tests, two actual current production runs with complete retirement/conservation, exact production-reader pagination diagnosis"
       }
     ],
     "priorMergedFrozenProductionBeforeSshCorrection": {
@@ -9339,6 +9377,75 @@
       "protocolOrManifestVersionChanged": false
     },
     "currentSessionLogSourceRecovery": {
+      "receipt": "tmp/v2-session-source-recovery-20261010/current-recovery-verification.json",
+      "restorationProvenance": "tmp/v2-session-source-recovery-20261010/restoration-receipt.json",
+      "originalSealedHelperTotal": 68,
+      "formerlyPresentExact": 28,
+      "restoredExactMissingSources": 36,
+      "nowPresentExact": 64,
+      "stillMissing": 4,
+      "syntaxParsedWithoutExecution": 36,
+      "restoredModuleOnlyUnresolvedStaticImports": [
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/launch.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-capture.mjs",
+          "exists": false
+        },
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/page-network-handoff.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-capture.mjs",
+          "exists": false
+        },
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-wire-extra.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-capture.mjs",
+          "exists": false
+        }
+      ],
+      "missingSources": [
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/network.mjs",
+          "bytes": 29829,
+          "sha256": "0c21d5df0c36b39ec692a73f3ed89fbb7ccbc9fe17427c4ec95646dae57d8a25",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/persistent-isolation.mjs",
+          "bytes": 35168,
+          "sha256": "c6b205ad1ebd5252de0711828ed2e03427588eba9a462069f64f084de1e7c8e2",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/service-worker-lifetime.mjs",
+          "bytes": 12641,
+          "sha256": "e16514624e354e2d8495679305d0443c73e032bfdaf3a64fda840d8a3f06fad6",
+          "exists": false
+        },
+        {
+          "path": "/Users/svecherenko/work/Poracode/tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-capture.mjs",
+          "bytes": 15987,
+          "sha256": "803cfbbdff4f6be3f2983fd5dda334726522e361bb4d94fca6d852626224c4a9",
+          "exists": false
+        }
+      ],
+      "historicalMeasurementsRecovered": false,
+      "restoredModulesExecuted": false,
+      "newApplicationOrBrowserAttempts": 0,
+      "newResourceCohorts": 0,
+      "originalBudgetsReset": false,
+      "unsuccessfulSourcePreparation": "tmp/v2-session-source-recovery-20261010/worker-literal-edit-recovery.json",
+      "historicalAggregateReportRecovery": "tmp/v2-source-custody-audit-20261010/historical-report-restoration-receipt.json"
+    },
+    "lastResultBeforeMergedProductionAndRecovery": "Recoveredpromotedoldprofile read-only:32savedcanonicalrows+1turn; exactoriginalfullarraySHA543b2c/302102bytes/24scriptedcases/2childcards/3imageblocks. FreshprivatecurrentAPIowner seed preservesall32rows/5heads/19blocks/turn andemptyorigins/gaps/notices, ownerreboundonly; fullmaterializedreceiptexact/originalDBmainhashunchanged/no newcommits. 3failedpreparationsretained; sourcePK/foreignownerpreflightPASS, finalprepPASS;0app/browser/executionattempts.40sealedresourcehelpers stillmissing/28exact;6currentselectedsourcesmatch. Historicalmilestonecounts preserved withcustodylimit; currentfullscopeincomplete.",
+    "commitPolicyBeforeLatestGitSynchronization": {
+      "authorizedBy": "Active performance objective resumed after the separately authorized Git synchronization",
+      "localCompletedVerifiedChunks": false,
+      "push": false,
+      "publish": false,
+      "installedAppReplacement": false,
+      "currentGoalOverride": "Do not commit, push, publish or replace the installed app during resumed optimization. Prior explicit Git work is completed and preserved in gitSynchronization."
+    },
+    "priorSessionLogSourceRecovery": {
       "at": "2026-10-10T17:23:45.516497+00:00",
       "receipt": "tmp/v2-session-source-recovery-20261010/root-verification.json",
       "restorationProvenance": "tmp/v2-session-source-recovery-20261010/restoration-receipt.json",
@@ -9402,14 +9509,250 @@
       "priorInterruptedTurnClassification": "progress: restored28original sealed modules and found two further exact source candidates; all source extraction commands terminal",
       "currentTurnClassification": "progress: revalidated interruption state, restored two further originals, verified30syntax trees and58/68exactseals, discriminated maintained DEV readiness from required production evidence"
     },
-    "lastResultBeforeMergedProductionAndRecovery": "Recoveredpromotedoldprofile read-only:32savedcanonicalrows+1turn; exactoriginalfullarraySHA543b2c/302102bytes/24scriptedcases/2childcards/3imageblocks. FreshprivatecurrentAPIowner seed preservesall32rows/5heads/19blocks/turn andemptyorigins/gaps/notices, ownerreboundonly; fullmaterializedreceiptexact/originalDBmainhashunchanged/no newcommits. 3failedpreparationsretained; sourcePK/foreignownerpreflightPASS, finalprepPASS;0app/browser/executionattempts.40sealedresourcehelpers stillmissing/28exact;6currentselectedsourcesmatch. Historicalmilestonecounts preserved withcustodylimit; currentfullscopeincomplete.",
-    "commitPolicyBeforeLatestGitSynchronization": {
-      "authorizedBy": "Active performance objective resumed after the separately authorized Git synchronization",
-      "localCompletedVerifiedChunks": false,
+    "currentV2FrozenProduction": {
+      "receipt": "tmp/v2-current-production-20261010-73ef0a485/root-verification.json",
+      "manifest": "tmp/v2-current-production-20261010-73ef0a485/served-production-manifest.json",
+      "source": {
+        "revision": "73ef0a485ee64c38e5ef803fda9a91427bcd27a9",
+        "dirty": false,
+        "sha256": "92114fd19a780a7b3f3be12fae52a9bc754d83224722b8388b530505b81467b8",
+        "files": 5469,
+        "bytes": 57265323
+      },
+      "primaryArtifact": {
+        "sha256": "10e1695f54885ab0741ae6cb8966f53e8710a3d39db565d2e145412a460520af",
+        "files": 91782,
+        "bytes": 2391271006
+      },
+      "servedArtifact": {
+        "sha256": "cf337ea027dd62d38ed8189e496ec0fd5aba63afb59d76560f5f8ac61870b7c3",
+        "files": 91632,
+        "bytes": 2298593826
+      },
+      "packages": 698,
+      "archivedCodeFilesVerified": 11,
+      "embeddedRuntimeSourceHash": "e3984265e1a6b8a25fa4b0f6cac5744fe6313ab2cc590a31db2b5925b13e8a0f",
+      "embeddedRuntimeHash": "71ba840457f04bfb173283f0555d7a54416d37f646d3deafe8826e1852b7c65b",
+      "appOrBrowserLaunched": false,
+      "resourceGainClaim": false,
+      "wholeRuntimeQualification": false,
+      "masterTreeQualifiedByThisArtifact": false
+    },
+    "currentV2HeadCi": {
+      "headSha": "73ef0a485ee64c38e5ef803fda9a91427bcd27a9",
+      "CI": "success",
+      "CIJobsSucceeded": 19,
+      "NativeClientsStatus": "completed",
+      "receipts": [
+        "tmp/v2-session-source-recovery-20261010/current-head-ci.json",
+        "tmp/v2-session-source-recovery-20261010/current-head-native-ci.json"
+      ],
+      "deviceOrPerformanceQualification": false,
+      "NativeClientsConclusion": "success",
+      "nativeSkippedRuntimeJourneys": [
+        "Server install qualification",
+        "Android 14 minimum-supported runtime",
+        "Android 17 emulator runtime",
+        "iOS XCUITest wire-lab journey"
+      ]
+    },
+    "latestMasterSynchronization": {
+      "receipt": "tmp/v2-master-pull-20261010/verification.json",
+      "revision": "270fe29ebb4c413d04e7aa2003dc8bcf38d165a7",
+      "fastForwardedCommits": 53,
+      "v2Unchanged": true,
+      "newCommitCreated": false,
+      "pushed": false,
+      "latestVerifiedHead": "028d86b8e4a04629bd0b35f8bdab3823999d58b9",
+      "latestPullScope": "Explicit Git steering: one additional master fast-forward to display wake-lock backport028d86b8e. V2 source73 unchanged."
+    },
+    "commitPolicyBeforeLatestGoalResume": {
+      "authorizedBy": "User, latest explicit instruction: we have a lot to commit, pull, and push",
+      "localCompletedVerifiedChunks": true,
+      "push": true,
+      "publish": false,
+      "installedAppReplacement": false,
+      "currentGoalOverride": "The latest Git instruction authorizes committing the pending progress record, pulling and integrating origin/poracode/v2, and pushing. Prior performance qualification limits and failed verdicts remain intact."
+    },
+    "currentV2SourceWorktree": {
+      "root": "/Users/svecherenko/work/Poracode",
+      "branch": "poracode/v2",
+      "detached": false,
+      "preMergeHead": "73ef0a485ee64c38e5ef803fda9a91427bcd27a9",
+      "preservedDetachedWorktree": "/Users/svecherenko/work/Poracode/tmp/v2-active-goal-73ef0a485",
+      "pendingQaChanges": [
+        ".agents/skills/interactive-testing/scripts/smoke-runtime-files.mjs",
+        ".agents/skills/interactive-testing/scripts/smoke-runtime-files.package-resolution.test.mjs",
+        "tests/native-e2e/v2ArchitectureQualification.test.ts",
+        "tests/native-e2e/helpers/qualificationSessionRoot.ts",
+        "tests/native-e2e/helpers/qualificationSessionRoot.test.ts"
+      ]
+    },
+    "currentSourceCustodyReadiness": "tmp/v2-source-custody-audit-20261010/current-readiness.json",
+    "currentMasterDependencySetup": "tmp/v2-source-custody-audit-20261010/master-dependency-setup-receipt.json",
+    "currentHistoricalAggregateRecovery": "tmp/v2-source-custody-audit-20261010/historical-report-restoration-receipt.json",
+    "currentGenuineHandlerReconciliation": "tmp/v2-source-custody-audit-20261010/genuine-handler-evidence-map.json",
+    "currentImpasseAudit": {
+      "receipt": "tmp/v2-source-custody-audit-20261010/current-readiness.json",
+      "at": "2026-10-10T19:28:39.471888+00:00",
+      "consecutiveObservations": 3,
+      "blockedThreshold": 3,
+      "blockedThresholdMet": true,
+      "goalStatus": "blocked",
+      "newResumeCycle": true,
+      "classification": "no progress: third resumed same impasse, absent inputs and consumed limits unchanged; latest referenced-thread handoff unchanged",
+      "supersededByUserAuthorizedWork": "tmp/v2-unblock-20261010/unblock-verification.json",
+      "supersededByUserAuthorizationAndScopeRevision": "2026-10-10T22:30:28.627897+00:00"
+    },
+    "currentAdapterCapturedReview": "tmp/v2-source-custody-audit-20261010/adapter-recorded-proof-objects.json",
+    "referencedThreadLatestRead": {
+      "threadId": "776f004a-0862-4ba3-8c4d-b55c2580e6d4",
+      "messages": 3,
+      "nextCursor": 78450,
+      "scope": "Latest recorded handoff retains ACP timing failure, 42 affected normal-environment checks and earlier browser media/PWA upgrade passes; remaining UI/resource gates blocked on desktop lock. No new missing-artifact location or runtime allowance found.",
+      "additionalPageNeeded": false,
+      "at": "2026-10-10T19:28:39.471888+00:00",
+      "latestHandoffChanged": false
+    },
+    "currentUserAuthorizedUnblock": {
+      "schemaVersion": 1,
+      "at": "2026-10-10T20:03:32.806450+00:00",
+      "userAuthorization": "I want you to unblock it",
+      "oldMissingArtifactExecutionDependencyRemoved": true,
+      "source": {
+        "revision": "73ef0a485ee64c38e5ef803fda9a91427bcd27a9",
+        "dirty": false,
+        "sha256": "92114fd19a780a7b3f3be12fae52a9bc754d83224722b8388b530505b81467b8",
+        "files": 5469,
+        "bytes": 57265323
+      },
+      "sourceCompiledFixtureOwnerAndReader": true,
+      "maintainedSourceToolsUsed": true,
+      "desktopUnlockedAtPreflights": true,
+      "preflightChecks": {
+        "sourceRows": 5469,
+        "helperClosure": 30,
+        "savedReaderTests": 9,
+        "documentOwnerTests": 3,
+        "hydrationDriverTests": 5,
+        "actualProductionReaderContract": true
+      },
+      "newAttempts": {
+        "initial": {
+          "applications": 1,
+          "browsers": 1,
+          "pass": false,
+          "failure": "TypeError: Failed to fetch dynamically imported module: https://app.hubspot.com/assets/appStore-CO-hQr7g.js"
+        },
+        "materialCorrection": {
+          "applications": 1,
+          "browsers": 1,
+          "pass": false,
+          "failure": "exact full canonical desktop-online deadline"
+        },
+        "furtherLaunchesThisLane": false,
+        "oldBudgetsReset": false
+      },
+      "actualCurrentRuntimeEvidence": {
+        "workerActivated": true,
+        "inactiveSavedReaderVisible": true,
+        "correctedOriginBound": true,
+        "correctedRendererErrors": 0,
+        "fullRichOfflineQualified": false,
+        "genuineHandlerCalls": 0,
+        "resourceGainClaim": false
+      },
+      "readerDiagnosis": {
+        "initialRows": 1,
+        "olderCursor": 31,
+        "twoActualReaderPageSizes": [1, 31],
+        "fullCanonicalRows": 32,
+        "fullCanonicalBytes": 302102,
+        "fullCanonicalSha256": "543b2c722a158d2f9c0fc55bc426669a9c1cf6706613a62b85abc952151962df",
+        "browserHydrationPreparedNotExecuted": true,
+        "noApplicationBugEstablished": true,
+        "derivedBrowserCacheNotAcceptanceEvidence": true
+      },
+      "retirement": {
+        "originalOwnedHandlesJoined": 8,
+        "bothRunsCanonicalUnchanged": true,
+        "bothRunsArtifactUnchanged": true,
+        "bothRunsDeclaredPortsClosed": true
+      },
+      "currentNextWork": "Use prepared actual scroll-driven older-history hydration when admitted; prepare independent maintained GUI/PTY and existing-counter matched lanes against settled source. Old missing reports stay historical evidence gaps, not current preparation gates.",
+      "wholeObjectiveComplete": false,
+      "noCommitPushPublishInstalledReplacement": true,
+      "controllerStatusConfirmed": "active"
+    },
+    "currentMaintainedQualificationReadiness": "tmp/v2-unblock-20261010/maintained-readiness-verification.json",
+    "currentOptimizationCommitPolicy": {
+      "commit": false,
       "push": false,
       "publish": false,
       "installedAppReplacement": false,
-      "currentGoalOverride": "Do not commit, push, publish or replace the installed app during resumed optimization. Prior explicit Git work is completed and preserved in gitSynchronization."
+      "authorization": "Current persistent performance objective",
+      "supersededBy": "2026-10-10T22:30:28.627897+00:00"
+    },
+    "currentHydrationCorrectionReadiness": "tmp/v2-unblock-20261010/hydration-readiness-verification.json",
+    "currentCorrectionAdmissionProposal": "tmp/v2-unblock-20261010/correction-admission-proposal.json",
+    "currentAuthorizationState": "User explicitly authorized corrections; release-readiness goal supersedes old exhaustive objective. Further execution must use the current merged source and concrete affected verification.",
+    "currentBoundedExecutionImpasse": {
+      "at": "2026-10-10T20:40:57.259389+00:00",
+      "classification": "no progress: third consecutive unchanged execution-admission impasse; no owned qualification handle live",
+      "previousGoalTurnClassification": "no progress: second exhausted-limit/pending-authorization observation, all31prepared helper seals unchanged",
+      "consecutiveNoProgressTurns": 3,
+      "blockedThreshold": 3,
+      "blockedThresholdMet": true,
+      "goalStatus": "blocked",
+      "sameCondition": "Pending explicit authorization to extend exhausted live-qualification limits",
+      "authorityApplied": false,
+      "pwaAdmissionExists": false,
+      "pwaExecutionEvidenceCreated": false,
+      "preparedSealUnchanged": true,
+      "mixedOriginalState": "failed-before-Electron",
+      "originalOwnerPidFreshlyAbsent": 88393,
+      "ownedLiveQualificationHandlePresent": false,
+      "noLiveWaitClaim": true,
+      "launcherCompatibilitySourceEvidence": {
+        "detachedLauncher": "poracode-cdp-launch.mjs permits an existing reserved directory without session.json; refuses an old session manifest",
+        "managedRunner": "run-poracode-smoke.mjs preserves its source snapshot; reserveQualificationSessionRoot refuses existing evidence-bound roots",
+        "claimScope": "Source review only, no application validation"
+      },
+      "independentWorkScope": "Supported install/protocol/native build, source/artifact custody and affected QA/cache checks completed. No new product failure established; current resource attribution, rich/native/manual and matched gates still need admitted runtime evidence. No repeated tests or new generic measurement framework started.",
+      "originalBudgetObjectsUnchanged": 8,
+      "newApplicationOrBrowserLaunches": 0,
+      "completionProven": false,
+      "proposal": "tmp/v2-unblock-20261010/correction-admission-proposal.json",
+      "preparedHelperSealsReverified": 31,
+      "revalidatedPwaAttemptLimitExhausted": true,
+      "revalidatedMixedCorrectionLimit": 0,
+      "independentPreparationCompleteWithinCurrentAdmission": true,
+      "remainingFullScopeRequirements": 16,
+      "userOrExternalStateChangeRequired": "Explicit answer authorizing the concrete one-correction-per-lane proposal; old failures/counters remain preserved",
+      "controllerStatusConfirmedAt": "2026-10-10T20:41:07.317562+00:00",
+      "supersededByUserAuthorizationAndScopeRevision": "2026-10-10T22:30:28.627897+00:00"
+    },
+    "latestScopeRevision": "tmp/v2-finalize-20261011/goal-rewrite.json",
+    "currentGitPolicy": {
+      "commit": true,
+      "push": true,
+      "publishRelease": false,
+      "mergeIntoMaster": false,
+      "forcePush": false,
+      "installedAppReplacement": false,
+      "authorizedBy": "Latest user-authorized goal rewrite, retaining earlier explicit Git authorization"
+    },
+    "authorizedHistoricalPwaHydrationAttempt": {
+      "result": "tmp/v2-unblock-20261010/pwa-hydration-prepared/execution-result.json",
+      "source": "73ef0a485",
+      "pass": false,
+      "failure": "older saved history progress deadline",
+      "apps": 1,
+      "browsers": 1,
+      "retiredHandles": 4,
+      "canonicalAndArtifactUnchanged": true,
+      "newMasterMergedSourceQualified": false,
+      "userAuthorizedExtensionConsumed": true
     }
   },
   "milestones": [
@@ -9481,7 +9824,8 @@
         "receiptsTotal": 26,
         "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
         "recordedCompleteRevalidated": false
-      }
+      },
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F2",
@@ -9554,24 +9898,20 @@
         "receiptsTotal": 31,
         "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
         "recordedCompleteRevalidated": false
-      }
+      },
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F3",
-      "title": "Attribute supervisor CPU and retained memory",
+      "title": "Practical performance attribution and retention",
       "status": "in_progress",
       "dependsOn": ["F1"],
       "owner": "Coordinator",
       "scope": [
-        "Reproduce or explain mixed fast-server supervisor CPU using the same canonical work and current immutable builds.",
-        "Profile ordinary rich parsing, renderer layout/invalidation and GPU-process activity at representative interaction tails.",
-        "Recheck long-lived GUI/PTY working and released states; inventory live history, native allocations, metadata/cache owners and retired measurement IDs."
+        "Investigate only proven high-impact CPU, memory or I/O costs; verify bounds/retirement and resource regressions on available hardware. No unavailable GPU/private-profile prerequisite or marginal tuning."
       ],
       "doneWhen": [
-        "Whole process-tree costs and representative p95 have matched workload/source identities.",
-        "Supervisor costs have stack/counter evidence; a non-reproduced historical increase is reported as such.",
-        "Repeatable retained owners/growth are fixed and rechecked, or costs are classified with evidence and explicit measurement limits.",
-        "No extra cache, batching or cost transfer is adopted without profile evidence and canonical parity."
+        "Concrete revised task requirements verified against final source, with unavailable dimensions and historical limits clearly disclosed."
       ],
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round38/server-supervisor-cpu-next-plan.json",
@@ -9590,7 +9930,7 @@
         "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
       ],
-      "nextAction": "Current-server scoped comparison qualified. Finish required broader Electron/browser attribution with honest family/private/hardware limits and retained functional checks; no marginal server tuning or universal native framework.",
+      "nextAction": "Investigate only proven high-impact CPU, memory or I/O costs; verify bounds/retirement and resource regressions on available hardware. No unavailable GPU/private-profile prerequisite or marginal tuning.",
       "qualifiedSubgates": {
         "profilingSnapshot": "R122 all8buildstages/source/output/web/dependencyclosure PASS; snapshot does not imply profile or resource qualification.",
         "currentServerDiagnostic": "PASS200reads/144tools/canonical; p95 6.08ms,app3.25onecore%,supervisor1.24onecore%; singleheadless diagnostic, no gain claim",
@@ -9621,27 +9961,34 @@
         "receiptsTotal": 15,
         "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
         "recordedCompleteRevalidated": false
+      },
+      "priorScopeBeforeUserRevision": {
+        "title": "Attribute supervisor CPU and retained memory",
+        "scope": [
+          "Reproduce or explain mixed fast-server supervisor CPU using the same canonical work and current immutable builds.",
+          "Profile ordinary rich parsing, renderer layout/invalidation and GPU-process activity at representative interaction tails.",
+          "Recheck long-lived GUI/PTY working and released states; inventory live history, native allocations, metadata/cache owners and retired measurement IDs."
+        ],
+        "doneWhen": [
+          "Whole process-tree costs and representative p95 have matched workload/source identities.",
+          "Supervisor costs have stack/counter evidence; a non-reproduced historical increase is reported as such.",
+          "Repeatable retained owners/growth are fixed and rechecked, or costs are classified with evidence and explicit measurement limits.",
+          "No extra cache, batching or cost transfer is adopted without profile evidence and canonical parity."
+        ],
+        "nextAction": "Current-server scoped comparison qualified. Finish required broader Electron/browser attribution with honest family/private/hardware limits and retained functional checks; no marginal server tuning or universal native framework."
       }
     },
     {
       "id": "F4",
-      "title": "Verify representative final workflows and freeze the candidate",
+      "title": "Master integration, green CI and affected workflows",
       "status": "in_progress",
       "dependsOn": ["F1", "F2", "F3"],
       "owner": "Coordinator",
       "scope": [
-        "Electron GUI chats and real PTYs; desktop browser and portrait compact/mobile/PWA.",
-        "Ordinary/rich streaming, low/typical/burst tool counts, all registered tool render categories, create/edit/view, photos, groups, questions/permissions, Stop/steer and reader/scroll/replay.",
-        "Subagent/crossagent and ordered workflow coverage; reuse genuine accepted evidence only when relevant inputs remain unchanged.",
-        "PWA cold/warm loading, natural upgrade/cache retirement, offline reopening and reconnect. Physical device/background flows remain separate external gates.",
-        "Full typecheck/lint/tests, localization/version/provider isolation audits and immutable artifact identity.",
-        "Inventory each enabled tool name: input/output shape, GUI scenario, real/mocked execution evidence, and explicit unsupported/external status; category counts alone are insufficient."
+        "Resolve latest-master integration while preserving V2 features; reconcile pending work; make required local checks/builds and exact final-head CI green; verify affected GUI/PTY/browser/provider flows."
       ],
       "doneWhen": [
-        "Coverage matrix has PASS/FAIL/BLOCKED/UNTESTED/NA per gate and links to exact source/build/run evidence.",
-        "No material input, reader, authorization, canonical-data or process-ownership regression remains in required available environments.",
-        "Changed behavior is verified on the final candidate; stable historical evidence is explicitly scoped and hash-checked.",
-        "Required quality checks pass, final artifact/dependency mirrors are attested, and every owned app/process is joined."
+        "Concrete revised task requirements verified against final source, with unavailable dimensions and historical limits clearly disclosed."
       ],
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round43/root-workflow-live-review-d1.json",
@@ -9660,7 +10007,7 @@
         "tmp/v2-mixed-runtime-20261010/root-verification.json",
         "tmp/v2-next-qualification-20261010/root-verification.json"
       ],
-      "nextAction": "CurrentproductionPWAcompactoffline/reconnect andcurrentfrozenDEVSettings/MCPimport/usage/Browser/quickcomposer mockgatesPASS. Preserve priorfailures/scopes, no unchangedreplay. Realshortcut/tray/OSdrag/provider,richreader/scroll/currentPTY,long/device/resource/matched andexactevidencerecovery gatesremainopen.",
+      "nextAction": "Resolve latest-master integration while preserving V2 features; reconcile pending work; make required local checks/builds and exact final-head CI green; verify affected GUI/PTY/browser/provider flows.",
       "workMayStartBeforeDependenciesComplete": true,
       "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now.",
       "qualifiedSubgates": {
@@ -9680,64 +10027,102 @@
         "receiptsTotal": 15,
         "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
         "recordedCompleteRevalidated": false
+      },
+      "priorScopeBeforeUserRevision": {
+        "title": "Verify representative final workflows and freeze the candidate",
+        "scope": [
+          "Electron GUI chats and real PTYs; desktop browser and portrait compact/mobile/PWA.",
+          "Ordinary/rich streaming, low/typical/burst tool counts, all registered tool render categories, create/edit/view, photos, groups, questions/permissions, Stop/steer and reader/scroll/replay.",
+          "Subagent/crossagent and ordered workflow coverage; reuse genuine accepted evidence only when relevant inputs remain unchanged.",
+          "PWA cold/warm loading, natural upgrade/cache retirement, offline reopening and reconnect. Physical device/background flows remain separate external gates.",
+          "Full typecheck/lint/tests, localization/version/provider isolation audits and immutable artifact identity.",
+          "Inventory each enabled tool name: input/output shape, GUI scenario, real/mocked execution evidence, and explicit unsupported/external status; category counts alone are insufficient."
+        ],
+        "doneWhen": [
+          "Coverage matrix has PASS/FAIL/BLOCKED/UNTESTED/NA per gate and links to exact source/build/run evidence.",
+          "No material input, reader, authorization, canonical-data or process-ownership regression remains in required available environments.",
+          "Changed behavior is verified on the final candidate; stable historical evidence is explicitly scoped and hash-checked.",
+          "Required quality checks pass, final artifact/dependency mirrors are attested, and every owned app/process is joined."
+        ],
+        "nextAction": "CurrentproductionPWAcompactoffline/reconnect andcurrentfrozenDEVSettings/MCPimport/usage/Browser/quickcomposer mockgatesPASS. Preserve priorfailures/scopes, no unchangedreplay. Realshortcut/tray/OSdrag/provider,richreader/scroll/currentPTY,long/device/resource/matched andexactevidencerecovery gatesremainopen."
       }
     },
     {
       "id": "F5",
-      "title": "Confirm final p95 and whole application resource behavior",
+      "title": "Representative p95 and resource regression confidence",
       "status": "in_progress",
       "dependsOn": ["F4"],
       "owner": "Coordinator",
       "scope": [
-        "Matched immutable production reference/candidate pairs in opposite orders for representative GUI, PTY and browser/compact workloads.",
-        "CPU across server/supervisor/renderer/GPU processes, available memory/footprint and I/O, canonical fidelity, resource ownership and interaction p95."
+        "Validate representative ordinary/rich and mixed latency/resources with declared matched inputs where feasible; retain historical failures. Report unavailable/incomparable data without unsupported whole-application savings."
       ],
       "doneWhen": [
-        "At least two opposite-order matched pairs support any new gain or material regression claim.",
-        "Common interaction tails show no reproducible material regression; primary CPU/GPU-process gains remain supported on the final artifact.",
-        "Long-session resource behavior is stable or explained by observed working-set/driver retention; measured RAM is distinguished from private-memory/VRAM inference.",
-        "Tool/media/group/child/workflow coverage and oversize/protected exceptions remain visible in the report."
+        "Concrete revised task requirements verified against final source, with unavailable dimensions and historical limits clearly disclosed."
       ],
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round45/root-round45-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
       ],
-      "nextAction": "R118 fourarms/onecorrection exhausted; reuse scoped R116 backend pairs after input reconciliation. Finish only materially corrected required representative UI/PTY/browser/compact matched gates after functional preflight.",
+      "nextAction": "Validate representative ordinary/rich and mixed latency/resources with declared matched inputs where feasible; retain historical failures. Report unavailable/incomparable data without unsupported whole-application savings.",
       "currentEvidenceCustody": {
         "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
         "receiptsPresent": 0,
         "receiptsTotal": 2,
         "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
         "recordedCompleteRevalidated": false
+      },
+      "priorScopeBeforeUserRevision": {
+        "title": "Confirm final p95 and whole application resource behavior",
+        "scope": [
+          "Matched immutable production reference/candidate pairs in opposite orders for representative GUI, PTY and browser/compact workloads.",
+          "CPU across server/supervisor/renderer/GPU processes, available memory/footprint and I/O, canonical fidelity, resource ownership and interaction p95."
+        ],
+        "doneWhen": [
+          "At least two opposite-order matched pairs support any new gain or material regression claim.",
+          "Common interaction tails show no reproducible material regression; primary CPU/GPU-process gains remain supported on the final artifact.",
+          "Long-session resource behavior is stable or explained by observed working-set/driver retention; measured RAM is distinguished from private-memory/VRAM inference.",
+          "Tool/media/group/child/workflow coverage and oversize/protected exceptions remain visible in the report."
+        ],
+        "nextAction": "R118 fourarms/onecorrection exhausted; reuse scoped R116 backend pairs after input reconciliation. Finish only materially corrected required representative UI/PTY/browser/compact matched gates after functional preflight."
       }
     },
     {
       "id": "F6",
-      "title": "Audit completion and deliver the final report",
+      "title": "Final merge readiness audit and PR handoff",
       "status": "in_progress",
       "dependsOn": ["F1", "F2", "F3", "F4", "F5"],
       "owner": "Coordinator",
       "scope": [
-        "Requirement-by-requirement audit against the original broad performance goal.",
-        "Consolidated achievements, before/after p95/resources, remaining risks, external blockers and explicit unmeasured dimensions."
+        "Review final master-to-V2 diff, resolve important findings, reconcile all18tasks/six milestones and evidence, and leave existing PR mergeable with exact-head green required CI. Do not merge into master."
       ],
       "doneWhen": [
-        "Every required goal item has current evidence or a documented exception allowed by the original goal; missing required qualification remains incomplete.",
-        "No hidden failing gate, orphaned app/child, pending required agent or unreviewed source change remains.",
-        "The final report separates performance-phase completion from the separate v2 production-readiness program.",
-        "Goal is marked complete only after the actual completion audit passes. User-authorized commits/push are permitted; publication, merges and installed-app replacement remain separate."
+        "Concrete revised task requirements verified against final source, with unavailable dimensions and historical limits clearly disclosed."
       ],
       "evidence": [
         "docs/V2_PRODUCTION_READINESS.md",
         "tmp/v2-streaming-perf-20260930/round127/audit.json"
       ],
-      "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1–G4 remaining gates close.",
+      "nextAction": "Review final master-to-V2 diff, resolve important findings, reconcile all18tasks/six milestones and evidence, and leave existing PR mergeable with exact-head green required CI. Do not merge into master.",
       "currentEvidenceCustody": {
         "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
         "receiptsPresent": 1,
         "receiptsTotal": 2,
         "audit": "tmp/v2-resource-recovery-20261010/recovery-audit.json",
         "recordedCompleteRevalidated": false
+      },
+      "priorScopeBeforeUserRevision": {
+        "title": "Audit completion and deliver the final report",
+        "scope": [
+          "Requirement-by-requirement audit against the original broad performance goal.",
+          "Consolidated achievements, before/after p95/resources, remaining risks, external blockers and explicit unmeasured dimensions."
+        ],
+        "doneWhen": [
+          "Every required goal item has current evidence or a documented exception allowed by the original goal; missing required qualification remains incomplete.",
+          "No hidden failing gate, orphaned app/child, pending required agent or unreviewed source change remains.",
+          "The final report separates performance-phase completion from the separate v2 production-readiness program.",
+          "Goal is marked complete only after the actual completion audit passes. User-authorized commits/push are permitted; publication, merges and installed-app replacement remain separate."
+        ],
+        "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1–G4 remaining gates close."
       }
     }
   ],
@@ -9746,9 +10131,9 @@
     "regressionTolerance": "Working measurement rule: investigate repeatable input-queue p95 worsening exceeding max(2ms,10percent) under matched load. Every hang/data-loss/authorization/ownership regression is material regardless of this timing rule. This is a test decision rule, not a universal product SLO.",
     "repeatPolicy": "Focused diagnostic before full replay; repeat only after a concrete correction, new failure or unexplained variance.",
     "evidenceReuse": "Reuse only when relevant source/dependency/environment/workload inputs match; historical evidence is not final-tree sign-off.",
-    "exceptions": "Disclose inaccessible hardware GPU/VRAM/private-memory and protected/oversize cases. Physical-device or other required missing qualification is BLOCKED/UNTESTED, never PASS.",
+    "exceptions": "Disclose unavailable hardware/private GPU/native allocation and physical device dimensions. They are unmeasured, never PASS or savings claims, and do not block realistic merge readiness absent a demonstrated relevant regression.",
     "folderPolicy": "Private mocked fixture; never native folder picker.",
-    "stateProtection": "Currentactiveobjective prohibits commit/push/publish/installedapp replacement; older authorization is superseded. Preserve user sessions and protected simulator.",
+    "stateProtection": "Latest user rewrite authorizes necessary verified integration/fix commits and pushes to poracode/v2. Keep main checkout on V2. Never merge V2 into master, force-push, publish a release or replace the installed app. Preserve protected/user sessions and prior failures/counters.",
     "inspectorBudget": "One diagnostic and one correction-validation consumed. Focused control passed; this lane is finished. No new round label, rare event hunting or unchanged catalog replay may reset it. Full required functional matrix remains separate.",
     "observerVersusProduct": "Keep run FAIL when observer/RPC prevents evidence; mark unproved gate UNTESTED/inconclusive. Product regression requires exact supported behavior/custody/canonical violation. Never infer owner from cleanup.",
     "branchExercise": "Do not launch extra broad rounds solely for rare metadata or100percent observer branch coverage; retain proof limits and reconcile any specifically required proof with original goal.",
@@ -10556,6 +10941,42 @@
     {
       "at": "2026-10-10T17:23:45.516497+00:00",
       "summary": "Recovered missing original helper bytes from scoped agent session logs without executing historical commands.30original modules restored with exact original byte-count/SHA seals;58/68helpers nowpresentexact,10stillmissing.30restored syntax trees parse and5469currentproduction source inputs remainunchanged; seven static imports unresolved. Quarantined formatting experiments yield no accepted extra files. Maintained sustained dry-run nowpasses current clean source/sixobserver prerequisites but isDEV and remainsunlaunched. No raw measurement recovery, new runtime attempts, cohort reset, gain or completion claim."
+    },
+    {
+      "at": "2026-10-10T17:47:34.188143+00:00",
+      "summary": "Six further original helper sources restored:36restored/64of68exact/4missing,36syntax trees parsed without execution,three missing imports among restored modules. FreshV2production73ef0a485 built/sealed with5469sources/698packages andfour SSH declarations/all11archived codefiles/copies verified,0app/browserlaunches. ExactV2CI19jobs pass; nativeCI inprogress. User selectedmaster, nowfast-forwarded53commits to270fe29eb withgreenCI;v2unchanged/no newcommit/push. Originalrawmeasurements,resources/p95/richoffline/devicequalification remainunproven;goalactive."
+    },
+    {
+      "at": "2026-10-10T18:23:44.918003+00:00",
+      "summary": "Both exactV2head73 workflows complete successfully;four native runtime/install journeys skipped. IsolatedV2worktree preservesmaster and matchesall5469frozen source rows.64/68oldhelpers remainexact/36restored;52newlyfound historicalNodeREPL calls/21numberedwindows/57multisedwindows yielded0accepted originals; mixedversions/incompletecoverage rejected without executing oldcode. Sourceadaptationtimebox stopped. Originalrawresource/custody gaps and consumedruntime lanes remain; fullgoal incomplete, no gain or completionclaim."
+    },
+    {
+      "at": "2026-10-10T18:46:43.509262+00:00",
+      "summary": "Recovered R173 historical aggregate revalidated at its independent original seal: scoped resource PASS, overall/full-functional FAIL on source4f9202; no raw profile/time-series/current73 gain proof. Recorded catalog75/eight scoped handlers retained; 805 current domain/library/dependency inputs compared,785 exact/20 changed, including canonical persistence and settings. Three original create/Git/PTY receipts verified. Four helpers and raw resource/custody evidence remain missing; resource adapter inert; existing exhausted lanes unchanged. All16requirements remain, goal incomplete."
+    },
+    {
+      "at": "2026-10-10T19:27:30.282751+00:00",
+      "summary": "Referenced thread latest12messages read: prior media/PWAupgrade and42normal-env checks preserved, UI/resource gates remain open; no new runtime allowance or backup path. Original R277/R278 producing outputs recovered with log/line/call provenance, confirming31checks/166source checks and executionReady=false/runAuthority=false/eight unfinished interfaces. Original report bytes not independently sealed/restored. Full16requirements remain; no new runtime,resource,commit,push or installation attempt."
+    },
+    {
+      "at": "2026-10-10T20:03:32.806450+00:00",
+      "summary": "User-authorized unblock replaced obsolete fixture dependencies with freshly compiled frozen73 owner/reader and maintained source helpers.17focused checks PASS. Two current production app/browser runs activateworker/readinactive savedpane and retire8originalhandles with exactcanonical/artifact/ports conservation; both whole runs remainFAIL. Actual production reader proves intended initial1/cursor31 and next31 -> full32/302102bytes/exactdigest. Correct scroll-driven hydration prepared/tested, unexecuted; no third lane launch. Historical artifacts remainmissing but no longer current execution prerequisites. Fullgoal incomplete, no gain, commits/push/install."
+    },
+    {
+      "at": "2026-10-10T20:33:53.354384+00:00",
+      "summary": "Maintained mixed attempt remains failed before Electron startup on missing CSS build dependency; one declared attempt consumed, zero correction/retry. Two QA fixes preserve builtin-name npm dependencies and prior session owners. Checkout-local frozen install plus pinned0.155.1 protocol generation restore preparation. Offline owned DEV build artifact verified89188files; original wrapper reporting exit1 retained.19runtime/package+2session+17current cache-retirement tests, typecheck and touched lint/format PASS. No new launch after correction, production/matched/genuine/resource qualification or overall task closure. Eight original budgets unchanged; master untouched."
+    },
+    {
+      "at": "2026-10-10T20:38:23.940718+00:00",
+      "summary": "Concrete rich PWA hydration correction prepared with fresh source-compiled owner/reader, exact32rows/302102bytes/digest and10pure checks. All5469immutable source rows and31helper inputs seal; source QA changes are separate from production artifact. Cold tall-tail scroll uses original six16384wheels, fullhistory within4loads, and fresh reconnect repeats hydration. Actual controller missing-admission negative control rejects before launch/declaration/artifacts and conserves DB. Offline maintained DEV source/artifact reuse guard PASS. Requested one bounded correction per exhausted lane; no reply or authority applied. Original budgets/failures unchanged; no app/browser/resource/genuine/commit/push/install work started."
+    },
+    {
+      "at": "2026-10-10T20:41:07.317562+00:00",
+      "summary": "Three consecutive unchanged pending-authorization/exhausted-limit observations verified. Goal controller explicitly returns blocked. Concrete PWA hydration and maintained mixed corrections remain ready, but no further attempts are permitted without an explicit extension. Old limits/failures and all16requirements retained; no new launch, completion/resource-gain or commit/push/install claim."
+    },
+    {
+      "at": "2026-10-10T22:30:28.627897+00:00",
+      "summary": "User explicitly rewrote the goal to finalize V2 for merging into master while retaining realistic performance,18tasks/six milestones and historical13/18,2/6progress. Updated goal saved/verified in app. Main checkout returned to V2; latest master integration has11content conflicts resolved, typecheckPASS and focused356PASS/one stale renamed-command-field assertion identified/corrected. Pending verified QA fixes adopted from detached worktree. Authorized73 PWA hydration run remainsFAIL on older-history progress;4handles retirezero/canonicalandartifactsconserved. No final completion/performance gain claim; prior budgets and failures unchanged. Necessary verified commits/pushes now authorized; no final merge/release/install."
     }
   ],
   "tasks": [
@@ -10566,7 +10987,8 @@
       "status": "complete",
       "owner": "Coordinator",
       "nextAction": "R75/R76 scoped tests, native restart/cancellation/transfer/control receipts; reuse only with matching inputs.",
-      "evidence": ["tmp/v2-streaming-perf-20260930/round76/root-round76-result.json"]
+      "evidence": ["tmp/v2-streaming-perf-20260930/round76/root-round76-result.json"],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F1-retention",
@@ -10575,7 +10997,8 @@
       "status": "complete",
       "owner": "Coordinator",
       "nextAction": "64 current tests PASS; heap/private-memory attribution remains F3.",
-      "evidence": ["tmp/v2-streaming-perf-20260930/round76/retention-reconciliation.json"]
+      "evidence": ["tmp/v2-streaming-perf-20260930/round76/retention-reconciliation.json"],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F1-summary",
@@ -10592,7 +11015,8 @@
         "tmp/v2-streaming-perf-20260930/round99/custody-result.json",
         "tmp/v2-streaming-perf-20260930/round99/root-projection-result.json",
         "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F1-stop",
@@ -10606,7 +11030,8 @@
         "tmp/v2-streaming-perf-20260930/round98/root-scoped-progress.json",
         "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
         "tmp/v2-streaming-perf-20260930/round109/root-round109-result.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F2-window",
@@ -10620,15 +11045,16 @@
         "tmp/v2-streaming-perf-20260930/round100/ordinary-smoke-verification.json",
         "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F2-pwa",
       "milestone": "F2",
-      "title": "PWA worker policy and offline recovery",
+      "title": "PWA and saved-history regression readiness",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Current naturalupgrade5gates andcompactoffline/reconnect/freshhostFiles responsePASS; retain scope limits. Requiredrichsavedoffline/reconnect,long/background/Safari/device remainunqualified. No oldworker/upgradecohortreset.",
+      "nextAction": "Diagnose the concrete saved-history paging failure; verify affected current merged-source online/offline/reconnect behavior. Reuse compatible worker/media evidence and disclose native/physical limits.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -10666,7 +11092,8 @@
         "tmp/v2-streaming-perf-20260930/round263/root-metadata-correction-verification.json",
         "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
         "tmp/v2-pwa-natural-upgrade-20261010-deployfix/root-scoped-verification.json"
-      ]
+      ],
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
     },
     {
       "id": "F3-snapshot",
@@ -10691,15 +11118,16 @@
         "tmp/v2-worktree-qualification-20261010/root-verification.json",
         "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json",
         "tmp/v2-row-retainer-20261010/root-verification.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F3-attribution",
       "milestone": "F3",
-      "title": "Supervisor/chat/native resource attribution",
+      "title": "Practical performance attribution and retention",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Current isolatedusage cached-read source before/current gains measured; attribute residual mixedsupervisor CPU and native/long-lived RAM separately. Do not promote short-process RSS or file-return bytes to fullfamily/privateRAM/GPU/device-disk gains.",
+      "nextAction": "Investigate only proven high-impact CPU, memory or I/O costs; verify bounds/retirement and resource regressions on available hardware. No unavailable GPU/private-profile prerequisite or marginal tuning.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
@@ -10737,15 +11165,16 @@
         "tmp/v2-mixed-runtime-20261010/root-verification.json",
         "tmp/v2-mixed-runtime-20261010/desktop-state.json"
       ],
-      "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json"
+      "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json",
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
     },
     {
       "id": "F4-matrix",
       "milestone": "F4",
-      "title": "Final workflows and candidate freeze",
+      "title": "Master integration, green CI and affected workflows",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Current scoped Settings/MCPimport/usage/Browser andquickcomposer mockcontrols pass in oneisolatedfrozenDEVapp; currentproductioncompactPWAoffline/reconnectPASS. Remainingcurrentrichreader/scroll/PT Y/realmanual/device, fullqualityvariance andresourcequalification remainopen; recovermissingsealedprerequisiteswithoutunchangedreplays.",
+      "nextAction": "Resolve latest-master integration while preserving V2 features; reconcile pending work; make required local checks/builds and exact final-head CI green; verify affected GUI/PTY/browser/provider flows.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -10828,30 +11257,32 @@
         "tmp/v2-next-qualification-20261010/root-verification.json",
         "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
         "tmp/v2-browser-editor-media-20261010-attributes/root-verification.json"
-      ]
+      ],
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
     },
     {
       "id": "F5-matched",
       "milestone": "F5",
-      "title": "Final matched p95 and resources",
+      "title": "Representative p95 and resource regression confidence",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Use only originally permitted matched representative workloads after required readiness/functional gates. Measure practicalp95 and current aggregate resources; avoid repeated marginal tuning and preserve exhausted cohorts.",
+      "nextAction": "Validate representative ordinary/rich and mixed latency/resources with declared matched inputs where feasible; retain historical failures. Report unavailable/incomparable data without unsupported whole-application savings.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
         "tmp/v2-usage-real-io-20261010/root-verification.json"
       ],
-      "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json"
+      "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json",
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
     },
     {
       "id": "F6-audit",
       "milestone": "F6",
-      "title": "Completion audit and report",
+      "title": "Final merge readiness audit and PR handoff",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Updated16requirementmap source/currentGUI/quality/genuinehandlerreconciliation verified; finalsignoffawaits explicit remainingfunctional/matched/deviceevidence. Whole5tasksstillopen; no blanketalltools/resourcePASS.",
+      "nextAction": "Review final master-to-V2 diff, resolve important findings, reconcile all18tasks/six milestones and evidence, and leave existing PR mergeable with exact-head green required CI. Do not merge into master.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round127/audit.json",
         "tmp/v2-streaming-perf-20260930/round258/root-checkpoint.json",
@@ -10873,7 +11304,8 @@
         "tmp/v2-mixed-runtime-20261010/root-verification.json",
         "tmp/v2-mixed-runtime-20261010/desktop-state.json",
         "tmp/v2-next-qualification-20261010/root-verification.json"
-      ]
+      ],
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
     },
     {
       "id": "F2-connectivity-control",
@@ -10885,7 +11317,8 @@
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
         "tmp/v2-streaming-perf-20260930/round95/connectivity-d1-review.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F1-summary-storage",
@@ -10898,7 +11331,8 @@
         "tmp/v2-streaming-perf-20260930/round98/origin-storage-result.json",
         "tmp/v2-streaming-perf-20260930/round98/root-storage-seal-verification.json",
         "tmp/v2-streaming-perf-20260930/round98/root-readonly-storage-conservation.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F1-quit",
@@ -10915,7 +11349,8 @@
         "tmp/v2-streaming-perf-20260930/round102/r107-affected-residual-gui/native-clean-quit.json",
         "tmp/v2-streaming-perf-20260930/round109/root-round109-result.json",
         "tmp/v2-streaming-perf-20260930/round127/lifecycle-input-reconciliation.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F4-web-bootstrap",
@@ -10924,7 +11359,8 @@
       "status": "complete",
       "owner": "Coordinator",
       "nextAction": "Reuse R115 genuine execution, R124 browser cache and R126 live native rich/groups/gallery; qualify only saved-native/current realPTY/request-permission-steer and remaining mobile/PWA rows.",
-      "evidence": ["tmp/v2-streaming-perf-20260930/round103/root-round103-result.json"]
+      "evidence": ["tmp/v2-streaming-perf-20260930/round103/root-round103-result.json"],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F1-ranged-file-read",
@@ -10936,7 +11372,8 @@
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
         "tmp/v2-streaming-perf-20260930/round104/root-fix-review-verification.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F4-actual-fs-source",
@@ -10951,7 +11388,8 @@
         "tmp/v2-streaming-perf-20260930/round106/scoped-actual-child-read.json",
         "tmp/v2-streaming-perf-20260930/round106/direct-dag-scoped-verification.json",
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     },
     {
       "id": "F4-quality-tooling",
@@ -10967,7 +11405,8 @@
         "tmp/v2-streaming-perf-20260930/round105/full-tests-final.log",
         "tmp/v2-streaming-perf-20260930/round105/root-review-verification.json",
         "tmp/v2-streaming-perf-20260930/round121/source-cache-fix-quality.json"
-      ]
+      ],
+      "historicalScopedCompletionPreserved": true
     }
   ],
   "dependenciesApplyTo": "Milestone sign-off; independent preparation/diagnostics may start before dependencies complete.",
@@ -11081,5 +11520,52 @@
     "cumulativeOwnedServerAttempts": 7,
     "additionalCorrectionsUsed": 0,
     "latestScope": "Current cache source followed by layout-aware compact control and endpoint-direction corrections; every original failed declaration remains consumed and retained."
+  },
+  "scopeRevision": {
+    "at": "2026-10-10T22:30:28.627897+00:00",
+    "userInstructions": [
+      "pull latest master, make CI green, finalize V2 ready to merge in master, rewrite goal",
+      "performance remains, only realistic part",
+      "preserve prior milestones and13/18 progress"
+    ],
+    "objective": "Finalize Poracode V2 for a safe merge into master, retaining practical performance work. Work on poracode/v2 and keep the main checkout on that branch. Preserve existing local work, performance evidence, failed runs and consumed diagnostic/cohort counters. Preserve the existing 18-task/six-milestone tracker and its historical 13/18 tasks and 2/6 milestones; reconcile the five open tasks and evidence against the final source rather than resetting progress or treating historical counts as current qualification.\n\nFetch current remote state, integrate the latest origin/master into V2, resolve conflicts without losing V2 features or master fixes, and reconcile relevant pending V2 work. Make required typecheck, lint, formatting, tests, builds and GitHub CI green on the exact final V2 head. Review the complete master-to-V2 diff, fix important correctness, security, compatibility and UX regressions, and verify affected real GUI chat, supervisor-owned PTY/ordinary terminals, desktop and compact/mobile/PWA flows. Preserve provider isolation, React Compiler conventions, full localization and versioned state/protocol compatibility.\n\nKeep performance scope realistic: prevent regressions, fix proven high-impact bottlenecks and unnecessary retention, and validate representative p95 latency and CPU, memory and I/O on available hardware with correctly identified source/build/workloads. Cover ordinary and representative rich text, tools/images/groups and child/workflow behavior; distinguish actual tool execution from scripted presentation fixtures. Preserve canonical data, authorization, reader/scroll/replay and offline/reconnect behavior. Use existing trustworthy evidence where applicable; prioritize meaningful improvements and regression confidence over marginal tuning, exhaustive tool catalogs or speculative profiling. Disclose unavailable hardware/private GPU/native-memory/physical-device dimensions and incomplete or oversize evidence; do not require unavailable measurements or 100% optimization to finish merge readiness. Do not relabel or erase historical failed runs or consumed limits.\n\nCommit and push necessary integration and verified fixes to poracode/v2 under the user's Git authorization. Reconcile the readiness documentation and existing milestones with authoritative final evidence; leave V2 and its existing PR ready for review and merge into master, with remaining limitations clearly reported. Do not merge V2 into master, force-push, publish a release or replace the installed app.\n\nReference Poracode thread 776f004a-0862-4ba3-8c4d-b55c2580e6d4 when its evidence is relevant; keep prior performance records as historical evidence without claiming the superseded exhaustive objective was completed.",
+    "predecessorObjectiveSupersededNotCompleted": true,
+    "historicalProgress": {
+      "tasksComplete": 13,
+      "tasksTotal": 18,
+      "milestonesComplete": 2,
+      "milestonesTotal": 6
+    },
+    "preservedTaskIds": [
+      "F1-editor",
+      "F1-retention",
+      "F1-summary",
+      "F1-stop",
+      "F2-window",
+      "F2-pwa",
+      "F3-snapshot",
+      "F3-attribution",
+      "F4-matrix",
+      "F5-matched",
+      "F6-audit",
+      "F2-connectivity-control",
+      "F1-summary-storage",
+      "F1-quit",
+      "F4-web-bootstrap",
+      "F1-ranged-file-read",
+      "F4-actual-fs-source",
+      "F4-quality-tooling"
+    ],
+    "preservedMilestoneIds": ["F1", "F2", "F3", "F4", "F5", "F6"],
+    "oldBudgetsReset": false,
+    "unavailableMeasurementsNotReadinessBlockers": true,
+    "currentEvidenceMustMatchFinalSource": true,
+    "masterMergeInProgress": {
+      "v2Before": "73ef0a485ee64c38e5ef803fda9a91427bcd27a9",
+      "master": "028d86b8e4a04629bd0b35f8bdab3823999d58b9",
+      "conflictedFiles": 11,
+      "resolvedSourceNotYetCommitted": true
+    },
+    "noMergeIntoMasterForcePushReleaseOrInstalledReplacement": true
   }
 }

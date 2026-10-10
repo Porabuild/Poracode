@@ -1,4 +1,5 @@
-import { OPENCODE2_ENV, parseOpenCode2Version, supportsOpenCode2Version } from "./binary";
+import { awaitOpenCode2Activation } from "./readiness";
+import { OPENCODE2_MIN_VERSION, parseOpenCode2Version, supportsOpenCode2Version } from "./binary";
 import { quotePosixShellArg, quotePowerShellLiteral } from "../base/shellBasics";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +13,7 @@ import { acquireOpenCode2Server, resolveOpenCode2SessionDirectory } from "./clie
 import {
   buildOpenCode2StatusFromIntegrations,
   readOpenCode2Integrations,
+  readOpenCode2LegacyProviders,
   type OpenCode2InventoryIntegration,
 } from "./credentials";
 
@@ -226,7 +228,11 @@ export async function probeOpenCode2Inventory(
 
     const inventoryPromise = (async () => {
       await raceWithTimeout(
-        client.plugin.awaitActivation({ location: locationInput }),
+        awaitOpenCode2Activation(
+          client,
+          { location: locationInput },
+          { ...(signal ? { signal } : {}) },
+        ),
         OPENCODE2_ACTIVATION_TIMEOUT_MS,
         "OpenCode 2 plugin activation timed out",
       );
@@ -317,9 +323,13 @@ async function runOpenCode2DetectionProbe(
 
   try {
     const inventory = await probeOpenCode2Inventory(ctx.location, ctx.signal);
+    const legacyProviders = await readOpenCode2LegacyProviders(
+      ctx.location,
+      inventory.integrations,
+    );
     return {
       capabilities: buildOpenCode2CapabilityPartialFromInventory(inventory),
-      status: buildOpenCode2StatusFromIntegrations(inventory.integrations),
+      status: buildOpenCode2StatusFromIntegrations(inventory.integrations, legacyProviders),
     };
   } catch (cause) {
     // No CLI fallback exists for V2 — keep the default capability set so the
@@ -351,13 +361,12 @@ function probeOpenCode2Detection(
   return pending;
 }
 
-// 2.0.0 (and beta 19500+) introduced the per-session permission contract.
+// Keep installer and protocol validation aligned with the pinned HTTP client.
 export const openCode2DetectionSpec: DetectionSpec = {
   kind: "opencode2",
   label: "OpenCode 2",
   binary: "opencode2",
   versionArgs: ["--version"],
-  baseSpawnEnv: OPENCODE2_ENV,
   async versionProbe(ctx) {
     if (!ctx.executablePath) return undefined;
     const result = await readAgentCommandOutput(ctx.location, ctx.executablePath, ["--version"], {
@@ -375,14 +384,17 @@ export const openCode2DetectionSpec: DetectionSpec = {
     installer: {
       posix: {
         binary: "sh",
-        args: ["-c", 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.0'],
+        args: [
+          "-c",
+          `npm install --prefix "$HOME/.opencode2" @opencode/cli@${OPENCODE2_MIN_VERSION}`,
+        ],
       },
       windows: {
         binary: "powershell.exe",
         args: [
           "-NoProfile",
           "-Command",
-          'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.0',
+          `npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@${OPENCODE2_MIN_VERSION}`,
         ],
       },
     },

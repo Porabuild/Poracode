@@ -9,7 +9,8 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { findProjectForStatus } from "@/renderer/utils/acpRegistryAuth";
 import { ConfirmDialog } from "@/renderer/components/common";
-import { friendlyError } from "@/shared/messages";
+import { friendlyError, localizeMessageSource } from "@/shared/messages";
+import { SHARED_MESSAGE_DESCRIPTORS } from "@/renderer/i18n/sharedMessages";
 import {
   ADD_PROVIDER_KEY,
   ProviderAccountsSection,
@@ -39,7 +40,16 @@ export function OpenCode2ProviderSettings(props: {
 
   const status = statuses.find((entry) => entry.envKind !== "wsl") ?? statuses[0];
   const label = status?.label ?? "OpenCode 2";
-  const providers = status?.providerMetadata?.connectedProviders ?? [];
+  const providers = (status?.providerMetadata?.connectedProviders ?? []).map((provider) => ({
+    ...provider,
+    ...(provider.detail
+      ? {
+          detail:
+            localizeMessageSource(provider.detail, (key) => t(SHARED_MESSAGE_DESCRIPTORS[key])) ??
+            provider.detail,
+        }
+      : {}),
+  }));
 
   const clearPending = (key: string) =>
     setPendingKey((current) => (current === key ? undefined : current));

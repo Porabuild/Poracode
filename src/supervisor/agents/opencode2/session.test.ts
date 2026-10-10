@@ -1,10 +1,11 @@
 import { EventEmitter } from "node:events";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProcess } from "node:child_process";
 import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
 import type { AcquiredOpenCode2Server } from "./client";
 import type { OpenCode2Client, V2Event } from "./clientTypes";
+import { clearOpenCode2SessionDatabases, openCode2SessionDatabaseEnv } from "./database";
 import { OpenCode2Session } from "./session";
 
 const mocks = vi.hoisted(() => ({
@@ -42,6 +43,12 @@ function event(type: string, data: Record<string, unknown>): V2Event {
 function makeClient(): OpenCode2Client {
   return {
     session: {
+      update: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      form: {
+        list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
+        reply: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        cancel: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
       active: vi.fn<() => Promise<unknown>>().mockResolvedValue({}),
       create: vi.fn<() => Promise<{ id: string }>>().mockResolvedValue({ id: "ses_new" }),
       get: vi.fn<() => Promise<{ id: string }>>().mockResolvedValue({ id: "ses_resume" }),
@@ -58,19 +65,17 @@ function makeClient(): OpenCode2Client {
         cursor: {},
       }),
     },
-    plugin: { awaitActivation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) },
+    plugin: {
+      list: vi.fn<() => Promise<object>>().mockResolvedValue({
+        data: [{ source: { type: "builtin" }, state: { status: "active" } }],
+      }),
+    },
     agent: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     skill: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     command: { list: vi.fn<() => Promise<{ data: unknown[] }>>().mockResolvedValue({ data: [] }) },
     permission: {
       list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
-      rules: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       reply: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    },
-    form: {
-      list: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
-      reply: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      cancel: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     },
     mcp: {
       add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -81,7 +86,7 @@ function makeClient(): OpenCode2Client {
 
 function makeAcquired(
   client: OpenCode2Client,
-  options?: { child?: ChildProcess },
+  options?: { child?: ChildProcess; database?: AcquiredOpenCode2Server["database"] },
 ): {
   acquired: AcquiredOpenCode2Server;
   onServerExit: (callback: () => void) => () => void;
@@ -93,6 +98,7 @@ function makeAcquired(
   };
   const acquired = {
     client,
+    database: options?.database ?? "native",
     baseUrl: "http://127.0.0.1:4600",
     handle: {
       child: options?.child ?? (new EventEmitter() as ChildProcess),
@@ -160,17 +166,18 @@ type OpenCode2ServerOverrides = Record<string, unknown>;
 function makeClientWith(overrides: OpenCode2ServerOverrides): OpenCode2Client {
   const client = makeClient() as unknown as Record<string, any>;
   for (const [path, value] of Object.entries(overrides)) {
-    const [group, method] = path.split(".");
-    if (!group || !method) continue;
-    client[group] = {
-      ...(client[group] as Record<string, unknown> | undefined),
-      [method]: value,
-    };
+    const keys = path.split(".");
+    const method = keys.pop();
+    if (!method) continue;
+    let target = client;
+    for (const key of keys) target = target[key];
+    target[method] = value;
   }
   return client as OpenCode2Client;
 }
 
 describe("OpenCode2Session", () => {
+  afterEach(clearOpenCode2SessionDatabases);
   beforeEach(() => {
     mocks.acquireOpenCode2Server.mockReset();
     mocks.subscribeOpenCode2ServerEvents.mockReset();
@@ -321,8 +328,27 @@ describe("OpenCode2Session", () => {
       ],
     });
     expect(session.launchOptions.resumeThreadId).toBe("ses_new");
+    expect(openCode2SessionDatabaseEnv(projectLocation, "ses_new")).toBeUndefined();
     expect(session.ownsProviderSession("ses_new")).toBe(true);
     expect(session.ownsProviderSession("ses_other")).toBe(false);
+  });
+
+  it("retains the legacy database when remembering a resumed terminal session", async () => {
+    const client = makeClient();
+    const { acquired } = makeAcquired(client, { database: "legacy-isolated" });
+    mocks.acquireOpenCode2Server.mockResolvedValue(acquired);
+    const session = await OpenCode2Session.create({
+      threadId: "thread-legacy",
+      projectLocation,
+      config,
+      presentationMode: "terminal",
+      sessionRef: { providerSessionId: "ses_resume", discoveredAt: "2026-01-01T00:00:00.000Z" },
+    });
+    await session.openThread(config);
+    expect(openCode2SessionDatabaseEnv(projectLocation, "ses_resume")).toEqual({
+      OPENCODE_DB: "opencode-v2.db",
+    });
+    await session.dispose();
   });
 
   it("persists terminal model, agent and permissions before attachment", async () => {
@@ -342,7 +368,7 @@ describe("OpenCode2Session", () => {
       sessionID: "ses_resume",
       model: { providerID: "opencode-go", id: "deepseek-v4.1-flash", variant: "high" },
     });
-    expect(client.permission.rules).toHaveBeenLastCalledWith({
+    expect(client.session.update).toHaveBeenLastCalledWith({
       sessionID: "ses_resume",
       permissions: [
         { action: "*", resource: "*", effect: "ask" },
@@ -456,12 +482,15 @@ describe("OpenCode2Session", () => {
         },
       }),
     );
-    vi.mocked(client.form.reply).mockRejectedValueOnce(new Error("network unavailable"));
+    vi.mocked(client.session.form.reply).mockRejectedValueOnce(new Error("network unavailable"));
     await expect(
       session.resolveServerRequest("opencode2-form-retry", { answers: { answer: "yes" } }),
     ).rejects.toThrow("network unavailable");
     await session.resolveServerRequest("opencode2-form-retry", { action: "cancel" });
-    expect(client.form.cancel).toHaveBeenCalledWith({ sessionID: "ses_new", formID: "retry" });
+    expect(client.session.form.cancel).toHaveBeenCalledWith({
+      sessionID: "ses_new",
+      formID: "retry",
+    });
   });
 
   it("does not reopen a turn that completed before prompt admission returned", async () => {
@@ -502,7 +531,7 @@ describe("OpenCode2Session", () => {
     const { session, client } = await makeSession();
     await session.startTurn("first", config);
     await session.startTurn("next", { ...config, approvalPolicy: "yolo" });
-    expect(client.permission.rules).toHaveBeenLastCalledWith({
+    expect(client.session.update).toHaveBeenLastCalledWith({
       sessionID: "ses_new",
       permissions: [
         { action: "*", resource: "*", effect: "allow" },
@@ -524,7 +553,11 @@ describe("OpenCode2Session", () => {
     );
     session.forceCompleteTurn();
     subscription?.onEvent(
-      event("permission.replied", { sessionID: "ses_new", requestID: "pending", reply: "reject" }),
+      event("permission.replied", {
+        sessionID: "ses_new",
+        requestID: "pending",
+        decision: "reject",
+      }),
     );
     expect(events.filter((entry) => entry.type === "request.resolved")).toEqual([
       {
@@ -648,7 +681,7 @@ describe("OpenCode2Session", () => {
     expect(client.permission.reply).toHaveBeenCalledWith({
       sessionID,
       requestID: "perm_1",
-      reply: "always",
+      decision: "always",
     });
     expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
   });
@@ -687,7 +720,7 @@ describe("OpenCode2Session", () => {
     await session.resolveServerRequest("opencode2-form-form_1", {
       answers: { env: "prod", tags: ["a", "b"], skip: { nested: true } },
     });
-    expect(client.form.reply).toHaveBeenCalledWith({
+    expect(client.session.form.reply).toHaveBeenCalledWith({
       sessionID,
       formID: "form_1",
       answer: { env: "prod", tags: ["a", "b"] },

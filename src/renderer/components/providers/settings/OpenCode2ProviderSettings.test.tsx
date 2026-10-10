@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { dynamicActivate } from "@/renderer/i18n/i18n";
 import type {
   AgentStatus,
   Project,
@@ -62,7 +63,43 @@ beforeEach(() => {
   runAgentLoginCommandMock.mockReturnValue(true);
 });
 
+afterEach(async () => {
+  await dynamicActivate("en");
+});
+
 describe("OpenCode 2 provider settings", () => {
+  it("localizes legacy account guidance received in English from the supervisor", async () => {
+    await dynamicActivate("es");
+    render(
+      <OpenCode2ProviderSettings
+        agentKind="opencode2"
+        statuses={[
+          {
+            ...statuses[0]!,
+            authState: "missing",
+            providerMetadata: {
+              connectedProviders: [
+                {
+                  id: "legacy-oauth",
+                  label: "Fixture · Work",
+                  detail: "Previous sessions; sign in again for new threads.",
+                },
+              ],
+            },
+          },
+        ]}
+        wslDistros={[]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Proveedores de IA/ }));
+    expect(
+      screen.getByText("Sesiones anteriores; vuelve a iniciar sesión para los nuevos hilos."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Previous sessions; sign in again for new threads."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Fixture · Work")).toBeInTheDocument();
+  });
   it("lists every connected upstream provider rather than one account", () => {
     renderPanel();
     expect(screen.getByText("OpenCode Zen")).toBeInTheDocument();

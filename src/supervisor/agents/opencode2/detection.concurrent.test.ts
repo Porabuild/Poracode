@@ -7,6 +7,9 @@ const acquireOpenCode2Server = vi.hoisted(() =>
 );
 
 vi.mock("./client", () => ({
+  listOpenCode2LegacyOAuthCredentials: vi
+    .fn<typeof import("./client").listOpenCode2LegacyOAuthCredentials>()
+    .mockResolvedValue([]),
   acquireOpenCode2Server,
   resolveOpenCode2SessionDirectory: (location: ProjectLocation) =>
     location.kind === "wsl" ? location.linuxPath : location.path,
@@ -18,7 +21,7 @@ function probeContext(location: ProjectLocation): DetectProbeCtx {
   return {
     location,
     executablePath: "opencode2",
-    version: "2.0.0",
+    version: "2.0.26",
   };
 }
 

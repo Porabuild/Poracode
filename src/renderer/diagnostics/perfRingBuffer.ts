@@ -8,6 +8,7 @@
  */
 export class PerfRingBuffer<T> {
   private readonly records: T[] = [];
+  private oldest = 0;
   private dropped = 0;
 
   constructor(private readonly capacity: number) {
@@ -17,15 +18,17 @@ export class PerfRingBuffer<T> {
 
   push(record: T): void {
     if (this.records.length >= this.capacity) {
-      this.records.shift();
+      this.records[this.oldest] = record;
+      this.oldest = (this.oldest + 1) % this.capacity;
       this.dropped += 1;
+    } else {
+      this.records.push(record);
     }
-    this.records.push(record);
   }
 
   /** Oldest-to-newest snapshot of the retained records. */
   toArray(): T[] {
-    return [...this.records];
+    return [...this.records.slice(this.oldest), ...this.records.slice(0, this.oldest)];
   }
 
   get size(): number {
@@ -39,5 +42,6 @@ export class PerfRingBuffer<T> {
 
   clear(): void {
     this.records.length = 0;
+    this.oldest = 0;
   }
 }

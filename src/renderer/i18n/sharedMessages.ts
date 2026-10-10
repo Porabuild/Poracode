@@ -11,6 +11,22 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "provider.signInDataUnavailable": msg({
+    message: "The provider's sign-in data could not be read. Try again or update Poracode.",
+  }),
+  "provider.unavailable": msg({
+    message: "The provider is unavailable. Install or update it in provider settings.",
+  }),
+  "provider.credentialRequired": msg({ message: "Choose a saved credential to sign out." }),
+  "provider.credentialsBusy": msg({
+    message: "Another Poracode process is updating these credentials. Wait and try again.",
+  }),
+  "provider.previousSessionCredential": msg({
+    message: "Previous sessions; sign in again for new threads.",
+  }),
+  "provider.versionUnsupported": msg({
+    message: "The installed provider version is unsupported. Update it in provider settings.",
+  }),
   "modelSelection.lead": msg({ message: "Lead" }),
   "modelSelection.sidekick": msg({ message: "Sidekick" }),
   "modelSelection.unsupportedOptions": msg({

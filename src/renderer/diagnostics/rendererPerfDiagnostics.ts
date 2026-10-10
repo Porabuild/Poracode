@@ -277,6 +277,7 @@ export class RendererPerfDiagnostics {
   // ── Spans ─────────────────────────────────────────────────────
 
   beginSpan(name: string): RendererPerfSpanHandle {
+    if (this.disposed) return NOOP_SPAN;
     const startedAt = this.nowFn();
     markPerformance(name);
     return {
@@ -544,6 +545,9 @@ function markPerformance(name: string): void {
   if (typeof performance === "undefined" || typeof performance.mark !== "function") return;
   try {
     performance.mark(`poracode:perf-diag:${name}`);
+    // Trace/observer delivery survives clearing the timeline. Keep abandoned
+    // spans from retaining native timing entries outside the bounded ring.
+    performance.clearMarks(`poracode:perf-diag:${name}`);
   } catch {
     // Marks are cosmetic; a failing user-timing implementation must not
     // turn the monitor itself into a fault.
@@ -557,6 +561,7 @@ function measurePerformance(name: string, startMs: number, durationMs: number): 
       start: startMs,
       duration: durationMs,
     });
+    performance.clearMeasures(`poracode:perf-diag:${name}`);
   } catch {
     // See markPerformance.
   }
