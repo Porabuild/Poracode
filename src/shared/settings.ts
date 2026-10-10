@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  settingsStringListSchema,
+  settingsUnknownRecordSchema,
+} from "./settingsNormalizationSchemas";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import { customThemesSchema } from "./customThemes";
 import {
@@ -912,7 +916,7 @@ function normalizeObjectFromSchema<
   TShape extends z.ZodRawShape,
   TOutput extends z.infer<z.ZodObject<TShape>>,
 >(shape: TShape, defaults: TOutput, value: unknown): TOutput {
-  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  const parsed = settingsUnknownRecordSchema.safeParse(value);
   const data = parsed.success ? parsed.data : {};
   const normalized = {} as TOutput;
 
@@ -1607,7 +1611,7 @@ export function pickAntigravityAcpAliasMigratedFields(
  * resetting the whole map (which the per-field schema fallback would do).
  */
 function normalizeMachineSettings(value: unknown): SharedSettings["machineSettings"] {
-  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  const parsed = settingsUnknownRecordSchema.safeParse(value);
   if (!parsed.success) return {};
   const result: SharedSettings["machineSettings"] = {};
   for (const [key, entry] of Object.entries(parsed.data)) {
@@ -1628,7 +1632,7 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
     defaultSharedSettings,
     migratedValue,
   );
-  const parsed = z.record(z.string(), z.unknown()).safeParse(migratedValue);
+  const parsed = settingsUnknownRecordSchema.safeParse(migratedValue);
   if (!parsed.success) return { settings: normalized, acpAliasMigrated: false };
   return migrateSharedSettingsValues(
     { ...normalized, machineSettings: normalizeMachineSettings(parsed.data.machineSettings) },
@@ -1657,9 +1661,9 @@ export function migrateSharedSettingsValues(
         ? ("while-remote-access" as const)
         : ("while-working" as const)
       : normalized.preventSleep;
-  const usage = z.record(z.string(), z.unknown()).safeParse(source.usage);
+  const usage = settingsUnknownRecordSchema.safeParse(source.usage);
   const disabledProviders = usage.success
-    ? z.array(z.string()).safeParse(usage.data.disabledProviders)
+    ? settingsStringListSchema.safeParse(usage.data.disabledProviders)
     : undefined;
   return migrateAntigravityAcpAliasState(
     migrateRetiredQwenPreviewModel({
@@ -1693,14 +1697,14 @@ export function migrateSharedSettingsValues(
  * servers to the default empty list.
  */
 export function sanitizeLegacyMcpServerUrls(value: unknown): unknown {
-  const root = z.record(z.string(), z.unknown()).safeParse(value);
+  const root = settingsUnknownRecordSchema.safeParse(value);
   if (!root.success || !Array.isArray(root.data.mcpServers)) return value;
   return {
     ...(value as Record<string, unknown>),
     mcpServers: root.data.mcpServers.map((entry) => {
-      const server = z.record(z.string(), z.unknown()).safeParse(entry);
+      const server = settingsUnknownRecordSchema.safeParse(entry);
       if (!server.success) return entry;
-      const transport = z.record(z.string(), z.unknown()).safeParse(server.data.transport);
+      const transport = settingsUnknownRecordSchema.safeParse(server.data.transport);
       if (
         !transport.success ||
         (transport.data.type !== "http" && transport.data.type !== "sse") ||

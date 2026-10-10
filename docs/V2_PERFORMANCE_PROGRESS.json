@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T03:20:04.741055+00:00",
+  "updatedAt": "2026-10-10T04:59:32.228Z",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -43,7 +43,7 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "dde76b3ddc26 completed and joined; bounded10file preflight, both runner findings resolved before single app launch",
+    "lastAgent": "4e2409354877 completed_joined; read-only worktree preflight review",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
     "agentState": "completed_joined",
     "nativeSessionsLive": [],
@@ -63,9 +63,9 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Current cancel/dependent graph scoped gate closed. Finish remaining GUI rich-tool/current reader/PTY/browser/compact/PWA and controls/worktree/all-tool-family gaps; current GUI requires user desktop unlock. Physical/private hardware limitations remain explicit. Final matchedp95/CPU/GPU/RAM/I/O still unqualified; do not repeat consumed diagnostics or infer gains from quality/build/synthetic counts. Current requirement audit identifies missing local historical backend/PWA proof. No commit/push/publication/installed replacement under active objective.",
-    "lastResult": "Current production cancel/dependent graph residual6/6 PASS; exact two worker reports/forwarding, all27items/5tables survive shutdown,11knownPIDs absent/4portsclosed. Latest full source22967tests PASS/102existing skips plus all static/protocol/mainbuild checks. Goal remains active; GUI/PWA/matched resource/all-tool-family gates incomplete.",
-    "lastDeclaration": "One bounded affected previously-unexecuted cancellation/workflow residual after parser fixes and discriminating preflight; no completed quiet/progress replay, prior4 failed runs/caps preserved. Parent recovered verifier-only Buffer JSON and compact-prompt suffix assumptions offline; no additional app run.",
+    "nextAction": "Commit all local verified changes under latest explicit user instruction, pull remote v2, merge latest master and resolve any conflicts; verify integration. Then remaining reader/tool-family, GUI/browser/compact/PWA and matched whole-application CPU/GPU/RAM/p95 gates. Preserve all previous failed attempts and limits; GUI still requires desktop unlock.",
+    "lastResult": "Current dirty source sealed with 5437 files and 698 copied packages. Nine actual private worktree/Git calls independently pass: stage, commit, fast-forward merge, exact listings, refusal while referenced, archive, successful removal with branch retained; 27 canonical items preserved through shutdown. All 30 owned handles joined, 32 known PIDs absent, 4 ports closed. Original failed attempt and observer-lifetime diagnostic preserved. Broad qualification remains unfinished.",
+    "lastDeclaration": "One normalization-only diagnostic plus one source-fix allocation validation, no unchanged usage/wholeapp cohort or renderer attribution restart. Differential syntax error caused shell to continue into validation before corrected110case preflight; originalincorrectdeclaration/failedlog retained and sequencing annotated offline, no measurement rerun. CachechurnoneattemptFAIL retained; source cleanup/bounds/data scope distinct from collectionproof.",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -193,7 +193,7 @@
       "push": false,
       "publish": false,
       "installedAppReplacement": false,
-      "currentGoalOverride": "Latest explicit user instructions authorize committing all local changes, pulling remote v2 and merging/resolving latest master. No push/publication/installed-app replacement is authorized by this update."
+      "currentGoalOverride": "Latest user instruction: when local changes are committed, pull remote changes, then pull and resolve conflicts with latest master. This authorizes the local commit and branch integration."
     },
     "lastLocalCommit": {
       "sha": "b24d6fc6be72353f62793443e397525104c9b84b",
@@ -5721,8 +5721,8 @@
     },
     "currentDesktopAvailability": {
       "state": "locked",
-      "at": "2026-10-10T02:45:27.530Z",
-      "evidence": "tmp/v2-finalization-20261010/desktop-state-continuation.json",
+      "at": "2026-10-10T04:21:14.910Z",
+      "evidence": "tmp/v2-normalization-allocation-20261010/desktop-state.json",
       "guiLaunches": 0,
       "protectedSimulatorTouched": false
     },
@@ -6125,24 +6125,26 @@
     },
     "latestProductionCandidate": {
       "status": "SEALED_PRODUCTION",
-      "manifest": "tmp/v2-finalization-20261010/production-mcp-fix/runtime-manifest.json",
+      "manifest": "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
       "source": {
-        "revision": "21b240cea4b2016f35934d1776d1a21c9c86519b",
-        "dirty": false,
-        "sha256": "4364ba704462d676c3f46e3f7686b3f984f629fa1e2bb42007be623b4643cc68",
-        "files": 5436,
-        "bytes": 57006881
+        "revision": "ccb151a2c49a7ea4c36bcf9a01ce468e906d778f",
+        "dirty": true,
+        "sha256": "97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de",
+        "files": 5437,
+        "bytes": 57007277
       },
       "artifact": {
-        "sha256": "b64e6e5f8f43cbe84ae68494bf7c77d8d84b32f236313ae6114ffd0a5f6c0a09",
-        "files": 91751,
-        "bytes": 2393883294
+        "sha256": "d334d43206e1817af8bac0e864ebe1fbd83cfdad38fa203e185338d91820d8d5",
+        "files": 91748,
+        "bytes": 2387912427
       },
       "packages": 698,
-      "inheritedUnchangedAssets": "tmp/v2-finalization-20261010/production-mcp-fix/unchanged-assets.json",
-      "inheritedNativeHelperBytes": "tmp/v2-finalization-20261010/production-mcp-fix/native-helper-identity.json",
-      "fullPriorCandidateRetained": "tmp/v2-finalization-20261010/production/runtime-manifest.json",
-      "fullMatrixAndPerformanceQualified": false
+      "renderer": "frozen-production-electron-and-web",
+      "sourceExactFrozen": true,
+      "priorCandidateRetained": "tmp/v2-finalization-20261010/production-mcp-fix/runtime-manifest.json",
+      "fullMatrixAndPerformanceQualified": false,
+      "currentEntireSourceQualified": false,
+      "externalProviderAndModelFilesAttested": false
     },
     "currentCrossagentCancellationWorkflowResidual": {
       "status": "SCOPED_CURRENT_PRODUCTION_PASS",
@@ -6182,26 +6184,439 @@
       "realExternalProvidersGuiPaintHardwarePrivateRamOrMatchedP95Claim": false
     },
     "latestSourceQuality": {
-      "sourceCodeRevision": "21b240cea4b2016f35934d1776d1a21c9c86519b",
-      "repositoryHead": "ecd37c0ba",
-      "headDifference": "prior progress document only",
+      "source": {
+        "revision": "ccb151a2c49a7ea4c36bcf9a01ce468e906d778f",
+        "dirty": true,
+        "sha256": "97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de",
+        "files": 5437,
+        "bytes": 57007277
+      },
+      "repositoryHead": "ccb151a2c",
+      "dirty": true,
       "filesPassed": 2001,
       "filesSkipped": 6,
       "testsPassed": 22967,
       "testsSkipped": 102,
       "testsFailed": 0,
-      "testSeconds": 212.02,
+      "testSeconds": 231.2,
       "checks": [
         "typecheck",
         "lint",
         "format",
         "protocol:remote:v3:check",
-        "production-main-build"
+        "production-main-build",
+        "production-Electron-renderer-build",
+        "production-web-renderer-build",
+        "WSL-stage",
+        "agent-plugin-stage",
+        "embeddedSSH-build"
       ],
-      "evidenceRoot": "tmp/v2-finalization-20261010/current-quality",
-      "rendererEnvironment": "jsdom; canvas warnings and deliberate negative test logging retained; no GPU/GUI-paint qualification"
+      "evidenceRoot": "tmp/v2-normalization-allocation-20261010/quality",
+      "rendererEnvironment": "jsdom and compileonly; canvas/negative-case logs retained, no paintedGUI/GPUqualification"
     },
-    "currentRequirementAudit": "tmp/v2-finalization-20261010/current-requirement-audit.json"
+    "currentRequirementAudit": "tmp/v2-finalization-20261010/current-requirement-audit.json",
+    "currentGuiStructuredControlResidual": {
+      "scope": "Current production genuine GUI-presentation structured thread controls, deterministic ACP workers; external providers mocked. No GUI paint or performance claim.",
+      "source": {
+        "revision": "21b240cea4b2016f35934d1776d1a21c9c86519b",
+        "dirty": false,
+        "sha256": "4364ba704462d676c3f46e3f7686b3f984f629fa1e2bb42007be623b4643cc68",
+        "files": 5436,
+        "bytes": 57006881
+      },
+      "artifact": {
+        "sha256": "b64e6e5f8f43cbe84ae68494bf7c77d8d84b32f236313ae6114ffd0a5f6c0a09",
+        "files": 91751,
+        "bytes": 2393883294
+      },
+      "actualMcpCalls": 12,
+      "distinctCanonicalCards": 12,
+      "callerItems": 36,
+      "targetItems": 8,
+      "targetTurnClosures": [
+        {
+          "label": "initial",
+          "reason": "end_turn",
+          "workerPid": 28939,
+          "promptId": 3,
+          "startedAt": "2026-10-10T03:39:57.087Z",
+          "endedAt": "2026-10-10T03:39:57.149Z"
+        },
+        {
+          "label": "held",
+          "reason": "cancelled",
+          "workerPid": 28939,
+          "promptId": 4,
+          "startedAt": "2026-10-10T03:39:57.724Z",
+          "endedAt": "2026-10-10T03:39:59.295Z"
+        },
+        {
+          "label": "steered",
+          "reason": "end_turn",
+          "workerPid": 28939,
+          "promptId": 5,
+          "startedAt": "2026-10-10T03:39:59.862Z",
+          "endedAt": "2026-10-10T03:39:59.863Z"
+        },
+        {
+          "label": "resumed",
+          "reason": "end_turn",
+          "workerPid": 29103,
+          "promptId": 2,
+          "startedAt": "2026-10-10T03:40:01.045Z",
+          "endedAt": "2026-10-10T03:40:01.094Z"
+        }
+      ],
+      "targetReplayChunks": 6,
+      "immediateResumeCallbackMs": 9,
+      "immediateNewResumeOutputRetainedExactlyOnce": true,
+      "bothThreadsFiveTablesAndItemsSurviveShutdownExactly": true,
+      "all120SettingsAndCallerConfigPreserved": true,
+      "historyComparisonsExecuted": 13,
+      "twoWorkerFastFalseBeforePrompts": true,
+      "firstWorkerChangesAdvertisedTrueToFalse": true,
+      "resumedWorkerAdvertisesAlreadyFalseWithoutRedundantSetter": true,
+      "joinedOwnedHandles": 4,
+      "freshKnownPidAbsence": [
+        {
+          "pid": 28911,
+          "absent": true
+        },
+        {
+          "pid": 28913,
+          "absent": true
+        },
+        {
+          "pid": 28914,
+          "absent": true
+        },
+        {
+          "pid": 28920,
+          "absent": true
+        },
+        {
+          "pid": 28915,
+          "absent": true
+        },
+        {
+          "pid": 28939,
+          "absent": true
+        },
+        {
+          "pid": 28944,
+          "absent": true
+        },
+        {
+          "pid": 28945,
+          "absent": true
+        },
+        {
+          "pid": 29103,
+          "absent": true
+        },
+        {
+          "pid": 29173,
+          "absent": true
+        }
+      ],
+      "trackedClosedPorts": [
+        {
+          "port": 65101,
+          "closed": true
+        },
+        {
+          "port": 65095,
+          "closed": true
+        },
+        {
+          "port": 65092,
+          "closed": true
+        },
+        {
+          "port": 65096,
+          "closed": true
+        }
+      ],
+      "publicationElapsedMs": 24179,
+      "applicationAttemptsUsed": 1,
+      "unchangedRetryAllowed": false,
+      "priorAttemptsAndCapsPreserved": true,
+      "guiPaintExternalProviderGpuPrivateRamMatchedP95Claims": false,
+      "status": "SCOPED_CURRENT_PRODUCTION_PASS",
+      "evidence": "tmp/v2-gui-controls-residual-20261010/root-verification.json",
+      "preflightReview": "tmp/v2-gui-controls-residual-20261010/preflight-review.json",
+      "fixtureTestsPassed": 8,
+      "parentVerifierFailureRetained": "tmp/v2-gui-controls-residual-20261010/parent-verification-before.log"
+    },
+    "currentUsageRealIoMeasurement": {
+      "status": "SCOPED_PRE_NORMALIZATION_FIX_GAIN_MEASURED",
+      "evidence": "tmp/v2-usage-real-io-20261010/root-verification.json",
+      "independentReview": "tmp/v2-usage-real-io-20261010/independent-review.json",
+      "buildEvidence": "tmp/v2-usage-real-io-20261010/build-evidence.json",
+      "sourceCurrentSha256": "7f18d9a1b73dc7a075b921925b6ac76b23693b841a85c49e736a7aa2f75cd5dd",
+      "baseline": "0490bc1d7 UsageService text only; all other imports current",
+      "analysis": [
+        {
+          "scenario": "targeted",
+          "requestsPerVersion": 800,
+          "before": {
+            "p95Ms": {
+              "min": 2.978166999999985,
+              "max": 3.4153330000000324
+            },
+            "cpuUsPerRequest": {
+              "min": 2647.77,
+              "max": 2805.5175
+            },
+            "settingsReadsPerRequest": 12,
+            "fileReadsPerRequest": 13,
+            "fileBytesReadPerRequest": 86085
+          },
+          "current": {
+            "p95Ms": {
+              "min": 0.5597080000000005,
+              "max": 0.7808329999999728
+            },
+            "cpuUsPerRequest": {
+              "min": 498.06,
+              "max": 567.2075
+            },
+            "settingsReadsPerRequest": 2,
+            "fileReadsPerRequest": 3,
+            "fileBytesReadPerRequest": 14425
+          },
+          "pairs": [
+            {
+              "beforeIndex": 0,
+              "currentIndex": 1,
+              "p95ReductionPercent": 81.20629232679015,
+              "cpuReductionPercent": 81.18945376675467
+            },
+            {
+              "beforeIndex": 3,
+              "currentIndex": 2,
+              "p95ReductionPercent": 77.13742700931459,
+              "cpuReductionPercent": 79.7824287319541
+            }
+          ],
+          "resourceReadBlocks": [0, 0, 0, 0],
+          "resourceWriteBlocks": [0, 0, 0, 0]
+        },
+        {
+          "scenario": "broad",
+          "requestsPerVersion": 800,
+          "before": {
+            "p95Ms": {
+              "min": 4.97204099999999,
+              "max": 5.350458000000117
+            },
+            "cpuUsPerRequest": {
+              "min": 4188.445,
+              "max": 4457.035
+            },
+            "settingsReadsPerRequest": 19,
+            "fileReadsPerRequest": 27,
+            "fileBytesReadPerRequest": 136917
+          },
+          "current": {
+            "p95Ms": {
+              "min": 0.6747500000000173,
+              "max": 0.7204160000000002
+            },
+            "cpuUsPerRequest": {
+              "min": 642.4275,
+              "max": 654.345
+            },
+            "settingsReadsPerRequest": 2,
+            "fileReadsPerRequest": 10,
+            "fileBytesReadPerRequest": 15078
+          },
+          "pairs": [
+            {
+              "beforeIndex": 0,
+              "currentIndex": 1,
+              "p95ReductionPercent": 86.42911432146238,
+              "cpuReductionPercent": 84.37737632940147
+            },
+            {
+              "beforeIndex": 3,
+              "currentIndex": 2,
+              "p95ReductionPercent": 86.53543304143338,
+              "cpuReductionPercent": 85.58621370485086
+            }
+          ],
+          "resourceReadBlocks": [0, 0, 0, 0],
+          "resourceWriteBlocks": [0, 0, 0, 0]
+        }
+      ],
+      "measuredRequestsPerVersion": 1600,
+      "freshOwnedProcesses": 4,
+      "knownPidsAbsent": true,
+      "joined": true,
+      "seriesUsed": 1,
+      "retries": 0,
+      "priorWholeAppCohortLimitsRetained": true,
+      "callbackCountScope": {
+        "guardedHostCredentialHttpEmitAssertedZero": true,
+        "globalFetchHardRejectedButUncounted": true,
+        "collectionInvocationCountMeasured": false,
+        "externalRequestsLiteralNotMeasurement": true
+      },
+      "limits": [
+        "Two independent measurements/version with400requests/case each, reversed pair ordering; not a general-device statistical confidence guarantee.",
+        "Warm page-cache file bytes/read operations, not disk-device traffic; fsRead/write block counters are reported separately.",
+        "Own Node probe CPU includes common driver assertions/instrumentation; not supervisor process-tree/wholeapp CPU.",
+        "Production-mode targeted source bundles, not the immutable full Electron/server distribution.",
+        "Privateinvalid auth fixtures and own encryption key; credential/collection/network callbacks rejected. No real external provider/network qualification.",
+        "Steady-state serial cached requests only; no concurrent chat/input queues, quota refresh, startup, timer, UI, GPU or long-lived/private RAM gain claim."
+      ],
+      "ramBeforeAfterStoredNotQualified": true,
+      "measuredDependencies": "Prior21b dependencies/settingsnormalizer; newvalidatorreuse has110differential/85focused/full22967regressions, no renewedcachedservice timingseries"
+    },
+    "currentSettingsValidatorAllocationFix": {
+      "status": "SOURCE_FIX_REGRESSION_AND_SCOPED_ALLOCATION_PASS",
+      "source": {
+        "revision": "ccb151a2c49a7ea4c36bcf9a01ce468e906d778f",
+        "dirty": true,
+        "sha256": "97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de",
+        "files": 5437,
+        "bytes": 57007277
+      },
+      "files": ["src/shared/settings.ts", "src/shared/settingsNormalizationSchemas.ts"],
+      "evidence": "tmp/v2-normalization-allocation-20261010/root-verification.json",
+      "independentReview": "tmp/v2-normalization-allocation-20261010/independent-review.json",
+      "buildEvidence": "tmp/v2-normalization-allocation-20261010/source-and-build-evidence.json",
+      "beforeEstimatedAllocationBytes": 125820272,
+      "afterEstimatedAllocationBytes": 112450824,
+      "allocationEstimateReductionPercent": 10.625829834480093,
+      "normalizedOutputCasesEqual": 110,
+      "focusedTestsPassed": 85,
+      "postGcHeapDeltas": [-114816, -219952],
+      "oneDiagnosticOneChangedSourceValidationUsed": true,
+      "unchangedRetryAllowed": false,
+      "parsedSettingsCached": false,
+      "persistedCacheWireHelperVersionChanged": false,
+      "wholeAppRssPrivateNativeMemoryGpuOrP95GainClaim": false,
+      "preflightOrderingFailure": {
+        "declarationClaimIncorrect": true,
+        "actual": "Initial differentialcheck failed with syntaxerror, shellcontinuedto allocationvalidation;85focusedtests passed beforevalidation. Corrected110case differentialchecked offline afterward. No measurement rerun.",
+        "failureLog": "differential-syntax-failure.log"
+      },
+      "staleAgentPluginStagingFailurePreserved": "tmp/v2-normalization-allocation-20261010/quality/web-ssh-runtime.log",
+      "correctedStagingAndSshBuild": "tmp/v2-normalization-allocation-20261010/quality/web-ssh-runtime-corrected.log"
+    },
+    "currentSourceRetentionChurn": {
+      "status": "PARTIAL_SOURCE_DATA_BOUNDS_PASS_COLLECTION_FAIL",
+      "evidence": "tmp/v2-retention-churn-20261010/result.json",
+      "attemptsUsed": 1,
+      "retryAllowed": false,
+      "turnCycles": 1000,
+      "scriptedChildTools": 4000,
+      "streamBytesConserved": 98446680,
+      "routingReferencesZeroAfterEveryCycle": true,
+      "rowOwnersVisited": 10000,
+      "retainedOwnersAtCap": 16,
+      "retainedRowsAtCap": 4096,
+      "retiredMeasurementsAbsent": true,
+      "weakReferenceCollectionObserved": [true, false],
+      "genuineHandlersOrApplicationNativeRssOrPaintClaim": false
+    },
+    "currentProductionBuildsAwaitFrozenClosure": {
+      "pass": true,
+      "source": {
+        "revision": "ccb151a2c49a7ea4c36bcf9a01ce468e906d778f",
+        "dirty": true,
+        "sha256": "97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de",
+        "files": 5437,
+        "bytes": 57007277
+      },
+      "outputs": [
+        {
+          "path": "dist/main",
+          "sha256": "993aaa307fea24c86fef77b650347d9c36fc1fc5c8e12431026ffa0ac3998a81",
+          "files": 52,
+          "bytes": 61056075
+        },
+        {
+          "path": "dist/renderer",
+          "sha256": "835e61ae15cca73d11b056d2f763e259d0e341aafc134e88599045cdd6b662b0",
+          "files": 1920,
+          "bytes": 152742551
+        },
+        {
+          "path": "dist/web",
+          "sha256": "73e1e65f9102e7d67052b52d0a07136aae3200394da68f0500e9be78daecc8ec",
+          "files": 1767,
+          "bytes": 57184734
+        },
+        {
+          "path": "resources/wsl-helpers",
+          "sha256": "ccb9da3ad37821077b5940b4d661879df64dc487a3812608a04a263406464b67",
+          "files": 8,
+          "bytes": 6784813
+        },
+        {
+          "path": "resources/agent-plugins",
+          "sha256": "d5cbe53f2e84281459edd8756ba159f6bb19f23ad3d3ec7e8f1828e9115e3097",
+          "files": 19,
+          "bytes": 43605
+        },
+        {
+          "path": "resources/web-ssh-runtime",
+          "sha256": "fa22e960e579f8cf7502d9e558400125af703ffe4c2d204a8c38acf2b049cda1",
+          "files": 2,
+          "bytes": 2953749
+        }
+      ],
+      "productionCodeBuilds": [
+        "main/host/workers",
+        "Electron renderer",
+        "web renderer",
+        "WSL staging",
+        "agent-plugin staging",
+        "embeddedSSH"
+      ],
+      "fullFrozenRuntimeClosureCreated": true,
+      "appLaunched": false,
+      "installedAppReplaced": false,
+      "priorImmutableCandidateRetained": true,
+      "frozenManifest": "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json"
+    },
+    "currentWorktreeQualification": {
+      "status": "SCOPED_CURRENT_PRODUCTION_PASS",
+      "evidence": "tmp/v2-worktree-qualification-20261010/root-verification.json",
+      "source": {
+        "revision": "ccb151a2c49a7ea4c36bcf9a01ce468e906d778f",
+        "dirty": true,
+        "sha256": "97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de",
+        "files": 5437,
+        "bytes": 57007277
+      },
+      "artifact": {
+        "sha256": "d334d43206e1817af8bac0e864ebe1fbd83cfdad38fa203e185338d91820d8d5",
+        "files": 91748,
+        "bytes": 2387912427
+      },
+      "actualCalls": 9,
+      "positiveCalls": 8,
+      "expectedNegativeProtectionCalls": 1,
+      "canonicalItems": 27,
+      "distinctCanonicalCards": 9,
+      "all120SettingsAndCallerConfigPreserved": true,
+      "liveToStoppedFiveTablesAndItemsExact": true,
+      "worktreeRemovalRefusedUntilArchival": true,
+      "worktreeRemovedBranchRetained": true,
+      "ownedHandlesJoined": 30,
+      "knownPidsAbsent": 32,
+      "portsClosed": 4,
+      "elapsedMs": 21149,
+      "originalFailedAttemptRetained": "tmp/v2-worktree-qualification-20261010/host/execution-0b9c11633108bcf77d07bbfd390b831d/result.json",
+      "firstCallScopedRecovery": "tmp/v2-worktree-qualification-20261010/first-call-scoped-recovery.json",
+      "observerLifetimeDiscriminatingPreflight": "tmp/v2-worktree-qualification-20261010/reader-preflight/actual-seed-result.json",
+      "oneAffectedResidualUsed": true,
+      "unchangedFurtherRetryAllowed": false,
+      "guiPaintExternalProviderHardwareGpuPrivateRamMatchedP95Claim": false
+    }
   },
   "milestones": [
     {
@@ -7204,6 +7619,22 @@
     {
       "at": "2026-10-10T03:20:04.741055+00:00",
       "summary": "Single bounded unexecuted cancel/dependent workflow residual6/6 actual production handlers PASS after independent10file preflight resolved deadline/cleanup issues. Three structured ACP workers, explicit held cancellation, two valid compact reports and exact upstream handoff; all27 canonicalitems/5tables retained, other119settings/caller preserved, expected own selection learning3,4handlesjoined0/11knownPIDsabsent/4portsclosed,14.493s. Provider received cancel notification; canceled-prompt stdout callback not observed, not claimed. Parent verifier Buffer serialization/prompt-suffix assumptions corrected offline only. Full latest source22967tests/2001files PASS+102existing skips,static/protocol/currentmainbuild PASS. Updated16requirement interim audit; GUIlocked/PWA/physical/private/matched resources stillincomplete; broad13/18 and2/6 unchanged. No source edits/commits/push/publication/installed replacement thisturn; trackerupdate remains local."
+    },
+    {
+      "at": "2026-10-10T03:43:21.125779+00:00",
+      "summary": "Current GUI-presentation structured controls12/12 real MCP calls PASS;12distinct cards,36caller+8targetitems, two worker incarnations,6replaychunks/no duplicates, immediate new resume reply9ms after loadreply. Boththreads5tables/history exact after shutdown;120settings/caller unchanged;4handlesjoined0/10knownPIDsabsent/4portsclosed. No GUIpaint/p95/GPU/privateRAM gain claim. Independent preflight findings corrected and8offline tests PASS; declaration and old2attempts/caps retained; parent Faststate verifier corrected offline only. Current source unchanged, no fullsuite repeat. Broad13/18tasks and2/6milestones unchanged; stillactive. This goalturn has no commits/push/publish/installed replacement; preceding explicit user Git integration recorded separately by commitccb151a2c."
+    },
+    {
+      "at": "2026-10-10T03:55:58.214536+00:00",
+      "summary": "Isolated warm-cache actual UsageService settings/schema/AES/profile/auth reads measured before/current with restricted8privateprofiles, ABBA4freshNodeprocesses,1600requests/version. Targetp95 2.978-3.415ms ->0.560-0.781; broad4.972-5.350 ->0.675-0.720. PairedownprobeCPU80-86percentlower, returnedfilebytes83-89percentlower; identityreads unchanged. Wholeapp/server/chatp95/GPU/longsessionRAM/physicaldisk gains still unproven. Independent review supports scoped comparison; corrected declaration callback overstatement offline only. All4measurementhandlesnormal0/freshPIDs absent,inputs/drivers sealed unchanged,7.566secseries, identityreads1/8 preserved. No sourcecode edits or fullsuite rerun. Previousquality22967PASS remains unchanged-source scope. Broad13/18tasks2/6milestones active; no commits/push/publish/installed replacement thisturn."
+    },
+    {
+      "at": "2026-10-10T04:21:15.631607+00:00",
+      "summary": "Reused2process-local generic Zod validators at8normalization callsites; samefreshparsing/fallback/migration output,110differentialcases+85focusedtests PASS. One allocationdiagnostic125.82MB/400calls ->112.45MB after sourcefix,~10.6percent sampled estimate reduction;postGCheapflat. Fullcurrent22967tests/2001files PASS102skips plusstatic/protocol/main/Electron/web/stagedWSL/plugins/SSHbuilds. Scopedrouting1000cycles98.446MBconserved,10000measurementIDsbounded16owners4096rows;overallchurnFAIL weakrowcollectionunqualified. Source fingerprint dirtyccb151a2c/97d3543385a1f9376a7a1ac5ec79f69855a0c3936423f6ce4a8310f50822d6de;5437files,57007277bytes. Oldwhole-app immutablecandidate nowprior-source, nextfreeze required. InitialSSHstalepluginresource guard rejection preserved; sourceassetstage refreshed andSSHpackagingPASS. No nativehelper rebuild/app launches/currentlatencycohort repetition/commits/push/publish/installedreplacement. Broad13/18tasks2/6milestones active unchanged."
+    },
+    {
+      "at": "2026-10-10T04:59:32.228Z",
+      "summary": "Current dirty source sealed with 5437 files and 698 copied packages. Nine actual private worktree/Git calls independently pass: stage, commit, fast-forward merge, exact listings, refusal while referenced, archive, successful removal with branch retained; 27 canonical items preserved through shutdown. All 30 owned handles joined, 32 known PIDs absent, 4 ports closed. Original failed attempt and observer-lifetime diagnostic preserved. Broad qualification remains unfinished. Latest user instruction authorizes committing the completed local chunk and syncing remote v2/master. Checklist remains 13/18 tasks, 2/6 milestones; no whole-application optimization percentage claimed."
     }
   ],
   "tasks": [
@@ -7332,7 +7763,9 @@
         "tmp/v2-streaming-perf-20260930/round105/candidate-verification.json",
         "tmp/v2-streaming-perf-20260930/round105/runtime-dependency-verification.json",
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
-        "tmp/v2-qualification-20261010-continuation/production-corrected/runtime-manifest.json"
+        "tmp/v2-qualification-20261010-continuation/production-corrected/runtime-manifest.json",
+        "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
+        "tmp/v2-worktree-qualification-20261010/root-verification.json"
       ]
     },
     {
@@ -7341,7 +7774,7 @@
       "title": "Supervisor/chat/native resource attribution",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reconcile current candidate with retained scoped CPU/GPU-process/RSS/I/O evidence and exact remaining aggregate requirements. Keep hardwareGPU/privateRAM gaps explicit; no new accounting framework or repeated broad diagnostic.",
+      "nextAction": "Current isolatedusage cached-read source before/current gains measured; attribute residual mixedsupervisor CPU and native/long-lived RAM separately. Do not promote short-process RSS or file-return bytes to fullfamily/privateRAM/GPU/device-disk gains.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
@@ -7370,7 +7803,9 @@
         "tmp/v2-streaming-perf-20260930/round260/resource-adequacy/audit.json",
         "tmp/native-runtime-retirement-20261009/root-verification.json",
         "tmp/native-host-reuse-20261009/root-verification.json",
-        "tmp/v2-usage-profile-io-20261010/evidence.json"
+        "tmp/v2-usage-profile-io-20261010/evidence.json",
+        "tmp/v2-usage-real-io-20261010/root-verification.json",
+        "tmp/v2-normalization-allocation-20261010/root-verification.json"
       ],
       "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json"
     },
@@ -7380,7 +7815,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Current cancel/dependent graph scoped gate closed. Finish remaining GUI rich-tool/current reader/PTY/browser/compact/PWA and controls/worktree/all-tool-family gaps; current GUI requires user desktop unlock. Physical/private hardware limitations remain explicit. Final matchedp95/CPU/GPU/RAM/I/O still unqualified; do not repeat consumed diagnostics or infer gains from quality/build/synthetic counts. Current requirement audit identifies missing local historical backend/PWA proof. No commit/push/publication/installed replacement under active objective.",
+      "nextAction": "Freeze currentdirty5437file source97d3543385... with freshlybuiltmain/Electron/web and refreshedplugins/WSL/embeddedSSH, copiedclosed dependencies and unchanged-native-helper provenance before next required current-runtime qualification; preserve all old candidates/caps. No further marginalvalidator tuning; sourcechurn weakrowcollection FAIL remains unqualified. Then remaining worktree/alltool-family/reader/PTY/browser/compact/PWA plusmatchedwhole CPU/GPU/RAM/p95 gates. PaintedGUI waitsdesktopunlock; no commits/push/publish/installed replacement.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -7450,7 +7885,11 @@
         "tmp/v2-probe-pty-20261010/current-catalog.json",
         "tmp/v2-crossagent-workflow-20261010/partial-verification.json",
         "tmp/v2-crossagent-residual-20261010/root-verification.json",
-        "tmp/v2-finalization-20261010/current-requirement-audit.json"
+        "tmp/v2-finalization-20261010/current-requirement-audit.json",
+        "tmp/v2-gui-controls-residual-20261010/root-verification.json",
+        "tmp/v2-normalization-allocation-20261010/source-and-build-evidence.json",
+        "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
+        "tmp/v2-worktree-qualification-20261010/root-verification.json"
       ]
     },
     {
@@ -7463,7 +7902,8 @@
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
-        "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json"
+        "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
+        "tmp/v2-usage-real-io-20261010/root-verification.json"
       ],
       "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json"
     },
@@ -7483,7 +7923,12 @@
         "tmp/v2-probe-pty-20261010/root-verification.json",
         "tmp/v2-crossagent-workflow-20261010/partial-verification.json",
         "tmp/v2-crossagent-residual-20261010/root-verification.json",
-        "tmp/v2-finalization-20261010/current-requirement-audit.json"
+        "tmp/v2-finalization-20261010/current-requirement-audit.json",
+        "tmp/v2-gui-controls-residual-20261010/root-verification.json",
+        "tmp/v2-usage-real-io-20261010/root-verification.json",
+        "tmp/v2-normalization-allocation-20261010/root-verification.json",
+        "tmp/v2-normalization-allocation-20261010/frozen-production/runtime-manifest.json",
+        "tmp/v2-worktree-qualification-20261010/root-verification.json"
       ]
     },
     {

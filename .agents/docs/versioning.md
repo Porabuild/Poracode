@@ -1,5 +1,13 @@
 # Versioned State & Protocols
 
+Settings normalization reuses two process-local Zod validators instead of
+constructing them for each field/root migration. Each read still parses fresh
+bytes and returns the same per-field fallbacks, tolerant machine entries and
+legacy URL/migration projections. No parsed settings are cached or retained by
+the validators. Settings document versions, normalized shapes, usage-cache
+version 10, persisted state and wire/helper boundaries are unchanged; existing
+artifacts remain valid. Content hashes identify rebuilt consumer bundles.
+
 Usage provider selection shares settings and collector discovery only within
 synchronous request phases. Settings/discovery are read fresh after awaited
 identity checks, and refresh commit admission/account retirement remains intact.
