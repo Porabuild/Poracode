@@ -43,7 +43,9 @@ class ElectronInhibitor implements Inhibitor {
   setActive(active: boolean): void {
     if (active) {
       if (this.blockerId !== null) return;
-      const id = this.blocker.start("prevent-app-suspension");
+      // Preventing app suspension still allows display sleep. Keep both the
+      // system and display awake while the configured sleep policy is active.
+      const id = this.blocker.start("prevent-display-sleep");
       if (!this.blocker.isStarted(id)) {
         this.log(`${LOG_PREFIX} powerSaveBlocker.start did not activate (id=${id})`);
       }

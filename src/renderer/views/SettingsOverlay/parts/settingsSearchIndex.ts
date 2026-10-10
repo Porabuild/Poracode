@@ -85,8 +85,8 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "general",
     anchor: "general.preventSleep",
     title: msg`Prevent sleep`,
-    description: msg`Choose when this machine stays awake.`,
-    keywords: "sleep awake wake idle power system server connection remote always",
+    description: msg`Choose when the system and display stay awake. This can delay automatic screen locking.`,
+    keywords: "sleep awake wake idle power system display lock server connection remote always",
     desktopOnly: true,
   },
   {

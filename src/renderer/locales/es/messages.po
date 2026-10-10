@@ -2603,8 +2603,13 @@ msgstr "Elige qué hace Poracode con las nuevas solicitudes de cambios: nada, co
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when this machine stays awake."
-msgstr "Elige cuándo esta máquina se mantiene activa."
+msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+msgstr "Elige cuándo el sistema y la pantalla se mantienen activos. Esto puede retrasar el bloqueo automático de la pantalla."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when this machine stays awake."
+#~ msgstr "Elige cuándo esta máquina se mantiene activa."
 
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
