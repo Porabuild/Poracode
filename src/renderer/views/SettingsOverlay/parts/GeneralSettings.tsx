@@ -174,7 +174,12 @@ export function GeneralSettings() {
         <SettingRow
           anchorId="general.preventSleep"
           title={t`Prevent sleep`}
-          description={<Trans>Choose when this machine stays awake.</Trans>}
+          description={
+            <Trans>
+              Choose when the system and display stay awake. This can delay automatic screen
+              locking.
+            </Trans>
+          }
         >
           <LightballTabs
             tabs={[

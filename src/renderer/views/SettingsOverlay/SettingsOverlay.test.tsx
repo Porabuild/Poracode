@@ -517,7 +517,7 @@ describe("SettingsOverlay", () => {
       target: { value: "awake" },
     });
 
-    expect(screen.getByText("Choose when this machine stays awake.")).toBeInTheDocument();
+    expect(screen.getByText(/Choose when the system and display stay awake\./)).toBeInTheDocument();
   });
 
   it("navigates to the section when a setting result is clicked", () => {

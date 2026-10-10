@@ -55,41 +55,84 @@ afterEach(() => {
 });
 
 describe("createSleepInhibitor", () => {
-  it("starts and stops the electron blocker on non-linux platforms", () => {
-    const blocker = createBlocker();
-    const spawnFn = vi.fn<() => ChildProcess>();
-    const inhibitor = createSleepInhibitor({
-      platform: "darwin",
-      electronBlocker: blocker,
-      spawnFn: spawnFn as never,
-      logger,
-    });
+  it.each(["darwin", "win32", "linux"] as const)(
+    "starts and stops %s's display blocker",
+    (platform) => {
+      const blocker = createBlocker();
+      const child = createFakeChild();
+      const spawnFn = vi.fn<() => ChildProcess>(() => child as unknown as ChildProcess);
+      const inhibitor = createSleepInhibitor({
+        platform,
+        electronBlocker: blocker,
+        spawnFn: spawnFn as never,
+        logger,
+      });
 
-    inhibitor.setActive(true);
-    expect(blocker.start).toHaveBeenCalledWith("prevent-app-suspension");
-    expect(blocker._started.size).toBe(1);
-    expect(spawnFn).not.toHaveBeenCalled();
+      inhibitor.setActive(true);
+      expect(blocker.start).toHaveBeenCalledExactlyOnceWith("prevent-display-sleep");
+      expect(blocker._started.size).toBe(1);
+      expect(spawnFn).toHaveBeenCalledTimes(platform === "linux" ? 1 : 0);
 
-    inhibitor.setActive(false);
-    expect(blocker.stop).toHaveBeenCalledTimes(1);
-    expect(blocker._started.size).toBe(0);
-  });
+      inhibitor.setActive(false);
+      expect(blocker.stop).toHaveBeenCalledTimes(1);
+      expect(blocker._started.size).toBe(0);
+    },
+  );
 
-  it("is idempotent on repeated setActive(true)", () => {
-    const blocker = createBlocker();
-    const inhibitor = createSleepInhibitor({
-      platform: "win32",
-      electronBlocker: blocker,
-      spawnFn: vi.fn<() => ChildProcess>() as never,
-      logger,
-    });
+  it.each(["darwin", "win32", "linux"] as const)(
+    "is idempotent on repeated activation on %s",
+    (platform) => {
+      const blocker = createBlocker();
+      const child = createFakeChild();
+      const spawnFn = vi.fn<() => ChildProcess>(() => child as unknown as ChildProcess);
+      const inhibitor = createSleepInhibitor({
+        platform,
+        electronBlocker: blocker,
+        spawnFn: spawnFn as never,
+        logger,
+      });
 
-    inhibitor.setActive(true);
-    inhibitor.setActive(true);
-    inhibitor.setActive(true);
+      inhibitor.setActive(true);
+      inhibitor.setActive(true);
+      inhibitor.setActive(true);
 
-    expect(blocker.start).toHaveBeenCalledTimes(1);
-  });
+      expect(blocker.start).toHaveBeenCalledTimes(1);
+      expect(spawnFn).toHaveBeenCalledTimes(platform === "linux" ? 1 : 0);
+    },
+  );
+
+  it.each(["darwin", "win32", "linux"] as const)(
+    "releases %s's display blocker on dispose and reacquires it after deactivation",
+    (platform) => {
+      const blocker = createBlocker();
+      const spawnFn = vi.fn<() => ChildProcess>(() => createFakeChild() as unknown as ChildProcess);
+      const inhibitor = createSleepInhibitor({
+        platform,
+        electronBlocker: blocker,
+        spawnFn: spawnFn as never,
+        logger,
+      });
+
+      inhibitor.setActive(true);
+      inhibitor.setActive(false);
+      inhibitor.setActive(false);
+      inhibitor.setActive(true);
+
+      expect(blocker.start.mock.calls).toEqual([
+        ["prevent-display-sleep"],
+        ["prevent-display-sleep"],
+      ]);
+      expect(blocker.stop).toHaveBeenCalledExactlyOnceWith(1);
+      expect(blocker._started.size).toBe(1);
+
+      inhibitor.dispose();
+      inhibitor.dispose();
+
+      expect(blocker.stop.mock.calls).toEqual([[1], [2]]);
+      expect(blocker._started.size).toBe(0);
+      expect(spawnFn).toHaveBeenCalledTimes(platform === "linux" ? 2 : 0);
+    },
+  );
 
   it("logs when powerSaveBlocker.start fails to activate", () => {
     const blocker = createBlocker();
@@ -122,7 +165,7 @@ describe("createSleepInhibitor", () => {
 
     inhibitor.setActive(true);
 
-    expect(blocker.start).toHaveBeenCalled();
+    expect(blocker.start).toHaveBeenCalledExactlyOnceWith("prevent-display-sleep");
     expect(spawnFn).toHaveBeenCalledTimes(1);
     expect(spawnFn).toHaveBeenCalledWith(
       "systemd-inhibit",

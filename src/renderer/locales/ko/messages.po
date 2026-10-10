@@ -2603,8 +2603,13 @@ msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when this machine stays awake."
-msgstr "이 기기가 깨어 있는 상태를 유지할 시점을 선택하세요."
+msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+msgstr "시스템과 디스플레이가 깨어 있는 상태를 유지할 시점을 선택하세요. 이로 인해 화면 자동 잠금이 지연될 수 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when this machine stays awake."
+#~ msgstr "이 기기가 깨어 있는 상태를 유지할 시점을 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."

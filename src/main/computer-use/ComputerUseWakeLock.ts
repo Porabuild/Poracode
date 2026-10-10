@@ -24,10 +24,10 @@ export interface ComputerUseWakeLockOptions {
  *
  * A locked desktop cannot be controlled or observed at all (see
  * `.agents/docs/computer-use.md`), so an unattended agent session would die at
- * the idle lock. `prevent-display-sleep` maps to the IOKit
- * `PreventUserIdleDisplaySleep` assertion, which also holds off the idle
- * screensaver and the lock that follows it — on every OS Electron supports, not
- * just macOS. Manual locking is untouched.
+ * the idle lock. `prevent-display-sleep` keeps the system and display awake;
+ * on macOS it maps to the IOKit `PreventUserIdleDisplaySleep` assertion.
+ * Screen savers and security policies can lock independently of display sleep,
+ * so this does not guarantee an unlocked session. Manual locking is untouched.
  *
  * Exactly one blocker is held at a time and every transition is idempotent, so
  * repeated `setSessionActive`/`setEnabled` calls are free.
