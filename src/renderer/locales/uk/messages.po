@@ -16664,6 +16664,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "Підготовка середовища оболонки WSL…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "Попередження"
 

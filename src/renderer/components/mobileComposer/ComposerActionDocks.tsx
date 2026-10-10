@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { AgentStatus, Thread } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import {
@@ -16,6 +17,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 export function ComposerActionDocks(props: {
   readonly thread: Thread;
   readonly agentStatus: AgentStatus | undefined;
+  readonly notice?: ReactNode;
   readonly onOpenPlanFile?: ((path: string) => void) | undefined;
   readonly onRestoreComposerFocus?: (() => void) | undefined;
 }) {
@@ -32,6 +34,7 @@ export function ComposerActionDocks(props: {
   );
   return (
     <div className="m-thread-action-docks empty:hidden">
+      {props.notice}
       {pendingSteer ? (
         <ThreadPendingSteerStrip
           pending={pendingSteer}

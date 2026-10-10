@@ -16664,6 +16664,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "WSL kabuk ortamı ısınıyor…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "Uyarı"
 
