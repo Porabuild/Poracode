@@ -2804,8 +2804,13 @@ msgstr "选择 Poracode 对新拉取请求执行的操作：不执行任何操�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when this machine stays awake."
-msgstr "选择这台机器保持唤醒的时机。"
+msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+msgstr "选择系统和显示器保持唤醒的时机。这可能会延迟屏幕自动锁定。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when this machine stays awake."
+#~ msgstr "选择这台机器保持唤醒的时机。"
 
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."

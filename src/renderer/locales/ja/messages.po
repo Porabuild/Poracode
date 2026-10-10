@@ -2803,8 +2803,13 @@ msgstr "新しいプルリクエストに対するPoracodeの動作を選択し�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when this machine stays awake."
-msgstr "このマシンをスリープさせないタイミングを選びます。"
+msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+msgstr "システムとディスプレイをスリープさせないタイミングを選びます。画面の自動ロックが遅れる場合があります。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when this machine stays awake."
+#~ msgstr "このマシンをスリープさせないタイミングを選びます。"
 
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."

@@ -2813,8 +2813,13 @@ msgstr "Choose what Poracode does for new pull requests: nothing, fix merge bloc
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when this machine stays awake."
-msgstr "Choose when this machine stays awake."
+msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+msgstr "Choose when the system and display stay awake. This can delay automatic screen locking."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when this machine stays awake."
+#~ msgstr "Choose when this machine stays awake."
 
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
