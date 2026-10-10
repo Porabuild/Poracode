@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T02:44:14.969940+00:00",
+  "updatedAt": "2026-10-10T03:20:04.741055+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -43,7 +43,7 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "c286f018d3b4 completed and joined; usage implementation reviewed/reverified by parent",
+    "lastAgent": "dde76b3ddc26 completed and joined; bounded10file preflight, both runner findings resolved before single app launch",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
     "agentState": "completed_joined",
     "nativeSessionsLive": [],
@@ -63,9 +63,9 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "GUI smoke awaits user desktop unlock (last observed locked); retain physical/private hardware gaps. Continue remaining final controls/cancel/dependent workflow/worktree and PWA/matched qualification within original budgets. Use tail-aware and expected-private-learning settings oracles in a materially justified required final qualification; do not rerun the exhausted unchanged crossagent lane.",
-    "lastResult": "Usage I/O work bounded; explicit child fast:false preserved through MCP/structured dispatch and actual wire. Five genuine crossagent calls independently recovered; entire planned workflow/cancel sequence remains incomplete.",
-    "lastDeclaration": "Prior diagnostic and source-fix attempts retained; latest tail-marker assertion failure classified as expected progress clipping, corrected only by offline recovery. No unchanged app retry or matched cohort reset.",
+    "nextAction": "Current cancel/dependent graph scoped gate closed. Finish remaining GUI rich-tool/current reader/PTY/browser/compact/PWA and controls/worktree/all-tool-family gaps; current GUI requires user desktop unlock. Physical/private hardware limitations remain explicit. Final matchedp95/CPU/GPU/RAM/I/O still unqualified; do not repeat consumed diagnostics or infer gains from quality/build/synthetic counts. Current requirement audit identifies missing local historical backend/PWA proof. No commit/push/publication/installed replacement under active objective.",
+    "lastResult": "Current production cancel/dependent graph residual6/6 PASS; exact two worker reports/forwarding, all27items/5tables survive shutdown,11knownPIDs absent/4portsclosed. Latest full source22967tests PASS/102existing skips plus all static/protocol/mainbuild checks. Goal remains active; GUI/PWA/matched resource/all-tool-family gates incomplete.",
+    "lastDeclaration": "One bounded affected previously-unexecuted cancellation/workflow residual after parser fixes and discriminating preflight; no completed quiet/progress replay, prior4 failed runs/caps preserved. Parent recovered verifier-only Buffer JSON and compact-prompt suffix assumptions offline; no additional app run.",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -5720,11 +5720,11 @@
       "wholeTasksClosed": 0
     },
     "currentDesktopAvailability": {
-      "at": "2026-10-10T01:46:17.604Z",
-      "screenLocked": true,
-      "probe": "tmp/v2-probe-pty-20261010/desktop-state.json",
-      "guiAppLaunched": false,
-      "requiredForGuiSmoke": "User unlock under interactive-testing; prior async question pending."
+      "state": "locked",
+      "at": "2026-10-10T02:45:27.530Z",
+      "evidence": "tmp/v2-finalization-20261010/desktop-state-continuation.json",
+      "guiLaunches": 0,
+      "protectedSimulatorTouched": false
     },
     "metadataMutationToolBatch": {
       "state": "PASS_SCOPED",
@@ -6143,7 +6143,65 @@
       "inheritedNativeHelperBytes": "tmp/v2-finalization-20261010/production-mcp-fix/native-helper-identity.json",
       "fullPriorCandidateRetained": "tmp/v2-finalization-20261010/production/runtime-manifest.json",
       "fullMatrixAndPerformanceQualified": false
-    }
+    },
+    "currentCrossagentCancellationWorkflowResidual": {
+      "status": "SCOPED_CURRENT_PRODUCTION_PASS",
+      "evidence": "tmp/v2-crossagent-residual-20261010/root-verification.json",
+      "preflightReview": "tmp/v2-crossagent-residual-20261010/preflight-review.json",
+      "reviewAgent": "dde76b3ddc26 completed_joined",
+      "currentSource": {
+        "revision": "21b240cea4b2016f35934d1776d1a21c9c86519b",
+        "dirty": false,
+        "sha256": "4364ba704462d676c3f46e3f7686b3f984f629fa1e2bb42007be623b4643cc68",
+        "files": 5436,
+        "bytes": 57006881
+      },
+      "actualHandlerCalls": 6,
+      "newHandlerNames": ["cancel", "run_workflow"],
+      "additionalCompletedHandlers": ["spawn_agent", "wait_for_agent"],
+      "canonicalItems": 27,
+      "liveToStoppedFiveTablesAndItemsExact": true,
+      "allSixPublicHistoryComparisonsExecuted": true,
+      "heldWorkerHostCancellationAckAndSettled": true,
+      "providerCancellationNotificationReceived": true,
+      "providerCancelledPromptReplyStdoutCallbackObserved": false,
+      "threeWorkerFastFalseWritesBeforePrompt": true,
+      "validWorkerAuthoredCompactReports": 2,
+      "upstreamReportExactInDownstreamPrompt": true,
+      "downstreamAdmittedAfterUpstreamReply": true,
+      "workflowListOmitsReports": true,
+      "other119SettingsAndCallerConfigPreserved": true,
+      "expectedPrivateSelectionLearningCount": 3,
+      "originalHandlesJoined": 4,
+      "knownPidAbsenceCount": 11,
+      "closedTrackedPorts": 4,
+      "elapsedMs": 14493,
+      "singleAttemptUsed": true,
+      "unchangedRetryAllowed": false,
+      "priorRunsCapsAndSourceFixFailuresPreserved": true,
+      "realExternalProvidersGuiPaintHardwarePrivateRamOrMatchedP95Claim": false
+    },
+    "latestSourceQuality": {
+      "sourceCodeRevision": "21b240cea4b2016f35934d1776d1a21c9c86519b",
+      "repositoryHead": "ecd37c0ba",
+      "headDifference": "prior progress document only",
+      "filesPassed": 2001,
+      "filesSkipped": 6,
+      "testsPassed": 22967,
+      "testsSkipped": 102,
+      "testsFailed": 0,
+      "testSeconds": 212.02,
+      "checks": [
+        "typecheck",
+        "lint",
+        "format",
+        "protocol:remote:v3:check",
+        "production-main-build"
+      ],
+      "evidenceRoot": "tmp/v2-finalization-20261010/current-quality",
+      "rendererEnvironment": "jsdom; canvas warnings and deliberate negative test logging retained; no GPU/GUI-paint qualification"
+    },
+    "currentRequirementAudit": "tmp/v2-finalization-20261010/current-requirement-audit.json"
   },
   "milestones": [
     {
@@ -7142,6 +7200,10 @@
     {
       "at": "2026-10-10T02:44:14.969940+00:00",
       "summary": "Reduced targeted 8-profile usage settings reads15->2/discovery14->2 and broad autoRefreshOFF settings25->2; identity checks preserved,47 tests PASS. Genuine structured subagent testing exposed discarded fast:false across MCP parser/planning/config; fixed and538 crossagent tests PASS. New production source21b240cea sealed91751files/698packages, unchanged renderer/helper bytes inherited by source/byte verification. Latest five real RPC/canonical results prove fast:false setter before prompt and quiet cursor preservation; expected clipped progress tail1078/retained4047 verified offline after harness marker assertion. All4 failed full runs/caps retained; cancel/dependent workflow not run, no GUI/hardware/resource/p95 gain claim. Goal stays active13/18 tasks,2/6 milestones."
+    },
+    {
+      "at": "2026-10-10T03:20:04.741055+00:00",
+      "summary": "Single bounded unexecuted cancel/dependent workflow residual6/6 actual production handlers PASS after independent10file preflight resolved deadline/cleanup issues. Three structured ACP workers, explicit held cancellation, two valid compact reports and exact upstream handoff; all27 canonicalitems/5tables retained, other119settings/caller preserved, expected own selection learning3,4handlesjoined0/11knownPIDsabsent/4portsclosed,14.493s. Provider received cancel notification; canceled-prompt stdout callback not observed, not claimed. Parent verifier Buffer serialization/prompt-suffix assumptions corrected offline only. Full latest source22967tests/2001files PASS+102existing skips,static/protocol/currentmainbuild PASS. Updated16requirement interim audit; GUIlocked/PWA/physical/private/matched resources stillincomplete; broad13/18 and2/6 unchanged. No source edits/commits/push/publication/installed replacement thisturn; trackerupdate remains local."
     }
   ],
   "tasks": [
@@ -7318,7 +7380,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "GUI smoke awaits user desktop unlock (last observed locked); retain physical/private hardware gaps. Continue remaining final controls/cancel/dependent workflow/worktree and PWA/matched qualification within original budgets. Use tail-aware and expected-private-learning settings oracles in a materially justified required final qualification; do not rerun the exhausted unchanged crossagent lane.",
+      "nextAction": "Current cancel/dependent graph scoped gate closed. Finish remaining GUI rich-tool/current reader/PTY/browser/compact/PWA and controls/worktree/all-tool-family gaps; current GUI requires user desktop unlock. Physical/private hardware limitations remain explicit. Final matchedp95/CPU/GPU/RAM/I/O still unqualified; do not repeat consumed diagnostics or infer gains from quality/build/synthetic counts. Current requirement audit identifies missing local historical backend/PWA proof. No commit/push/publication/installed replacement under active objective.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -7386,7 +7448,9 @@
         "tmp/v2-local-git-tools-20261010/root-verification.json",
         "tmp/v2-probe-pty-20261010/root-verification.json",
         "tmp/v2-probe-pty-20261010/current-catalog.json",
-        "tmp/v2-crossagent-workflow-20261010/partial-verification.json"
+        "tmp/v2-crossagent-workflow-20261010/partial-verification.json",
+        "tmp/v2-crossagent-residual-20261010/root-verification.json",
+        "tmp/v2-finalization-20261010/current-requirement-audit.json"
       ]
     },
     {
@@ -7417,7 +7481,9 @@
         "tmp/v2-thread-control-qualification-20261010/root-result.json",
         "tmp/v2-local-git-tools-20261010/root-verification.json",
         "tmp/v2-probe-pty-20261010/root-verification.json",
-        "tmp/v2-crossagent-workflow-20261010/partial-verification.json"
+        "tmp/v2-crossagent-workflow-20261010/partial-verification.json",
+        "tmp/v2-crossagent-residual-20261010/root-verification.json",
+        "tmp/v2-finalization-20261010/current-requirement-audit.json"
       ]
     },
     {
