@@ -43,6 +43,8 @@ export interface RuntimeThreadAccessSchedulerOptions {
   busyRetryAfterMs?: number;
   /** Test seam: invoked whenever the internal timer is armed/disarmed. */
   onTimerChange?: (armed: boolean) => void;
+  /** Metadata-only slot release; observers still acquire access through the gate. */
+  onThreadAccessAvailable?: (threadId: string) => void;
 }
 
 interface FenceEntry {
@@ -72,8 +74,11 @@ export class RuntimeThreadAccessScheduler {
   private readonly queues = new Map<string, Entry[]>();
   private readonly entries = new Set<Entry>();
   private readonly mutationTurnWaiters = new Map<MutationEntry, (granted: boolean) => void>();
-  private readonly options: Required<Omit<RuntimeThreadAccessSchedulerOptions, "onTimerChange">> & {
+  private readonly options: Required<
+    Omit<RuntimeThreadAccessSchedulerOptions, "onTimerChange" | "onThreadAccessAvailable">
+  > & {
     onTimerChange?: (armed: boolean) => void;
+    onThreadAccessAvailable?: (threadId: string) => void;
   };
   private timer: ReturnType<typeof setTimeout> | undefined;
   private disposed = false;
@@ -343,6 +348,7 @@ export class RuntimeThreadAccessScheduler {
     if (index >= 0) queue.splice(index, 1);
     if (queue.length === 0) this.queues.delete(entry.threadId);
     this.schedule();
+    if (!this.disposed) this.options.onThreadAccessAvailable?.(entry.threadId);
   }
 
   /**

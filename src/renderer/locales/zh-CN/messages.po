@@ -3265,10 +3265,7 @@ msgstr "Codex 配置文件名称"
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex 会将 CODEX_HOME 设为下方目录来运行此配置文件。使用上方的“登录”让此配置文件登录其独立账户。"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "折叠"
 
@@ -3328,6 +3325,7 @@ msgid "Collapse todo dock"
 msgstr "折叠待办事项面板"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "折叠警告"
 
@@ -5762,10 +5760,7 @@ msgstr "退出计划模式"
 msgid "Exited with code {0}. Close to retry."
 msgstr "已退出，退出码为 {0}。关闭以重试。"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "展开"
 
@@ -5811,6 +5806,7 @@ msgid "Expand todo dock"
 msgstr "展开待办事项停靠栏"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "展开警告"
 
@@ -7501,7 +7497,7 @@ msgstr "内部命令和代理"
 msgid "Interrupted"
 msgstr "已中断"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "已中断：代理会话在完成之前结束。"
 
@@ -17014,6 +17010,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "正在预热 WSL shell 环境..."
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "警告"
 

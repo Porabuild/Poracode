@@ -1,10 +1,10 @@
-import { msg } from "@lingui/core/macro";
 import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
-import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
-import { i18n } from "@/renderer/i18n/i18n";
+import { msg } from "@/shared/messages";
+import {
+  interruptDelegatedAgentToolPayload,
+  isDelegatedAgentTool,
+} from "@/shared/toolCallClassification";
 import type { RuntimeChatItem } from "./runtimeEventSlice";
-
-const STALE_SUB_AGENT_ERROR_MESSAGE = msg`Interrupted: agent session ended before completion.`;
 
 /**
  * Crossagent runs are owned by the supervisor process, not by the parent
@@ -92,21 +92,10 @@ export function terminateSubAgentItem(item: RuntimeChatItem): RuntimeChatItem {
     name: "Task",
     status: "error",
   };
-  const nextPayload: ToolCallPayload = {
-    ...payload,
-    status: "error",
-    ...(payload.isCrossagent &&
-    (payload.crossagentStatus === undefined || payload.crossagentStatus === "running")
-      ? { crossagentStatus: "failed" as const }
-      : {}),
-    ...(payload.result === undefined
-      ? { result: { error: i18n._(STALE_SUB_AGENT_ERROR_MESSAGE) } }
-      : {}),
-  };
   return {
     ...item,
     state: "completed",
-    payload: nextPayload,
+    payload: interruptDelegatedAgentToolPayload(payload, msg("runtime.delegatedAgentInterrupted")),
   };
 }
 

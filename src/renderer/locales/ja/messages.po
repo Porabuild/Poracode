@@ -3264,10 +3264,7 @@ msgstr "Codex プロファイル名"
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex はこのプロファイルを、CODEX_HOME を下記のディレクトリに設定して実行します。上の「ログイン」で、このプロファイルを専用のアカウントにサインインさせてください。"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "折りたたむ"
 
@@ -3327,6 +3324,7 @@ msgid "Collapse todo dock"
 msgstr "todo ドックを折りたたむ"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "警告を折りたたむ"
 
@@ -5761,10 +5759,7 @@ msgstr "計画モードを終了する"
 msgid "Exited with code {0}. Close to retry."
 msgstr "コード{0}で終了しました。閉じて再試行してください。"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "拡大する"
 
@@ -5810,6 +5805,7 @@ msgid "Expand todo dock"
 msgstr "Todo ドックを展開する"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "警告を展開"
 
@@ -7500,7 +7496,7 @@ msgstr "内部コマンドとエージェント"
 msgid "Interrupted"
 msgstr "中断"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "中断されました: エージェントセッションが完了前に終了しました。"
 
@@ -17013,6 +17009,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "WSL シェル環境をウォームアップしています…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "警告"
 

@@ -71,6 +71,7 @@ export interface RuntimeFenceControlOptions {
   fenceMaxHoldMs: number;
   mutationDeadlineMs: number;
   maxControlOperations: number;
+  onThreadAccessAvailable?: (threadId: string) => void;
   schedulerOptions?: {
     maxFenceWaitersPerThread?: number;
     maxMutationWaitersPerThread?: number;
@@ -101,6 +102,9 @@ export class RuntimeFenceControl {
       now: this.options.host.now,
       fenceMaxHoldMs: this.options.fenceMaxHoldMs,
       mutationDeadlineMs: this.options.mutationDeadlineMs,
+      ...(this.options.onThreadAccessAvailable
+        ? { onThreadAccessAvailable: this.options.onThreadAccessAvailable }
+        : {}),
       ...this.options.schedulerOptions,
     });
   }

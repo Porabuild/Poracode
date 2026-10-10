@@ -102,6 +102,7 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
+import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import {
   usePluginMentionItems,
   useSkillSlashCommandState,
@@ -641,6 +642,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const approvalDenyOption = activeRuntimeRequest
     ? getApprovalDenyOption(activeRuntimeRequest)
     : undefined;
+  const resumeUnavailableNoticeId = useId();
   const resumeUnavailableMessage =
     !usesTerminalPresentation &&
     thread.status === "inactive" &&
@@ -650,10 +652,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       ? t`This thread cannot be resumed. Start a new thread to continue.`
       : undefined;
   const resumeUnavailableNotice = resumeUnavailableMessage ? (
-    <p role="status" className="px-3 py-2 text-xs text-muted">
-      {resumeUnavailableMessage}
-    </p>
+    <ThreadResumeUnavailableDock
+      noticeId={resumeUnavailableNoticeId}
+      message={resumeUnavailableMessage}
+    />
   ) : null;
+  const composerResumeNotice = compactLayout ? null : resumeUnavailableNotice;
   // Gate the inline docks only. `activeRuntimeRequest` still drives the
   // composer's deny-with-feedback submit path, and `authRequired` still disables
   // submit/voice, when a host renders these docks itself.
@@ -978,7 +982,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
               )}
             </ComposerBubbleRow>
           ) : null}
-          {!compactLayout ? resumeUnavailableNotice : null}
           <AdaptiveThreadComposerDock
             compact={compactLayout}
             collapsed={isComposerCollapsed}
@@ -996,10 +999,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             aboveBubble={
               compactLayout ? (
                 <>
-                  {resumeUnavailableNotice}
                   <ComposerActionDocks
                     thread={thread}
                     agentStatus={agentStatus}
+                    notice={resumeUnavailableNotice}
                     onRestoreComposerFocus={restoreComposerFocus}
                     {...(props.onOpenProjectRelativePath
                       ? {
@@ -1076,6 +1079,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       authRequired ? "auth-required" : "auth-ready",
                     ].join("|")}
                     fixedContent={
+                      composerResumeNotice !== null ||
                       hasActiveSubAgent ||
                       hasBackgroundTasks ||
                       showContextInComposer ||
@@ -1088,6 +1092,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       composerFollowUpQueue ||
                       showCommandPanel ? (
                         <ThreadComposerDocks
+                          notice={composerResumeNotice}
                           hasActiveSubAgent={hasActiveSubAgent}
                           hasBackgroundTasks={hasBackgroundTasks}
                           showContextInComposer={showContextInComposer}
@@ -1163,16 +1168,20 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
                         compact
                         disabled={!(showServerComposer || showTerminalComposer)}
+                        {...(resumeUnavailableMessage
+                          ? { ariaDescribedBy: resumeUnavailableNoticeId }
+                          : {})}
                         placeholder={
                           approvalDenyOption
                             ? t`Deny and tell the agent what to do differently…`
-                            : (resumeUnavailableMessage ??
-                              (thread.status === "inactive" && canRecoverGuiInput && !isConnecting
+                            : resumeUnavailableMessage
+                              ? ""
+                              : thread.status === "inactive" && canRecoverGuiInput && !isConnecting
                                 ? t`Disconnected — send a message to reconnect`
                                 : isServerControlled
                                   ? (props.composerPlaceholder ??
                                     t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
-                                  : t`Send a message...`))
+                                  : t`Send a message...`
                         }
                         projectLocation={projectLocation}
                         submitOnEnter={props.submitOnEnter ?? !compactLayout}

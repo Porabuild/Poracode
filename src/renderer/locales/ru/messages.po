@@ -3265,10 +3265,7 @@ msgstr "Имя профиля Codex"
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex запускает этот профиль с CODEX_HOME, указывающим на каталог ниже. Нажмите «Войти» выше, чтобы войти в отдельный аккаунт этого профиля."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Свернуть"
 
@@ -3328,6 +3325,7 @@ msgid "Collapse todo dock"
 msgstr "Свернуть панель задач"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Свернуть предупреждение"
 
@@ -5762,10 +5760,7 @@ msgstr "Выйти из режима плана"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Завершился с кодом {0}. Закройте, чтобы повторить."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Развернуть"
 
@@ -5811,6 +5806,7 @@ msgid "Expand todo dock"
 msgstr "Развернуть панель задач"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Развернуть предупреждение"
 
@@ -7501,7 +7497,7 @@ msgstr "Внутренние команды и агенты"
 msgid "Interrupted"
 msgstr "Прервано"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Прервано: сессия агента завершилась до окончания."
 
@@ -17015,6 +17011,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "Подготовка окружения оболочки WSL…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "Предупреждение"
 

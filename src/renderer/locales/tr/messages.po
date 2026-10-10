@@ -3265,10 +3265,7 @@ msgstr "Codex profili adı"
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex bu profili CODEX_HOME aşağıdaki dizine ayarlanmış olarak çalıştırır. Bu profili kendi hesabına bağlamak için yukarıdaki Giriş yap'ı kullanın."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Daralt"
 
@@ -3328,6 +3325,7 @@ msgid "Collapse todo dock"
 msgstr "Yapılacaklar panelini daralt"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Uyarıyı daralt"
 
@@ -5762,10 +5760,7 @@ msgstr "Plan modundan çık"
 msgid "Exited with code {0}. Close to retry."
 msgstr "{0} koduyla çıkıldı. Yeniden denemek için kapatın."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Genişlet"
 
@@ -5811,6 +5806,7 @@ msgid "Expand todo dock"
 msgstr "Yapılacaklar iskelesini genişlet"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Uyarıyı genişlet"
 
@@ -7501,7 +7497,7 @@ msgstr "Dahili komutlar ve ajanlar"
 msgid "Interrupted"
 msgstr "Kesintiye uğradı"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Kesintiye uğradı: Ajan oturumu tamamlanmadan sona erdi."
 
@@ -17015,6 +17011,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "WSL kabuk ortamı ısınıyor…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "Uyarı"
 

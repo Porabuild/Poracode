@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T16:18:50.178719+00:00",
+  "updatedAt": "2026-10-10T16:22:25.683203+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -64,7 +64,7 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Review and commit pending changes, pull and integrate origin/poracode/v2, verify affected source and push. Resume the prepared rich saved PWA qualification only after final source reconciliation; preserve original evidence, failures and exhausted cohorts. No publication or installed-app replacement; no new resource, gain, all-tools or device claim.",
+    "nextAction": "Finish the authorized merge commit and push, then reconcile the prepared rich saved PWA controller and frozen production source against the merged branch before execution. Preserve prior evidence, failures and exhausted cohorts; recover missing original resource receipts from backup if available. No new resource, gain, all-tools or device claim; no publication or installed-app replacement.",
     "lastResult": "Recoveredpromotedoldprofile read-only:32savedcanonicalrows+1turn; exactoriginalfullarraySHA543b2c/302102bytes/24scriptedcases/2childcards/3imageblocks. FreshprivatecurrentAPIowner seed preservesall32rows/5heads/19blocks/turn andemptyorigins/gaps/notices, ownerreboundonly; fullmaterializedreceiptexact/originalDBmainhashunchanged/no newcommits. 3failedpreparationsretained; sourcePK/foreignownerpreflightPASS, finalprepPASS;0app/browser/executionattempts.40sealedresourcehelpers stillmissing/28exact;6currentselectedsourcesmatch. Historicalmilestonecounts preserved withcustodylimit; currentfullscopeincomplete.",
     "lastDeclaration": "One normalization-only diagnostic plus one source-fix allocation validation, no unchanged usage/wholeapp cohort or renderer attribution restart. Differential syntax error caused shell to continue into validation before corrected110case preflight; originalincorrectdeclaration/failedlog retained and sequencing annotated offline, no measurement rerun. CachechurnoneattemptFAIL retained; source cleanup/bounds/data scope distinct from collectionproof.",
     "liveRootHandles": [],
@@ -8857,6 +8857,34 @@
       "instruction": "we have a lot to commit, pull, and push",
       "branch": "poracode/v2",
       "qualificationControllerLaunched": false
+    },
+    "gitSynchronization": {
+      "at": "2026-10-10T16:22:25.683203+00:00",
+      "authorization": "User: we have a lot to commit, pull, and push",
+      "checkpointCommit": "919da9e674710711634292ee36215a69b5895110",
+      "remoteIntegratedCommit": "45cbdf212d1b80115d6381f8ecc4ca5ebde3b961",
+      "mode": "Merge; preserve published and local history",
+      "remoteCommitsIntegrated": 4,
+      "conflictsResolved": 16,
+      "quality": {
+        "initialSmokeHelperTestsPassed": 71,
+        "initialFocusedApplicationTestsPassed": 93,
+        "panelCleanupTestsPassed": 4,
+        "mergedAffectedApplicationTestsPassed": 465,
+        "mergedAffectedFilesPassed": 16,
+        "mergedScenarioTestsPassed": 6,
+        "typecheck": "PASS",
+        "lint": "PASS",
+        "format": "PASS",
+        "remoteProtocolMirrors": "PASS",
+        "missingTranslationsAll12NonEnglishLocales": 0
+      },
+      "fullSuiteRerun": false,
+      "historicalFullSuiteFailuresPreserved": true,
+      "qualificationExecutionAttemptsConsumed": 0,
+      "preparedRichSavedControllerLaunched": false,
+      "productionEvidenceLimit": "Prior frozen production receipts remain scoped to their recorded source. The merged source requires renewed source/artifact reconciliation before additional qualification.",
+      "pushAfterMergeCommit": "Authorized; result must be verified against origin."
     }
   },
   "milestones": [
@@ -9987,6 +10015,10 @@
     {
       "at": "2026-10-10T16:18:50.178719+00:00",
       "summary": "Latest user instruction explicitly authorizes committing current pending work, pulling and integrating the remote branch, and pushing. Earlier no-commit/no-push restriction is overridden for this Git work; performance objective, evidence limits, publication and installed-app restrictions remain in force."
+    },
+    {
+      "at": "2026-10-10T16:22:25.683203+00:00",
+      "summary": "Committed all 36 pending files at 919da9e67 and integrated four remote v2 commits through a history-preserving merge. Resolved 16 conflicts preserving both branches; shared message lookup consolidated and all locale catalogs regenerated with zero missing translations. Combined-source 465 affected application tests, six scenario tests, typecheck, lint, format and remote protocol mirror check pass. Original full-suite deadline failure remains unresolved; no performance qualification attempts consumed."
     }
   ],
   "tasks": [

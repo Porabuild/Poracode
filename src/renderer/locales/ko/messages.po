@@ -3265,10 +3265,7 @@ msgstr "Codex 프로필 이름"
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex는 CODEX_HOME을 아래 디렉터리로 설정하여 이 프로필을 실행합니다. 위의 로그인을 사용해 이 프로필을 별도 계정에 로그인하세요."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "접기"
 
@@ -3328,6 +3325,7 @@ msgid "Collapse todo dock"
 msgstr "할 일 도크 접기"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "경고 접기"
 
@@ -5762,10 +5760,7 @@ msgstr "계획 모드 종료"
 msgid "Exited with code {0}. Close to retry."
 msgstr "코드 {0}(으)로 종료되었습니다. 다시 시도하려면 닫으세요."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "펼치기"
 
@@ -5811,6 +5806,7 @@ msgid "Expand todo dock"
 msgstr "할 일 도크 확장"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "경고 펼치기"
 
@@ -7501,7 +7497,7 @@ msgstr "내부 명령 및 에이전트"
 msgid "Interrupted"
 msgstr "중단됨"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니다."
 
@@ -17015,6 +17011,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "WSL 셸 환경 준비 중…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "경고"
 

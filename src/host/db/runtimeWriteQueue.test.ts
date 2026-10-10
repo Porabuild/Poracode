@@ -89,6 +89,30 @@ describe("coalesceRuntimeEvents", () => {
 });
 
 describe("RuntimeWriteQueue bounds", () => {
+  it("captures accepted starts without exposing mutable queue payloads", () => {
+    const queue = new RuntimeWriteQueue(() => {});
+    const event: RuntimeEvent = {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "tool",
+      itemType: "tool_call",
+      payload: { name: "Delegate", status: "running", args: { agentType: "explorer" } },
+    };
+    const update: RuntimeEvent = {
+      type: "item.updated",
+      threadId: "t1",
+      itemId: "tool",
+      payload: { isSubAgent: true },
+    };
+    queue.enqueue("t1", [event, delta("tool", "partial"), update]);
+    const captured = queue.pendingItemPayloadEvents();
+    expect(captured).toEqual([event, update]);
+    (captured[0]!.payload as { name: string }).name = "changed";
+    expect(queue.pendingItemPayloadEvents()[0]!.payload).toMatchObject({ name: "Delegate" });
+    queue.flushThread("t1");
+    expect(queue.pendingItemPayloadEvents()).toEqual([]);
+  });
+
   it("defers writes until flushThread and coalesces once", () => {
     const writes: Array<{ threadId: string; events: readonly RuntimeEvent[] }> = [];
     const queue = new RuntimeWriteQueue((threadId, events) => writes.push({ threadId, events }));

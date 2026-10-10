@@ -661,7 +661,7 @@ function evictThreadRuntimeItems(threadId: string): void {
  * Re-seeds the thread from the local DB, which still holds the events the
  * live stream lost (the backend persists them before broadcast).
  */
-export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<boolean> {
+export function invalidateThreadRuntimeHydration(threadId: string): void {
   forgetThreadRuntimeWindow(threadId);
   hydratedThreadRuntimeIds.delete(threadId);
 
@@ -675,6 +675,10 @@ export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): P
   cancelPendingThreadRuntimeHydration(threadId);
   // The non-item older level (bounded completed turns) follows the same reset.
   olderThreadHistoryInvalidation?.(threadId);
+}
+
+export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<boolean> {
+  invalidateThreadRuntimeHydration(threadId);
   await hydrateThreadRuntimeItems(threadId);
   return useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed";
 }

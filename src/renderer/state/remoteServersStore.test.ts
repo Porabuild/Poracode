@@ -3681,6 +3681,47 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().openThread?.thread.title).toBe("Remote rt-1 resynced");
   });
 
+  it("clears old goal and plan rows before reopening an unsubscribed remote view", async () => {
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    await pairIsolated(() => makeSocket());
+    const id = remoteThreadId("d1", "rt-1");
+    useAppStore.getState().applyRuntimeEvents(id, [
+      {
+        type: "item.started",
+        threadId: id,
+        itemId: "old-goal",
+        itemType: "goal",
+        payload: { action: "set", objective: "Previous visit", status: "active" },
+      },
+      {
+        type: "item.started",
+        threadId: id,
+        itemId: "old-plan",
+        itemType: "plan",
+        payload: { steps: [] },
+      },
+    ]);
+    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    expect(useAppStore.getState().runtimeItemIdsByThread[id]).toBeUndefined();
+    expect(sync.applyThreadSnapshot).toHaveBeenCalled();
+  });
+
+  it("preserves a live delegated row when reopening its remote pane", async () => {
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    await pairIsolated(() => makeSocket());
+    const id = remoteThreadId("d1", "rt-1");
+    useAppStore.getState().applyRuntimeEvent(id, {
+      type: "item.started",
+      threadId: id,
+      itemId: "live-agent",
+      itemType: "tool_call",
+      payload: { name: "Crossagent", status: "running", isCrossagent: true },
+    });
+    const row = useAppStore.getState().runtimeItemsByIdByThread[id]?.["live-agent"];
+    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    expect(useAppStore.getState().runtimeItemsByIdByThread[id]?.["live-agent"]).toBe(row);
+  });
+
   it("keeps the shared server event socket alive after manual thread close", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];

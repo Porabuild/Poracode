@@ -19,6 +19,18 @@ export const functionalAreas = [
     manual: ["changed-surface"],
   },
   {
+    id: "delegated-agent-recovery",
+    title: "Delegated-agent host restart and remote snapshot recovery",
+    patterns: [
+      /delegatedAgent/i,
+      /staleSubAgents/,
+      /resetThreadProjection/,
+      /toolCallClassification/,
+    ],
+    automated: ["baseline"],
+    manual: ["delegated-agent-recovery"],
+  },
+  {
     id: "remote-provider-usage",
     title: "Host-scoped provider usage and live remote refresh",
     patterns: [/hostUsage/i, /HostUsageSettings/, /parts\/UsageSettings/],
@@ -281,6 +293,8 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "delegated-agent-recovery":
+    "Restart an isolated host with historical native and Crossagent rows; verify terminal state, retained output, current/stale snapshot fencing and live-run preservation.",
   "remote-usage":
     "Select two isolated hosts with matching provider IDs, verify separate accounts and real host collection, then check attached Electron, viewer/auth denial, stale/offline/reconnect, and compact browser settings. Credentials must remain on each owning host.",
   "live-voice":

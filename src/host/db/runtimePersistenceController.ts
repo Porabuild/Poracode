@@ -100,6 +100,7 @@ export interface RuntimePersistenceControllerOptions {
   onStateChange?(info: RuntimePersistenceStateInfo): void;
   /** Metadata-only queue changes; callbacks must not reenter queue mutations. */
   onCapacityChange?(change: RuntimeQueueCapacityChange): void;
+  onThreadAccessAvailable?(threadId: string): void;
   onRefusal?(
     reason: RuntimeRefusalReason,
     scope: RuntimeRefusalScope,
@@ -255,6 +256,9 @@ export class RuntimePersistenceController {
       fenceMaxHoldMs: this.options.fenceMaxHoldMs,
       mutationDeadlineMs: this.options.mutationDeadlineMs,
       maxControlOperations: this.options.maxControlOperations,
+      ...(this.options.onThreadAccessAvailable
+        ? { onThreadAccessAvailable: this.options.onThreadAccessAvailable }
+        : {}),
       ...(this.options.schedulerOptions !== undefined
         ? { schedulerOptions: this.options.schedulerOptions }
         : {}),
@@ -898,6 +902,10 @@ export class RuntimePersistenceController {
 
   pendingThreadIds(): string[] {
     return this.queue.pendingThreadIds();
+  }
+
+  pendingItemPayloadEvents(): ReturnType<RuntimeWriteQueue["pendingItemPayloadEvents"]> {
+    return this.queue.pendingItemPayloadEvents();
   }
 
   pendingStats(): { threads: number; events: number; bytes: number; oldestAgeMs: number | null } {

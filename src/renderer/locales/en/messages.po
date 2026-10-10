@@ -3274,10 +3274,7 @@ msgstr "Codex profile name"
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Collapse"
 
@@ -3337,6 +3334,7 @@ msgid "Collapse todo dock"
 msgstr "Collapse todo dock"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Collapse warning"
 
@@ -5771,10 +5769,7 @@ msgstr "Exit plan mode"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Exited with code {0}. Close to retry."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Expand"
 
@@ -5820,6 +5815,7 @@ msgid "Expand todo dock"
 msgstr "Expand todo dock"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Expand warning"
 
@@ -7510,7 +7506,7 @@ msgstr "Internal commands and agents"
 msgid "Interrupted"
 msgstr "Interrupted"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Interrupted: agent session ended before completion."
 
@@ -17028,6 +17024,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "Warming up WSL shell environment…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "Warning"
 

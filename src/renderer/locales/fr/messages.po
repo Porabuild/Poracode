@@ -3265,10 +3265,7 @@ msgstr "Nom du profil Codex"
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex exécute ce profil avec CODEX_HOME pointant vers le répertoire ci-dessous. Utilisez Connexion ci-dessus pour connecter ce profil à son propre compte."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Réduire"
 
@@ -3328,6 +3325,7 @@ msgid "Collapse todo dock"
 msgstr "Réduire le dock des tâches"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Réduire l'avertissement"
 
@@ -5762,10 +5760,7 @@ msgstr "Quitter le mode Planification"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Quitté avec le code {0}. Fermez pour réessayer."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Développer"
 
@@ -5811,6 +5806,7 @@ msgid "Expand todo dock"
 msgstr "Développer le dock de tâches"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Développer l'avertissement"
 
@@ -7501,7 +7497,7 @@ msgstr "Commandes internes et agents"
 msgid "Interrupted"
 msgstr "Interrompue"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Interrompu : la session de l'agent s'est terminée avant la fin."
 
@@ -17014,6 +17010,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "Préparation de l'environnement shell WSL…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "Avertissement"
 

@@ -293,31 +293,35 @@ export function dbGetThreadRuntimeItemsPage(
 }
 
 /**
- * Every tool_call row that still reads as running, across all threads, with
- * its parsed payload. Generic on purpose — no delegated-agent knowledge here —
- * so boot-time maintenance (e.g. settling orphaned Crossagent runs when the
- * run-owning supervisor process was replaced) can classify rows itself.
+ * Tool-call candidates that may still be running, including older completed
+ * rows whose payload retained a running status. Lifecycle maintenance classifies
+ * them with the shared tool predicates after committing the accepted prefix.
+ * The optional thread filter keeps that authoritative re-read thread-scoped.
  *
- * Cost note: this is an unindexed scan (no index covers `type`/`state`), so
- * it reads the whole table per call; callers are boot and supervisor reset
- * only. The result set is small but not bounded by construction — native
- * sub-agent rows whose terminal event never landed accumulate until the
- * renderer's session-liveness reconcile settles their display. A partial
- * index (`WHERE type = 'tool_call' AND state != 'completed'`) is the follow-up
- * if these scans ever show up in boot profiles.
+ * This scans the tool rows at boot/reset only. Completed payloads use a guarded
+ * JSON read so malformed historical data cannot prevent the maintenance pass.
  */
-export function dbReadRunningToolCallItems(): Array<{
+export function dbReadRunningToolCallItems(
+  threadId?: string,
+  includeLegacyCompleted = true,
+): Array<{
   threadId: string;
   itemId: string;
   payload: unknown;
 }> {
-  const rows = getSqlite()
-    .prepare(
-      `SELECT thread_id, item_id, payload
-       FROM thread_runtime_items
-       WHERE type = 'tool_call' AND state != 'completed'`,
-    )
-    .all() as Array<{ thread_id: string; item_id: string; payload: string | null }>;
+  const statement = getSqlite().prepare(
+    `SELECT thread_id, item_id, payload
+     FROM thread_runtime_items
+     WHERE type = 'tool_call'
+       AND (state != 'completed'
+         ${includeLegacyCompleted ? "OR CASE WHEN json_valid(payload) THEN json_extract(payload, '$.status') END = 'running'" : ""})
+       ${threadId === undefined ? "" : "AND thread_id = ?"}`,
+  );
+  const rows = (threadId === undefined ? statement.all() : statement.all(threadId)) as Array<{
+    thread_id: string;
+    item_id: string;
+    payload: string | null;
+  }>;
   return rows.map((row) => ({
     threadId: row.thread_id,
     itemId: row.item_id,

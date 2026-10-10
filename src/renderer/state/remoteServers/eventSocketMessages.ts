@@ -2,6 +2,7 @@ import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { handleBrowserServerMessage } from "@/renderer/browser/browserMirror";
 import { releaseRemoteTerminal, remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
 import { measuredRawBytes } from "@/renderer/state/remote/engine";
+import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
 import {
   applyThreadSnapshot,
   collectRuntimeEventsFromSupervisoryMessage,
@@ -21,6 +22,7 @@ import {
   tryBeginTruncateReload,
 } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
+import { pruneLiveObservedCrossagentItems } from "@/renderer/state/slices/staleSubAgents";
 import {
   projectRemoteThreadEvent,
   projectRemoteThreadSnapshot,
@@ -70,6 +72,7 @@ const MAX_RECOVERY_QUEUED_BYTES = 2 * 1024 * 1024;
 export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () => void {
   const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss, recovery } = ctx;
   const connectionKey = remoteConnectionKey(server);
+  let socketSequenceFloor = ctx.resumeCursor;
 
   const requestTruncateAuthoritativeReload = (
     targetRemoteThreadId: string,
@@ -411,12 +414,26 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
             // exactly the missing range.
             bumpRemoteServerSnapshotSeq(connectionKey, message.seq);
           }
+          socketSequenceFloor = Math.max(socketSequenceFloor, message.seq);
         }
         if (message.type === "resync-required") {
           // The server's in-memory event sequence restarts with the
           // process. Accept its lower cursor before the authoritative
           // snapshots advance it again, or every reconnect will ask
           // for an impossible pre-restart sequence forever.
+          // HTTP snapshots may already describe a later point on a live
+          // host. Only this socket's cursor/frame history proves a restart.
+          if (message.seq < socketSequenceFloor) {
+            const prefix = remoteThreadId(connectionKey, "");
+            pruneLiveObservedCrossagentItems((threadId) => threadId.startsWith(prefix));
+            const threadIds = new Set(currentRemoteServerThreadItemInterests(connectionKey));
+            const open = get().openThread;
+            if (open?.desktopId === connectionKey) threadIds.add(open.threadId);
+            for (const threadId of threadIds) {
+              resetRemoteThreadProjection(remoteThreadId(connectionKey, threadId));
+            }
+          }
+          socketSequenceFloor = message.seq;
           setRemoteServerSnapshotSeq(connectionKey, message.seq);
           // Pre-restart per-thread marks would refuse every fresh
           // (lower-seq) snapshot forever; re-baseline them too.

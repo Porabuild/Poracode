@@ -630,9 +630,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       payload: {
         status: "error",
         crossagentStatus: "failed",
-        result: {
-          error: "Interrupted: agent session ended before completion.",
-        },
+        result: "Interrupted: agent session ended before completion.",
       },
     });
   });
@@ -708,9 +706,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       payload: {
         status: "error",
         crossagentStatus: "failed",
-        result: {
-          error: "Interrupted: agent session ended before completion.",
-        },
+        result: "Interrupted: agent session ended before completion.",
       },
     });
   });

@@ -3265,10 +3265,7 @@ msgstr "Tên hồ sơ Codex"
 msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
 msgstr "Codex chạy hồ sơ này với CODEX_HOME trỏ tới thư mục bên dưới. Dùng Đăng nhập ở trên để đăng nhập hồ sơ này vào tài khoản riêng của nó."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Thu gọn"
 
@@ -3328,6 +3325,7 @@ msgid "Collapse todo dock"
 msgstr "Thu gọn thanh việc cần làm"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Thu gọn cảnh báo"
 
@@ -5762,10 +5760,7 @@ msgstr "Thoát khỏi chế độ kế hoạch"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Đã thoát với mã {0}. Đóng để thử lại."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Mở rộng"
 
@@ -5811,6 +5806,7 @@ msgid "Expand todo dock"
 msgstr "Mở rộng dock việc cần làm"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Mở rộng cảnh báo"
 
@@ -7501,7 +7497,7 @@ msgstr "Lệnh nội bộ và tác nhân"
 msgid "Interrupted"
 msgstr "Bị gián đoạn"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoàn thành."
 
@@ -17015,6 +17011,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "Đang khởi động môi trường shell WSL…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "Cảnh báo"
 
