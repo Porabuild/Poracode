@@ -26,8 +26,15 @@ function credential(id: string, active = true): CredentialEntry {
   };
 }
 
-function server(database: AcquiredOpenCode2Server["database"], initial: CredentialEntry[]) {
+function server(
+  database: AcquiredOpenCode2Server["database"],
+  initial: CredentialEntry[],
+  activationIsExplicit = true,
+) {
   const entries = new Map(initial.map((entry) => [entry.id, structuredClone(entry)]));
+  const explicitlySelected = new Set(
+    activationIsExplicit ? initial.filter((entry) => entry.active).map((entry) => entry.id) : [],
+  );
   const api = {
     list: vi.fn<() => Promise<CredentialEntry[]>>(async () =>
       [...entries.values()].map((entry) => structuredClone(entry)),
@@ -49,10 +56,29 @@ function server(database: AcquiredOpenCode2Server["database"], initial: Credenti
         activate: boolean;
       }) => {
         if (entries.has(input.id)) throw new Error("Conflicting credential");
+        // Upstream atomically stamps an implicitly selected existing account
+        // before inserting an inactive credential. A lost response still leaves
+        // the selected account protected by that committed transaction.
+        if (!input.activate)
+          for (const entry of entries.values())
+            if (entry.integrationID === input.integrationID && entry.active)
+              explicitlySelected.add(entry.id);
         if (input.activate)
           for (const entry of entries.values())
-            if (entry.integrationID === input.integrationID) entry.active = false;
-        const created = { ...input, active: input.activate };
+            if (entry.integrationID === input.integrationID) {
+              entry.active = false;
+              explicitlySelected.delete(entry.id);
+            }
+        if (input.activate) explicitlySelected.add(input.id);
+        const created = {
+          ...input,
+          active:
+            input.activate ||
+            ![...entries.values()].some(
+              (entry) =>
+                entry.integrationID === input.integrationID && explicitlySelected.has(entry.id),
+            ),
+        };
         entries.set(input.id, created);
         return created;
       },
@@ -60,12 +86,15 @@ function server(database: AcquiredOpenCode2Server["database"], initial: Credenti
     remove: vi.fn<(input: { credentialID: string }) => Promise<void>>(
       async ({ credentialID }: { credentialID: string }) => {
         entries.delete(credentialID);
+        explicitlySelected.delete(credentialID);
       },
     ),
     activate: vi.fn<(input: { credentialID: string }) => Promise<void>>(
       async ({ credentialID }: { credentialID: string }) => {
         const selected = entries.get(credentialID);
         if (!selected) throw new Error("Missing fixture credential");
+        if (selected.active) return;
+        explicitlySelected.add(credentialID);
         for (const entry of entries.values())
           if (entry.integrationID === selected.integrationID)
             entry.active = entry.id === credentialID;
@@ -128,6 +157,56 @@ describe("OpenCode credential compatibility", () => {
     expect(native.entries.size).toBe(0);
     expect(legacy.entries.size).toBe(0);
     expect(native.api.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves an implicit native selection when an inactive import succeeds but its response is lost", async () => {
+    const native = server("native", [credential("native-selected")], false);
+    const legacy = server("legacy-isolated", [credential("old-key")]);
+    const create = native.api.create.getMockImplementation()!;
+    native.api.create.mockImplementationOnce(async (input) => {
+      await create(input);
+      throw new Error("fixture response lost");
+    });
+    await expect(
+      synchronizeOpenCode2Credentials(location, native.acquired, async () => legacy.acquired),
+    ).rejects.toThrow("fixture response lost");
+    expect(native.entries.get("native-selected")?.active).toBe(true);
+    expect(native.entries.get("old-key")?.active).toBe(false);
+    expect(journal.credentials["old-key"]).toBe("pending-import");
+    clearOpenCode2CredentialCompatibility();
+    await synchronizeOpenCode2Credentials(location, native.acquired, async () => legacy.acquired);
+    expect(native.entries.get("native-selected")?.active).toBe(true);
+    expect(native.api.create).toHaveBeenCalledTimes(1);
+    expect(journal.credentials["old-key"]).toBe("imported");
+  });
+
+  it("preserves an implicit legacy OAuth selection when a key write succeeds but its response is lost", async () => {
+    const native = server("native", [credential("native-key")]);
+    const selected: CredentialEntry = {
+      ...credential("legacy-oauth"),
+      value: {
+        type: "oauth",
+        methodID: "fixture",
+        access: "synthetic-access",
+        refresh: "synthetic-refresh",
+        expires: 200,
+      },
+    };
+    const legacy = server("legacy-isolated", [selected], false);
+    const create = legacy.api.create.getMockImplementation()!;
+    legacy.api.create.mockImplementationOnce(async (input) => {
+      await create(input);
+      throw new Error("fixture response lost");
+    });
+    await expect(
+      synchronizeOpenCode2Credentials(location, legacy.acquired, async () => native.acquired),
+    ).rejects.toThrow("fixture response lost");
+    expect(legacy.entries.get("legacy-oauth")?.active).toBe(true);
+    expect(legacy.entries.get("native-key")?.active).toBe(false);
+    clearOpenCode2CredentialCompatibility();
+    await synchronizeOpenCode2Credentials(location, legacy.acquired, async () => native.acquired);
+    expect(legacy.entries.get("legacy-oauth")?.active).toBe(true);
+    expect(legacy.api.create).toHaveBeenCalledTimes(1);
   });
 
   it("recovers a failed import from its pending journal after restart", async () => {

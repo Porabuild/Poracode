@@ -52,6 +52,7 @@ const RUNTIME_DEPS = [
   "jsonc-parser",
   "micromatch",
   "node-pty",
+  "proper-lockfile",
   "sharp",
   "smol-toml",
   "vscode-jsonrpc",
