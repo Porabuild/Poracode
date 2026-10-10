@@ -1,6 +1,120 @@
 {
   "releases": [
     {
+      "version": "1.8.1",
+      "tagline": "Personal Flow",
+      "date": "2026-10-10",
+      "title": "Session import, custom themes & follow-up queues",
+      "summary": "Bring existing CLI conversations into Poracode, create and share your own themes, and queue your next steps while an agent works. This release also adds isolated Codex accounts, experimental live voice, OpenCode 2 support, and improvements to chat, files, terminals, and thread organization.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Session import",
+          "text": "Find, search, and import existing Claude and Codex CLI conversations from Settings → Import, then continue them in Poracode with their original provider sessions."
+        },
+        {
+          "kind": "added",
+          "label": "Themes",
+          "text": "Create and edit custom light and dark palettes with color pickers, live previews, and contrast guidance, then import or export themes to share them."
+        },
+        {
+          "kind": "added",
+          "label": "Composer",
+          "text": "Queue follow-up messages for the next response, edit or reorder them, or send one immediately with Steer, with a setting for your default action and Cmd+Enter or Ctrl+Enter to use the opposite action."
+        },
+        {
+          "kind": "added",
+          "label": "Codex",
+          "text": "Separate Codex accounts into isolated profiles with their own sign-in, sessions, plugins, skills, and usage tracking."
+        },
+        {
+          "kind": "added",
+          "label": "Codex",
+          "text": "Experimental live voice brings spoken conversations to desktop Codex chat, with microphone mute and end-call controls."
+        },
+        {
+          "kind": "added",
+          "label": "OpenCode 2",
+          "text": "Run the beta OpenCode 2 agent in terminal or native Chat with model discovery, permissions, question forms, plugins, MCP servers, and session resume."
+        },
+        {
+          "kind": "added",
+          "label": "Files",
+          "text": "Open image files directly in the desktop and mobile editors with dimensions, file size, and lightbox zoom, and switch SVG files between rendered and source views across local, WSL, and remote projects."
+        },
+        {
+          "kind": "added",
+          "label": "Chat",
+          "text": "LaTeX equations now render in chat responses and Markdown previews."
+        },
+        {
+          "kind": "improved",
+          "label": "Composer",
+          "text": "Recall sent prompts with Up and Down while preserving their chips and attachments, and find slash commands by word or substring with the matching text highlighted."
+        },
+        {
+          "kind": "improved",
+          "label": "Chat",
+          "text": "A sticky prompt bar keeps the request for the response you are reading in view and lets you jump back to it."
+        },
+        {
+          "kind": "improved",
+          "label": "Sidebar",
+          "text": "Manual order now supports dragging local threads across projects in the flat list, while completed threads move into a collapsible Done section with a count, pinned at the bottom of the flat list, and pane controls expose their availability correctly to assistive technology."
+        },
+        {
+          "kind": "improved",
+          "label": "Crossagents",
+          "text": "Saved routing preferences now retain fallback provider and model chains with retry behavior, and agents can manage workspaces, file projects and Home threads, and remove thread groups through Poracode tools."
+        },
+        {
+          "kind": "improved",
+          "label": "Handoff",
+          "text": "Switching providers carries a transcript sized for the destination model’s context window, retaining more conversation history for larger models while staying within delivery limits."
+        },
+        {
+          "kind": "improved",
+          "label": "MCP",
+          "text": "Supported CLI agents receive MCP tools for each Poracode session, with an opt-in settings action to install or remove selected user MCP servers in their native configuration."
+        },
+        {
+          "kind": "fixed",
+          "label": "Composer",
+          "text": "Undo and redo now include pasted and dropped text, mention and slash-command chips, dictation, and restored drafts with their attachments, and messages containing only attachments send correctly."
+        },
+        {
+          "kind": "fixed",
+          "label": "Mobile",
+          "text": "The mobile web composer restores attachment controls, stays above the Android keyboard, accepts caret taps, and keeps asynchronous file picks attached to the thread that opened them."
+        },
+        {
+          "kind": "fixed",
+          "label": "Terminal",
+          "text": "Terminal sessions keep their screen state across thread navigation, and exiting a shell closes its tab or split while preserving other right-panel tabs and the Notes project."
+        },
+        {
+          "kind": "fixed",
+          "label": "Files",
+          "text": "Codex artifact citations and Home file references render as working file links, and PDFs load correctly in the in-app browser."
+        },
+        {
+          "kind": "fixed",
+          "label": "Projects",
+          "text": "Adding a project no longer creates duplicate locations, and repairing older duplicates preserves the original settings and project state."
+        },
+        {
+          "kind": "fixed",
+          "label": "Claude",
+          "text": "Messages sent while Claude is working no longer interrupt its active tools and subagents, and skills use the correct invocation for user-only, model-only, and inlined commands."
+        },
+        {
+          "kind": "fixed",
+          "label": "Threads",
+          "text": "A message sent while reopening a lost GUI session is delivered when the session resumes, and generated thread titles retain ticket and pull request references from long prompts."
+        }
+      ]
+    },
+    {
       "version": "1.8.0",
       "tagline": "Agents Everywhere",
       "date": "2026-09-07",
