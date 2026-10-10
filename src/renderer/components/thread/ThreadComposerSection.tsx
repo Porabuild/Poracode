@@ -619,6 +619,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const approvalDenyOption = activeRuntimeRequest
     ? getApprovalDenyOption(activeRuntimeRequest)
     : undefined;
+  const resumeUnavailableNoticeId = useId();
   const resumeUnavailableMessage =
     !usesTerminalPresentation &&
     thread.status === "inactive" &&
@@ -628,7 +629,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       ? t`This thread cannot be resumed. Start a new thread to continue.`
       : undefined;
   const resumeUnavailableNotice = resumeUnavailableMessage ? (
-    <p role="status" className="px-3 py-2 text-xs text-muted">
+    <p id={resumeUnavailableNoticeId} role="status" className="px-3 py-2 text-xs text-muted">
       {resumeUnavailableMessage}
     </p>
   ) : null;
@@ -1124,16 +1125,20 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
                         compact
                         disabled={!(showServerComposer || showTerminalComposer)}
+                        {...(resumeUnavailableMessage
+                          ? { ariaDescribedBy: resumeUnavailableNoticeId }
+                          : {})}
                         placeholder={
                           approvalDenyOption
                             ? t`Deny and tell the agent what to do differently…`
-                            : (resumeUnavailableMessage ??
-                              (thread.status === "inactive" && canRecoverGuiInput && !isConnecting
+                            : resumeUnavailableMessage
+                              ? ""
+                              : thread.status === "inactive" && canRecoverGuiInput && !isConnecting
                                 ? t`Disconnected — send a message to reconnect`
                                 : isServerControlled
                                   ? (props.composerPlaceholder ??
                                     t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
-                                  : t`Send a message...`))
+                                  : t`Send a message...`
                         }
                         projectLocation={projectLocation}
                         submitOnEnter={props.submitOnEnter ?? !compactLayout}

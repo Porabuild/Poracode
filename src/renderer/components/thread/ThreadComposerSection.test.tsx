@@ -630,7 +630,7 @@ describe("ThreadComposerSection", () => {
         ? `Ask ${codexGuiStatus.label} anything about this workspace`
         : state.resumable
           ? "Disconnected — send a message to reconnect"
-          : "This thread cannot be resumed. Start a new thread to continue.",
+          : "",
     );
     expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
     expect(runtimeActions.submitThreadInput).not.toHaveBeenCalled();
@@ -2129,6 +2129,7 @@ describe("ThreadComposerSection", () => {
     });
     const editor = screen.getByRole("textbox");
     expect(editor).toHaveAttribute("contenteditable", "true");
+    expect(editor).not.toHaveAttribute("aria-describedby");
     expect(editor).toHaveAttribute(
       "aria-placeholder",
       "Disconnected — send a message to reconnect",
@@ -2145,7 +2146,7 @@ describe("ThreadComposerSection", () => {
     );
   });
 
-  it("explains why a non-resumable inactive GUI composer is disabled", () => {
+  it("shows the non-resumable warning once and describes the disabled composer", () => {
     renderComposer({
       thread: {
         ...guiThread,
@@ -2154,19 +2155,26 @@ describe("ThreadComposerSection", () => {
         canResumeWithConfig: false,
       },
     });
-    expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
-    expect(screen.getByRole("textbox")).toHaveAttribute(
-      "aria-placeholder",
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveAttribute("contenteditable", "false");
+    expect(editor).toHaveAttribute("aria-placeholder", "");
+    expect(editor).toHaveAttribute("data-placeholder", "");
+    const notice = screen.getByText(
       "This thread cannot be resumed. Start a new thread to continue.",
     );
-    expect(
-      screen.getByText("This thread cannot be resumed. Start a new thread to continue."),
-    ).toHaveAttribute("role", "status");
+    expect(notice).toHaveAttribute("role", "status");
+    expect(editor).toHaveAttribute("aria-describedby", notice.id);
+    expect(editor).toHaveAccessibleDescription(notice.textContent);
   });
 
-  it.each([false, true])(
-    "keeps the inactive explanation visible with a preserved draft (compact: %s)",
-    async (compact) => {
+  it.each([
+    { compact: false, hasDraft: false },
+    { compact: false, hasDraft: true },
+    { compact: true, hasDraft: false },
+    { compact: true, hasDraft: true },
+  ])(
+    "keeps one inactive explanation visible without changing the draft: %j",
+    async ({ compact, hasDraft }) => {
       vi.stubGlobal(
         "matchMedia",
         vi.fn((query: string) => ({
@@ -2188,7 +2196,7 @@ describe("ThreadComposerSection", () => {
         canResumeWithConfig: false,
       };
       const draft = {
-        segments: [{ kind: "text" as const, content: "unsent follow up" }],
+        segments: hasDraft ? [{ kind: "text" as const, content: "unsent follow up" }] : [],
         attachments: [],
       };
       const history = { [thread.id]: ["original-message"] };
@@ -2199,12 +2207,14 @@ describe("ThreadComposerSection", () => {
       });
       const { onSubmitInput, unmount } = renderComposer({ thread });
       const editor = screen.getByRole("textbox");
-      expect(editor).toHaveTextContent("unsent follow up");
+      expect(editor.textContent).toBe(hasDraft ? "unsent follow up" : "");
       expect(editor).toHaveAttribute("contenteditable", "false");
       const notice = screen.getByText(
         "This thread cannot be resumed. Start a new thread to continue.",
       );
       expect(notice).toHaveAttribute("role", "status");
+      expect(editor).toHaveAttribute("data-placeholder", "");
+      expect(editor).toHaveAccessibleDescription(notice.textContent);
       expect(notice).toBeVisible();
       expect(notice).toHaveTextContent(
         "This thread cannot be resumed. Start a new thread to continue.",
@@ -2213,6 +2223,17 @@ describe("ThreadComposerSection", () => {
       const dock = editor.closest(".m-thread-compose-dock");
       expect(dock !== null).toBe(compact);
       expect(dock?.hasAttribute("data-expanded") ?? false).toBe(false);
+      if (compact) {
+        fireEvent.click(
+          within(dock as HTMLElement).getByRole("button", {
+            name: "This thread cannot be resumed. Start a new thread to continue.",
+          }),
+        );
+      }
+      expect(dock?.hasAttribute("data-expanded") ?? false).toBe(false);
+      expect(notice).toBeVisible();
+      expect(editor).toHaveAttribute("data-placeholder", "");
+      expect(editor).toHaveAccessibleDescription(notice.textContent);
       fireEvent.keyDown(editor, { key: "Enter" });
       fireEvent.click(screen.getByText("send"));
       await act(async () => Promise.resolve());
@@ -2220,7 +2241,9 @@ describe("ThreadComposerSection", () => {
       expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
       expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
       unmount();
-      expect(useAppStore.getState().threadDraftContents[thread.id]).toEqual(draft);
+      expect(useAppStore.getState().threadDraftContents[thread.id]).toEqual(
+        hasDraft ? draft : undefined,
+      );
       expect(useAppStore.getState().runtimeItemIdsByThread).toBe(history);
       expect(useAppStore.getState().threads[0]).toBe(thread);
     },
@@ -2240,6 +2263,7 @@ describe("ThreadComposerSection", () => {
       });
       expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
       expect(screen.getByRole("textbox")).toHaveAttribute("aria-placeholder", "Send a message...");
+      expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
       expect(
         screen.queryByText("This thread cannot be resumed. Start a new thread to continue."),
       ).toBeNull();
@@ -2257,6 +2281,7 @@ describe("ThreadComposerSection", () => {
       agentStatus: { ...codexGuiStatus, authState: "missing" },
     });
     expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
     expect(
       screen.queryByText("This thread cannot be resumed. Start a new thread to continue."),
     ).toBeNull();
@@ -2290,6 +2315,7 @@ describe("ThreadComposerSection", () => {
       "Deny and tell the agent what to do differently…",
     );
     expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
     expect(screen.getByText("Run first")).toBeInTheDocument();
     expect(
       screen.queryByText("This thread cannot be resumed. Start a new thread to continue."),
