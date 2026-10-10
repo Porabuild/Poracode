@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T16:22:25.683203+00:00",
+  "updatedAt": "2026-10-10T17:28:06.882804+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -64,8 +64,8 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Finish the authorized merge commit and push, then reconcile the prepared rich saved PWA controller and frozen production source against the merged branch before execution. Preserve prior evidence, failures and exhausted cohorts; recover missing original resource receipts from backup if available. No new resource, gain, all-tools or device claim; no publication or installed-app replacement.",
-    "lastResult": "Recoveredpromotedoldprofile read-only:32savedcanonicalrows+1turn; exactoriginalfullarraySHA543b2c/302102bytes/24scriptedcases/2childcards/3imageblocks. FreshprivatecurrentAPIowner seed preservesall32rows/5heads/19blocks/turn andemptyorigins/gaps/notices, ownerreboundonly; fullmaterializedreceiptexact/originalDBmainhashunchanged/no newcommits. 3failedpreparationsretained; sourcePK/foreignownerpreflightPASS, finalprepPASS;0app/browser/executionattempts.40sealedresourcehelpers stillmissing/28exact;6currentselectedsourcesmatch. Historicalmilestonecounts preserved withcustodylimit; currentfullscopeincomplete.",
+    "nextAction": "Continue bounded recovery of the ten missing original helper sources from captured log data and their historical edits, accepting only original byte-count/SHA seals. Native-memory probe and seven static imports remain unresolved; original raw resource/custody receipts still missing. Do not execute restored modules, reset consumed cohorts, rerun the exhausted saved-rich lane, or substitute maintained DEV readiness for current production measurements.",
+    "lastResult": "Merged953f15f83 production rebuilt and sealed; stale embedded SSH archive corrected in a preserved sibling,13 packaging regressions pass. One declared saved-rich app/browser attempt failed at the owning-pane observer; worker activation passes,0renderererrors,4owned processes exit0/4ports close,all32canonicalrows and10tables conserved. Nine pure saved-reader oracle checks pass without rerun. Original source recovery restores30modules with original byte-count/SHA seals:58/68exact,10missing,seven unresolved static imports; no historical raw measurements recovered. Both exact-head CI workflows pass with four native runtime/install journeys skipped. Broad resource,p95,rich offline and device qualification remains incomplete; no gain or completion claim.",
     "lastDeclaration": "One normalization-only diagnostic plus one source-fix allocation validation, no unchanged usage/wholeapp cohort or renderer attribution restart. Differential syntax error caused shell to continue into validation before corrected110case preflight; originalincorrectdeclaration/failedlog retained and sequencing annotated offline, no measurement rerun. CachechurnoneattemptFAIL retained; source cleanup/bounds/data scope distinct from collectionproof.",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
@@ -188,12 +188,12 @@
       "audit": "tmp/v2-finalization-20261010/current-requirement-audit.json"
     },
     "commitPolicy": {
-      "authorizedBy": "User, 2026-10-10: we have a lot to commit, pull, and push",
+      "authorizedBy": "User, latest explicit instruction: we have a lot to commit, pull, and push",
       "localCompletedVerifiedChunks": true,
       "push": true,
       "publish": false,
       "installedAppReplacement": false,
-      "currentGoalOverride": "The latest explicit Git instruction authorizes committing current work, pulling and integrating origin/poracode/v2, then pushing. It overrides the earlier commit/push restriction while preserving the active performance goal and its qualification limits."
+      "currentGoalOverride": "The latest Git instruction authorizes committing the pending progress record, pulling and integrating origin/poracode/v2, and pushing. Prior performance qualification limits and failed verdicts remain intact."
     },
     "lastLocalCommit": {
       "sha": "4958e0429aa9b161f978f554acda658679499117",
@@ -8885,6 +8885,531 @@
       "preparedRichSavedControllerLaunched": false,
       "productionEvidenceLimit": "Prior frozen production receipts remain scoped to their recorded source. The merged source requires renewed source/artifact reconciliation before additional qualification.",
       "pushAfterMergeCommit": "Authorized; result must be verified against origin."
+    },
+    "commitPolicyBeforeOptimizationResume": {
+      "authorizedBy": "User, 2026-10-10: we have a lot to commit, pull, and push",
+      "localCompletedVerifiedChunks": true,
+      "push": true,
+      "publish": false,
+      "installedAppReplacement": false,
+      "currentGoalOverride": "The latest explicit Git instruction authorizes committing current work, pulling and integrating origin/poracode/v2, then pushing. It overrides the earlier commit/push restriction while preserving the active performance goal and its qualification limits."
+    },
+    "currentMergedFrozenProduction": {
+      "at": "2026-10-10T16:50:43.627Z",
+      "manifest": "tmp/v2-merged-production-20261010-953f15f83-sshcorrected/served-production-manifest.json",
+      "source": {
+        "revision": "953f15f833a4129517f1dd6079f73e575e7abb10",
+        "dirty": false,
+        "sha256": "a032bb89b85c8289f9c8e7a36150bec418112d2a8ae2286a54a630471e69d61d",
+        "files": 5469,
+        "bytes": 57258518
+      },
+      "primaryArtifact": {
+        "sha256": "d6f44348dc8cec7abad6eef304b3011706dca9603033a227db192806dc936d48",
+        "files": 91782,
+        "bytes": 2391255054
+      },
+      "servedArtifact": {
+        "sha256": "edf961b283ef0d19f893bc01ecb20deae8341d6f74ac43afa61208e202d5f4d8",
+        "files": 91632,
+        "bytes": 2298583007
+      },
+      "packages": 698,
+      "embeddedRuntimeSourceHash": "0f8235b97e47a658d3630bf39e68725fbab1110f102156dfcac34ddc8399f64b",
+      "embeddedRuntimeHash": "0eed1183bd658fe3f72c9a53737d6a1b3d9b8e7e418ac6037376afe38240e139",
+      "embeddedRuntimeCodeFilesVerified": 11,
+      "packagingTestsPassed": 13,
+      "appOrBrowserLaunched": false,
+      "resourceGainClaim": false,
+      "wholeRuntimeQualification": false
+    },
+    "currentRichSavedPwaExecution": {
+      "at": "2026-10-10T16:38:50.533Z",
+      "overallPass": false,
+      "scope": "Merged production saved-rich desktop/compact PWA offline/reconnect attempted; worker only qualified before saved-reader probe failure",
+      "source": {
+        "revision": "953f15f833a4129517f1dd6079f73e575e7abb10",
+        "dirty": false,
+        "sha256": "a032bb89b85c8289f9c8e7a36150bec418112d2a8ae2286a54a630471e69d61d",
+        "files": 5469,
+        "bytes": 57258518
+      },
+      "artifact": {
+        "sha256": "0a06c0640ed92d2ce4b0d3db70587d04b5d283ab2724f5e1a61d59de2dd7256c",
+        "files": 91632,
+        "bytes": 2298579590
+      },
+      "applicationAttemptsUsed": 1,
+      "browserAttemptsUsed": 1,
+      "declaredApplicationLimit": 1,
+      "declaredBrowserLimit": 1,
+      "retries": 0,
+      "remainingAttempts": 0,
+      "originalBudgetsReset": false,
+      "workerActivation": {
+        "pass": true,
+        "receipt": {
+          "id": "current-worker-public-paired-online",
+          "status": "pass",
+          "detail": {
+            "controller": true,
+            "active": "activated",
+            "waiting": null,
+            "installing": null,
+            "caches": ["poracode-pwa-30529927fd9a"]
+          }
+        }
+      },
+      "savedReaderUiQualified": false,
+      "canonicalBrowserDigestQualified": false,
+      "durableBrowserCacheQualified": false,
+      "compactQualified": false,
+      "richOfflineReconnectQualified": false,
+      "scriptedOnly": true,
+      "genuineHandlerExecution": false,
+      "resourceGainClaim": false,
+      "rendererExceptions": 0,
+      "rendererErrors": 0,
+      "retirement": {
+        "processes": [
+          {
+            "name": "headless-owner",
+            "pid": 66750,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "name": "status-client",
+            "pid": 66772,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "name": "pair-client",
+            "pid": 66778,
+            "code": 0,
+            "signal": null
+          },
+          {
+            "name": "chromium",
+            "pid": 66779,
+            "code": 0,
+            "signal": null
+          }
+        ],
+        "ports": [
+          {
+            "port": 65116,
+            "closed": true
+          },
+          {
+            "port": 65117,
+            "closed": true
+          },
+          {
+            "port": 65118,
+            "closed": true
+          },
+          {
+            "port": 47823,
+            "closed": true
+          }
+        ],
+        "ownedGroupsJoined": true,
+        "canonicalTablesConserved": {
+          "receipt": {
+            "version": 1,
+            "sha256": "543b2c722a158d2f9c0fc55bc426669a9c1cf6706613a62b85abc952151962df",
+            "bytes": 302102,
+            "rows": 32,
+            "maxItemBytes": 124666,
+            "algorithm": "canonical-json-array-v1",
+            "completeArrayConserved": true,
+            "richSemantics": {
+              "caseTypes": 24,
+              "topCalls": 24,
+              "childCalls": 2,
+              "imageBlocks": 3,
+              "scriptedOnly": true
+            },
+            "caseChecks": {
+              "create": 1,
+              "edit": 1,
+              "same-file-edit": 1,
+              "read": 1,
+              "list": 1,
+              "grep": 1,
+              "glob": 1,
+              "web-search": 1,
+              "fetch": 1,
+              "command": 1,
+              "command-error": 1,
+              "delete": 1,
+              "move": 1,
+              "think": 1,
+              "switch-mode": 1,
+              "mcp-json": 1,
+              "unknown": 1,
+              "image": 1,
+              "images": 1,
+              "subagent": 1,
+              "background-subagent": 1,
+              "workflow-card": 1,
+              "crossagents-mcp": 1,
+              "large-result": 1
+            }
+          },
+          "rows": {
+            "thread_runtime_items": {
+              "rows": 32,
+              "mappedSha256": "6b65c7c4a093566dd12a48fdb643cc5c44076a639845c6767a8121699f01774b"
+            },
+            "thread_runtime_item_stream_chunks": {
+              "rows": 0,
+              "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "thread_runtime_item_stream_state": {
+              "rows": 0,
+              "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "thread_runtime_item_stream_heads": {
+              "rows": 5,
+              "mappedSha256": "2f6c9a6eab69f5ed1acad4aaf1fece8e0c94df10f480051600b15ddecbf038eb"
+            },
+            "thread_runtime_item_stream_head_blocks": {
+              "rows": 19,
+              "mappedSha256": "0195754ef6740f1d936ade284bfd32933817ccdbbbd02627d90d4c9f80a77a80"
+            },
+            "thread_completed_turns": {
+              "rows": 1,
+              "mappedSha256": "050960f27aa9ea741caa496be917e7ff67343ae5f62a846da29d2340b6e370d5"
+            },
+            "thread_context_usage": {
+              "rows": 0,
+              "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "thread_runtime_item_payload_origins": {
+              "rows": 0,
+              "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "thread_runtime_gaps": {
+              "rows": 0,
+              "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "thread_runtime_gap_notices": {
+              "rows": 0,
+              "mappedSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          },
+          "unchanged": true
+        },
+        "artifactsUnchanged": true
+      },
+      "sourceRowsAfterRunVerified": 5469,
+      "controlInputsAfterRun": [
+        {
+          "path": ".agents/skills/interactive-testing/scripts/poracode-cdp-actions.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": ".agents/skills/interactive-testing/scripts/poracode-cdp-target.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": ".agents/skills/interactive-testing/scripts/smoke-desktop-state.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": ".agents/skills/interactive-testing/scripts/smoke-owned-process.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": ".agents/skills/interactive-testing/scripts/smoke-runtime-files.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-browser-editor-media-20261010/cdp.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/browser-memory-canonical-receipt-v1/receipt.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/browser-memory-canonical-receipt-v1/semantic-receipt.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/controls.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/dom-probes.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/header-marker-diagnostics.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/panel-close-scope.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/browser-ui-controls-v14/wheel-points.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/mcp-disclosure-control-v2/mcp-disclosure.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/workflow-fixture-v5/case-spec.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-memory-production-20261008-a79decb09/workflow-fixture-v5/rich-oracle.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-merged-production-20261010-953f15f83/frozen-production/source-files.json",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-merged-production-20261010-953f15f83/served-production-manifest.json",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-mixed-runtime-20261010/fixture/reader.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-mixed-runtime-20261010/host/rich-saved-pwa-273f004f1bcb4dcd/home/.poracode.host-v1/settings.json",
+          "unchanged": true,
+          "mutableFixture": true
+        },
+        {
+          "path": "tmp/v2-pwa-browser-guard-20261010/observation.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-pwa-deployment-fixture-20261010/server.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-pwa-document-network-20261010/control.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-resource-recovery-20261010/retained-rich-canonical-items.json",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-rich-saved-pwa-20261010-merged/execute.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-rich-saved-pwa-20261010-merged/preflight.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-rich-saved-pwa-20261010-merged/read-owned-rows.mjs",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-rich-saved-pwa-20261010-merged/seed-verification.json",
+          "unchanged": true,
+          "mutableFixture": false
+        },
+        {
+          "path": "tmp/v2-rich-saved-pwa-20261010-merged/seed.json",
+          "unchanged": true,
+          "mutableFixture": false
+        }
+      ],
+      "firstFailure": "owning saved rich pane deadline",
+      "diagnosis": {
+        "screenshot": "tmp/v2-rich-saved-pwa-20261010-merged/execution-artifacts/failure.png",
+        "observed": "Saved pane visible with cannot-resume warning",
+        "sourceContract": "Original live-control probe requires an editable composer; inactive fixture has no resume configuration and composer disables editing. Persisted presentation mode remains gui.",
+        "actualDomFailureSnapshotCaptured": false,
+        "causalLimit": "Strong static explanation; no captured failed predicate fields. Do not reinterpret failed UI run as a pass."
+      },
+      "oracleCorrection": {
+        "file": "tmp/v2-saved-reader-oracle-20261010/probe.mjs",
+        "testsPassed": 9,
+        "runtimeRerun": false,
+        "additionalAttemptAuthorized": false,
+        "limitsUnchanged": true
+      },
+      "initialPreflightFailure": "Incorrect PRAGMA user_version read; authoritative app_state.schema_version check passes. No launch consumed by that pure failure."
+    },
+    "currentMergedRequirementAudit": "tmp/v2-merged-goal-audit-20261010/requirement-audit.json",
+    "currentMergedHeadCi": {
+      "headSha": "953f15f833a4129517f1dd6079f73e575e7abb10",
+      "CI": "success",
+      "NativeClients": "success",
+      "CIJobsSucceeded": 19,
+      "nativeSkippedRuntimeJourneys": [
+        "Server install qualification",
+        "Android 17 emulator runtime",
+        "Android 14 minimum-supported runtime",
+        "iOS XCUITest wire-lab journey"
+      ],
+      "receipts": [
+        "tmp/git-sync-20261010/ci-completed.json",
+        "tmp/git-sync-20261010/native-ci-current.json"
+      ],
+      "currentPerformanceOrDeviceQualification": false
+    },
+    "goalTurnClassifications": [
+      {
+        "at": "2026-10-10T16:42:31.295055+00:00",
+        "previous": "progress: authorized commit/pull/push changed authoritative source and verified remote synchronization",
+        "current": "progress: rebuilt/sealed merged production, consumed one declared saved-history attempt with exact cleanup/conservation evidence, corrected pure reader oracle and verified completed CI"
+      },
+      {
+        "at": "2026-10-10T17:23:45.516497+00:00",
+        "previous": "progress: restored28original sealed modules and found two further exact source candidates; all source extraction commands terminal",
+        "current": "progress: revalidated interruption state, restored two further originals, verified30syntax trees and58/68exactseals, discriminated maintained DEV readiness from required production evidence"
+      }
+    ],
+    "priorMergedFrozenProductionBeforeSshCorrection": {
+      "at": "2026-10-10T16:28:58.972Z",
+      "manifest": "tmp/v2-merged-production-20261010-953f15f83/served-production-manifest.json",
+      "source": {
+        "revision": "953f15f833a4129517f1dd6079f73e575e7abb10",
+        "dirty": false,
+        "sha256": "a032bb89b85c8289f9c8e7a36150bec418112d2a8ae2286a54a630471e69d61d",
+        "files": 5469,
+        "bytes": 57258518
+      },
+      "primaryArtifact": {
+        "sha256": "4735d0da0e59469bf755ae041fcb375cb4a1217198d20f024f143b434c9d7ccd",
+        "files": 91782,
+        "bytes": 2391252776
+      },
+      "servedArtifact": {
+        "sha256": "0a06c0640ed92d2ce4b0d3db70587d04b5d283ab2724f5e1a61d59de2dd7256c",
+        "files": 91632,
+        "bytes": 2298579590
+      },
+      "packages": 698,
+      "ElectronAppLaunched": false,
+      "scriptedSavedBrowserAttempt": true,
+      "resourceGainClaim": false,
+      "wholeRuntimeQualification": false,
+      "wholeEmbeddedClosureAligned": false,
+      "closureDefect": "tmp/v2-merged-production-20261010-953f15f83-sshcorrected/closure-defect.json"
+    },
+    "currentMergedEmbeddedRuntimeCorrection": {
+      "at": "2026-10-10T16:53:21.979994+00:00",
+      "receipt": "tmp/v2-merged-production-20261010-953f15f83-sshcorrected/root-verification.json",
+      "archiveCustody": "tmp/v2-merged-production-20261010-953f15f83-sshcorrected/archive-complete-custody.json",
+      "initialStaleCandidatePreserved": true,
+      "originalFailedRunPreserved": true,
+      "applicationAttemptsConsumed": 0,
+      "browserAttemptsConsumed": 0,
+      "protocolOrManifestVersionChanged": false
+    },
+    "currentSessionLogSourceRecovery": {
+      "at": "2026-10-10T17:23:45.516497+00:00",
+      "receipt": "tmp/v2-session-source-recovery-20261010/root-verification.json",
+      "restorationProvenance": "tmp/v2-session-source-recovery-20261010/restoration-receipt.json",
+      "originalSealedHelperTotal": 68,
+      "formerlyPresentExact": 28,
+      "restoredExactMissingSources": 30,
+      "nowPresentExact": 58,
+      "stillMissing": 10,
+      "syntaxParsedWithoutExecution": 30,
+      "unresolvedStaticImports": [
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/launch.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-capture.mjs",
+          "exists": false
+        },
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/launch.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/reader-frame-probe.mjs",
+          "exists": false
+        },
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/native-identity-details.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round34/native-memory-probe.mjs",
+          "exists": false
+        },
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/process-custody.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round34/native-memory-tool-boundary.mjs",
+          "exists": false
+        },
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/harness.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/probes.mjs",
+          "exists": false
+        },
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/page-network-handoff.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/worker-capture.mjs",
+          "exists": false
+        },
+        {
+          "importer": "tmp/v2-streaming-perf-20260930/round95/browser-qualification/ui-reader-stall.mjs",
+          "path": "tmp/v2-streaming-perf-20260930/round34/native-memory-probe.mjs",
+          "exists": false
+        }
+      ],
+      "historicalMeasurementsRecovered": false,
+      "restoredModulesExecuted": false,
+      "newApplicationOrBrowserAttempts": 0,
+      "newResourceCohorts": 0,
+      "originalBudgetsReset": false,
+      "currentProductionSourceInputsUnchanged": 5469,
+      "maintainedSustainedDryRun": {
+        "exitCode": 0,
+        "exactHead": "953f15f833a4129517f1dd6079f73e575e7abb10",
+        "observerFiles": 6,
+        "developmentRenderer": true,
+        "wholeCurrentProductionReplacement": false,
+        "launched": false
+      },
+      "priorInterruptedTurnClassification": "progress: restored28original sealed modules and found two further exact source candidates; all source extraction commands terminal",
+      "currentTurnClassification": "progress: revalidated interruption state, restored two further originals, verified30syntax trees and58/68exactseals, discriminated maintained DEV readiness from required production evidence"
+    },
+    "lastResultBeforeMergedProductionAndRecovery": "Recoveredpromotedoldprofile read-only:32savedcanonicalrows+1turn; exactoriginalfullarraySHA543b2c/302102bytes/24scriptedcases/2childcards/3imageblocks. FreshprivatecurrentAPIowner seed preservesall32rows/5heads/19blocks/turn andemptyorigins/gaps/notices, ownerreboundonly; fullmaterializedreceiptexact/originalDBmainhashunchanged/no newcommits. 3failedpreparationsretained; sourcePK/foreignownerpreflightPASS, finalprepPASS;0app/browser/executionattempts.40sealedresourcehelpers stillmissing/28exact;6currentselectedsourcesmatch. Historicalmilestonecounts preserved withcustodylimit; currentfullscopeincomplete.",
+    "commitPolicyBeforeLatestGitSynchronization": {
+      "authorizedBy": "Active performance objective resumed after the separately authorized Git synchronization",
+      "localCompletedVerifiedChunks": false,
+      "push": false,
+      "publish": false,
+      "installedAppReplacement": false,
+      "currentGoalOverride": "Do not commit, push, publish or replace the installed app during resumed optimization. Prior explicit Git work is completed and preserved in gitSynchronization."
     }
   },
   "milestones": [
@@ -10019,6 +10544,18 @@
     {
       "at": "2026-10-10T16:22:25.683203+00:00",
       "summary": "Committed all 36 pending files at 919da9e67 and integrated four remote v2 commits through a history-preserving merge. Resolved 16 conflicts preserving both branches; shared message lookup consolidated and all locale catalogs regenerated with zero missing translations. Combined-source 465 affected application tests, six scenario tests, typecheck, lint, format and remote protocol mirror check pass. Original full-suite deadline failure remains unresolved; no performance qualification attempts consumed."
+    },
+    {
+      "at": "2026-10-10T16:42:31.295055+00:00",
+      "summary": "Rebuilt/sealed exact merged953f15f83 production:5469source files,698ownedpackages, fresh main/host/supervisor/helper and both renderers. Declared one saved-rich app/browser attempt failed at owning-pane oracle; current worker activated,0renderererrors,4processes exit0/4portsclosed,32canonicalrows and all10tables/artifacts conserved. Saved-reader predicate separated from editable-composer readiness in nine pure checks; no retry or original budget reset. Both current CI workflows succeed; four native runtime/install journeys skipped. All16 broad requirements retained in a new interim audit; resources/wholep95/device and current rich/offline runtime gaps remain. Resumed goal prohibits further Git writes/publication/installed replacement."
+    },
+    {
+      "at": "2026-10-10T16:53:21.979994+00:00",
+      "summary": "Closure audit found first merged snapshot reused a stale embedded SSH runtime source85f117 while local bundles declared0f8235. Preserved original snapshot/failed browser run and prior interim audit. Corrected sibling regenerates web helper from fresh main declarations; all11 archived code files/four manifests and web/resource copies match,13 packaging regressions pass. Source5469/698packages,local main and renderers/HTML/worker unchanged; corrected candidate sealed without any app/browser launch. No cohort reset, protocol migration, performance or runtime pass inferred."
+    },
+    {
+      "at": "2026-10-10T17:23:45.516497+00:00",
+      "summary": "Recovered missing original helper bytes from scoped agent session logs without executing historical commands.30original modules restored with exact original byte-count/SHA seals;58/68helpers nowpresentexact,10stillmissing.30restored syntax trees parse and5469currentproduction source inputs remainunchanged; seven static imports unresolved. Quarantined formatting experiments yield no accepted extra files. Maintained sustained dry-run nowpasses current clean source/sixobserver prerequisites but isDEV and remainsunlaunched. No raw measurement recovery, new runtime attempts, cohort reset, gain or completion claim."
     }
   ],
   "tasks": [
