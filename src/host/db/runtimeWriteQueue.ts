@@ -567,6 +567,19 @@ export class RuntimeWriteQueue {
       .map(([threadId]) => threadId);
   }
 
+  /** Detached payload-event inventory after a producer has retired. */
+  pendingItemPayloadEvents(): Array<
+    Extract<RuntimeEvent, { type: "item.started" | "item.updated" }>
+  > {
+    return [...this.pending.values()].flatMap((entry) =>
+      entry.events.flatMap(({ event }) =>
+        event.type === "item.started" || event.type === "item.updated"
+          ? [structuredClone(event)]
+          : [],
+      ),
+    );
+  }
+
   /** Threads with an oversized single event that must drain promptly. */
   forceFlushThreadIds(): string[] {
     const ids: string[] = [];

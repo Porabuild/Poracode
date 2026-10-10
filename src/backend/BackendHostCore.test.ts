@@ -55,6 +55,9 @@ const mocks = vi.hoisted(() => ({
     prepareStartThread?(payload: { threadId?: string }): { threadId?: string };
   },
   supervisorConstructorError: null as Error | null,
+  supervisorConstructed: vi.fn<() => void>(),
+  settleOrphanedDelegatedAgentRuns:
+    vi.fn<() => import("./delegatedAgentBootSettle").DelegatedAgentBootSettleReport>(),
 }));
 
 // This fixture mocks the application DB. Admission is an explicit unit dependency;
@@ -92,6 +95,10 @@ vi.mock("@/host/db", async () => ({
   dbClearThreadTerminalScrollback: vi.fn<() => void>(),
 }));
 
+vi.mock("@/backend/delegatedAgentBootSettle", () => ({
+  settleOrphanedDelegatedAgentRuns: mocks.settleOrphanedDelegatedAgentRuns,
+}));
+
 vi.mock("@/host/remote/server/runtimePersistence", () => ({
   persistSupervisorEvent: mocks.persistSupervisorEvent,
 }));
@@ -109,6 +116,7 @@ vi.mock("@/host/supervisor/SupervisorClient", () => ({
 
     constructor(options: { onEvent(event: SupervisorEvent): void; onReset(): void }) {
       if (mocks.supervisorConstructorError) throw mocks.supervisorConstructorError;
+      mocks.supervisorConstructed();
       mocks.supervisorOptions = options;
     }
   },
@@ -123,6 +131,11 @@ describe("BackendHostCore", () => {
     }
     mocks.supervisorOptions = null;
     mocks.supervisorConstructorError = null;
+    mocks.settleOrphanedDelegatedAgentRuns.mockReturnValue({
+      threads: 0,
+      items: 0,
+      settledBatches: [],
+    });
     mocks.dbGetProjects.mockImplementation(() => []);
     mocks.dbUpsertProject.mockImplementation(() => undefined);
     mocks.persistSupervisorEvent.mockImplementation((event) => ({ kind: "publish", event }));
@@ -133,6 +146,118 @@ describe("BackendHostCore", () => {
     mocks.runThreadMutation.mockImplementation((_threadId, operation) =>
       Promise.resolve(operation()),
     );
+  });
+
+  describe("orphaned delegated-agent lifecycle settlement", () => {
+    function createHost(
+      overrides: Partial<import("./BackendHostCore").BackendHostCoreOptions> = {},
+    ) {
+      return new BackendHostCore({
+        baseDir: "/data",
+        dbPath: "/data/state.sqlite",
+        supervisor: {
+          appVersion: "test",
+          isDev: false,
+          supervisorPath: "/supervisor.cjs",
+          wslHelpersDir: "/wsl",
+          secretStorageKey: "secret",
+        },
+        onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+        onReset: vi.fn<() => void>(),
+        ...overrides,
+      });
+    }
+
+    it("settles boot rows after the durable arm and before constructing a supervisor", async () => {
+      const host = createHost();
+      expect(mocks.settleOrphanedDelegatedAgentRuns).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.attachRuntimePersistenceDurableGapFromCurrentConnection.mock.invocationCallOrder[0],
+      ).toBeLessThan(mocks.settleOrphanedDelegatedAgentRuns.mock.invocationCallOrder[0]!);
+      expect(mocks.settleOrphanedDelegatedAgentRuns.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.supervisorConstructed.mock.invocationCallOrder[0]!,
+      );
+      await host.dispose();
+    });
+
+    it("does not sweep during live starts, events or a restart request", async () => {
+      const host = createHost();
+      mocks.settleOrphanedDelegatedAgentRuns.mockClear();
+      await host.startSupervisor();
+      mocks.supervisorOptions!.onEvent({
+        type: "thread-runtime-events",
+        threadId: "thread",
+        events: [],
+      });
+      await host.restartSupervisor();
+      expect(mocks.settleOrphanedDelegatedAgentRuns).not.toHaveBeenCalled();
+      await host.dispose();
+    });
+
+    it("publishes committed native and Crossagent completions before the reset notification", async () => {
+      const onEvent = vi.fn<(event: SupervisorEvent) => void>();
+      const onReset = vi.fn<() => void>();
+      const host = createHost({ onEvent, onReset });
+      const events: import("@/shared/contracts").RuntimeEvent[] = [
+        {
+          type: "item.completed",
+          threadId: "thread",
+          itemId: "native",
+          payload: { name: "Delegate", status: "error", isSubAgent: true },
+        },
+        {
+          type: "item.completed",
+          threadId: "thread",
+          itemId: "cross",
+          payload: {
+            name: "Crossagent",
+            status: "error",
+            isCrossagent: true,
+            crossagentStatus: "failed",
+          },
+        },
+      ];
+      mocks.settleOrphanedDelegatedAgentRuns.mockReturnValue({
+        threads: 1,
+        items: 2,
+        settledBatches: [{ threadId: "thread", events }],
+      });
+      const info = vi.spyOn(console, "info").mockImplementation(() => {});
+      try {
+        mocks.supervisorOptions!.onReset();
+        expect(onEvent).toHaveBeenCalledExactlyOnceWith({
+          type: "thread-runtime-events",
+          threadId: "thread",
+          events,
+        });
+        expect(onEvent.mock.invocationCallOrder[0]).toBeLessThan(
+          onReset.mock.invocationCallOrder[0]!,
+        );
+        expect(mocks.persistSupervisorEvent).not.toHaveBeenCalled();
+      } finally {
+        info.mockRestore();
+      }
+      await host.dispose();
+    });
+
+    it("keeps validate-only opens read-only and reset notifications survive settlement failures", async () => {
+      const readonlyHost = createHost({ databaseSchemaMode: "validate" });
+      expect(mocks.settleOrphanedDelegatedAgentRuns).not.toHaveBeenCalled();
+      await readonlyHost.dispose();
+      const onReset = vi.fn<() => void>();
+      const host = createHost({ onReset });
+      mocks.settleOrphanedDelegatedAgentRuns.mockImplementationOnce(() => {
+        throw new Error("storage refused");
+      });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        expect(() => mocks.supervisorOptions!.onReset()).not.toThrow();
+        expect(onReset).toHaveBeenCalledOnce();
+      } finally {
+        warn.mockRestore();
+      }
+      await host.dispose();
+    });
   });
 
   it("negotiates canonical credit when the supervisor advertises and clears it for a legacy restart", async () => {

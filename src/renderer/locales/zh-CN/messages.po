@@ -7328,7 +7328,7 @@ msgstr "内部命令和代理"
 msgid "Interrupted"
 msgstr "已中断"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "已中断：代理会话在完成之前结束。"
 

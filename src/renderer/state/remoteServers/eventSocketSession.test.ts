@@ -19,6 +19,7 @@ import {
 } from "./catalog/boundedHistoryRegistry";
 import {
   __resetEventSocketRegistryForTest,
+  bumpRemoteServerSnapshotSeq,
   deleteRemoteServerEventSocketEntry,
   remoteServerSnapshotSeq,
 } from "./eventSocketRegistry";
@@ -37,6 +38,12 @@ import {
   noteBoundedCatalogChangesCapability,
 } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 import type { TerminalConnectionCapabilities } from "./terminalCapabilities";
+import {
+  clearLiveObservedCrossagentItems,
+  markLiveCrossagentItems,
+  terminateStaleSubAgentItems,
+} from "@/renderer/state/slices/staleSubAgents";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 
 // ── Module seams under test ──────────────────────────────────────────
 // The session's collaborators are heavy renderer stores; this suite stubs the
@@ -44,6 +51,7 @@ import type { TerminalConnectionCapabilities } from "./terminalCapabilities";
 // detection, recovery queueing, engine integration) real.
 
 const remoteState = vi.hoisted(() => ({
+  resetRemoteThreadProjection: vi.fn<(...args: unknown[]) => void>(),
   applyThreadSnapshot: vi.fn<() => { installedAuthoritativeHistory: boolean }>(() => ({
     installedAuthoritativeHistory: true,
   })),
@@ -84,6 +92,9 @@ const remoteState = vi.hoisted(() => ({
 }));
 
 vi.mock("@/renderer/state/remote", () => remoteState);
+vi.mock("@/renderer/state/remote/resetThreadProjection", () => ({
+  resetRemoteThreadProjection: remoteState.resetRemoteThreadProjection,
+}));
 
 vi.mock("@/renderer/state/remote/truncateRecovery", () => ({
   finishTruncateReload: vi.fn<() => void>(),
@@ -425,6 +436,8 @@ beforeEach(() => {
   FakeEngineWorker.instances.length = 0;
   FakeSocket.instances.length = 0;
   remoteState.dispatchRemoteSupervisorEvent.mockClear();
+  remoteState.resetRemoteThreadProjection.mockClear();
+  clearLiveObservedCrossagentItems();
   remoteState.applyThreadSnapshot.mockClear();
   remoteState.applyThreadSnapshot.mockImplementation(() => ({
     installedAuthoritativeHistory: true,
@@ -562,6 +575,7 @@ describe("remote event socket session (V5 2.1)", () => {
     );
     await flushAsync();
     expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(0);
+    expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
 
     // Fresh-stream events continue contiguously from the accepted cursor.
     await deliver(socket, runtimeEventFrame(1));
@@ -569,6 +583,61 @@ describe("remote event socket session (V5 2.1)", () => {
     expect(dispatch).toHaveBeenCalledTimes(3);
     expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(2);
     expect(socket.closed).toBe(false);
+  });
+
+  it("keeps live projections when an HTTP snapshot is ahead of a non-restart resync", async () => {
+    bumpRemoteServerSnapshotSeq(DESKTOP_ID, 30);
+    const { deps } = makeHarness();
+    await startRemoteServerEventStream(deps);
+    const socket = FakeSocket.instances[0]!;
+    expect(lastSeenSeqOf(socket)).toBe(30);
+    for (let seq = 31; seq <= 39; seq += 1) await deliver(socket, runtimeEventFrame(seq));
+    bumpRemoteServerSnapshotSeq(DESKTOP_ID, 50);
+    await deliver(
+      socket,
+      JSON.stringify({ type: "resync-required", seq: 40, reason: "Output shedding" }),
+    );
+    expect(remoteState.resetRemoteThreadProjection).not.toHaveBeenCalled();
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(40);
+    await deliver(socket, runtimeEventFrame(41));
+    expect(socket.closed).toBe(false);
+  });
+
+  it("uses the connect cursor to detect a restart and retires even unsubscribed run observations", async () => {
+    const payload = { name: "Crossagent", isCrossagent: true, status: "running" as const };
+    const item: RuntimeChatItem = {
+      id: "run",
+      type: "tool_call",
+      state: "started",
+      payload,
+      streams: {},
+    };
+    for (const threadId of [`${DESKTOP_ID}:cached`, "d2:cached"]) {
+      markLiveCrossagentItems(threadId, [
+        {
+          type: "item.started",
+          threadId,
+          itemId: "run",
+          itemType: "tool_call",
+          payload,
+        },
+      ]);
+    }
+    bumpRemoteServerSnapshotSeq(DESKTOP_ID, 30);
+    const { deps } = makeHarness();
+    await startRemoteServerEventStream(deps);
+    const socket = FakeSocket.instances[0]!;
+    // No event has arrived on this socket yet. The upgrade cursor proves
+    // the server epoch ended, including for cached, unsubscribed run records.
+    await deliver(
+      socket,
+      JSON.stringify({ type: "resync-required", seq: 0, reason: "Server event stream reset." }),
+    );
+    expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
+    expect(terminateStaleSubAgentItems(`${DESKTOP_ID}:cached`, { run: item })?.run?.state).toBe(
+      "completed",
+    );
+    expect(terminateStaleSubAgentItems("d2:cached", { run: item })).toBeUndefined();
   });
 
   it("holds recovery-queued frames out of the resume cursor until they are replayed", async () => {

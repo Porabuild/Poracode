@@ -7328,7 +7328,7 @@ msgstr "내부 명령 및 에이전트"
 msgid "Interrupted"
 msgstr "중단됨"
 
-#: src/renderer/state/slices/staleSubAgents.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니다."
 

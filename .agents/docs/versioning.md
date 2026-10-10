@@ -1,5 +1,22 @@
 # Versioned State & Protocols
 
+Delegated-agent restart recovery repairs historical native and Crossagent tool
+rows through the existing committed-prefix mutation fence and item.completed
+writer. Existing payload/result shapes, SQLite schema 57, client-host hop 17,
+remote protocol 13 and helper/plugin versions remain valid. The shared interruption
+message moves an already translated string into the macro-less message registry;
+clients translate exact host-authored errors at display time, retaining provider
+prose and partial results. Regression coverage begins with
+historical completed/status-running rows and verifies durable repair without
+changing thread records or schema, while contaminated prefixes retain their
+existing recovery requirements. Deferred settlement retains exact retired-generation
+item IDs, retries when access or storage recovers, and completes after explicit
+gap acknowledgement. Replacement-generation runs remain untouched. Remote
+projections and pagination proofs are volatile and retired on socket cursor
+regression, independently of HTTP snapshot watermarks; snapshot terminal updates
+respect the current connection and sequence fences. No version bump or migration
+is needed; rebuilt bundle content hashes identify the changed behavior.
+
 Host-scoped provider usage adds `getProviderUsage` (`session:read`) and
 `refreshProviderUsage` (`session:operate`) to the existing authenticated generic
 procedure route. Existing IPC names, provider filters/force, snapshot schemas,

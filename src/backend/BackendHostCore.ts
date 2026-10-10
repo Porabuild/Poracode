@@ -42,7 +42,8 @@ import {
 import { TerminalScrollbackPersistence } from "@/host/remote/server/terminalScrollbackPersistence";
 import { HostPersistenceProducerControl } from "@/backend/hostPersistenceProducerControl";
 import { HostCanonicalAdmissionControl } from "@/backend/HostCanonicalAdmissionControl";
-import { settleOrphanedCrossagentRuns } from "@/backend/crossagentBootSettle";
+import { settleOrphanedDelegatedAgentRuns } from "@/backend/delegatedAgentBootSettle";
+import { DelegatedAgentSettlementRecovery } from "@/backend/delegatedAgentSettlementRecovery";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { stripRuntimePayloadOriginMetadata } from "@/shared/runtimePayloadOriginProtocol";
 import type { ProjectLocation } from "@/shared/contracts/common";
@@ -180,6 +181,7 @@ export class BackendHostCore {
    * the first compound fully settles. */
   private readonly revertLocks = new Map<string, Promise<unknown>>();
   private dataFence: HostDataFence | null = null;
+  private readonly delegatedAgentRecovery: DelegatedAgentSettlementRecovery | null = null;
 
   constructor(private readonly options: BackendHostCoreOptions) {
     // Custody order: the fence is taken before SQLite opens and released only
@@ -197,6 +199,9 @@ export class BackendHostCore {
         options.baseDir,
         options.dbPath,
       );
+      this.delegatedAgentRecovery = new DelegatedAgentSettlementRecovery((threadId, events) =>
+        options.onEvent({ type: "thread-runtime-events", threadId, events }),
+      );
       if (options.databaseSchemaMode !== "validate") {
         // Eager runtime-owned durable-gap arm: one write per boot, committed
         // before any canonical event can be admitted. Storage failure is
@@ -205,13 +210,13 @@ export class BackendHostCore {
         // open never arms; offline imports and validate/seed opens never call
         // this entry point.
         attachRuntimePersistenceDurableGapFromCurrentConnection();
-        // Settle Crossagent run rows orphaned by the previous supervisor
+        // Settle delegated-agent rows orphaned by the previous supervisor
         // process before any supervisor exists: a fresh supervisor tracks
         // nothing, so a row still reading "running" belonged to a run that
         // died without a settle tile. Keeping the database honest here is
         // what lets renderer hydration treat a running Crossagent row as
         // alive instead of force-failing it.
-        this.settleOrphanedCrossagentRuns("boot");
+        this.settleOrphanedDelegatedAgentRuns("boot");
       }
       if (options.markLiveThreadsInactiveOnOpen) dbMarkLiveThreadsInactive();
       if (options.databaseSchemaMode !== "validate") {
@@ -264,7 +269,10 @@ export class BackendHostCore {
                 // Resets are withheld until their durable rebase completes.
                 // The remote persistence API also accepts non-supervisor
                 // events; only its reset completion belongs to this callback.
-                if (deferred.type === "thread-reset") options.onEvent(deferred);
+                if (deferred.type === "thread-reset") {
+                  this.delegatedAgentRecovery?.forget(deferred.threadId);
+                  options.onEvent(deferred);
+                }
               },
             } satisfies import("@/host/remote/server/runtimePersistence").PersistSupervisorEventOptions;
             const outcome = custody
@@ -273,7 +281,11 @@ export class BackendHostCore {
             // The original envelope's credit is resolved even on an explicit
             // refusal. Publication uses only the accepted envelope/prefix.
             this.persistenceProducerControl?.acknowledgeCanonicalFlow(event);
-            if (outcome.kind !== "withhold") options.onEvent(outcome.event);
+            if (outcome.kind !== "withhold") {
+              if (outcome.event.type === "thread-reset")
+                this.delegatedAgentRecovery?.forget(outcome.event.threadId);
+              options.onEvent(outcome.event);
+            }
           } catch (error) {
             console.error("[backend] supervisor event persistence failed:", error);
           }
@@ -283,12 +295,12 @@ export class BackendHostCore {
         onReset: () => {
           // SupervisorClient reset follows positive close/termination join.
           this.canonicalAdmissionControl?.retireOwner();
-          // The supervisor process that owned every Crossagent run just died;
+          // The supervisor process that owned every delegated-agent run just died;
           // its replacement spawns with an empty run tracker. Settle the
           // orphaned running rows now — before the respawn accepts a
           // startThread, with every pending prefix committed so the dying
           // generation's last admitted events cannot land after the sweep.
-          this.settleOrphanedCrossagentRuns("supervisor-reset");
+          this.settleOrphanedDelegatedAgentRuns("supervisor-reset");
           options.onReset();
         },
         // Reserve the advertised in-flight headroom before granting credit,
@@ -309,6 +321,7 @@ export class BackendHostCore {
         (event) => options.onEvent(stripRuntimePayloadOriginMetadata(event)),
       );
     } catch (error) {
+      void this.delegatedAgentRecovery?.dispose();
       // A refused close (its drain hook threw; see `closeDatabase`) keeps the
       // SQLite handle open and writable, so this failed construction must keep
       // custody: `databaseOpen` stays true and the fence stays held, exactly
@@ -361,7 +374,7 @@ export class BackendHostCore {
   }
 
   /**
-   * Run the orphaned-Crossagent-run settle pass. Called at boot (after the
+   * Run the orphaned-delegated-agent settle pass. Called at boot (after the
    * durable-gap arm, before the first supervisor spawn) and on every
    * supervisor reset (after the old process is gone, before the respawn
    * accepts requests) — the only two moments when "running in the database"
@@ -375,12 +388,14 @@ export class BackendHostCore {
    * take the host down: the rows stay running, which is the pre-sweep status
    * quo, and the next pass retries.
    */
-  private settleOrphanedCrossagentRuns(when: "boot" | "supervisor-reset"): void {
+  private settleOrphanedDelegatedAgentRuns(when: "boot" | "supervisor-reset"): void {
     try {
-      const report = settleOrphanedCrossagentRuns();
+      if (this.closing) return;
+      const report = settleOrphanedDelegatedAgentRuns(when === "boot");
+      this.delegatedAgentRecovery?.capture(report);
       if (report.items > 0) {
         console.info(
-          `[backend] settled ${report.items} orphaned Crossagent run row(s) across ${report.threads} thread(s) on ${when}`,
+          `[backend] settled ${report.items} orphaned delegated-agent row(s) across ${report.threads} thread(s) on ${when}`,
         );
         for (const batch of report.settledBatches) {
           this.options.onEvent({
@@ -391,7 +406,7 @@ export class BackendHostCore {
         }
       }
     } catch (error) {
-      console.warn(`[backend] Crossagent orphan settle failed on ${when}:`, error);
+      console.warn(`[backend] Delegated-agent orphan settle failed on ${when}:`, error);
     }
   }
 
@@ -454,9 +469,15 @@ export class BackendHostCore {
     token: string,
   ): Promise<RuntimeHistoryGapAcknowledgeResult> {
     if (this.closing) throw new Error("Backend host is shutting down.");
-    const result = await this.supervisorClient.runThreadMutation(threadId, () =>
-      acknowledgeRuntimeThreadGap(threadId, token),
-    );
+    const result = await this.supervisorClient.runThreadMutation(threadId, async () => {
+      const acknowledged = await acknowledgeRuntimeThreadGap(threadId, token);
+      if (acknowledged.outcome === "applied") {
+        // Keep launches ordered behind both recovery writes, so the reset's
+        // rehydration cannot observe the dead generation still running.
+        await this.delegatedAgentRecovery?.recoverAfterAcknowledgement(threadId);
+      }
+      return acknowledged;
+    });
     if (result.outcome === "applied") {
       // The durable acknowledgement is committed; publication is best-effort
       // and each callback is guarded INDEPENDENTLY, so a throwing reset fan-out
@@ -934,11 +955,13 @@ export class BackendHostCore {
     // Close admission before taking the continuation snapshot. The last lock
     // for each thread includes every previously queued compound operation.
     this.closing = true;
+    const delegatedRecoveryDisposal = this.delegatedAgentRecovery?.dispose();
     const continuations = [...this.revertLocks.values()];
     this.supervisorDisposal = (async () => {
       await this.supervisorClient.dispose();
       this.canonicalAdmissionControl?.retireOwner();
       await Promise.all(continuations);
+      await delegatedRecoveryDisposal;
       this.supervisorJoined = true;
     })();
     return this.supervisorDisposal;

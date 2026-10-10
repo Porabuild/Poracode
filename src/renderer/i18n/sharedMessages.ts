@@ -10,7 +10,7 @@ import { i18n } from "./i18n";
  * runtime via {@link setMessageResolver}. `{param}` placeholders are ICU
  * arguments resolved with the values passed to `msg()`.
  */
-const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "modelSelection.lead": msg({ message: "Lead" }),
   "modelSelection.sidekick": msg({ message: "Sidekick" }),
   "modelSelection.unsupportedOptions": msg({
@@ -266,6 +266,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "supervisor.exited": msg({ message: "Background process exited unexpectedly" }),
   "supervisor.notRunning": msg({ message: "Background process is not running" }),
   "supervisor.proposedPlan": msg({ message: "Proposed plan" }),
+  "runtime.delegatedAgentInterrupted": msg({
+    message: "Interrupted: agent session ended before completion.",
+  }),
   "supervisor.handoffTranscriptUnavailable": msg({
     message:
       "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",

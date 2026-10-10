@@ -37,8 +37,21 @@ await test("backend-only changes select baseline plus IPC runtime coverage", () 
     areas.map((area) => area.id),
     ["shared-runtime"],
   );
-  assert.ok(areas[0].automated.includes("baseline"));
-  assert.ok(areas[0].manual.includes("ipc-roundtrip"));
+  const runtime = areas.find((area) => area.id === "shared-runtime");
+  assert.ok(runtime);
+  assert.ok(runtime.automated.includes("baseline"));
+  assert.ok(runtime.manual.includes("ipc-roundtrip"));
+});
+
+await test("delegated-agent recovery changes require the host restart gate", () => {
+  for (const file of [
+    "src/backend/delegatedAgentBootSettle.ts",
+    "src/shared/toolCallClassification.ts",
+    "src/renderer/state/remote/delegatedAgentSnapshot.ts",
+    "src/renderer/components/thread/ChatPane/parts/items/delegatedAgentResult.ts",
+  ]) {
+    assert.ok(areasForFile(file).some((area) => area.manual.includes("delegated-agent-recovery")));
+  }
 });
 
 await test("backend browser proxy changes keep their existing area gates", () => {
