@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T01:29:41.191820+00:00",
+  "updatedAt": "2026-10-10T01:52:21.114128+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -43,9 +43,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "c6f15c99bc20 completed/joined; bounded35-source private-host seed offline checks; root key-custody correction and preserved failed actual attempts.",
+    "lastAgent": "dc9967637cb9 completed/joined;8source read-only realPTY contract/source-change review, parent reviewed/verified and executed declared residual only.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "current-production-local-git-handler-workflow-pass",
+    "agentState": "current-production-mcp-probe-catalog-and-real-ordinary-pty-pass",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -63,9 +63,9 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "When unlocked run current full managed mock GUI smoke. Independently qualify remaining MCP-probe/local worktree or real ordinary-PTY handler gaps using corrected terminal-state/wire-shape oracles; keep original controls/PWA/resource caps consumed and unchanged. Then finish genuinely required controls/workflows and materially justified final p95/resources; no blanket current75-tool claim.",
-    "lastResult": "tmp/v2-local-git-tools-20261010/root-verification.json",
-    "lastDeclaration": "/Users/svecherenko/work/Poracode/tmp/v2-local-git-tools-20261010/host/execution-6639b12bd335111ff3f739b5f8f4c021/declaration.json",
+    "nextAction": "Current GUI smoke requires unlocked desktop. Continue remaining current genuine controls/subagent/workflow and worktree tool gaps using current75 catalog; wait_for_agent/get_status changed schemas need fresh behavior proof. Old consumed lanes stay unchanged; realordinaryPTY functional scope does not qualify deferredGUI start/split survival or matchedCPU/GPU/RAM/I/O/p95.",
+    "lastResult": "tmp/v2-probe-pty-20261010/root-verification.json",
+    "lastDeclaration": "/Users/svecherenko/work/Poracode/tmp/v2-probe-pty-20261010/host/execution-eb1b8ca8147074e0e4278dcc1f7c7ce6/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -5510,7 +5510,8 @@
       "sourceSealsVerified": 95,
       "currentRuntimeDirectEntriesVerified": 1975,
       "noRuntimeLive": true,
-      "guiOrResourceClaim": false
+      "guiOrResourceClaim": false,
+      "supersededByCurrentCapturedCatalog": "tmp/v2-probe-pty-20261010/current-catalog.json"
     },
     "guiSurfaceAvailability": {
       "state": "original-ready-poll-became-hidden-unfocused-before-actors",
@@ -5671,7 +5672,7 @@
     "previousGoalTurnClassification": "progress: corrected GUI resumed prompt admission and early Stop race;53 coupled tests/static checks/final source-bound build and targeted review pass. Genuine final qualification remains open.",
     "goalTurnClassification": {
       "classification": "progress",
-      "reason": "Seven actual production Git handler calls across four previously untested names pass raw MCP/canonical/public/stopped/config/file/index/commit/branch/cleanup checks on immutable current source. Original failed snapshot oracle and consumed caps preserved; broad GUI/workflow/resource requirements remain open."
+      "reason": "Current production MCP probe, delivered75-tool inventory and genuine ordinaryPTY/live read/closed-read refusal qualify with8realcalls,24canonicalrows,2samePIDttyinput echoes,8knownPIDabsence and4portsclosed. Source-dependent schemaswait/status changed; historicalreplay not treatedcurrent. FullGUI/workflow/matchedresources remainopen."
     },
     "configurationToolBatch": {
       "runId": "8ce5a834d5d4",
@@ -5719,11 +5720,11 @@
       "wholeTasksClosed": 0
     },
     "currentDesktopAvailability": {
-      "at": "2026-10-10T01:17:37.611Z",
+      "at": "2026-10-10T01:46:17.604Z",
       "screenLocked": true,
-      "probe": "tmp/v2-local-git-tools-20261010/desktop-state.json",
+      "probe": "tmp/v2-probe-pty-20261010/desktop-state.json",
       "guiAppLaunched": false,
-      "requiredForGuiSmoke": "User unlock required under interactive-testing; prior async question pending."
+      "requiredForGuiSmoke": "User unlock under interactive-testing; prior async question pending."
     },
     "metadataMutationToolBatch": {
       "state": "PASS_SCOPED",
@@ -5842,12 +5843,70 @@
       "noExternalProviderGuiOrResourceClaim": true
     },
     "currentMergedGenuineHandlerNames": {
-      "names": ["create_thread", "git_stage", "git_commit", "git_discard", "git_branch"],
+      "names": [
+        "create_thread",
+        "git_stage",
+        "git_commit",
+        "git_discard",
+        "git_branch",
+        "probe_mcp_server",
+        "list_terminals",
+        "read_terminal"
+      ],
       "productionSource": "91c06a02789783fbf8cf5d683bc57a0932539b68",
       "fullyVerifiedGitCalls": 7,
       "additionalCreateCall": "PASS scoped stopped canonical/prompt/stdout; original full-controls sequence remains FAIL, no live-public comparison credit",
-      "currentWholeCatalogCapture": "not performed; old50/75 retained only as historical scope",
-      "newWholeTasksClosed": 0
+      "currentWholeCatalogCapture": "tmp/v2-probe-pty-20261010/current-catalog.json",
+      "newWholeTasksClosed": 0,
+      "currentConfiguredNameCount": 75,
+      "currentScopedNameCount": 8
+    },
+    "currentMergedMcpProbeAndPty": {
+      "state": "PASS_SCOPED",
+      "verification": "tmp/v2-probe-pty-20261010/root-verification.json",
+      "sourceContract": "tmp/v2-probe-pty-20261010/pty-contract.json",
+      "actualMcpCalls": 8,
+      "positiveCalls": 7,
+      "expectedClosedTerminalRejection": 1,
+      "newNames": ["probe_mcp_server", "read_terminal"],
+      "listTerminalsCurrentScope": true,
+      "canonicalItems": 24,
+      "rawMcpCardsAnd8PublicHistoryComparisonsExact": true,
+      "liveToStopped5TablesAndItemsExact": true,
+      "fullSettingsKeysConserved": 120,
+      "actualStdioMcpProbeHandshake": true,
+      "externalMcpFixtureMocked": true,
+      "echoToolNotInvoked": true,
+      "realOrdinaryPty": true,
+      "ttyStdinAndStdout": true,
+      "sameLivePidTwoInputEchoes": true,
+      "explicitCloseFreshPidAbsence": true,
+      "originalHandlesJoined": 4,
+      "knownPidsFreshlyAbsent": 8,
+      "trackedPortsClosed": 4,
+      "artifactUnchanged": true,
+      "originalApplicationAttemptsUsed": 1,
+      "furtherUnchangedLaunchesAllowed": false,
+      "oldPtyGuiControlsMatchedResourceBudgetsUnchanged": true,
+      "protectedSimulatorUntouched": true,
+      "guiDeferredStartSplitExitOrResourceGainClaim": false
+    },
+    "currentMergedToolCatalog": {
+      "verification": "tmp/v2-probe-pty-20261010/current-catalog.json",
+      "configuredDescriptors": 75,
+      "poracode": 63,
+      "crossagents": 12,
+      "rawRequestResponseBindingsExact": true,
+      "addedNames": [],
+      "removedNames": [],
+      "unchangedInputSchemas": 73,
+      "changedInputSchemas": ["crossagents:wait_for_agent", "crossagents:get_status"],
+      "changedDescriptors": ["crossagents:wait_for_agent", "crossagents:get_status"],
+      "currentScopedExecutedNames": 8,
+      "historicalGenuineNameCount": 50,
+      "historicalSchemaConservationDoesNotProveCurrentExecution": true,
+      "allToolsExecuted": false,
+      "browserChromeComputerUseCatalogsNotQualified": true
     }
   },
   "milestones": [
@@ -6835,6 +6894,10 @@
     {
       "at": "2026-10-10T01:29:41.191820+00:00",
       "summary": "Independent currentcompiled localGit workflow PASS7realMCPcalls/4newnames git_stage(stage/unstage/restage),git_commit,git_discard,git_branch(create/switch). Actualproductionhandler/nativeGit effect checks validate UTF8index,realcommitobject/message,trackeddiscard bytes and branchHEAD in privatefixture withoutremote.21canonicalitems exactrawrequest/response/card binding;7fencedpublichistory comparisons and5table/live→stopped itemidentity PASS;120settingskeys unchanged.4originalhandlesnormal0 joined/6knownPIDsfreshESRCH,bothportsclosed,frozenruntimebytes unchanged. Initialstage attempt failedoracle comparing newercompletedpublic snapshot against earlierupdated localrow and omittedundefinedpayload; failedreport/cleanup preserved, requireterminalitems+exactJSONwire normalization corrected, singlematerialvalidation PASS. Both attempts consumed/no unchanged repeat; oldcontrols/PWA/resource caps unchanged. Gitdomain source byteexactretainedcandidate, currentwhole75-toolmetadata notrecaptured. Five currentmerged genuinelyscoped names total(create plus4Git),no GUIrender/externalprovider/p95/CPU/GPU/RAM gaincredit;goalactive13/18,2/6 unchanged."
+    },
+    {
+      "at": "2026-10-10T01:52:21.114128+00:00",
+      "summary": "Current compiled MCPprobe/catalog/realordinaryPTY residual PASS8actualMCPcalls(7positive+1expectedclosedreaderror),24canonicalitems exactrawrequest/result/cards/all8publichistory/live→stopped5tables;120settingskeys conserved. Probe connectsactualSDK tolocalstdiofixture,negotiatesinitialize/tools-list/cleanup (externalservice mocked;echo toolnotexecuted). One actualPTY blocksread/printf underexec sh,test-t stdin/stdouttrue;2PINGwrites emitexactsamePID,explicitclose→freshESRCH,live membershipgone andread_terminal correctlyrejects. Normalrootquit4originalhandles0exit joined,8knownPIDsfreshESRCH,4trackedpublic/control/actualMCPingressportsclosed,immutableproductionbytesunchanged. Agentdc996 contract8sources matchesfrozen/code; protocol13/header/sourcechanges justifyonly residual, old2/2PTY+GUI/matched/control/resource capsunchanged. Captured current75deliverednames (63poracode+12crossagents),noadded/removed;73inputschemasexact,wait_for_agent/get_status schemas/descriptionschanged; old50namehistorynotpromotedcurrent. Current8scopednames;genuinefull75/allGUI/subagent/workflow/matchedRAM/GPU/CPU/I/O/p95 unqualified. MCPfixturecallbacknull prelaunchfailure retained/corrected, noappretry;1declaredappused. Desktoplocked/noGUIlaunch/protectedSimuntouched. Goalactive13/18,2/6 unchanged."
     }
   ],
   "tasks": [
@@ -7010,7 +7073,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "When unlocked run current full managed mock GUI smoke. Independently qualify remaining MCP-probe/local worktree or real ordinary-PTY handler gaps using corrected terminal-state/wire-shape oracles; keep original controls/PWA/resource caps consumed and unchanged. Then finish genuinely required controls/workflows and materially justified final p95/resources; no blanket current75-tool claim.",
+      "nextAction": "Current GUI smoke requires unlocked desktop. Continue remaining current genuine controls/subagent/workflow and worktree tool gaps using current75 catalog; wait_for_agent/get_status changed schemas need fresh behavior proof. Old consumed lanes stay unchanged; realordinaryPTY functional scope does not qualify deferredGUI start/split survival or matchedCPU/GPU/RAM/I/O/p95.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -7075,7 +7138,9 @@
         "tmp/v2-qualification-20261010-continuation/qualification-gates.json",
         "tmp/v2-thread-control-qualification-20261010/root-result.json",
         "tmp/v2-thread-control-qualification-20261010/completed-create-scope.json",
-        "tmp/v2-local-git-tools-20261010/root-verification.json"
+        "tmp/v2-local-git-tools-20261010/root-verification.json",
+        "tmp/v2-probe-pty-20261010/root-verification.json",
+        "tmp/v2-probe-pty-20261010/current-catalog.json"
       ]
     },
     {
@@ -7104,7 +7169,8 @@
         "tmp/v2-streaming-perf-20260930/round258/root-checkpoint.json",
         "tmp/v2-qualification-20261010-continuation/qualification-gates.json",
         "tmp/v2-thread-control-qualification-20261010/root-result.json",
-        "tmp/v2-local-git-tools-20261010/root-verification.json"
+        "tmp/v2-local-git-tools-20261010/root-verification.json",
+        "tmp/v2-probe-pty-20261010/root-verification.json"
       ]
     },
     {
