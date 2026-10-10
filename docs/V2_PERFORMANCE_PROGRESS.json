@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T00:20:35.412509+00:00",
+  "updatedAt": "2026-10-10T00:34:00.306842+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -45,7 +45,7 @@
     "requiredAgent": null,
     "lastAgent": "8c9a01cc9583 completed/joined;97readonly lifecycle/context tests,1confirmed queue-copy defect; root4fail-before/25pass-after correction plus282UI/13generator passes.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "pinned-sidechat-v2-merge-ready",
+    "agentState": "remote-master-integration-full-regression-and-build-pass",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -55,7 +55,7 @@
       "state": "Exact pushed b24d6fc6b product bytes equal frozen R245; retained19434-test/fullcheck/build and exact-head core19/native6+4policy-skip CI PASS. R255 saved compact qualification PASS-scoped; full PWA/mobile and resource gates remain open."
     },
     "buildSession": null,
-    "nextAction": "Commit merged exact v2 tip7c3277e93 (side chats), then run full regression/current isolated GUI smoke on that pinned combined tree; mastere56 already included. Existing qualification limits and broad taskcounts retained.",
+    "nextAction": "Run current full mock GUI smoke after desktop unlock, then continue remaining genuine mixed-tool/workflow qualification and representative resource/p95 signoff from the new merged build. Preserve13/18 counts and consumed prior cohorts; no installed-app replacement/push.",
     "lastResult": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
     "lastDeclaration": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/launcher-declaration.json",
     "liveRootHandles": [],
@@ -2935,7 +2935,7 @@
       "frozenArtifactsRepresentCurrentHead": false
     },
     "remoteIntegration": {
-      "status": "pinned-sidechat-tip-verified-ready",
+      "status": "committed-verified-full-regression-build-pass",
       "localCommits": ["ad91fcb54", "e6787bebf9c95b0d2eb142baa6750aaab94aca6f"],
       "remoteV2": "38fb96cb80254568238c9673ac4d9d6fd39a79b7",
       "remoteV2Merge": "ebf105ccabeaee7f2f6de60da4d148fc32740403",
@@ -2956,11 +2956,14 @@
       "lint": "all-repository basic/type-aware pass",
       "i18n": "0 missing in all12 translated catalogs",
       "fullSuite": {
-        "originalPassed": 22741,
-        "originalFailed": 20,
-        "originalSkipped": 110,
-        "originalLog": "tmp/v2-remote-integration-20261010/master/tests-full.log",
-        "state": "original retained; affected failures corrected and rerun; final committed-tree fullrun pending"
+        "status": "pass",
+        "testFilesPassed": 1991,
+        "testFilesSkipped": 6,
+        "testsPassed": 22872,
+        "testsSkipped": 102,
+        "failed": 0,
+        "durationSeconds": 415.7,
+        "log": "tmp/v2-remote-integration-20261010/master/side-chat/tests-final.log"
       },
       "nativeAppLaunched": false,
       "oldCompiledCandidate": "stale against merged source; not reused as current qualification",
@@ -3020,7 +3023,31 @@
         "correction": "copy accepted conversationSnapshot object at admission; preserve browserFocus and caller mutation isolation; no private context in queue/user projection"
       },
       "sideChatStatics": "typecheck/lint/protocol/format and all12locale0missing pass; postqueuecopy typecheck pending hook",
-      "interruptedSecondFinalRun": "tests-after-815-final.log/exit130; discovered last fetched sidechat tip; retained/no completion credit"
+      "interruptedSecondFinalRun": "tests-after-815-final.log/exit130; discovered last fetched sidechat tip; retained/no completion credit",
+      "finalSourceMergeCommit": "91c06a02789783fbf8cf5d683bc57a0932539b68",
+      "sourceTargetsIncluded": {
+        "remoteV2": "7c3277e93596cda16c7455e572f8f2a717f8f31b",
+        "master": "e56fcc87b3257c04ab64733d818923fec40008a8"
+      },
+      "productionBuild": "pass; currententrypoints compiled, installed appunchanged",
+      "staticChecks": {
+        "typecheck": "pass including normalcommit hook",
+        "lint": "pass basic andtypeaware",
+        "format": "pass",
+        "protocolGeneration": "pass",
+        "architecture": "pass",
+        "localization": "0missing acrossall12 translated catalogs",
+        "smokeInventory": "2990productionfiles/28areas,allmapped"
+      },
+      "guiSmoke": {
+        "status": "pending-locked-desktop",
+        "probe": "tmp/v2-remote-integration-20261010/master/side-chat/desktop-state.json",
+        "appLaunched": false,
+        "userUnlockQuestionPending": true
+      },
+      "receipt": "tmp/v2-remote-integration-20261010/master/side-chat/integration-receipt.json",
+      "sourceFreeze": "validation pinned to91c06a027; earlier22kbaselinefailures and two interruptedpartialruns preserved; no relabelled reset",
+      "next": "currentGUI smoke pendingdesktop unlock; broadqualification stillopen"
     },
     "interactiveTestCredentialIsolation": {
       "status": "implemented_independent_review_pass_root_verified_full_smoke_partial",
@@ -5682,9 +5709,11 @@
       "wholeTasksClosed": 0
     },
     "currentDesktopAvailability": {
-      "evidence": "tmp/v2-acp-fast-resume-20261009/gui-admission-integration/desktop-state-next-goal-turn.json",
-      "screenLocked": false,
-      "appLaunched": false
+      "at": "2026-10-10T00:25:42.241Z",
+      "screenLocked": true,
+      "probe": "tmp/v2-remote-integration-20261010/master/side-chat/desktop-state.json",
+      "guiAppLaunched": false,
+      "requiredForGuiSmoke": "user unlock under interactive-testing skill; optionalasync question pending"
     },
     "metadataMutationToolBatch": {
       "state": "PASS_SCOPED",
@@ -6696,6 +6725,10 @@
     {
       "at": "2026-10-10T00:20:35.412509+00:00",
       "summary": "The fetchedv2 batch also contained7c3277e93 detachable contextual side chats. IntegratedexactSHA, resolved57conflict paths (41generated,13catalog,2source and1pin), preserved one shared runtime reducer for main/detachedwindows and main-only shell-exit closure, unioned10translatedmsgs perlocale, regeneratedbothcapability contracts.282renderer,97readonly lifecycle,13generator tests pass. Independentreview found accepted queued conversation snapshots discarded; root4fail-before/25pass-after correction covers mutation/drain/edit/steer and private projection. Sourcehash945b8bf...nativeprotocolcheck/typecheck/lint/format/0missing locale pass. Commit/fullrun/smoke next. Prior partialfull interrupted receipts preserved, no resource/toolcoverage/taskclosure credit;13/18,2/6 unchanged."
+    },
+    {
+      "at": "2026-10-10T00:34:00.306842+00:00",
+      "summary": "Committed sidechat integration91c06a027; exactremotev2 through7c3277e93/mastere56 ancestry verified andworktreeclean. Fullcombined1991suites/22872testsPASS,102existingtestskips/6suiteskips,0FAIL at415.70s. Normalhooks/typecheck,fullbasic/type-awarelint,format,architecture,nativeprotocolgeneration and all12locale0missing PASS; renderer+Electron/backend/supervisor productionbuildPASS. Smokeinventory2990files/28areas fullymapped. Freshdesktopprobe locked; noGUI app launched, asyncuserunlock questionpending underexplicit interactive-testingSKILL. Priorfailed/interruptedruns retained; nopush/appreplacement/newwhole-app resourceor75-toolcoverage claim. Broadergoalactive13/18,2/6; currentGUI/genuine/resourcequalificationsnext."
     }
   ],
   "tasks": [
