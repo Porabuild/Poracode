@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T02:03:20.603163+00:00",
+  "updatedAt": "2026-10-10T02:03:44.631298+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -5909,7 +5909,7 @@
       "browserChromeComputerUseCatalogsNotQualified": true
     },
     "latestUsageIntegration": {
-      "status": "VALIDATED_PENDING_MERGE_COMMIT",
+      "status": "COMMITTED_AND_INTEGRATED",
       "localParent": "6891adadc",
       "remoteV2": "72e1c4316",
       "remoteMaster": "e56fcc87b",
@@ -5968,7 +5968,9 @@
         "followUp": "Targeted usage read now scans all enabled profiles before filtering; repeated synchronous settings/profile work, latency impact unmeasured."
       },
       "evidenceRoot": "tmp/v2-usage-merge-20261010",
-      "limitations": "No Electron GUI/native mobile/hardware GPU or RAM qualification and no optimization savings claimed. Previous immutable production proof retains its earlier source/artifact attribution; this source integration does not relabel it."
+      "limitations": "No Electron GUI/native mobile/hardware GPU or RAM qualification and no optimization savings claimed. Previous immutable production proof retains its earlier source/artifact attribution; this source integration does not relabel it.",
+      "mergeCommit": "7d3edfe1a",
+      "masterMerge": "Already up to date after v2 integration; both fetched remote tips verified as ancestors."
     }
   },
   "milestones": [
