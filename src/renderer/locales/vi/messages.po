@@ -2743,8 +2743,13 @@ msgstr "Chọn việc Poracode sẽ làm với pull request mới: không làm g
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when this machine stays awake."
-msgstr "Chọn khi máy này được giữ ở trạng thái hoạt động."
+msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+msgstr "Chọn khi hệ thống và màn hình được giữ ở trạng thái hoạt động. Điều này có thể trì hoãn việc tự động khóa màn hình."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when this machine stays awake."
+#~ msgstr "Chọn khi máy này được giữ ở trạng thái hoạt động."
 
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."

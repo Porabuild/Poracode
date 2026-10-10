@@ -2743,8 +2743,13 @@ msgstr "Choisissez ce que Poracode fait pour les nouvelles pull requests : ne ri
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when this machine stays awake."
-msgstr "Choisissez quand cette machine reste éveillée."
+msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+msgstr "Choisissez quand le système et l’écran restent éveillés. Cela peut retarder le verrouillage automatique de l’écran."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when this machine stays awake."
+#~ msgstr "Choisissez quand cette machine reste éveillée."
 
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
