@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T02:03:44.631298+00:00",
+  "updatedAt": "2026-10-10T02:44:14.969940+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -43,10 +43,10 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "63688f2385f2 completed and joined; read-only usage safeguards review",
+    "lastAgent": "c286f018d3b4 completed and joined; usage implementation reviewed/reverified by parent",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "current-production-mcp-probe-catalog-and-real-ordinary-pty-pass",
-    "nativeSessionsLive": false,
+    "agentState": "completed_joined",
+    "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
@@ -63,9 +63,9 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Current GUI smoke requires unlocked desktop. Continue remaining current genuine controls/subagent/workflow and worktree tool gaps using current75 catalog; wait_for_agent/get_status changed schemas need fresh behavior proof. Old consumed lanes stay unchanged; realordinaryPTY functional scope does not qualify deferredGUI start/split survival or matchedCPU/GPU/RAM/I/O/p95.",
-    "lastResult": "tmp/v2-probe-pty-20261010/root-verification.json",
-    "lastDeclaration": "/Users/svecherenko/work/Poracode/tmp/v2-probe-pty-20261010/host/execution-eb1b8ca8147074e0e4278dcc1f7c7ce6/declaration.json",
+    "nextAction": "GUI smoke awaits user desktop unlock (last observed locked); retain physical/private hardware gaps. Continue remaining final controls/cancel/dependent workflow/worktree and PWA/matched qualification within original budgets. Use tail-aware and expected-private-learning settings oracles in a materially justified required final qualification; do not rerun the exhausted unchanged crossagent lane.",
+    "lastResult": "Usage I/O work bounded; explicit child fast:false preserved through MCP/structured dispatch and actual wire. Five genuine crossagent calls independently recovered; entire planned workflow/cancel sequence remains incomplete.",
+    "lastDeclaration": "Prior diagnostic and source-fix attempts retained; latest tail-marker assertion failure classified as expected progress clipping, corrected only by offline recovery. No unchanged app retry or matched cohort reset.",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -5971,6 +5971,178 @@
       "limitations": "No Electron GUI/native mobile/hardware GPU or RAM qualification and no optimization savings claimed. Previous immutable production proof retains its earlier source/artifact attribution; this source integration does not relabel it.",
       "mergeCommit": "7d3edfe1a",
       "masterMerge": "Already up to date after v2 integration; both fetched remote tips verified as ancestors."
+    },
+    "usageProfileReadOptimization": {
+      "status": "IMPLEMENTED_AND_VERIFIED",
+      "sourceCommit": "dabafd0f8",
+      "operationCounts": [
+        {
+          "scenario": "targeted_cached_read",
+          "profiles": 3,
+          "before": {
+            "cacheWrites": 0,
+            "collections": 0,
+            "http": 0,
+            "identityReads": 1,
+            "profileCadenceChecks": 3,
+            "profileDiscoveries": 9,
+            "settingsReads": 10,
+            "timers": 0
+          },
+          "after": {
+            "cacheWrites": 0,
+            "collections": 0,
+            "http": 0,
+            "identityReads": 1,
+            "profileCadenceChecks": 1,
+            "profileDiscoveries": 2,
+            "settingsReads": 2,
+            "timers": 0
+          }
+        },
+        {
+          "scenario": "targeted_cached_read",
+          "profiles": 8,
+          "before": {
+            "cacheWrites": 0,
+            "collections": 0,
+            "http": 0,
+            "identityReads": 1,
+            "profileCadenceChecks": 8,
+            "profileDiscoveries": 14,
+            "settingsReads": 15,
+            "timers": 0
+          },
+          "after": {
+            "cacheWrites": 0,
+            "collections": 0,
+            "http": 0,
+            "identityReads": 1,
+            "profileCadenceChecks": 1,
+            "profileDiscoveries": 2,
+            "settingsReads": 2,
+            "timers": 0
+          }
+        },
+        {
+          "scenario": "broad_cached_read_auto_refresh_off",
+          "profiles": 8,
+          "before": {
+            "cacheWrites": 0,
+            "collections": 0,
+            "http": 0,
+            "identityReads": 8,
+            "profileCadenceChecks": 8,
+            "profileDiscoveries": 23,
+            "settingsReads": 25,
+            "timers": 0
+          },
+          "after": {
+            "cacheWrites": 0,
+            "collections": 0,
+            "http": 0,
+            "identityReads": 8,
+            "profileCadenceChecks": 0,
+            "profileDiscoveries": 1,
+            "settingsReads": 2,
+            "timers": 0
+          }
+        }
+      ],
+      "focusedTestsPassed": 47,
+      "parentReverified": true,
+      "evidence": "tmp/v2-usage-profile-io-20261010/evidence.json",
+      "parentTestLog": "tmp/v2-finalization-20261010/usage-tests.log",
+      "limits": [
+        "Mocked settings-reader/source-discovery calls and synthetic cadence lookups; no real disk/decryption latency, p95 or CPU measurements.",
+        "Full collector discovery remains necessary for retirement. Fresh policy/discovery after awaits and per-snapshot async admission plus synchronous membership revalidation are retained.",
+        "No real app/provider launches or live credential/settings access. The new fixture mocks settings/cache I/O and credential/HTTP ports; existing focused suites use their synthetic fixtures.",
+        "Unrelated worktree edits appeared during final evidence recording; they were neither read further nor edited."
+      ],
+      "identityRetirementPreserved": true,
+      "cacheVersion": 10,
+      "p95CpuGpuRamIoGainMeasured": false
+    },
+    "crossagentDisabledFastCorrection": {
+      "status": "IMPLEMENTED_UNIT_AND_WIRE_VERIFIED",
+      "commits": ["dabafd0f8", "81d6160fa", "21b240cea"],
+      "cause": "Explicit false was omitted in MCP primary/fallback parsing and structured child config planning. A native default true consequently survived a requested false.",
+      "sourcePaths": [
+        "src/supervisor/crossagentMcp/toolRequests.ts",
+        "src/supervisor/crossagentMcp/spawnPlan.ts",
+        "src/supervisor/crossagentMcp/types.ts"
+      ],
+      "beforeEvidence": [
+        "tmp/v2-crossagent-workflow-20261010/fast-before.log",
+        "tmp/v2-crossagent-workflow-20261010/mcp-fast-before.log"
+      ],
+      "failedIntermediateEvidence": [
+        "tmp/v2-crossagent-workflow-20261010/fast-after.log",
+        "tmp/v2-crossagent-workflow-20261010/mcp-fast-final.log"
+      ],
+      "finalTestsPassed": 538,
+      "finalTestsLog": "tmp/v2-crossagent-workflow-20261010/mcp-fast-all-pass.log",
+      "actualWireFalseBeforePrompt": true,
+      "wireEvidence": "tmp/v2-crossagent-workflow-20261010/partial-verification.json",
+      "protocolShapeVersionsUnchanged": true
+    },
+    "currentCrossagentQualification": {
+      "status": "FIVE_COMPLETED_CALLS_SCOPED_PASS_FULL_MATRIX_INCOMPLETE",
+      "source": {
+        "revision": "21b240cea4b2016f35934d1776d1a21c9c86519b",
+        "dirty": false,
+        "sha256": "4364ba704462d676c3f46e3f7686b3f984f629fa1e2bb42007be623b4643cc68",
+        "files": 5436,
+        "bytes": 57006881
+      },
+      "artifact": {
+        "sha256": "b64e6e5f8f43cbe84ae68494bf7c77d8d84b32f236313ae6114ffd0a5f6c0a09",
+        "files": 91751,
+        "bytes": 2393883294
+      },
+      "productionManifest": "tmp/v2-finalization-20261010/production-mcp-fix/runtime-manifest.json",
+      "verification": "tmp/v2-crossagent-workflow-20261010/partial-verification.json",
+      "runtimeResult": "/Users/svecherenko/work/Poracode/tmp/v2-crossagent-workflow-20261010/host/execution-0fea39d14ec0c8e6deb6bd07d6d844bd/result.json",
+      "genuineCalls": 5,
+      "names": ["list_agents", "spawn_agent", "get_status", "wait_for_agent"],
+      "quietReadsPreserveOutputCursor": true,
+      "retainedNarrationChars": 4047,
+      "progressTailChars": 1078,
+      "tailClippingExpectedAndVerifiedOffline": true,
+      "canonicalCardsExact": true,
+      "knownPidsAbsent": 8,
+      "trackedPortsClosed": 4,
+      "originalHandlesJoined": 3,
+      "settingsKeysPresent": 120,
+      "other119SettingsPreserved": true,
+      "expectedPrivateSelectionLearningEntries": 1,
+      "remaining": ["cancel", "run_workflow start/wait/list"],
+      "diagnosticAttemptsUsed": 2,
+      "changedSourceRegressionAttemptsUsed": 2,
+      "allFourFailedFullRunsPreserved": true,
+      "furtherUnchangedLaunchesAllowed": false,
+      "realExternalProvidersGuiPaintHardwareResourcesOrMatchedP95Claims": false
+    },
+    "latestProductionCandidate": {
+      "status": "SEALED_PRODUCTION",
+      "manifest": "tmp/v2-finalization-20261010/production-mcp-fix/runtime-manifest.json",
+      "source": {
+        "revision": "21b240cea4b2016f35934d1776d1a21c9c86519b",
+        "dirty": false,
+        "sha256": "4364ba704462d676c3f46e3f7686b3f984f629fa1e2bb42007be623b4643cc68",
+        "files": 5436,
+        "bytes": 57006881
+      },
+      "artifact": {
+        "sha256": "b64e6e5f8f43cbe84ae68494bf7c77d8d84b32f236313ae6114ffd0a5f6c0a09",
+        "files": 91751,
+        "bytes": 2393883294
+      },
+      "packages": 698,
+      "inheritedUnchangedAssets": "tmp/v2-finalization-20261010/production-mcp-fix/unchanged-assets.json",
+      "inheritedNativeHelperBytes": "tmp/v2-finalization-20261010/production-mcp-fix/native-helper-identity.json",
+      "fullPriorCandidateRetained": "tmp/v2-finalization-20261010/production/runtime-manifest.json",
+      "fullMatrixAndPerformanceQualified": false
     }
   },
   "milestones": [
@@ -6966,6 +7138,10 @@
     {
       "at": "2026-10-10T02:03:20.603163+00:00",
       "summary": "Committed previous qualification chunk 6891adadc; fetched v2 usage #816 (72e1c4316), preserved both branches and regenerated combined protocol mirrors. Full static checks/build plus 1456 merge tests PASS. Retain full native run with 1946 PASS/3 fixture failures; registered private worktrees through normal project management, targeted correction 4 PASS plus ownership 24 PASS. No performance/cap reset credit; progress remains 13/18 and 2/6. Master e56fcc87b already ancestor."
+    },
+    {
+      "at": "2026-10-10T02:44:14.969940+00:00",
+      "summary": "Reduced targeted 8-profile usage settings reads15->2/discovery14->2 and broad autoRefreshOFF settings25->2; identity checks preserved,47 tests PASS. Genuine structured subagent testing exposed discarded fast:false across MCP parser/planning/config; fixed and538 crossagent tests PASS. New production source21b240cea sealed91751files/698packages, unchanged renderer/helper bytes inherited by source/byte verification. Latest five real RPC/canonical results prove fast:false setter before prompt and quiet cursor preservation; expected clipped progress tail1078/retained4047 verified offline after harness marker assertion. All4 failed full runs/caps retained; cancel/dependent workflow not run, no GUI/hardware/resource/p95 gain claim. Goal stays active13/18 tasks,2/6 milestones."
     }
   ],
   "tasks": [
@@ -7131,7 +7307,8 @@
         "tmp/v2-streaming-perf-20260930/round259/root-actual-helper-binding-verification.json",
         "tmp/v2-streaming-perf-20260930/round260/resource-adequacy/audit.json",
         "tmp/native-runtime-retirement-20261009/root-verification.json",
-        "tmp/native-host-reuse-20261009/root-verification.json"
+        "tmp/native-host-reuse-20261009/root-verification.json",
+        "tmp/v2-usage-profile-io-20261010/evidence.json"
       ],
       "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json"
     },
@@ -7141,7 +7318,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Current GUI smoke requires unlocked desktop. Continue remaining current genuine controls/subagent/workflow and worktree tool gaps using current75 catalog; wait_for_agent/get_status changed schemas need fresh behavior proof. Old consumed lanes stay unchanged; realordinaryPTY functional scope does not qualify deferredGUI start/split survival or matchedCPU/GPU/RAM/I/O/p95.",
+      "nextAction": "GUI smoke awaits user desktop unlock (last observed locked); retain physical/private hardware gaps. Continue remaining final controls/cancel/dependent workflow/worktree and PWA/matched qualification within original budgets. Use tail-aware and expected-private-learning settings oracles in a materially justified required final qualification; do not rerun the exhausted unchanged crossagent lane.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -7208,7 +7385,8 @@
         "tmp/v2-thread-control-qualification-20261010/completed-create-scope.json",
         "tmp/v2-local-git-tools-20261010/root-verification.json",
         "tmp/v2-probe-pty-20261010/root-verification.json",
-        "tmp/v2-probe-pty-20261010/current-catalog.json"
+        "tmp/v2-probe-pty-20261010/current-catalog.json",
+        "tmp/v2-crossagent-workflow-20261010/partial-verification.json"
       ]
     },
     {
@@ -7238,7 +7416,8 @@
         "tmp/v2-qualification-20261010-continuation/qualification-gates.json",
         "tmp/v2-thread-control-qualification-20261010/root-result.json",
         "tmp/v2-local-git-tools-20261010/root-verification.json",
-        "tmp/v2-probe-pty-20261010/root-verification.json"
+        "tmp/v2-probe-pty-20261010/root-verification.json",
+        "tmp/v2-crossagent-workflow-20261010/partial-verification.json"
       ]
     },
     {
