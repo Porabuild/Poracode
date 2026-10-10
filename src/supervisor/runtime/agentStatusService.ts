@@ -98,7 +98,9 @@ const execFileAsync = promisify(execFile);
 // credential lists alongside auth state.
 // v34 re-probes skill slash commands so cached skill invocations pick up the
 // provider's current form.
-export const STATUS_CACHE_VERSION = 34;
+// v35 re-probes catalogs after restoring compatibility with servers that removed
+// the plugin activation endpoint; cached empty catalogs are no longer valid.
+export const STATUS_CACHE_VERSION = 35;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

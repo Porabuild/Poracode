@@ -65,7 +65,14 @@ export async function submitOpenCode2Prompt(
 }
 
 export function mapOpenCode2Skills(
-  skills: ReadonlyArray<{ id: string; name: string; description?: string; location: string }>,
+  skills: ReadonlyArray<{
+    id: string;
+    name: string;
+    description?: string;
+    /** Older servers return `location`; current servers return `path`. */
+    location?: string;
+    path?: string;
+  }>,
   directory = "",
 ): AgentSlashCommand[] {
   return skills.map((skill) => ({
@@ -78,7 +85,9 @@ export function mapOpenCode2Skills(
     skillProvider: "opencode2",
     skillScope:
       directory &&
-      skill.location.replaceAll("\\", "/").startsWith(directory.replaceAll("\\", "/") + "/")
+      (skill.path ?? skill.location ?? "")
+        .replaceAll("\\", "/")
+        .startsWith(directory.replaceAll("\\", "/") + "/")
         ? "project"
         : "global",
   }));

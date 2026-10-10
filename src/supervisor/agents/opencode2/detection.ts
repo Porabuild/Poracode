@@ -1,3 +1,4 @@
+import { awaitOpenCode2Activation } from "./readiness";
 import { OPENCODE2_ENV, parseOpenCode2Version, supportsOpenCode2Version } from "./binary";
 import { quotePosixShellArg, quotePowerShellLiteral } from "../base/shellBasics";
 import { homedir } from "node:os";
@@ -226,7 +227,11 @@ export async function probeOpenCode2Inventory(
 
     const inventoryPromise = (async () => {
       await raceWithTimeout(
-        client.plugin.awaitActivation({ location: locationInput }),
+        awaitOpenCode2Activation(
+          client,
+          { location: locationInput },
+          { ...(signal ? { signal } : {}) },
+        ),
         OPENCODE2_ACTIVATION_TIMEOUT_MS,
         "OpenCode 2 plugin activation timed out",
       );

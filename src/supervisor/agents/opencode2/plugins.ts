@@ -1,3 +1,4 @@
+import { awaitOpenCode2Activation } from "./readiness";
 import { readOpenCode2TerminalPackages } from "./terminalPluginConfig";
 import type {
   AgentPluginPackage,
@@ -70,14 +71,14 @@ export async function manageOpenCode2Plugins(
       const acquired = await acquireOpenCode2Server({ projectLocation: location });
       try {
         const options = { signal: AbortSignal.timeout(60_000) };
-        await acquired.client.plugin.awaitActivation(undefined, options);
+        await awaitOpenCode2Activation(acquired.client, undefined, options);
         if (input.action === "update")
           await acquired.client.plugin.update(
             { targets: [validateOpenCode2PluginTarget(input.target ?? "")] },
             options,
           );
         const readPackages = async () => {
-          await acquired.client.plugin.awaitActivation(undefined, options);
+          await awaitOpenCode2Activation(acquired.client, undefined, options);
           const result =
             input.action === "check"
               ? await acquired.client.plugin.check(undefined, options)

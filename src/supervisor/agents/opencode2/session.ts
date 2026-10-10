@@ -1,3 +1,4 @@
+import { awaitOpenCode2Activation } from "./readiness";
 import { openCode2SnapshotEvents, readOpenCode2Recovery } from "./recovery";
 /**
  * OpenCode 2 structured session.
@@ -191,7 +192,7 @@ export class OpenCode2Session implements StructuredSessionHandle {
     this.currentConfig = config;
     const location = { directory: this.directory };
     const signal = AbortSignal.timeout(60_000);
-    await acquired.client.plugin.awaitActivation({ location }, { signal });
+    await awaitOpenCode2Activation(acquired.client, { location }, { signal });
     if (this.isGui) {
       const [commands, skills, agents] = await Promise.all([
         acquired.client.command.list({ location }, { signal }),

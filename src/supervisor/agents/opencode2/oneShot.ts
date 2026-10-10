@@ -1,3 +1,4 @@
+import { awaitOpenCode2Activation } from "./readiness";
 import type { RunOneShotInput } from "../base";
 import { acquireOpenCode2Server, resolveOpenCode2SessionDirectory } from "./client";
 import { parseOpenCode2ModelRef } from "./model";
@@ -12,7 +13,7 @@ export async function runOpenCode2OneShot(input: RunOneShotInput): Promise<strin
   let sessionID: string | undefined;
   try {
     const location = { directory: resolveOpenCode2SessionDirectory(input.location) };
-    await acquired.client.plugin.awaitActivation({ location }, { signal });
+    await awaitOpenCode2Activation(acquired.client, { location }, { signal });
     const session = await acquired.client.session.create({ location }, { signal });
     sessionID = session.id;
     const model = parseOpenCode2ModelRef(input.model, input.effort);
