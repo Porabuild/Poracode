@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T00:34:00.306842+00:00",
+  "updatedAt": "2026-10-10T00:46:07.448878+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -45,17 +45,25 @@
     "requiredAgent": null,
     "lastAgent": "8c9a01cc9583 completed/joined;97readonly lifecycle/context tests,1confirmed queue-copy defect; root4fail-before/25pass-after correction plus282UI/13generator passes.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "remote-master-integration-full-regression-and-build-pass",
+    "agentState": "current-production-snapshot-and-isolated-server-preflight-pass",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
-      "identity": "tmp/v2-streaming-perf-20260930/round245/build-identity.json",
-      "verification": "tmp/v2-streaming-perf-20260930/round245/root-artifact-verification.json",
-      "state": "Exact pushed b24d6fc6b product bytes equal frozen R245; retained19434-test/fullcheck/build and exact-head core19/native6+4policy-skip CI PASS. R255 saved compact qualification PASS-scoped; full PWA/mobile and resource gates remain open."
+      "identity": "tmp/v2-qualification-20261010-continuation/production-corrected/runtime-manifest.json",
+      "verification": "tmp/v2-qualification-20261010-continuation/server-preflight/result.json",
+      "state": "Current merged production closure sealed/rechecked; isolated real-host preflight PASS. GUI/genuine/matched resources incomplete.",
+      "sourceMerge": "91c06a02789783fbf8cf5d683bc57a0932539b68",
+      "snapshotSourceRevision": "70e5ca562a42eb6054bb78e2f998b2d3ce1b42a0",
+      "sourceFiles": 5418,
+      "packages": 698,
+      "artifactFiles": 91736,
+      "artifactHash": "078b994b8c7d14b0342430d2f13818a234570b3d88da69a92d2628db107fa4b5",
+      "renderer": "production Electron and web/PWA",
+      "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Run current full mock GUI smoke after desktop unlock, then continue remaining genuine mixed-tool/workflow qualification and representative resource/p95 signoff from the new merged build. Preserve13/18 counts and consumed prior cohorts; no installed-app replacement/push.",
+    "nextAction": "After console unlock run current full managed mock GUI smoke. Use sealed production runtime for self-contained genuine thread controls and materially justified final qualification, preserving failed runs and consumed caps. Worker source unchanged: no exhausted natural-activation repeat without new evidence/correction.",
     "lastResult": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
     "lastDeclaration": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/launcher-declaration.json",
     "liveRootHandles": [],
@@ -132,7 +140,8 @@
         "review": "PASS corrected candidate; original Important findings preserved",
         "fullSuiteRerun": false,
         "previousFullSuiteScope": "19680pass/100skip precedes both retirement lifecycle corrections; historical evidence, not current full-tree claim."
-      }
+      },
+      "supersededByCurrentSourceQuality": "tmp/v2-remote-integration-20261010/master/side-chat/integration-receipt.json"
     },
     "currentCompiledGenuineEvidence": {
       "state": "current-genuine-create-overwrite-unicode-read-workflow-and-stopped-fidelity-scoped-qualified-original-order-sensitive-settings-verdict-preserved",
@@ -219,7 +228,8 @@
       },
       "build": "PASS",
       "evidence": "tmp/v2-streaming-perf-20260930/round190/root-quality-and-review.json",
-      "initialFailPreserved": true
+      "initialFailPreserved": true,
+      "supersededByCurrentSourceQuality": "tmp/v2-remote-integration-20261010/master/side-chat/integration-receipt.json"
     },
     "comprehensiveCheckpoint": {
       "state": "committed: 0ffb496f4 all458files; 403a6777d older-page image projection; pushed to origin/poracode/v2",
@@ -3022,7 +3032,7 @@
         "afterPassed": 25,
         "correction": "copy accepted conversationSnapshot object at admission; preserve browserFocus and caller mutation isolation; no private context in queue/user projection"
       },
-      "sideChatStatics": "typecheck/lint/protocol/format and all12locale0missing pass; postqueuecopy typecheck pending hook",
+      "sideChatStatics": "Full typecheck/lint/protocol/format/all12locale0missing pass, including final normal commit hooks.",
       "interruptedSecondFinalRun": "tests-after-815-final.log/exit130; discovered last fetched sidechat tip; retained/no completion credit",
       "finalSourceMergeCommit": "91c06a02789783fbf8cf5d683bc57a0932539b68",
       "sourceTargetsIncluded": {
@@ -5661,7 +5671,7 @@
     "previousGoalTurnClassification": "progress: corrected GUI resumed prompt admission and early Stop race;53 coupled tests/static checks/final source-bound build and targeted review pass. Genuine final qualification remains open.",
     "goalTurnClassification": {
       "classification": "progress",
-      "reason": "Committed all local work, merged remote v2, resolved latest-master source conflicts and corrected concrete compatibility/regression issues; broad final qualification remains open."
+      "reason": "Complete current production snapshot built/sealed/rechecked; isolated compiled server/auth/control/capability/normal-stop preflight passes. Locked GUI and final genuine/resource/PWA qualification remain."
     },
     "configurationToolBatch": {
       "runId": "8ce5a834d5d4",
@@ -5709,11 +5719,11 @@
       "wholeTasksClosed": 0
     },
     "currentDesktopAvailability": {
-      "at": "2026-10-10T00:25:42.241Z",
+      "at": "2026-10-10T00:46:07.275Z",
       "screenLocked": true,
-      "probe": "tmp/v2-remote-integration-20261010/master/side-chat/desktop-state.json",
+      "probe": "tmp/v2-qualification-20261010-continuation/final-desktop-probe/desktop-state.json",
       "guiAppLaunched": false,
-      "requiredForGuiSmoke": "user unlock under interactive-testing skill; optionalasync question pending"
+      "requiredForGuiSmoke": "User unlock required under interactive-testing; prior async question pending, not repeated."
     },
     "metadataMutationToolBatch": {
       "state": "PASS_SCOPED",
@@ -5754,7 +5764,36 @@
       "latestFailedRun": "tmp/v2-memory-production-20261008-a79decb09/current-thread-controls-a759b488993255a2/result.json",
       "latestFailureCleanup": "tmp/v2-memory-production-20261008-a79decb09/current-thread-controls-a759b488993255a2/root-failure-cleanup-verification.json",
       "finalReview": "tmp/v2-acp-fast-resume-20261009/gui-admission-integration/root-final-review-verification.json"
-    }
+    },
+    "historicalProductionCandidateBeforeRemoteMerge": {
+      "identity": "tmp/v2-streaming-perf-20260930/round245/build-identity.json",
+      "verification": "tmp/v2-streaming-perf-20260930/round245/root-artifact-verification.json",
+      "state": "Exact pushed b24d6fc6b product bytes equal frozen R245; retained19434-test/fullcheck/build and exact-head core19/native6+4policy-skip CI PASS. R255 saved compact qualification PASS-scoped; full PWA/mobile and resource gates remain open."
+    },
+    "mergedProductionSnapshot": {
+      "result": "tmp/v2-qualification-20261010-continuation/production-corrected/runtime-manifest.json",
+      "sourceAndArtifactRechecked": true,
+      "nativeHelper": "fresh universal release build",
+      "buildStagesPassed": 10,
+      "firstBuildFailure": "tmp/v2-qualification-20261010-continuation/production/failure.json",
+      "correction": "Generated WSL MCP workers staged after main build; original failed setup retained/no app launched."
+    },
+    "mergedServerPreflight": {
+      "result": "tmp/v2-qualification-20261010-continuation/server-preflight/result.json",
+      "pass": true,
+      "actualHttpRequests": 4,
+      "normalExitCode": 0,
+      "originalHandlesJoined": 4,
+      "knownPidsAbsent": true,
+      "bothListenersClosed": true,
+      "runtimeArtifactUnchanged": true,
+      "currentCapabilities": ["flatThreadReorder v1", "conversationSnapshots v1"],
+      "mode": "isolated mock providers; real production host/auth/HTTP/control handlers",
+      "wholeDescendantCensusOrResourceClaim": false,
+      "genuineProviderOrNewToolCoverageClaim": false,
+      "serverLogErrorLines": 0
+    },
+    "currentAcceptanceAuditMergedSource": "tmp/v2-qualification-20261010-continuation/qualification-gates.json"
   },
   "milestones": [
     {
@@ -6729,6 +6768,10 @@
     {
       "at": "2026-10-10T00:34:00.306842+00:00",
       "summary": "Committed sidechat integration91c06a027; exactremotev2 through7c3277e93/mastere56 ancestry verified andworktreeclean. Fullcombined1991suites/22872testsPASS,102existingtestskips/6suiteskips,0FAIL at415.70s. Normalhooks/typecheck,fullbasic/type-awarelint,format,architecture,nativeprotocolgeneration and all12locale0missing PASS; renderer+Electron/backend/supervisor productionbuildPASS. Smokeinventory2990files/28areas fullymapped. Freshdesktopprobe locked; noGUI app launched, asyncuserunlock questionpending underexplicit interactive-testingSKILL. Priorfailed/interruptedruns retained; nopush/appreplacement/newwhole-app resourceor75-toolcoverage claim. Broadergoalactive13/18,2/6; currentGUI/genuine/resourcequalificationsnext."
+    },
+    {
+      "at": "2026-10-10T00:46:07.448878+00:00",
+      "summary": "Current merged production snapshot built/frozen with5418 sealed source files,698 copied installed packages/91736 artifacts. Production Electron/web/PWA/main/server/supervisor/workers/native release helper/WSL/plugins/SSH closure repeatedhash PASS. Original failedWSL-before-build setup retained; buildorder corrected. Real production isolated host/auth/control preflight PASS currentflat-order+snapshotcapabilities,401refusal,same-generationstatus,operatorpairing,authenticateddescription,normalstop;4originalhandles joined/knownPIDsabsent,bothportsclosed,artifactbytesunchanged,0servererrorlines. Desktoplocked/noGUIlaunch; workerbytesunchanged so exhaustedPWA lane not repeated. No new genuine75-tool/currentwhole-appCPU/GPU/RAM/I/O/p95/physicaldevicecredit; interimauditrecordsopenrequirements. Goalactive13/18,2/6 unchanged. Localverified-chunkcommitallowed,nopush/appreplacement."
     }
   ],
   "tasks": [
@@ -6845,7 +6888,7 @@
       "title": "Fresh production profiling snapshot",
       "status": "complete",
       "owner": "Coordinator",
-      "nextAction": "R115 immutable 5fb source/output/runtime closure verified; current functional gaps and matched resources remain separate.",
+      "nextAction": "Current merged production snapshot sealed:5418 source files,91736 artifacts,698 copied packages,release helper,both production renderers. Host preflight passes; runtime measurement and GUI/genuine qualification separate.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round78/build-identity.json",
         "tmp/v2-streaming-perf-20260930/round78/candidate-verification.json",
@@ -6856,7 +6899,8 @@
         "tmp/v2-streaming-perf-20260930/round104/runtime-dependency-verification.json",
         "tmp/v2-streaming-perf-20260930/round105/candidate-verification.json",
         "tmp/v2-streaming-perf-20260930/round105/runtime-dependency-verification.json",
-        "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
+        "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+        "tmp/v2-qualification-20261010-continuation/production-corrected/runtime-manifest.json"
       ]
     },
     {
@@ -6903,7 +6947,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Current75 delivered schemas conserved;50 genuinely scoped names/25 positive-untested, including3 fallback-only scopes. Disabled schedule CRUD and stored-thread rename/star/group/ungroup/restoration now pass9 realcalls/27 exactreplay rows. GUI11/13 retained; remaining shutdown/Quit require unlocked usable window.",
+      "nextAction": "After console unlock run current full managed mock GUI smoke. Use sealed production runtime for self-contained genuine thread controls and materially justified final qualification, preserving failed runs and consumed caps. Worker source unchanged: no exhausted natural-activation repeat without new evidence/correction.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -6963,7 +7007,9 @@
         "tmp/v2-memory-production-20261008-a79decb09/genuine-controls-v3-91fdf637464a67d1/root-verification.json",
         "tmp/native-runtime-retirement-20261009/root-verification.json",
         "tmp/native-host-reuse-20261009/root-verification.json",
-        "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json"
+        "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
+        "tmp/v2-qualification-20261010-continuation/server-preflight/result.json",
+        "tmp/v2-qualification-20261010-continuation/qualification-gates.json"
       ]
     },
     {
@@ -6989,7 +7035,8 @@
       "nextAction": "Updated16requirementmap source/currentGUI/quality/genuinehandlerreconciliation verified; finalsignoffawaits explicit remainingfunctional/matched/deviceevidence. Whole5tasksstillopen; no blanketalltools/resourcePASS.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round127/audit.json",
-        "tmp/v2-streaming-perf-20260930/round258/root-checkpoint.json"
+        "tmp/v2-streaming-perf-20260930/round258/root-checkpoint.json",
+        "tmp/v2-qualification-20261010-continuation/qualification-gates.json"
       ]
     },
     {
