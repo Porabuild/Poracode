@@ -218,7 +218,7 @@ const usageSettingsSchema = z.object({
   providerRefreshIntervals: z.record(z.string(), z.number().int().min(2).max(120)).default({}),
   /**
    * Show estimated $ cost (reconstructed from local logs at public API rates).
-   * Opt-in and panel-only — it is meaningless for subscription/OAuth users.
+   * Opt-in — it is meaningless for subscription/OAuth users.
    */
   showEstimatedCost: z.boolean().default(false),
   /** Show the per-provider usage circles in the sidebar (master toggle). */

@@ -853,6 +853,10 @@ msgstr "Hủy bỏ hợp nhất"
 msgid "About"
 msgstr "Giới thiệu"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "Thông tin sử dụng"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "Phía trên trình soạn"
@@ -2773,6 +2777,10 @@ msgstr "Chọn tệp danh tính SSH"
 msgid "Choose the display language for Poracode's interface."
 msgstr "Chọn ngôn ngữ hiển thị cho giao diện của Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Choose the host or environment whose accounts you want to view."
+msgstr "Chọn máy chủ hoặc môi trường có tài khoản bạn muốn xem."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
 #~ msgstr "Chọn môi trường chạy cho các cuộc trò chuyện GUI Cursor mới. SDK sẽ khả dụng sau khi gói được phát hiện và khóa API được xác thực."
@@ -3264,7 +3272,7 @@ msgstr "Codex chạy hồ sơ này với CODEX_HOME trỏ tới thư mục bên 
 msgid "Collapse"
 msgstr "Thu gọn"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "Thu gọn {label}"
 
@@ -3701,6 +3709,7 @@ msgstr "Đang kết nối..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -4014,6 +4023,10 @@ msgstr "Không thể nhập giao diện này. Hãy dùng tệp JSON giao diện 
 msgid "Could not load pull requests for {0}."
 msgstr "Không thể tải pull request cho {0}."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Could not load usage. Check the host connection and permissions, then try again."
+msgstr "Không thể tải mức sử dụng. Hãy kiểm tra kết nối và quyền của máy chủ rồi thử lại."
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Không thể mở tệp PDF này."
@@ -4273,7 +4286,7 @@ msgid "Credentials are configured."
 msgstr "Thông tin xác thực được cấu hình."
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Credits"
 msgstr "Số dư tín dụng"
 
@@ -5165,6 +5178,10 @@ msgstr "Tên hiển thị (không bắt buộc)"
 msgid "Display name in the sidebar."
 msgstr "Hiển thị tên ở thanh bên."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display preferences follow this app's settings, independently of the selected usage host."
+msgstr "Tùy chọn hiển thị tuân theo cài đặt của ứng dụng này, độc lập với máy chủ sử dụng đã chọn."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "Gắn bên trái"
@@ -5752,7 +5769,7 @@ msgstr "Đã thoát với mã {0}. Đóng để thử lại."
 msgid "Expand"
 msgstr "Mở rộng"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "Mở rộng {label}"
 
@@ -6900,6 +6917,14 @@ msgstr "Khóa máy chủ không khớp"
 msgid "Host key trust accepted."
 msgstr "Đã chấp nhận tin cậy khóa máy chủ."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. No cached usage is available."
+msgstr "Máy chủ ngoại tuyến. Không có dữ liệu sử dụng trong bộ nhớ đệm."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. Showing last known usage."
+msgstr "Máy chủ ngoại tuyến. Đang hiển thị mức sử dụng được biết gần nhất."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
 msgstr "Cài đặt máy chủ"
@@ -7610,6 +7635,10 @@ msgstr "Lần đánh giá gần nhất:"
 msgid "Last tool: <0>{0}</0>"
 msgstr "Công cụ cuối cùng: <0>{0}</0>"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Last updated: {fetchedAt}"
+msgstr "Cập nhật lần cuối: {fetchedAt}"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Launch at startup"
@@ -7864,6 +7893,10 @@ msgstr "Đang tải skill…"
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Loading threads"
 #~ msgstr "Đang tải luồng"
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Loading usage…"
+msgstr "Đang tải mức sử dụng…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Loading workflow inputs"
@@ -9625,6 +9658,10 @@ msgstr "Không có luồng nào"
 msgid "No threads yet."
 msgstr "Chưa có luồng nào."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "No usage data yet."
+msgstr "Chưa có dữ liệu sử dụng."
+
 #: src/renderer/components/providers/devin/sessionSettingsControls.tsx
 #: src/renderer/components/providers/devin/sessionSettingsSearchPicker.tsx
 #~ msgid "No value"
@@ -11275,6 +11312,7 @@ msgid "Provider presets"
 msgstr "Cấu hình nhà cung cấp"
 
 #. Settings section: provider usage and quota dashboard
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11632,9 +11670,14 @@ msgstr "Đang kết nối lại với terminal…"
 #~ msgstr "Đang kết nối lại với desktop…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API công khai - nó không phản ánh hóa đơn thực của bạn đối với các gói đăng ký. Chỉ hiển thị trong bảng sử dụng."
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "Được tính lại từ nhật ký cục bộ theo mức giá API công khai — không phản ánh hóa đơn thực tế của bạn với các gói đăng ký."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API công khai - nó không phản ánh hóa đơn thực của bạn đối với các gói đăng ký. Chỉ hiển thị trong bảng sử dụng."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
@@ -11658,6 +11701,7 @@ msgstr "Ẩn nội dung thông báo"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11669,9 +11713,13 @@ msgstr "Làm mới"
 msgid "Refresh {0} authentication"
 msgstr "Làm mới xác thực {0}"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Refresh {label}"
 msgstr "Làm mới {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#~ msgid "Refresh {label} usage"
+#~ msgstr "Làm mới mức sử dụng của {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -12090,8 +12138,8 @@ msgstr "Trình kết xuất gặp một promise rejection chưa được xử l�
 msgid "Reorder {0}"
 msgstr "Sắp xếp lại {0}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Sắp xếp lại {label}"
 
@@ -13426,12 +13474,12 @@ msgid "Show Bookmark Bar"
 msgstr "Hiển thị thanh dấu trang"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
 msgstr "Hiển thị vòng tròn trong thanh bên"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
 msgstr "Hiển thị các vòng sử dụng nhỏ gọn theo nhà cung cấp ở thanh bên. Ẩn vòng tròn của từng nhà cung cấp trong danh sách bên dưới."
 
@@ -13453,7 +13501,7 @@ msgid "Show docks in the right panel"
 msgstr "Hiện dock trong bảng bên phải"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Hiển thị chi phí ước tính"
 
@@ -13631,6 +13679,10 @@ msgstr "Mô hình phụ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "Đăng nhập"
+
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
+msgstr "Đăng nhập và cấu hình theo dõi mức sử dụng trên máy chủ này. Thông tin xác thực được giữ trên máy chủ thu thập mức sử dụng."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in needed"
@@ -15204,6 +15256,14 @@ msgstr "Máy tính này"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. Hãy ghép nối lại để bật."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This connection does not have permission to read usage."
+msgstr "Kết nối này không có quyền đọc mức sử dụng."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This connection does not have permission to refresh usage."
+msgstr "Kết nối này không có quyền làm mới mức sử dụng."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "Kết nối này sở hữu các bản ghi môi trường thuộc máy chủ trên thiết bị này. Xóa nó cũng xóa các bản ghi cục bộ đó và quyền của thiết bị. Máy chủ vẫn giữ các môi trường của mình."
@@ -15256,6 +15316,14 @@ msgstr "Thư mục này đã được đăng ký làm dự án."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "Thư mục này trống."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "This host"
+msgstr "Máy chủ này"
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This host is no longer configured."
+msgstr "Máy chủ này không còn được cấu hình."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -16239,7 +16307,7 @@ msgstr "Thư mục không xác định"
 #~ msgstr "Dự án không xác định"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Unlimited"
 msgstr "Không giới hạn"
 
@@ -16437,6 +16505,10 @@ msgstr "Cập nhật nhiệm vụ"
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Cập nhật máy chủ từ xa để sử dụng cuộc trò chuyện phụ với ngữ cảnh ẩn."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Update this host to refresh usage remotely. Cached usage can still be read."
+msgstr "Cập nhật máy chủ này để làm mới dữ liệu sử dụng từ xa. Vẫn có thể đọc dữ liệu sử dụng trong bộ nhớ đệm."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "Cập nhật lên {updateLabel}"
@@ -16562,6 +16634,22 @@ msgstr "Bắt buộc phải có URL."
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
 msgstr "Mức sử dụng"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Usage host"
+msgstr "Máy chủ thu thập mức sử dụng"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
+msgstr "Mức sử dụng được thu thập trên máy chủ đã chọn. Tài khoản và hạn mức được hiển thị riêng cho từng máy chủ."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "Dữ liệu sử dụng đã cũ. Hãy làm mới để thu thập các giá trị mới nhất."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "Dữ liệu sử dụng đã cũ. Hãy làm mới."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

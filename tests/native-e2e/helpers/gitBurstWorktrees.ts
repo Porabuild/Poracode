@@ -66,6 +66,18 @@ export async function createGitBurstWorktrees(input: {
       createBranch: true,
     });
     expectOk(added.status, `gitAddWorktree ${worktree.branch}`, added.body);
+    // A bare Git checkout is not a registered project or a durable thread
+    // worktree. Register this isolated fixture through the normal management
+    // route before session-scoped reads; keep setup outside the burst window.
+    const registered = await input.client.fetchJson(
+      "project-register-worktree",
+      "/api/projects/command",
+      {
+        method: "POST",
+        body: { kind: "add-existing", path: worktree.path },
+      },
+    );
+    expectOk(registered.status, `register worktree project ${worktree.branch}`, registered.body);
     worktrees.push(worktree);
   }
   return worktrees;

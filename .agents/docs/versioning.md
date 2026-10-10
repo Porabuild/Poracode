@@ -1,5 +1,15 @@
 # Versioned State & Protocols
 
+The local integration with usage commit `72e1c4316` and master `e56fcc87b`
+regenerates every remote-v3 mirror from the combined canonical source: 95 routes,
+130 procedures, 429 native schema roots and 974 structural types. Protocol 13,
+binding format 2, generator 4 and native binding format 5 remain unchanged.
+The source hash is `sha256:1133236427e6c54288804ccf7509aaa8ef835afd319d95d8c361ccf768226df6`;
+the manifest hash is `sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982`.
+Both branches' lifecycle, QA collection opt-out, side-chat and flat-reorder policies
+remain in force. The historical integration counts below describe their named
+commits, not this combined build.
+
 Supervisor shutdown now joins host-resolved canonical flow entries and the
 producer's held runtime/subagent tails, in addition to native IPC callbacks.
 Private unsubscribed child tails enter the existing canonical channel after
@@ -42,6 +52,61 @@ version contract. Settings, provider authentication, wire/IPC shapes and deploye
 helper formats are unchanged by this process-local override; no additional version
 bump is needed. Regression coverage verifies cache preservation, zero profile-source,
 credential/HTTP calls, zero polling timers and unchanged ordinary-session collection.
+
+Host-scoped provider usage adds `getProviderUsage` (`session:read`) and
+`refreshProviderUsage` (`session:operate`) to the existing authenticated generic
+procedure route. Existing IPC names, provider filters/force, snapshot schemas,
+and the legacy GET usage endpoint retain their meanings. Unknown procedures on
+older hosts are refused. For an empty read only, the exact 403
+`git_procedure_not_allowed` or 404 `not_found` response retries the existing GET
+usage endpoint through the same pinned owning-host client, including child
+environments. Scope,
+authentication, network and schema failures never trigger fallback. A refused
+refresh never falls back to a legacy read or device route; the UI asks to update
+the host. If a live-open refresh occupied the initial read slot, the view issues
+one separate cache read after the refusal. This integration retains the target
+branch's remote protocol 13, current IPC map, binding format 2, generator 4,
+native binding format 5, and host usage cache 10. Usage adds no further version
+bump; the target's profile credential identities and account retirement checks
+remain authoritative. Generated manifest hashes,
+inventory counts, codecs, native metadata, parity entries and the native E2E
+operation map are regenerated/audited together. The integration with pinned v2
+`38fb96cb80254568238c9673ac4d9d6fd39a79b7` combines media's seven routes
+with the two usage procedures: 95 routes, 130 procedures, 429 native schema
+roots, 970 structural types and 277 operation keys. All generated artifacts
+come from that combined canonical authority; no generator behavior changes.
+The later ordinary integration with pinned v2
+`7c3277e93596cda16c7455e572f8f2a717f8f31b` retains those 95 routes,
+130 procedures, 429 roots and 277 operation keys. The target's optional bounded
+provider-only conversation snapshot adds one structural type (971 total);
+all IR/schema/native mirrors and independent literal hash/count fixtures are
+regenerated from the combined authority. Protocol 13, binding 2, generator 4,
+native format 5, usage cache 10 and global-off collection semantics are unchanged.
+Side-chat same-build IPC and conversationSnapshots v1 capability policy remain
+the target's authority; usage adds no further boundary/version change. Native UI adoption is explicitly
+planned in the parity ledger. The new renderer cache and host selection are
+volatile, partitioned by connection plus host-owned provider/profile ID; they
+require no persisted-state migration. Connection retirement and request sequence
+fences prevent delayed reads from replacing a newer account snapshot or another
+host's data. Regressions cover prior snapshot shapes, auth/scope refusal,
+filters/force, two hosts, account replacement, reconnect and delayed replies.
+
+The corrective card/settings refactor consumes those same host-scoped snapshots
+without device-store writes or remote credential controls. Display preferences
+retain their existing settings owner: local on managed desktop, synchronized to
+the bridge owner on browser/attached clients; selecting a usage host does not
+retarget settings writes. The host's cache read and timer now share effective
+provider cadences: global auto-refresh OFF stops all background collection,
+including saved overrides. When ON, each provider retains its own cadence, and
+tracking opt-outs/backoff still apply. Explicit refresh remains available regardless of automatic cadence. Usage cache 10 retains the target's credential/profile invalidation;
+cache reads now honor the existing
+collection policy.
+The usage correction adds no further settings, IPC/wire/result shape or binding
+format change beyond the target's protocol 13/cache 10 integration, so no additional
+compatibility version or migration is required. Older hosts keep their
+previous read-side collection policy until updated; the renderer clock only
+updates labels, with reads on mount/reconnect and explicit refresh results
+applied to the scoped cache. Renderer request/loading state is volatile; content-hashed assets identify the updated UI.
 
 Cursor ACP declares `preserveEmptyModelEfforts` so a verified model config with
 no effort choices becomes an authoritative empty ladder. Failed/unprobed model
@@ -2933,7 +2998,8 @@ returned only after authorization and file identity checks. Parent work/socket
 admission and generation-owned pools are reused; parent expiry is additionally
 capped by that verified child lease. Child/parent renewals do not put long-lived
 credentials in URLs. Both new routes reuse existing ticket/result schema shapes;
-95 routes / 128 procedures, 425 schema roots and 969 structural types are mirrored
+The media-only inventory of 95 routes / 128 procedures, 425 schema roots and
+969 structural types is mirrored
 in generated Swift/Kotlin artifacts. No persisted/cache/helper shape changes or
 version bumps are needed for these additive, unshipped routes. Native transport
 and editor adoption remain planned; generated codecs alone are not native UI proof.
@@ -2956,7 +3022,7 @@ reviewed 9–12 native stored-pairing upgrade lists, client/host hop 17, binding
 format 2, generator 4 and native manifest format 5 are preserved. Media's seven
 read/grant routes remain additive, session/file/project scoped and volatile;
 they need no further boundary bump or credential/storage migration. Canonical
-contracts combine 95 routes with 128 procedures (275 operation keys). All
+media-only contracts combine 95 routes with 128 procedures (275 operation keys). All
 remote/native manifests/codecs and operation-map authority are regenerated
 from that combined source, rather than choosing either generated merge side.
 Devin-specific payload parsing remains inside its provider plugin. Native

@@ -65,21 +65,22 @@ describe("remote v3 native binding generator", () => {
         // hash again. The seven additive media routes then regenerate
         // both authority hashes and all native mirrors from the combined source.
         // Master adds optional profile/theme/import fields; v2 adds the capability-gated
-        // flat reorder command. Regenerate native authority from the combined schemas.
-        sourceHash: "sha256:945b8bf7fc0aab35ee7402cf0127fa5a7d736d39ef4f303a421587727b17965b",
-        manifestHash: "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
+        // flat reorder command. Host-scoped usage adds two procedures and four roots.
+        // Regenerate native authority from all combined schemas.
+        sourceHash: "sha256:1133236427e6c54288804ccf7509aaa8ef835afd319d95d8c361ccf768226df6",
+        manifestHash: "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982",
         counts: {
           routes: 95,
-          procedures: 128,
+          procedures: 130,
           voidProcedureResults: 50,
-          jsonProcedureResults: 78,
+          jsonProcedureResults: 80,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 425,
-          structuralTypes: 973,
+          schemaRoots: 429,
+          structuralTypes: 974,
           semanticValidators: 18,
-          swiftFiles: 62,
+          swiftFiles: 61,
           kotlinFiles: 53,
           stateMachines: 5,
         },
@@ -319,7 +320,17 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(425);
+        expect(adapters).toHaveLength(429);
+        expect(
+          adapters
+            .map((adapter) => adapter.id)
+            .filter((id) => /^procedure\.(getProviderUsage|refreshProviderUsage)\./.test(id)),
+        ).toEqual([
+          "procedure.getProviderUsage.request",
+          "procedure.getProviderUsage.result",
+          "procedure.refreshProviderUsage.request",
+          "procedure.refreshProviderUsage.result",
+        ]);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)

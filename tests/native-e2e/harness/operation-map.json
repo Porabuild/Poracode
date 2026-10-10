@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 13,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:0ca8e276dbce4261309429caa01bc1cd715237fa58261117921575f664696a2c",
-  "keyCount": 275,
+  "manifestHash": "sha256:7f8483f205c9ecc0f670f9223c9e148808ad7d217be16e82bb2357ad71c583ed",
+  "keyCount": 277,
   "counts": {
     "route": 95,
-    "procedure": 128,
+    "procedure": 130,
     "ws-client": 9,
     "ws-server": 11,
     "replay": 16,
@@ -117,6 +117,10 @@
     "procedure:getMcpOauthStatus": {
       "kind": "procedure",
       "id": "getMcpOauthStatus"
+    },
+    "procedure:getProviderUsage": {
+      "kind": "procedure",
+      "id": "getProviderUsage"
     },
     "procedure:getThreadFollowUpQueue": {
       "kind": "procedure",
@@ -437,6 +441,10 @@
     "procedure:readThreadBackgroundTasks": {
       "kind": "procedure",
       "id": "readThreadBackgroundTasks"
+    },
+    "procedure:refreshProviderUsage": {
+      "kind": "procedure",
+      "id": "refreshProviderUsage"
     },
     "procedure:relocateProject": {
       "kind": "procedure",

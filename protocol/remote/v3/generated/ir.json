@@ -11,8 +11,8 @@
   "generatorVersion": 4,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 78,
-    "procedures": 128,
+    "jsonProcedureResults": 80,
+    "procedures": 130,
     "replayableEventTypes": 16,
     "routes": 95,
     "runtimeEventTypes": 16,
@@ -21,7 +21,7 @@
     "webSocketServerMessages": 11
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
+  "manifestHash": "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -5897,6 +5897,269 @@
           },
           "required": [
             "authenticatedUrls"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:read"
+    },
+    {
+      "name": "getProviderUsage",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "force": {
+            "type": "boolean"
+          },
+          "providerIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$defs": {
+            "__schema0": {
+              "enum": [
+                "today",
+                "7d",
+                "30d",
+                "cycle"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "fromCache": {
+              "type": "boolean"
+            },
+            "snapshots": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "authenticatedAs": {
+                    "type": "string"
+                  },
+                  "cost": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "amount": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "estimated": {
+                        "type": "boolean"
+                      },
+                      "period": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "amount",
+                      "period",
+                      "estimated"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "credits": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "balance": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "unlimited": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "balance"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "error": {
+                    "type": "string"
+                  },
+                  "fetchedAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "plan": {
+                    "type": "string"
+                  },
+                  "providerId": {
+                    "type": "string"
+                  },
+                  "rateLimitedUntil": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "status": {
+                    "enum": [
+                      "ok",
+                      "auth-missing",
+                      "app-not-running",
+                      "rate-limited",
+                      "quota-hit",
+                      "unsupported",
+                      "error"
+                    ],
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "cacheRead": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "cacheWrite": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "input": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "output": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "period": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "total": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "windows": {
+                    "items": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "currency": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "session-5h",
+                                "daily",
+                                "weekly",
+                                "weekly-opus",
+                                "weekly-sonnet",
+                                "weekly-fable",
+                                "monthly",
+                                "extra-usage",
+                                "cursor-auto",
+                                "cursor-api"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^gemini:.+",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^codex:.+",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^antigravity:.+",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^factory:.+",
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "limit": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "resetsAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "unit": {
+                          "enum": [
+                            "percent",
+                            "tokens",
+                            "requests",
+                            "credits",
+                            "usd"
+                          ],
+                          "type": "string"
+                        },
+                        "used": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "usedPercent": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label",
+                        "usedPercent"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "providerId",
+                  "status",
+                  "windows",
+                  "fetchedAt"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "snapshots",
+            "fromCache"
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
@@ -18229,6 +18492,269 @@
       "scope": "session:read"
     },
     {
+      "name": "refreshProviderUsage",
+      "owner": "desktop",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "force": {
+            "type": "boolean"
+          },
+          "providerIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$defs": {
+            "__schema0": {
+              "enum": [
+                "today",
+                "7d",
+                "30d",
+                "cycle"
+              ],
+              "type": "string"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "fromCache": {
+              "type": "boolean"
+            },
+            "snapshots": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "authenticatedAs": {
+                    "type": "string"
+                  },
+                  "cost": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "amount": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "estimated": {
+                        "type": "boolean"
+                      },
+                      "period": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "amount",
+                      "period",
+                      "estimated"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "credits": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "balance": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "unlimited": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "balance"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "error": {
+                    "type": "string"
+                  },
+                  "fetchedAt": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "plan": {
+                    "type": "string"
+                  },
+                  "providerId": {
+                    "type": "string"
+                  },
+                  "rateLimitedUntil": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "status": {
+                    "enum": [
+                      "ok",
+                      "auth-missing",
+                      "app-not-running",
+                      "rate-limited",
+                      "quota-hit",
+                      "unsupported",
+                      "error"
+                    ],
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "cacheRead": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "cacheWrite": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "input": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "output": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "period": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "total": {
+                        "minimum": 0,
+                        "type": "number"
+                      }
+                    },
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "windows": {
+                    "items": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "currency": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "session-5h",
+                                "daily",
+                                "weekly",
+                                "weekly-opus",
+                                "weekly-sonnet",
+                                "weekly-fable",
+                                "monthly",
+                                "extra-usage",
+                                "cursor-auto",
+                                "cursor-api"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^gemini:.+",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^codex:.+",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^antigravity:.+",
+                              "type": "string"
+                            },
+                            {
+                              "pattern": "^factory:.+",
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "limit": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "resetsAt": {
+                          "maximum": 9007199254740991,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "unit": {
+                          "enum": [
+                            "percent",
+                            "tokens",
+                            "requests",
+                            "credits",
+                            "usd"
+                          ],
+                          "type": "string"
+                        },
+                        "used": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "usedPercent": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label",
+                        "usedPercent"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "providerId",
+                  "status",
+                  "windows",
+                  "fetchedAt"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "snapshots",
+            "fromCache"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:operate"
+    },
+    {
       "name": "relocateProject",
       "owner": "project",
       "request": {
@@ -23546,6 +24072,7 @@
     "getGitFileContent",
     "getGitStatus",
     "getMcpOauthStatus",
+    "getProviderUsage",
     "getThreadFollowUpQueue",
     "ghCancelWorkflowRun",
     "ghCheckAvailable",
@@ -23626,6 +24153,7 @@
     "readTerminalSize",
     "readTerminalSnapshot",
     "readThreadBackgroundTasks",
+    "refreshProviderUsage",
     "relocateProject",
     "removeQueuedThreadFollowUp",
     "renameProjectEntry",
@@ -52809,7 +53337,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:945b8bf7fc0aab35ee7402cf0127fa5a7d736d39ef4f303a421587727b17965b",
+  "sourceHash": "sha256:1133236427e6c54288804ccf7509aaa8ef835afd319d95d8c361ccf768226df6",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

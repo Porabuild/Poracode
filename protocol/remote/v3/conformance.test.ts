@@ -209,6 +209,8 @@ const manifestSchema = z
 const manifest = manifestSchema.parse(readJson(join("generated", "manifest.json")));
 
 const EXPECTED_PROCEDURE_NAMES = [
+  "getProviderUsage",
+  "refreshProviderUsage",
   "listThreadSessionActions",
   "invokeThreadSessionAction",
   "rollbackThreadConversation",
@@ -401,7 +403,7 @@ describe("language-neutral remote protocol v3 contract", () => {
   it("keeps the complete generic procedure inventory and metadata aligned", () => {
     const manifestNames = manifest.procedures.map((procedure) => procedure.name);
     const authoritativeNames = Object.keys(REMOTE_PROCEDURE_SPECS);
-    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(128);
+    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(130);
     expect(new Set(EXPECTED_PROCEDURE_NAMES).size).toBe(EXPECTED_PROCEDURE_NAMES.length);
     expect(new Set(manifestNames).size).toBe(manifestNames.length);
     expect(manifestNames).toEqual([...EXPECTED_PROCEDURE_NAMES]);
@@ -422,6 +424,19 @@ describe("language-neutral remote protocol v3 contract", () => {
     ).toBe(true);
     expect(manifest.httpRoutes.find((route) => route.id === "procedure-call")).toMatchObject({
       scopeResolution: "procedure-defined",
+    });
+  });
+
+  it.each([
+    { name: "getProviderUsage", scope: "session:read", owner: "desktop" },
+    { name: "refreshProviderUsage", scope: "session:operate", owner: "desktop" },
+  ] as const)("pins the owning-host usage contract for $name", (expected) => {
+    expect(manifest.procedures.find((procedure) => procedure.name === expected.name)).toEqual(
+      expected,
+    );
+    expect(REMOTE_PROCEDURE_SPECS[expected.name]).toEqual({
+      scope: expected.scope,
+      owner: expected.owner,
     });
   });
 

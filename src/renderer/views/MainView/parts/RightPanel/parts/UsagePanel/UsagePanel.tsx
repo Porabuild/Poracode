@@ -1,4 +1,3 @@
-import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, KeyboardSensor, PointerSensor, type DragEndEvent } from "@dnd-kit/react";
@@ -7,23 +6,25 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { RefreshCw, Settings2 } from "lucide-react";
 import { openUsageSettings } from "@/renderer/actions/panelActions";
+import { HostUsageStatus, useHostUsageView } from "@/renderer/components/providers/HostUsageView";
+import { HostUsageInfo } from "@/renderer/components/providers/HostUsageInfo";
+import { UsageProviderCardView } from "@/renderer/components/providers/UsageProviderCardView";
+import { useUsagePanelScope } from "@/renderer/components/providers/useUsagePanelScope";
+import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
 import { readBridge } from "@/renderer/bridge";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { RemoteServerPicker } from "@/renderer/components/common/RemoteServerPicker";
 import { MobilePageHeaderActions } from "@/renderer/components/layout/MobilePageHeaderActions";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import {
+  usageProvidersForAgentInstances,
   resolveDisplayedProviders,
   separateCurrentUsageProvider,
   usageProviderIdForAgent,
 } from "@/renderer/components/providers/usageProviders";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
-import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
-import {
-  selectBrowserBridgeServer,
-  useRemoteServersStore,
-} from "@/renderer/state/remoteServersStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useUsageLoginStateStore } from "@/renderer/state/usageLoginStateStore";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -67,8 +68,6 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   const preferredProviderId = useUsageScopeStore((s) => s.preferredProviderId);
   const requestRefresh = useUsageScopeStore((s) => s.requestRefresh);
   const servers = useRemoteServersStore((s) => s.servers);
-  const defaultBrowserServer = useRemoteServersStore(selectBrowserBridgeServer);
-  const withClient = useRemoteServersStore((s) => s.withClient);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -77,29 +76,79 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
     maxFadePx: 10,
   });
 
-  const orderedProviders = resolveDisplayedProviders(
+  const localProviders = resolveDisplayedProviders(
     providerOrder,
     disabledProviders,
     agentInstances,
   );
+  const {
+    remote: remoteView,
+    effectiveId: effectiveDesktopId,
+    remoteSession: browserRuntime,
+  } = useUsagePanelScope();
+
+  const hostView = useHostUsageView(
+    remoteView ? (effectiveDesktopId ?? "") : "",
+    refreshVersion,
+    remoteView && compact,
+  );
+  const localLabels = new Map(
+    usageProvidersForAgentInstances(undefined).map((provider) => [provider.id, provider.label]),
+  );
+  for (const agent of hostView.agents?.windows ?? []) localLabels.set(agent.kind, agent.label);
+  const orderedProviders = remoteView
+    ? (hostView.canRead ? hostView.usage.snapshots : [])
+        .map((snapshot) => ({
+          id: snapshot.providerId,
+          label: localLabels.get(snapshot.providerId) ?? snapshot.providerId,
+        }))
+        .sort((a, b) => {
+          const rank = (id: string) =>
+            providerOrder.indexOf(id) < 0 ? providerOrder.length : providerOrder.indexOf(id);
+          return rank(a.id) - rank(b.id);
+        })
+    : localProviders;
   const { current: currentProvider, rest: sortableProviders } = separateCurrentUsageProvider(
     orderedProviders,
     preferredProviderId
       ? usageProviderIdForAgent(preferredProviderId, undefined, agentInstances)
       : null,
   );
+  const displayedSnapshots = remoteView
+    ? Object.fromEntries(
+        hostView.usage.snapshots.map((snapshot) => [snapshot.providerId, snapshot]),
+      )
+    : snapshots;
 
-  const browserRuntime = isBrowserClientRuntime();
-  const browserServer = defaultBrowserServer ?? servers[0];
-  const requestedServer = servers.find(
-    (server) => remoteConnectionKey(server) === requestedDesktopId,
-  );
-  const scopedServer = requestedServer ?? (browserRuntime ? browserServer : undefined);
-  const effectiveDesktopId = requestedServer
-    ? remoteConnectionKey(requestedServer)
-    : browserRuntime && browserServer
-      ? remoteConnectionKey(browserServer)
-      : null;
+  function renderCard(provider: { id: string; label: string }, index: number, draggable = true) {
+    const common = {
+      id: provider.id,
+      label: provider.label,
+      index,
+      compact,
+      collapsed: collapsedProviders.includes(provider.id),
+      draggable,
+      onToggleCollapse: toggleCollapse,
+    };
+    return remoteView ? (
+      <UsageProviderCardView
+        key={provider.id}
+        {...common}
+        snapshot={displayedSnapshots[provider.id]}
+        showAccount
+        refreshing={hostView.usage.refreshing}
+        refreshDisabled={!hostView.canRefresh}
+        onRefresh={() =>
+          void fetchHostUsage(effectiveDesktopId ?? "", true, {
+            providerIds: [provider.id],
+            force: true,
+          })
+        }
+      />
+    ) : (
+      <UsageProviderCard key={provider.id} {...common} />
+    );
+  }
 
   useEffect(
     () => () => {
@@ -114,32 +163,29 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   // Alongside it, load the persistent "signed in" flags so the sign-in/out
   // affordance reflects the stored session, not whatever the last fetch returned.
   useEffect(() => {
+    if (remoteView) return;
     let cancelled = false;
-    const usageRequest = scopedServer
-      ? withClient(remoteConnectionKey(scopedServer), (client) => client.providerUsage())
-      : compact
+    const usageRequest = compact
+      ? readBridge().refreshProviderUsage({ force: true })
+      : refreshVersion > 0
         ? readBridge().refreshProviderUsage({ force: true })
-        : refreshVersion > 0
-          ? readBridge().refreshProviderUsage({ force: true })
-          : readBridge().getProviderUsage({});
+        : readBridge().getProviderUsage({});
     void usageRequest
       .then((res) => {
         if (cancelled) return;
         useProviderUsageStore.getState().setSnapshots(res.snapshots);
       })
       .catch(() => undefined);
-    if (!scopedServer) {
-      void readBridge()
-        .getUsageLoginState({})
-        .then((res) => {
-          if (!cancelled) useUsageLoginStateStore.getState().setAll(res.stored);
-        })
-        .catch(() => undefined);
-    }
+    void readBridge()
+      .getUsageLoginState({})
+      .then((res) => {
+        if (!cancelled) useUsageLoginStateStore.getState().setAll(res.stored);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [compact, refreshVersion, scopedServer, withClient]);
+  }, [compact, refreshVersion, remoteView]);
 
   // Keep the single "Updated …" label fresh without re-fetching.
   useEffect(() => {
@@ -150,7 +196,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   const lastUpdated = (() => {
     let max = 0;
     for (const provider of orderedProviders) {
-      const fetchedAt = snapshots[provider.id]?.fetchedAt;
+      const fetchedAt = displayedSnapshots[provider.id]?.fetchedAt;
       if (fetchedAt && fetchedAt > max) max = fetchedAt;
     }
     return max;
@@ -159,7 +205,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   const openSettings = props.onOpenUsageSettings ?? openUsageSettings;
 
   const refreshNow = () => {
-    if (isRefreshing) return;
+    if (remoteView ? !hostView.canRefresh || hostView.usage.refreshing : isRefreshing) return;
     setIsRefreshing(true);
     requestRefresh();
     window.setTimeout(() => setIsRefreshing(false), 450);
@@ -192,11 +238,14 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-[var(--content-background)]">
-      {compact && lastUpdated > 0 ? (
+      {compact && (lastUpdated > 0 || remoteView) ? (
         <MobilePageHeaderActions>
-          <p className="whitespace-nowrap text-[11px] text-muted/70">
-            <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
-          </p>
+          {lastUpdated > 0 ? (
+            <p className="whitespace-nowrap text-[11px] text-muted/70">
+              <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
+            </p>
+          ) : null}
+          {remoteView ? <HostUsageInfo className="size-11 min-h-11 min-w-11 text-muted" /> : null}
         </MobilePageHeaderActions>
       ) : null}
 
@@ -212,51 +261,36 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
         style={scrollFadeStyle}
       >
         <div ref={contentRef} className="min-h-full">
+          {remoteView ? <HostUsageStatus view={hostView} className="mb-2" /> : null}
           {orderedProviders.length === 0 ? (
-            <div className="flex min-h-full flex-col items-center justify-center gap-2 px-6 text-center">
-              <p className="text-sm text-muted">
-                <Trans>No providers are being tracked.</Trans>
-              </p>
-              <button
-                type="button"
-                onClick={openSettings}
-                className="text-xs text-accent underline-offset-2 hover:underline"
-              >
-                <Trans>Enable providers in settings</Trans>
-              </button>
-            </div>
+            remoteView ? null : (
+              <div className="flex min-h-full flex-col items-center justify-center gap-2 px-6 text-center">
+                <p className="text-sm text-muted">
+                  <Trans>No providers are being tracked.</Trans>
+                </p>
+                <button
+                  type="button"
+                  onClick={openSettings}
+                  className="text-xs text-accent underline-offset-2 hover:underline"
+                >
+                  <Trans>Enable providers in settings</Trans>
+                </button>
+              </div>
+            )
           ) : (
-            <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-3">
               {currentProvider ? (
                 <section aria-label={t`Current`} className="flex flex-col gap-1.5">
                   <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
                     <Trans>Current</Trans>
                   </p>
-                  <UsageProviderCard
-                    id={currentProvider.id}
-                    label={currentProvider.label}
-                    index={0}
-                    compact={compact}
-                    collapsed={collapsedProviders.includes(currentProvider.id)}
-                    draggable={false}
-                    onToggleCollapse={toggleCollapse}
-                  />
+                  {renderCard(currentProvider, 0, false)}
                 </section>
               ) : null}
               {sortableProviders.length > 0 ? (
                 <DragDropProvider sensors={USAGE_SORT_SENSORS} onDragEnd={handleDragEnd}>
-                  <div className="flex flex-col gap-2.5">
-                    {sortableProviders.map((provider, index) => (
-                      <UsageProviderCard
-                        key={provider.id}
-                        id={provider.id}
-                        label={provider.label}
-                        index={index}
-                        compact={compact}
-                        collapsed={collapsedProviders.includes(provider.id)}
-                        onToggleCollapse={toggleCollapse}
-                      />
-                    ))}
+                  <div className="flex flex-col gap-2">
+                    {sortableProviders.map((provider, index) => renderCard(provider, index))}
                   </div>
                 </DragDropProvider>
               ) : null}
@@ -267,7 +301,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
 
       {!compact ? (
         <div className="m-page-content flex shrink-0 flex-col items-center gap-1.5 px-3 py-2">
-          {servers.length > 0 ? (
+          {servers.length > 0 || (!browserRuntime && requestedDesktopId !== null) ? (
             <RemoteServerPicker
               value={effectiveDesktopId}
               includeLocal={!browserRuntime}
@@ -303,10 +337,14 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
           <MobileCircleButton
             className="pointer-events-auto"
             aria-label={t`Refresh`}
-            isDisabled={isRefreshing}
+            isDisabled={
+              remoteView ? !hostView.canRefresh || hostView.usage.refreshing : isRefreshing
+            }
             onPress={refreshNow}
           >
-            <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`size-4 ${(remoteView ? hostView.usage.refreshing : isRefreshing) ? "animate-spin" : ""}`}
+            />
           </MobileCircleButton>
         </div>
       ) : null}

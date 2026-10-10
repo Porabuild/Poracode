@@ -59,7 +59,7 @@ const UI_DISPOSITIONS = [
 
 const EXPECTED_COUNTS = {
   httpRoutes: 95,
-  procedures: 128,
+  procedures: 130,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 11,
@@ -261,6 +261,16 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
+  // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
+  ...Object.fromEntries(
+    ["getProviderUsage", "refreshProviderUsage"].map((token) => [
+      token,
+      [
+        { platform: "ios" as Platform, token: `"${token}"` },
+        { platform: "android" as Platform, token: `"${token}"` },
+      ],
+    ]),
+  ),
   // C1 server-owned environments: managed through the parent proxy by all
   // clients, but no native transport/UI exists yet (native clients land after
   // the client slice). The route id is the token a native implementation must

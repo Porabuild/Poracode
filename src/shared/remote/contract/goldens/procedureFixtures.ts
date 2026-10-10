@@ -268,6 +268,8 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
     terminalSize: { cols: 120, rows: 30 },
   },
   readThreadBackgroundTasks: [],
+  getProviderUsage: { snapshots: [], fromCache: true },
+  refreshProviderUsage: { snapshots: [], fromCache: false },
 } as const satisfies Record<RemoteProcedureName, unknown>;
 
 export function omittedProcedureNames(): RemoteProcedureName[] {

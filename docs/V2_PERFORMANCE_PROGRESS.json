@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T01:52:21.114128+00:00",
+  "updatedAt": "2026-10-10T02:03:20.603163+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -43,7 +43,7 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "dc9967637cb9 completed/joined;8source read-only realPTY contract/source-change review, parent reviewed/verified and executed declared residual only.",
+    "lastAgent": "63688f2385f2 completed and joined; read-only usage safeguards review",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
     "agentState": "current-production-mcp-probe-catalog-and-real-ordinary-pty-pass",
     "nativeSessionsLive": false,
@@ -5907,6 +5907,68 @@
       "historicalSchemaConservationDoesNotProveCurrentExecution": true,
       "allToolsExecuted": false,
       "browserChromeComputerUseCatalogsNotQualified": true
+    },
+    "latestUsageIntegration": {
+      "status": "VALIDATED_PENDING_MERGE_COMMIT",
+      "localParent": "6891adadc",
+      "remoteV2": "72e1c4316",
+      "remoteMaster": "e56fcc87b",
+      "scope": "Integrate host-scoped usage (#816) after committing all previous local work; preserve local/master runtime and authorization fixes.",
+      "conflictsResolved": "Retain both version audits and smoke areas; regenerate all remote-v3 artifacts from combined canonical source and refresh independent native fixtures/operation map.",
+      "protocol": {
+        "version": 13,
+        "bindingFormat": 2,
+        "generatorVersion": 4,
+        "nativeFormat": 5,
+        "routes": 95,
+        "procedures": 130,
+        "schemaRoots": 429,
+        "structuralTypes": 974,
+        "operationKeys": 277,
+        "sourceHash": "sha256:1133236427e6c54288804ccf7509aaa8ef835afd319d95d8c361ccf768226df6",
+        "manifestHash": "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982"
+      },
+      "checks": {
+        "typecheck": "PASS",
+        "lint": "PASS",
+        "format": "PASS",
+        "architecture": "PASS",
+        "productionBuild": "PASS",
+        "protocolGeneratedCheck": "PASS",
+        "i18n": "All 12 non-English locales zero missing",
+        "focusedMergeTests": {
+          "files": 108,
+          "passed": 1456
+        },
+        "smokeCoverageTests": 5,
+        "ownershipTests": 24
+      },
+      "nativeOriginal": {
+        "result": "FAIL_RETAINED",
+        "passed": 1946,
+        "failed": 3,
+        "skipped": 6,
+        "cause": "Git burst fixtures were bare checkouts with no registered project/durable thread owner; production correctly returned project_location_not_registered. This full native command also selected pre-existing long qualification cells and ran alongside production build; do not promote it to matched performance/frozen-artifact evidence or reset any historical cohort limits."
+      },
+      "correction": {
+        "source": "tests/native-e2e/helpers/gitBurstWorktrees.ts",
+        "behavior": "Register isolated worktree fixture projects via authenticated add-existing project command before measurement. Production authorization unchanged.",
+        "validation": "One targeted gitBurstQualification.test.ts rerun: all four tests PASS; separate ownership suites 24 PASS. Original log/artifacts preserved. No second full native run.",
+        "attempts": 1
+      },
+      "independentReview": {
+        "runId": "63688f2385f2",
+        "status": "completed_joined",
+        "model": "gpt-6.1-sol",
+        "reasoning": "max",
+        "readOnly": true,
+        "focusedTestsPassed": 21,
+        "filteredOut": 19,
+        "correctnessFindings": 0,
+        "followUp": "Targeted usage read now scans all enabled profiles before filtering; repeated synchronous settings/profile work, latency impact unmeasured."
+      },
+      "evidenceRoot": "tmp/v2-usage-merge-20261010",
+      "limitations": "No Electron GUI/native mobile/hardware GPU or RAM qualification and no optimization savings claimed. Previous immutable production proof retains its earlier source/artifact attribution; this source integration does not relabel it."
     }
   },
   "milestones": [
@@ -6898,6 +6960,10 @@
     {
       "at": "2026-10-10T01:52:21.114128+00:00",
       "summary": "Current compiled MCPprobe/catalog/realordinaryPTY residual PASS8actualMCPcalls(7positive+1expectedclosedreaderror),24canonicalitems exactrawrequest/result/cards/all8publichistory/live→stopped5tables;120settingskeys conserved. Probe connectsactualSDK tolocalstdiofixture,negotiatesinitialize/tools-list/cleanup (externalservice mocked;echo toolnotexecuted). One actualPTY blocksread/printf underexec sh,test-t stdin/stdouttrue;2PINGwrites emitexactsamePID,explicitclose→freshESRCH,live membershipgone andread_terminal correctlyrejects. Normalrootquit4originalhandles0exit joined,8knownPIDsfreshESRCH,4trackedpublic/control/actualMCPingressportsclosed,immutableproductionbytesunchanged. Agentdc996 contract8sources matchesfrozen/code; protocol13/header/sourcechanges justifyonly residual, old2/2PTY+GUI/matched/control/resource capsunchanged. Captured current75deliverednames (63poracode+12crossagents),noadded/removed;73inputschemasexact,wait_for_agent/get_status schemas/descriptionschanged; old50namehistorynotpromotedcurrent. Current8scopednames;genuinefull75/allGUI/subagent/workflow/matchedRAM/GPU/CPU/I/O/p95 unqualified. MCPfixturecallbacknull prelaunchfailure retained/corrected, noappretry;1declaredappused. Desktoplocked/noGUIlaunch/protectedSimuntouched. Goalactive13/18,2/6 unchanged."
+    },
+    {
+      "at": "2026-10-10T02:03:20.603163+00:00",
+      "summary": "Committed previous qualification chunk 6891adadc; fetched v2 usage #816 (72e1c4316), preserved both branches and regenerated combined protocol mirrors. Full static checks/build plus 1456 merge tests PASS. Retain full native run with 1946 PASS/3 fixture failures; registered private worktrees through normal project management, targeted correction 4 PASS plus ownership 24 PASS. No performance/cap reset credit; progress remains 13/18 and 2/6. Master e56fcc87b already ancestor."
     }
   ],
   "tasks": [

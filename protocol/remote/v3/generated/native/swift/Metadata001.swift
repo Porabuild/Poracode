@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 13
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 4
-  public static let sourceHash = "sha256:945b8bf7fc0aab35ee7402cf0127fa5a7d736d39ef4f303a421587727b17965b"
-  public static let manifestHash = "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef"
+  public static let sourceHash = "sha256:1133236427e6c54288804ccf7509aaa8ef835afd319d95d8c361ccf768226df6"
+  public static let manifestHash = "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -75,7 +75,7 @@ public enum RemoteContractMetadata {
     .init(id: "project-notes-read", method: "GET", path: "/api/projects/{projectId}/notes", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteprojectU2DNotesU2DReadResponse_d1eba06c8a", queryCodecs: []),
     .init(id: "project-notes-write", method: "POST", path: "/api/projects/{projectId}/notes", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteprojectU2DNotesU2DWriteRequest_7b212bbb53", responseType: "RoutehostU2DUpdateU2DInstallResponse_81055c9199", queryCodecs: []),
     .init(id: "project-settings", method: "GET", path: "/api/projects/{projectId}/settings", auth: "bearer", scopes: ["projects:manage"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteprojectU2DSettingsResponse_c1417bffe5", queryCodecs: []),
-    .init(id: "provider-usage", method: "GET", path: "/api/provider-usage", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteproviderU2DUsageResponse_b0304b9d9d", queryCodecs: []),
+    .init(id: "provider-usage", method: "GET", path: "/api/provider-usage", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "ProceduregetProviderUsageResult_b0304b9d9d", queryCodecs: []),
     .init(id: "push-config", method: "GET", path: "/api/push/config", auth: "bearer", scopes: ["session:operate"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutepushU2DConfigResponse_f0c513c014", queryCodecs: []),
     .init(id: "push-register", method: "POST", path: "/api/push/register", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutepushU2DRegisterRequest_98c9ef3e40", responseType: "RoutepushU2DRegisterResponse_9633843f8b", queryCodecs: []),
     .init(id: "push-unregister", method: "POST", path: "/api/push/unregister", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutepushU2DUnregisterRequest_8f934fd77b", responseType: "RoutepushU2DRegisterResponse_9633843f8b", queryCodecs: []),
@@ -137,6 +137,7 @@ public enum RemoteContractMetadata {
     .init(name: "getGitFileContent", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduregetGitFileContentRequest_eeb5c5f788", resultType: "ProceduregetGitFileContentResult_6de1ff8293"),
     .init(name: "getGitStatus", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduregetGitStatusRequest_c4d99dd3e3", resultType: "ProceduregetGitStatusResult_c1d4a9f752"),
     .init(name: "getMcpOauthStatus", scope: "session:read", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProceduregetMcpOauthStatusRequest_c51ef8291e", resultType: "ProceduregetMcpOauthStatusResult_51733da614"),
+    .init(name: "getProviderUsage", scope: "session:read", owner: "desktop", resultKind: "json", requestType: "ProceduregetProviderUsageRequest_f2b9759b60", resultType: "ProceduregetProviderUsageResult_b0304b9d9d"),
     .init(name: "getThreadFollowUpQueue", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProceduregetThreadFollowUpQueueResult_91dcfb42aa"),
     .init(name: "ghCancelWorkflowRun", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedureghCancelWorkflowRunRequest_eb12aad287", resultType: "RemoteUnit"),
     .init(name: "ghCheckAvailable", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduregetGitStatusRequest_c4d99dd3e3", resultType: "ProcedureghCheckAvailableResult_e3b2f05936"),
@@ -217,6 +218,7 @@ public enum RemoteContractMetadata {
     .init(name: "readTerminalSize", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadTerminalSizeResult_2d2a48957e"),
     .init(name: "readTerminalSnapshot", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadTerminalSnapshotResult_b67f4828f0"),
     .init(name: "readThreadBackgroundTasks", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadThreadBackgroundTasksResult_17dfab19af"),
+    .init(name: "refreshProviderUsage", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduregetProviderUsageRequest_f2b9759b60", resultType: "ProceduregetProviderUsageResult_b0304b9d9d"),
     .init(name: "relocateProject", scope: "projects:manage", owner: "project", resultKind: "json", requestType: "ProcedurerelocateProjectRequest_51fc061b3e", resultType: "ProcedurerelocateProjectResult_c6ca4f58c0"),
     .init(name: "removeQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),
     .init(name: "renameProjectEntry", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedurerenameProjectEntryRequest_4a22ffc9b4", resultType: "RemoteUnit"),

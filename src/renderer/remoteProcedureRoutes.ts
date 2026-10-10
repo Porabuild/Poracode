@@ -197,10 +197,6 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   clearUsageLogin: "local-shell: clears this device's stored provider login",
   submitUsageApiKey: "local-shell: stores an API key in this device's secret storage",
   resolveUsageLoginConfirmation: "local-shell: resolves this device's login confirmation dialog",
-  getProviderUsage:
-    "local-shell: reads this device's provider accounts; remote clients use the provider-usage registry route",
-  refreshProviderUsage:
-    "local-shell: re-probes this device's provider accounts; remote clients use the provider-usage registry route",
 
   // Device agent + CLI management — installs, binaries, auth, secrets
   getAgentStatuses:

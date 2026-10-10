@@ -56,6 +56,10 @@ function mutating<const Spec extends RemoteProcedureSpec>(spec: Spec) {
  * controls which desktop must execute the operation.
  */
 export const REMOTE_PROCEDURE_SPECS = {
+  // Host-owned usage: collection and credentials stay on the addressed host.
+  getProviderUsage: read("desktop"),
+  refreshProviderUsage: operate("desktop"),
+
   listThreadSessionActions: read("thread"),
   invokeThreadSessionAction: mutating(operate("thread")),
   // Thread checkpoints / rollback

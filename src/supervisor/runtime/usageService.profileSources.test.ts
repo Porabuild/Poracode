@@ -94,6 +94,59 @@ describe("registered usage sources", () => {
 });
 
 describe("usage account-source custody", () => {
+  it("retires changed account cache under manual-only policy without collecting a sibling", async () => {
+    let identity = "account-a";
+    let clock = now;
+    const path = cachePath();
+    const settingsPath = `${path}.settings.json`;
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        usage: { autoRefresh: false, providerRefreshIntervals: { "fixture:work": 2 } },
+      }),
+    );
+    const collect = vi.fn<() => Promise<UsageSnapshot>>(async () => ({
+      ...snapshot("fixture:work"),
+      fetchedAt: clock,
+    }));
+    const sibling = vi.fn<() => Promise<UsageSnapshot>>(async () => snapshot("fixture:other"));
+    const service = new UsageService({
+      cachePath: path,
+      settingsPath,
+      host: { ...host, now: () => clock },
+      emit: () => {},
+      providerIds: ["fixture:work", "fixture:other"],
+      localCollectors: [],
+      profileSources: () => [
+        {
+          collectors: [
+            { providerId: "fixture:work", cacheIdentity: async () => identity, collect },
+            { providerId: "fixture:other", collect: sibling },
+          ],
+        },
+      ],
+    });
+    await service.refreshProviderUsage({ providerIds: ["fixture:work"], force: true });
+    clock += 600_000;
+    expect((await service.getProviderUsage({ providerIds: ["fixture:work"] })).snapshots).toEqual([
+      snapshot("fixture:work"),
+    ]);
+    identity = "account-b";
+    expect((await service.getProviderUsage({ providerIds: ["fixture:work"] })).snapshots).toEqual(
+      [],
+    );
+    expect(await service.refreshDueProviders()).toEqual([]);
+    expect(collect).toHaveBeenCalledTimes(1);
+    expect(sibling).not.toHaveBeenCalled();
+    const fresh = await service.refreshProviderUsage({
+      providerIds: ["fixture:work"],
+      force: true,
+    });
+    expect(fresh.snapshots[0]?.fetchedAt).toBe(clock);
+    expect(collect).toHaveBeenCalledTimes(2);
+    expect(sibling).not.toHaveBeenCalled();
+  });
+
   it("does not restore a retired account while another provider enriches usage", async () => {
     let identity = "account-a";
     let release!: () => void;

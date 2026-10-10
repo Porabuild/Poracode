@@ -195,18 +195,6 @@ export class UsageService {
     return deadline !== undefined && deadline > now;
   }
 
-  private isStale(id: string): boolean {
-    const snap = this.snapshots.get(id);
-    if (!snap) return true;
-    const now = this.host.now();
-    // Honor a server-requested backoff: a rate-limited provider is not "stale",
-    // so a cache read won't kick off a background refresh that just re-hits the
-    // throttled endpoint. A user-initiated refresh bypasses this (it goes
-    // straight to refreshProviderUsage, not through here).
-    if (this.isRateLimited(snap, now)) return false;
-    return now - snap.fetchedAt >= MIN_REFRESH_INTERVAL_MS;
-  }
-
   /** Reconcile credential/profile changes without polling any quota endpoint.
    * Publish removals immediately so paired clients stop showing another login's quota. */
   async reconcileProfileSources(): Promise<void> {
@@ -222,15 +210,14 @@ export class UsageService {
     this.writeCache();
   }
 
-  /**
-   * Returns cached snapshots immediately and kicks off a background refresh when
-   * any requested provider is stale. Mirrors `getAgentStatuses`.
-   */
+  /** Return cache immediately; background collection follows the owning host's
+   * effective provider cadences, opt-outs and rate-limit backoff. */
   async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
     if (this.options.collectionEnabled === false) return { snapshots: [], fromCache: false };
     const ids = this.resolveIds(payload);
     await this.profileCacheIdentities.synchronize(this.profileCollectors(), ids);
-    const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
+    const settings = this.readUsageSettings();
+    const showEstimatedCost = settings.showEstimatedCost;
     const cached = ids
       .map((id) => this.snapshots.get(id))
       .filter((snap): snap is UsageSnapshot => snap !== undefined)
@@ -238,7 +225,7 @@ export class UsageService {
 
     // Refresh only the stale ids — never the whole requested set — so a single
     // stale provider doesn't drag a still-rate-limited sibling back into a 429.
-    const stale = ids.filter((id) => this.isStale(id));
+    const stale = this.dueProviderIds(settings).filter((id) => ids.includes(id));
     if (stale.length > 0) {
       void this.refreshProviderUsage({ providerIds: stale }).catch((error) => {
         // Errors surface as per-provider error snapshots; log for diagnostics.
@@ -457,7 +444,7 @@ export class UsageService {
 
   /** Global default cadence (minutes → ms), floored at the rate-limit minimum. */
   private intervalMs(settings: UsageSettings): number {
-    return Math.max(2, settings.refreshIntervalMinutes) * 60_000;
+    return Math.max(MIN_REFRESH_INTERVAL_MS, settings.refreshIntervalMinutes * 60_000);
   }
 
   /**
@@ -465,10 +452,11 @@ export class UsageService {
    * override when present, otherwise the global default. Floored at the 2-minute
    * rate-limit minimum either way.
    */
-  private effectiveIntervalMs(settings: UsageSettings, providerId: string): number {
+  private effectiveIntervalMs(settings: UsageSettings, providerId: string): number | undefined {
     const override = settings.providerRefreshIntervals[providerId];
+    if (!settings.autoRefresh) return undefined;
     const minutes = override ?? settings.refreshIntervalMinutes;
-    return Math.max(2, minutes) * 60_000;
+    return Math.max(MIN_REFRESH_INTERVAL_MS, minutes * 60_000);
   }
 
   /**
@@ -480,12 +468,14 @@ export class UsageService {
   private dueProviderIds(settings: UsageSettings): string[] {
     const now = this.host.now();
     return this.enabledProviderIds(settings.disabledProviders).filter((id) => {
+      const interval = this.effectiveIntervalMs(settings, id);
+      if (interval === undefined) return false;
       const snap = this.snapshots.get(id);
       if (!snap) return true;
       // Skip providers inside their rate-limit backoff so the auto-refresh tick
       // doesn't re-hit a throttled endpoint before its Retry-After clears.
       if (this.isRateLimited(snap, now)) return false;
-      return now - snap.fetchedAt >= this.effectiveIntervalMs(settings, id);
+      return now - snap.fetchedAt >= interval;
     });
   }
 
@@ -498,7 +488,8 @@ export class UsageService {
   private nextTickDelayMs(settings: UsageSettings): number {
     let min = Infinity;
     for (const id of this.enabledProviderIds(settings.disabledProviders)) {
-      min = Math.min(min, this.effectiveIntervalMs(settings, id));
+      const interval = this.effectiveIntervalMs(settings, id);
+      if (interval !== undefined) min = Math.min(min, interval);
     }
     return Number.isFinite(min) ? min : this.intervalMs(settings);
   }
@@ -511,7 +502,6 @@ export class UsageService {
   async refreshDueProviders(): Promise<string[]> {
     if (this.options.collectionEnabled === false || this.stopped) return [];
     const settings = this.readUsageSettings();
-    if (!settings.autoRefresh) return [];
     const ids = this.dueProviderIds(settings);
     if (ids.length === 0) return [];
     try {

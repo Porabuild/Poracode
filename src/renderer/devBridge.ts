@@ -36,6 +36,7 @@ export function installDevBridge(): void {
     // Literal bundled imports work in both the frozen development renderer and
     // Vite HMR. CDP scripts must not depend on Vite's /src module URL namespace.
     loadLiveVoice: () => import("./speech/liveVoice"),
+    loadHostUsage: () => import("./state/hostUsageStore"),
     loadBrowserAttachInbox: () => import("./state/browserAttachInbox"),
     // Inspect the real editor and document owner in frozen smoke builds. The
     // local editor configures its bundled workers before exposing Monaco.
