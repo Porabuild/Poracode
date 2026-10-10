@@ -1,4 +1,3 @@
-import { OPENCODE2_ENV } from "./binary";
 import { homedir } from "node:os";
 import { dirname as posixDirname } from "node:path/posix";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
@@ -40,7 +39,6 @@ export function buildOpenCode2ServerCommand(
   resolvedExecPath?: string,
   env: Record<string, string> = {},
 ): CommandSpec {
-  env = { ...env, ...OPENCODE2_ENV };
   const args = ["serve", "--hostname=127.0.0.1", "--port=0", "--print-logs"];
   if (location.kind === "wsl") {
     const pathSegments = [

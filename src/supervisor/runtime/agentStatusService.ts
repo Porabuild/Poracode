@@ -100,7 +100,8 @@ const execFileAsync = promisify(execFile);
 // provider's current form.
 // v35 re-probes catalogs after restoring compatibility with servers that removed
 // the plugin activation endpoint; cached empty catalogs are no longer valid.
-export const STATUS_CACHE_VERSION = 35;
+// v36 re-probes native account catalogs after restoring the CLI database path.
+export const STATUS_CACHE_VERSION = 36;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

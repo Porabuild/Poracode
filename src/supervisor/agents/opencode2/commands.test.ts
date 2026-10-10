@@ -35,7 +35,7 @@ describe("OpenCode 2 commands", () => {
     );
     expect(session.command).toHaveBeenCalledWith({
       sessionID: "s",
-      command: "team/review",
+      name: "team/review",
       text: 'src "test coverage"',
       files,
       delivery: "steer",

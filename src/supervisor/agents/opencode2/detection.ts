@@ -1,5 +1,5 @@
 import { awaitOpenCode2Activation } from "./readiness";
-import { OPENCODE2_ENV, parseOpenCode2Version, supportsOpenCode2Version } from "./binary";
+import { OPENCODE2_MIN_VERSION, parseOpenCode2Version, supportsOpenCode2Version } from "./binary";
 import { quotePosixShellArg, quotePowerShellLiteral } from "../base/shellBasics";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -356,13 +356,12 @@ function probeOpenCode2Detection(
   return pending;
 }
 
-// 2.0.0 (and beta 19500+) introduced the per-session permission contract.
+// Keep installer and protocol validation aligned with the pinned HTTP client.
 export const openCode2DetectionSpec: DetectionSpec = {
   kind: "opencode2",
   label: "OpenCode 2",
   binary: "opencode2",
   versionArgs: ["--version"],
-  baseSpawnEnv: OPENCODE2_ENV,
   async versionProbe(ctx) {
     if (!ctx.executablePath) return undefined;
     const result = await readAgentCommandOutput(ctx.location, ctx.executablePath, ["--version"], {
@@ -380,14 +379,17 @@ export const openCode2DetectionSpec: DetectionSpec = {
     installer: {
       posix: {
         binary: "sh",
-        args: ["-c", 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.0'],
+        args: [
+          "-c",
+          `npm install --prefix "$HOME/.opencode2" @opencode/cli@${OPENCODE2_MIN_VERSION}`,
+        ],
       },
       windows: {
         binary: "powershell.exe",
         args: [
           "-NoProfile",
           "-Command",
-          'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.0',
+          `npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@${OPENCODE2_MIN_VERSION}`,
         ],
       },
     },

@@ -6,7 +6,7 @@ import type {
   ManageAgentPluginsResult,
 } from "@/shared/contracts";
 import { detectProbeLocation, readAgentCommandOutput } from "../base";
-import { OPENCODE2_ENV, resolveOpenCode2Binary } from "./binary";
+import { resolveOpenCode2Binary } from "./binary";
 import { acquireOpenCode2Server } from "./client";
 import type { PluginInfo } from "./clientTypes";
 
@@ -61,7 +61,7 @@ export async function manageOpenCode2Plugins(
           location,
           binary,
           ["plugin", input.action === "install" ? "add" : input.action, target],
-          { env: OPENCODE2_ENV, timeoutMs: 120_000 },
+          { timeoutMs: 120_000 },
         );
         if (!result.ok)
           throw new Error(
@@ -78,7 +78,6 @@ export async function manageOpenCode2Plugins(
             options,
           );
         const readPackages = async () => {
-          await awaitOpenCode2Activation(acquired.client, undefined, options);
           const result =
             input.action === "check"
               ? await acquired.client.plugin.check(undefined, options)

@@ -264,9 +264,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 32,
-      // v32 mirrors supervisor STATUS_CACHE_VERSION=35: re-probe empty catalogs
-      // produced by servers that removed the plugin activation endpoint.
+      version: 33,
+      // v33 mirrors supervisor STATUS_CACHE_VERSION=36: re-probe account catalogs
+      // that previously read the isolated session database.
 
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;

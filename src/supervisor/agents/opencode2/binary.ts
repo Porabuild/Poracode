@@ -1,14 +1,13 @@
 import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { compareVersions } from "@/shared/changelog";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readAgentCommandOutput, resolveExecutablePathAsync } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 
-/** First beta with per-session permission rules used by this adapter. */
-export const OPENCODE2_MIN_BETA = 19500;
-/** Keep V2's schema out of the V1 database while retaining shared credentials/config. */
-export const OPENCODE2_ENV = { OPENCODE_DB: "opencode-v2.db" };
+/** HTTP contract used by the pinned client, including session forms and MCP configuration. */
+export const OPENCODE2_MIN_VERSION = "2.0.26";
 
 const OPENCODE2_STUB = /opencode2\.(?:cjs|cmd|ps1)$/;
 
@@ -29,14 +28,13 @@ export function parseOpenCode2Version(output: string): string | undefined {
 
 export function supportsOpenCode2Version(version: string | undefined): boolean {
   if (!version) return false;
-  const beta = /^0\.0\.0-beta-(\d+)$/.exec(version);
-  return beta ? Number(beta[1]) >= OPENCODE2_MIN_BETA : /^2\.\d+\.\d+$/.test(version);
+  return /^2\.\d+\.\d+$/.test(version) && compareVersions(version, OPENCODE2_MIN_VERSION) >= 0;
 }
 
 export function requireOpenCode2Version(version: string | undefined): void {
   if (!supportsOpenCode2Version(version))
     throw new Error(
-      `OpenCode 2 ${version ?? "unknown"} is unsupported. Update OpenCode 2 to 2.0.0 or newer in provider settings.`,
+      `OpenCode 2 ${version ?? "unknown"} is unsupported. Update OpenCode 2 to ${OPENCODE2_MIN_VERSION} or newer in provider settings.`,
     );
 }
 

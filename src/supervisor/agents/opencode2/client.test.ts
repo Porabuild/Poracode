@@ -50,6 +50,7 @@ function makeHandle(baseUrl: string, password = "server-password") {
 
 function makeClientStub(): OpenCode2Client {
   return {
+    session: { get: vi.fn<() => Promise<object>>().mockResolvedValue({ id: "existing" }) },
     mcp: {
       add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       remove: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -86,6 +87,68 @@ describe("acquireOpenCode2Server", () => {
     shutdownSpawnedOpenCode2Servers();
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it("uses the native credential/session database for new acquisitions", async () => {
+    mocks.spawnOpenCode2Server.mockReturnValue(makeHandle("http://127.0.0.1:4300"));
+    const { acquireOpenCode2Server } = await import("./client");
+    const acquired = await acquireOpenCode2Server({
+      projectLocation: { kind: "posix", path: "/repo" },
+    });
+    expect(acquired.database).toBe("native");
+    expect(mocks.buildOpenCode2ServerCommand).toHaveBeenCalledExactlyOnceWith(
+      { kind: "posix", path: "/repo" },
+      "opencode2",
+      {},
+    );
+    await acquired.dispose();
+  });
+
+  it("preserves pre-upgrade isolated sessions and their terminal database", async () => {
+    const native = makeClientStub();
+    const legacy = makeClientStub();
+    vi.mocked(native.session.get).mockRejectedValue({
+      _tag: "SessionNotFoundError",
+      sessionID: "old-session",
+    });
+    mocks.makeOpenCodeClient.mockReturnValueOnce(native).mockReturnValueOnce(legacy);
+    mocks.spawnOpenCode2Server
+      .mockReturnValueOnce(makeHandle("http://127.0.0.1:4300"))
+      .mockReturnValueOnce(makeHandle("http://127.0.0.1:4301"));
+    const { acquireOpenCode2Server } = await import("./client");
+    const { openCode2SessionDatabaseEnv } = await import("./database");
+    const location: ProjectLocation = { kind: "posix", path: "/repo" };
+    const input = { projectLocation: location, resumeSessionId: "old-session" };
+    const acquired = await acquireOpenCode2Server(input);
+    expect(acquired.database).toBe("legacy-isolated");
+    expect(acquired.client).toBe(legacy);
+    expect(mocks.buildOpenCode2ServerCommand).toHaveBeenLastCalledWith(location, "opencode2", {
+      OPENCODE_DB: "opencode-v2.db",
+    });
+    expect(openCode2SessionDatabaseEnv(location, "old-session")).toEqual({
+      OPENCODE_DB: "opencode-v2.db",
+    });
+    const resumed = await acquireOpenCode2Server(input);
+    expect(resumed.client).toBe(legacy);
+    expect(native.session.get).toHaveBeenCalledOnce();
+    expect(mocks.spawnOpenCode2Server).toHaveBeenCalledTimes(2);
+    await acquired.dispose();
+    await resumed.dispose();
+  });
+
+  it("does not switch databases when native resume fails for another reason", async () => {
+    const native = makeClientStub();
+    vi.mocked(native.session.get).mockRejectedValue(new Error("connection failed"));
+    mocks.makeOpenCodeClient.mockReturnValue(native);
+    mocks.spawnOpenCode2Server.mockReturnValue(makeHandle("http://127.0.0.1:4300"));
+    const { acquireOpenCode2Server } = await import("./client");
+    await expect(
+      acquireOpenCode2Server({
+        projectLocation: { kind: "posix", path: "/repo" },
+        resumeSessionId: "old-session",
+      }),
+    ).rejects.toThrow("connection failed");
+    expect(mocks.spawnOpenCode2Server).toHaveBeenCalledOnce();
   });
 
   it("shares one authenticated sidecar across directories of the same runtime", async () => {

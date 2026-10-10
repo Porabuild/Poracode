@@ -258,9 +258,9 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     docsUrl: "https://opencode.ai/v2/docs",
     installCommand: (project) =>
       nativeInstallCommand(project, {
-        mac: 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.0',
-        posix: 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.0',
-        windows: 'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.0',
+        mac: 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.26',
+        posix: 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.26',
+        windows: 'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.26',
       }),
     settingsPanel: OpenCode2ProviderSettings,
     ownsAuthUi: true,

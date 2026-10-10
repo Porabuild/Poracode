@@ -11,7 +11,11 @@ vi.mock("./client", async (importActual) => ({
 
 function fixture() {
   const client = {
-    plugin: { awaitActivation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) },
+    plugin: {
+      list: vi.fn<() => Promise<object>>().mockResolvedValue({
+        data: [{ source: { type: "builtin" }, state: { status: "active" } }],
+      }),
+    },
     session: {
       create: vi.fn<() => Promise<{ id: string }>>().mockResolvedValue({ id: "temporary" }),
       switchModel: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),

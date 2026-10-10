@@ -112,7 +112,6 @@ export async function manageOpenCode2Credentials(
           credentialID: input.credentialId as Parameters<
             typeof acquired.client.credential.remove
           >[0]["credentialID"],
-          location: locationInput,
         },
         options,
       );

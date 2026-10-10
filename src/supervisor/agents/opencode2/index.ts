@@ -1,6 +1,12 @@
+import { openCode2SessionDatabaseEnv } from "./database";
 import { manageOpenCode2Credentials } from "./credentials";
 import { manageOpenCode2Plugins } from "./plugins";
-import type { AgentCapability, ResolvedMcpServer, PromptSegment } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  ResolvedMcpServer,
+  PromptSegment,
+  ProjectLocation,
+} from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
   createKnownSessionRef,
@@ -24,14 +30,18 @@ import { detectOpenCode2TerminalStatus, opencode2OscHint, opencode2OscTitleHint 
 // MCP env for terminal launches. OpenCode 2 shares OpenCode 1's config file
 // conventions (`~/.config/opencode`, `OPENCODE_CONFIG_CONTENT` overlay — both
 // verified against the beta binary), so the shared builder is reused as-is.
-function buildOpenCode2McpEnv(
+function buildOpenCode2TerminalEnv(
+  location: ProjectLocation,
+  sessionID: string | undefined,
   mcpServers: readonly ResolvedMcpServer[] = [],
 ): Record<string, string> | undefined {
-  if (mcpServers.length === 0) return undefined;
+  const databaseEnv = openCode2SessionDatabaseEnv(location, sessionID);
+  if (mcpServers.length === 0) return databaseEnv;
   const launch = buildOpenCodeMcpLaunchConfig(mcpServers);
   return {
     ...launch.env,
     OPENCODE_CONFIG_CONTENT: launch.configContent,
+    ...databaseEnv,
   };
 }
 
@@ -112,7 +122,11 @@ export function createOpenCode2Adapter(): AgentAdapter {
     // the pre-allocated id up via `--session <id>`.
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId;
-      const env = buildOpenCode2McpEnv(launchOptions?.mcpServers ?? []);
+      const env = buildOpenCode2TerminalEnv(
+        location,
+        launchOptions?.resumeThreadId ?? _sessionRef?.providerSessionId,
+        launchOptions?.mcpServers,
+      );
       return {
         binary: cachedOpenCode2Binary(location) ?? "opencode2",
         args: buildOpenCode2Args(config, prompt, sessionId),
@@ -122,7 +136,11 @@ export function createOpenCode2Adapter(): AgentAdapter {
       };
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      const env = buildOpenCode2McpEnv(launchOptions?.mcpServers ?? []);
+      const env = buildOpenCode2TerminalEnv(
+        location,
+        sessionRef.providerSessionId,
+        launchOptions?.mcpServers,
+      );
       return {
         binary: cachedOpenCode2Binary(location) ?? "opencode2",
         args: buildOpenCode2Args(config, prompt, sessionRef.providerSessionId),

@@ -223,23 +223,26 @@ independent latest sources, then one action updates whichever runtimes are stale
 ### OpenCode 2 (`opencode2`)
 
 OpenCode 2 is a separate built-in provider from OpenCode 1. Install and update
-`@opencode/cli@2.0.0` with npm's `--prefix "$HOME/.opencode2"` (Windows uses
+`@opencode/cli@2.0.26` with npm's `--prefix "$HOME/.opencode2"` (Windows uses
 `$env:USERPROFILE/.opencode2`). This preserves the existing V1 executable.
 Recent packages contain the actual binary at `bin/opencode.exe`; `opencode2.cjs`
 is only a migration notice. The resolver unwraps that notice and validates the
-version before launching. The client is pinned to `2.0.0`; beta 19500
-is the minimum supported protocol because it introduced `permission.rules`.
+version before launching. The client and minimum supported CLI are pinned to `2.0.26`, including
+MCP configuration, per-session forms, permission decisions, and `session.update`.
 
-- **Data isolation:** every V2 launch uses `OPENCODE_DB=opencode-v2.db`.
-  Configuration paths remain in the OpenCode directories; Session state uses the isolated V2 database; authentication retains the provider's shared credential store.
-  A V2-first database at the default filename breaks V1 startup on a fresh
-  profile. Never rename or migrate the shared V1 database automatically.
-  Session references from pre-isolation development builds fail explicitly on
-  resume rather than silently starting a replacement conversation.
+- **Native accounts and sessions:** V2 uses the CLI's normal database selection,
+  including any user-supplied `OPENCODE_DB`. Current OpenCode stores credentials
+  in SQLite alongside sessions; forcing a separate database hides native accounts
+  and makes the Add provider login command and runtime use different stores.
+  Poracode does not copy, rename, or directly migrate OpenCode databases.
+  Existing Poracode sessions in `opencode-v2.db` remain resumable: only a matching
+  native `SessionNotFoundError` selects a separate legacy sidecar. Terminal
+  attachment uses that same selected database. New sessions and account management
+  use the native database; OpenCode owns its schema migrations.
 - **Server:** the pooled runtime starts `serve --hostname=127.0.0.1 --port=0
 --print-logs`, reads its URL and generated Basic-auth password, and redacts
   readiness credentials from diagnostics. Catalog reads wait for
-  `plugin.awaitActivation()`. All client types live behind `clientTypes.ts`;
+  the first published plugin inventory. All client types live behind `clientTypes.ts`;
   the ESM-only client is dynamically imported by the supervisor.
 - **Events:** `event.subscribe` is live-tail only. Admission waits for the first
   connection. Reconnection reconciles message snapshots, outstanding forms and

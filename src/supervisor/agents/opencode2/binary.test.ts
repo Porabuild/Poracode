@@ -78,14 +78,18 @@ describe("OpenCode 2 executable migration", () => {
   });
 });
 
-it("accepts published 2.0.0 and the last compatible beta, and rejects the previous protocol", () => {
-  expect(parseOpenCode2Version("opencode v2.0.0\n")).toBe("2.0.0");
+it("accepts published 2.0.26 and rejects older protocols", () => {
+  expect(parseOpenCode2Version("opencode v2.0.26\n")).toBe("2.0.26");
   expect(parseOpenCode2Version("opencode v0.0.0-beta-19500\n")).toBe("0.0.0-beta-19500");
   expect(parseOpenCode2Version("opencode v1.18.30\n")).toBeUndefined();
   expect(() => requireOpenCode2Version("0.0.0-beta-19425")).toThrow(
-    "Update OpenCode 2 to 2.0.0 or newer",
+    "Update OpenCode 2 to 2.0.26 or newer",
   );
-  expect(() => requireOpenCode2Version("0.0.0-beta-19500")).not.toThrow();
-  expect(() => requireOpenCode2Version("2.0.0")).not.toThrow();
-  expect(() => requireOpenCode2Version("1.18.30")).toThrow("Update OpenCode 2 to 2.0.0 or newer");
+  expect(() => requireOpenCode2Version("0.0.0-beta-19500")).toThrow(
+    "Update OpenCode 2 to 2.0.26 or newer",
+  );
+  expect(() => requireOpenCode2Version("2.0.25")).toThrow("Update OpenCode 2 to 2.0.26 or newer");
+  expect(() => requireOpenCode2Version("2.1.0")).not.toThrow();
+  expect(() => requireOpenCode2Version("2.0.26")).not.toThrow();
+  expect(() => requireOpenCode2Version("1.18.30")).toThrow("Update OpenCode 2 to 2.0.26 or newer");
 });

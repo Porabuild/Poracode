@@ -1,3 +1,4 @@
+import { rememberOpenCode2SessionDatabase } from "./database";
 import { awaitOpenCode2Activation } from "./readiness";
 import { openCode2SnapshotEvents, readOpenCode2Recovery } from "./recovery";
 /**
@@ -420,18 +421,21 @@ export class OpenCode2Session implements StructuredSessionHandle {
       await acquired.client.permission.reply({
         sessionID: pending.sessionID,
         requestID: pending.requestID,
-        reply: parsePermissionReply(response),
+        decision: parsePermissionReply(response),
       });
     } else if (
       response &&
       typeof response === "object" &&
       ["cancel", "decline"].includes(String((response as { action?: unknown }).action))
     ) {
-      await acquired.client.form.cancel({ sessionID: pending.sessionID, formID: pending.formID });
+      await acquired.client.session.form.cancel({
+        sessionID: pending.sessionID,
+        formID: pending.formID,
+      });
     } else {
       const answer = parseFormAnswer(response);
       if (!answer) throw new Error("A form answer is required.");
-      await acquired.client.form.reply({
+      await acquired.client.session.form.reply({
         sessionID: pending.sessionID,
         formID: pending.formID,
         answer,
@@ -507,6 +511,11 @@ export class OpenCode2Session implements StructuredSessionHandle {
       this.appliedModelKey = undefined;
       this.appliedAgent = undefined;
     }
+    rememberOpenCode2SessionDatabase(
+      this.input.projectLocation,
+      id,
+      this.requireAcquired().database,
+    );
     this.sessionId = id;
     this.launchOptions = { ...this.launchOptions, resumeThreadId: id };
   }
@@ -537,7 +546,7 @@ export class OpenCode2Session implements StructuredSessionHandle {
   ): Promise<void> {
     const approvalPolicy = config.approvalPolicy ?? "default";
     if (approvalPolicy !== this.appliedApprovalPolicy) {
-      await acquired.client.permission.rules({
+      await acquired.client.session.update({
         sessionID,
         permissions: buildOpenCode2SessionPermissions(approvalPolicy),
       });
@@ -777,8 +786,10 @@ export class OpenCode2Session implements StructuredSessionHandle {
    */
   private buildAcquireInput() {
     const { mcpServers } = this;
+    const resumeSessionId = this.sessionId ?? this.input.sessionRef?.providerSessionId;
     return {
       projectLocation: this.input.projectLocation,
+      ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(mcpServers !== undefined ? { mcpServers } : {}),
     };
   }

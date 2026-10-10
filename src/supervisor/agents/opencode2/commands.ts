@@ -42,7 +42,7 @@ export async function submitOpenCode2Prompt(
     return;
   }
   if (command && commands.some(({ id, section }) => id === command && section !== "skills")) {
-    await client.session.command({ ...shared, command, text: match[2] ?? "" });
+    await client.session.command({ ...shared, name: command, text: match[2] ?? "" });
     return;
   }
   const skillMatch = /^\/skill\s+(\S+)(?:\s+([\s\S]*))?$/.exec(payload.text.trim());

@@ -205,12 +205,12 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     writeFileSync(
       statusCachePath,
       JSON.stringify({
-        version: 34,
+        version: 35,
         windows: [makeStatus()],
         wsl: [],
       }),
     );
-    expect(STATUS_CACHE_VERSION).toBe(35);
+    expect(STATUS_CACHE_VERSION).toBe(36);
     expect(service.getCachedCapabilities("codex")).toBeUndefined();
   });
 
