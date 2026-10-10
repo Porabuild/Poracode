@@ -22,6 +22,7 @@ import { BackendHostClient } from "./backend/BackendHostClient";
 import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitialize";
 import { BackendStateStore } from "./backend/BackendStateStore";
 import { openThreadFromTray } from "./desktopAppWindows";
+import { getSideChatWindows } from "./window/sideChatWindows";
 import {
   applyThreadActivity,
   handleSharedSettingsChanged,
@@ -136,10 +137,10 @@ function createNativeEventHandler(trayFeed: DesktopTrayFeed): (event: BackendNat
       case "shared-settings-changed":
         updatePowerSaveBlocker();
         handleSharedSettingsChanged(event.settings);
-        desktopApp.mainWindow?.webContents.send(
-          IPC_EVENT_CHANNELS.sharedSettingsChanged,
-          event.settings,
-        );
+        for (const window of [desktopApp.mainWindow, ...getSideChatWindows()]) {
+          if (window && !window.isDestroyed())
+            window.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, event.settings);
+        }
         return;
       case "remote-access-pairing-changed":
         desktopApp.mainWindow?.webContents.send(
@@ -201,6 +202,7 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
       desktopApp.mainWindow,
       desktopApp.quickComposerWindow,
       desktopApp.browserExtractWindow,
+      ...getSideChatWindows(),
     ]) {
       if (window && !window.isDestroyed()) {
         window.webContents.send(IPC_EVENT_CHANNELS.backendSupervisorReset);

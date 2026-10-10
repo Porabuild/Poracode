@@ -19,6 +19,7 @@ import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 import { mockLiveVoiceGate } from "./smoke-live-voice.mjs";
 import { runSettingsScenario } from "./smoke-settings.mjs";
 import { mockQuickComposerGate } from "./smoke-quick-composer.mjs";
+import { mockSideChatGate } from "./smoke-side-chat.mjs";
 import { runWelcomeDismissalScenario } from "./smoke-welcome.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -1514,6 +1515,17 @@ async function runMockGate(client, gate, fixture) {
     case "project-mutations":
       assert(fixture.project.id === "smoke-project", "isolated project fixture is not selected");
       return "isolated seeded project was loaded and selected";
+    case "side-chat":
+      return mockSideChatGate({
+        client,
+        evaluate,
+        waitForValue,
+        waitForTarget,
+        connectTarget,
+        screenshot,
+        outDir,
+        fixture,
+      });
     case "quick-composer":
       return mockQuickComposerGate({
         client,

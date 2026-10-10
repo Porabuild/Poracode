@@ -1721,6 +1721,14 @@ msgstr "Аргументи"
 msgid "Ask {0} anything about this workspace"
 msgstr "Запитайте {0} про що завгодно в цьому робочому просторі"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "Поставити запитання в окремому бічному чаті"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "Поставити додаткове запитання"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Питати щоразу"
@@ -1752,6 +1760,10 @@ msgstr "Прикріпити"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "Прикріпити файли"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "Прикріпити бічний чат"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3112,6 +3124,10 @@ msgstr "Закрити сканер"
 msgid "Close search"
 msgstr "Закрити пошук"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "Закрити бічний чат"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -4006,6 +4022,10 @@ msgstr "Не вдалося завантажити pull request для {0}."
 msgid "Could not read file."
 msgstr "Не вдалося прочитати файл."
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "Не вдалося прочитати контекст гілки для додаткового чату. Спробуйте ще раз."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "Не вдалося ввійти до {serverName}: {message}"
@@ -4809,6 +4829,10 @@ msgstr "Налаштування робочого стола"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "Призначення"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "Відкріпити бічний чат"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -11763,6 +11787,7 @@ msgstr "Назва віддаленого репозиторію"
 #~ msgid "Remote project"
 #~ msgstr "Віддалений проєкт"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Віддалений проєкт не знайдено."
@@ -12262,6 +12287,7 @@ msgstr "Відновити повідомлення з черги"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -13167,9 +13193,9 @@ msgstr "Вибрати…"
 msgid "Selected sidebar row"
 msgstr "Вибраний рядок бічної панелі"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "Надіслати"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "Надіслати"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13559,6 +13585,16 @@ msgstr "Показується на бічній панелі та в селек
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "Показується поруч із назвою проєкту."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "Бічний чат"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "Бічний чат: {0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -15172,6 +15208,10 @@ msgstr "Це підключення може переглядати проєкт
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "Це з'єднання володіє записами середовищ хоста на цьому пристрої. Його видалення також видалить ці локальні записи та їхні дозволи пристрою. Хост зберігає свої середовища."
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "Ця розмова використовує знімок гілки. Відповіді залишаються тут."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Цей комп'ютер"
@@ -16392,6 +16432,10 @@ msgstr "Оновити SDK"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Оновити завдання"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "Оновіть віддалений хост, щоб використовувати додатковий чат із прихованим контекстом."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"

@@ -8,6 +8,7 @@ import { createLocalIpcHandlers } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 import { requestTrackedRendererReload } from "./window/windowHardening";
+import { registerSideChatWindowIpc } from "./window/sideChatWindows";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import type { AutoUpdaterController } from "./updates/autoUpdater";
 import type { BackendHostClient } from "./backend/BackendHostClient";
@@ -29,6 +30,7 @@ import {
   injectBrowserToMain,
   quickComposerWindowFor,
   toggleQuickComposerWindow,
+  createSideChatAppWindow,
 } from "./desktopAppWindows";
 
 export interface DesktopIpcDeps {
@@ -71,6 +73,10 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     callSupervisor: (name, payload) => deps.backendHost.call(name, payload),
   });
 
+  registerSideChatWindowIpc({
+    getMainWindow: () => desktopApp.mainWindow,
+    createWindow: createSideChatAppWindow,
+  });
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {
     const overlay = quickComposerWindowFor(event);
     if (!overlay) return;

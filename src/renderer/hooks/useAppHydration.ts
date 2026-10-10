@@ -23,6 +23,7 @@ import { startPrWatchStatusSync } from "@/renderer/state/prWatchStatusSync";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 import { setThreadRuntimeReopenEnabled } from "@/renderer/actions/threadActions";
 import { isManagedRootDesktopRuntime } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { auxiliaryThreadIds, setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 
 interface IdleCallbackHandle {
   cancel: () => void;
@@ -160,6 +161,16 @@ export function useAppHydration(
       // response to the threads that existed when it began so an older empty
       // snapshot cannot mark a fresh direct launch inactive and relaunch it.
       const requestedThreadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
+      // Native windows outlive a main renderer reload. Restore their session
+      // ownership before closing any runtime absent from the main panes.
+      let auxiliaryOwnershipKnown = true;
+      try {
+        const ids = await readBridge().getSideChatThreadIds?.();
+        if (ids) setAuxiliaryThreadIds(ids);
+      } catch (error) {
+        auxiliaryOwnershipKnown = false;
+        captureRendererException(error, { featureArea: "hydration" });
+      }
       const snapshotsPromise = readBridge().getThreadSnapshots();
 
       // Backend IPC can hang if the host is dead; do not pin the splash on it.
@@ -192,7 +203,11 @@ export function useAppHydration(
         const storeThreadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
 
         for (const snapshot of snapshots) {
-          if (!selectedIds.has(snapshot.threadId) && storeThreadIds.has(snapshot.threadId)) {
+          if (
+            auxiliaryOwnershipKnown &&
+            !selectedIds.has(snapshot.threadId) &&
+            storeThreadIds.has(snapshot.threadId)
+          ) {
             void readBridge()
               .closeThread({ threadId: snapshot.threadId })
               .catch((error: unknown) => {
@@ -356,6 +371,7 @@ function collectRetainedThreadIds(
   view: ReturnType<typeof useAppStore.getState>["view"],
 ): Set<string> {
   const retained = getRunningExperimentCandidateIds();
+  for (const threadId of auxiliaryThreadIds()) retained.add(threadId);
   if (view.kind === "thread") {
     for (const threadId of view.panes) retained.add(threadId);
   } else if (view.kind === "experiment") {

@@ -1,3 +1,4 @@
+import { unloadStoredThread } from "@/renderer/actions/threadActions";
 import { isChatSidebarSurface } from "./clientSurface";
 import { toast } from "@heroui/react";
 import { msg as linguiMsg } from "@lingui/core/macro";
@@ -8,6 +9,7 @@ import { StartupRecoveryScreen } from "./components/startup/StartupRecoveryScree
 import { msg } from "@/shared/messages";
 import type { UpdateStatus } from "@/shared/ipc";
 import { readBridge } from "./bridge";
+import { captureRendererException } from "./diagnostics/sentry";
 import { hasClientCapability } from "./clientRuntime";
 import { showUserNotification } from "./notifications";
 
@@ -46,6 +48,8 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
+import { setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
@@ -77,6 +81,11 @@ const QuickComposerWindowApp = lazy(() =>
     default: module.QuickComposerWindowApp,
   })),
 );
+const SideChatWindowApp = lazy(() =>
+  import("@/renderer/windowApps/SideChatWindowApp").then((module) => ({
+    default: module.SideChatWindowApp,
+  })),
+);
 
 // ── Module-level IPC listeners ──────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,
@@ -92,6 +101,25 @@ const windowKind = readBridge().windowKind;
 const isBrowserExtractWindow = windowKind === "browserExtract";
 const isQuickComposerWindow = windowKind === "quickComposer";
 const isMainWindow = windowKind === "main";
+const unsubscribeSideChatWindows = readBridge().onSideChatWindowsChanged?.((event) => {
+  setAuxiliaryThreadIds(event.threadIds);
+  if (isMainWindow && event.panel !== undefined) applySideChatPanel(event.panel);
+  if (isMainWindow && event.closedThreadId) {
+    const threadId = event.closedThreadId;
+    const view = useAppStore.getState().view;
+    if (view.kind === "thread" && view.panes.includes(threadId)) return;
+    void unloadStoredThread(threadId).catch((error: unknown) =>
+      captureRendererException(error, { featureArea: "side-chat" }),
+    );
+  }
+});
+if (isMainWindow)
+  void readBridge()
+    .getSideChatWindowInfo?.()
+    .then((entry) => {
+      if (entry) applySideChatPanel(entry);
+    })
+    .catch((error: unknown) => captureRendererException(error, { featureArea: "side-chat" }));
 
 // ── Supervisor event reduction ──────────────────────────────────
 // The desktop flavor of THE shared SupervisorEvent reducer
@@ -239,58 +267,62 @@ export function installUpdateStatusSync(
   };
 }
 
-// The browser-extract window renders a standalone BrowserPanel; it has no use
-// for supervisor/update streams, remote-client bridges, or runtime persistence,
-// so only the main window wires these up (and tears them down on HMR dispose).
+// Chat windows consume the same runtime reducer; shell navigation and global
+// notification policies remain owned by the main window.
+const runtimeWindowCleanups: Array<() => void> =
+  isMainWindow || windowKind === "sideChat"
+    ? [
+        installRuntimeHistoryRecovery(supervisorReducer.recoverRuntimeHistory),
+        readBridge().onSupervisorEvent((event, rendererSequence, sequenceSpace) =>
+          supervisorReducer.dispatch(event, rendererSequence, {
+            ...(sequenceSpace !== undefined ? { sequenceSpace } : {}),
+          }),
+        ),
+        // Backend reset (V5 2.5): the relay sequence space restarts with a new
+        // backend child. The transport drops its dedupe cursor and rebuilds;
+        // here the in-flight recovery state is invalidated so no stale
+        // authoritative read from the previous child is trusted. The replacement
+        // child also starts with an empty run tracker: every Crossagent run the
+        // old child owned died with it, so its live-observation records go and
+        // every still-running delegated row is force-settled — otherwise those
+        // tiles spin as "running" forever (no settle tile will ever arrive).
+        ...(readElectronHostBridge()
+          ? [
+              readElectronHostBridge()!.onBackendSupervisorReset(() => {
+                localSnapshotRecovery.onTransportGenerationChanged();
+                supervisorReducer.invalidateInFlightRecoveries();
+                // Remote-host threads are unaffected by a local backend reset —
+                // keep their observation records and rows so a local reset can't
+                // falsely fail their still-live runs.
+                const isLocalBackendThread = (threadId: string) =>
+                  !isProjectedRemoteEntityId(threadId, "thread");
+                pruneLiveObservedCrossagentItems(isLocalBackendThread);
+                useAppStore.getState().reconcileAllStaleSubAgents({
+                  force: true,
+                  matchesThread: isLocalBackendThread,
+                });
+              }),
+            ]
+          : []),
+        // Settings rewritten outside this renderer (remote clients editing desktop
+        // settings over the remote API) — apply without echoing a persist.
+        readBridge().onSharedSettingsChanged((settings) => {
+          applyExternalSharedSettings(normalizeSharedSettings(settings));
+        }),
+        supervisorReducer.installScheduling(),
+      ]
+    : [];
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
-      installRuntimeHistoryRecovery(supervisorReducer.recoverRuntimeHistory),
-      readBridge().onSupervisorEvent((event, rendererSequence, sequenceSpace) =>
-        supervisorReducer.dispatch(event, rendererSequence, {
-          ...(sequenceSpace !== undefined ? { sequenceSpace } : {}),
-        }),
-      ),
       onRemoteTerminalExited((terminalId) => {
         if (terminalId.startsWith("shell:")) closeExitedShell(terminalId);
       }),
-      // Backend reset (V5 2.5): the relay sequence space restarts with a new
-      // backend child. The transport drops its dedupe cursor and rebuilds;
-      // here the in-flight recovery state is invalidated so no stale
-      // authoritative read from the previous child is trusted. The replacement
-      // child also starts with an empty run tracker: every Crossagent run the
-      // old child owned died with it, so its live-observation records go and
-      // every still-running delegated row is force-settled — otherwise those
-      // tiles spin as "running" forever (no settle tile will ever arrive).
-      ...(readElectronHostBridge()
-        ? [
-            readElectronHostBridge()!.onBackendSupervisorReset(() => {
-              localSnapshotRecovery.onTransportGenerationChanged();
-              supervisorReducer.invalidateInFlightRecoveries();
-              // Remote-host threads are unaffected by a local backend reset —
-              // keep their observation records and rows so a local reset can't
-              // falsely fail their still-live runs.
-              const isLocalBackendThread = (threadId: string) =>
-                !isProjectedRemoteEntityId(threadId, "thread");
-              pruneLiveObservedCrossagentItems(isLocalBackendThread);
-              useAppStore.getState().reconcileAllStaleSubAgents({
-                force: true,
-                matchesThread: isLocalBackendThread,
-              });
-            }),
-          ]
-        : []),
-      supervisorReducer.installScheduling(),
       ...(hasClientCapability("nativeAppUpdates") ? [installUpdateStatusSync()] : []),
       // Thread-metadata commands issued from paired remote clients (mobile PWA)
       // and commands the co-located host applied. The callback is PROJECTION:
       // it runs inside the host-origin fence so it never echoes a command back.
       readBridge().onRemoteThreadCommand((command) => {
         applyForwardedRemoteThreadCommand(command);
-      }),
-      // Settings rewritten outside this renderer (remote clients editing desktop
-      // settings over the remote API) — apply without echoing a persist.
-      readBridge().onSharedSettingsChanged((settings) => {
-        applyExternalSharedSettings(normalizeSharedSettings(settings));
       }),
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);
@@ -330,7 +362,8 @@ let productAnalyticsStarted = false;
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    for (const cleanup of mainWindowCleanups) cleanup();
+    unsubscribeSideChatWindows?.();
+    for (const cleanup of [...runtimeWindowCleanups, ...mainWindowCleanups]) cleanup();
     supervisorReducer.clear();
     localSnapshotRecovery.clearSequenceTracking();
     uninstallProductAnalytics?.();
@@ -340,6 +373,12 @@ if (import.meta.hot) {
 }
 
 export function App() {
+  if (windowKind === "sideChat")
+    return (
+      <Suspense>
+        <SideChatWindowApp />
+      </Suspense>
+    );
   if (isBrowserExtractWindow) {
     return (
       <Suspense>

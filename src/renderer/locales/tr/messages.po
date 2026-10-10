@@ -1721,6 +1721,14 @@ msgstr "Bağımsız değişkenler"
 msgid "Ask {0} anything about this workspace"
 msgstr "{0} öğesine bu çalışma alanıyla ilgili her şeyi sorun"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "Ayrı bir yan sohbette soru sorun"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "Yan soru sorun"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Her seferinde sor"
@@ -1752,6 +1760,10 @@ msgstr "Ekle"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "Dosya ekle"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "Yan sohbeti yerleştir"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3112,6 +3124,10 @@ msgstr "Tarayıcıyı kapat"
 msgid "Close search"
 msgstr "Aramayı kapat"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "Yan sohbeti kapat"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -4006,6 +4022,10 @@ msgstr "{0} için çekme istekleri yüklenemedi."
 msgid "Could not read file."
 msgstr "Dosya okunamadı."
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "Yan sohbet için konuşma bağlamı okunamadı. Tekrar deneyin."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "{serverName} oturumu açılamadı: {message}"
@@ -4809,6 +4829,10 @@ msgstr "Masaüstü Ayarları"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "Hedef"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "Yan sohbeti ayır"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -11763,6 +11787,7 @@ msgstr "Uzak ad"
 #~ msgid "Remote project"
 #~ msgstr "Uzak proje"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Uzak proje bulunamadı."
@@ -12262,6 +12287,7 @@ msgstr "Kuyruktaki takip mesajlarını sürdür"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -13167,9 +13193,9 @@ msgstr "Seç…"
 msgid "Selected sidebar row"
 msgstr "Seçili kenar çubuğu satırı"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "Gönder"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "Gönder"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13559,6 +13585,16 @@ msgstr "Kenar çubuğunda ve model seçicisinde gösterilir."
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "Proje adının yanında gösterilir."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "Yan sohbet"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "Yan sohbet: {0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -15172,6 +15208,10 @@ msgstr "Bu bağlantı projeleri görüntüleyebilir ancak yönetemez. Etkinleşt
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "Bu bağlantı, bu cihazdaki ana makineye ait ortam kayıtlarının sahibidir. Kaldırılması bu yerel kayıtları ve cihaz izinlerini de kaldırır. Ana makine ortamlarını korur."
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "Bu sohbet, konunun anlık görüntüsünü kullanır. Yanıtlar burada kalır."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Bu masaüstü"
@@ -16392,6 +16432,10 @@ msgstr "SDK'yı güncelle"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Görevi güncelle"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "Gizli bağlamla yan sohbet kullanmak için uzak ana bilgisayarı güncelleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"

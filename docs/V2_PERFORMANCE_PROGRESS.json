@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-09T23:58:22.843323+00:00",
+  "updatedAt": "2026-10-10T00:20:35.412509+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -43,9 +43,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "01bd44a75657,78510f4ad378,e4b3d8fabc04,008d01257bf1 completed/joined; provider141,GUI138,runtime108+1existing skip,flat-order83 focused passes; source/test evidence reviewed.",
+    "lastAgent": "8c9a01cc9583 completed/joined;97readonly lifecycle/context tests,1confirmed queue-copy defect; root4fail-before/25pass-after correction plus282UI/13generator passes.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "new-v2-merge-verified-ready-to-commit",
+    "agentState": "pinned-sidechat-v2-merge-ready",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -55,7 +55,7 @@
       "state": "Exact pushed b24d6fc6b product bytes equal frozen R245; retained19434-test/fullcheck/build and exact-head core19/native6+4policy-skip CI PASS. R255 saved compact qualification PASS-scoped; full PWA/mobile and resource gates remain open."
     },
     "buildSession": null,
-    "nextAction": "Commit catch-up v2 merge b41e0d30a (#815), then run final full regression and current isolated mock GUI smoke. Latest master e56fcc87 is already merged; broad goal remains active.",
+    "nextAction": "Commit merged exact v2 tip7c3277e93 (side chats), then run full regression/current isolated GUI smoke on that pinned combined tree; mastere56 already included. Existing qualification limits and broad taskcounts retained.",
     "lastResult": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
     "lastDeclaration": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/launcher-declaration.json",
     "liveRootHandles": [],
@@ -2935,7 +2935,7 @@
       "frozenArtifactsRepresentCurrentHead": false
     },
     "remoteIntegration": {
-      "status": "master-committed-new-v2-catchup-ready",
+      "status": "pinned-sidechat-tip-verified-ready",
       "localCommits": ["ad91fcb54", "e6787bebf9c95b0d2eb142baa6750aaab94aca6f"],
       "remoteV2": "38fb96cb80254568238c9673ac4d9d6fd39a79b7",
       "remoteV2Merge": "ebf105ccabeaee7f2f6de60da4d148fc32740403",
@@ -3002,7 +3002,25 @@
       "newRemoteV2I18n": "0 missing in all12;3891 translated entries",
       "resolution": "incoming saved/error GUI recovery + Pi incarnation IDs; preserve restoration checkpoint fix, undo and draft coverage; retain current-pane selector required by master sidebar",
       "interruptedFinalRun": "tests-committed-final.log/exit130 after new remote tip discovered; not counted as complete",
-      "sourceCandidate": "new integrated tree; old compiled qualification remains stale"
+      "sourceCandidate": "new integrated tree; old compiled qualification remains stale",
+      "savedRecoveryMergeCommit": "b98aae649",
+      "selectedRemoteV2": "7c3277e93596cda16c7455e572f8f2a717f8f31b",
+      "selectedMaster": "e56fcc87b3257c04ab64733d818923fec40008a8",
+      "selectionPolicy": "merge exact captured SHAs; keep verification source stable",
+      "sideChatConflictPaths": 57,
+      "sideChatSourceConflicts": 2,
+      "sideChatGeneratedBindings": "regenerated combined conversationSnapshots+flatThreadReorder; native sourceHash945b8bf7fc0aab35ee7402cf0127fa5a7d736d39ef4f303a421587727b17965b",
+      "sideChatRendererPassed": 282,
+      "sideChatReadOnlyReviewPassed": 97,
+      "sideChatGeneratorPassed": 13,
+      "queuedContextCorrection": {
+        "beforeFailed": 4,
+        "beforePassed": 10,
+        "afterPassed": 25,
+        "correction": "copy accepted conversationSnapshot object at admission; preserve browserFocus and caller mutation isolation; no private context in queue/user projection"
+      },
+      "sideChatStatics": "typecheck/lint/protocol/format and all12locale0missing pass; postqueuecopy typecheck pending hook",
+      "interruptedSecondFinalRun": "tests-after-815-final.log/exit130; discovered last fetched sidechat tip; retained/no completion credit"
     },
     "interactiveTestCredentialIsolation": {
       "status": "implemented_independent_review_pass_root_verified_full_smoke_partial",
@@ -6674,6 +6692,10 @@
     {
       "at": "2026-10-09T23:58:22.843323+00:00",
       "summary": "Committed latest-master integration ed7c50d5f with normal hooks and clean tree. Ancestry check detected newly fetched remotev2 b41e0d30a (#815), not yet included in the first merge; interrupted finalfull run/exit130 and preserved partial log. Resolved2composer conflicts preserving new draft restoration fix and master undo, incoming safe saved/error recovery and Pi per-incarnation canonical IDs. Restored current-pane selector still required by master sidebar.360focused/29sidebar tests, full typecheck/lint and all12locale0missing pass. Catchup merge commit next; no push/app replacement or new resource/toolcoverage/taskclosure claim; goal active13/18,2/6."
+    },
+    {
+      "at": "2026-10-10T00:20:35.412509+00:00",
+      "summary": "The fetchedv2 batch also contained7c3277e93 detachable contextual side chats. IntegratedexactSHA, resolved57conflict paths (41generated,13catalog,2source and1pin), preserved one shared runtime reducer for main/detachedwindows and main-only shell-exit closure, unioned10translatedmsgs perlocale, regeneratedbothcapability contracts.282renderer,97readonly lifecycle,13generator tests pass. Independentreview found accepted queued conversation snapshots discarded; root4fail-before/25pass-after correction covers mutation/drain/edit/steer and private projection. Sourcehash945b8bf...nativeprotocolcheck/typecheck/lint/format/0missing locale pass. Commit/fullrun/smoke next. Prior partialfull interrupted receipts preserved, no resource/toolcoverage/taskclosure credit;13/18,2/6 unchanged."
     }
   ],
   "tasks": [

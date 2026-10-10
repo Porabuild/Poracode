@@ -379,7 +379,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
   return {
     launchRemoteThread: async (
       input: StartRemoteNewThreadInput & { readonly desktopId: string },
-      options?: { readonly isPendingLaunchOwned?: () => boolean },
+      options?: { readonly isPendingLaunchOwned?: () => boolean; readonly focus?: boolean },
     ): Promise<RemoteThreadLaunchResult> => {
       const runtime = get().runtime[input.desktopId];
       const project = runtime?.projects.find((entry) => entry.id === input.projectId);
@@ -389,6 +389,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           ...(input.threadId ? { threadId: input.threadId } : {}),
           projectId: input.projectId,
           agentKind: input.agentKind,
+          ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
           config: input.config,
           prompt: input.prompt,
           ...(input.segments
@@ -445,7 +446,9 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       if (!appeared) throw new Error(i18n._(msg`Unable to start the remote thread.`));
       cancellation = await compensateIfAbandoned();
       if (cancellation) return cancellation;
-      await get().openRemoteThread(input.desktopId, result.threadId);
+      await get().openRemoteThread(input.desktopId, result.threadId, {
+        focus: options?.focus ?? true,
+      });
       cancellation = await compensateIfAbandoned();
       if (cancellation) return cancellation;
       return "started";

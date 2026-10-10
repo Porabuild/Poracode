@@ -14,6 +14,7 @@ import {
 } from "./diagnostics/processGone";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { createMainWindow } from "./window/createMainWindow";
+import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
 import { installMainRendererInvalidation } from "./window/mainRendererInvalidation";
 import {
@@ -206,6 +207,28 @@ function createQuickComposerAppWindow(): BrowserWindow {
     requestQuickComposerDismiss(window);
   });
   return window;
+}
+
+export function createSideChatAppWindow(bootstrap: SideChatBootstrap): BrowserWindow {
+  const chrome = resolveWindowChromeOptions();
+  return createMainWindow({
+    ...commonAppWindowOptions(),
+    // Side chats never write the primary window's saved geometry.
+    state: { get: () => null, set: () => {} },
+    boundsStateKey: null,
+    title: bootstrap.title,
+    windowKind: "sideChat",
+    defaultWidth: 620,
+    defaultHeight: 740,
+    minWidth: 420,
+    minHeight: 400,
+    windowChromeHeight: WINDOW_CHROME_HEIGHT,
+    appearance: chrome.appearance,
+    sidebarTranslucency: false,
+    onClosed: () => {},
+    onRendererProcessGone: (details, intent) =>
+      captureRendererProcessGone(details, "renderer", intent),
+  });
 }
 
 export function toggleQuickComposerWindow(): void {

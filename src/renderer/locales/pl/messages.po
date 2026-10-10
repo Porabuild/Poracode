@@ -1721,6 +1721,14 @@ msgstr "Argumenty"
 msgid "Ask {0} anything about this workspace"
 msgstr "Zapytaj {0} o cokolwiek na temat tego obszaru roboczego"
 
+#: src/renderer/components/thread/threadSlashCommands.ts
+msgid "Ask a question in a separate side chat"
+msgstr "Zadaj pytanie w osobnym czacie pobocznym"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Ask a side question"
+msgstr "Zadaj pytanie poboczne"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Zapytaj za każdym razem"
@@ -1752,6 +1760,10 @@ msgstr "Dołącz"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Attach files"
 #~ msgstr "Dołącz pliki"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Attach side chat"
+msgstr "Zadokuj czat boczny"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Attach to thread"
@@ -3112,6 +3124,10 @@ msgstr "Zamknij skaner"
 msgid "Close search"
 msgstr "Zamknij wyszukiwanie"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Close side chat"
+msgstr "Zamknij czat boczny"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Close Split"
@@ -4006,6 +4022,10 @@ msgstr "Nie udało się załadować żądań ściągnięcia dla {0}."
 msgid "Could not read file."
 msgstr "Nie można odczytać pliku."
 
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Could not read the thread context for side chat. Try again."
+msgstr "Nie udało się odczytać kontekstu wątku dla rozmowy pobocznej. Spróbuj ponownie."
+
 #: src/renderer/components/mcp/useMcpServerOauth.ts
 msgid "Could not sign in to {serverName}: {message}"
 msgstr "Nie udało się zalogować do {serverName}: {message}"
@@ -4809,6 +4829,10 @@ msgstr "Ustawienia pulpitu"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "Miejsce docelowe"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Detach side chat"
+msgstr "Odłącz czat boczny"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -11763,6 +11787,7 @@ msgstr "Zdalna nazwa"
 #~ msgid "Remote project"
 #~ msgstr "Projekt zdalny"
 
+#: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Nie znaleziono projektu zdalnego."
@@ -12262,6 +12287,7 @@ msgstr "Wznów wiadomości z kolejki"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -13167,9 +13193,9 @@ msgstr "Wybierz…"
 msgid "Selected sidebar row"
 msgstr "Wybrany wiersz paska bocznego"
 
-#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
-#~ msgid "Send"
-#~ msgstr "Wyślij"
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Send"
+msgstr "Wyślij"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13559,6 +13585,16 @@ msgstr "Widoczna na pasku bocznym i w selektorze modeli."
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Shown next to the project name."
 msgstr "Wyświetlana obok nazwy projektu."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+msgid "Side chat"
+msgstr "Czat poboczny"
+
+#. placeholder {0}: source.title
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Side chat: {0}"
+msgstr "Czat poboczny: {0}"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -15172,6 +15208,10 @@ msgstr "To połączenie może wyświetlać projekty, ale nie może nimi zarządz
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "To połączenie posiada rekordy środowisk hosta na tym urządzeniu. Usunięcie go usuwa również te lokalne rekordy i ich uprawnienia urządzenia. Host zachowuje swoje środowiska."
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#~ msgid "This conversation uses a snapshot of the thread. Replies stay here."
+#~ msgstr "Ta rozmowa korzysta z migawki wątku. Odpowiedzi pozostają tutaj."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Ten komputer"
@@ -16392,6 +16432,10 @@ msgstr "Zaktualizuj SDK"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"
 msgstr "Aktualizuj zadanie"
+
+#: src/renderer/components/thread/SideChat/sideChatActions.ts
+msgid "Update the remote host to use side chat with hidden context."
+msgstr "Zaktualizuj zdalny host, aby korzystać z rozmowy pobocznej z ukrytym kontekstem."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"

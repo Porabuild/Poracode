@@ -66,7 +66,7 @@ describe("remote v3 native binding generator", () => {
         // both authority hashes and all native mirrors from the combined source.
         // Master adds optional profile/theme/import fields; v2 adds the capability-gated
         // flat reorder command. Regenerate native authority from the combined schemas.
-        sourceHash: "sha256:b23c8ef169d77dee59c6a3b0e245064fd41d68a6e77518019cae790ea57e0a01",
+        sourceHash: "sha256:945b8bf7fc0aab35ee7402cf0127fa5a7d736d39ef4f303a421587727b17965b",
         manifestHash: "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
         counts: {
           routes: 95,
@@ -77,7 +77,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 425,
-          structuralTypes: 972,
+          structuralTypes: 973,
           semanticValidators: 18,
           swiftFiles: 62,
           kotlinFiles: 53,

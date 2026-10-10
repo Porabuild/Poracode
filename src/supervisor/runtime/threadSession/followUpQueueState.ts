@@ -87,6 +87,9 @@ export function snapshotPayload(payload: SetPendingSteerPayload): SetPendingStee
     ...(payload.clientContext
       ? {
           clientContext: {
+            ...(payload.clientContext.conversationSnapshot
+              ? { conversationSnapshot: { ...payload.clientContext.conversationSnapshot } }
+              : {}),
             ...(payload.clientContext.browserFocus
               ? { browserFocus: activeTab ? { activeTab: { ...activeTab } } : {} }
               : {}),

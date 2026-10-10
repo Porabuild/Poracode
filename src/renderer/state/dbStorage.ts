@@ -85,10 +85,14 @@ export function createDbStorage<S>(): PersistStorage<S> {
 
     async setItem(name: string, value: StorageValue<S>): Promise<void> {
       if (name === APP_STORE_NAME) {
+        if (
+          hasAnyClientBridge() &&
+          (isQuickComposerWindow() || readBridge().windowKind === "sideChat")
+        )
+          return;
         if (!hasBridge()) {
           return browserCache.write(name, value);
         }
-        if (isQuickComposerWindow()) return;
         return appStoreWrites.write(value);
       }
 
@@ -103,6 +107,8 @@ export function createDbStorage<S>(): PersistStorage<S> {
     },
 
     async removeItem(name: string): Promise<void> {
+      if (name === APP_STORE_NAME && hasAnyClientBridge() && readBridge().windowKind === "sideChat")
+        return;
       lastStorageJson.delete(name);
       if (!hasBridge()) {
         return browserCache.remove(name);

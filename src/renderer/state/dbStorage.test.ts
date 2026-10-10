@@ -8,7 +8,7 @@ import {
 } from "./browserMetadataCache";
 
 const bridge = vi.hoisted(() => ({
-  windowKind: "main" as "main" | "quickComposer",
+  windowKind: "main" as "main" | "quickComposer" | "sideChat",
   dbGetProjects: vi.fn<() => Promise<[]>>(),
   dbGetThreads: vi.fn<() => Promise<[]>>(),
   dbGetThreadsPage:
@@ -46,6 +46,19 @@ vi.mock("../diagnostics/sentry", () => ({ captureRendererException }));
 const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("createDbStorage", () => {
+  it("keeps side windows from writing or removing the primary app preferences", async () => {
+    bridge.windowKind = "sideChat";
+    const storage = createDbStorage();
+    await storage.setItem("poracode-app-v2", {
+      state: { view: { kind: "thread", panes: ["side-thread"] } },
+      version: 5,
+    });
+    await storage.removeItem("poracode-app-v2");
+    await flushMicrotasks();
+    expect(bridge.dbSetState).not.toHaveBeenCalled();
+    expect(bridge.dbSyncAll).not.toHaveBeenCalled();
+    expect(bridge.dbSyncChanges).not.toHaveBeenCalled();
+  });
   beforeEach(async () => {
     bridge.windowKind = "main";
     bridge.dbGetProjects.mockReset().mockResolvedValue([]);

@@ -3,6 +3,8 @@ import { z } from "zod";
 /** Bounds for client-captured page metadata; clients truncate before sending. */
 export const TURN_CLIENT_CONTEXT_TITLE_MAX_LENGTH = 300;
 export const TURN_CLIENT_CONTEXT_URL_MAX_LENGTH = 2048;
+/** Leaves room for the ordinary prompt inside the remote JSON request limit. */
+export const TURN_CONVERSATION_SNAPSHOT_MAX_LENGTH = 50_000;
 
 /** The tab that was active in the user's own browser window at submit time. */
 export const turnClientBrowserTabSchema = z.object({
@@ -19,11 +21,18 @@ export type TurnClientBrowserTab = z.infer<typeof turnClientBrowserTabSchema>;
  * thread title or persisted state) and applies it to exactly the turn it was
  * submitted with — a queued or staged turn keeps its own snapshot.
  *
- * Additive on every input payload. A host that predates it strips the unknown
- * key and the turn simply runs without context; nothing reports delivery, so
- * no capability gate is required (see `.agents/docs/versioning.md`).
+ * Additive on every input payload. Older hosts strip unknown fields. Browser
+ * focus is advisory and needs no delivery gate. Conversation snapshots require
+ * the host’s conversationSnapshots v1 advertisement before a side chat opens
+ * (see `.agents/docs/versioning.md`).
  */
 export const turnClientContextSchema = z.object({
+  /** Background for an independent conversation; delivered only to the provider. */
+  conversationSnapshot: z
+    .object({
+      text: z.string().max(TURN_CONVERSATION_SNAPSHOT_MAX_LENGTH),
+    })
+    .optional(),
   /**
    * The user is working in a web browser, so the browser — not the desktop
    * app — is their primary focus. `activeTab` is absent when the client could
