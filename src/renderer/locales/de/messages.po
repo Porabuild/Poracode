@@ -3186,10 +3186,7 @@ msgstr "Codex kann die Unterhaltung nicht verdichten, während ein Durchgang lä
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex konnte die Unterhaltung nicht verdichten: {detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Einklappen"
 
@@ -3249,6 +3246,7 @@ msgid "Collapse todo dock"
 msgstr "Aufgaben-Dock einklappen"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Warnung einklappen"
 
@@ -5639,10 +5637,7 @@ msgstr "Verlassen Sie den Planmodus"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Beendet mit Code {0}. Schließen, um erneut zu versuchen."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Erweitern"
 
@@ -5688,6 +5683,7 @@ msgid "Expand todo dock"
 msgstr "Erweitern Sie das Aufgaben-Dock"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Warnung erweitern"
 

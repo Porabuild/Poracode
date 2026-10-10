@@ -3186,10 +3186,7 @@ msgstr "回合运行期间，Codex 无法压缩对话。请在回合结束后再
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex 无法压缩对话：{detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "折叠"
 
@@ -3249,6 +3246,7 @@ msgid "Collapse todo dock"
 msgstr "折叠待办事项面板"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "折叠警告"
 
@@ -5639,10 +5637,7 @@ msgstr "退出计划模式"
 msgid "Exited with code {0}. Close to retry."
 msgstr "已退出，退出码为 {0}。关闭以重试。"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "展开"
 
@@ -5688,6 +5683,7 @@ msgid "Expand todo dock"
 msgstr "展开待办事项停靠栏"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "展开警告"
 

@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { AlertTriangle, ChevronDown, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { friendlyErrorWithDetail } from "@/shared/messages";
 import type { ThreadErrorDockState } from "./threadErrorState";
-import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
+import {
+  ThreadDockCollapseButton,
+  ThreadDockHeader,
+  ThreadDockIconButton,
+  ThreadDockSection,
+} from "./ThreadDockUI";
 
 interface ThreadErrorDockProps {
   state: ThreadErrorDockState;
@@ -36,7 +41,8 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
         actions={
           <>
             {canExpand ? (
-              <ThreadDockIconButton
+              <ThreadDockCollapseButton
+                collapsed={collapsed}
                 label={
                   isWarning
                     ? collapsed
@@ -46,13 +52,8 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
                       ? t`Expand error`
                       : t`Collapse error`
                 }
-                tooltip={collapsed ? t`Expand` : t`Collapse`}
                 onPress={() => setCollapsed(!collapsed)}
-              >
-                <ChevronDown
-                  className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-                />
-              </ThreadDockIconButton>
+              />
             ) : null}
             {onDismiss ? (
               <ThreadDockIconButton

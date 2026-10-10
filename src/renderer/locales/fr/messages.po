@@ -3186,10 +3186,7 @@ msgstr "Codex ne peut pas compacter la conversation pendant qu’un tour est en 
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex n’a pas pu compacter la conversation : {detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Réduire"
 
@@ -3249,6 +3246,7 @@ msgid "Collapse todo dock"
 msgstr "Réduire le dock des tâches"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Réduire l'avertissement"
 
@@ -5639,10 +5637,7 @@ msgstr "Quitter le mode Planification"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Quitté avec le code {0}. Fermez pour réessayer."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Développer"
 
@@ -5688,6 +5683,7 @@ msgid "Expand todo dock"
 msgstr "Développer le dock de tâches"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Développer l'avertissement"
 

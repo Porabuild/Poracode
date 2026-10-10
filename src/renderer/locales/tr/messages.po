@@ -3186,10 +3186,7 @@ msgstr "Bir tur çalışırken Codex konuşmayı sıkıştıramaz. Tur bittiğin
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex konuşmayı sıkıştıramadı: {detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Daralt"
 
@@ -3249,6 +3246,7 @@ msgid "Collapse todo dock"
 msgstr "Yapılacaklar panelini daralt"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Uyarıyı daralt"
 
@@ -5639,10 +5637,7 @@ msgstr "Plan modundan çık"
 msgid "Exited with code {0}. Close to retry."
 msgstr "{0} koduyla çıkıldı. Yeniden denemek için kapatın."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Genişlet"
 
@@ -5688,6 +5683,7 @@ msgid "Expand todo dock"
 msgstr "Yapılacaklar iskelesini genişlet"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Uyarıyı genişlet"
 

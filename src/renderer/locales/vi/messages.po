@@ -3186,10 +3186,7 @@ msgstr "Codex không thể nén cuộc trò chuyện khi một lượt đang ch�
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex không thể nén cuộc trò chuyện: {detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Thu gọn"
 
@@ -3249,6 +3246,7 @@ msgid "Collapse todo dock"
 msgstr "Thu gọn thanh việc cần làm"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Thu gọn cảnh báo"
 
@@ -5639,10 +5637,7 @@ msgstr "Thoát khỏi chế độ kế hoạch"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Đã thoát với mã {0}. Đóng để thử lại."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Mở rộng"
 
@@ -5688,6 +5683,7 @@ msgid "Expand todo dock"
 msgstr "Mở rộng dock việc cần làm"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Mở rộng cảnh báo"
 

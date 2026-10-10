@@ -3185,10 +3185,7 @@ msgstr "ターンの実行中は Codex が会話を圧縮できません。完�
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex は会話を圧縮できませんでした: {detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "折りたたむ"
 
@@ -3248,6 +3245,7 @@ msgid "Collapse todo dock"
 msgstr "todo ドックを折りたたむ"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "警告を折りたたむ"
 
@@ -5638,10 +5636,7 @@ msgstr "計画モードを終了する"
 msgid "Exited with code {0}. Close to retry."
 msgstr "コード{0}で終了しました。閉じて再試行してください。"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "拡大する"
 
@@ -5687,6 +5682,7 @@ msgid "Expand todo dock"
 msgstr "Todo ドックを展開する"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "警告を展開"
 

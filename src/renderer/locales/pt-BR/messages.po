@@ -3186,10 +3186,7 @@ msgstr "O Codex não pode compactar a conversa enquanto um turno está em execu�
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "O Codex não conseguiu compactar a conversa: {detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Recolher"
 
@@ -3249,6 +3246,7 @@ msgid "Collapse todo dock"
 msgstr "Recolher dock de tarefas"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Recolher aviso"
 
@@ -5639,10 +5637,7 @@ msgstr "Sair do modo de plano"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Saiu com o código {0}. Feche para tentar novamente."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Expandir"
 
@@ -5688,6 +5683,7 @@ msgid "Expand todo dock"
 msgstr "Expandir dock de tarefas"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Expandir aviso"
 
