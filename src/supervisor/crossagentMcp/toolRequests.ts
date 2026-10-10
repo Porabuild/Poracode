@@ -58,7 +58,7 @@ export function parseSpawnRequest(
         agent: fallbackAgent,
         ...(typeof fallback.model === "string" ? { model: fallback.model } : {}),
         ...(typeof fallback.reasoning === "string" ? { effort: fallback.reasoning } : {}),
-        ...(fallback.fast === true ? { fast: true } : {}),
+        ...(typeof fallback.fast === "boolean" ? { fast: fallback.fast } : {}),
       };
     });
   } else if (inheritedFallbacks !== undefined) {
@@ -99,7 +99,7 @@ export function parseSpawnRequest(
     ...(args.result_mode === "compact" ? { resultMode: "compact" as const } : {}),
     ...(typeof args.model === "string" ? { model: args.model } : {}),
     ...(typeof args.reasoning === "string" ? { effort: args.reasoning } : {}),
-    ...(args.fast === true ? { fast: true } : {}),
+    ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
     ...(typeof args.name === "string" ? { name: args.name } : {}),
     ...(args.background === true ? { background: true } : {}),
     ...(fallbacks !== undefined ? { fallbacks } : {}),
