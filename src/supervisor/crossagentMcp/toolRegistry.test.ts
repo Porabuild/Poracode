@@ -801,6 +801,7 @@ describe("subagent tool registration", () => {
         agent: "codex",
         model: "gpt-5.5",
         effort: "high",
+        fast: false,
         prompt: "inspect",
         background: true,
         retryMode: "any-failure",
@@ -815,6 +816,7 @@ describe("subagent tool registration", () => {
         agent: "claude",
         model: "sonnet",
         effort: "high",
+        fast: false,
         prompt: "review",
         background: true,
         dispatchProvenance: expect.objectContaining({
@@ -897,6 +899,7 @@ describe("subagent tool registration", () => {
         agent: "codex",
         model: "gpt-5.5",
         effort: "low",
+        fast: false,
         prompt: "review",
         name: "overridden",
         dispatchProvenance: expect.objectContaining({
