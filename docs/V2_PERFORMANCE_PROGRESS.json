@@ -8,7 +8,7 @@
     "restoreInstruction": "If the goal controller has no active goal, restore this exact objective under the user's explicit instruction to preserve it. Keep the existing progress, evidence and unfinished requirements; do not restart or narrow the work.",
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app."
   },
-  "updatedAt": "2026-10-10T01:15:39.798669+00:00",
+  "updatedAt": "2026-10-10T01:29:41.191820+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -45,7 +45,7 @@
     "requiredAgent": null,
     "lastAgent": "c6f15c99bc20 completed/joined; bounded35-source private-host seed offline checks; root key-custody correction and preserved failed actual attempts.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "partial-current-production-create-thread-proof-full-controls-incomplete",
+    "agentState": "current-production-local-git-handler-workflow-pass",
     "nativeSessionsLive": false,
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -63,9 +63,9 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Run full current managed mock GUI smoke when desktop actually unlocked. Carry remaining genuine send/wait/interrupt/steer/Stop/resume checks into materially justified required final qualification with corrected typed-result/config oracles; no unchanged headless retry or consumed-cap reset. Independent remaining tool categories and resource/PWA gates stay open.",
-    "lastResult": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/root-verification.json",
-    "lastDeclaration": "tmp/v2-memory-production-20261008-a79decb09/current-metadata-mutations-92af40e36762208b/launcher-declaration.json",
+    "nextAction": "When unlocked run current full managed mock GUI smoke. Independently qualify remaining MCP-probe/local worktree or real ordinary-PTY handler gaps using corrected terminal-state/wire-shape oracles; keep original controls/PWA/resource caps consumed and unchanged. Then finish genuinely required controls/workflows and materially justified final p95/resources; no blanket current75-tool claim.",
+    "lastResult": "tmp/v2-local-git-tools-20261010/root-verification.json",
+    "lastDeclaration": "/Users/svecherenko/work/Poracode/tmp/v2-local-git-tools-20261010/host/execution-6639b12bd335111ff3f739b5f8f4c021/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -5671,7 +5671,7 @@
     "previousGoalTurnClassification": "progress: corrected GUI resumed prompt admission and early Stop race;53 coupled tests/static checks/final source-bound build and targeted review pass. Genuine final qualification remains open.",
     "goalTurnClassification": {
       "classification": "progress",
-      "reason": "Built self-contained ACP fixtures/private owner seed and production-bound canonical reader; identified/fixed seed ownership-key initialization, executed actual create_thread handler and GUI structured child turn, validated exact stopped MCP/canonical/config/settings artifacts after correcting oracle. Full11-call validation failed and caps remain consumed; no final signoff."
+      "reason": "Seven actual production Git handler calls across four previously untested names pass raw MCP/canonical/public/stopped/config/file/index/commit/branch/cleanup checks on immutable current source. Original failed snapshot oracle and consumed caps preserved; broad GUI/workflow/resource requirements remain open."
     },
     "configurationToolBatch": {
       "runId": "8ce5a834d5d4",
@@ -5719,11 +5719,11 @@
       "wholeTasksClosed": 0
     },
     "currentDesktopAvailability": {
-      "at": "2026-10-10T00:46:07.275Z",
+      "at": "2026-10-10T01:17:37.611Z",
       "screenLocked": true,
-      "probe": "tmp/v2-qualification-20261010-continuation/final-desktop-probe/desktop-state.json",
+      "probe": "tmp/v2-local-git-tools-20261010/desktop-state.json",
       "guiAppLaunched": false,
-      "requiredForGuiSmoke": "User unlock required under interactive-testing; prior async question pending, not repeated."
+      "requiredForGuiSmoke": "User unlock required under interactive-testing; prior async question pending."
     },
     "metadataMutationToolBatch": {
       "state": "PASS_SCOPED",
@@ -5815,6 +5815,39 @@
       "correctionValidationAttemptsUsed": 1,
       "furtherUnchangedLaunchesAllowed": false,
       "noGuiRenderOrResourceOrExternalProviderClaim": true
+    },
+    "currentMergedGenuineGitTools": {
+      "state": "PASS_SCOPED",
+      "verification": "tmp/v2-local-git-tools-20261010/root-verification.json",
+      "result": "/Users/svecherenko/work/Poracode/tmp/v2-local-git-tools-20261010/host/execution-6639b12bd335111ff3f739b5f8f4c021/result.json",
+      "actualMcpCalls": 7,
+      "newNames": ["git_stage", "git_commit", "git_discard", "git_branch"],
+      "canonicalItems": 21,
+      "rawRequestsResponsesAndCardsExact": true,
+      "publicHistoryComparisonsPassed": 7,
+      "liveToStopped5TableAndItemsExact": true,
+      "fullSettingsKeysConserved": 120,
+      "gitIndexCommitDiscardBranchEffectsExact": true,
+      "noRemoteConfigured": true,
+      "originalHandlesJoined": 4,
+      "knownPidsFreshlyAbsent": 6,
+      "bothPortsClosed": true,
+      "artifactUnchanged": true,
+      "originalFailedRunPreserved": "tmp/v2-local-git-tools-20261010/host/execution-79bdab09f5ffb4052b202d4084fc050f/result.json",
+      "oracleCorrection": "Require completed canonical items before snapshots and normalize only actual JSON serialization omissions; deadlines unchanged.",
+      "originalAppAttemptsUsed": 1,
+      "correctionValidationAttemptsUsed": 1,
+      "furtherUnchangedLaunchesAllowed": false,
+      "oldThreadControlCapsUnchanged": true,
+      "noExternalProviderGuiOrResourceClaim": true
+    },
+    "currentMergedGenuineHandlerNames": {
+      "names": ["create_thread", "git_stage", "git_commit", "git_discard", "git_branch"],
+      "productionSource": "91c06a02789783fbf8cf5d683bc57a0932539b68",
+      "fullyVerifiedGitCalls": 7,
+      "additionalCreateCall": "PASS scoped stopped canonical/prompt/stdout; original full-controls sequence remains FAIL, no live-public comparison credit",
+      "currentWholeCatalogCapture": "not performed; old50/75 retained only as historical scope",
+      "newWholeTasksClosed": 0
     }
   },
   "milestones": [
@@ -6798,6 +6831,10 @@
     {
       "at": "2026-10-10T01:15:39.798669+00:00",
       "summary": "Self-contained current host/private-owner seed+ACP fixture/canonical reader replaces missing inherited bindings. Delegated35-source/offline settings roundtrip120keys/6declared fields and byte-sealed productionruntime PASS; agentjoined. First actual app refused missingcredentialcustody beforeDB; root addedofficial headless keyinitialization underfreshlease beforeDB (guardunchanged),offlineverify PASS. One materialvalidation then executed create_thread and expected GUIstructuredruntime reply before oracle JSON-parsed structured rawOutput and failed. Root auditedactual source and recovered exact rawMCP request/response→canonicalcard,3caller+2targetrows,actualworkerprompt/stdoutcallback,model/fast/callerconfig/all120settings/project conservation PASS-scoped; raworiginalFAIL retained. Typed-result oracle corrected and7purefixtures/negativeproofchecks PASS. Both apps/3correctionhandles andknownPIDs joined/ESRCH,bothportsclosed,frozenbytesunchanged. Original1app+1keycorrectionvalidation consumed; no unchangedlaunch/reset/full11call/nativeUI/resumeStop/p95/CPU/GPU/RAM gaincredit. Currentmerged create_thread scoped only; older50/75 historical, broadergoal13/18 active unchanged."
+    },
+    {
+      "at": "2026-10-10T01:29:41.191820+00:00",
+      "summary": "Independent currentcompiled localGit workflow PASS7realMCPcalls/4newnames git_stage(stage/unstage/restage),git_commit,git_discard,git_branch(create/switch). Actualproductionhandler/nativeGit effect checks validate UTF8index,realcommitobject/message,trackeddiscard bytes and branchHEAD in privatefixture withoutremote.21canonicalitems exactrawrequest/response/card binding;7fencedpublichistory comparisons and5table/live→stopped itemidentity PASS;120settingskeys unchanged.4originalhandlesnormal0 joined/6knownPIDsfreshESRCH,bothportsclosed,frozenruntimebytes unchanged. Initialstage attempt failedoracle comparing newercompletedpublic snapshot against earlierupdated localrow and omittedundefinedpayload; failedreport/cleanup preserved, requireterminalitems+exactJSONwire normalization corrected, singlematerialvalidation PASS. Both attempts consumed/no unchanged repeat; oldcontrols/PWA/resource caps unchanged. Gitdomain source byteexactretainedcandidate, currentwhole75-toolmetadata notrecaptured. Five currentmerged genuinelyscoped names total(create plus4Git),no GUIrender/externalprovider/p95/CPU/GPU/RAM gaincredit;goalactive13/18,2/6 unchanged."
     }
   ],
   "tasks": [
@@ -6973,7 +7010,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Run full current managed mock GUI smoke when desktop actually unlocked. Carry remaining genuine send/wait/interrupt/steer/Stop/resume checks into materially justified required final qualification with corrected typed-result/config oracles; no unchanged headless retry or consumed-cap reset. Independent remaining tool categories and resource/PWA gates stay open.",
+      "nextAction": "When unlocked run current full managed mock GUI smoke. Independently qualify remaining MCP-probe/local worktree or real ordinary-PTY handler gaps using corrected terminal-state/wire-shape oracles; keep original controls/PWA/resource caps consumed and unchanged. Then finish genuinely required controls/workflows and materially justified final p95/resources; no blanket current75-tool claim.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -7037,7 +7074,8 @@
         "tmp/v2-qualification-20261010-continuation/server-preflight/result.json",
         "tmp/v2-qualification-20261010-continuation/qualification-gates.json",
         "tmp/v2-thread-control-qualification-20261010/root-result.json",
-        "tmp/v2-thread-control-qualification-20261010/completed-create-scope.json"
+        "tmp/v2-thread-control-qualification-20261010/completed-create-scope.json",
+        "tmp/v2-local-git-tools-20261010/root-verification.json"
       ]
     },
     {
@@ -7065,7 +7103,8 @@
         "tmp/v2-streaming-perf-20260930/round127/audit.json",
         "tmp/v2-streaming-perf-20260930/round258/root-checkpoint.json",
         "tmp/v2-qualification-20261010-continuation/qualification-gates.json",
-        "tmp/v2-thread-control-qualification-20261010/root-result.json"
+        "tmp/v2-thread-control-qualification-20261010/root-result.json",
+        "tmp/v2-local-git-tools-20261010/root-verification.json"
       ]
     },
     {
