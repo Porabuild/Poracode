@@ -3186,10 +3186,7 @@ msgstr "Codex не может сжать беседу, пока выполняе
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex не удалось сжать беседу: {detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Свернуть"
 
@@ -3249,6 +3246,7 @@ msgid "Collapse todo dock"
 msgstr "Свернуть панель задач"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Свернуть предупреждение"
 
@@ -5639,10 +5637,7 @@ msgstr "Выйти из режима плана"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Завершился с кодом {0}. Закройте, чтобы повторить."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Развернуть"
 
@@ -5688,6 +5683,7 @@ msgid "Expand todo dock"
 msgstr "Развернуть панель задач"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Развернуть предупреждение"
 

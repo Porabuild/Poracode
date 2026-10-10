@@ -1,5 +1,6 @@
 import { forwardRef, type MouseEventHandler, type ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
+import { ChevronDown } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
 
@@ -84,6 +85,8 @@ export function ThreadDockIconButton({
   danger = false,
   isDisabled = false,
   isPending = false,
+  ariaExpanded,
+  ariaControls,
   onMouseDown,
   onPress,
   children,
@@ -93,6 +96,8 @@ export function ThreadDockIconButton({
   danger?: boolean;
   isDisabled?: boolean;
   isPending?: boolean;
+  ariaExpanded?: boolean;
+  ariaControls?: string;
   onMouseDown?: MouseEventHandler<HTMLButtonElement>;
   onPress: () => void;
   children: ReactNode;
@@ -105,6 +110,8 @@ export function ThreadDockIconButton({
           size="sm"
           variant="ghost"
           aria-label={label}
+          {...(ariaExpanded !== undefined ? { "aria-expanded": ariaExpanded } : {})}
+          {...(ariaControls ? { "aria-controls": ariaControls } : {})}
           className={`h-6 w-6 min-w-0 shrink-0 text-muted/70 ${
             danger
               ? "hover:bg-danger-500/10 hover:text-danger-500"
@@ -120,6 +127,33 @@ export function ThreadDockIconButton({
       </Tooltip.Trigger>
       <Tooltip.Content>{tooltip}</Tooltip.Content>
     </Tooltip>
+  );
+}
+
+export function ThreadDockCollapseButton({
+  collapsed,
+  label,
+  controlsId,
+  onPress,
+}: {
+  collapsed: boolean;
+  label: string;
+  controlsId?: string;
+  onPress: () => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <ThreadDockIconButton
+      label={label}
+      tooltip={collapsed ? t`Expand` : t`Collapse`}
+      ariaExpanded={!collapsed}
+      {...(controlsId ? { ariaControls: controlsId } : {})}
+      onPress={onPress}
+    >
+      <ChevronDown
+        className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
+      />
+    </ThreadDockIconButton>
   );
 }
 

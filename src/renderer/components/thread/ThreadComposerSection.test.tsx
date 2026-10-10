@@ -2215,6 +2215,7 @@ describe("ThreadComposerSection", () => {
         "This thread cannot be resumed. Start a new thread to continue.",
       );
       expect(notice).toHaveAttribute("role", "status");
+      expect(notice.parentElement).toContainElement(screen.getByText("Warning"));
       expect(screen.getByTestId("thread-composer").contains(notice)).toBe(!compact);
       expect(notice.closest(".m-thread-action-docks") !== null).toBe(compact);
       expect(notice.closest("section")).toHaveAttribute("data-placement", "composer");
@@ -2237,8 +2238,35 @@ describe("ThreadComposerSection", () => {
       }
       expect(dock?.hasAttribute("data-expanded") ?? false).toBe(false);
       expect(notice).toBeVisible();
+      const expand = screen.getByRole("button", { name: "Expand warning" });
+      const noticeId = notice.id;
+      expect(expand).toHaveAttribute("aria-expanded", "false");
+      expect(expand).toHaveAttribute("aria-controls", noticeId);
+      fireEvent.click(expand);
+      const expandedNotice = screen.getByText(
+        "This thread cannot be resumed. Start a new thread to continue.",
+      );
+      expect(expandedNotice).toBeVisible();
+      expect(screen.getByText("Warning").parentElement).not.toContainElement(expandedNotice);
+      expect(expandedNotice.id).toBe(noticeId);
+      expect(editor).toHaveAccessibleDescription(expandedNotice.textContent);
+      const collapse = screen.getByRole("button", { name: "Collapse warning" });
+      expect(collapse).toHaveAttribute("aria-expanded", "true");
+      expect(collapse).toHaveAttribute("aria-controls", noticeId);
+      expect(editor.textContent).toBe(hasDraft ? "unsent follow up" : "");
+      expect(editor).toHaveAttribute("contenteditable", "false");
+      expect(dock?.hasAttribute("data-expanded") ?? false).toBe(false);
+      fireEvent.click(collapse);
+      const collapsedNotice = screen.getByText(
+        "This thread cannot be resumed. Start a new thread to continue.",
+      );
+      expect(collapsedNotice.id).toBe(noticeId);
+      expect(screen.getByRole("button", { name: "Expand warning" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
       expect(editor).toHaveAttribute("data-placeholder", "");
-      expect(editor).toHaveAccessibleDescription(notice.textContent);
+      expect(editor).toHaveAccessibleDescription(collapsedNotice.textContent);
       fireEvent.keyDown(editor, { key: "Enter" });
       fireEvent.click(screen.getByText("send"));
       await act(async () => Promise.resolve());

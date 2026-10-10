@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { ChevronDown, Images } from "lucide-react";
+import { Images } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadGalleryImage } from "./ChatPane/parts/items/threadGalleryImages";
 import { DownsampledThumb } from "./DownsampledThumb";
 import { openThreadGallery } from "./useThreadGalleryImages";
-import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
+import { ThreadDockCollapseButton, ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
 /**
  * Right-panel "Images" section: a 2-row horizontal mosaic of every renderable
@@ -38,15 +38,11 @@ export function ThreadImagesDock({
           title={t`Images`}
           countLabel={<span className="[font-variant-numeric:tabular-nums]">{gallery.length}</span>}
           actions={
-            <ThreadDockIconButton
+            <ThreadDockCollapseButton
+              collapsed={collapsed}
               label={collapsed ? t`Expand images` : t`Collapse images`}
-              tooltip={collapsed ? t`Expand` : t`Collapse`}
               onPress={() => setCollapsed(!collapsed)}
-            >
-              <ChevronDown
-                className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-              />
-            </ThreadDockIconButton>
+            />
           }
         />
         {!collapsed ? (

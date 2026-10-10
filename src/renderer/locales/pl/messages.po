@@ -3186,10 +3186,7 @@ msgstr "Codex nie może skompaktować rozmowy, gdy trwa tura. Wyślij /compact p
 msgid "Codex could not compact the conversation: {detail}"
 msgstr "Codex nie mógł skompaktować rozmowy: {detail}"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Collapse"
 msgstr "Zwiń"
 
@@ -3249,6 +3246,7 @@ msgid "Collapse todo dock"
 msgstr "Zwiń dok zadań do wykonania"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Collapse warning"
 msgstr "Zwiń ostrzeżenie"
 
@@ -5639,10 +5637,7 @@ msgstr "Wyjdź z trybu planu"
 msgid "Exited with code {0}. Close to retry."
 msgstr "Zakończono z kodem {0}. Zamknij, aby spróbować ponownie."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
-#: src/renderer/components/thread/ThreadErrorDock.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
-#: src/renderer/components/thread/ThreadTodoDock.tsx
+#: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Expand"
 msgstr "Rozwiń"
 
@@ -5688,6 +5683,7 @@ msgid "Expand todo dock"
 msgstr "Rozwiń dok zadań do wykonania"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Expand warning"
 msgstr "Rozwiń ostrzeżenie"
 
