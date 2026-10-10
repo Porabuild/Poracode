@@ -131,7 +131,7 @@ vi.mock("./ThreadComposer", () => ({
     onSubmit: () => void;
     submitDisabled?: boolean;
   }) => (
-    <div>
+    <div data-testid="thread-composer">
       {props.fixedContent}
       {props.attachmentBar}
       {props.inputContent}
@@ -2163,6 +2163,8 @@ describe("ThreadComposerSection", () => {
       "This thread cannot be resumed. Start a new thread to continue.",
     );
     expect(notice).toHaveAttribute("role", "status");
+    expect(screen.getByTestId("thread-composer")).toContainElement(notice);
+    expect(notice.closest("section")).toHaveAttribute("data-placement", "composer");
     expect(editor).toHaveAttribute("aria-describedby", notice.id);
     expect(editor).toHaveAccessibleDescription(notice.textContent);
   });
@@ -2213,6 +2215,9 @@ describe("ThreadComposerSection", () => {
         "This thread cannot be resumed. Start a new thread to continue.",
       );
       expect(notice).toHaveAttribute("role", "status");
+      expect(screen.getByTestId("thread-composer").contains(notice)).toBe(!compact);
+      expect(notice.closest(".m-thread-action-docks") !== null).toBe(compact);
+      expect(notice.closest("section")).toHaveAttribute("data-placement", "composer");
       expect(editor).toHaveAttribute("data-placeholder", "");
       expect(editor).toHaveAccessibleDescription(notice.textContent);
       expect(notice).toBeVisible();

@@ -101,6 +101,7 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
+import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import {
   usePluginMentionItems,
   useSkillSlashCommandState,
@@ -629,10 +630,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       ? t`This thread cannot be resumed. Start a new thread to continue.`
       : undefined;
   const resumeUnavailableNotice = resumeUnavailableMessage ? (
-    <p id={resumeUnavailableNoticeId} role="status" className="px-3 py-2 text-xs text-muted">
-      {resumeUnavailableMessage}
-    </p>
+    <ThreadResumeUnavailableDock
+      noticeId={resumeUnavailableNoticeId}
+      message={resumeUnavailableMessage}
+    />
   ) : null;
+  const composerResumeNotice = compactLayout ? null : resumeUnavailableNotice;
   // Gate the inline docks only. `activeRuntimeRequest` still drives the
   // composer's deny-with-feedback submit path, and `authRequired` still disables
   // submit/voice, when a host renders these docks itself.
@@ -940,7 +943,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
               )}
             </ComposerBubbleRow>
           ) : null}
-          {!compactLayout ? resumeUnavailableNotice : null}
           <AdaptiveThreadComposerDock
             compact={compactLayout}
             collapsed={isComposerCollapsed}
@@ -958,10 +960,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             aboveBubble={
               compactLayout ? (
                 <>
-                  {resumeUnavailableNotice}
                   <ComposerActionDocks
                     thread={thread}
                     agentStatus={agentStatus}
+                    notice={resumeUnavailableNotice}
                     onRestoreComposerFocus={restoreComposerFocus}
                     {...(props.onOpenProjectRelativePath
                       ? {
@@ -1038,6 +1040,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       authRequired ? "auth-required" : "auth-ready",
                     ].join("|")}
                     fixedContent={
+                      composerResumeNotice !== null ||
                       hasActiveSubAgent ||
                       hasBackgroundTasks ||
                       showContextInComposer ||
@@ -1050,6 +1053,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       composerFollowUpQueue ||
                       showCommandPanel ? (
                         <ThreadComposerDocks
+                          notice={composerResumeNotice}
                           hasActiveSubAgent={hasActiveSubAgent}
                           hasBackgroundTasks={hasBackgroundTasks}
                           showContextInComposer={showContextInComposer}

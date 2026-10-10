@@ -16677,6 +16677,7 @@ msgid "Warming up WSL shell environment…"
 msgstr "Warming up WSL shell environment…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 msgid "Warning"
 msgstr "Warning"
 
