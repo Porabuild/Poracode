@@ -13,6 +13,22 @@ import { parseWaitOptions } from "./toolResult";
 import { buildUnrestrictedChildConfig, type SubagentRunHost } from "./types";
 
 describe("SubagentRunManager", () => {
+  it.each([false, true, undefined] as const)(
+    "delivers the selected fast setting %s to the structured child",
+    async (fast) => {
+      const h = makeHarness();
+      h.manager.spawn(PARENT, {
+        agent: "codex",
+        prompt: "Inspect the assigned fixture.",
+        ...(typeof fast === "boolean" ? { fast } : {}),
+      });
+      await flush();
+      expect(h.inputs[0]!.config.fast).toBe(fast);
+      expect(h.handles[0]!.startTurns[0]!.config.fast).toBe(fast);
+      h.handles[0]!.completeTurn("completed");
+    },
+  );
+
   it.each([undefined, "compact"] as const)(
     "delivers worker scope instructions with the task in %s result mode",
     async (resultMode) => {

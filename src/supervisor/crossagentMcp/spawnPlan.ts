@@ -152,7 +152,7 @@ function resolveAttempt(
       {
         model,
         ...(selection.effort ? { effort: selection.effort } : {}),
-        ...(selection.fast === true ? { fast: true } : {}),
+        ...(typeof selection.fast === "boolean" ? { fast: selection.fast } : {}),
       },
       capabilities,
       parentConfig,

@@ -76,6 +76,12 @@ interface UsageCacheFile {
   profileIdentities?: Record<string, string>;
 }
 
+/** Settings and discovery shared only within synchronous selection work. */
+interface UsageReadScope {
+  settings: SharedSettings;
+  collectors: Map<string, UsageProfileCollector>;
+}
+
 function hasDisplayableUsage(snapshot: UsageSnapshot): boolean {
   return (
     snapshot.windows.length > 0 ||
@@ -115,17 +121,10 @@ export class UsageService {
     this.loadCache();
   }
 
-  private defaultProviderIds(): string[] {
+  private defaultProviderIds(collectors: ReadonlyMap<string, UsageProfileCollector>): string[] {
     const baseIds = [...(this.options.providerIds ?? DEFAULT_PROVIDER_IDS)];
     if (this.options.providerIds) return baseIds;
-    return [
-      ...new Set([
-        ...baseIds,
-        ...this.usageProfileSources().flatMap((source) =>
-          source.collectors.map((collector) => collector.providerId),
-        ),
-      ]),
-    ];
+    return [...new Set([...baseIds, ...collectors.keys()])];
   }
 
   /** Read shared settings from disk (defaults if absent). Decrypts profile keys. */
@@ -139,8 +138,8 @@ export class UsageService {
     return this.readSharedSettings().usage;
   }
 
-  private usageProfileSources(): readonly UsageProfileSource[] {
-    return (this.options.profileSources ?? readUsageProfileSources)(this.readSharedSettings());
+  private usageProfileSources(settings = this.readSharedSettings()): readonly UsageProfileSource[] {
+    return (this.options.profileSources ?? readUsageProfileSources)(settings);
   }
 
   private profileCollectors(
@@ -153,27 +152,46 @@ export class UsageService {
     );
   }
 
+  private readScope(): UsageReadScope {
+    const settings = this.readSharedSettings();
+    return { settings, collectors: this.profileCollectors(this.usageProfileSources(settings)) };
+  }
+
   /** A provider id this service can collect (package registry or supervisor-local). */
-  private isSupported(id: string): boolean {
-    return (
-      this.registry.has(id) ||
-      this.localCollectors.has(id) ||
-      this.usageProfileSources().some((source) =>
-        source.collectors.some((collector) => collector.providerId === id),
-      )
-    );
+  private isSupported(id: string, collectors: ReadonlyMap<string, UsageProfileCollector>): boolean {
+    return this.registry.has(id) || this.localCollectors.has(id) || collectors.has(id);
   }
 
   /** Default providers minus the user's per-provider opt-outs, intersected with what we support. */
-  private enabledProviderIds(disabled: readonly string[]): string[] {
-    return this.defaultProviderIds().filter((id) => !disabled.includes(id) && this.isSupported(id));
+  private enabledProviderIds(
+    disabled: readonly string[],
+    collectors: ReadonlyMap<string, UsageProfileCollector>,
+    candidates?: readonly string[],
+  ): string[] {
+    const baseIds = this.options.providerIds ?? DEFAULT_PROVIDER_IDS;
+    return (candidates ?? this.defaultProviderIds(collectors)).filter(
+      (id) =>
+        // A targeted read cannot authorize automatic collection outside the defaults.
+        (!candidates ||
+          baseIds.includes(id) ||
+          (!this.options.providerIds && collectors.has(id))) &&
+        !disabled.includes(id) &&
+        this.isSupported(id, collectors),
+    );
   }
 
-  private resolveIds(payload: ProviderUsagePayload): string[] {
+  private resolveIds(payload: ProviderUsagePayload, scope?: UsageReadScope): string[] {
     if (payload.providerIds?.length) {
-      return [...new Set(payload.providerIds)].filter((id) => this.isSupported(id));
+      let collectors = scope?.collectors;
+      return [...new Set(payload.providerIds)].filter((id) => {
+        if (this.registry.has(id) || this.localCollectors.has(id)) return true;
+        // Fixed collectors need no profile discovery; otherwise discover once for this selection.
+        collectors ??= this.profileCollectors();
+        return collectors.has(id);
+      });
     }
-    return this.enabledProviderIds(this.readUsageSettings().disabledProviders);
+    const current = scope ?? this.readScope();
+    return this.enabledProviderIds(current.settings.usage.disabledProviders, current.collectors);
   }
 
   /**
@@ -214,10 +232,13 @@ export class UsageService {
    * effective provider cadences, opt-outs and rate-limit backoff. */
   async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
     if (this.options.collectionEnabled === false) return { snapshots: [], fromCache: false };
-    const ids = this.resolveIds(payload);
-    await this.profileCacheIdentities.synchronize(this.profileCollectors(), ids);
-    const settings = this.readUsageSettings();
-    const showEstimatedCost = settings.showEstimatedCost;
+    const scope = this.readScope();
+    const ids = this.resolveIds(payload, scope);
+    await this.profileCacheIdentities.synchronize(scope.collectors, ids);
+    // Identity reads can await account/settings changes. Refresh policy and discovery
+    // after synchronization rather than retaining the earlier selection's authority.
+    const settings = this.readSharedSettings();
+    const showEstimatedCost = settings.usage.showEstimatedCost;
     const cached = ids
       .map((id) => this.snapshots.get(id))
       .filter((snap): snap is UsageSnapshot => snap !== undefined)
@@ -225,7 +246,7 @@ export class UsageService {
 
     // Refresh only the stale ids — never the whole requested set — so a single
     // stale provider doesn't drag a still-rate-limited sibling back into a 429.
-    const stale = this.dueProviderIds(settings).filter((id) => ids.includes(id));
+    const stale = this.dueProviderIds(settings, ids);
     if (stale.length > 0) {
       void this.refreshProviderUsage({ providerIds: stale }).catch((error) => {
         // Errors surface as per-provider error snapshots; log for diagnostics.
@@ -433,7 +454,7 @@ export class UsageService {
    */
   startAutoRefresh(): void {
     if (this.options.collectionEnabled === false || this.autoRefreshTimer || this.stopped) return;
-    this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
+    this.scheduleNextTick(this.nextTickDelayMs(this.readSharedSettings()));
   }
 
   stop(): void {
@@ -465,10 +486,13 @@ export class UsageService {
    * from the snapshot's `fetchedAt`, so one tick can refresh a fast provider
    * while leaving a slow one untouched.
    */
-  private dueProviderIds(settings: UsageSettings): string[] {
+  private dueProviderIds(settings: SharedSettings, candidates?: readonly string[]): string[] {
+    const usage = settings.usage;
+    if (!usage.autoRefresh) return [];
+    const collectors = this.profileCollectors(this.usageProfileSources(settings));
     const now = this.host.now();
-    return this.enabledProviderIds(settings.disabledProviders).filter((id) => {
-      const interval = this.effectiveIntervalMs(settings, id);
+    return this.enabledProviderIds(usage.disabledProviders, collectors, candidates).filter((id) => {
+      const interval = this.effectiveIntervalMs(usage, id);
       if (interval === undefined) return false;
       const snap = this.snapshots.get(id);
       if (!snap) return true;
@@ -485,13 +509,16 @@ export class UsageService {
    * are slower). Falls back to the global default when nothing is enabled, which
    * keeps the loop alive so re-enabling resumes without a restart.
    */
-  private nextTickDelayMs(settings: UsageSettings): number {
+  private nextTickDelayMs(settings: SharedSettings): number {
+    const usage = settings.usage;
+    if (!usage.autoRefresh) return this.intervalMs(usage);
+    const collectors = this.profileCollectors(this.usageProfileSources(settings));
     let min = Infinity;
-    for (const id of this.enabledProviderIds(settings.disabledProviders)) {
-      const interval = this.effectiveIntervalMs(settings, id);
+    for (const id of this.enabledProviderIds(usage.disabledProviders, collectors)) {
+      const interval = this.effectiveIntervalMs(usage, id);
       if (interval !== undefined) min = Math.min(min, interval);
     }
-    return Number.isFinite(min) ? min : this.intervalMs(settings);
+    return Number.isFinite(min) ? min : this.intervalMs(usage);
   }
 
   /**
@@ -501,7 +528,7 @@ export class UsageService {
    */
   async refreshDueProviders(): Promise<string[]> {
     if (this.options.collectionEnabled === false || this.stopped) return [];
-    const settings = this.readUsageSettings();
+    const settings = this.readSharedSettings();
     const ids = this.dueProviderIds(settings);
     if (ids.length === 0) return [];
     try {
@@ -525,7 +552,7 @@ export class UsageService {
     await this.refreshDueProviders();
     // Keep the loop alive even when auto-refresh is off so re-enabling (or an
     // interval change) resumes without a restart.
-    this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
+    this.scheduleNextTick(this.nextTickDelayMs(this.readSharedSettings()));
   }
 
   private loadCache(): void {

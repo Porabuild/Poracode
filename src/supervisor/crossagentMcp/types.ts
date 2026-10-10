@@ -95,7 +95,7 @@ export function buildUnrestrictedChildConfig(
   return {
     model: child.model,
     ...(child.effort ? { effort: child.effort } : {}),
-    ...(child.fast === true ? { fast: true } : {}),
+    ...(typeof child.fast === "boolean" ? { fast: child.fast } : {}),
     ...resolveUnrestrictedPermissionConfig(targetCapabilities),
     ...(parentConfig?.browserMcp === true ? { browserMcp: true } : {}),
     ...(parentConfig?.computerUse === true ? { computerUse: true } : {}),

@@ -1,5 +1,20 @@
 # Versioned State & Protocols
 
+Usage provider selection shares settings and collector discovery only within
+synchronous request phases. Settings/discovery are read fresh after awaited
+identity checks, and refresh commit admission/account retirement remains intact.
+No persistent cache or TTL is introduced; cache version 10, settings, wire and
+helper formats remain valid. Regressions cover old cache shapes, concurrent
+policy/collector retirement, opt-outs, backoff and disabled QA collection.
+
+Crossagent child configuration preserves an explicitly disabled fast setting as
+`fast: false` instead of omitting it and retaining the provider native default.
+An absent setting remains absent. This uses the existing optional boolean in
+ThreadConfig and the existing ACP setters; no persisted, cache, wire or helper
+shape/version changes. Content hashes identify the changed supervisor behavior.
+Regressions cover true, false and absent selections through structured creation
+and turn dispatch.
+
 The local integration with usage commit `72e1c4316` and master `e56fcc87b`
 regenerates every remote-v3 mirror from the combined canonical source: 95 routes,
 130 procedures, 429 native schema roots and 974 structural types. Protocol 13,
