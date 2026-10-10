@@ -1,6 +1,22 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2EScheduleU2DRunsU2DReadU2EQuery: RemoteRootCodec<RoutescheduleU2DRunsU2DReadQuery_08eb4244d2> = .init(id: "route.schedule-runs-read.query", schema: RemoteSchemas.schema_08eb4244d2d3b53e)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EScheduleU2DRunsU2DReadU2EResponse: RemoteRootCodec<RoutescheduleU2DRunsU2DReadResponse_dc9dbbe080> = .init(id: "route.schedule-runs-read.response", schema: RemoteSchemas.schema_dc9dbbe08067c690)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2ESchedulesU2DCommandU2ERequest: RemoteRootCodec<RouteschedulesU2DCommandRequest_af3ecd102c> = .init(id: "route.schedules-command.request", schema: RemoteSchemas.schema_af3ecd102cdfd768)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2ESchedulesU2DCommandU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_f0f46abc2f> = .init(id: "route.schedules-command.response", schema: RemoteSchemas.schema_f0f46abc2f28aef5)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2ESchedulesU2DReadU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_f0f46abc2f> = .init(id: "route.schedules-read.response", schema: RemoteSchemas.schema_f0f46abc2f28aef5)
 }
 

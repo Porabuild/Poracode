@@ -109,7 +109,7 @@ typecheck. The `v3` directory name is retained; the current wire protocol
 version is 13. The inventory describes:
 
 - 95 HTTP routes;
-- 128 supervisor procedures;
+- 130 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
 
@@ -135,7 +135,8 @@ read; live outdated hosts and failed proofs retain the original binding. Media
 mint/stream/release/renew routes add file-scoped reads without weakening this
 writer admission or changing persisted credentials. Their grants remain bounded
 and revocable; native media editor adoption is still planned. Generated artifacts
-combine this policy with the seven media routes (95 routes, 128 procedures).
+combine this policy with the seven media routes and authenticated usage
+read/refresh procedures (95 routes, 130 procedures).
 
 Protocol 12 combines the two parent branches' additions: daily usage broadcasts
 and authoritative `content.delta.replace` semantics. An omitted or false flag
@@ -144,6 +145,12 @@ string. Both native reducer paths consume this flag. Live protocol 11 peers are
 rejected; saved pairing bindings from explicitly reviewed versions 9, 10, and 11
 can rebind only after verifying the current host and completing an authenticated
 read. The shared replacement fixture and native upgrade tests cover these gates.
+
+Protocol 13 adds strict agent selection/binding and session-action contracts.
+Current clients and generated native readers retain that version gate; older
+live peers are rejected according to the current compatibility policy. The two
+host-owned usage procedures are additive within protocol 13 and keep the same
+read/operate scopes as their authenticated host routes.
 
 ### Current binding status
 

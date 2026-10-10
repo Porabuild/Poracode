@@ -629,7 +629,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "usage",
     anchor: "usage.showEstimatedCost",
     title: msg`Show estimated cost`,
-    description: msg`Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel.`,
+    description: msg`Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans.`,
     keywords: "price spending money dollars estimate billing cost",
   },
 

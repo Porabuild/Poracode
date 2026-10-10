@@ -56,29 +56,23 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 13,
         bindingFormatVersion: 2,
         generatorVersion: 4,
-        // Optional readonly workspace-grant fields change generated bindings
-        // without advertising mutation support or changing wire versions.
-        // Selection-binding integration: protocol 13 adds the strict
-        // selection/binding schemas to the wire and moves the authoritative
-        // hashes with them. The canonical schedule/PR-watch selection config
-        // and the seven persisted AI-utility selections move the IR source
-        // hash again. The seven additive media routes then regenerate
-        // both authority hashes and all native mirrors from the combined source.
-        // Provider-only conversation snapshots add one optional structural type.
-        sourceHash: "sha256:29eeb13c59db14907d271af26a312c8ac3a4adcb9e5387c0a54a3e732b57f7ee",
-        manifestHash: "sha256:af9fb32f947bef3c579459d917dd05d0ad90f8ae2240b3c1bbd920cc000544ef",
+        // Protocol13/media and the two host-owned usage procedures share one
+        // authority with optional provider-only side-chat conversation snapshots.
+        // Usage retains four roots; side chat adds one optional structural type.
+        sourceHash: "sha256:2d18b0b635b1faa7d4d875d9e03b5907d57523e1c3eeb2018eda7ae24c12a552",
+        manifestHash: "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982",
         counts: {
           routes: 95,
-          procedures: 128,
+          procedures: 130,
           voidProcedureResults: 50,
-          jsonProcedureResults: 78,
+          jsonProcedureResults: 80,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 425,
-          structuralTypes: 970,
+          schemaRoots: 429,
+          structuralTypes: 971,
           semanticValidators: 18,
-          swiftFiles: 62,
+          swiftFiles: 61,
           kotlinFiles: 53,
           stateMachines: 5,
         },
@@ -318,7 +312,17 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(425);
+        expect(adapters).toHaveLength(429);
+        expect(
+          adapters
+            .map((adapter) => adapter.id)
+            .filter((id) => /^procedure\.(getProviderUsage|refreshProviderUsage)\./.test(id)),
+        ).toEqual([
+          "procedure.getProviderUsage.request",
+          "procedure.getProviderUsage.result",
+          "procedure.refreshProviderUsage.request",
+          "procedure.refreshProviderUsage.result",
+        ]);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)

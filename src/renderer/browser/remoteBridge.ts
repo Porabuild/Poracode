@@ -297,8 +297,6 @@ const remoteBridgeOverrides = {
   // Usage panel: snapshots come from the paired desktop's supervisor cache.
   // Login state stays unknown (no remote secrets); login actions are
   // desktop-only and fall through to the rejecting proxy below.
-  getProviderUsage: () => withClient((client) => client.providerUsage()),
-  refreshProviderUsage: () => withClient((client) => client.providerUsage()),
   getUsageLoginState: () => Promise.resolve({ stored: {} }),
   refreshAgentStatuses: async (_wslDistros?: string[], _scope?: RefreshAgentScope) => {
     const statuses = await withClient((client) =>

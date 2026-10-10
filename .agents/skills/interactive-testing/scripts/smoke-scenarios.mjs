@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "remote-provider-usage",
+    title: "Host-scoped provider usage and live remote refresh",
+    patterns: [/hostUsage/i, /HostUsageSettings/, /parts\/UsageSettings/],
+    automated: ["baseline", "settings"],
+    manual: ["remote-usage"],
+  },
+  {
     id: "live-voice",
     title: "Subscription live voice, microphone ownership, WebRTC, and transcripts",
     patterns: [
@@ -267,6 +274,8 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "remote-usage":
+    "Select two isolated hosts with matching provider IDs, verify separate accounts and real host collection, then check attached Electron, viewer/auth denial, stale/offline/reconnect, and compact browser settings. Credentials must remain on each owning host.",
   "live-voice":
     "Start voice from the composer, exchange speech, mute, hang up, and verify microphone cleanup and saved transcripts.",
   "changed-surface": "Exercise the changed renderer surface through its real controls.",

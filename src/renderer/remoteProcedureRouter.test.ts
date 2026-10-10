@@ -543,6 +543,19 @@ describe("remote procedure routing registry", () => {
     });
   });
 
+  it.each(["getProviderUsage", "refreshProviderUsage"] as const)(
+    "routes %s to the attached owner with filters/force intact",
+    async (procedure) => {
+      const payload = { providerIds: ["provider:profile"], force: true };
+      await remoteResult(decide(procedure, payload));
+      expect(callRemoteProcedure).toHaveBeenCalledWith(procedure, payload);
+      expect(REMOTE_PROCEDURE_ROUTES[procedure].owner).toBe("desktop");
+      expect(REMOTE_PROCEDURE_SPECS[procedure].scope).toBe(
+        procedure === "getProviderUsage" ? "session:read" : "session:operate",
+      );
+    },
+  );
+
   it("keeps desktop-scoped procedures local when no desktop owner is attached", () => {
     registerRemoteProcedureHost({ ...host, resolveDesktopOwner: () => undefined });
     expect(decide("getSchedules", {}).kind).toBe("local");

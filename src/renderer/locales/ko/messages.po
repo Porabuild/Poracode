@@ -839,6 +839,10 @@ msgstr "병합 중단"
 msgid "About"
 msgstr "정보"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "사용량 안내"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "작성기 위"
@@ -2712,6 +2716,10 @@ msgstr "SSH ID 파일 선택"
 msgid "Choose the display language for Poracode's interface."
 msgstr "Poracode 인터페이스의 표시 언어를 선택하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Choose the host or environment whose accounts you want to view."
+msgstr "계정을 확인할 호스트 또는 환경을 선택하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
 #~ msgstr "새 Cursor GUI 채팅에 사용할 런타임을 선택하세요. SDK는 패키지가 감지되고 API 키가 인증되면 사용할 수 있습니다."
@@ -3185,7 +3193,7 @@ msgstr "Codex가 대화를 압축하지 못했습니다: {detail}"
 msgid "Collapse"
 msgstr "접기"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "{label} 접기"
 
@@ -3617,6 +3625,7 @@ msgstr "연결 중..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -3921,6 +3930,10 @@ msgstr "커밋 메시지를 생성할 수 없습니다: {detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "{0}의 풀 리퀘스트를 불러올 수 없습니다."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Could not load usage. Check the host connection and permissions, then try again."
+msgstr "사용량을 불러오지 못했습니다. 호스트 연결과 권한을 확인한 후 다시 시도하세요."
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "이 PDF를 열 수 없습니다."
@@ -4176,7 +4189,7 @@ msgid "Credentials are configured."
 msgstr "자격 증명이 구성되었습니다."
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Credits"
 msgstr "크레딧"
 
@@ -5053,6 +5066,10 @@ msgstr "표시 이름(선택 사항)"
 msgid "Display name in the sidebar."
 msgstr "사이드바에 이름을 표시합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display preferences follow this app's settings, independently of the selected usage host."
+msgstr "표시 환경설정은 선택한 사용량 호스트와 관계없이 이 앱의 설정을 따릅니다."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "왼쪽에 고정"
@@ -5629,7 +5646,7 @@ msgstr "코드 {0}(으)로 종료되었습니다. 다시 시도하려면 닫으�
 msgid "Expand"
 msgstr "펼치기"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "{label} 펼치기"
 
@@ -6756,6 +6773,14 @@ msgstr "호스트 키 불일치"
 msgid "Host key trust accepted."
 msgstr "호스트 키 신뢰가 수락되었습니다."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. No cached usage is available."
+msgstr "호스트가 오프라인입니다. 캐시된 사용량 데이터가 없습니다."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. Showing last known usage."
+msgstr "호스트가 오프라인입니다. 마지막으로 확인된 사용량을 표시합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
 msgstr "호스트 설정"
@@ -7437,6 +7462,10 @@ msgstr "마지막 평가:"
 msgid "Last tool: <0>{0}</0>"
 msgstr "마지막 도구: <0>{0}</0>"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Last updated: {fetchedAt}"
+msgstr "마지막 업데이트: {fetchedAt}"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Launch at startup"
@@ -7689,6 +7718,10 @@ msgstr "스킬 불러오는 중…"
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Loading threads"
 #~ msgstr "스레드 로드 중"
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Loading usage…"
+msgstr "사용량 불러오는 중…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Loading workflow inputs"
@@ -9413,6 +9446,10 @@ msgstr "스레드 없음"
 msgid "No threads yet."
 msgstr "아직 스레드가 없습니다."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "No usage data yet."
+msgstr "아직 사용량 데이터가 없습니다."
+
 #: src/renderer/components/providers/devin/sessionSettingsControls.tsx
 #: src/renderer/components/providers/devin/sessionSettingsSearchPicker.tsx
 #~ msgid "No value"
@@ -11051,6 +11088,7 @@ msgid "Provider presets"
 msgstr "제공자 프리셋"
 
 #. Settings section: provider usage and quota dashboard
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11404,9 +11442,14 @@ msgstr "터미널에 다시 연결하는 중…"
 #~ msgstr "데스크톱에 다시 연결 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계획에 대한 실제 청구서를 반영하지 않습니다. 사용량 패널에만 표시됩니다."
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "로컬 로그를 공개 API 요금으로 환산한 값이며, 구독 요금제의 실제 청구 금액을 반영하지 않습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계획에 대한 실제 청구서를 반영하지 않습니다. 사용량 패널에만 표시됩니다."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
@@ -11430,6 +11473,7 @@ msgstr "알림 내용 가리기"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11441,9 +11485,13 @@ msgstr "새로고침"
 msgid "Refresh {0} authentication"
 msgstr "{0} 인증 새로 고침"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Refresh {label}"
 msgstr "{label} 새로고침"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#~ msgid "Refresh {label} usage"
+#~ msgstr "{label} 사용량 새로고침"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -11858,8 +11906,8 @@ msgstr "렌더러에서 처리되지 않은 프로미스 거부가 발생했습�
 msgid "Reorder {0}"
 msgstr "{0} 재정렬"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "{label} 재정렬"
 
@@ -13155,12 +13203,12 @@ msgid "Show Bookmark Bar"
 msgstr "북마크바 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
 msgstr "사이드바에 원 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
 msgstr "사이드바에 간단한 공급자별 사용량 링을 표시합니다. 아래 목록에서 개별 공급자의 원을 숨길 수 있습니다."
 
@@ -13182,7 +13230,7 @@ msgid "Show docks in the right panel"
 msgstr "도크를 오른쪽 패널에 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "예상 비용 표시"
 
@@ -13351,6 +13399,10 @@ msgstr "보조 모델"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "로그인"
+
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
+msgstr "이 호스트에서 로그인하고 사용량 추적을 설정하세요. 자격 증명은 사용량을 수집하는 호스트에 보관됩니다."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in needed"
@@ -14885,6 +14937,14 @@ msgstr "이 컴퓨터"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This connection does not have permission to read usage."
+msgstr "이 연결에는 사용량을 읽을 권한이 없습니다."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This connection does not have permission to refresh usage."
+msgstr "이 연결에는 사용량을 새로고칠 권한이 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "이 연결은 이 장치의 호스트 소유 환경 레코드를 소유합니다. 제거하면 해당 로컬 레코드와 장치 권한도 제거됩니다. 호스트는 환경을 유지합니다."
@@ -14937,6 +14997,14 @@ msgstr "이 폴더는 이미 프로젝트로 등록되어 있습니다."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "이 폴더는 비어 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "This host"
+msgstr "이 호스트"
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This host is no longer configured."
+msgstr "이 호스트는 더 이상 구성되어 있지 않습니다."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -15896,7 +15964,7 @@ msgstr "알 수 없음"
 #~ msgstr "알 수 없는 프로젝트"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Unlimited"
 msgstr "무제한"
 
@@ -16094,6 +16162,10 @@ msgstr "작업 업데이트"
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "숨겨진 컨텍스트로 보조 채팅을 사용하려면 원격 호스트를 업데이트하세요."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Update this host to refresh usage remotely. Cached usage can still be read."
+msgstr "사용량을 원격으로 새로 고치려면 이 호스트를 업데이트하세요. 캐시된 사용량은 계속 확인할 수 있습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "{updateLabel}(으)로 업데이트"
@@ -16219,6 +16291,22 @@ msgstr "URL을 입력해야 합니다."
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
 msgstr "사용량"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Usage host"
+msgstr "사용량 호스트"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
+msgstr "사용량은 선택한 호스트에서 수집됩니다. 계정과 할당량은 호스트별로 따로 표시됩니다."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "사용량이 오래되었습니다. 새로고침하여 최신 값을 수집하세요."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "사용량이 오래되었습니다. 새로고침하세요."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

@@ -3274,6 +3274,58 @@
     ],
     "procedures": [
       {
+        "id": "getProviderUsage",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Per-host usage settings and explicit refresh are scoped to desktop and the shared browser renderer in issue #755."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Per-host usage settings and explicit refresh are scoped to desktop and the shared browser renderer in issue #755."
+          }
+        }
+      },
+      {
+        "id": "refreshProviderUsage",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Per-host usage settings and explicit refresh are scoped to desktop and the shared browser renderer in issue #755."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Per-host usage settings and explicit refresh are scoped to desktop and the shared browser renderer in issue #755."
+          }
+        }
+      },
+      {
         "id": "rollbackThreadConversation",
         "batch": "rich-chat-requests",
         "ios": {

@@ -839,6 +839,10 @@ msgstr "Birleştirmeyi İptal Et"
 msgid "About"
 msgstr "Hakkında"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "Kullanım hakkında"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "Oluşturucunun üstünde"
@@ -2712,6 +2716,10 @@ msgstr "SSH kimlik dosyasını seç"
 msgid "Choose the display language for Poracode's interface."
 msgstr "Poracode'un arayüzü için görüntüleme dilini seçin."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Choose the host or environment whose accounts you want to view."
+msgstr "Hesaplarını görüntülemek istediğiniz ana makineyi veya ortamı seçin."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
 #~ msgstr "Yeni Cursor GUI sohbetleri için çalışma zamanını seçin. SDK, paketi algılandıktan ve API anahtarı doğrulandıktan sonra kullanılabilir."
@@ -3185,7 +3193,7 @@ msgstr "Codex konuşmayı sıkıştıramadı: {detail}"
 msgid "Collapse"
 msgstr "Daralt"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "{label} daralt"
 
@@ -3617,6 +3625,7 @@ msgstr "Bağlanıyor..."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -3921,6 +3930,10 @@ msgstr "Commit mesajı oluşturulamadı: {detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "{0} için çekme istekleri yüklenemedi."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Could not load usage. Check the host connection and permissions, then try again."
+msgstr "Kullanım yüklenemedi. Ana makine bağlantısını ve izinlerini kontrol edip tekrar deneyin."
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Bu PDF açılamadı."
@@ -4176,7 +4189,7 @@ msgid "Credentials are configured."
 msgstr "Kimlik bilgileri yapılandırıldı."
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Credits"
 msgstr "Krediler"
 
@@ -5053,6 +5066,10 @@ msgstr "Görünen ad (isteğe bağlı)"
 msgid "Display name in the sidebar."
 msgstr "Kenar çubuğunda görünen ad."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display preferences follow this app's settings, independently of the selected usage host."
+msgstr "Görüntüleme tercihleri, seçilen kullanım sunucusundan bağımsız olarak bu uygulamanın ayarlarını izler."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PanelDock/BottomDockDropStrip.tsx
 msgid "Dock left"
 msgstr "Sola sabitle"
@@ -5629,7 +5646,7 @@ msgstr "{0} koduyla çıkıldı. Yeniden denemek için kapatın."
 msgid "Expand"
 msgstr "Genişlet"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "{label} genişlet"
 
@@ -6756,6 +6773,14 @@ msgstr "Ana makine anahtarı uyuşmuyor"
 msgid "Host key trust accepted."
 msgstr "Ana makine anahtarı güveni kabul edildi."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. No cached usage is available."
+msgstr "Sunucu çevrimdışı. Önbelleğe alınmış kullanım verisi yok."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Host offline. Showing last known usage."
+msgstr "Ana makine çevrimdışı. Bilinen son kullanım gösteriliyor."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
 msgstr "Ana makine ayarları"
@@ -7437,6 +7462,10 @@ msgstr "Son değerlendirme:"
 msgid "Last tool: <0>{0}</0>"
 msgstr "Son araç: <0>{0}</0>"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Last updated: {fetchedAt}"
+msgstr "Son güncelleme: {fetchedAt}"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Launch at startup"
@@ -7689,6 +7718,10 @@ msgstr "Beceriler yükleniyor…"
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Loading threads"
 #~ msgstr "İş parçacıkları yükleniyor"
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Loading usage…"
+msgstr "Kullanım yükleniyor…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Loading workflow inputs"
@@ -9413,6 +9446,10 @@ msgstr "Konu yok"
 msgid "No threads yet."
 msgstr "Henüz konuşma yok."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "No usage data yet."
+msgstr "Henüz kullanım verisi yok."
+
 #: src/renderer/components/providers/devin/sessionSettingsControls.tsx
 #: src/renderer/components/providers/devin/sessionSettingsSearchPicker.tsx
 #~ msgid "No value"
@@ -11051,6 +11088,7 @@ msgid "Provider presets"
 msgstr "Sağlayıcı hazır ayarları"
 
 #. Settings section: provider usage and quota dashboard
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11404,9 +11442,14 @@ msgstr "Terminale yeniden bağlanılıyor…"
 #~ msgstr "Masaüstünüze yeniden bağlanılıyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
-msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; abonelik planlarındaki gerçek faturanızı yansıtmaz. Yalnızca kullanım panelinde gösterilir."
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans."
+msgstr "Yerel günlüklerden herkese açık API ücretleriyle hesaplanır; abonelik planlarındaki gerçek faturanızı yansıtmaz."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+#~ msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; abonelik planlarındaki gerçek faturanızı yansıtmaz. Yalnızca kullanım panelinde gösterilir."
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
@@ -11430,6 +11473,7 @@ msgstr "Bildirim içeriğini gizle"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -11441,9 +11485,13 @@ msgstr "Yenile"
 msgid "Refresh {0} authentication"
 msgstr "{0} kimlik doğrulamasını yenile"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Refresh {label}"
 msgstr "{label} sağlayıcısını yenile"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+#~ msgid "Refresh {label} usage"
+#~ msgstr "{label} kullanımını yenile"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -11858,8 +11906,8 @@ msgstr "Oluşturucu işlenmeyen bir promise reddiyle karşılaştı"
 msgid "Reorder {0}"
 msgstr "{0} öğesini yeniden sırala"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "{label} öğesini yeniden sırala"
 
@@ -13155,12 +13203,12 @@ msgid "Show Bookmark Bar"
 msgstr "Yer İşareti Çubuğunu Göster"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show circles in sidebar"
 msgstr "Kenar çubuğunda daireleri göster"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
 msgstr "Kenar çubuğunda sağlayıcı başına kompakt kullanım halkaları gösterin. Aşağıdaki listeden tek tek sağlayıcıların dairelerini gizleyin."
 
@@ -13182,7 +13230,7 @@ msgid "Show docks in the right panel"
 msgstr "Panoları sağ panelde göster"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Tahmini maliyeti göster"
 
@@ -13351,6 +13399,10 @@ msgstr "Yardımcı model"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "Oturum aç"
+
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
+msgstr "Bu ana makinede oturum açın ve kullanım takibini yapılandırın. Kimlik bilgileri, kullanımı toplayan ana makinede kalır."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in needed"
@@ -14885,6 +14937,14 @@ msgstr "Bu bilgisayar"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Bu bağlantı projeleri görüntüleyebilir ancak yönetemez. Etkinleştirmek için yeniden eşleştirin."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This connection does not have permission to read usage."
+msgstr "Bu bağlantının kullanımı okuma izni yok."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This connection does not have permission to refresh usage."
+msgstr "Bu bağlantının kullanımı yenileme izni yok."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "Bu bağlantı, bu cihazdaki ana makineye ait ortam kayıtlarının sahibidir. Kaldırılması bu yerel kayıtları ve cihaz izinlerini de kaldırır. Ana makine ortamlarını korur."
@@ -14937,6 +14997,14 @@ msgstr "Bu klasör zaten bir proje olarak kayıtlı."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "Bu klasör boş."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "This host"
+msgstr "Bu ana makine"
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "This host is no longer configured."
+msgstr "Bu ana makine artık yapılandırılmamış."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -15896,7 +15964,7 @@ msgstr "Bilinmiyor"
 #~ msgstr "Bilinmeyen proje"
 
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Unlimited"
 msgstr "Sınırsız"
 
@@ -16094,6 +16162,10 @@ msgstr "Görevi güncelle"
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Gizli bağlamla yan sohbet kullanmak için uzak ana bilgisayarı güncelleyin."
 
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Update this host to refresh usage remotely. Cached usage can still be read."
+msgstr "Kullanımı uzaktan yenilemek için bu sunucuyu güncelleyin. Önbelleğe alınmış kullanım verileri hâlâ okunabilir."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "{updateLabel} sürümüne güncelle"
@@ -16219,6 +16291,22 @@ msgstr "URL gereklidir."
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
 msgstr "Kullanım"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Usage host"
+msgstr "Kullanım ana makinesi"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
+msgstr "Kullanım, seçilen ana makinede toplanır. Hesaplar ve kotalar her ana makine için ayrı gösterilir."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "Kullanım verileri eski. En güncel değerleri toplamak için yenileyin."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "Kullanım verileri eski. Yenileyerek güncelleyin."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
