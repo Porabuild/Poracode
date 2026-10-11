@@ -572,6 +572,9 @@ describe("principal fairness: aggregate queued output", () => {
     const aliceWs = await openReadyWs(info, alice.accessToken);
     const bobWs = await openReadyWs(info, bob.accessToken);
 
+    const host = server as unknown as RemoteAccessServerHost;
+    const bobSessionId = host.clients.get(serverSocketsFor(server, "bob")[0]!)!.sessionId;
+
     // Alice stops reading; the server-side queue for her socket grows.
     const aliceClientSocket = (
       aliceWs.ws as unknown as { _socket: { pause(): void; resume(): void } }
@@ -592,7 +595,9 @@ describe("principal fairness: aggregate queued output", () => {
       // alone lets CPU contention freeze both peers and invalidates the
       // test's healthy-versus-frozen comparison.
       await expect(bobWs.next()).resolves.toMatchObject({ type: "event" });
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      // Receiving a frame can precede the server's send callback. Wait for
+      // its actual reservation release before declaring this peer drained.
+      await waitFor(() => host.principalAdmission.outboundQueuedBytes(bobSessionId) === 0);
     }
 
     // Alice's socket was evicted by the crossing send, and the advertised
