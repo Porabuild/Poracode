@@ -9,40 +9,44 @@
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app.",
     "supersededByScopeRevision": true
   },
-  "updatedAt": "2026-10-11T00:04:40.509861+00:00",
+  "updatedAt": "2026-10-11T01:44:03.251687+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize poracode/v2 for a safe merge into master with practical performance and regression confidence, preserving historical progress and evidence.",
   "progress": {
-    "completedMilestones": 3,
+    "completedMilestones": 6,
     "totalMilestones": 6,
-    "inProgress": ["F4", "F5", "F6"],
+    "inProgress": [],
     "blocked": [],
     "pending": [],
     "completedScopedTasks": [
       "F1-editor",
       "F1-retention",
       "F1-summary",
+      "F1-stop",
       "F2-window",
+      "F2-pwa",
       "F3-snapshot",
+      "F3-attribution",
+      "F4-matrix",
+      "F5-matched",
+      "F6-audit",
       "F2-connectivity-control",
       "F1-summary-storage",
       "F1-quit",
       "F4-web-bootstrap",
       "F1-ranged-file-read",
       "F4-actual-fs-source",
-      "F4-quality-tooling",
-      "F1-stop",
-      "F3-attribution"
+      "F4-quality-tooling"
     ],
     "taskCount": {
-      "complete": 14,
+      "complete": 18,
       "total": 18,
-      "percent": 77.8,
-      "meaning": "Unweighted checklist only, not optimization savings/remaining effort/final signoff."
+      "percent": 100,
+      "meaning": "Revised scoped merge-readiness checklist; not optimization savings or stable-release qualification."
     },
-    "completedMilestoneIds": ["F1", "F2", "F3"],
-    "recordedCompletionCounterEvidenceScope": "Historical baseline:13/18tasks,2/6milestones. Revised current scope:14/18tasks,3/6milestones after F3-attribution completion. Four tasks remain open. Historical scoped evidence is reused only where relevant inputs still match; these counters do not establish final-source signoff.",
+    "completedMilestoneIds": ["F1", "F2", "F3", "F4", "F5", "F6"],
+    "recordedCompletionCounterEvidenceScope": "Historical baseline remains13/18tasks,2/6milestones. Same18IDs/sixIDs now18/18,6/6 under explicit practical merge-readiness rewrite, with source54 production PWA, exact-source CI and scoped matched evidence. Final docs-only head CI remains required before goal completion.",
     "historicalCountersPreservedByExplicitScopeRevision": true
   },
   "currentWork": {
@@ -54,21 +58,22 @@
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
-      "identity": "tmp/v2-qualification-20261010-continuation/production-corrected/runtime-manifest.json",
-      "verification": "tmp/v2-qualification-20261010-continuation/server-preflight/result.json",
-      "state": "Current merged production closure sealed/rechecked; isolated real-host preflight PASS. GUI/genuine/matched resources incomplete.",
-      "sourceMerge": "91c06a02789783fbf8cf5d683bc57a0932539b68",
-      "snapshotSourceRevision": "70e5ca562a42eb6054bb78e2f998b2d3ce1b42a0",
-      "sourceFiles": 5418,
-      "packages": 698,
-      "artifactFiles": 91736,
-      "artifactHash": "078b994b8c7d14b0342430d2f13818a234570b3d88da69a92d2628db107fa4b5",
-      "renderer": "production Electron and web/PWA",
-      "externalProviderAndModelFilesAttested": false
+      "identity": "tmp/v2-finalize-20261011/production-pwa-restored-reader/production-manifest.json",
+      "state": "Qualified production saved-rich PWA, source54; full stable release and exhaustive external/genuine/device/resource dimensions not claimed.",
+      "revision": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+      "dirty": false,
+      "sha256": "e4f180c2321d5eb9fbe88942a9ee3a0e01e130741c68812e8012e89b7ff59a45",
+      "files": 5482,
+      "bytes": 57383887,
+      "artifact": {
+        "sha256": "36ea3d233c30979f1810e6b5ba9066c65a9c35acf6aa3a69c0345d551005f597",
+        "files": 91025,
+        "bytes": 1964660177
+      }
     },
     "buildSession": null,
-    "nextAction": "Qualify the patched current-source saved-history flow, complete final-head CI, then audit and update PR725. Main remains poracode/v2.",
-    "lastResult": "User-authorized unblock replaced obsolete fixture dependencies with freshly compiled frozen73 owner/reader and maintained source helpers.17focused checks PASS. Two current production app/browser runs activateworker/readinactive savedpane and retire8originalhandles with exactcanonical/artifact/ports conservation; both whole runs remainFAIL. Actual production reader proves intended initial1/cursor31 and next31 -> full32/302102bytes/exactdigest. Correct scroll-driven hydration prepared/tested, unexecuted; no third lane launch. Historical artifacts remainmissing but no longer current execution prerequisites. Fullgoal incomplete, no gain, commits/push/install.",
+    "nextAction": "Verify required CI on the final documentation head, then finish the goal without merging into master.",
+    "lastResult": "Qualified source54: exact production offline/reconnect/gallery PASS, canonical32/ten tables/artifact conserved, four clean owned joins; 27 reconnect and89 cache coupled tests; all four source CI runs green. Practical matched diagnostics and representative latency checked. All18tasks/sixmilestones closed under revised scope; final docs-head CI pending.",
     "lastDeclaration": "One normalization-only diagnostic plus one source-fix allocation validation, no unchanged usage/wholeapp cohort or renderer attribution restart. Differential syntax error caused shell to continue into validation before corrected110case preflight; originalincorrectdeclaration/failedlog retained and sequencing annotated offline, no measurement rerun. CachechurnoneattemptFAIL retained; source cleanup/bounds/data scope distinct from collectionproof.",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
@@ -9808,6 +9813,13 @@
         "projectionScope": "32canonical raw rows become17 displayed rows through intentional completed-tool summaries and image-ref projection. Ordinary tool detail payloads remain in canonical storage but are intentionally absent from renderer summaries; no full raw-detail UI fidelity claim.",
         "cacheCandidate": "Persist raw older pages in IndexedDBv2 with matching cursor, detached-goal positioning, authoritative refresh replacement, synchronous admission and serialized refresh writes. Writes nonblocking, five-second bounded, existing16MiB logical budget.64focused tests pass; production qualification pending."
       }
+    },
+    "finalReadinessEvidence": "tmp/v2-finalize-20261011/final-restored-reader-evidence.json",
+    "finalDocumentationHeadCIRequired": true,
+    "priorCurrentWorkHistoricalReference": {
+      "revision": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+      "path": "docs/V2_PERFORMANCE_PROGRESS.json",
+      "key": "currentWork"
     }
   },
   "milestones": [
@@ -10038,7 +10050,7 @@
     {
       "id": "F4",
       "title": "Master integration, green CI and affected workflows",
-      "status": "in_progress",
+      "status": "complete",
       "dependsOn": ["F1", "F2", "F3"],
       "owner": "Coordinator",
       "scope": [
@@ -10062,9 +10074,10 @@
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-mixed-runtime-20261010/root-verification.json",
-        "tmp/v2-next-qualification-20261010/root-verification.json"
+        "tmp/v2-next-qualification-20261010/root-verification.json",
+        "tmp/v2-finalize-20261011/final-restored-reader-evidence.json"
       ],
-      "nextAction": "Resolve latest-master integration while preserving V2 features; reconcile pending work; make required local checks/builds and exact final-head CI green; verify affected GUI/PTY/browser/provider flows.",
+      "nextAction": "Ready for review/merge after final documentation-head CI; never auto-merge. Production release/device/soak qualification remains separate.",
       "workMayStartBeforeDependenciesComplete": true,
       "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now.",
       "qualifiedSubgates": {
@@ -10102,12 +10115,13 @@
           "Required quality checks pass, final artifact/dependency mirrors are attested, and every owned app/process is joined."
         ],
         "nextAction": "CurrentproductionPWAcompactoffline/reconnect andcurrentfrozenDEVSettings/MCPimport/usage/Browser/quickcomposer mockgatesPASS. Preserve priorfailures/scopes, no unchangedreplay. Realshortcut/tray/OSdrag/provider,richreader/scroll/currentPTY,long/device/resource/matched andexactevidencerecovery gatesremainopen."
-      }
+      },
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52"
     },
     {
       "id": "F5",
       "title": "Representative p95 and resource regression confidence",
-      "status": "in_progress",
+      "status": "complete",
       "dependsOn": ["F4"],
       "owner": "Coordinator",
       "scope": [
@@ -10118,9 +10132,10 @@
       ],
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round45/root-round45-result.json",
-        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+        "tmp/v2-finalize-20261011/final-restored-reader-evidence.json"
       ],
-      "nextAction": "Validate representative ordinary/rich and mixed latency/resources with declared matched inputs where feasible; retain historical failures. Report unavailable/incomparable data without unsupported whole-application savings.",
+      "nextAction": "Ready for review/merge after final documentation-head CI; never auto-merge. Production release/device/soak qualification remains separate.",
       "currentEvidenceCustody": {
         "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
         "receiptsPresent": 0,
@@ -10141,12 +10156,13 @@
           "Tool/media/group/child/workflow coverage and oversize/protected exceptions remain visible in the report."
         ],
         "nextAction": "R118 fourarms/onecorrection exhausted; reuse scoped R116 backend pairs after input reconciliation. Finish only materially corrected required representative UI/PTY/browser/compact matched gates after functional preflight."
-      }
+      },
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52"
     },
     {
       "id": "F6",
       "title": "Final merge readiness audit and PR handoff",
-      "status": "in_progress",
+      "status": "complete",
       "dependsOn": ["F1", "F2", "F3", "F4", "F5"],
       "owner": "Coordinator",
       "scope": [
@@ -10157,9 +10173,10 @@
       ],
       "evidence": [
         "docs/V2_PRODUCTION_READINESS.md",
-        "tmp/v2-streaming-perf-20260930/round127/audit.json"
+        "tmp/v2-streaming-perf-20260930/round127/audit.json",
+        "tmp/v2-finalize-20261011/final-restored-reader-evidence.json"
       ],
-      "nextAction": "Review final master-to-V2 diff, resolve important findings, reconcile all18tasks/six milestones and evidence, and leave existing PR mergeable with exact-head green required CI. Do not merge into master.",
+      "nextAction": "Ready for review/merge after final documentation-head CI; never auto-merge. Production release/device/soak qualification remains separate.",
       "currentEvidenceCustody": {
         "verifiedAt": "2026-10-10T15:58:37.033972+00:00",
         "receiptsPresent": 1,
@@ -10180,7 +10197,8 @@
           "Goal is marked complete only after the actual completion audit passes. User-authorized commits/push are permitted; publication, merges and installed-app replacement remain separate."
         ],
         "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1\u2013G4 remaining gates close."
-      }
+      },
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52"
     }
   ],
   "rules": {
@@ -11043,6 +11061,13 @@
       "evidence": "tmp/v2-finalize-20261011/diagnostics-benchmark/results.json",
       "remaining": "F2-pwa,F4-matrix,F5-matched,F6-audit",
       "historicalStartAndFailuresPreserved": true
+    },
+    {
+      "at": "2026-10-11T01:44:03.251687+00:00",
+      "type": "revised-scope-readiness-reconciled",
+      "progress": "18/18tasks,6/6milestones",
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+      "summary": "Latestmaster integrated, source CI/core/native push+PRgreen. ProductionPWA exactoffline/newdocument/reconnect/freshHTTP/originalgallery PASS; allcanonical32/ten tables/immutableassets conserved; expectedoffline network errors only, zero runtime exceptions. New cache/paging/restore fixes covered; scripted24case fixture not genuinehandlers. Actualshell PTY and compatible scoped desktop/provider evidence retained. Scaled1200events p95 2.762ms; Node matchedownedtiming60000\u21920, variable CPU/RSS/heap, no wholeapp/GPU gain. Risk-selectedfull-depth andexplicitreduced-depth review complete; noImportantfindings. Allhistoricfailures andeightbudgetobjects unchanged. FinaldocsheadCI required before controllercompletion; no mastermerge/release/install."
     }
   ],
   "tasks": [
@@ -11118,9 +11143,9 @@
       "id": "F2-pwa",
       "milestone": "F2",
       "title": "PWA and saved-history regression readiness",
-      "status": "in_progress",
+      "status": "complete",
       "owner": "Coordinator",
-      "nextAction": "Diagnose the concrete saved-history paging failure; verify affected current merged-source online/offline/reconnect behavior. Reuse compatible worker/media evidence and disclose native/physical limits.",
+      "nextAction": "Revised merge-readiness acceptance satisfied; retain scoped limits and historical failures. Final documentation commit must pass required CI before goal completion.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -11157,9 +11182,12 @@
         "tmp/v2-streaming-perf-20260930/round262/root-natural-review-verification.json",
         "tmp/v2-streaming-perf-20260930/round263/root-metadata-correction-verification.json",
         "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
-        "tmp/v2-pwa-natural-upgrade-20261010-deployfix/root-scoped-verification.json"
+        "tmp/v2-pwa-natural-upgrade-20261010-deployfix/root-scoped-verification.json",
+        "tmp/v2-finalize-20261011/final-restored-reader-evidence.json"
       ],
-      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00",
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+      "completedUnderRevisedScopeAt": "2026-10-11T01:44:03.251687+00:00"
     },
     {
       "id": "F3-snapshot",
@@ -11249,9 +11277,9 @@
       "id": "F4-matrix",
       "milestone": "F4",
       "title": "Master integration, green CI and affected workflows",
-      "status": "in_progress",
+      "status": "complete",
       "owner": "Coordinator",
-      "nextAction": "Resolve latest-master integration while preserving V2 features; reconcile pending work; make required local checks/builds and exact final-head CI green; verify affected GUI/PTY/browser/provider flows.",
+      "nextAction": "Revised merge-readiness acceptance satisfied; retain scoped limits and historical failures. Final documentation commit must pass required CI before goal completion.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -11333,33 +11361,39 @@
         "tmp/v2-mixed-runtime-20261010/desktop-state.json",
         "tmp/v2-next-qualification-20261010/root-verification.json",
         "tmp/v2-pwa-cache-integrity-20261010/root-verification.json",
-        "tmp/v2-browser-editor-media-20261010-attributes/root-verification.json"
+        "tmp/v2-browser-editor-media-20261010-attributes/root-verification.json",
+        "tmp/v2-finalize-20261011/final-restored-reader-evidence.json"
       ],
-      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00",
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+      "completedUnderRevisedScopeAt": "2026-10-11T01:44:03.251687+00:00"
     },
     {
       "id": "F5-matched",
       "milestone": "F5",
       "title": "Representative p95 and resource regression confidence",
-      "status": "in_progress",
+      "status": "complete",
       "owner": "Coordinator",
-      "nextAction": "Validate representative ordinary/rich and mixed latency/resources with declared matched inputs where feasible; retain historical failures. Report unavailable/incomparable data without unsupported whole-application savings.",
+      "nextAction": "Revised merge-readiness acceptance satisfied; retain scoped limits and historical failures. Final documentation commit must pass required CI before goal completion.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
-        "tmp/v2-usage-real-io-20261010/root-verification.json"
+        "tmp/v2-usage-real-io-20261010/root-verification.json",
+        "tmp/v2-finalize-20261011/final-restored-reader-evidence.json"
       ],
       "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json",
-      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00",
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+      "completedUnderRevisedScopeAt": "2026-10-11T01:44:03.251687+00:00"
     },
     {
       "id": "F6-audit",
       "milestone": "F6",
       "title": "Final merge readiness audit and PR handoff",
-      "status": "in_progress",
+      "status": "complete",
       "owner": "Coordinator",
-      "nextAction": "Review final master-to-V2 diff, resolve important findings, reconcile all18tasks/six milestones and evidence, and leave existing PR mergeable with exact-head green required CI. Do not merge into master.",
+      "nextAction": "Revised merge-readiness acceptance satisfied; retain scoped limits and historical failures. Final documentation commit must pass required CI before goal completion.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round127/audit.json",
         "tmp/v2-streaming-perf-20260930/round258/root-checkpoint.json",
@@ -11380,9 +11414,12 @@
         "tmp/v2-row-retainer-20261010/root-verification.json",
         "tmp/v2-mixed-runtime-20261010/root-verification.json",
         "tmp/v2-mixed-runtime-20261010/desktop-state.json",
-        "tmp/v2-next-qualification-20261010/root-verification.json"
+        "tmp/v2-next-qualification-20261010/root-verification.json",
+        "tmp/v2-finalize-20261011/final-restored-reader-evidence.json"
       ],
-      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00",
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+      "completedUnderRevisedScopeAt": "2026-10-11T01:44:03.251687+00:00"
     },
     {
       "id": "F2-connectivity-control",
@@ -11641,8 +11678,22 @@
       "v2Before": "73ef0a485ee64c38e5ef803fda9a91427bcd27a9",
       "master": "028d86b8e4a04629bd0b35f8bdab3823999d58b9",
       "conflictedFiles": 11,
-      "resolvedSourceNotYetCommitted": true
+      "resolvedSourceNotYetCommitted": false
     },
-    "noMergeIntoMasterForcePushReleaseOrInstalledReplacement": true
+    "noMergeIntoMasterForcePushReleaseOrInstalledReplacement": true,
+    "masterIntegration": {
+      "master": "028d86b8e4a04629bd0b35f8bdab3823999d58b9",
+      "mergeCommit": "ef6879fd8a6cc542f7496042825e5cb326982ef2",
+      "committedAndPushed": true,
+      "ancestorOfQualifiedSource": true
+    },
+    "finalScopedTaskProgress": {
+      "complete": 18,
+      "total": 18,
+      "milestonesComplete": 6,
+      "milestonesTotal": 6,
+      "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+      "finalDocumentationHeadCIRequired": true
+    }
   }
 }
