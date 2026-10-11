@@ -45,7 +45,8 @@ import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import { useTimelineMeasurements } from "./useTimelineMeasurements";
-import { createUnderfilledHistoryTrigger, type HistoryStartReached } from "./underfilledHistory";
+import { type HistoryStartReached } from "./underfilledHistory";
+import { useUnderfilledHistory } from "./useUnderfilledHistory";
 import {
   useVirtualRowMeasurement,
   type RemeasureVirtualRow,
@@ -162,40 +163,14 @@ export function MessageList({
   const onContentHeightNotification = onContentHeightChange ?? parentActions?.onContentHeightChange;
   const listRef = useRef<LegendListRef | null>(null);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
-  const underfilledHistoryRef = useRef<ReturnType<typeof createUnderfilledHistoryTrigger> | null>(
-    null,
-  );
-  if (underfilledHistoryRef.current === null) {
-    underfilledHistoryRef.current = createUnderfilledHistoryTrigger();
-  }
-  function notifyContentHeight() {
-    onContentHeightNotification?.();
-    underfilledHistoryRef.current?.measure({
+  const { notifyContentHeight, retryUnderfilledHistory, resetUnderfilledHistory } =
+    useUnderfilledHistory({
       threadId,
-      oldestEntryId: entries[0]?.id,
-      scroller: scrollElementRef.current,
+      oldestVisibleEntryId: entries[0]?.id,
+      scrollElementRef,
       onStartReached,
+      onContentHeightChange: onContentHeightNotification,
     });
-  }
-  function retryUnderfilledHistory(event: {
-    defaultPrevented: boolean;
-    target: EventTarget | null;
-  }) {
-    if (
-      event.defaultPrevented ||
-      (event.target instanceof Element &&
-        event.target.closest(
-          "button, input, textarea, select, [role='button'], [contenteditable]:not([contenteditable='false'])",
-        ))
-    )
-      return;
-    underfilledHistoryRef.current?.retry({
-      threadId,
-      oldestEntryId: entries[0]?.id,
-      scroller: scrollElementRef.current,
-      onStartReached,
-    });
-  }
   const entriesRef = useRef(entries);
   useLayoutEffect(() => {
     entriesRef.current = entries;
@@ -231,7 +206,7 @@ export function MessageList({
         snapshotMeasurements(previousInstance, previousScrollElement);
       }
       listRef.current = instance;
-      if (!instance) underfilledHistoryRef.current?.reset();
+      if (!instance) resetUnderfilledHistory();
       const scrollElement = instance?.getScrollableNode() as HTMLDivElement | undefined;
       const contentElement = scrollElement?.querySelector<HTMLDivElement>(
         ".legend-list-content-container",
@@ -245,7 +220,7 @@ export function MessageList({
       if (scrollContentRef) scrollContentRef.current = contentElement ?? null;
       setScrollContainer?.(scrollElement ?? null);
     },
-    [scrollContentRef, setScrollContainer, snapshotMeasurements],
+    [scrollContentRef, setScrollContainer, snapshotMeasurements, resetUnderfilledHistory],
   );
 
   useLayoutEffect(() => {
