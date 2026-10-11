@@ -15,7 +15,7 @@
   "tables": {
     "projects": [
       {
-        "id": "smoke-project",
+        "id": "18200000-0000-4000-8000-000000000001",
         "name": "1.8.2 upgrade fixture",
         "location_kind": "posix",
         "location_path": "/poracode-upgrade-fixture/project",
@@ -37,8 +37,8 @@
     ],
     "threads": [
       {
-        "id": "upgrade-gui-thread",
-        "project_id": "smoke-project",
+        "id": "18200000-0000-4000-8000-000000000002",
+        "project_id": "18200000-0000-4000-8000-000000000001",
         "title": "gui saved 1.8.2 history",
         "agent_kind": "codex",
         "config": "{\"model\":\"gpt-5\",\"effort\":\"high\",\"fast\":false,\"thinking\":false,\"contextSize\":\"default\"}",
@@ -70,8 +70,8 @@
         "workspace_id": null
       },
       {
-        "id": "upgrade-terminal-thread",
-        "project_id": "smoke-project",
+        "id": "18200000-0000-4000-8000-000000000003",
+        "project_id": "18200000-0000-4000-8000-000000000001",
         "title": "terminal saved 1.8.2 history",
         "agent_kind": "codex",
         "config": "{\"model\":\"gpt-5\",\"effort\":\"high\",\"fast\":false,\"thinking\":false,\"contextSize\":\"default\"}",
@@ -110,7 +110,7 @@
       },
       {
         "key": "view",
-        "value": "{\"kind\":\"draft\",\"projectId\":\"smoke-project\"}"
+        "value": "{\"kind\":\"draft\",\"projectId\":\"18200000-0000-4000-8000-000000000001\"}"
       },
       {
         "key": "groupLayouts",
@@ -123,7 +123,7 @@
     ],
     "project_notes": [
       {
-        "project_id": "smoke-project",
+        "project_id": "18200000-0000-4000-8000-000000000001",
         "doc": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"old body\"}]}]}",
         "todos": "[]",
         "updated_at": "2026-10-12T00:00:00.000Z"
@@ -131,14 +131,14 @@
     ],
     "scheduled_tasks": [
       {
-        "id": "old-schedule",
+        "id": "18200000-0000-4000-8000-000000000004",
         "name": "Disabled old task",
         "prompt": "Never run this fixture",
         "agent_kind": "codex",
         "config": "{\"model\":\"gpt-5\",\"effort\":\"high\",\"fast\":false,\"thinking\":false,\"contextSize\":\"default\"}",
         "recurrence": "{\"kind\":\"weekly\",\"days\":[1,3],\"time\":\"12:00\"}",
         "enabled": 0,
-        "project_id": "smoke-project",
+        "project_id": "18200000-0000-4000-8000-000000000001",
         "next_run_at": null,
         "last_run_at": null,
         "last_completed_at": null,
@@ -151,7 +151,7 @@
     ],
     "remote_command_receipts": [
       {
-        "command_id": "old-interrupted-receipt",
+        "command_id": "18200000-0000-4000-8000-000000000005",
         "route": "fixture-read",
         "state": "in_progress",
         "response": null,
@@ -161,7 +161,7 @@
     ],
     "thread_completed_turns": [
       {
-        "thread_id": "upgrade-gui-thread",
+        "thread_id": "18200000-0000-4000-8000-000000000002",
         "idx": 0,
         "started_at": "2026-10-12T00:00:00.000Z",
         "ended_at": "2026-10-12T00:00:00.000Z",

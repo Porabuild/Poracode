@@ -14,6 +14,8 @@ import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { closeDatabase, initDatabase } from "@/host/db/connection";
 import { dbGetThreadRuntimeItems } from "@/host/db/runtimeItems";
+import { dbGetSchedules } from "@/host/db/schedules";
+import { scheduledTaskSchema } from "@/shared/contracts/schedule";
 import { HostOwnerLease } from "./hostOwnerLease";
 import { resolveDesktopHostRootPaths } from "./hostRootPaths";
 import { ensureDesktopOwnedRoot } from "./promoteDesktopRoot";
@@ -85,6 +87,8 @@ it("promotes the actual released schema42 and preserves history through schema57
     });
     expect(db.pragma("integrity_check")).toEqual([{ integrity_check: "ok" }]);
     expect(db.pragma("foreign_key_check")).toEqual([]);
+    // Startup returns schedules through this schema even when disabled.
+    expect(dbGetSchedules().map((task) => scheduledTaskSchema.parse(task))).toHaveLength(1);
     for (const table of [
       "projects",
       "threads",
@@ -106,7 +110,7 @@ it("promotes the actual released schema42 and preserves history through schema57
     )) {
       expect(db.prepare("SELECT key,value FROM app_state WHERE key=?").get(row.key)).toEqual(row);
     }
-    const runtime = await dbGetThreadRuntimeItems("upgrade-gui-thread");
+    const runtime = await dbGetThreadRuntimeItems("18200000-0000-4000-8000-000000000002");
     for (const row of expected.runtime) {
       expect(runtime.find((item) => item.id === row.id)).toMatchObject(row);
     }
@@ -114,7 +118,7 @@ it("promotes the actual released schema42 and preserves history through schema57
     expect(
       db
         .prepare(
-          "SELECT state FROM remote_command_receipts WHERE command_id='old-interrupted-receipt'",
+          "SELECT state FROM remote_command_receipts WHERE command_id='18200000-0000-4000-8000-000000000005'",
         )
         .get(),
     ).toEqual({ state: "uncertain" });
