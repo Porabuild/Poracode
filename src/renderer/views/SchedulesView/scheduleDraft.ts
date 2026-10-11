@@ -1,3 +1,4 @@
+import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import type { AgentStatus, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
 
 export type RepeatMode = "hourly" | "daily" | "weekdays" | "weekly" | "custom" | "once";
@@ -36,15 +37,12 @@ export function weekdayShortNames(locale: string): string[] {
 
 export function newScheduleDraft(agent: AgentStatus | undefined): ScheduleDraft {
   const model = agent?.capabilities.models[0]?.id ?? "";
-  const efforts = model
-    ? (agent?.capabilities.modelEfforts[model] ?? agent?.capabilities.efforts)
-    : [];
   return {
     name: "",
     prompt: "",
     agentKind: agent?.kind ?? "",
     model,
-    effort: agent?.capabilities.defaultEffort ?? efforts?.[0] ?? "",
+    effort: agent ? resolvePreferredEffort(agent.capabilities, model) : "",
     fast: false,
     enabled: true,
     projectId: null,

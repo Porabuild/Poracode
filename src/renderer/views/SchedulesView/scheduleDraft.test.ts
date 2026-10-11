@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ScheduledTask } from "@/shared/contracts";
+import type { AgentStatus, ScheduledTask } from "@/shared/contracts";
 import { newScheduleDraft, scheduleDraftInput, taskScheduleDraft } from "./scheduleDraft";
 
 const baseTask: ScheduledTask = {
@@ -21,6 +21,19 @@ const baseTask: ScheduledTask = {
 };
 
 describe("scheduleDraft projectId", () => {
+  it("defaults new schedules to the model's highest supported effort", () => {
+    const agent = {
+      kind: "test",
+      capabilities: {
+        models: [{ id: "model-a", label: "Model A" }],
+        efforts: ["low", "high"],
+        modelEfforts: { "model-a": ["low", "high", "max"] },
+        defaultEffort: "low",
+      },
+    } as unknown as AgentStatus;
+    expect(newScheduleDraft(agent).effort).toBe("max");
+  });
+
   it("defaults new drafts to the Home scope (null)", () => {
     expect(newScheduleDraft(undefined).projectId).toBeNull();
     expect(scheduleDraftInput(newScheduleDraft(undefined)).projectId).toBeNull();

@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from "react";
 import { StructuredCustomValues } from "./StructuredCustomValues";
+import { QuestionOptionRow } from "./parts/QuestionOptionRow";
 import { Button, Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
@@ -366,22 +367,29 @@ export function StructuredElicitationForm(props: {
                     ) : null}
                   </div>
                 ) : enumOpts.length > 0 && !property.allowCustom ? (
-                  <select
+                  <div
+                    role="listbox"
                     aria-label={label}
-                    aria-invalid={invalid}
                     aria-describedby={errorId}
-                    disabled={isDisabled}
-                    value={String(formValues[key] ?? "")}
-                    onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
-                    className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
+                    aria-invalid={invalid}
+                    className="space-y-0.5"
                   >
-                    <option value="">—</option>
-                    {enumOpts.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
+                    {enumOpts.map((option, index) => (
+                      <QuestionOptionRow
+                        key={option.id}
+                        index={index}
+                        option={{ optionId: option.id, label: option.label }}
+                        isDisabled={isDisabled}
+                        selected={formValues[key] === option.id}
+                        onClick={() =>
+                          setFormValues((cur) => ({
+                            ...cur,
+                            [key]: !isRequired && cur[key] === option.id ? "" : option.id,
+                          }))
+                        }
+                      />
                     ))}
-                  </select>
+                  </div>
                 ) : (
                   <>
                     <datalist id={`${formId}-${key}`}>
