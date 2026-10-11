@@ -32,18 +32,22 @@ export function SortableFavoriteModelRow(
   props: ModelMenuRowProps & { index: number; group: string },
 ) {
   const { t } = useLingui();
+  const canReorder = props.index >= 0;
   const { ref, handleRef, isDragging } = useSortable({
     id: props.item.id,
-    index: props.index,
+    index: canReorder ? props.index : 0,
+    disabled: !canReorder,
     type: "favorite-model",
     accept: "favorite-model",
-    group: props.group,
+    ...(canReorder ? { group: props.group } : {}),
   });
   return (
     <ModelMenuRow
       {...props}
       rowRef={ref}
       isDragging={isDragging}
+      // Keep the disabled handle mounted: otherwise DnD annotates the row
+      // itself as disabled, even though its model remains selectable.
       dragHandle={
         <Button
           ref={(element) => {
@@ -53,9 +57,11 @@ export function SortableFavoriteModelRow(
             handleRef(element);
           }}
           isIconOnly
+          isDisabled={!canReorder}
+          hidden={!canReorder}
           variant="ghost"
           aria-label={t`Reorder ${splitModelLabel(props.item.label).name}`}
-          className="size-4 min-h-0 min-w-0 shrink-0 touch-none cursor-grab rounded p-0 text-muted/60 hover:text-foreground active:cursor-grabbing"
+          className={`${canReorder ? "" : "hidden "}size-4 min-h-0 min-w-0 shrink-0 touch-none cursor-grab rounded p-0 text-muted/60 hover:text-foreground active:cursor-grabbing`}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             if (event.key === "Tab" || (event.key === "Escape" && !event.defaultPrevented)) {

@@ -1068,7 +1068,8 @@ const WindowedProviderModelList = forwardRef<
             return <HeaderSub key={item.id} item={item} className={subHeaderClassName} />;
           }
           const favoriteIndex = favoriteIndexById.get(item.id) ?? -1;
-          const Row = favoriteIndex >= 0 ? SortableFavoriteModelRow : ModelMenuRow;
+          // Session favorites stay visible after unstar; preserve their focused row.
+          const Row = item.favoriteRef ? SortableFavoriteModelRow : ModelMenuRow;
           const recentRef = item.recentRef;
           return (
             <Row

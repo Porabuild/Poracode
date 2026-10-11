@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T15:06:05.676681+00:00",
+  "updatedAt": "2026-10-11T15:45:19.234993+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
   "currentDecision": {
     "masterConflicts": "resolved; fresh 2026-10-11 fetch still identifies master14ad0c3dd, an ancestor of V2",
-    "sourceAndHarnessChecks": "Reviewed development timing fix90c275a29 has all four exact-head workflows successful. Declined correction passes242 focused tests,14 final regressions, typecheck/lint/format and desktop/web builds. Local full run has2017 passing files/five unchanged timeout-affected suites; all46 tests in those suites pass with one worker and unchanged deadlines. Exact pushed-head CI must be retained externally.",
+    "sourceAndHarnessChecks": "Source6aaf21bec, including concurrent user-owned PR833, has all four core/native push/PR workflows successful. Reviewed declined normalization passes242 focused tests and14 final regressions. New focused favorite-row fix passes169 tests/11files, including real DnD accessibility/focus lifecycle. Current fix typecheck/lint and production desktop/web builds pass; final source checks and exact pushed-head CI bind externally. Prior failed full-local receipt and unchanged-timeout revalidation are preserved.",
     "mergeReadiness": "not-yet-qualified: a concrete development timing retention mechanism is fixed and regression-tested; full application crash/resource and relevant live residuals remain open.",
     "originalFiveComplete": false,
     "necessaryNextWork": [
-      "Bind the reviewed declined-status correction and substantive evidence audit to exact pushed-head CI; retain receipt externally to avoid SHA-only documentation churn",
+      "Bind the reviewed favorite focus/accessibility correction and current audit to exact pushed-head CI; preserve superseded ed0ce native-push cancellation and use an external final receipt",
       "Close cold-host resume, affected provider/UI and live Safari composer/keyboard/stream residuals using available genuine capabilities",
       "Qualify representative application stability only on justified materially changed inputs with a finite declaration; old exhausted cohorts and eight historical budgets stay unchanged"
     ],
@@ -674,7 +674,7 @@
     "oldSustainedCohortReopened": false
   },
   "nativeDeclinedNormalization": {
-    "status": "fixed-reviewed-local-checks-pass-final-head-ci-required",
+    "status": "fixed-reviewed-verified-through-green-concurrent-head6aaf21bec",
     "mechanism": "Valid Codex native declined command and patch statuses became canonical success; generated contracts and regression reproduce both completion paths",
     "fix": "Reuse provider-local codexFinalStatus for command completion and include declined in its existing error cases; retain item.completed and output/exit fields",
     "regressionBefore": "2declined failures/6passes",
@@ -721,6 +721,40 @@
       "desktopBuild": "pass",
       "webBuild": "pass"
     },
-    "sourceCheckReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-source-checks.json"
+    "sourceCheckReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-source-checks.json",
+    "supersededCi": "ed0ce has three successful workflows and one native-push cancellation superseded by PR833; all four workflows succeed at6aaf21bec; no failed run or cancellation is rewritten"
+  },
+  "concurrentModelPicker": {
+    "source": "6aaf21beca80a748a1b9db2ea68b256314d4465c",
+    "change": "user-owned PR833 favorites ordering and recent shortcut removal; preserved in full",
+    "ci": "all-four-core-native-push-pr-success",
+    "review": "Two independent R1-R4 reviewers, including reuse/simplification/performance and current SDK lifecycle; no remaining finding after corrected hidden-handle fix",
+    "confirmedRegression": "Unstarred session-retained favorite switched React component type and remounted the focused control. Keep wrapper identity tied to session favoriteRef; disable inactive sortable and retain its hidden disabled handle so SDK metadata does not fall back to the selectable row.",
+    "focusAndAccessibilityProof": {
+      "files": 11,
+      "passedTests": 169,
+      "realDndRegressionCases": 2,
+      "receipt": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-final-focused.log",
+      "realPluginReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-real-plugin-final.log",
+      "coverage": "Locked/unlocked unstar/re-add retains DOM and focus, excludes inactive grip, keeps drag/disabled attributes off model row, and permits keyboard model selection while unstarred"
+    },
+    "priorAttempts": "Initial diagnostic used an ambiguous global selector; corrected mock regression fails before fix. First stable-wrapper attempt removes grip and exposes real SDK aria-disabled fallback. One mock re-add failure overlaps existing50ms opening focus; final real-plugin test settles opening focus before user actions. These attempts remain retained; no test deadlines changed. A synthetic Enter on a non-tabbable row bubbles through pre-existing row/list handlers; final selection test uses the actual focusable listbox and requires one callback.",
+    "compatibility": "Existing settings identity and shared writer retained; no persistence/cache/wire/helper shape/version change; no migration. No new user-facing strings or provider branches.",
+    "nativeParity": "Native iOS/Android do not expose corresponding favorite-order/recent-removal management controls. This existing-settings UI gap is explicit, not native feature qualification; no new remote contract vocabulary.",
+    "notYetQualified": [
+      "Real pointer/touch dragging and screen-reader announcements",
+      "New feature live compact/Safari interactions"
+    ],
+    "sourceCheckReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-source-checks.json",
+    "finalHeadCiReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-ci-completed.json",
+    "historicalBudgetsReset": false,
+    "oldSustainedCohortReopened": false,
+    "sourceChecks": {
+      "typecheck": "pass",
+      "lint": "pass",
+      "desktopBuild": "pass",
+      "webBuild": "pass",
+      "format": "checked-before-commit"
+    }
   }
 }
