@@ -43,6 +43,42 @@ function renderCard(s: ImageViewSource) {
 }
 
 describe("ImageCard", () => {
+  it("keeps pending image previews inactive until the image bytes resolve", () => {
+    const preview = vi.spyOn(lightbox, "openImageLightbox").mockImplementation(() => undefined);
+    vi.mocked(openThreadGallery).mockClear();
+    try {
+      const { view } = renderCard(source({ src: "", pending: true, preview: PREVIEW }));
+      const button = view.getByRole("button", { name: "Open image preview" });
+      expect(button).toBeDisabled();
+      expect(view.container.querySelector("img")).toBeNull();
+      expect(view.container.querySelector("[style*='background-image']")).not.toBeNull();
+      fireEvent.click(button);
+      expect(preview).not.toHaveBeenCalled();
+      expect(openThreadGallery).not.toHaveBeenCalled();
+      const resolved = source({ src: "blob:resolved" });
+      view.rerender(
+        <AppProvider>
+          <ImageCard source={resolved} />
+        </AppProvider>,
+      );
+      expect(button).not.toBeDisabled();
+      fireEvent.click(button);
+      expect(preview).toHaveBeenCalledWith(
+        [
+          {
+            src: resolved.src,
+            alt: resolved.alt,
+            mime: resolved.mime,
+            fileName: resolved.fileName,
+          },
+        ],
+        0,
+      );
+    } finally {
+      preview.mockRestore();
+    }
+  });
+
   it("uses gallery metadata even when a remote image is the only image", () => {
     const imageSource = source({ fileName: "image.png", mime: "image/*" });
     const gallery = [{ src: imageSource.src, fileName: "original.webp", mime: "image/webp" }];

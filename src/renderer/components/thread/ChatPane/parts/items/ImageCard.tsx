@@ -39,6 +39,7 @@ export const ImageCard = memo(function ImageCard({
   // single-image preview when rendered outside a thread.
   const threadId = useChatPaneActions()?.threadId;
   const openPreview = () => {
+    if (!source.src) return;
     if (threadId) {
       const gallery = getThreadGalleryImages(threadId);
       if (gallery.some((img) => img.src === source.src)) {
@@ -80,6 +81,7 @@ export const ImageCard = memo(function ImageCard({
         type="button"
         className="relative block cursor-zoom-in bg-black/20"
         aria-label={t`Open image preview`}
+        disabled={!hasSource}
         onClick={openPreview}
       >
         {/* Blurred stand-in for a host-held image, painted in the slot the <img>
