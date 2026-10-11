@@ -4,6 +4,7 @@ import "./uiAnimationActivity";
 import { readBridge } from "./bridge";
 import { hasElectronHostBridge } from "./clientRuntime";
 import { captureRendererException, initializeRendererSentry } from "./diagnostics/sentry";
+import { installReactDevelopmentTimingRetention } from "./diagnostics/reactDevelopmentTimingRetention";
 import { getAppName } from "@/shared/appName";
 import {
   createRendererCrashReport,
@@ -24,6 +25,9 @@ function logRendererBootstrap(message: string): void {
 logRendererBootstrap("main module evaluated");
 
 if (import.meta.env.DEV) {
+  const stopDevelopmentTimingRetention = installReactDevelopmentTimingRetention();
+  import.meta.hot?.dispose(stopDevelopmentTimingRetention);
+
   const warn = console.warn.bind(console);
   console.warn = (...args: unknown[]) => {
     const head = args[0];

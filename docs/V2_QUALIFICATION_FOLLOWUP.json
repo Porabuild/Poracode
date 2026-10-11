@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T12:03:43Z",
+  "updatedAt": "2026-10-11T14:04:19.044090+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
   "currentDecision": {
     "masterConflicts": "resolved; latest fetched master14ad0c3dd is an ancestor of V2",
-    "sourceAndHarnessChecks": "pass; all four exact-head CI runs at67138b1c3 succeed",
-    "mergeReadiness": "not-yet-qualified: maintained mixed load crashed the renderer",
+    "sourceAndHarnessChecks": "New development timing cleanup passes local typecheck/lint/format, full serial suite, desktop/web builds and i18n; exact pushed-head CI must be recorded externally after commit. Earlier audit head 6ea8a6d17 has all four CI runs successful.",
+    "mergeReadiness": "not-yet-qualified: a concrete development timing retention mechanism is fixed and regression-tested; full application crash/resource and relevant live residuals remain open.",
     "originalFiveComplete": false,
     "necessaryNextWork": [
-      "Attribute and remediate the observed renderer growth/crash using a materially discriminating source-level investigation; no exhausted cohort or profiler budget reset",
-      "Close relevant live chat/composer and affected UI residuals with genuine available capabilities",
-      "Bind any resulting fixes and final audit to reviewed inputs and exact-head CI"
+      "Bind the reviewed development retention fix and audit to final pushed-head CI; retain exact receipt outside this self-referential document",
+      "Close relevant remaining live permission/steer/resume and affected UI residuals using genuine capabilities",
+      "Qualify representative application stability only with a justified finite validation of materially changed inputs; preserve the failed exhausted cohort and all eight historical budgets"
     ],
     "notRequiredBeforeMerge": [
       "Exhaustive tool permutations and all-surface performance savings",
@@ -68,7 +68,7 @@
     {
       "id": "F3-attribution",
       "status": "required-incomplete",
-      "verified": "Proven timing-entry retention fixed; isolated Node diagnostic pairs and source-level hook/frame scaling retained. Isolated UsageService I/O and source serialization/cache fixes have scoped receipts.",
+      "verified": "Proven timing-entry retention fixed; isolated Node diagnostic pairs and source-level hook/frame scaling retained. Isolated UsageService I/O and source serialization/cache fixes have scoped receipts. Actual React development full-prop timing retention is now reproduced with native User Timing and fixed under a DEV-only bootstrap guard; this is separate from whole-application resource attribution.",
       "remainingRequired": [
         "Bounded application retained-owner/growth check",
         "Representative available app CPU/RSS/I/O and interaction attribution where a valid finite cohort remains"
@@ -81,7 +81,7 @@
     {
       "id": "F4-matrix",
       "status": "required-incomplete",
-      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI.",
+      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI. Actual Codex first/follow-up, two-question selection and working-before-output Stop now have scoped live receipts.",
       "remainingRequired": [
         "Final integration focused tests, source checks/builds and exact-head CI",
         "Affected answer-selection/default-effort/subagent progress UI verification",
@@ -124,7 +124,7 @@
   ],
   "evidenceCustody": {
     "missingReceiptPolicy": "Preserve historical claim; do not credit current revalidation without retained proof. Newer valid receipts remain usable within their actual scope.",
-    "compatibleInputs": "54e1\u21927914 source selector/every5482 product file identical. fa9510 tree equals7914. Incoming master executable delta requires fresh affected verification.",
+    "compatibleInputs": "54e1→7914 source selector/every5482 product file identical. fa9510 tree equals7914. Incoming master executable delta requires fresh affected verification.",
     "oldSourceEquivalence": "tmp/v2-finalize-20261011/final-documentation-source-equivalence.json",
     "currentTrackerListedReceiptCounts": {
       "F2-pwa": {
@@ -176,13 +176,13 @@
     {
       "order": 1,
       "gate": "integration",
-      "status": "source-and-harness-integration-pass-audit-update-ci-required",
+      "status": "integration-and-development-retention-local-checks-pass-final-head-ci-required",
       "acceptance": "Resolved conflicts preserve V2 invariants and master behavior; focused/global checks, builds, review and exact-head CI green; push ordinary fast-forward."
     },
     {
       "order": 2,
       "gate": "affected-functional",
-      "status": "affected-development-mock-pass-production-residual-open",
+      "status": "scoped-real-codex-pass-other-live-and-production-residual-open",
       "acceptance": "One owned bounded changed-surface app run; explicit automated/mock/live results and cleanup. Reuse retained unaffected receipts with input proof."
     },
     {
@@ -194,13 +194,13 @@
     {
       "order": 4,
       "gate": "retention-and-resources",
-      "status": "failed-renderer-growth-crash-cause-open-cohort-exhausted",
+      "status": "concrete-development-retention-fix-regression-pass-whole-application-open-old-cohort-exhausted",
       "acceptance": "Use existing maintained harness; declare source/workload/ownership/deadline and available counters; no exhausted unchanged cohorts or profiler hunting."
     },
     {
       "order": 5,
       "gate": "final-audit",
-      "status": "updated-with-failed-runtime-gate-goal-remains-open",
+      "status": "updated-with-live-codex-and-development-retention-proof-goal-remains-open",
       "acceptance": "Each required practical gate has result and exact inputs; original broader unfinished criteria and release deferrals remain explicit."
     }
   ],
@@ -299,6 +299,26 @@
       "versionChangeRequired": false,
       "productionSourceChanged": false,
       "evidenceRoot": "tmp/v2-followup-20261011"
+    },
+    "lastAuditHeadCi": {
+      "source": "6ea8a6d17e94d47a35e91a31ae6deb0ad439fbb2",
+      "runs": [38140553562, 38140557232, 38140553773, 38140557567],
+      "conclusion": "success",
+      "receipt": "tmp/v2-followup-20261011/audit-failure-ci-completed.json"
+    },
+    "developmentTimingFix": {
+      "localChecks": "pass",
+      "fullTests": {
+        "passedFiles": 2021,
+        "skippedFiles": 6,
+        "passedTests": 23149,
+        "skippedTests": 102,
+        "receipt": "tmp/v2-followup-20261011/react-timing-full-tests-serial.log"
+      },
+      "exactCommittedHeadCi": "required; retain final receipt externally to avoid SHA-only documentation churn",
+      "finalReceipt": "tmp/v2-followup-20261011/react-timing-ci-completed.json",
+      "reviewedCodeReceipt": "tmp/v2-followup-20261011/react-timing-verification.json",
+      "noApplicationStabilityPass": true
     }
   },
   "safariResidual": {
@@ -443,5 +463,183 @@
         "Recorded PID/port teardown is not a complete descendant census"
       ]
     }
+  },
+  "liveFunctionalResidual": {
+    "status": "scoped-real-codex-pass-broader-provider-matrix-incomplete",
+    "source": "6ea8a6d17e94d47a35e91a31ae6deb0ad439fbb2",
+    "result": "tmp/v2-followup-20261011/live-functional/qualification-result.json",
+    "runtimeSourceSha256": "e0b7ce67af42af6b657ea512059bd1e0854fbae7d08db6c25f159c031e6d4b89",
+    "realProvider": "codex",
+    "cliVersion": "0.162.1",
+    "authenticated": true,
+    "applicationLaunchesUsed": 1,
+    "applicationLaunchLimit": 1,
+    "unchangedRetries": 0,
+    "deadlineSeconds": 900,
+    "deadlineIncludesPreparation": true,
+    "lastDrivenTurnEndedBeforeDeadline": true,
+    "verified": [
+      "Actual supervisor-owned Codex GUI launch and first assistant marker",
+      "Second ordered user/assistant turn in same session",
+      "Two-question live request in Plan mode; Submit aria-disabled before any answer and after only one answer; enabled after both",
+      "Actual selected Red/Circle answered canonical row and resumed assistant marker",
+      "Stop accepted while working; idle before deadline, no ordinary completed final assistant",
+      "Displayed effort/context and saved low/400k/fast settings survive turns; manual approval reviewer saved"
+    ],
+    "stopScope": "Accepted while working before first assistant output; streaming-after-first-delta cancellation not tested.",
+    "canonicalRuntimeItems": 8,
+    "userRows": 4,
+    "completedAssistantRows": 3,
+    "answeredQuestionRows": 1,
+    "answeredQuestionCount": 2,
+    "wireRequestResolvedMultiplicityMeasured": false,
+    "sessionRefPreservedAcrossObservedTurns": true,
+    "coldResumeTested": false,
+    "readOnlyFixtureGitClean": true,
+    "wholeRunConsoleErrorOracle": false,
+    "scopeEndObserverErrors": 1,
+    "scopeEndObserverError": "Resource 404 with no URL retained; unattributed. No scope-end JavaScript exception observed.",
+    "providerMatrixComplete": false,
+    "remaining": [
+      "Denied permission",
+      "Steer",
+      "Close/reopen or host-restart resume with unchanged transcript/session reference",
+      "Relevant model/commands/image/subagent/provider-switch gates",
+      "OpenCode2 changed-surface real flows",
+      "Whole-run runtime/console observer coverage",
+      "Stop after first streaming delta"
+    ],
+    "teardown": {
+      "at": "2026-10-11T13:22:59.986984+00:00",
+      "state": "stopped",
+      "ownedRecordedPids": 15,
+      "ownedRecordedPidsStillAlive": [],
+      "cdpAndDevPortsClosed": true,
+      "managedRuntimeRemoved": true,
+      "commandReceipts": [
+        {
+          "route": "/api/projects/command",
+          "state": "completed",
+          "count": 6
+        },
+        {
+          "route": "/api/threads/41ce5f36-d2f7-4455-9220-097a7de0dc5a/command",
+          "state": "completed",
+          "count": 1
+        },
+        {
+          "route": "/api/threads/41ce5f36-d2f7-4455-9220-097a7de0dc5a/send",
+          "state": "completed",
+          "count": 3
+        }
+      ],
+      "limitation": "Owned descendant snapshot; detached actor registry not separately enumerated"
+    },
+    "productFixValidation": false,
+    "performanceGainClaim": false,
+    "oldHistoricalBudgetsReset": false
+  },
+  "developmentReactTimingRetention": {
+    "status": "source-mechanism-confirmed-fix-reviewed-local-checks-pass-application-validation-open",
+    "changedProductInputs": true,
+    "dependency": "react-dom 19.2.8 development build",
+    "mechanism": "Development component measures serialize complete changed props into native User Timing detail; visible text windowing does not bound retained previous/new prop snapshots.",
+    "actualDependencyProbe": {
+      "developmentReceipt": "tmp/v2-followup-20261011/react-native-timing-development.json",
+      "productionReceipt": "tmp/v2-followup-20261011/react-native-timing-production.json",
+      "commits": 600,
+      "finalInputChars": 153600,
+      "domChars": 8192,
+      "developmentComponentMeasures": 599,
+      "developmentRetainedPropertyStringUnits": 92522139,
+      "productionComponentMeasures": 0,
+      "scope": "Actual ReactDOM with jsdom and native Node User Timing; not a whole-application memory/CPU measurement."
+    },
+    "fix": "Development bootstrap installs one disposable observer before render; after delivery, clears only React component measures when every current same-name measure matches React ownership. Foreign measures, observer delivery and canonical history are preserved.",
+    "production": "Installer call is guarded by import.meta.env.DEV; production React does not emit these prop snapshots.",
+    "regression": {
+      "files": 3,
+      "passedTests": 34,
+      "nativeReactCommits": 240,
+      "baselineComponentMeasures": 239,
+      "baselineRetainedPropertyStringUnits": ">10000000",
+      "cleanupComponentMeasures": 0,
+      "cleanupRetainedPropertyStringUnits": 0,
+      "domChars": 8192,
+      "otherObserverReceivedComponentMeasures": 239,
+      "foreignSameNamePreserved": true,
+      "disposalVerified": true,
+      "productionNoComponentMeasures": true,
+      "receipt": "tmp/v2-followup-20261011/react-timing-focused-tests.log"
+    },
+    "oldCrashCause": "This is a demonstrated retention mechanism on the development workload path; complete attribution of the old renderer crash is not established.",
+    "wholeApplicationStabilityQualified": false,
+    "matchedProductionGainClaim": false,
+    "oldEightBudgetsUnchanged": true,
+    "oldSustainedCohortReopened": false,
+    "compatibility": "No persisted/wire/cache shape change, provider special case or user-facing string.",
+    "independentReview": {
+      "reviewers": [
+        "behavior-lifecycle-proof-compatibility",
+        "interfaces-and-four-simplification-lenses"
+      ],
+      "findings": [],
+      "receipt": "tmp/v2-followup-20261011/react-timing-review.json"
+    },
+    "localChecks": {
+      "typecheck": "pass",
+      "lint": "pass",
+      "format": "pass",
+      "desktopBuild": "pass",
+      "webBuild": "pass",
+      "i18n": "0missing-all12catalogs",
+      "fullSuite": "pass-serial-revalidation",
+      "firstFullSuiteReceipt": "tmp/v2-followup-20261011/react-timing-full-tests.log",
+      "failures": [
+        {
+          "path": "src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/localMonacoEditor.test.ts",
+          "failure": "15-second actual-package import timeout while cold builds ran concurrently"
+        },
+        {
+          "path": "src/server/serverUpgrade.integration.test.ts",
+          "failure": "npm cache content ENOENT during runtime dependency install; local npm log 2026-10-11T13_50_50_856Z-debug-0.log"
+        }
+      ],
+      "failureRevalidation": {
+        "files": 2,
+        "passedTests": 6,
+        "execution": "serial, no cold builds or app staging",
+        "receipt": "tmp/v2-followup-20261011/react-timing-failure-revalidation.log"
+      },
+      "finalFullSuite": {
+        "passedFiles": 2021,
+        "skippedFiles": 6,
+        "passedTests": 23149,
+        "skippedTests": 102,
+        "receipt": "tmp/v2-followup-20261011/react-timing-full-tests-serial.log"
+      }
+    },
+    "actualApplicationValidation": {
+      "status": "failed-before-scenarios-startup-readiness-timeout",
+      "declaration": "tmp/v2-followup-20261011/react-timing-app-validation/declaration.json",
+      "result": "tmp/v2-followup-20261011/react-timing-app-validation/qualification-result.json",
+      "applicationLaunchesUsed": 1,
+      "applicationLaunchLimit": 1,
+      "unchangedRetries": 0,
+      "startupDeadlineMs": 180000,
+      "startupDeadlineExtended": false,
+      "scenariosRun": false,
+      "oldSustainedCohortReopened": false,
+      "managedStopAcknowledged": true,
+      "wholeApplicationStabilityPass": false,
+      "teardown": {
+        "ownerPidAbsent": true,
+        "bothDeclaredPortsClosed": true,
+        "runtimeRemoved": true,
+        "appPid": null,
+        "limitation": "No app PID was recorded before stop; not a complete descendant census."
+      }
+    },
+    "productionBuildInspection": "React component track cleanup literal absent from emitted desktop and web production assets; DEV installation guard is removed by build."
   }
 }
