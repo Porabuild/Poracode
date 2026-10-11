@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T15:45:19.234993+00:00",
+  "updatedAt": "2026-10-11T16:41:26.084844+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
   "currentDecision": {
-    "masterConflicts": "resolved; fresh 2026-10-11 fetch still identifies master14ad0c3dd, an ancestor of V2",
-    "sourceAndHarnessChecks": "Source6aaf21bec, including concurrent user-owned PR833, has all four core/native push/PR workflows successful. Reviewed declined normalization passes242 focused tests and14 final regressions. New focused favorite-row fix passes169 tests/11files, including real DnD accessibility/focus lifecycle. Current fix typecheck/lint and production desktop/web builds pass; final source checks and exact pushed-head CI bind externally. Prior failed full-local receipt and unchanged-timeout revalidation are preserved.",
+    "masterConflicts": "resolved; latest master e606be000 release metadata/changelog integrated without conflicts at e221420935; prior six-conflict integration preserved",
+    "sourceAndHarnessChecks": "Source58d has all four core/native push/PR workflows successful. Native push first attempt failed on startup EADDRINUSE before assertion; one targeted same-head rerun passes, original failure preserved. New screenshot helper regression fails on old reader and all21 tests pass after correction; final exact-head CI remains required externally.",
     "mergeReadiness": "not-yet-qualified: a concrete development timing retention mechanism is fixed and regression-tested; full application crash/resource and relevant live residuals remain open.",
     "originalFiveComplete": false,
     "necessaryNextWork": [
-      "Bind the reviewed favorite focus/accessibility correction and current audit to exact pushed-head CI; preserve superseded ed0ce native-push cancellation and use an external final receipt",
-      "Close cold-host resume, affected provider/UI and live Safari composer/keyboard/stream residuals using available genuine capabilities",
+      "Bind latest master integration, screenshot helper fix and audit to exact pushed-head CI",
+      "Close live Safari composer/keyboard/stream/rich history and relevant affected UI/provider residuals; backend/supervisor/provider resume now has scoped proof",
       "Qualify representative application stability only on justified materially changed inputs with a finite declaration; old exhausted cohorts and eight historical budgets stay unchanged"
     ],
     "notRequiredBeforeMerge": [
@@ -48,7 +48,14 @@
     "v2MergedIntoMaster": false,
     "reviewFix": "Keep per-invocation child progress through same-open-step recovery relinks; weak tool keys permit retirement, ordinary row IDs no longer duplicate mapper replay fences.",
     "mergeHead": "7000c97755532f264229864dd079c7edcbf042a1",
-    "ci": "all-four-core-native-push-pr-success"
+    "ci": "all-four-core-native-push-pr-success",
+    "latestIntegration": {
+      "master": "e606be0004fcecc08fe6b55bdc5c9d51b375f106",
+      "mergeHead": "e221420935e33bdc4f64588e2bfc801f7906a396",
+      "conflicts": 0,
+      "delta": "package version1.8.2 and website changelog; preserve V2 behavior and user PR833",
+      "v2MergedIntoMaster": false
+    }
   },
   "audit": [
     {
@@ -81,10 +88,10 @@
     {
       "id": "F4-matrix",
       "status": "required-incomplete",
-      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI. Actual Codex first/follow-up, two-question selection and working-before-output Stop now have scoped live receipts. Source90c real Codex also verifies Stop after visible output, same-host pane reopen/continue with exact prior message fields and stable provider session, and native turn/steer. A read-only Deny control resolves once and interrupts the turn; native declined-status normalization has a reproduced defect and reviewed provider-only correction.",
+      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI. Actual Codex first/follow-up, two-question selection and working-before-output Stop now have scoped live receipts. Source90c real Codex also verifies Stop after visible output, same-host pane reopen/continue with exact prior message fields and stable provider session, and native turn/steer. A read-only Deny control resolves once and interrupts the turn; native declined-status normalization has a reproduced defect and reviewed provider-only correction. Source58d genuinely replaces backend, supervisor and provider while main/renderer remain alive, then resumes the same saved session with retained rare-word context. Locked/unlocked unstar controls retain DOM/focus and trusted pointer ordering updates saved settings without changing model.",
       "remainingRequired": [
-        "Final correction source checks and exact-head CI",
-        "Cold-host resume and relevant affected provider progress/UI where compatible proof is absent",
+        "Final integration/helper exact-head CI",
+        "Affected keyboard/compact/Safari controls and relevant provider progress where compatible proof is absent",
         "Affected production GUI/PTY and live Safari confidence where compatible evidence is absent"
       ],
       "optionalNotNeeded": ["Every tool/permission permutation", "Unchanged broad smoke replays"],
@@ -92,7 +99,9 @@
         "API/source PTY evidence is narrower than GUI terminal evidence.",
         "Native CI is narrower than physical native device/push qualification.",
         "Native steer does not exercise generic interrupt fallback; pane reopen is not cold-host resume.",
-        "Deny uses native cancel and interrupts the turn; no agent denial-confirmation marker or raw native declined frame was retained."
+        "Deny uses native cancel and interrupts the turn; no agent denial-confirmation marker or raw native declined frame was retained.",
+        "Backend generation replacement is not full Electron cold boot; raw-before SQL capture failed, so no complete canonical raw-ID/column comparison across restart",
+        "Targeted screenshots were silently absent due demonstrated helper response-shape error; keyboard run lacked verified handle focus, so neither a keyboard pass nor product defect is established"
       ]
     },
     {
@@ -184,7 +193,7 @@
     {
       "order": 2,
       "gate": "affected-functional",
-      "status": "scoped-real-codex-stream-stop-reopen-native-steer-pass-cold-host-other-provider-residual-open",
+      "status": "scoped-real-codex-stream-stop-pane-reopen-native-steer-backend-resume-and-model-pointer-focus-pass-other-residual-open",
       "acceptance": "One owned bounded changed-surface app run; explicit automated/mock/live results and cleanup. Reuse retained unaffected receipts with input proof."
     },
     {
@@ -202,7 +211,7 @@
     {
       "order": 5,
       "gate": "final-audit",
-      "status": "updated-with-scoped-streaming-lifecycle-and-denial-defect-proof-goal-remains-active",
+      "status": "updated-with-backend-resume-model-controls-and-screenshot-evidence-defect-goal-remains-active",
       "acceptance": "Each required practical gate has result and exact inputs; original broader unfinished criteria and release deferrals remain explicit."
     }
   ],
@@ -321,6 +330,27 @@
       "finalReceipt": "tmp/v2-followup-20261011/react-timing-ci-completed.json",
       "reviewedCodeReceipt": "tmp/v2-followup-20261011/react-timing-verification.json",
       "noApplicationStabilityPass": true
+    },
+    "latestProductHeadCi": {
+      "source": "58d34c38a6418997b646b04f30326a94f14abfe8",
+      "runs": [38152924802, 38152930866, 38152924948, 38152931023],
+      "conclusion": "success",
+      "nativePushAttempt": 2,
+      "receipt": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-ci-completed.json",
+      "preservedFirstFailure": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-native-port-collision.json",
+      "nextHeadCiRequiredExternally": true
+    },
+    "screenshotProtocolFix": {
+      "scope": "Managed CDP evidence helper only; send resolves protocol result, Page.captureScreenshot returns flat data",
+      "regressionBefore": "one failure/20skips with realistic response fixture",
+      "regressionAfter": "21passed",
+      "receipt": "tmp/v2-followup-20261011/cold-host-and-model-ui/screenshot-regression-after.log",
+      "protocolSource": "tmp/v2-followup-20261011/cold-host-and-model-ui/screenshot-protocol-source.json",
+      "review": "Two independent reviewers cover R1-R4; no findings",
+      "compatibility": "No application persisted/cache/wire/deployed-helper shape change or version bump; best-effort diagnostic capture contract unchanged",
+      "pastMissingScreenshotsRecovered": false,
+      "productionBehaviorChanged": false,
+      "finalCheckReceipt": "tmp/v2-followup-20261011/cold-host-and-model-ui/screenshot-source-checks.json"
     }
   },
   "safariResidual": {
@@ -742,8 +772,9 @@
     "compatibility": "Existing settings identity and shared writer retained; no persistence/cache/wire/helper shape/version change; no migration. No new user-facing strings or provider branches.",
     "nativeParity": "Native iOS/Android do not expose corresponding favorite-order/recent-removal management controls. This existing-settings UI gap is explicit, not native feature qualification; no new remote contract vocabulary.",
     "notYetQualified": [
-      "Real pointer/touch dragging and screen-reader announcements",
-      "New feature live compact/Safari interactions"
+      "Real keyboard/touch dragging and actual screen-reader experience",
+      "New feature live compact/Safari interactions",
+      "Targeted visual evidence; absent screenshots cannot be recovered by helper fix"
     ],
     "sourceCheckReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-source-checks.json",
     "finalHeadCiReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-ci-completed.json",
@@ -755,6 +786,25 @@
       "desktopBuild": "pass",
       "webBuild": "pass",
       "format": "checked-before-commit"
-    }
+    },
+    "latestFunctionalReceipt": "tmp/v2-followup-20261011/cold-host-and-model-ui/qualification-result.json"
+  },
+  "coldBackendAndModelControls": {
+    "status": "scoped-backend-resume-model-focus-pointer-pass-keyboard-and-visual-residual-open",
+    "source": "58d34c38a6418997b646b04f30326a94f14abfe8",
+    "result": "tmp/v2-followup-20261011/cold-host-and-model-ui/qualification-result.json",
+    "applicationAttemptsUsed": 1,
+    "applicationAttemptLimit": 1,
+    "backendReplacementCount": 1,
+    "deadlineMs": 900000,
+    "deadlineExtended": false,
+    "wholeApplicationStabilityPass": false,
+    "fullApplicationColdBoot": false,
+    "rawBeforeRestartSnapshotAvailable": false,
+    "keyboardQualified": false,
+    "targetedVisualEvidenceAvailable": false,
+    "managedStopBeforeDeadline": true,
+    "independentPidVerificationBeforeDeadline": false,
+    "oldHistoricalBudgetsReset": false
   }
 }

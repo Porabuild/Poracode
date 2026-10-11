@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -83,6 +83,8 @@ interface FakeCdpRequest {
 interface FakeCdpScriptResult {
   readonly handled: boolean;
   readonly value?: unknown;
+  /** Non-Runtime domains return their own result object, without a remote value wrapper. */
+  readonly rawResult?: Record<string, unknown>;
 }
 
 async function startFakeCdp(
@@ -135,7 +137,10 @@ async function startFakeCdp(
       const scripted = options?.script?.(request);
       if (scripted?.handled) {
         socket.send(
-          JSON.stringify({ id: request.id, result: { result: { value: scripted.value } } }),
+          JSON.stringify({
+            id: request.id,
+            result: scripted.rawResult ?? { result: { value: scripted.value } },
+          }),
         );
         return;
       }
@@ -438,7 +443,10 @@ describe("ManagedCdpClient over a loopback CDP endpoint", () => {
           return { handled: true };
         }
         if (request.method === "Page.captureScreenshot") {
-          return { handled: true, value: { data: Buffer.from("png-bytes").toString("base64") } };
+          return {
+            handled: true,
+            rawResult: { data: Buffer.from("png-bytes").toString("base64") },
+          };
         }
         const expression = request.params?.expression ?? "";
         if (expression.includes("__poracodeReloadToken = ")) return { handled: true, value: "ok" };
@@ -469,6 +477,7 @@ describe("ManagedCdpClient over a loopback CDP endpoint", () => {
       ).rejects.toThrow("renderer diagnostics did not activate after reload");
       expect(existsSync(join(evidenceDir, "diag-fail.console.json"))).toBe(true);
       expect(existsSync(join(evidenceDir, "diag-fail.png"))).toBe(true);
+      expect(readFileSync(join(evidenceDir, "diag-fail.png"))).toEqual(Buffer.from("png-bytes"));
     } finally {
       cdp.close();
     }

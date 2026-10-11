@@ -791,9 +791,9 @@ export class ManagedCdpClient {
   private async captureScreenshot(): Promise<string | null> {
     try {
       const result = (await this.send("Page.captureScreenshot", { format: "png" }, 15_000)) as {
-        result?: { value?: { data?: unknown } };
+        data?: unknown;
       };
-      const data = result?.result?.value?.data;
+      const data = result?.data;
       return typeof data === "string" ? data : null;
     } catch {
       return null;
