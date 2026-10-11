@@ -1024,9 +1024,27 @@ index db7841d8cf328b46f70f5b4b4754bc58d1a33335..23ba090d415a61f5b7accb370098c34f
       * Called after the initial render work completes.
       */
 diff --git a/react.js b/react.js
-index 544cca82136ab14cbeec0a01499f554bd4eca75f..13f7f30b6fab902b9d7c2fb2aa054a0306022bb4 100644
+index 544cca82136ab14cbeec0a01499f554bd4eca75f..03d17daff6971d943873de3b1f2a53436aafa6ea 100644
 --- a/react.js
 +++ b/react.js
+@@ -699,7 +699,7 @@ function checkAtBottom(ctx, allowedEdge, allowGateCreatedInCurrentCheck) {
+         },
+         (distance) => {
+           var _a4, _b;
+-          if (canDispatchReachedEdge(ctx, "end", allowedEdge, allowGateCreatedInCurrentCheck)) {
++          if (state.props.onEndReached && canDispatchReachedEdge(ctx, "end", allowedEdge, allowGateCreatedInCurrentCheck)) {
+             markReachedEdge(ctx);
+             (_b = (_a4 = state.props).onEndReached) == null ? void 0 : _b.call(_a4, { distanceFromEnd: distance });
+           }
+@@ -750,7 +750,7 @@ function checkAtTop(ctx, allowedEdge, allowGateCreatedInCurrentCheck) {
+       },
+       (distance) => {
+         var _a3, _b;
+-        if (canDispatchReachedEdge(ctx, "start", allowedEdge, allowGateCreatedInCurrentCheck)) {
++        if (state.props.onStartReached && canDispatchReachedEdge(ctx, "start", allowedEdge, allowGateCreatedInCurrentCheck)) {
+           markReachedEdge(ctx);
+           (_b = (_a3 = state.props).onStartReached) == null ? void 0 : _b.call(_a3, { distanceFromStart: distance });
+         }
 @@ -3134,6 +3134,19 @@ function handleInitialScrollDataChange(ctx, options) {
    advanceCurrentInitialScrollSession(ctx);
  }
@@ -1331,9 +1349,27 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..13f7f30b6fab902b9d7c2fb2aa054a03
        onScroll: onScrollHandler,
        recycleItems,
 diff --git a/react.mjs b/react.mjs
-index 6b2d9011f6c5e85664eca195de538617fe7d9dee..044e17af09933707ac652fb2f74858d30c0dbc79 100644
+index 6b2d9011f6c5e85664eca195de538617fe7d9dee..0d6978a44ae4ec7264b19353c3934c1399e60eb5 100644
 --- a/react.mjs
 +++ b/react.mjs
+@@ -678,7 +678,7 @@ function checkAtBottom(ctx, allowedEdge, allowGateCreatedInCurrentCheck) {
+         },
+         (distance) => {
+           var _a4, _b;
+-          if (canDispatchReachedEdge(ctx, "end", allowedEdge, allowGateCreatedInCurrentCheck)) {
++          if (state.props.onEndReached && canDispatchReachedEdge(ctx, "end", allowedEdge, allowGateCreatedInCurrentCheck)) {
+             markReachedEdge(ctx);
+             (_b = (_a4 = state.props).onEndReached) == null ? void 0 : _b.call(_a4, { distanceFromEnd: distance });
+           }
+@@ -729,7 +729,7 @@ function checkAtTop(ctx, allowedEdge, allowGateCreatedInCurrentCheck) {
+       },
+       (distance) => {
+         var _a3, _b;
+-        if (canDispatchReachedEdge(ctx, "start", allowedEdge, allowGateCreatedInCurrentCheck)) {
++        if (state.props.onStartReached && canDispatchReachedEdge(ctx, "start", allowedEdge, allowGateCreatedInCurrentCheck)) {
+           markReachedEdge(ctx);
+           (_b = (_a3 = state.props).onStartReached) == null ? void 0 : _b.call(_a3, { distanceFromStart: distance });
+         }
 @@ -3113,6 +3113,19 @@ function handleInitialScrollDataChange(ctx, options) {
    advanceCurrentInitialScrollSession(ctx);
  }

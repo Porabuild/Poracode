@@ -21,6 +21,14 @@ and instructions remain in their original database. API/IPC formats are unchange
 
 # Versioned State & Protocols
 
+The LegendList 3.3.3 web patch requires a registered callback before closing
+the shared paging-edge gate. A callback-free edge can no longer suppress the
+opposite edge after a direct scroll jump. CJS and ESM implementations match;
+the pinned patch hash changes in all three lockfile copies. Actual-component
+regressions cover both directions and repeated stationary edge notifications.
+Persisted measurements, canonical history and protocol shapes are unchanged;
+rebuilt renderer asset hashes and the normal PWA build identity retire old code.
+
 Multi-thread runtime-buffer packing reuses freshly computed chunk byte sums.
 Later chunks are remeasured after capacity or sender callbacks; the triggering
 chunk keeps its existing pre-flush packing estimate. Final envelope admission
