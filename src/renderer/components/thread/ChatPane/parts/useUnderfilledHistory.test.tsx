@@ -40,7 +40,9 @@ it("waits for initial hydration admission before paging a committed hidden row",
     );
   }
   render(<Reader />);
-  act(() => useAppStore.setState({ runtimeItemIdsByThread: { [threadId]: ["hidden-child"] } }));
+  await act(() =>
+    useAppStore.setState({ runtimeItemIdsByThread: { [threadId]: ["hidden-child"] } }),
+  );
   expect(onStartReached).not.toHaveBeenCalled();
   await act(async () => {
     useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
