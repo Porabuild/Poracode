@@ -1025,6 +1025,10 @@
   background-color: var(--default);
 }
 
+.poracode-model-menu-listbox .poracode-menu-item[aria-selected="true"] {
+  background-color: var(--row-active);
+}
+
 /* Custom virtualized model rows do not inherit HeroUI's press state. Give
    touch and pointer presses a stronger fill before the selected model closes
    the responsive menu. */
@@ -1083,12 +1087,18 @@ html[data-compact-layout] .poracode-model-menu-header--sub::before {
 
 /* iOS may retain `:hover` after a tap. Compact model rows use only the press
    fill below; keyboard navigation still opts into `data-active` explicitly. */
-html[data-compact-layout] .poracode-model-menu-listbox .poracode-menu-item:hover:not(:active) {
+html[data-compact-layout]
+  .poracode-model-menu-listbox
+  .poracode-menu-item:hover:not(:active):not([aria-selected="true"]) {
   background-color: transparent;
 }
 
 html[data-compact-layout] .poracode-model-menu-listbox .poracode-menu-item[data-active="true"] {
   background-color: var(--default);
+}
+
+html[data-compact-layout] .poracode-model-menu-listbox .poracode-menu-item[aria-selected="true"] {
+  background-color: var(--row-active);
 }
 
 html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-header {

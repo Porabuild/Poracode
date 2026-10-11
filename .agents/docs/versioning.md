@@ -3277,3 +3277,22 @@ notice recovery, server restarts and command reconciliation keep their reset
 behavior. This option is session-local and is not serialized or sent over IPC;
 canonical history, IndexedDB version 2 and wire/native/helper versions remain
 unchanged. Rebuilt renderer/PWA asset identities invalidate the prior code.
+
+### Favorite model ordering
+
+Model-picker drag reordering changes only the order of entries in the existing
+`favoriteModels` array. Entry identity, presentation mode, settings document and
+remote settings shapes remain compatible; no version bump or migration is
+needed. Both renderer persistence paths use the existing shared-settings writer.
+The move resolves against current favorites and replaces only the displayed
+subset's occupied slots, preserving hidden entries, other presentations and
+concurrent additions/removals. Regression coverage starts with the existing
+saved settings shape and verifies persistence plus reading it through the
+unchanged normalizer. Drag state and row metadata are renderer-local and are
+neither serialized nor sent over IPC.
+
+Removing a Recent shortcut filters the existing `recentModels` array through
+the same settings writer. Its entry and document shapes, mirrored remote
+settings and versions remain unchanged; no migration or invalidation is needed.
+Regression coverage reads the prior saved shape, removes the requested entries,
+and confirms other presentations and selection-usage history remain intact.

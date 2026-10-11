@@ -220,6 +220,39 @@ describe("ProviderModelMenu", () => {
     expect(listbox.querySelector('[data-active="true"]')).not.toBeNull();
   });
 
+  it("removes a recent shortcut in the mobile drawer without focusing search", async () => {
+    layoutMock.compact = true;
+    useSharedSettings.setState({
+      recentModels: [{ agentKind: "other", modelId: "model-2", presentationMode: "gui" }],
+    });
+    const onChange = vi.fn<(next: { agentKind: string; model: string }) => void>();
+    render(
+      <ProviderModelMenu
+        providers={[makeNamedProvider("agent", "Agent", 2), makeNamedProvider("other", "Other", 2)]}
+        currentAgentKind="agent"
+        currentModel="model-1"
+        presentationMode="gui"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(listbox).toHaveAttribute("data-mobile", "true");
+    const search = screen.getByRole("combobox");
+    expect(search).not.toHaveFocus();
+    fireEvent.change(search, { target: { value: "Model 2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Remove from recent" }));
+
+    expect(useSharedSettings.getState().recentModels).toEqual([]);
+    expect(search).toHaveValue("Model 2");
+    expect(search).not.toHaveFocus();
+    expect(listbox).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove from recent" })).not.toBeInTheDocument();
+    expect(within(listbox).getAllByText("Model 2")).not.toHaveLength(0);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("uses a renamed Cursor profile label for the trigger badge", () => {
     const provider = makeCursorProvider();
     provider.kind = "cursor:work";
@@ -709,7 +742,7 @@ describe("ProviderModelMenu", () => {
     expect((await screen.findAllByText("Favorites")).length).toBeGreaterThan(0);
   });
 
-  it("shows shortcut sub-provider labels before provider icons", async () => {
+  it("shows shortcut provider icons before model and sub-provider labels", async () => {
     useSharedSettings.setState({
       favoriteModels: [
         { agentKind: "opencode", modelId: "github-copilot/model-1", presentationMode: "gui" },
@@ -742,7 +775,7 @@ describe("ProviderModelMenu", () => {
       const label = within(row as HTMLElement).getByText(subProviderLabel);
       const providerIcon = (row as HTMLElement).querySelector(".poracode-provider-icon");
       expect(providerIcon).not.toBeNull();
-      expect(label.compareDocumentPosition(providerIcon as Element)).toBe(
+      expect((providerIcon as Element).compareDocumentPosition(label)).toBe(
         Node.DOCUMENT_POSITION_FOLLOWING,
       );
     };
@@ -795,14 +828,13 @@ describe("ProviderModelMenu", () => {
     const subProviderLabel = within(row as HTMLElement).getByText(
       "An Extremely Long Sub-Provider Display Name",
     );
-    const subProviderRail = subProviderLabel.parentElement as HTMLElement;
 
     // The model name owns the flexible space, so it only truncates once the
     // sub-provider rail has fully shrunk. The rail is additionally width-capped
     // so the model always keeps the majority of the row.
     expect(modelName.parentElement?.className).toContain("flex-1");
-    expect(subProviderRail.className).toContain("max-w-[45%]");
-    expect(subProviderRail.className).not.toContain("shrink-0");
+    expect(subProviderLabel.className).toContain("max-w-[45%]");
+    expect(subProviderLabel.className).not.toContain("shrink-0");
     expect(subProviderLabel.className).toContain("min-w-0");
     expect(subProviderLabel.className).toContain("truncate");
   });

@@ -23,14 +23,15 @@ import {
 } from "./providerIdentity";
 import { getProviderModelPickerRank } from "@/renderer/components/providers/providerManifest";
 import { primaryModelChoices } from "@/renderer/components/providers/modelPickerLayout";
-import { separatePrimaryModelRows } from "./primaryModelRows";
+import { removeEmptyModelHeaders, separatePrimaryModelRows } from "./primaryModelRows";
 import {
   aggregateModelPriceTerms,
   formatModelPriceHint,
   formatProviderModelDescription,
 } from "@/renderer/components/providers/modelDescription";
 import { cachedProjectedFamilies, modelFamilyMemberCompactLabel } from "./modelFamilyDisplay";
-import type { ProviderModelItem } from "./types";
+import type { ProviderModelItem, ProviderModelRow } from "./types";
+import type { ModelPickerRef } from "@/shared/modelPickerOrder";
 
 export interface ProviderModelMenuProvider {
   /** Real adapter kind used for launch/favorites. */
@@ -55,11 +56,7 @@ export function statusToMenuProvider(agent: AgentStatus): ProviderModelMenuProvi
   };
 }
 
-export interface ModelRef {
-  agentKind: string;
-  modelId: string;
-  presentationMode?: ThreadPresentationMode;
-}
+export type ModelRef = ModelPickerRef;
 
 export interface BuildProviderModelItemsInput {
   providers: ProviderModelMenuProvider[];
@@ -668,6 +665,8 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
         ...(shortcutPriceLine ? { priceLine: shortcutPriceLine } : {}),
         showProviderIcon: true,
+        ...(sectionId === "fav" ? { favoriteRef: m.ref } : {}),
+        ...(sectionId === "recent" ? { recentRef: m.ref } : {}),
         ...(visibleProvider && supportsFastModel(visibleProvider.provider.capabilities, modelId)
           ? { supportsFast: true }
           : {}),
@@ -725,7 +724,47 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     const providerRowsStart = out.length;
     const finishProviderRows = () => {
       const rows = out.splice(providerRowsStart);
-      out.push(...separatePrimaryModelRows(rows, key, primaryModelChoices(provider.kind, cap)));
+      const separated = separatePrimaryModelRows(
+        rows,
+        key,
+        primaryModelChoices(provider.kind, cap),
+      );
+      if (!singleProviderMode) {
+        out.push(...separated);
+        return;
+      }
+      // A locked picker has no duplicate Favorites section. Keep exact favorites
+      // together at the top so their saved order and drag targets agree across groups.
+      const favoriteRows: ProviderModelItem[] = [];
+      const favoriteRowIds = new Set<string>();
+      const exactRowsByModelId = new Map<string, ProviderModelRow>();
+      for (const row of separated) {
+        if (row.type === "model" && !row.familyModelIds && !exactRowsByModelId.has(row.modelId)) {
+          exactRowsByModelId.set(row.modelId, row);
+        }
+      }
+      for (const ref of favorites ?? []) {
+        if (ref.agentKind !== provider.kind) continue;
+        const model = findModelEntry(cache, ref.modelId, provider.kind);
+        const modelId =
+          model?.id ?? canonicalProviderModelId(provider.kind, ref.modelId, cap.models);
+        const row = exactRowsByModelId.get(modelId);
+        if (!row || favoriteRowIds.has(row.id)) continue;
+        favoriteRowIds.add(row.id);
+        const subProviderLabel = cache.memberLabels.has(modelId)
+          ? undefined
+          : distinctGroupLabel(row.label, model?.subLabel);
+        favoriteRows.push({
+          ...row,
+          favoriteRef: ref,
+          isFavorite: favoriteStateSet.has(canonicalRefKey(ref)),
+          ...(subProviderLabel ? { subProviderLabel } : {}),
+        });
+      }
+      out.push(
+        ...favoriteRows,
+        ...removeEmptyModelHeaders(separated.filter((row) => !favoriteRowIds.has(row.id))),
+      );
     };
 
     // Favorited family members keep explicit exact rows in single-provider

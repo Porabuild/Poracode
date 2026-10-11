@@ -1166,7 +1166,7 @@ msgstr "タグを追加..."
 msgid "Add to composer"
 msgstr "コンポーザーに追加"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Add to favorites"
 msgstr "お気に入りに追加"
 
@@ -5297,6 +5297,10 @@ msgstr "ドラッグして {0} のプロバイダーの順序を変更します�
 msgid "Drag to reorder; double-click to edit"
 msgstr "ドラッグして並べ替えます。ダブルクリックして編集します"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+msgid "Draggable model"
+msgstr "ドラッグ可能なモデル"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -6055,7 +6059,7 @@ msgstr "速い"
 msgid "Fast is unavailable for this pairing"
 msgstr "この組み合わせでは高速モードを利用できません"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "高速モード"
@@ -11050,6 +11054,10 @@ msgstr "Enterキーで適用します。"
 msgid "Press shortcut…"
 msgstr "ショートカットを押してください…"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Press Space to start reordering. Use the arrow keys to move, Space to drop, or Escape to cancel."
+msgstr "スペースキーで並べ替えを開始します。矢印キーで移動し、スペースキーで配置するか、Escapeキーでキャンセルします。"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep"
@@ -11982,7 +11990,7 @@ msgstr "Cursor SDK API キーを削除"
 msgid "Remove environment variable"
 msgstr "環境変数を削除"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Remove from favorites"
 msgstr "お気に入りから削除"
 
@@ -11993,6 +12001,10 @@ msgstr "グループから削除"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove from panel"
 msgstr "パネルから削除"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+msgid "Remove from recent"
+msgstr "最近使用したモデルから削除"
 
 #. placeholder {0}: providerLabel(entry.agentKind)
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
@@ -12152,6 +12164,8 @@ msgstr "レンダラーが未処理の Promise 拒否に遭遇しました"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: shortcut.label
+#. placeholder {0}: splitModelLabel(props.item.label).name
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Reorder {0}"
@@ -12165,6 +12179,18 @@ msgstr "{label}を並べ替える"
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Reorder queued follow-up"
 msgstr "待機中の追加メッセージを並べ替え"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordered {name}. Position {position} of {count}."
+msgstr "{name}を並べ替えました。{count}個中{position}番目。"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordering {name}. Position {position} of {count}."
+msgstr "{name}を並べ替え中。{count}個中{position}番目。"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordering canceled."
+msgstr "並べ替えをキャンセルしました。"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -14418,7 +14444,7 @@ msgstr "セッションが接続されると、サポート モードが表示�
 msgid "Support:"
 msgstr "サポート:"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "高速モードに対応"

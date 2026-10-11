@@ -61,6 +61,7 @@ import {
   uninstallPlugin as removeInstalledPlugin,
 } from "@/shared/plugins/catalog";
 import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
+import { reorderModelPickerRefs, type ModelPickerRef } from "@/shared/modelPickerOrder";
 import { isSensitiveAgentSetting } from "@/shared/agentSecrets";
 import {
   effectiveProviderOrder,
@@ -234,6 +235,8 @@ interface SharedSettingsState extends SharedSettings {
     modelId: string,
     presentationMode: ThreadPresentationMode,
   ) => void;
+  /** Reorder the supplied subset without replacing favorites outside the menu. */
+  reorderFavoriteModels: (ordered: readonly ModelPickerRef[]) => void;
   /**
    * Flip a model's favorite state independent of presentation mode: remove every
    * stored entry for `(agentKind, modelId)` if any exist, otherwise add one under
@@ -247,6 +250,8 @@ interface SharedSettingsState extends SharedSettings {
     fallbackMode: ThreadPresentationMode,
   ) => boolean;
   setCrossagentRoutingGuide: (value: string) => void;
+  /** Remove exact persisted recent references in one write; other presentations stay intact. */
+  removeRecentModels: (refs: readonly ModelPickerRef[]) => void;
   pushRecentModel: (
     agentKind: string,
     modelId: string,
@@ -1167,9 +1172,31 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     persistSettings(selectSharedSettings(get()));
     return !isFavorite;
   },
+  reorderFavoriteModels: (ordered) => {
+    const current = get().favoriteModels;
+    const next = reorderModelPickerRefs(current, ordered);
+    if (next.every((ref, index) => ref === current[index])) return;
+    set({ favoriteModels: next });
+    persistSettings(selectSharedSettings(get()));
+  },
   setCrossagentRoutingGuide: (crossagentRoutingGuide) => {
     if (get().crossagentRoutingGuide === crossagentRoutingGuide) return;
     set({ crossagentRoutingGuide });
+    persistSettings(selectSharedSettings(get()));
+  },
+  removeRecentModels: (refs) => {
+    const current = get().recentModels;
+    const next = current.filter(
+      (entry) =>
+        !refs.some(
+          (ref) =>
+            entry.agentKind === ref.agentKind &&
+            entry.modelId === ref.modelId &&
+            entry.presentationMode === ref.presentationMode,
+        ),
+    );
+    if (next.length === current.length) return;
+    set({ recentModels: next });
     persistSettings(selectSharedSettings(get()));
   },
   pushRecentModel: (agentKind, modelId, presentationMode, effort, fast) => {
