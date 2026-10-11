@@ -11695,5 +11695,12 @@
       "qualifiedSource": "54e1f19871e40bcc65160bd392d6c8712c667b52",
       "finalDocumentationHeadCIRequired": true
     }
+  },
+  "qualificationFollowup": {
+    "status": "active",
+    "audit": "docs/V2_QUALIFICATION_FOLLOWUP.json",
+    "previousGoalRemainsComplete": true,
+    "originalBroaderQualificationComplete": false,
+    "oldBudgetsReset": false
   }
 }

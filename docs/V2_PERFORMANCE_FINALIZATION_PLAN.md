@@ -1,3 +1,5 @@
+**New qualification goal, 2026-10-11:** The earlier revised merge-readiness goal remains complete. The five original broader tasks are not fully qualified. The [follow-up audit](V2_QUALIFICATION_FOLLOWUP.json) records retained evidence, necessary gaps, optional/release deferrals and finite next gates; historical counters, failed runs and all eight budgets remain unchanged. Current master integration requires fresh affected verification.
+
 # Current V2 merge-readiness goal
 
 The user revised this goal on 2026-10-11: finalize `poracode/v2` for review and merge into master, retaining realistic performance work. Latest `origin/master` at `028d86b8e` is integrated and remains an ancestor. Keep the main checkout on V2; never merge into master, force-push, release or replace the installed app.

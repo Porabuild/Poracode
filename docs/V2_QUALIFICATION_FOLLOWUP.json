@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-11T10:00:54.972996+00:00",
+  "branch": "poracode/v2",
+  "goalStatus": "active",
+  "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
+  "previousGoal": {
+    "status": "complete",
+    "scope": "Revised merge readiness",
+    "tasksCompleted": 18,
+    "tasksTotal": 18,
+    "milestonesCompleted": 6,
+    "milestonesTotal": 6,
+    "qualifiedProductionSource": "54e1f19871e40bcc65160bd392d6c8712c667b52",
+    "finalDocumentationHead": "7914ee5ff3eb745ee74670de268ddffaa056927c"
+  },
+  "originalBaseline": {
+    "tasksCompleted": 13,
+    "tasksTotal": 18,
+    "milestonesCompleted": 2,
+    "milestonesTotal": 6,
+    "remainingTaskIds": ["F2-pwa", "F3-attribution", "F4-matrix", "F5-matched", "F6-audit"],
+    "remainingTasksEqualRemainingMilestones": false,
+    "fullyQualified": false
+  },
+  "masterIntegration": {
+    "v2Before": "fa9510c4de1bd45a8b014e2d2dd52c4439422d87",
+    "master": "14ad0c3dd902f0be7b54e16bd52e2e0cf06e59eb",
+    "status": "resolved-local-checks-pass-app-smoke-and-ci-pending",
+    "conflictsResolved": 6,
+    "decision": "Use final master PR832 after its earlier local V2 cherry-pick/revert; retain V2 context-size, fast-mode and provider normalization.",
+    "backup": "backup/v2-before-master-20261011-fa9510",
+    "v2MergedIntoMaster": false,
+    "reviewFix": "Keep per-invocation child progress through same-open-step recovery relinks; weak tool keys permit retirement, ordinary row IDs no longer duplicate mapper replay fences."
+  },
+  "audit": [
+    {
+      "id": "F2-pwa",
+      "status": "required-incomplete",
+      "verified": "Production Chrome desktop/compact: 32 raw cached/canonical rows,17 projected rows, offline new-document reopen, group toggle, host reconnect, completed history200 and online/reconnected original image gallery.",
+      "remainingRequired": [
+        "Portrait Safari recovery on an owned supported simulator where available",
+        "Bounded background/reload and sustained history retention"
+      ],
+      "limitations": [
+        "Offline original images require host connection; inert owned-reference metadata is available offline.",
+        "Scripted rich presentations do not establish genuine handler execution."
+      ],
+      "evidence": "tmp/v2-finalize-20261011/current-pwa-final-history-observer/execution-result.json"
+    },
+    {
+      "id": "F3-attribution",
+      "status": "required-incomplete",
+      "verified": "Proven timing-entry retention fixed; isolated Node diagnostic pairs and source-level hook/frame scaling retained. Isolated UsageService I/O and source serialization/cache fixes have scoped receipts.",
+      "remainingRequired": [
+        "Bounded application retained-owner/growth check",
+        "Representative available app CPU/RSS/I/O and interaction attribution where a valid finite cohort remains"
+      ],
+      "limitations": [
+        "Node bookkeeping is not whole-process-tree paint/resource qualification.",
+        "Old attribution lane is exhausted; a new goal does not authorize unchanged reruns."
+      ]
+    },
+    {
+      "id": "F4-matrix",
+      "status": "required-incomplete",
+      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI.",
+      "remainingRequired": [
+        "Final integration focused tests, source checks/builds and exact-head CI",
+        "Affected answer-selection/default-effort/subagent progress UI verification",
+        "Production reader/scroll/replay and GUI PTY checks where compatible evidence is absent"
+      ],
+      "optionalNotNeeded": ["Every tool/permission permutation", "Unchanged broad smoke replays"],
+      "limitations": [
+        "API/source PTY evidence is narrower than GUI terminal evidence.",
+        "Native CI is narrower than physical native device/push qualification."
+      ]
+    },
+    {
+      "id": "F5-matched",
+      "status": "required-incomplete",
+      "verified": "Two opposite-order Node diagnostic pairs; scaled hook and protocol module checks. Historical backend comparisons remain scoped and require retained receipts/input identity.",
+      "remainingRequired": [
+        "Representative production interaction/resource qualification if supported by a materially different valid cohort"
+      ],
+      "limitations": [
+        "Original matched GUI cohort and correction are consumed; no new unchanged four-arm run.",
+        "No whole-application performance gain, private RAM or GPU/VRAM claim."
+      ],
+      "notNeededBeforeMerge": [
+        "Exhaustive all-surface production savings program",
+        "Overnight soak"
+      ]
+    },
+    {
+      "id": "F6-audit",
+      "status": "audit-published-followup-open",
+      "verified": "Original IDs/criteria, revised completion, historical failures and budget objects preserved; this audit separates scope and evidentiary custody.",
+      "remainingRequired": [
+        "Bind final source and exact-head CI to evidence",
+        "Record every necessary gate result or justified external/finite-budget limitation; leave unresolved requirements open"
+      ],
+      "limitations": [
+        "The original broader five tasks cannot be marked complete from revised18/18."
+      ]
+    }
+  ],
+  "evidenceCustody": {
+    "missingReceiptPolicy": "Preserve historical claim; do not credit current revalidation without retained proof. Newer valid receipts remain usable within their actual scope.",
+    "compatibleInputs": "54e1\u21927914 source selector/every5482 product file identical. fa9510 tree equals7914. Incoming master executable delta requires fresh affected verification.",
+    "oldSourceEquivalence": "tmp/v2-finalize-20261011/final-documentation-source-equivalence.json",
+    "currentTrackerListedReceiptCounts": {
+      "F2-pwa": {
+        "listed": 37,
+        "present": 3
+      },
+      "F3-attribution": {
+        "listed": 38,
+        "present": 11
+      },
+      "F4-matrix": {
+        "listed": 82,
+        "present": 31
+      },
+      "F5-matched": {
+        "listed": 5,
+        "present": 2
+      },
+      "F6-audit": {
+        "listed": 21,
+        "present": 19
+      }
+    },
+    "originalListedReceiptCounts": {
+      "F2-pwa": {
+        "present": 2,
+        "listed": 36
+      },
+      "F3-attribution": {
+        "present": 8,
+        "listed": 35
+      },
+      "F4-matrix": {
+        "present": 30,
+        "listed": 81
+      },
+      "F5-matched": {
+        "present": 1,
+        "listed": 4
+      },
+      "F6-audit": {
+        "present": 18,
+        "listed": 20
+      }
+    },
+    "originalTrackerSource": "73ef0a485"
+  },
+  "finiteFollowupPlan": [
+    {
+      "order": 1,
+      "gate": "integration",
+      "status": "in-progress",
+      "acceptance": "Resolved conflicts preserve V2 invariants and master behavior; focused/global checks, builds, review and exact-head CI green; push ordinary fast-forward."
+    },
+    {
+      "order": 2,
+      "gate": "affected-functional",
+      "status": "pending",
+      "acceptance": "One owned bounded changed-surface app run; explicit automated/mock/live results and cleanup. Reuse retained unaffected receipts with input proof."
+    },
+    {
+      "order": 3,
+      "gate": "portrait-safari-lifecycle",
+      "status": "pending-preflight",
+      "acceptance": "Owned disposable supported simulator, portrait shell/history/composer/reload/background/reconnect; record real Safari evidence or concrete external blocker."
+    },
+    {
+      "order": 4,
+      "gate": "retention-and-resources",
+      "status": "pending-cohort-reconciliation",
+      "acceptance": "Use existing maintained harness; declare source/workload/ownership/deadline and available counters; no exhausted unchanged cohorts or profiler hunting."
+    },
+    {
+      "order": 5,
+      "gate": "final-audit",
+      "status": "pending",
+      "acceptance": "Each required practical gate has result and exact inputs; original broader unfinished criteria and release deferrals remain explicit."
+    }
+  ],
+  "releaseOrExternalDeferrals": [
+    "Physical-device push/background delivery",
+    "Hardware GPU/VRAM profiling",
+    "Unavailable private/native-memory measurements",
+    "External-provider/account-dependent live gates when authentication/capabilities are unavailable",
+    "Overnight soak"
+  ],
+  "budgetPolicy": {
+    "oldBudgetObjectsUnchanged": 8,
+    "resetOnNewGoalOrMasterLabel": false,
+    "failedReportsRemainFailed": true,
+    "undeclaredDeadlineExtensionAllowed": false
+  },
+  "evidenceRoot": "tmp/v2-followup-20261011",
+  "compatibilityAudit": {
+    "providerIsolation": "Progress mapping remains in OpenCode2 provider. Shared effort helper uses declared capability ladders without provider branches.",
+    "localizedStrings": "No new user-facing strings; extraction reports0missing in all12non-English catalogs.",
+    "versions": "No persisted/wire/cache shape change. Existing saved effort values remain valid and preserved; new default only applies when no valid saved choice exists. Renderer assets/service worker receive normal content hashes."
+  },
+  "verification": {
+    "fullTests": {
+      "passedFiles": 2020,
+      "skippedFiles": 6,
+      "passedTests": 23143,
+      "skippedTests": 102,
+      "evidence": "tmp/v2-followup-20261011/full-tests.log"
+    },
+    "focusedMasterTests": {
+      "passed": 291,
+      "files": 7
+    },
+    "focusedRecoveryTests": {
+      "passed": 29,
+      "files": 3
+    },
+    "typecheck": "pass",
+    "lint": "pass",
+    "desktopBuild": "pass",
+    "webBuild": "pass",
+    "i18n": "0missing-all12catalogs",
+    "exactFinalHeadCi": "pending",
+    "independentReview": "R1-R4 reviewed; two progress/retention findings fixed and re-reviewed without remaining actionable findings."
+  }
+}

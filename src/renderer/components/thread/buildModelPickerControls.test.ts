@@ -79,7 +79,7 @@ describe("patchConfigForModelChange", () => {
     });
   });
 
-  it("resets effort to the next model's declared default, not its first tier", () => {
+  it("defaults to the highest tier over the next model's declared default", () => {
     const tiered = {
       ...capabilities,
       modelEfforts: { ...capabilities.modelEfforts, b: ["low", "high", "max"] },
@@ -87,7 +87,7 @@ describe("patchConfigForModelChange", () => {
     } as AgentCapability;
     expect(patchConfigForModelChange(tiered, "b", { effort: "on" })).toMatchObject({
       model: "b",
-      effort: "high",
+      effort: "max",
     });
   });
 

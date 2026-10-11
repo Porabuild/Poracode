@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from "react";
 import { StructuredCustomValues } from "./StructuredCustomValues";
-import { Select } from "@/renderer/components/common/Select";
+import { QuestionOptionRow } from "./parts/QuestionOptionRow";
 import { Button, Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
@@ -367,17 +367,29 @@ export function StructuredElicitationForm(props: {
                     ) : null}
                   </div>
                 ) : enumOpts.length > 0 && !property.allowCustom ? (
-                  <Select
+                  <div
+                    role="listbox"
                     aria-label={label}
                     aria-describedby={errorId}
-                    isInvalid={invalid}
-                    isDisabled={isDisabled}
-                    placeholder="—"
-                    className="w-full"
-                    value={String(formValues[key] ?? "")}
-                    onChange={(next) => setFormValues((cur) => ({ ...cur, [key]: next }))}
-                    options={[{ id: "", label: "—" }, ...enumOpts]}
-                  />
+                    aria-invalid={invalid}
+                    className="space-y-0.5"
+                  >
+                    {enumOpts.map((option, index) => (
+                      <QuestionOptionRow
+                        key={option.id}
+                        index={index}
+                        option={{ optionId: option.id, label: option.label }}
+                        isDisabled={isDisabled}
+                        selected={formValues[key] === option.id}
+                        onClick={() =>
+                          setFormValues((cur) => ({
+                            ...cur,
+                            [key]: !isRequired && cur[key] === option.id ? "" : option.id,
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <>
                     <datalist id={`${formId}-${key}`}>
