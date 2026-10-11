@@ -22,7 +22,13 @@ export function useUnderfilledHistory({
     const controls = runtimeHistoryBoundary(threadId).sparseControlIds;
     return state.runtimeItemIdsByThread[threadId]?.find((id) => !controls.has(id));
   });
-  const oldestEntryId = canonicalBoundaryId ?? oldestVisibleEntryId;
+  const hydrationStatus = useAppStore((state) => state.runtimeHydrationStatus[threadId]);
+  // Rows can commit before their cursor and hydration admission are installed.
+  // An early read would report no progress and latch this boundary as failed.
+  const oldestEntryId =
+    hydrationStatus === "pending" || hydrationStatus === "failed"
+      ? undefined
+      : (canonicalBoundaryId ?? oldestVisibleEntryId);
   const [trigger] = useState(createUnderfilledHistoryTrigger);
   const resetUnderfilledHistory = trigger.reset;
   useLayoutEffect(() => resetUnderfilledHistory, [resetUnderfilledHistory]);
