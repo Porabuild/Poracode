@@ -676,8 +676,11 @@ export class ManagedCdpClient {
 
   async invokeProcedure(procedure: string, payload?: unknown): Promise<unknown> {
     const args = payload === undefined ? [] : [payload];
+    // Use the loaded renderer's procedure facade. It owns transport selection
+    // and any compiled IPC version envelope; the driver must not mint a version
+    // for a frozen arm or call preload's retired positional interface.
     return this.evaluate(
-      `window.poracodeHost.invokeProcedure(${JSON.stringify(procedure)}, ${JSON.stringify(args)})`,
+      `window.poracode[${JSON.stringify(procedure)}](...${JSON.stringify(args)})`,
     );
   }
 

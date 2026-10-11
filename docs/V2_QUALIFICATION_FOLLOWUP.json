@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T10:27:46.557607+00:00",
+  "updatedAt": "2026-10-11T11:24:24.672485+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
@@ -173,13 +173,13 @@
     {
       "order": 3,
       "gate": "portrait-safari-lifecycle",
-      "status": "unqualified-first-owned-safari-attempt",
+      "status": "scoped-safari-lifecycle-pass-rich-and-live-residual-open",
       "acceptance": "Owned disposable supported simulator, portrait shell/history/composer/reload/background/reconnect; record real Safari evidence or concrete external blocker."
     },
     {
       "order": 4,
       "gate": "retention-and-resources",
-      "status": "pending-cohort-reconciliation",
+      "status": "maintained-correction-launched-pre-workload-driver-failure-fixed",
       "acceptance": "Use existing maintained harness; declare source/workload/ownership/deadline and available counters; no exhausted unchanged cohorts or profiler hunting."
     },
     {
@@ -233,7 +233,17 @@
       "source": "7000c97755532f264229864dd079c7edcbf042a1",
       "runs": [38130607601, 38130611570, 38130607822, 38130611700],
       "conclusion": "success",
-      "finalAuditDocumentationCi": "required-after-this-audit-update"
+      "finalAuditDocumentationCi": "success-at-a643;next-followup-head-required",
+      "finalAuditDocumentationCiReceipt": {
+        "source": "a643df7d64d12babf43e321ff3c1a96cd41c4f17",
+        "runs": [38132081348, 38132084129, 38132081464, 38132084180],
+        "conclusion": "success",
+        "prRollup": {
+          "success": 50,
+          "skipped": 8
+        },
+        "nextCommittedHeadCi": "required-after-this-followup-update"
+      }
     },
     "independentReview": "R1-R4 reviewed; two progress/retention findings fixed and re-reviewed without remaining actionable findings.",
     "affectedDevelopmentSmoke": {
@@ -250,6 +260,21 @@
       "artifactSha256": "416ab1232cb86ba563bb1880e723c209f8ffbdb56b1f9d577a50031cf9e92b51",
       "manifest": "tmp/v2-followup-20261011/production-merged/production-manifest.json",
       "allProductionFlowsQualified": false
+    },
+    "harnessProcedureFix": {
+      "scope": "Native qualification test driver only; loaded renderer procedure facade replaces retired positional preload invocation. The renderer owns transport and compiled IPC envelope; driver never supplies a version.",
+      "regressionBefore": "fails-local17-peer0",
+      "regressionAfter": {
+        "passedTests": 55,
+        "files": 3
+      },
+      "typecheck": "pass",
+      "lint": "pass",
+      "touchedFormat": "pass",
+      "independentReview": "Two reviewers, behavior/compatibility and interfaces/reuse: no findings.",
+      "versionChangeRequired": false,
+      "productionSourceChanged": false,
+      "evidenceRoot": "tmp/v2-followup-20261011"
     }
   },
   "safariResidual": {
@@ -265,6 +290,68 @@
     "canonicalTablesUnchanged": 10,
     "artifactUnchanged": true,
     "ownedProcessesAndSimulatorStopped": true,
-    "fullSafariPass": false
+    "fullSafariPass": false,
+    "correctedLifecycle": {
+      "status": "scoped-lifecycle-pass-broader-safari-incomplete",
+      "source": "7000c97755532f264229864dd079c7edcbf042a1",
+      "result": "tmp/v2-followup-20261011/safari-reader-corrected/qualification-result.json",
+      "inputPreflight": "tmp/v2-followup-20261011/safari-input-preflight/verification.json",
+      "materialCorrections": [
+        "Canonical deployed HTML asset normalization",
+        "Bare stop CLI command",
+        "Passive trusted-click and store observations",
+        "Fresh owned simulator website state"
+      ],
+      "applicationLaunches": 2,
+      "plannedHostRestarts": 1,
+      "unchangedRetries": 0,
+      "deadlineMs": 600000,
+      "verified": [
+        "Portrait pair and trusted same-thread open",
+        "Visible saved-history scroll",
+        "Online and offline native reload retain visible reader",
+        "Home background and Safari foreground recovery",
+        "One host restart clears offline banner and same thread reopens"
+      ],
+      "canonicalTablesUnchanged": 10,
+      "artifactUnchanged": true,
+      "allHostAndControlJoinsZero": true,
+      "ownedPortsClosed": 2,
+      "ownedSimulatorAndMirrorStopped": true,
+      "passiveOnlineErrors": 0,
+      "fullSafariPass": false,
+      "remaining": [
+        "Exact rich browser projection and every representative presentation not measured in Safari",
+        "Inactive synthetic provider cannot resume; live composer/keyboard/stream not tested",
+        "No fresh-document navigation-timing identity or offline JavaScript error oracle",
+        "No long-session retention/resource or genuine handler claim"
+      ]
+    }
+  },
+  "sustainedResidual": {
+    "status": "failed-before-workload-harness-fix-verified",
+    "scope": "Maintained 30-minute development/instrumented mixed workload, not matched production savings",
+    "source": "a643df7d64d12babf43e321ff3c1a96cd41c4f17",
+    "declaration": "tmp/v2-followup-20261011/sustained-declaration.json",
+    "provenance": "tmp/v2-followup-20261011/sustained/sustained-20261011T111639Z-dd05/provenance.json",
+    "priorPackagingFailurePreserved": true,
+    "attemptsUsed": 1,
+    "attemptLimit": 1,
+    "unchangedFurtherLaunchesAllowed": false,
+    "applicationLaunched": true,
+    "workloadStarted": false,
+    "failure": "Test driver positional preload call refused as IPC peer0 by compiled version17 main",
+    "teardown": "stop acknowledged; managed session stopped",
+    "fixed": "Use actual loaded renderer procedure facade; regression fails before and passes after",
+    "qualified": false,
+    "availableCounters": [
+      "Sampled process CPU/RSS",
+      "Node heap/event-loop/queue",
+      "Renderer interaction timing"
+    ],
+    "counterLimitations": [
+      "No physical disk I/O/private RAM/hardware GPU",
+      "Development stand-ins do not establish matched production gains"
+    ]
   }
 }
