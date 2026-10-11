@@ -16,7 +16,7 @@ import { closeDatabase, initDatabase } from "@/host/db/connection";
 import { dbGetThreadRuntimeItems } from "@/host/db/runtimeItems";
 import { dbGetSchedules } from "@/host/db/schedules";
 import { dbGetProjects, dbGetThreads } from "@/host/db/projectsThreads";
-import { projectSchema, threadSchema } from "@/shared/contracts";
+import { messageItemPayloadSchema, projectSchema, threadSchema } from "@/shared/contracts";
 import { scheduledTaskSchema } from "@/shared/contracts/schedule";
 import { HostOwnerLease } from "./hostOwnerLease";
 import { resolveDesktopHostRootPaths } from "./hostRootPaths";
@@ -44,7 +44,7 @@ it("promotes the actual released schema42 and preserves history through schema57
   mkdirSync(namespace);
   const sourceDatabase = join(namespace, "state.sqlite");
   copyFileSync(join(fixture, "state.sqlite"), sourceDatabase);
-  const settings = '{"theme":"dark","syntheticUpgradeMarker":"from-1.8.2"}\n';
+  const settings = '{"themeMode":"light","locale":"fr"}\n';
   const sealedKey = Buffer.from("synthetic sealed old key").toString("base64");
   writeFileSync(join(namespace, "settings.json"), settings);
   writeFileSync(join(namespace, "secret-key.safe"), sealedKey);
@@ -115,6 +115,12 @@ it("promotes the actual released schema42 and preserves history through schema57
       expect(db.prepare("SELECT key,value FROM app_state WHERE key=?").get(row.key)).toEqual(row);
     }
     const runtime = await dbGetThreadRuntimeItems("18200000-0000-4000-8000-000000000002");
+    for (const item of runtime.filter(
+      (entry) => entry.type === "user_message" || entry.type === "assistant_message",
+    )) {
+      // Persisted rows must satisfy the display contract too, not just SQLite.
+      expect(messageItemPayloadSchema.parse(item.payload)).toEqual(item.payload);
+    }
     for (const row of expected.runtime) {
       expect(runtime.find((item) => item.id === row.id)).toMatchObject(row);
     }
