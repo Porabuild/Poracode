@@ -462,6 +462,8 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       threadId: string,
       options?: {
         readonly focus?: boolean;
+        /** Retain the visible restored reader until authoritative history arbitrates overlap. */
+        readonly preserveLoadedHistory?: boolean;
         readonly quiet?: boolean;
         readonly signal?: AbortSignal;
       },
@@ -493,6 +495,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       };
       const viewThreadId = remoteThreadId(desktopId, threadId);
       if (
+        options?.preserveLoadedHistory !== true &&
         (previousOpenThread?.desktopId !== desktopId || previousOpenThread.threadId !== threadId) &&
         !currentRemoteServerThreadItemInterests(desktopId).includes(threadId) &&
         selectActiveSubAgentParentItemIds(useAppStore.getState(), viewThreadId).length === 0

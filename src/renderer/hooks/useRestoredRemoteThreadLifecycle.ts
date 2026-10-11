@@ -256,6 +256,7 @@ export function useRestoredRemoteThreadLifecycle(enabled: boolean): void {
         const opened = await remote.openRemoteThread(owner.desktopId, owner.remoteId, {
           focus: false,
           quiet: true,
+          preserveLoadedHistory: true,
         });
         if (!isCurrentRun(ownerRun)) return;
         if (opened) {

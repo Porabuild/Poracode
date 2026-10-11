@@ -3257,3 +3257,13 @@ Remote projects use the existing host-routed tree procedures; Home stays
 file-only. No persisted cache, editor context, IPC or remote protocol shape
 changes, so no compatibility version or migration is required. Regressions
 cover delayed replies, root return, stale refresh and dock reopening.
+
+Restored visible remote panes retain their loaded reader window while their
+first online attach fetches authoritative history. A renderer-only named open
+option bypasses the pre-fetch projection reset for this caller; the shared
+snapshot installer still requires ordinary-row overlap to retain a prefix and
+replaces complete or disjoint authoritative history. Explicit opens, history
+notice recovery, server restarts and command reconciliation keep their reset
+behavior. This option is session-local and is not serialized or sent over IPC;
+canonical history, IndexedDB version 2 and wire/native/helper versions remain
+unchanged. Rebuilt renderer/PWA asset identities invalidate the prior code.

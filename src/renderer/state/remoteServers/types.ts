@@ -259,6 +259,8 @@ export interface RemoteServersState {
     threadId: string,
     options?: {
       readonly focus?: boolean;
+      /** Retain the visible restored reader until authoritative history arbitrates overlap. */
+      readonly preserveLoadedHistory?: boolean;
       readonly quiet?: boolean;
       /**
        * Caller-owned cancellation for a bounded recovery read. Aborting the
