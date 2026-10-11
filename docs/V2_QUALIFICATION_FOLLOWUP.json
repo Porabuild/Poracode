@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T14:04:19.044090+00:00",
+  "updatedAt": "2026-10-11T15:06:05.676681+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
   "currentDecision": {
-    "masterConflicts": "resolved; latest fetched master14ad0c3dd is an ancestor of V2",
-    "sourceAndHarnessChecks": "New development timing cleanup passes local typecheck/lint/format, full serial suite, desktop/web builds and i18n; exact pushed-head CI must be recorded externally after commit. Earlier audit head 6ea8a6d17 has all four CI runs successful.",
+    "masterConflicts": "resolved; fresh 2026-10-11 fetch still identifies master14ad0c3dd, an ancestor of V2",
+    "sourceAndHarnessChecks": "Reviewed development timing fix90c275a29 has all four exact-head workflows successful. Declined correction passes242 focused tests,14 final regressions, typecheck/lint/format and desktop/web builds. Local full run has2017 passing files/five unchanged timeout-affected suites; all46 tests in those suites pass with one worker and unchanged deadlines. Exact pushed-head CI must be retained externally.",
     "mergeReadiness": "not-yet-qualified: a concrete development timing retention mechanism is fixed and regression-tested; full application crash/resource and relevant live residuals remain open.",
     "originalFiveComplete": false,
     "necessaryNextWork": [
-      "Bind the reviewed development retention fix and audit to final pushed-head CI; retain exact receipt outside this self-referential document",
-      "Close relevant remaining live permission/steer/resume and affected UI residuals using genuine capabilities",
-      "Qualify representative application stability only with a justified finite validation of materially changed inputs; preserve the failed exhausted cohort and all eight historical budgets"
+      "Bind the reviewed declined-status correction and substantive evidence audit to exact pushed-head CI; retain receipt externally to avoid SHA-only documentation churn",
+      "Close cold-host resume, affected provider/UI and live Safari composer/keyboard/stream residuals using available genuine capabilities",
+      "Qualify representative application stability only on justified materially changed inputs with a finite declaration; old exhausted cohorts and eight historical budgets stay unchanged"
     ],
     "notRequiredBeforeMerge": [
       "Exhaustive tool permutations and all-surface performance savings",
@@ -68,7 +68,7 @@
     {
       "id": "F3-attribution",
       "status": "required-incomplete",
-      "verified": "Proven timing-entry retention fixed; isolated Node diagnostic pairs and source-level hook/frame scaling retained. Isolated UsageService I/O and source serialization/cache fixes have scoped receipts. Actual React development full-prop timing retention is now reproduced with native User Timing and fixed under a DEV-only bootstrap guard; this is separate from whole-application resource attribution.",
+      "verified": "Proven timing-entry retention fixed; isolated Node diagnostic pairs and source-level hook/frame scaling retained. Isolated UsageService I/O and source serialization/cache fixes have scoped receipts. Actual React development full-prop timing retention is now reproduced with native User Timing and fixed under a DEV-only bootstrap guard; this is separate from whole-application resource attribution. Two current renderer observations during/after the real streaming workflow show zero retained React component measures; this short workflow does not qualify sustained resource growth or crash resolution.",
       "remainingRequired": [
         "Bounded application retained-owner/growth check",
         "Representative available app CPU/RSS/I/O and interaction attribution where a valid finite cohort remains"
@@ -81,16 +81,18 @@
     {
       "id": "F4-matrix",
       "status": "required-incomplete",
-      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI. Actual Codex first/follow-up, two-question selection and working-before-output Stop now have scoped live receipts.",
+      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI. Actual Codex first/follow-up, two-question selection and working-before-output Stop now have scoped live receipts. Source90c real Codex also verifies Stop after visible output, same-host pane reopen/continue with exact prior message fields and stable provider session, and native turn/steer. A read-only Deny control resolves once and interrupts the turn; native declined-status normalization has a reproduced defect and reviewed provider-only correction.",
       "remainingRequired": [
-        "Final integration focused tests, source checks/builds and exact-head CI",
-        "Affected answer-selection/default-effort/subagent progress UI verification",
-        "Production reader/scroll/replay and GUI PTY checks where compatible evidence is absent"
+        "Final correction source checks and exact-head CI",
+        "Cold-host resume and relevant affected provider progress/UI where compatible proof is absent",
+        "Affected production GUI/PTY and live Safari confidence where compatible evidence is absent"
       ],
       "optionalNotNeeded": ["Every tool/permission permutation", "Unchanged broad smoke replays"],
       "limitations": [
         "API/source PTY evidence is narrower than GUI terminal evidence.",
-        "Native CI is narrower than physical native device/push qualification."
+        "Native CI is narrower than physical native device/push qualification.",
+        "Native steer does not exercise generic interrupt fallback; pane reopen is not cold-host resume.",
+        "Deny uses native cancel and interrupts the turn; no agent denial-confirmation marker or raw native declined frame was retained."
       ]
     },
     {
@@ -182,7 +184,7 @@
     {
       "order": 2,
       "gate": "affected-functional",
-      "status": "scoped-real-codex-pass-other-live-and-production-residual-open",
+      "status": "scoped-real-codex-stream-stop-reopen-native-steer-pass-cold-host-other-provider-residual-open",
       "acceptance": "One owned bounded changed-surface app run; explicit automated/mock/live results and cleanup. Reuse retained unaffected receipts with input proof."
     },
     {
@@ -200,7 +202,7 @@
     {
       "order": 5,
       "gate": "final-audit",
-      "status": "updated-with-live-codex-and-development-retention-proof-goal-remains-open",
+      "status": "updated-with-scoped-streaming-lifecycle-and-denial-defect-proof-goal-remains-active",
       "acceptance": "Each required practical gate has result and exact inputs; original broader unfinished criteria and release deferrals remain explicit."
     }
   ],
@@ -315,7 +317,7 @@
         "skippedTests": 102,
         "receipt": "tmp/v2-followup-20261011/react-timing-full-tests-serial.log"
       },
-      "exactCommittedHeadCi": "required; retain final receipt externally to avoid SHA-only documentation churn",
+      "exactCommittedHeadCi": "all-four-success-at90c275a294538b3c2a44063053b507b9fc21b252; later correction head requires external CI receipt",
       "finalReceipt": "tmp/v2-followup-20261011/react-timing-ci-completed.json",
       "reviewedCodeReceipt": "tmp/v2-followup-20261011/react-timing-verification.json",
       "noApplicationStabilityPass": true
@@ -641,5 +643,84 @@
       }
     },
     "productionBuildInspection": "React component track cleanup literal absent from emitted desktop and web production assets; DEV installation guard is removed by build."
+  },
+  "liveStreamingLifecycle": {
+    "status": "scoped-stream-stop-pane-reopen-native-steer-pass-denial-control-observed-normalization-fixed-local-checks-verified",
+    "source": "90c275a294538b3c2a44063053b507b9fc21b252",
+    "sourceSha256": "c8686512ce247e7478ae74cc60e5fa13cc83c7181ee44e0880ec07c1f1975962",
+    "artifactSha256": "3839b842b1a5d109d79d7e914c505e729aa57a8ceda83836ec55ba3dc1bb99d8",
+    "result": "tmp/v2-followup-20261011/live-stream-lifecycle/qualification-result.json",
+    "attemptsUsed": 1,
+    "attemptLimit": 1,
+    "unchangedRetries": 0,
+    "deadlineMs": 900000,
+    "deadlineIncludesPreparation": true,
+    "deadlineExtended": false,
+    "sameManagedOwnerFollowedAfterObserverTimeout": true,
+    "streamingStop": "Working with visible output; partial516-character response ends at152/100000; canonical UTF-16LE head matches exactly",
+    "paneReopen": "Prior id/type/state/payload/streams exact, same session, continuation marker observed; hydrated volatile client metadata differs",
+    "nativeSteer": "Submitted while working; replacement marker observed; native turn/steer does not require interrupt",
+    "denial": "Actual readonly command approval offers accept/cancel; Deny selected, one observed request.resolved answered and turn interrupted; command nevertheless labelled success. No native declined frame or post-denial agent marker captured.",
+    "canonicalRows": 12,
+    "gapRows": 0,
+    "projectClean": true,
+    "developmentComponentMeasures": [0, 0],
+    "runtimeOracle": "Driven-flow scope, not whole boot; no exception, one unattributed resource404",
+    "teardown": "Managed stop acknowledged before total deadline;16 recorded PIDs absent, both ports closed, staged runtime removed; detached registry not separately enumerated",
+    "coldHostResumePass": false,
+    "wholeApplicationStabilityPass": false,
+    "matchedProductionGainClaim": false,
+    "oldEightBudgetsUnchanged": true,
+    "oldSustainedCohortReopened": false
+  },
+  "nativeDeclinedNormalization": {
+    "status": "fixed-reviewed-local-checks-pass-final-head-ci-required",
+    "mechanism": "Valid Codex native declined command and patch statuses became canonical success; generated contracts and regression reproduce both completion paths",
+    "fix": "Reuse provider-local codexFinalStatus for command completion and include declined in its existing error cases; retain item.completed and output/exit fields",
+    "regressionBefore": "2declined failures/6passes",
+    "regressionAfter": {
+      "files": 6,
+      "passedTests": 242,
+      "receipt": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-regression-after.log"
+    },
+    "review": "Two independent R1-R4 reviewers: no findings; tmp/v2-followup-20261011/live-stream-lifecycle/denial-review.json",
+    "compatibility": "Existing canonical error/lifecycle fields, SQLite/wire/IPC and payload-origin/projection versions remain compatible; no bump/migration. Preserve historical rows without original native decision.",
+    "permissionDecisionSemanticsChanged": false,
+    "newUserFacingStrings": false,
+    "finalCiReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-ci-completed.json",
+    "localFullSuite": {
+      "status": "failed-unchanged-timeout-suites",
+      "passedFiles": 2017,
+      "failedFiles": 5,
+      "skippedFiles": 6,
+      "passedTests": 23149,
+      "failedTests": 6,
+      "skippedTests": 110,
+      "durationSeconds": 681.68,
+      "receipt": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-full-tests.log",
+      "failureSourceEquivalence": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-timeout-source-equivalence.json",
+      "deadlinesChanged": false
+    },
+    "failureRevalidation": {
+      "files": 5,
+      "passedTests": 46,
+      "maxWorkers": 1,
+      "deadlinesChanged": false,
+      "receipt": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-failure-revalidation.log"
+    },
+    "finalRegressions": {
+      "files": 1,
+      "passedTests": 14,
+      "receipt": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-final-regression.log",
+      "testTitleLintIssueFixed": true
+    },
+    "sourceChecks": {
+      "typecheck": "pass",
+      "lint": "pass",
+      "format": "pass",
+      "desktopBuild": "pass",
+      "webBuild": "pass"
+    },
+    "sourceCheckReceipt": "tmp/v2-followup-20261011/live-stream-lifecycle/denial-source-checks.json"
   }
 }

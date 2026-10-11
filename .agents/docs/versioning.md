@@ -21,6 +21,16 @@ and instructions remain in their original database. API/IPC formats are unchange
 
 # Versioned State & Protocols
 
+Codex command and file-change completion normalize native `declined` to the
+existing canonical `error` status while retaining `item.completed`. Existing
+output and exit-code fields, legacy status omission, SQLite schemas, wire/IPC
+shapes, payload-origin format 1 and `codex.file-change/v1` remain compatible;
+no migration or version bump is required. Historical success-labelled rows
+cannot safely be repaired without their original native decision, so they are
+preserved. Rebuilt bundle hashes identify the corrected provider behavior.
+Regressions cover native statuses with and without a preceding item start,
+including legacy command output and exit-code preservation.
+
 The LegendList 3.3.3 web patch requires a registered callback before closing
 the shared paging-edge gate. Web paging also recognizes movement beyond a
 coalesced layout adjustment, using the scroller's existing axis-aware,

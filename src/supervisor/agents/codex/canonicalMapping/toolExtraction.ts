@@ -44,7 +44,9 @@ export function readCommandAggregatedOutput(
 }
 
 export function codexFinalStatus(raw: unknown): "success" | "error" {
-  return raw === "failed" || raw === "error" || raw === "interrupted" ? "error" : "success";
+  return raw === "failed" || raw === "declined" || raw === "error" || raw === "interrupted"
+    ? "error"
+    : "success";
 }
 
 /**
