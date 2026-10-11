@@ -4,6 +4,14 @@ import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
 import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
+// Core CI shards exclude compiler fixtures in the project that collects them.
+// Vitest 5 does not forward CLI --exclude to inline projects. Ordinary test
+// runs and the dedicated native-contract lane retain the complete suite.
+const coreShardExcludes =
+  process.env.PORACODE_TEST_LANE === "core"
+    ? ["src/shared/remote/contract/native/runtime.test.ts"]
+    : [];
+
 export default defineConfig({
   plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
@@ -61,7 +69,7 @@ export default defineConfig({
           include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts"],
           // Project-level exclude replaces the inherited root exclude, so the
           // perf-suite pattern is restated here.
-          exclude: ["src/renderer/**/*.test.{ts,tsx}", "**/*.perf.test.ts"],
+          exclude: ["src/renderer/**/*.test.{ts,tsx}", "**/*.perf.test.ts", ...coreShardExcludes],
           environment: "node",
         },
       },

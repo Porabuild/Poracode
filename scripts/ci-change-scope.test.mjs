@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { parse } from "yaml";
 
 import { classifyChanges, fullScope } from "./ci-change-scope.mjs";
@@ -144,11 +147,59 @@ void test("native compiler fixtures run only in the scoped contract lane", async
     ),
   );
   const coreTest = core.jobs.test_shard.steps.find((step) => step.name === "Test shard");
-  assert.match(coreTest.run, /--exclude=.*native\/runtime\.test\.ts/u);
+  assert.equal(coreTest.env.PORACODE_TEST_LANE, "core");
 
   const nativeCompile = native.jobs.remote_v3_contract.steps.find(
     (step) => step.name === "Compile generated Swift and Kotlin runtime fixtures",
   );
   assert.match(nativeCompile.run, /native\/runtime\.test\.ts/u);
   assert.match(native.jobs.remote_v3_contract.if, /outputs\.shared == 'true'/u);
+
+  const compilerFile = "src/shared/remote/contract/native/runtime.test.ts";
+  const collect = promisify(execFile);
+  const repository = fileURLToPath(new URL("../", import.meta.url));
+  const vitest = fileURLToPath(new URL("../node_modules/vitest/vitest.mjs", import.meta.url));
+  const defaultEnv = { ...process.env };
+  delete defaultEnv.PORACODE_TEST_LANE;
+  const nativeEnv = {
+    ...defaultEnv,
+    ...native.env,
+    ...native.jobs.remote_v3_contract.env,
+    ...nativeCompile.env,
+  };
+  const runs = [
+    {
+      name: "core",
+      env: { ...defaultEnv, ...coreTest.env },
+      filter: "src/shared/remote/contract/native/",
+      includesCompiler: false,
+    },
+    {
+      name: "default",
+      env: defaultEnv,
+      filter: "src/shared/remote/contract/native/",
+      includesCompiler: true,
+    },
+    { name: "native", env: nativeEnv, filter: compilerFile, includesCompiler: true },
+  ];
+  await Promise.all(
+    runs.map(async ({ name, env, filter, includesCompiler }) => {
+      const { stdout } = await collect(
+        process.execPath,
+        [vitest, "list", "--configLoader", "runner", "--filesOnly", filter],
+        {
+          cwd: repository,
+          env,
+          timeout: 30_000,
+        },
+      );
+      assert.equal(stdout.includes(compilerFile), includesCompiler, `${name} compiler collection`);
+      if (name !== "native") {
+        assert.ok(
+          stdout.includes("native/reducerEmitters.test.ts"),
+          `${name} still collects ordinary node tests`,
+        );
+      }
+    }),
+  );
 });
