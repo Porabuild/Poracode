@@ -53,7 +53,6 @@ import {
 } from "@/shared/agentSelection";
 import type { ComposerControl } from "./ThreadComposer";
 import { formatEffortLabel, supportsUsableFastMode } from "./threadDraftViewHelpers";
-import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import type { ProviderModelPreference } from "@/shared/settings";
 
 export type ModelPickerConfigPatch = {
@@ -243,6 +242,8 @@ export function patchConfigForModelChange(
   },
   agentKind = "",
 ): ModelPickerConfigPatch {
+  const nextReasoning = modelSelectionFor(capabilities, model).reasoning;
+  const effortValid = current.effort ? nextReasoning.values.includes(current.effort) : true;
   const nextContextIds = capabilities.modelContextSizes?.[model];
   const inheritedContext =
     current.contextSize && nextContextIds?.includes(current.contextSize)
@@ -256,7 +257,7 @@ export function patchConfigForModelChange(
     (nextContextIds ? "" : (capabilities.defaultContextSize ?? ""));
   return {
     model,
-    effort: resolvePreferredEffort(capabilities, model, current.effort),
+    effort: effortValid && current.effort ? current.effort : (nextReasoning.default ?? ""),
     contextSize: nextContextSize,
     fast: supportsUsableFastMode(capabilities, model)
       ? (current.fast ?? defaultFastEnabled(agentKind))

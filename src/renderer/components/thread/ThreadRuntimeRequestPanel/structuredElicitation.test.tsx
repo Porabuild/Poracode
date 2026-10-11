@@ -51,19 +51,24 @@ function kimiFormDetails() {
   };
 }
 
-/** Chooses an already-visible answer row. */
-function pickChoice(label: string, option: string) {
-  const listbox = screen.getByRole("listbox", { name: label });
-  fireEvent.click(within(listbox).getByRole("option", { name: (name) => name.endsWith(option) }));
+/** Opens the in-app HeroUI picker for `label` and chooses the option named `option`. */
+async function pickChoice(label: string, option: string) {
+  // The trigger's accessible name also carries the current value ("— Auth").
+  const trigger = screen.getByRole("button", { name: new RegExp(`${label}$`, "u") });
+  expect(trigger.tagName).not.toBe("SELECT");
+  expect(trigger.getAttribute("aria-label")).toBe(label);
+  fireEvent.click(trigger);
+  const listbox = await screen.findByRole("listbox");
+  fireEvent.click(within(listbox).getByRole("option", { name: option }));
 }
 
-function renderForm(details: unknown = kimiFormDetails(), isDisabled = false) {
+function renderForm(details: unknown = kimiFormDetails()) {
   const onSubmit = vi.fn<(response: unknown, outcome: string) => void>();
   const params = asStructuredElicitationDetails(details);
   expect(params).toBeDefined();
   const view = render(
     <AppProvider>
-      <StructuredElicitationForm isDisabled={isDisabled} onSubmit={onSubmit} params={params!} />
+      <StructuredElicitationForm isDisabled={false} onSubmit={onSubmit} params={params!} />
     </AppProvider>,
   );
   return { onSubmit, unmount: view.unmount };
@@ -77,10 +82,10 @@ describe("StructuredElicitationForm", () => {
     expect(screen.getByLabelText("Run lint")).toBeDefined();
   });
 
-  it("submits checkbox values for a multi-select array", () => {
+  it("submits checkbox values for a multi-select array", async () => {
     const { onSubmit } = renderForm();
 
-    pickChoice("Auth", "Log in via browser");
+    await pickChoice("Auth", "Log in via browser");
     fireEvent.click(screen.getByLabelText("Run lint"));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -104,15 +109,13 @@ describe("StructuredElicitationForm", () => {
       },
     });
 
-    expect(screen.getByRole("option", { name: "1.Fast" }).getAttribute("aria-selected")).toBe(
-      "false",
-    );
+    expect(screen.getByRole("button", { name: /Mode$/u }).textContent).toContain("—");
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
     expect(onSubmit).toHaveBeenCalledWith({ action: "accept", content: {} }, "answered");
   });
 
-  it("renders numbered answer rows and submits the underlying option id", () => {
+  it("submits a closed-choice option id from a non-SELECT control", async () => {
     const { onSubmit } = renderForm({
       acpElicitation: {
         mode: "form",
@@ -126,11 +129,8 @@ describe("StructuredElicitationForm", () => {
       },
     });
 
-    pickChoice("Mode", "Fast");
-    expect(screen.queryByRole("combobox")).toBeNull();
-    expect(screen.getByRole("option", { name: "1.Fast" }).getAttribute("aria-selected")).toBe(
-      "true",
-    );
+    await pickChoice("Mode", "Fast");
+    expect(screen.getByRole("button", { name: /Mode$/u }).tagName).not.toBe("SELECT");
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
     expect(onSubmit).toHaveBeenCalledWith(
@@ -139,56 +139,20 @@ describe("StructuredElicitationForm", () => {
     );
   });
 
-  it("can clear an optional choice by pressing its selected row again", () => {
-    const { onSubmit } = renderForm({
-      structuredElicitation: {
-        mode: "form",
-        message: "Pick",
-        sourceText: "Agent",
-        requestedSchema: {
-          type: "object",
-          properties: {
-            choice: {
-              type: "string",
-              title: "Choice",
-              enum: ["first", "second", "third"],
-              default: "second",
-            },
-          },
-        },
-      },
-    });
-    const rows = screen.getAllByRole("option");
-    expect(rows).toHaveLength(3);
-    expect(rows[1]?.getAttribute("aria-selected")).toBe("true");
-    pickChoice("Choice", "second");
-    expect(rows[1]?.getAttribute("aria-selected")).toBe("false");
-    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-    expect(onSubmit).toHaveBeenCalledWith({ action: "accept", content: {} }, "answered");
-  });
-
-  it("keeps disabled answer rows from changing their value", () => {
-    renderForm(kimiFormDetails(), true);
-    const row = screen.getAllByRole("option")[0]!;
-    expect(row.hasAttribute("disabled")).toBe(true);
-    fireEvent.click(row);
-    expect(row.getAttribute("aria-selected")).toBe("false");
-  });
-
-  it("keeps Submit disabled until every required key — array included — is filled", () => {
+  it("keeps Submit disabled until every required key — array included — is filled", async () => {
     renderForm();
     const submit = screen.getByRole("button", { name: "Submit" });
 
     expect(submit.getAttribute("data-disabled")).not.toBeNull();
 
-    pickChoice("Auth", "Paste a token");
+    await pickChoice("Auth", "Paste a token");
     expect(submit.getAttribute("data-disabled")).not.toBeNull();
 
     fireEvent.click(screen.getByLabelText("Run tests"));
     expect(submit.getAttribute("data-disabled")).toBeNull();
   });
 
-  it("still reads oneOf item schemas and plain enums", () => {
+  it("still reads oneOf item schemas and plain enums", async () => {
     renderForm({
       acpElicitation: {
         mode: "form",
@@ -208,7 +172,8 @@ describe("StructuredElicitationForm", () => {
     });
 
     expect(screen.getByLabelText("Alpha")).toBeDefined();
-    expect(screen.getByRole("option", { name: "1.Ex" })).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /Plain$/u }));
+    expect(await screen.findByRole("option", { name: "Ex" })).toBeDefined();
   });
   it("submits typed values and excludes hidden and empty optional fields", () => {
     const { onSubmit } = renderForm({

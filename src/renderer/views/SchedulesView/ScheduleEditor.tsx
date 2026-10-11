@@ -16,7 +16,6 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { HOME_PROJECT_ID, isHomeProject } from "@/shared/homeScope";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
-import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
@@ -171,10 +170,16 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
             };
             const caps = presented.capabilities;
             const model = nextSelection.model;
+            const efforts = caps.modelEfforts[model] ?? caps.efforts ?? [];
+            const keepEffort = efforts.includes(draft.effort);
+            const defaultEffort =
+              caps.defaultEffort && efforts.includes(caps.defaultEffort)
+                ? caps.defaultEffort
+                : (efforts[0] ?? "");
             set({
               agentKind: nextSelection.agentKind,
               model,
-              effort: resolvePreferredEffort(caps, model, draft.effort),
+              effort: keepEffort ? draft.effort : defaultEffort,
               fast: resolveFastValue(presented, model, draft.fast),
             });
           },
