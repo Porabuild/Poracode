@@ -232,16 +232,21 @@ final class ProjectSessionGatewayCompositionTests: XCTestCase {
       session: makeSession(lease: lease, capabilities: []), api: ProjectRemoteAPIFake()
     )
     var refreshed: [ProjectControllerHostLease] = []
+    let refreshCompleted = expectation(description: "Scheduled refresh completed")
     let scheduler = SelectedProjectRefreshScheduler(
       waiter: waiter,
       sessionProvider: { box.selection?.session },
-      refresh: { refreshed.append($0) }
+      refresh: {
+        refreshed.append($0)
+        refreshCompleted.fulfill()
+      }
     )
 
     await scheduler.scheduleProjectRefresh(for: lease)
     await waiter.waitUntilStarted()
     await waiter.release()
-    for _ in 0..<20 where refreshed.isEmpty { await Task.yield() }
+    let result = await XCTWaiter.fulfillment(of: [refreshCompleted], timeout: 5)
+    XCTAssertEqual(result, .completed)
     XCTAssertEqual(refreshed, [lease])
   }
 
