@@ -1,8 +1,12 @@
-import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
+import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
-import { remoteGitStateEventSchema, remoteGitSummariesEventSchema } from "@/shared/remote";
+import {
+  remoteGitStateEventSchema,
+  remoteGitSummariesEventSchema,
+  remoteUserNotificationEventSchema,
+} from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   isThreadFollowUpQueueSnapshotCurrent,
@@ -11,28 +15,48 @@ import {
 } from "@/renderer/state/threadFollowUpQueueStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { handleThreadStateNotification } from "@/renderer/notifications";
+import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
+import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
+import { showUserNotification } from "@/renderer/notifications";
 import {
   toRuntimeChatItem,
   type CompletedTurnRecord,
   type OpenRuntimeRequest,
-  type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   collectRuntimeEventsFromSupervisoryMessage,
   requestsFromRuntimeItems,
 } from "./runtimeRequests";
 import { shouldReplaceRuntimeItemsFromSnapshot } from "./guards";
-import { evictOversizedInactiveThreadRuntimeItems } from "../chatRuntimePersister";
+import { mergeTerminalDelegatedAgentItems } from "./delegatedAgentSnapshot";
+import {
+  seedOlderThreadRuntimeItemsCursor,
+  alignThreadRuntimeHistoryControl,
+  hasHydratedThreadRuntimeItems,
+} from "../chatRuntimePersister";
+import {
+  planRuntimeHistorySnapshot,
+  mergeMissedOlderSnapshotItems,
+  snapshotMonotonicallyCoversExistingTail,
+} from "../runtimeHistorySnapshot";
+import { invalidateRuntimeHistoryRead, runtimeHistoryBoundary } from "../runtimeHistoryBoundary";
+import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { forgetThreadGalleryCache } from "../threadGalleryCache";
+import { snapshotOlderThanAppliedSeq } from "./snapshotSeqArbitration";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
+import {
+  createSupervisorEventReducer,
+  type SupervisorEventSideEffects,
+} from "./reducers/supervisorEventReducer";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
  * stores the desktop renderer uses, so reused components (ChatPane,
  * ThreadComposerSection, ThreadDraftView, sidebar selectors) work unchanged.
- * This module is the shared core of the mobile PWA's store sync
- * (`src/mobile/storeSync.ts`) and the desktop-as-client remote-servers store
- * (`src/renderer/state/remoteServersStore.ts`); both hydrate the shared,
- * threadId-keyed runtime store from remote snapshots and live event streams.
+ * This module is the canonical remote-store sync used by the browser bridge
+ * and Electron's remote-servers store. Both hydrate the shared, threadId-keyed
+ * runtime store from remote snapshots and live event streams.
  *
  * Mobile-only side effects (Live Activity push, terminal feed fan-out, mobile
  * git-summaries store) are NOT triggered here — callers attach them via the
@@ -62,37 +86,89 @@ function toCompletedTurnRecords(
 }
 
 /**
- * Reads the highest WS event seq the client has already applied on that host,
- * passed by callers that track it (the desktop-as-client store). A history
- * snapshot built before one of those events must not overwrite the event's
- * fresher runtime state. Callers without an active socket omit the option.
+ * True when `snapshot` was built before a live event this client already
+ * applied for the same thread — passed by callers that track it per thread
+ * (the desktop-as-client store). Such a snapshot must not overwrite the
+ * event's fresher thread row, pending requests, turn boundary, or
+ * background-task level. Callers without a live seq (one-shot fetches with
+ * no event stream to order against) simply omit the option and accept the
+ * race; their next event-driven refresh overwrites the row either way.
  */
-function snapshotRuntimeStateIsStale(
+function snapshotIsStaleForThread(
   snapshot: RemoteThreadSnapshot,
   lastSeenEventSeq: number | undefined,
 ): boolean {
-  if (lastSeenEventSeq === undefined) return false;
-  return snapshot.snapshotSeq < lastSeenEventSeq;
+  const remoteServerId = snapshot.thread.remoteServerId;
+  if (remoteServerId === undefined || lastSeenEventSeq === undefined) return false;
+  return snapshotOlderThanAppliedSeq(snapshot.snapshotSeq, lastSeenEventSeq);
+}
+
+export interface ApplyThreadSnapshotResult {
+  /** True only when the snapshot authoritatively replaced the transcript.
+   * Stale snapshots and additive missing-older-history splices return false
+   * so callers never record a truncation-suppression baseline from them. */
+  readonly installedAuthoritativeHistory: boolean;
+}
+
+/**
+ * Explicit authority for differently clipped projections of the same stream.
+ * Only a successfully negotiated boundedThreadHistory read (bounded-v1 echo)
+ * currently proves that the canonical intake prefix was committed and read
+ * behind the captured sequence fence. A protocol version, cached response or
+ * fromServer alone is not this proof. Bind it to the projected thread, exact
+ * snapshot and accepted connection generation; recheck that generation and
+ * its per-thread applied watermark after flushing pending renderer events.
+ * This is an ephemeral installer option, never persisted or sent on the wire.
+ */
+interface CommittedHistoryPrefix {
+  readonly threadId: string;
+  readonly snapshotSeq: number;
+  readonly isCurrent: () => boolean;
+  readonly lastSeenEventSeq: () => number | undefined;
 }
 
 export function applyThreadSnapshot(
   snapshot: RemoteThreadSnapshot,
   options: {
     readonly fromServer: boolean;
-    readonly lastSeenEventSeq?: number;
+    readonly lastSeenEventSeq?: number | undefined;
+    readonly committedPrefix?: CommittedHistoryPrefix;
     /** Guard captured immediately before this thread's history request. */
     readonly followUpQueueSnapshotGuard?: ThreadFollowUpQueueSnapshotGuard;
   } = {
     fromServer: true,
   },
-): void {
+): ApplyThreadSnapshotResult {
   const threadId = snapshot.thread.id;
+  const proof = options.committedPrefix;
+  if (
+    proof &&
+    (!options.fromServer ||
+      proof.threadId !== threadId ||
+      proof.snapshotSeq !== snapshot.snapshotSeq ||
+      !proof.isCurrent())
+  ) {
+    return { installedAuthoritativeHistory: false };
+  }
   // A delta can already be in the JS event queue when the foreground recovery
   // snapshot resolves. Apply it before comparing/replacing the transcript so
   // the decision observes every event received up to this point.
-  if (pendingRuntimeEvents.has(threadId)) {
-    flushPendingRuntimeEventsSync(threadId);
+  supervisorReducer.flushSync(threadId);
+  if (proof) {
+    if (!proof.isCurrent()) return { installedAuthoritativeHistory: false };
+    options = {
+      ...options,
+      lastSeenEventSeq: Math.max(
+        options.lastSeenEventSeq ?? -Infinity,
+        proof.lastSeenEventSeq() ?? -Infinity,
+      ),
+    };
   }
+  // Arbitrate after the flush, before any snapshot write (including metadata
+  // and offline caching). A flush can synchronously advance the applied seq.
+  // Only the additive missing-older-history splice is safe for stale reads.
+  const snapshotStale = snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
+  if (isBrowserClientRuntime() && !snapshotStale) void cacheBrowserThreadSnapshot(snapshot);
   const state = useAppStore.getState();
   syncThreadMetadataFromSnapshot(snapshot, options);
 
@@ -106,34 +182,44 @@ export function applyThreadSnapshot(
     (itemId) => existingItems?.[itemId]?.observedLive === true,
   );
   const snapshotItems = snapshot.runtimeItems.map(toRuntimeChatItem);
+  // threadActive reads the snapshot's own status, so a stale inactive-looking
+  // snapshot must never reach the replacement guards (they would treat its
+  // shorter history as an authoritative truncate over the live tail).
   const threadActive = isThreadTurnActive(snapshot.thread.status);
   const shouldReplaceItems =
-    (threadActive &&
+    !snapshotStale &&
+    ((threadActive &&
       options.fromServer &&
-      snapshotMonotonicallyCoversExistingTail(existingIds, existingItems, snapshotItems)) ||
-    shouldReplaceRuntimeItemsFromSnapshot({
-      existingCount: existingIds.length,
-      existingHasObservedLiveItems,
-      snapshotItemCount: snapshot.runtimeItems.length,
-      threadActive,
-      fromServer: options.fromServer,
-    });
+      snapshotMonotonicallyCoversExistingTail(existingIds, existingItems, snapshotItems, {
+        streamsFromCommittedPrefix: proof !== undefined,
+      })) ||
+      shouldReplaceRuntimeItemsFromSnapshot({
+        existingCount: existingIds.length,
+        existingHasObservedLiveItems,
+        snapshotItemCount: snapshot.runtimeItems.length,
+        threadActive,
+        fromServer: options.fromServer,
+      }));
   if (shouldReplaceItems) {
-    const firstSnapshotItemId = snapshotItems[0]?.id;
-    const overlapIndex = firstSnapshotItemId ? existingIds.indexOf(firstSnapshotItemId) : -1;
-    const preservedOlderItems =
-      snapshot.runtimeNextCursor !== undefined && overlapIndex > 0
-        ? existingIds
-            .slice(0, overlapIndex)
-            .flatMap((itemId) => (existingItems?.[itemId] ? [existingItems[itemId]] : []))
-        : [];
     // Keep the session-local liveness marker for rows that were originally
     // observed on this client. It is intentionally not persisted by the
     // server, but replacing a catch-up snapshot should not erase it either.
     const reconciledSnapshotItems = snapshotItems.map((item) =>
       existingItems?.[item.id]?.observedLive ? { ...item, observedLive: true } : item,
     );
-    const items = [...preservedOlderItems, ...reconciledSnapshotItems];
+    const installation = planRuntimeHistorySnapshot(
+      threadId,
+      existingIds,
+      existingItems ?? {},
+      reconciledSnapshotItems,
+      snapshot.runtimeNextCursor,
+    );
+    const { items } = installation;
+    // Cursor and items share the actual installation proof. A stale snapshot
+    // never reaches this point, and every replacement fences awaited pages.
+    seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, installation);
+    clearRuntimeStructuralChangeHint(threadId);
+    forgetThreadGalleryCache(threadId);
     useAppStore.setState((current) => ({
       runtimeItemIdsByThread: {
         ...current.runtimeItemIdsByThread,
@@ -148,18 +234,65 @@ export function applyThreadSnapshot(
         [threadId]: (current.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
       },
     }));
+    if (installation.unlocatedControl) void alignThreadRuntimeHistoryControl(threadId);
     // Active remote threads legitimately have running delegated-agent rows;
     // terminating them paints a false "session ended" error while the host is
     // still working. Inactive threads keep the reconcile (orphaned rows).
+    // Known residual: a background Crossagent run of a turn-inactive thread
+    // is live-observed only by clients that saw it stream; a fresh client's
+    // reconcile can flash it failed until the run's next progress frame
+    // re-marks and self-heals it. Closing that needs a host-declared
+    // capability ("I settle orphaned Crossagent rows"), which is a wire
+    // change; until then only hydration from the local backend is exempt
+    // (chatRuntimePersister's preserveCrossagent).
     if (!threadActive) {
       state.reconcileStaleSubAgents(threadId);
     }
   } else if (options.fromServer) {
+    if (!snapshotStale) mergeTerminalDelegatedAgentItems(threadId, snapshotItems);
     mergeMissedOlderSnapshotItems(threadId, snapshotItems);
+    if (!snapshotStale && !hasHydratedThreadRuntimeItems(threadId)) {
+      // Live items can beat the first snapshot to the pane. Rejecting its
+      // older payload must not leave pagination uninitialized (or let the
+      // browser's empty initial DB response mark it exhausted). Its cursor
+      // alone does not prove the live projection's oldest boundary: rebase.
+      const boundary = runtimeHistoryBoundary(threadId);
+      seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, {
+        preserveExistingCursor: true,
+        sparseControlIds: boundary.sparseControlIds,
+      });
+      boundary.needsRebase = true;
+    }
   }
 
   const turns = toCompletedTurnRecords(snapshot.completedTurns);
-  if (turns.length > 0) {
+  if (options.fromServer && !snapshotStale) {
+    // The server returns the full turn list even when runtime items are paged.
+    // Replace the level so reconnect can remove reverted turns; filtering by
+    // loaded item anchors would also discard valid turns outside the page.
+    useAppStore.setState((current) => {
+      const existing = current.runtimeCompletedTurnsByThread[threadId] ?? [];
+      if (
+        existing.length === turns.length &&
+        existing.every((turn, index) => {
+          const incoming = turns[index];
+          return (
+            incoming !== undefined &&
+            turn.startedAt === incoming.startedAt &&
+            turn.endedAt === incoming.endedAt &&
+            turn.anchorItemId === incoming.anchorItemId
+          );
+        })
+      )
+        return {};
+      return {
+        runtimeCompletedTurnsByThread: {
+          ...current.runtimeCompletedTurnsByThread,
+          [threadId]: turns,
+        },
+      };
+    });
+  } else if (!options.fromServer && turns.length > 0) {
     state.hydrateThreadCompletedTurns(threadId, turns);
   }
   syncRuntimeTurnBoundaryFromSnapshot(snapshot, options);
@@ -171,19 +304,20 @@ export function applyThreadSnapshot(
     // fallback so an old snapshot still cannot undo a live cancellation.
     const queueSnapshotIsStale = options.followUpQueueSnapshotGuard
       ? !isThreadFollowUpQueueSnapshotCurrent(threadId, options.followUpQueueSnapshotGuard)
-      : snapshotRuntimeStateIsStale(snapshot, options.lastSeenEventSeq);
+      : snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
     if (snapshot.followUpQueue !== undefined && !queueSnapshotIsStale) {
       useThreadFollowUpQueueStore.getState().setQueue(threadId, snapshot.followUpQueue);
     }
   }
-  if (snapshot.contextUsage) {
+  if (snapshot.contextUsage && !snapshotStale) {
     const contextUsage = snapshot.contextUsage;
     useAppStore.setState((current) => ({
       runtimeContextByThread: { ...current.runtimeContextByThread, [threadId]: contextUsage },
     }));
   }
 
-  syncRuntimeRequestsFromSnapshot(snapshot);
+  syncRuntimeRequestsFromSnapshot(snapshot, options.lastSeenEventSeq);
+  return { installedAuthoritativeHistory: shouldReplaceItems };
 }
 
 /**
@@ -198,7 +332,7 @@ function applyBackgroundTasksFromSnapshot(
   snapshot: RemoteThreadSnapshot,
   lastSeenEventSeq: number | undefined,
 ): void {
-  if (snapshotRuntimeStateIsStale(snapshot, lastSeenEventSeq)) return;
+  if (snapshotIsStaleForThread(snapshot, lastSeenEventSeq)) return;
   const threadId = snapshot.thread.id;
   const tasks = snapshot.backgroundTasks ?? [];
   useAppStore.setState((current) => {
@@ -216,127 +350,14 @@ function applyBackgroundTasksFromSnapshot(
   });
 }
 
-/**
- * Live-first path: streamed items win over a same-or-shorter active snapshot,
- * but a fresh server history can still know about items emitted BEFORE this
- * client learned the thread existed. The launch race is the canonical case: a
- * remote thread's initial user_message broadcasts while its id is still absent
- * from the client's mirrored thread list, so the live event filter drops it;
- * every later event applies, and once the streamed transcript catches up in
- * length the snapshot is rejected wholesale — the prompt would stay missing
- * for the entire first turn. Splice the snapshot's missed prefix (items
- * ordered before the first locally-known item) in front of the live
- * transcript without touching the fresher streamed tail.
- */
-function mergeMissedOlderSnapshotItems(
-  threadId: string,
-  snapshotItems: readonly RuntimeChatItem[],
-): void {
-  useAppStore.setState((current) => {
-    const existingIds = current.runtimeItemIdsByThread[threadId] ?? [];
-    const firstExistingId = existingIds[0];
-    if (firstExistingId === undefined) return {};
-    // Anchor on the earliest locally-known item; without it in the snapshot
-    // (stale or paged-out window) there is no safe alignment, so do nothing.
-    const overlapIndex = snapshotItems.findIndex((item) => item.id === firstExistingId);
-    if (overlapIndex <= 0) return {};
-    const existingItems = current.runtimeItemsByIdByThread[threadId];
-    const missedPrefix = snapshotItems
-      .slice(0, overlapIndex)
-      .filter((item) => existingItems?.[item.id] === undefined);
-    if (missedPrefix.length === 0) return {};
-    return {
-      runtimeItemIdsByThread: {
-        ...current.runtimeItemIdsByThread,
-        [threadId]: [...missedPrefix.map((item) => item.id), ...existingIds],
-      },
-      runtimeItemsByIdByThread: {
-        ...current.runtimeItemsByIdByThread,
-        [threadId]: {
-          ...Object.fromEntries(missedPrefix.map((item) => [item.id, item])),
-          ...existingItems,
-        },
-      },
-      runtimeStructuralVersionByThread: {
-        ...current.runtimeStructuralVersionByThread,
-        [threadId]: (current.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
-      },
-    };
-  });
-}
-
-const RUNTIME_ITEM_STATE_RANK: Record<RuntimeChatItem["state"], number> = {
-  started: 0,
-  updated: 1,
-  completed: 2,
-};
-
-/**
- * A fresh active-thread snapshot may safely replace the current tail when it
- * contains every locally-known tail item in the same order and every streamed
- * text bucket is equal to, or an append-only extension of, what is visible.
- *
- * This is the foreground catch-up case Safari needs: a long assistant response
- * usually grows one existing item, so item-count-only freshness checks cannot
- * distinguish a stale snapshot from one containing all output emitted while
- * the page was suspended.
- */
-function snapshotMonotonicallyCoversExistingTail(
-  existingIds: readonly string[],
-  existingItems: Record<string, RuntimeChatItem> | undefined,
-  snapshotItems: readonly RuntimeChatItem[],
-): boolean {
-  const firstSnapshotId = snapshotItems[0]?.id;
-  if (!firstSnapshotId || existingIds.length === 0 || !existingItems) return false;
-  const overlapIndex = existingIds.indexOf(firstSnapshotId);
-  if (overlapIndex < 0) return false;
-  const existingTailIds = existingIds.slice(overlapIndex);
-  if (existingTailIds.length > snapshotItems.length) return false;
-
-  return existingTailIds.every((itemId, index) => {
-    const existing = existingItems[itemId];
-    const incoming = snapshotItems[index];
-    if (!existing || !incoming || incoming.id !== itemId) return false;
-    if (incoming.type !== existing.type || incoming.parentItemId !== existing.parentItemId) {
-      return false;
-    }
-    if (RUNTIME_ITEM_STATE_RANK[incoming.state] < RUNTIME_ITEM_STATE_RANK[existing.state]) {
-      return false;
-    }
-    if (!snapshotValueMonotonicallyCovers(existing.payload, incoming.payload)) return false;
-    return Object.entries(existing.streams).every(([stream, text]) => {
-      const incomingText = incoming.streams[stream as keyof RuntimeChatItem["streams"]] ?? "";
-      return incomingText.startsWith(text ?? "");
-    });
-  });
-}
-
-function snapshotValueMonotonicallyCovers(existing: unknown, incoming: unknown): boolean {
-  if (Object.is(existing, incoming) || existing === undefined) return true;
-  if (Array.isArray(existing)) {
-    return (
-      Array.isArray(incoming) &&
-      existing.length === incoming.length &&
-      existing.every((value, index) => snapshotValueMonotonicallyCovers(value, incoming[index]))
-    );
-  }
-  if (!existing || typeof existing !== "object" || !incoming || typeof incoming !== "object") {
-    return false;
-  }
-  if (Array.isArray(incoming)) return false;
-  const incomingRecord = incoming as Record<string, unknown>;
-  return Object.entries(existing as Record<string, unknown>).every(
-    ([key, value]) =>
-      Object.hasOwn(incomingRecord, key) &&
-      snapshotValueMonotonicallyCovers(value, incomingRecord[key]),
-  );
-}
-
 function syncThreadMetadataFromSnapshot(
   snapshot: RemoteThreadSnapshot,
-  options: { readonly fromServer: boolean },
+  options: { readonly fromServer: boolean; readonly lastSeenEventSeq?: number | undefined },
 ): void {
   if (!options.fromServer) return;
+  // A snapshot built before a live `thread-state` the client already applied
+  // must not replace the mirrored row with its older status.
+  if (snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq)) return;
   useAppStore.setState((current) => {
     const isVisible = isThreadVisible(current.view, snapshot.thread.id);
     let changed = false;
@@ -347,20 +368,40 @@ function syncThreadMetadataFromSnapshot(
       // state of a thread the user is currently watching. openThread clears
       // it optimistically, but a slower authoritative history response can
       // otherwise paint the same stale badge back onto the open thread.
-      return isVisible && snapshot.thread.status === "finished"
-        ? { ...snapshot.thread, status: "idle" as const }
-        : snapshot.thread;
+      const replacement =
+        isVisible && snapshot.thread.status === "finished"
+          ? { ...snapshot.thread, status: "idle" as const }
+          : snapshot.thread;
+      // The snapshot is inventory-aware (the host overlays its live
+      // `sessionConfigInventory` entry onto the served row), so an explicit
+      // value is authoritative; a host with no entry serves the key absent,
+      // and that absence retains the live inventory the event stream already
+      // applied — same owner/session only.
+      return preservePendingThreadConfig(
+        carryVolatileSessionConfigOptions(thread, replacement),
+        current.pendingThreadConfigByThreadId[thread.id],
+      );
     });
-    return changed ? { threads } : {};
+    return changed
+      ? {
+          threads,
+          pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+            current.pendingThreadConfigByThreadId,
+            threads,
+          ),
+        }
+      : {};
   });
 }
 
 function syncRuntimeTurnBoundaryFromSnapshot(
   snapshot: RemoteThreadSnapshot,
-  options: { readonly fromServer: boolean },
+  options: { readonly fromServer: boolean; readonly lastSeenEventSeq?: number | undefined },
 ): void {
   if (!options.fromServer) return;
   if (snapshot.thread.presentationMode !== "gui") return;
+  // A stale snapshot must not close a turn that live events still have open.
+  if (snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq)) return;
   if (isThreadTurnActive(snapshot.thread.status)) return;
   const threadId = snapshot.thread.id;
   useAppStore.setState((current) => {
@@ -378,9 +419,16 @@ function syncRuntimeTurnBoundaryFromSnapshot(
  * Live requests are ephemeral renderer state, so after a reload rebuild them
  * from their still-open persisted `*_request` runtime items. Seed the store
  * only while the thread is blocked on the user, and clear stale requests once
- * the thread moves on.
+ * the thread moves on. A snapshot built before a live `request.opened` /
+ * `request.resolved` the client already applied must do neither — clearing
+ * would drop a prompt the agent is blocked on, and re-seeding would resurrect
+ * a resolved one — so both halves are skipped for a stale snapshot.
  */
-function syncRuntimeRequestsFromSnapshot(snapshot: RemoteThreadSnapshot): void {
+function syncRuntimeRequestsFromSnapshot(
+  snapshot: RemoteThreadSnapshot,
+  lastSeenEventSeq: number | undefined,
+): void {
+  if (snapshotIsStaleForThread(snapshot, lastSeenEventSeq)) return;
   const threadId = snapshot.thread.id;
   const awaitingUser =
     snapshot.thread.status === "needs_approval" || snapshot.thread.status === "needs_reply";
@@ -410,116 +458,12 @@ function syncRuntimeRequestsFromSnapshot(snapshot: RemoteThreadSnapshot): void {
 }
 
 // ── Live supervisor event dispatch ──────────────────────────────
-// Mirrors the renderer's module-level IPC listener (src/renderer/app.tsx):
-// visible runtime events are coalesced per animation frame so streaming text
-// cannot re-render faster than the display refreshes. Background threads flush
-// four times per second so several concurrent streams do not saturate the UI.
-
-const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
-const pendingRuntimeEvents = new Map<string, RuntimeEvent[]>();
-let runtimeFlushHandle: number | null = null;
-let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
-let removeRuntimeSchedulingListeners: (() => void) | null = null;
-
-function isForegroundRuntimeThread(threadId: string): boolean {
-  if (document.visibilityState === "hidden") return false;
-  return isThreadVisible(useAppStore.getState().view, threadId);
-}
-
-function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): void {
-  const store = useAppStore.getState();
-  const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
-  for (const [threadId, events] of pendingRuntimeEvents) {
-    if (!shouldFlush(threadId)) continue;
-    batches.push({ threadId, events });
-    pendingRuntimeEvents.delete(threadId);
-  }
-  if (batches.length === 0) return;
-  store.applyRuntimeEventBatches(batches);
-  evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-}
-
-function schedulePendingRuntimeEvents(): void {
-  let hasForeground = false;
-  let hasBackground = false;
-  for (const threadId of pendingRuntimeEvents.keys()) {
-    if (isForegroundRuntimeThread(threadId)) hasForeground = true;
-    else hasBackground = true;
-    if (hasForeground && hasBackground) break;
-  }
-
-  if (hasForeground && runtimeFlushHandle === null) {
-    runtimeFlushHandle = requestAnimationFrame(() => {
-      runtimeFlushHandle = null;
-      flushPendingRuntimeEvents(isForegroundRuntimeThread);
-      schedulePendingRuntimeEvents();
-    });
-  } else if (!hasForeground && runtimeFlushHandle !== null) {
-    cancelAnimationFrame(runtimeFlushHandle);
-    runtimeFlushHandle = null;
-  }
-
-  if (hasBackground && backgroundRuntimeFlushHandle === null) {
-    backgroundRuntimeFlushHandle = setTimeout(() => {
-      backgroundRuntimeFlushHandle = null;
-      flushPendingRuntimeEvents((threadId) => !isForegroundRuntimeThread(threadId));
-      schedulePendingRuntimeEvents();
-    }, BACKGROUND_RUNTIME_EVENT_BATCH_MS);
-  } else if (!hasBackground && backgroundRuntimeFlushHandle !== null) {
-    clearTimeout(backgroundRuntimeFlushHandle);
-    backgroundRuntimeFlushHandle = null;
-  }
-}
-
-function installRuntimeSchedulingListeners(): void {
-  if (removeRuntimeSchedulingListeners) return;
-  const unsubscribe = useAppStore.subscribe((state) => state.view, schedulePendingRuntimeEvents);
-  document.addEventListener("visibilitychange", schedulePendingRuntimeEvents);
-  removeRuntimeSchedulingListeners = () => {
-    unsubscribe();
-    document.removeEventListener("visibilitychange", schedulePendingRuntimeEvents);
-  };
-}
-
-function enqueueRuntimeEvents(threadId: string, events: readonly RuntimeEvent[]): void {
-  if (events.length === 0) return;
-  const existing = pendingRuntimeEvents.get(threadId);
-  if (existing) {
-    existing.push(...events);
-  } else {
-    pendingRuntimeEvents.set(threadId, [...events]);
-  }
-  installRuntimeSchedulingListeners();
-  schedulePendingRuntimeEvents();
-}
-
-function flushPendingRuntimeEventsSync(threadId: string): void {
-  flushPendingRuntimeEvents((pendingThreadId) => pendingThreadId === threadId);
-  schedulePendingRuntimeEvents();
-}
-
-/** Drop every queued runtime delta and cancel the pending flush, if any. Exposed
- * so the mobile PWA's `resetRemoteStores` (which wipes session state on
- * desktop switch/unpair) can clear the same coalescing buffer the core owns. */
-export function clearPendingRuntimeEvents(): void {
-  if (runtimeFlushHandle !== null) {
-    cancelAnimationFrame(runtimeFlushHandle);
-    runtimeFlushHandle = null;
-  }
-  if (backgroundRuntimeFlushHandle !== null) {
-    clearTimeout(backgroundRuntimeFlushHandle);
-    backgroundRuntimeFlushHandle = null;
-  }
-  removeRuntimeSchedulingListeners?.();
-  removeRuntimeSchedulingListeners = null;
-  pendingRuntimeEvents.clear();
-}
-
-function asSupervisorEvent(value: unknown): SupervisorEvent | null {
-  if (!value || typeof value !== "object") return null;
-  if (typeof (value as { type?: unknown }).type !== "string") return null;
-  return value as SupervisorEvent;
-}
+// The remote flavor of THE shared SupervisorEvent reducer
+// (./reducers/supervisorEventReducer.ts), formerly a diverging copy of the
+// desktop listener in src/renderer/app.tsx. Runtime deltas are coalesced per
+// animation frame so streaming text cannot re-render faster than the display
+// refreshes; background threads flush four times per second so several
+// concurrent streams do not saturate the UI.
 
 /**
  * Optional mobile-only side effects that ride supervisor events on the PWA.
@@ -528,6 +472,17 @@ function asSupervisorEvent(value: unknown): SupervisorEvent | null {
  * terminal feed listeners) or were filtered out before dispatch.
  */
 export interface RemoteDispatchHooks {
+  /**
+   * Called when the final-consumer runtime queue drops a thread's incomplete
+   * delta batch. The host should install an authoritative snapshot before the
+   * queue is resumed; until then subsequent live deltas stay blocked.
+   */
+  readonly onRuntimeQueueOverflow?: (
+    threadIds: readonly string[],
+    resume: () => void,
+  ) => void | Promise<boolean | void>;
+  /** Recovery replay is already ordered behind an authoritative snapshot. */
+  readonly deliverRuntimeEventsImmediately?: boolean;
   /**
    * Fired after a `thread-state` event's core mutation. Mobile uses this to
    * drive the foreground Live Activity notification. Resolves the thread/project
@@ -562,92 +517,104 @@ export interface RemoteDispatchHooks {
   readonly onGitState?: (patch: GitStatePatch) => void;
 }
 
-export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
-  const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
-  if (runtimeBatches.length > 0) {
-    for (const batch of runtimeBatches) {
-      enqueueRuntimeEvents(batch.threadId, batch.events);
-    }
-    return;
-  }
+/**
+ * The dispatch-time hooks of the in-flight {@link dispatchRemoteSupervisorEvent}
+ * call. The shared reducer invokes the injected recovery strategy
+ * synchronously while dispatching, so the strategy reads the current caller's
+ * hook from here instead of threading per-call state through the core.
+ */
+let currentDispatchHooks: RemoteDispatchHooks | null = null;
 
-  // Out-of-band desktop events ride the same stream as supervisor events.
-  const gitSummaries = remoteGitSummariesEventSchema.safeParse(value);
-  if (gitSummaries.success) {
-    // No core mutation — the per-thread git summaries live in a separate store
-    // the core does not own. Mobile attaches its hydration hook here; desktop
-    // never reaches this branch (its event filter drops desktop-global events).
-    hooks?.onGitSummaries?.(gitSummaries.data.summaries);
-    return;
-  }
-  const gitState = remoteGitStateEventSchema.safeParse(value);
-  if (gitState.success) {
-    hooks?.onGitState?.(gitState.data.patch);
-    return;
-  }
-
-  const event = asSupervisorEvent(value);
-  if (!event) return;
-
-  // Non-runtime events observe the same ordering as the IPC stream.
-  if ("threadId" in event && pendingRuntimeEvents.has(event.threadId)) {
-    flushPendingRuntimeEventsSync(event.threadId);
-  }
-
-  switch (event.type) {
-    case "thread-state": {
-      const oldThread = useAppStore.getState().threads.find((t) => t.id === event.threadId);
-      useAppStore
-        .getState()
-        .updateThreadRuntime(event.threadId, normalizeRuntimeSnapshotLaunchConfig(event));
-      if (event.status === "inactive" || event.status === "error") {
-        useAppStore.getState().reconcileStaleSubAgents(event.threadId);
-      }
-      handleThreadStateNotification(event, oldThread);
-      hooks?.onThreadState?.({
-        threadId: event.threadId,
-        status: event.status,
-        oldThread,
-      });
-      return;
-    }
-    case "thread-follow-up-queue": {
-      useThreadFollowUpQueueStore.getState().setQueue(event.threadId, event.queue);
-      break;
-    }
-    case "thread-pending-steer": {
-      useAppStore.getState().setPendingSteer(event.threadId, event.pending);
-      return;
-    }
-    case "thread-reset": {
-      pendingRuntimeEvents.delete(event.threadId);
-      useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
-      useAppStore.getState().clearAllPendingSteer(event.threadId);
-      // The id may be a dev shell (no thread); a live terminal surface watching
-      // it clears on restart. Output itself rides the separate terminal-output
-      // channel; reset/exit ride the event stream, so fan them out via the hook.
-      hooks?.onThreadReset?.(event.threadId);
-      return;
-    }
-    case "thread-exited": {
-      useAppStore.getState().markThreadExited(event.threadId);
-      useAppStore.getState().clearAllPendingSteer(event.threadId);
-      hooks?.onThreadExited?.({ threadId: event.threadId, exitCode: event.exitCode });
-      return;
-    }
-    case "agent-status-updated": {
+const supervisorReducer = createSupervisorEventReducer({
+  // INJECTED recovery strategy: HTTP snapshot. Overflow delegates to the
+  // caller's snapshot re-fetch (event socket resync / desktop-as-client
+  // history read); a `thread-reset` has no snapshot to await, so the queue
+  // resumes immediately and fresh deltas keep flowing.
+  recovery: {
+    recoverFromQueueOverflow: (threadIds, resume) =>
+      currentDispatchHooks?.onRuntimeQueueOverflow?.(threadIds, resume),
+    recoverFromThreadReset: (_threadId, resume) => {
+      // A reset is the authoritative generation boundary when this caller
+      // has no separate snapshot-recovery promise to await.
+      resume();
+    },
+  },
+  normalizeThreadState: normalizeRuntimeSnapshotLaunchConfig,
+  onAgentStatusEvent: (event) => {
+    if (event.type === "agent-status-updated") {
       useAgentStatusesStore.getState().mergeAgentStatus(event.status);
-      return;
-    }
-    case "windows-agent-statuses": {
+    } else if (event.type === "windows-agent-statuses") {
       useAgentStatusesStore.getState().setAgentStatuses(event.statuses);
-      return;
-    }
-    case "wsl-agent-statuses": {
+    } else if (event.type === "wsl-agent-statuses") {
       useAgentStatusesStore.getState().setWslAgentStatuses(event.statuses);
+    }
+  },
+});
+
+/** Drop every queued runtime delta and cancel the pending flush, if any. Used
+ * when switching or removing a remote host so stale batches cannot cross the
+ * session boundary. */
+export function clearPendingRuntimeEvents(): void {
+  supervisorReducer.clear();
+}
+
+function asSupervisorEvent(value: unknown): SupervisorEvent | null {
+  if (!value || typeof value !== "object") return null;
+  if (typeof (value as { type?: unknown }).type !== "string") return null;
+  return value as SupervisorEvent;
+}
+
+export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
+  currentDispatchHooks = hooks ?? null;
+  try {
+    const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
+    if (runtimeBatches.length > 0) {
+      for (const batch of runtimeBatches) {
+        if (batch.events.some((event) => event.type === "runtime.truncated")) {
+          invalidateRuntimeHistoryRead(batch.threadId);
+        }
+      }
+      if (hooks?.deliverRuntimeEventsImmediately) {
+        supervisorReducer.enqueueRuntimeBatches(runtimeBatches, {
+          deliverRuntimeEventsImmediately: true,
+        });
+        return;
+      }
+      supervisorReducer.enqueueRuntimeBatches(runtimeBatches);
+      supervisorReducer.installScheduling();
       return;
     }
-    default:
+
+    // Out-of-band desktop events ride the same stream as supervisor events.
+    const gitSummaries = remoteGitSummariesEventSchema.safeParse(value);
+    if (gitSummaries.success) {
+      // No core mutation — the per-thread git summaries live in a separate store
+      // the core does not own. Mobile attaches its hydration hook here; desktop
+      // never reaches this branch (its event filter drops desktop-global events).
+      hooks?.onGitSummaries?.(gitSummaries.data.summaries);
       return;
+    }
+    const gitState = remoteGitStateEventSchema.safeParse(value);
+    if (gitState.success) {
+      hooks?.onGitState?.(gitState.data.patch);
+      return;
+    }
+    const userNotification = remoteUserNotificationEventSchema.safeParse(value);
+    if (userNotification.success) {
+      const { type: _type, ...notification } = userNotification.data;
+      showUserNotification(notification);
+      return;
+    }
+
+    const event = asSupervisorEvent(value);
+    if (!event) return;
+    const sideEffects: SupervisorEventSideEffects = {
+      ...(hooks?.onThreadState ? { onThreadState: hooks.onThreadState } : {}),
+      ...(hooks?.onThreadReset ? { onThreadReset: hooks.onThreadReset } : {}),
+      ...(hooks?.onThreadExited ? { onThreadExited: hooks.onThreadExited } : {}),
+    };
+    supervisorReducer.dispatch(event, undefined, { sideEffects });
+  } finally {
+    currentDispatchHooks = null;
   }
 }

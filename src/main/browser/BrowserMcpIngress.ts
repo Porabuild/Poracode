@@ -3,7 +3,7 @@ import type { BrowserPanelManager } from "./BrowserPanelManager";
 import {
   StreamableHttpMcpIngress,
   type StreamableHttpMcpIngressInfo,
-} from "../mcp/StreamableHttpMcpIngress";
+} from "@/host/mcp/StreamableHttpMcpIngress";
 import {
   BROWSER_MCP_INSTRUCTIONS,
   TOOLS,
@@ -62,8 +62,8 @@ export class BrowserMcpIngress {
     return this.ingress.getInfo();
   }
 
-  dispose(): void {
-    this.ingress.dispose();
+  dispose(): Promise<void> {
+    return this.ingress.dispose();
   }
 
   private buildContext(identity: McpThreadIdentity): ToolContext | null {

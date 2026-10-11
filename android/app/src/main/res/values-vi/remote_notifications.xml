@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_notification_done">Đã hoàn tất</string>
+    <string name="remote_notification_needs_attention">Cần chú ý</string>
+    <string name="remote_notification_error">Lỗi</string>
+    <string name="remote_notification_dismiss">Đóng thông báo</string>
+</resources>

@@ -1,9 +1,21 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import { formatCodexFamilyModelLabel, formatCursorBaseModelLabel } from "@/shared/modelLabels";
+import {
+  formatCodexFamilyModelLabel,
+  formatCursorBaseModelLabel,
+  joinModelRowHints,
+} from "@/shared/modelLabels";
 import { buildProviderModelItems, type ProviderModelMenuProvider } from "./buildItems";
 import { formatShortcutFallbackLabel, formatShortcutModelLabel } from "./modelShortcutLabel";
+
+describe("joinModelRowHints", () => {
+  it("keeps context sizes and drops Effort and Fast chips", () => {
+    expect(joinModelRowHints("272K · Medium", "1M", "Fast")).toBe("272K · 1M");
+    expect(joinModelRowHints("Composer 2.5 · Fast")).toBe("Composer 2.5");
+    expect(joinModelRowHints("Extra High", "Fast")).toBeUndefined();
+  });
+});
 
 describe("formatShortcutModelLabel", () => {
   it("expands Codex short labels to GPT-prefixed titles", () => {
@@ -15,27 +27,28 @@ describe("formatShortcutModelLabel", () => {
     expect(formatShortcutModelLabel("codex", "gpt-5.5", "GPT-5.5 High")).toBe("GPT-5.5 High");
   });
 
-  it("formats Cursor ACP bracket ids for shortcut rows", () => {
-    expect(formatShortcutFallbackLabel("cursor", "composer-2.5[fast=true]")).toBe(
-      "Composer 2.5 · Fast",
-    );
+  it("formats Cursor ACP bracket ids for shortcut rows without Effort or Fast", () => {
+    expect(formatShortcutFallbackLabel("cursor", "composer-2.5[fast=true]")).toBe("Composer 2.5");
     expect(
       formatShortcutModelLabel("cursor", "composer-2.5[fast=true]", "Composer 2.5[fast=true]"),
-    ).toBe("Composer 2.5 · Fast");
+    ).toBe("Composer 2.5");
+    expect(
+      formatShortcutFallbackLabel("cursor", "gpt-5.5[context=272k,reasoning=medium,fast=false]"),
+    ).toBe("GPT-5.5 · 272K");
   });
 
   it("formats Cursor profile shortcut ids with the same rules as the base provider", () => {
     expect(formatShortcutFallbackLabel("cursor:work", "composer-2.5[fast=true]")).toBe(
-      "Composer 2.5 · Fast",
+      "Composer 2.5",
     );
     expect(formatShortcutModelLabel("cursor:work", "composer-2.5[fast=true]", "Composer 2.5")).toBe(
-      "Composer 2.5 · Fast",
+      "Composer 2.5",
     );
   });
 
-  it("appends ACP param hints when a grouped Cursor row is reused", () => {
+  it("does not append Effort or Fast when a grouped Cursor row is reused", () => {
     expect(formatShortcutModelLabel("cursor", "composer-2.5[fast=true]", "Composer 2.5")).toBe(
-      "Composer 2.5 · Fast",
+      "Composer 2.5",
     );
   });
 
@@ -228,7 +241,7 @@ describe("buildProviderModelItems shortcut labels", () => {
     const favorite = items.find(
       (item) => item.type === "model" && item.modelId === "composer-2.5[fast=true]",
     );
-    expect(favorite?.type === "model" ? favorite.label : undefined).toBe("Composer 2.5 · Fast");
+    expect(favorite?.type === "model" ? favorite.label : undefined).toBe("Composer 2.5");
   });
 
   it("hides explicit model visibility exclusions but preserves custom model refs", () => {

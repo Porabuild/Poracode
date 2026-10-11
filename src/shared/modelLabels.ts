@@ -37,16 +37,50 @@ export function parseBracketParams(modelId: string): Record<string, string> {
   return params;
 }
 
+const PICKER_CONTROL_HINTS = new Set([
+  "none",
+  "low",
+  "medium",
+  "high",
+  "extra high",
+  "max",
+  "fast",
+  "xhigh",
+  "x-high",
+]);
+
+/** True for Effort / Fast tokens that now have first-class picker controls. */
+export function isModelPickerControlHint(part: string): boolean {
+  return PICKER_CONTROL_HINTS.has(part.trim().toLowerCase());
+}
+
+/** Drop Effort / Fast chips from a ` · `-joined hint, keeping context sizes. */
+export function joinModelRowHints(...hints: Array<string | undefined>): string | undefined {
+  const parts: string[] = [];
+  for (const hint of hints) {
+    if (!hint) continue;
+    for (const part of hint.split(" · ")) {
+      const trimmed = part.trim();
+      if (!trimmed || isModelPickerControlHint(trimmed) || parts.includes(trimmed)) continue;
+      parts.push(trimmed);
+    }
+  }
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
 /** Human hints for bracket params: "[context=272k,reasoning=medium]" → "272K · Medium". */
-export function formatBracketParamHints(modelId: string): string | undefined {
+export function formatBracketParamHints(
+  modelId: string,
+  options?: { includeEffort?: boolean; includeFast?: boolean },
+): string | undefined {
   const params = parseBracketParams(modelId);
   const hints: string[] = [];
   if (params.context) hints.push(params.context.toUpperCase());
-  const effort = params.reasoning ?? params.effort;
-  if (effort) {
-    hints.push(formatReasoningLabel(effort));
+  if (options?.includeEffort !== false) {
+    const effort = params.reasoning ?? params.effort;
+    if (effort) hints.push(formatReasoningLabel(effort));
   }
-  if (params.fast === "true") hints.push("Fast");
+  if (options?.includeFast !== false && params.fast === "true") hints.push("Fast");
   return hints.length > 0 ? hints.join(" · ") : undefined;
 }
 

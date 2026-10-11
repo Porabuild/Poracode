@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_notification_done">Завершено</string>
+    <string name="remote_notification_needs_attention">Требует внимания</string>
+    <string name="remote_notification_error">Ошибка</string>
+    <string name="remote_notification_dismiss">Закрыть уведомление</string>
+</resources>

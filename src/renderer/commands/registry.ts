@@ -1,14 +1,25 @@
+import { withThreadConfigSubmission } from "@/renderer/actions/threadConfigSubmission";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { isMarkdownFile } from "@/shared/pathUtils";
+import {
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
+} from "@/shared/keybindings";
 import type { AgentSlashCommand, Project, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { addExistingProject } from "@/renderer/actions/createProjectActions";
 import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
+import {
+  isRemoteCommandOutcomeUncertainError,
+  notifyThreadCommandOutcomeUncertain,
+  reconcileThreadCommandOutcome,
+} from "@/renderer/actions/threadCommandOutcomeActions";
 import {
   openChangelogSettings,
   openFilesPanel,
@@ -81,6 +92,11 @@ export function buildWhenContext(
   const element = target instanceof Element ? target : document.activeElement;
   const inputFocus = isTextInputElement(element);
   const editorFocus = isEditorFocusElement(element);
+  const markdownActive = Boolean(fileEditor.activePath && isMarkdownFile(fileEditor.activePath));
+  // Mirrors the pane hosts: fullscreen OverlayShell, modal, and panel all mount
+  // the editor only while a root context and an overlay mode are set, so
+  // activePath alone (which survives closing) is not proof the editor is open.
+  const editorSurfaceOpen = Boolean(fileEditor.rootContext && fileEditor.overlayMode);
   const terminalFocus = isTerminalFocusElement(element);
   const composerFocus = Boolean(
     element?.closest("[data-poracode-composer], .poracode-composer-shell"),
@@ -93,6 +109,8 @@ export function buildWhenContext(
     paletteOpen,
     inputFocus,
     editorFocus,
+    markdownActive,
+    editorSurfaceOpen,
     composerFocus,
     editorOpen: Boolean(fileEditor.activePath || fileEditor.rootContext),
     terminalFocus,
@@ -353,8 +371,24 @@ function baseCommands(): AppCommand[] {
       when: "editorOpen",
       run: () => {
         const editor = useFileEditorStore.getState();
-        if (editor.activePath) void editor.saveFile(editor.activePath);
+        if (editor.activePath) {
+          void editor.saveFile(editor.activePath).catch((error) => {
+            console.error("[commands] editor.save failed:", error);
+            toast.danger(i18n._(msg`Unable to save the file`));
+          });
+        }
       },
+    },
+    {
+      id: EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+      title: msg`Toggle Markdown Preview`,
+      subtitle: msg`Switch the active Markdown file between source and preview`,
+      group: msg`Editor`,
+      keywords: ["markdown", "preview"],
+      // Shares the eye button's store toggle; scope documented on
+      // EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN.
+      when: EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
+      run: () => useFileEditorStore.getState().toggleMarkdownPreview(),
     },
     {
       id: "editor.close",
@@ -465,11 +499,25 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
     when: "hasThread",
     showInShortcuts: false,
     run: async () => {
-      await readBridge().sendThreadInput({
-        threadId: thread.id,
-        prompt: `/${command.id}`,
-        config: thread.config,
-      });
+      try {
+        await withThreadConfigSubmission(thread.id, thread.config, () =>
+          readBridge().sendThreadInput({
+            threadId: thread.id,
+            prompt: `/${command.id}`,
+            config: thread.config,
+          }),
+        );
+      } catch (error) {
+        // The host may have applied the command without being able to confirm
+        // it: explain the uncertainty and run one bounded authoritative read —
+        // never a resend, and no success bookkeeping.
+        if (isRemoteCommandOutcomeUncertainError(error)) {
+          notifyThreadCommandOutcomeUncertain();
+          await reconcileThreadCommandOutcome(thread);
+          return;
+        }
+        throw error;
+      }
       captureThreadPromptSubmitted(thread, `/${command.id}`, undefined, "command_palette");
       useAppStore.getState().touchThread(thread.id);
     },

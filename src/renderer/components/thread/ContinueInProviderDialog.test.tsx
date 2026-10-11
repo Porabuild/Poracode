@@ -1,3 +1,4 @@
+import { extractContextPayloadSchema } from "@/shared/contracts/git";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
@@ -13,7 +14,7 @@ type DialogProps = Parameters<typeof ContinueInProviderDialog>[0];
 const { bridge } = vi.hoisted(() => ({
   bridge: {
     platform: "win32" as const,
-    extractContext: vi.fn<() => Promise<unknown>>(),
+    extractContext: vi.fn<(input: unknown) => Promise<unknown>>(),
     cancelExtractContext: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     searchProjectFiles: vi
       .fn<() => Promise<{ entries: unknown[]; totalIndexed: number }>>()
@@ -25,6 +26,7 @@ vi.mock("../../bridge", () => ({
   readBridge: () => bridge,
   isRemoteSession: () => false,
   isDevApp: () => false,
+  isCompactClientSurface: () => false,
 }));
 
 const thread: Thread = {
@@ -276,6 +278,42 @@ describe("ContinueInProviderDialog handoff flow", () => {
     );
   });
 
+  it("explicitly hands off an inactive pre-session GUI thread using its stored history", async () => {
+    seedRuntimeItems([
+      {
+        id: "original-prompt",
+        type: "user_message",
+        state: "completed",
+        payload: { content: [{ kind: "text", text: "Original startup task" }] },
+        streams: {},
+      },
+    ]);
+    const originalHistory = useAppStore.getState().runtimeItemIdsByThread[thread.id];
+    const onContinue = renderDialog({
+      thread: { status: "inactive", canResumeWithConfig: false },
+      installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+    });
+    expect(onContinue).not.toHaveBeenCalled();
+    await pressSwitch();
+    expect(bridge.extractContext).not.toHaveBeenCalled();
+    expect(onContinue).toHaveBeenCalledExactlyOnceWith(
+      "codex",
+      expect.anything(),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      {
+        strategy: "context-file",
+        extracted: expect.objectContaining({
+          contentKind: "transcript",
+          summary: expect.stringContaining("Original startup task"),
+        }),
+      },
+    );
+    expect(useAppStore.getState().runtimeItemIdsByThread[thread.id]).toBe(originalHistory);
+  });
+
   it("starts without context when nothing is stored and no session exists", async () => {
     const onContinue = renderDialog({});
 
@@ -292,6 +330,44 @@ describe("ContinueInProviderDialog handoff flow", () => {
       { strategy: "context-file", extracted: null },
     );
   });
+
+  it.each(["", "high"])(
+    "sends the extraction model and selected effort %j without thread intent",
+    async (effort) => {
+      renderDialog({
+        thread: {
+          agentKind: "fixture-source",
+          presentationMode: "terminal",
+          config: {
+            model: "exact-source",
+            effort,
+            fast: true,
+            thinking: true,
+            contextSize: "large",
+            selectionBinding: {
+              version: 1,
+              kind: "family-member",
+              owner: { agentKind: "fixture-source", presentationMode: "terminal" },
+              model: "exact-source",
+              inertValues: { fast: true },
+            },
+          },
+          sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [
+          agent("fixture-source", "Source", "terminal", {
+            models: [{ id: "exact-source", label: "Exact" }],
+            efforts: ["", "high"],
+          }),
+          agent("fixture-target", "Target", "terminal"),
+        ],
+      });
+      await pressSwitch();
+      const input = extractContextPayloadSchema.parse(bridge.extractContext.mock.calls[0]?.[0]);
+      expect(input.selection).toStrictEqual({ model: "exact-source", effort });
+      expect(bridge.extractContext.mock.calls[0]?.[0]).not.toHaveProperty("model");
+    },
+  );
 
   it("shows the error phase and continues without context when extraction fails", async () => {
     bridge.extractContext.mockRejectedValue(new Error("provider quota exhausted"));

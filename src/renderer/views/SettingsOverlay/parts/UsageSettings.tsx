@@ -1,22 +1,84 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useState, type ReactNode } from "react";
 import { NumberField, Tooltip } from "@heroui/react";
 import { RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import { Button, ToggleSwitch } from "@/renderer/components/common";
+import { Button, Select } from "@/renderer/components/common";
 import { usageProvidersForAgentInstances } from "@/renderer/components/providers/usageProviders";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import {
+  useRemoteServersStore,
+  getStandaloneOwnerDesktopId,
+  selectBrowserBridgeServer,
+} from "@/renderer/state/remoteServersStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { UsageDisplaySettings } from "./UsageDisplaySettings";
+import { HostUsageSettings } from "./HostUsageSettings";
 import { SettingRow, SettingsPage } from "./SettingsForm";
-import { UsageProviderRow } from "./UsageProviderRow";
+import { UsageProviderRow } from "../../../components/providers/settings/UsageProviderRow";
 import { clampRefreshMinutes, MAX_REFRESH_MINUTES } from "./usageRefreshBounds";
 
 export function UsageSettings() {
   const { t } = useLingui();
+  const remote = isRemoteSession();
+  const servers = useRemoteServersStore((state) => state.servers);
+  const browserServer = useRemoteServersStore(selectBrowserBridgeServer);
+  const [selection, setSelection] = useState(() => {
+    const state = useRemoteServersStore.getState();
+    const owner = getStandaloneOwnerDesktopId();
+    const server =
+      state.servers.find((candidate) => remoteConnectionKey(candidate) === owner) ??
+      selectBrowserBridgeServer(state) ??
+      state.servers[0];
+    return remote && server
+      ? JSON.stringify(["connection", remoteConnectionKey(server)])
+      : "current";
+  });
+  const owner = getStandaloneOwnerDesktopId();
+  const defaultServer =
+    servers.find((candidate) => remoteConnectionKey(candidate) === owner) ??
+    browserServer ??
+    servers[0];
+  const effectiveSelection =
+    remote && selection === "current" && defaultServer
+      ? JSON.stringify(["connection", remoteConnectionKey(defaultServer)])
+      : selection;
+  const connectionId =
+    effectiveSelection === "current"
+      ? undefined
+      : (JSON.parse(effectiveSelection) as [string, string])[1];
+  const selector =
+    servers.length > 0 || (!remote && selection !== "current") ? (
+      <SettingRow
+        title={t`Usage host`}
+        description={t`Choose the host or environment whose accounts you want to view.`}
+      >
+        <Select
+          aria-label={t`Usage host`}
+          className="w-[220px] shrink-0"
+          value={effectiveSelection}
+          onChange={setSelection}
+          options={[
+            ...(!remote ? [{ id: "current", label: t`This host` }] : []),
+            ...servers.map((server) => ({
+              id: JSON.stringify(["connection", remoteConnectionKey(server)]),
+              label: server.label,
+            })),
+          ]}
+        />
+      </SettingRow>
+    ) : null;
+  if (connectionId !== undefined || remote) {
+    return <HostUsageSettings connectionId={connectionId ?? ""} selector={selector} />;
+  }
+  return <CurrentHostUsageSettings selector={selector} />;
+}
+
+function CurrentHostUsageSettings(props: { selector: ReactNode }) {
+  const { t } = useLingui();
   const autoRefresh = useSharedSettings((s) => s.usage.autoRefresh);
   const refreshIntervalMinutes = useSharedSettings((s) => s.usage.refreshIntervalMinutes);
-  const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
-  const showEstimatedCost = useSharedSettings((s) => s.usage.showEstimatedCost);
   const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -43,7 +105,11 @@ export function UsageSettings() {
     if (isRefreshing) return;
     setIsRefreshing(true);
     void readBridge()
-      .refreshProviderUsage({})
+      .refreshProviderUsage({ force: true })
+      .then((res) => {
+        for (const snapshot of res.snapshots)
+          useProviderUsageStore.getState().mergeSnapshot(snapshot);
+      })
       .catch(() => undefined)
       .finally(() => setIsRefreshing(false));
   };
@@ -73,90 +139,48 @@ export function UsageSettings() {
         </Tooltip>
       }
     >
-      {/* The background refresher runs on the desktop; a remote session's
-          interval is never read, so hide the row there. */}
-      {!isRemoteSession() && (
-        <SettingRow
-          anchorId="usage.autoRefreshMinutes"
-          title={t`Default auto-refresh (minutes)`}
-          description={
-            <Trans>
-              The default background refresh cadence, used for any provider without its own interval
-              set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider
-              rate limits.
-            </Trans>
-          }
+      {props.selector}
+
+      <SettingRow
+        anchorId="usage.autoRefreshMinutes"
+        title={t`Default auto-refresh (minutes)`}
+        description={
+          <Trans>
+            The default background refresh cadence, used for any provider without its own interval
+            set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate
+            limits.
+          </Trans>
+        }
+      >
+        <NumberField
+          aria-label={t`Auto-refresh interval in minutes, 0 to turn off`}
+          className="w-[140px] shrink-0"
+          minValue={0}
+          maxValue={MAX_REFRESH_MINUTES}
+          step={1}
+          value={autoRefresh ? refreshIntervalMinutes : 0}
+          onChange={(value) => {
+            if (value === undefined || Number.isNaN(value)) return;
+            const minutes = Math.floor(value);
+            startTransition(() => {
+              if (minutes <= 0) {
+                setUsageSetting("autoRefresh", false);
+                return;
+              }
+              setUsageSetting("autoRefresh", true);
+              setUsageSetting("refreshIntervalMinutes", clampRefreshMinutes(minutes));
+            });
+          }}
         >
-          <NumberField
-            aria-label={t`Auto-refresh interval in minutes, 0 to turn off`}
-            className="w-[140px] shrink-0"
-            minValue={0}
-            maxValue={MAX_REFRESH_MINUTES}
-            step={1}
-            value={autoRefresh ? refreshIntervalMinutes : 0}
-            onChange={(value) => {
-              if (value === undefined || Number.isNaN(value)) return;
-              const minutes = Math.floor(value);
-              startTransition(() => {
-                if (minutes <= 0) {
-                  setUsageSetting("autoRefresh", false);
-                  return;
-                }
-                setUsageSetting("autoRefresh", true);
-                setUsageSetting("refreshIntervalMinutes", clampRefreshMinutes(minutes));
-              });
-            }}
-          >
-            <NumberField.Group>
-              <NumberField.DecrementButton />
-              <NumberField.Input />
-              <NumberField.IncrementButton />
-            </NumberField.Group>
-          </NumberField>
-        </SettingRow>
-      )}
-
-      <SettingRow
-        anchorId="usage.showInSidebar"
-        title={t`Show circles in sidebar`}
-        description={
-          <Trans>
-            Show compact per-provider usage rings in the sidebar. Hide individual providers&apos;
-            circles in the list below.
-          </Trans>
-        }
-      >
-        <ToggleSwitch
-          aria-label={t`Show circles in sidebar`}
-          isSelected={showInSidebar}
-          onChange={(selected) => {
-            startTransition(() => {
-              setUsageSetting("showInSidebar", selected);
-            });
-          }}
-        />
+          <NumberField.Group>
+            <NumberField.DecrementButton />
+            <NumberField.Input />
+            <NumberField.IncrementButton />
+          </NumberField.Group>
+        </NumberField>
       </SettingRow>
 
-      <SettingRow
-        anchorId="usage.showEstimatedCost"
-        title={t`Show estimated cost`}
-        description={
-          <Trans>
-            Reconstructed from local logs at public API rates — it does not reflect your real bill
-            on subscription plans. Shown only in the usage panel.
-          </Trans>
-        }
-      >
-        <ToggleSwitch
-          aria-label={t`Show estimated cost`}
-          isSelected={showEstimatedCost}
-          onChange={(selected) => {
-            startTransition(() => {
-              setUsageSetting("showEstimatedCost", selected);
-            });
-          }}
-        />
-      </SettingRow>
+      <UsageDisplaySettings />
 
       <div className="pt-2">
         <p className="mb-1 text-sm font-medium text-foreground">
@@ -170,7 +194,7 @@ export function UsageSettings() {
         </p>
         <div>
           {usageProviders.map((p) => (
-            <UsageProviderRow key={p.id} id={p.id} label={p.label} />
+            <UsageProviderRow key={p.id} id={p.id} label={p.label} remote={false} />
           ))}
         </div>
       </div>

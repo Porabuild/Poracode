@@ -2,12 +2,15 @@ import { createAcpStructuredSession } from "../acp";
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import { createAcpGenericAdapter } from "../acp-generic";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   detectAgentInstall,
   detectProbeLocation,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
   inheritBaseSpawnEnv,
+  prepareAgentLocationEnvironment,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import {
@@ -90,6 +93,7 @@ export function createFactoryAdapter(): AgentAdapter {
       return undefined;
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildFactoryCommand(
         input.projectLocation,
         resolveAgentBinaryPath(input.projectLocation, "droid"),
@@ -107,10 +111,19 @@ export function createFactoryAdapter(): AgentAdapter {
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildFactoryCommand(location, resolveAgentBinaryPath(location, "droid"));
     },
     defaultOneShotModel: "auto",
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Reasoning effort maps natively (`--reasoning-effort`); the droid CLI
+      // has no Fast lane, so false Fast is the declared-inactive legacy carrier
+      // and meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) return undefined;
       const args = ["exec", "--output-format", "text"];
       if (model) args.push("--model", model);

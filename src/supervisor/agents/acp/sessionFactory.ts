@@ -48,9 +48,20 @@ export function createAcpStructuredSession(
   input: CreateStructuredSessionInput,
   overrides?: Pick<
     AcpStructuredSessionOptions,
-    "assumedMcpCapabilities" | "behavior" | "textStreamExtension" | "stderrTurnSignalParser"
+    | "assumedMcpCapabilities"
+    | "behavior"
+    | "textStreamExtension"
+    | "stderrTurnSignalParser"
+    | "resolveMode"
+    | "resolveModelConfig"
+    | "configureOpenedSession"
+    | "allowUnlistedSelectValue"
   >,
 ): AcpStructuredSession | undefined {
+  // The TUI handoff has no approved-root argv contract. Do not silently lose grants.
+  if (input.additionalDirectories?.length && input.presentationMode !== "gui") {
+    throw new Error("Additional workspace directories require a structured GUI session.");
+  }
   if (!shouldSpawnAcpSession(input)) {
     return undefined;
   }
@@ -62,6 +73,7 @@ export function createAcpStructuredSession(
     ? injectWslEnv(mergedCommand, input.projectLocation, mergedCommand.env)
     : mergedCommand;
   return AcpStructuredSession.create(command, input.projectLocation, input.threadId, {
+    ...(input.additionalDirectories ? { additionalDirectories: input.additionalDirectories } : {}),
     ...(input.loadSessionErrorRewriter
       ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }
       : {}),
@@ -76,8 +88,22 @@ export function createAcpStructuredSession(
       ? { extensionSessionUpdateTransform: input.acpExtensionSessionUpdateTransform }
       : {}),
     ...(input.acpInitializeMeta ? { initializeMeta: input.acpInitializeMeta } : {}),
+    ...(input.acpClientCapabilitiesMeta
+      ? { clientCapabilitiesMeta: input.acpClientCapabilitiesMeta }
+      : {}),
     ...(input.acpExtensionNotificationHandler
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
+      : {}),
+    ...(input.acpExtensionRequestHandler
+      ? { extensionRequestHandler: input.acpExtensionRequestHandler }
+      : {}),
+    ...(input.acpExtensionRequestTimeoutMs !== undefined
+      ? { extensionRequestTimeoutMs: input.acpExtensionRequestTimeoutMs }
+      : {}),
+    ...(input.acpSessionActions ? { sessionActions: input.acpSessionActions } : {}),
+    ...(input.acpBooleanConfigOptions ? { booleanConfigOptions: true } : {}),
+    ...(input.acpConfigOptionsNormalizer
+      ? { configOptionsNormalizer: input.acpConfigOptionsNormalizer }
       : {}),
     ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
     ...(input.acpOptimisticMcpTransports
@@ -87,15 +113,32 @@ export function createAcpStructuredSession(
     ...(input.acpFsTextCapability !== undefined
       ? { fsTextCapability: input.acpFsTextCapability }
       : {}),
+    ...(input.acpTerminalCapability !== undefined
+      ? { terminalCapability: input.acpTerminalCapability }
+      : {}),
+    ...(input.acpLocalResourceResolution !== undefined
+      ? { localResourceResolution: input.acpLocalResourceResolution }
+      : {}),
+    ...(input.acpElicitationPresentation
+      ? { projectElicitationPresentation: input.acpElicitationPresentation }
+      : {}),
     ...(overrides?.assumedMcpCapabilities
       ? { assumedMcpCapabilities: overrides.assumedMcpCapabilities }
       : {}),
+    ...(overrides?.resolveMode ? { resolveMode: overrides.resolveMode } : {}),
+    ...(overrides?.resolveModelConfig ? { resolveModelConfig: overrides.resolveModelConfig } : {}),
     ...(overrides?.behavior ? { behavior: overrides.behavior } : {}),
     ...(overrides?.textStreamExtension
       ? { textStreamExtension: overrides.textStreamExtension }
       : {}),
     ...(overrides?.stderrTurnSignalParser
       ? { stderrTurnSignalParser: overrides.stderrTurnSignalParser }
+      : {}),
+    ...(overrides?.configureOpenedSession
+      ? { configureOpenedSession: overrides.configureOpenedSession }
+      : {}),
+    ...(overrides?.allowUnlistedSelectValue
+      ? { allowUnlistedSelectValue: overrides.allowUnlistedSelectValue }
       : {}),
   });
 }

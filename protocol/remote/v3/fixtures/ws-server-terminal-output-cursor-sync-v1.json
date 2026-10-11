@@ -1,0 +1,12 @@
+{
+  "type": "terminal-output",
+  "id": "terminal-fixture-001",
+  "data": "live frame",
+  "cursorSync": {
+    "version": 1,
+    "watchId": "watch-fixture-001",
+    "generation": "instance-fixture-aaa",
+    "fromCursor": 11,
+    "toCursor": 21
+  }
+}

@@ -24,8 +24,51 @@ const cdpTargetModulePath: string =
   "../../.agents/skills/interactive-testing/scripts/poracode-cdp-target.mjs";
 const debugSessionModule = import(debugSessionModulePath);
 const cdpTargetModule = import(cdpTargetModulePath);
+const desktopFixtureEnv = {
+  NODE_OPTIONS: `--import=${JSON.stringify(join(repoRoot, ".agents/skills/interactive-testing/scripts/smoke-desktop-state.fixture.mjs"))}`,
+};
 
 describe("managed CDP scripts", () => {
+  it("refuses unsafe pointer targets in the shared CLI and smoke action helper", async () => {
+    await expect(
+      execFileAsync(
+        process.execPath,
+        [
+          "--test",
+          join(
+            repoRoot,
+            ".agents/skills/interactive-testing/scripts/poracode-cdp-actions.test.mjs",
+          ),
+        ],
+        { cwd: repoRoot, timeout: 10_000 },
+      ),
+    ).resolves.toMatchObject({ stderr: "" });
+  });
+
+  it("keeps compiled and native runtime revisions isolated across sessions", async () => {
+    await expect(
+      execFileAsync(
+        process.execPath,
+        [
+          "--test",
+          ...["poracode-smoke-runtime.test.mjs", "smoke-owned-process.test.mjs"].map((name) =>
+            join(repoRoot, ".agents/skills/interactive-testing/scripts", name),
+          ),
+        ],
+        {
+          cwd: repoRoot,
+          timeout: 10_000,
+          env: {
+            ...process.env,
+            ELECTRON_SKIP_BINARY_DOWNLOAD: "1",
+            ELECTRON_OVERRIDE_DIST_PATH: "node_modules/electron/dist",
+            ...desktopFixtureEnv,
+          },
+        },
+      ),
+    ).resolves.toMatchObject({ stderr: "" });
+  });
+
   it("sets Electron userData before the isolated Windows identity is resolved", async () => {
     const [runnerSource, devLaunchSource] = await Promise.all([
       readFile(runnerScript, "utf8"),
@@ -86,10 +129,11 @@ describe("managed CDP scripts", () => {
   it("preserves the startup failure when a warm fixture is missing", async () => {
     const root = await mkdtemp(join(tmpdir(), "poracode-profile-missing-"));
     try {
-      const result = await runScript(join(repoRoot, "scripts/profile-startup.mjs"), [
-        root,
-        "--warm",
-      ]);
+      const result = await runScript(
+        join(repoRoot, "scripts/profile-startup.mjs"),
+        [root, "--warm"],
+        desktopFixtureEnv,
+      );
       expect(result.code).toBe(1);
       expect(result.stderr).toContain("Launcher exited before profiling completed");
       expect(result.stderr).not.toContain("No managed debug session");
@@ -247,7 +291,7 @@ describe("managed CDP scripts", () => {
       const launchResult = await runScript(
         runnerScript,
         ["--launch-only", "--mode", "real", "--root", alternateRoot],
-        { PORACODE_SMOKE_ROOT: smokeRoot },
+        { PORACODE_SMOKE_ROOT: smokeRoot, ...desktopFixtureEnv },
       );
       expect(launchResult.code).toBe(1);
       expect(launchResult.stderr).toContain("active debug session mode is mock");
@@ -267,7 +311,7 @@ describe("managed CDP scripts", () => {
       const result = await runScript(
         runnerScript,
         ["--launch-only", "--mode", "mock", "--root", alternateRoot],
-        { PORACODE_SMOKE_ROOT: smokeRoot },
+        { PORACODE_SMOKE_ROOT: smokeRoot, ...desktopFixtureEnv },
       );
 
       expect(result.code).toBe(1);

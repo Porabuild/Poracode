@@ -4,10 +4,29 @@ import { createQoderAdapter } from ".";
 import { buildQoderArgs, QODER_DEFAULT_MODEL_ID } from "./argv";
 import { buildQoderProbeCapabilities, QODER_AUTH_ENV_KEYS, qoderDetectionSpec } from "./detection";
 import { detectQoderInvalidSessionRef } from "./session";
+import {
+  clearExecutablePathCache,
+  primeWslLaunchEnvironment,
+  setWslProcessBridgeClient,
+  type CommandSpec,
+} from "../base";
+
+const { createAcpStructuredSessionMock } = vi.hoisted(() => ({
+  createAcpStructuredSessionMock: vi.fn<
+    (command: CommandSpec, options: unknown) => Promise<unknown>
+  >(async (command) => ({
+    command,
+  })),
+}));
+
+vi.mock("../acp", () => ({
+  createAcpStructuredSession: createAcpStructuredSessionMock,
+}));
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 afterEach(() => {
+  setWslProcessBridgeClient(undefined);
   vi.unstubAllEnvs();
 });
 
@@ -61,9 +80,9 @@ describe("createQoderAdapter", () => {
   const project: ProjectLocation = { kind: "windows", path: "C:\\demo" };
   const config: ThreadConfig = { model: QODER_DEFAULT_MODEL_ID };
 
-  it("preassigns a stable session ID and resumes that exact ID", () => {
+  it("preassigns a stable session ID and resumes that exact ID", async () => {
     const adapter = createQoderAdapter();
-    const launch = adapter.buildLaunchArgv(project, config, "hello");
+    const launch = await adapter.buildLaunchArgv(project, config, "hello");
     const sessionIndex = launch.args.indexOf("--session-id");
     const sessionId = launch.args[sessionIndex + 1];
 
@@ -71,7 +90,7 @@ describe("createQoderAdapter", () => {
     expect(sessionId).toMatch(UUID_RE);
     expect(launch.sessionRef?.providerSessionId).toBe(sessionId);
 
-    const resume = adapter.buildResumeArgv(project, config, "again", launch.sessionRef!);
+    const resume = await adapter.buildResumeArgv(project, config, "again", launch.sessionRef!);
     expect(resume.args).toContain("--resume");
     expect(resume.args).toContain(sessionId);
     expect(resume.args).not.toContain("--session-id");
@@ -110,6 +129,79 @@ describe("createQoderAdapter", () => {
       args: ["-p", "title", "--model", QODER_DEFAULT_MODEL_ID, "--permission-mode", "plan"],
       stdin: "",
     });
+  });
+});
+
+describe("createQoderAdapter WSL launch preparation", () => {
+  const distro = `QoderWsl${process.pid}`;
+  const location: ProjectLocation = {
+    kind: "wsl",
+    distro,
+    linuxPath: "/home/demo/repo",
+    uncPath: `\\\\wsl.localhost\\${distro}\\home\\demo\\repo`,
+  };
+  const config: ThreadConfig = { model: QODER_DEFAULT_MODEL_ID };
+
+  it("fails closed on a cold cache and builds the ACP auth command once prepared", async () => {
+    clearExecutablePathCache();
+    const adapter = createQoderAdapter();
+    await expect(
+      adapter.buildAcpAuthCommand?.({ envKind: "wsl", wslDistro: distro }),
+    ).rejects.toMatchObject({ name: "WslLaunchEnvironmentUnpreparedError" });
+
+    primeWslLaunchEnvironment(distro, { shellPath: "/bin/bash", home: "/home/demo" });
+    const command = await adapter.buildAcpAuthCommand?.({ envKind: "wsl", wslDistro: distro });
+    expect(command?.args?.slice(0, 2)).toEqual(["-d", distro]);
+    expect(command?.args?.join(" ")).toContain("--acp");
+  });
+
+  it("awaits the distro probe for ACP auth so a cold cache is not a hard failure", async () => {
+    clearExecutablePathCache();
+    setWslProcessBridgeClient({
+      processExec: async () => ({
+        ok: true,
+        stdout: "__PORACODE_WSL_ENV__\n/bin/bash\n/home/demo\n",
+        stderr: "",
+        exitCode: 0,
+      }),
+    } as never);
+    try {
+      const command = await createQoderAdapter().buildAcpAuthCommand?.({
+        envKind: "wsl",
+        wslDistro: distro,
+      });
+      expect(command?.args?.slice(0, 2)).toEqual(["-d", distro]);
+      expect(command?.args?.join(" ")).toContain("--acp");
+    } finally {
+      setWslProcessBridgeClient(undefined);
+    }
+  });
+
+  it("awaits the distro probe before creating a structured session", async () => {
+    createAcpStructuredSessionMock.mockClear();
+    clearExecutablePathCache();
+    setWslProcessBridgeClient({
+      processExec: async () => ({
+        ok: true,
+        stdout: "__PORACODE_WSL_ENV__\n/bin/bash\n/home/demo\n",
+        stderr: "",
+        exitCode: 0,
+      }),
+    } as never);
+    const adapter = createQoderAdapter();
+
+    // The cache is cold, so the only way this can build is the awaited probe.
+    await adapter.createStructuredSession!({
+      threadId: "qoder-wsl-thread",
+      projectLocation: location,
+      config,
+      presentationMode: "gui",
+    });
+
+    expect(createAcpStructuredSessionMock).toHaveBeenCalledTimes(1);
+    const command = createAcpStructuredSessionMock.mock.calls[0]![0];
+    expect(command.args.slice(0, 2)).toEqual(["-d", distro]);
+    expect(command.args.join(" ")).toContain("--acp");
   });
 });
 

@@ -1,7 +1,6 @@
-import { mkdirSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
-import { toWslUncPath } from "@/shared/wsl";
 import {
   configFileAuthProbe,
   detectProbeLocation,
@@ -9,6 +8,8 @@ import {
   type AgentEnvContext,
   type DetectionSpec,
 } from "../base";
+import { resolveNativeTildePath } from "../base/sessionFs";
+import { ensureWslDirectory } from "../plugin/installerBase";
 import { codexDetectionSpec } from "./detection";
 import type { CodexPluginDiscoveryHome } from "./nativePlugins";
 import { getCodexPluginPaths, type CodexHomeOverlay } from "./plugin/install";
@@ -50,42 +51,53 @@ export function createCodexProfileContext(options: CodexAdapterOptions) {
    * base adapter. Codex refuses to start ("CODEX_HOME points to … but that
    * path does not exist") when the directory is missing, and a fresh profile
    * has nothing on disk until its first login — so create it here, on the
-   * host or via the distro UNC path before any probe/login/launch.
+   * host or through the distro staging worker before any probe/login/launch.
    */
-  const profileHome = (location: ProjectLocation): string | undefined => {
+  const profileHome = async (location: ProjectLocation): Promise<string | undefined> => {
     if (options.homeDir === undefined) return undefined;
-    const home = resolveTildePath(options.homeDir, location);
-    const diskPath = location.kind === "wsl" ? toWslUncPath(location.distro, home) : home;
-    mkdirSync(diskPath, { recursive: true });
+    const home = await resolveTildePath(options.homeDir, location);
+    if (location.kind === "wsl") {
+      if (!home.startsWith("/")) {
+        throw new Error(
+          `Unable to resolve the Codex profile home inside WSL distro "${location.distro}".`,
+        );
+      }
+      await ensureWslDirectory(location.distro, home);
+    } else {
+      await mkdir(home, { recursive: true });
+    }
     return home;
   };
-  const profileEnv = (location: ProjectLocation): Record<string, string> | undefined => {
-    const home = profileHome(location);
+  const profileEnv = async (
+    location: ProjectLocation,
+  ): Promise<Record<string, string> | undefined> => {
+    const home = await profileHome(location);
     return home ? { CODEX_HOME: home, ...BLANKED_HOST_CREDENTIALS } : undefined;
   };
-  const withProfileEnv = <T extends { env?: Record<string, string> }>(
+  const withProfileEnv = async <T extends { env?: Record<string, string> }>(
     spec: T,
     location: ProjectLocation,
-  ): T => {
-    const env = profileEnv(location);
+  ): Promise<T> => {
+    const env = await profileEnv(location);
     return env ? { ...spec, env: { ...(spec.env ?? {}), ...env } } : spec;
   };
   /** Hook overlay for native contexts; WSL profiles run without the hook plugin. */
-  const overlayFor = (ctx?: AgentEnvContext): CodexHomeOverlay | undefined => {
+  const overlayFor = async (ctx?: AgentEnvContext): Promise<CodexHomeOverlay | undefined> => {
     if (!isProfile || !profileId || ctx?.envKind === "wsl") return undefined;
-    const home = profileHome(detectProbeLocation(ctx));
+    const home = await profileHome(detectProbeLocation(ctx));
     return home ? { profileId, sourceHomeDir: home } : undefined;
   };
   /** Native homes whose `sessions/` the profile owns: its CODEX_HOME and its overlay. */
-  const sessionHomes = (location: ProjectLocation): string[] | undefined => {
-    const home = profileHome(location);
+  const sessionHomes = async (location: ProjectLocation): Promise<string[] | undefined> => {
+    const home = await profileHome(location);
     if (!home || !profileId) return undefined;
     if (location.kind === "wsl") return [home];
     const ctx: AgentEnvContext = {
       envKind: location.kind,
       ...(process.env.PORACODE_DATA_DIR ? { baseDir: process.env.PORACODE_DATA_DIR } : {}),
     };
-    const overlay = getCodexPluginPaths(ctx, { profileId, sourceHomeDir: home }).codexHomeDir;
+    const overlay = (await getCodexPluginPaths(ctx, { profileId, sourceHomeDir: home }))
+      .codexHomeDir;
     return [home, overlay];
   };
   /**
@@ -93,9 +105,11 @@ export function createCodexProfileContext(options: CodexAdapterOptions) {
    * launch uses, so plugins enabled only in the base account never suppress
    * the MCP/skill fallbacks this profile needs (and vice versa).
    */
-  const pluginDiscoveryHome = (ctx: AgentEnvContext): CodexPluginDiscoveryHome | undefined => {
+  const pluginDiscoveryHome = async (
+    ctx: AgentEnvContext,
+  ): Promise<CodexPluginDiscoveryHome | undefined> => {
     if (!isProfile || !profileId) return undefined;
-    const home = profileHome(detectProbeLocation(ctx));
+    const home = await profileHome(detectProbeLocation(ctx));
     if (!home) return undefined;
     return ctx.envKind === "wsl"
       ? { homeDir: home }
@@ -108,7 +122,10 @@ export function createCodexProfileContext(options: CodexAdapterOptions) {
         label,
         authProbes: [
           configFileAuthProbe((loc) => {
-            const home = loc.kind === "wsl" ? undefined : profileHome(loc);
+            const home =
+              loc.kind !== "wsl" && options.homeDir !== undefined
+                ? resolveNativeTildePath(options.homeDir)
+                : undefined;
             return home ? join(home, "auth.json") : undefined;
           }),
         ],

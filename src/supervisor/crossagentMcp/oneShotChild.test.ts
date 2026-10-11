@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
+import type { OneShotChildParams } from "./oneShotChild";
 import type { AgentAdapter, OneShotChildCommand } from "@/supervisor/agents/base";
 
 // Pass the built command through unchanged so the driver spawns exactly what the
@@ -33,7 +34,7 @@ function run(adapter: AgentAdapter): Promise<{
 }> {
   return new Promise((resolve) => {
     let output = "";
-    runOneShotChild({
+    void runOneShotChild({
       adapter,
       projectLocation: PROJECT,
       model: "m",
@@ -78,6 +79,25 @@ describe("runOneShotChild", () => {
     expect(result.errorMessage).toContain("cannot be spawned");
   });
 
+  it.each([0, 3])(
+    "preserves output and diagnostic semantics with multi-MiB stderr (exit %s)",
+    async (code) => {
+      const diagnostic = "x".repeat(3 * 1024 * 1024) + " END diagnostic\n";
+      const adapter = nodeAdapter(() => ({
+        command: process.execPath,
+        args: [
+          "-e",
+          `process.stdout.write('stdout preserved'); process.stderr.write('x'.repeat(3 * 1024 * 1024) + ' END diagnostic\\n', () => process.exit(${code}));`,
+        ],
+        stdin: "",
+      }));
+      const result = await run(adapter);
+      expect(result.output).toBe("stdout preserved");
+      expect(result.status).toBe(code === 0 ? "completed" : "failed");
+      expect(result.errorMessage).toBe(code === 0 ? undefined : diagnostic.slice(-2000).trim());
+    },
+  );
+
   it("cancel() terminates a long-running child", async () => {
     const adapter = nodeAdapter(() => ({
       command: process.execPath,
@@ -85,19 +105,104 @@ describe("runOneShotChild", () => {
       args: ["-e", "setTimeout(() => {}, 30000)"],
       stdin: "",
     }));
-    const settled = new Promise<"completed" | "failed">((resolve) => {
-      const handle = runOneShotChild({
-        adapter,
-        projectLocation: PROJECT,
-        model: "m",
-        effort: undefined,
-        prompt: "hi",
-        onTextDelta: () => {},
-        onSettle: ({ status }) => resolve(status),
-      });
-      setTimeout(() => handle.cancel(), 50);
+    const { promise: settled, resolve: settle } = Promise.withResolvers<"completed" | "failed">();
+    const handle = await runOneShotChild({
+      adapter,
+      projectLocation: PROJECT,
+      model: "m",
+      effort: undefined,
+      prompt: "hi",
+      onTextDelta: () => {},
+      onSettle: ({ status }) => settle(status),
     });
+    setTimeout(() => handle.cancel(), 50);
     // A killed process never exits 0 → the driver reports a non-completed settle.
     expect(await settled).toBe("failed");
+  });
+
+  it("closed waits for actual exit after repeated cancellation", async () => {
+    const ready = Promise.withResolvers<void>();
+    const terminating = Promise.withResolvers<void>();
+    const onSettle = vi.fn<OneShotChildParams["onSettle"]>();
+    const handle = await runOneShotChild({
+      adapter: nodeAdapter(() => ({
+        command: process.execPath,
+        args: [
+          "-e",
+          `
+        process.on('SIGTERM', () => {
+          process.stdout.write('terminating');
+          setTimeout(() => process.exit(0), 200);
+        });
+        process.stdout.write('ready');
+        setInterval(() => {}, 1000);
+      `,
+        ],
+        stdin: "",
+      })),
+      projectLocation: PROJECT,
+      model: "m",
+      effort: undefined,
+      prompt: "hi",
+      onTextDelta: (delta) => {
+        if (delta.includes("ready")) ready.resolve();
+        if (delta.includes("terminating")) terminating.resolve();
+      },
+      onSettle,
+    });
+    let closed = false;
+    void handle.closed.then(() => {
+      closed = true;
+    });
+    await ready.promise;
+    handle.cancel();
+    handle.cancel();
+    await terminating.promise;
+    expect(closed).toBe(false);
+    expect(onSettle).not.toHaveBeenCalled();
+    await handle.closed;
+    expect(onSettle).toHaveBeenCalledExactlyOnceWith({ status: "completed" });
+    handle.cancel();
+  });
+
+  it("escalates to SIGKILL when a child ignores SIGTERM", async () => {
+    const ready = Promise.withResolvers<void>();
+    const onSettle = vi.fn<OneShotChildParams["onSettle"]>();
+    const handle = await runOneShotChild({
+      adapter: nodeAdapter(() => ({
+        command: process.execPath,
+        args: [
+          "-e",
+          "process.on('SIGTERM', () => {}); process.stdout.write('ready'); setInterval(() => {}, 1000)",
+        ],
+        stdin: "",
+      })),
+      projectLocation: PROJECT,
+      model: "m",
+      effort: undefined,
+      prompt: "hi",
+      onTextDelta: () => ready.resolve(),
+      onSettle,
+    });
+    await ready.promise;
+    handle.cancel();
+    await handle.closed;
+    expect(onSettle).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ status: "failed" }));
+  }, 10_000);
+
+  it("returns an already closed handle when no command can be spawned", async () => {
+    const onSettle = vi.fn<OneShotChildParams["onSettle"]>();
+    const handle = await runOneShotChild({
+      adapter: nodeAdapter(() => undefined),
+      projectLocation: PROJECT,
+      model: "m",
+      effort: undefined,
+      prompt: "hi",
+      onTextDelta: vi.fn<OneShotChildParams["onTextDelta"]>(),
+      onSettle,
+    });
+    await handle.closed;
+    handle.cancel();
+    expect(onSettle).toHaveBeenCalledOnce();
   });
 });

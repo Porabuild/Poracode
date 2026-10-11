@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./SubagentRunManager";
-import { parseWaitOptions, parseWaitTimeoutMs } from "./toolResult";
+import { jsonResult, parseWaitOptions, parseWaitTimeoutMs, runToolResult } from "./toolResult";
 
 describe("parseWaitTimeoutMs", () => {
   it("reads timeout_s, clamped to [0, cap]", () => {
@@ -26,8 +26,13 @@ describe("parseWaitTimeoutMs", () => {
 
 describe("parseWaitOptions", () => {
   it("uses a caller-owned output cursor and lets full_output override it", () => {
-    expect(parseWaitOptions({})).toEqual({ fullOutput: false, afterOutputChars: 0 });
+    expect(parseWaitOptions({})).toEqual({
+      outputMode: "quiet",
+      fullOutput: false,
+      afterOutputChars: 0,
+    });
     expect(parseWaitOptions({ after_output_chars: 25 })).toEqual({
+      outputMode: "quiet",
       fullOutput: false,
       afterOutputChars: 25,
     });
@@ -36,13 +41,57 @@ describe("parseWaitOptions", () => {
         { after_output_chars: 25, after_output_chars_by_run: { a: 100, b: 20 } },
         "b",
       ),
-    ).toEqual({ fullOutput: false, afterOutputChars: 20 });
+    ).toEqual({ outputMode: "quiet", fullOutput: false, afterOutputChars: 20 });
     expect(parseWaitOptions({ after_output_chars: -4 })).toEqual({
+      outputMode: "quiet",
       fullOutput: false,
       afterOutputChars: 0,
     });
     expect(parseWaitOptions({ full_output: true, after_output_chars: 25 })).toEqual({
       fullOutput: true,
+    });
+  });
+});
+
+describe("output mode parsing", () => {
+  it.each([null, 1, true, "silent"])(
+    "rejects invalid mode %j even with full output",
+    (output_mode) => {
+      expect(() => parseWaitOptions({ output_mode, full_output: true })).toThrow(
+        "output_mode must be quiet or progress",
+      );
+    },
+  );
+  it("preserves quiet batch cursors and gives full output precedence", () => {
+    expect(
+      parseWaitOptions({ output_mode: "quiet", after_output_chars_by_run: { a: 17 } }, "a"),
+    ).toEqual({ outputMode: "quiet", fullOutput: false, afterOutputChars: 17 });
+    expect(parseWaitOptions({ output_mode: "quiet", full_output: true })).toEqual({
+      fullOutput: true,
+    });
+    expect(parseWaitOptions({ output_mode: "progress" })).toEqual({
+      outputMode: "progress",
+      fullOutput: false,
+      afterOutputChars: 0,
+    });
+  });
+});
+
+describe("compact wire serialization", () => {
+  it("preserves multiline evidence, Unicode and control cues without JSON indentation", () => {
+    const value = {
+      run_id: "run",
+      status: "running" as const,
+      output: "Evidence: café\nline two",
+      total_output_chars: 23,
+    };
+    const response = runToolResult(value);
+    expect(JSON.parse(response.content[0]!.text)).toEqual(value);
+    expect(response.content[0]!.text).not.toContain("\n");
+    expect(response.content).toHaveLength(2);
+    expect(response.content[1]!.text).toContain("wait_for_agent");
+    expect(JSON.parse(jsonResult({ error: "bad\nvalue" }).content[0]!.text)).toEqual({
+      error: "bad\nvalue",
     });
   });
 });

@@ -2,6 +2,7 @@ import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import {
   chmodSync,
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -26,6 +27,60 @@ const describeOnPosix = process.platform === "linux" ? describe : describe.skip;
 
 const SECRET = "integration-test-secret";
 const BRIDGE_SCRIPT = join(__dirname, "bridge.mjs");
+
+it.skipIf(process.platform === "win32")(
+  "confines bridge file reads, writes and listings after symlink resolution",
+  async () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-bridge-boundary-"));
+    const outside = mkdtempSync(join(tmpdir(), "poracode-bridge-private-"));
+    const bridge = await startBridge();
+    try {
+      writeFileSync(join(outside, "synthetic.txt"), "private fixture");
+      symlinkSync(outside, join(root, "escape"), "dir");
+      for (const [endpoint, path, extra] of [
+        ["read", join(root, "escape", "synthetic.txt"), {}],
+        [
+          "write",
+          join(root, "escape", "synthetic.txt"),
+          { contentBase64: Buffer.from("changed").toString("base64") },
+        ],
+        ["readdir", join(root, "escape"), {}],
+      ] as const) {
+        const response = await post(`${bridge.baseUrl}/v1/fs/${endpoint}`, {
+          projectRoot: root,
+          path,
+          ...extra,
+        });
+        expect(response.status).toBe(400);
+        expect(response.body).toMatchObject({ code: "ESCAPE" });
+      }
+      const mediaStat = await post(`${bridge.baseUrl}/v1/fs/stat`, {
+        projectRoot: root,
+        paths: [join(root, "escape", "synthetic.txt")],
+        follow: true,
+      });
+      expect(mediaStat.status).toBe(200);
+      expect(mediaStat.body).toMatchObject({
+        data: { stats: [{ exists: false, code: "ESCAPE" }] },
+      });
+      expect(readFileSync(join(outside, "synthetic.txt"), "utf8")).toBe("private fixture");
+      writeFileSync(join(root, "inside.txt"), "inside fixture");
+      symlinkSync(join(root, "inside.txt"), join(root, "inside-link.txt"));
+      expect(
+        (
+          await post(`${bridge.baseUrl}/v1/fs/read`, {
+            projectRoot: root,
+            path: join(root, "inside-link.txt"),
+          })
+        ).status,
+      ).toBe(200);
+    } finally {
+      await bridge.dispose();
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  },
+);
 
 interface RunningBridge {
   child: ChildProcess;
@@ -320,6 +375,51 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
     expect(envelope.data.stats[0]?.isFile).toBe(true);
     expect(envelope.data.stats[1]?.exists).toBe(false);
     expect(envelope.data.stats[1]?.code).toBe("ENOENT");
+  });
+
+  it("moves without replacing an existing destination", async () => {
+    const source = join(projectRoot, "source.txt");
+    const destination = join(projectRoot, "destination.txt");
+    writeFileSync(source, "source");
+    writeFileSync(destination, "destination");
+
+    const collision = await post(`${bridge.baseUrl}/v1/fs/move-no-replace`, {
+      projectRoot,
+      from: source,
+      to: destination,
+    });
+    expect(collision.status).toBe(409);
+    expect(readFileSync(source, "utf8")).toBe("source");
+    expect(readFileSync(destination, "utf8")).toBe("destination");
+
+    rmSync(destination);
+    const moved = await post(`${bridge.baseUrl}/v1/fs/move-no-replace`, {
+      projectRoot,
+      from: source,
+      to: destination,
+    });
+    expect(moved.status).toBe(200);
+    expect(existsSync(source)).toBe(false);
+    expect(readFileSync(destination, "utf8")).toBe("source");
+  });
+
+  it("rejects mutations through a symbolic-link ancestor", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "poracode-bridge-outside-"));
+    try {
+      writeFileSync(join(outside, "keep.txt"), "keep");
+      symlinkSync(outside, join(projectRoot, "outside-link"));
+      const response = await post(`${bridge.baseUrl}/v1/fs/rm`, {
+        projectRoot,
+        path: join(projectRoot, "outside-link", "keep.txt"),
+        recursive: false,
+        force: false,
+      });
+
+      expect(response.status).toBe(400);
+      expect(readFileSync(join(outside, "keep.txt"), "utf8")).toBe("keep");
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
   });
 
   it("find walks the tree, skips ignored dirs, and caps at maxEntries", async () => {

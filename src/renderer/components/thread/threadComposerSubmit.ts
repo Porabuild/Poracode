@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { sideChatAvailable, openSideChat } from "./SideChat/sideChatActions";
 import { toast } from "@heroui/react";
 import type {
   AgentSlashCommand,
@@ -8,10 +9,12 @@ import type {
   ThreadPresentationMode,
   UserInputOption,
 } from "@/shared/contracts";
+import type { TurnClientContextCapture } from "../composer/turnClientContext";
 import { friendlyError } from "@/shared/messages";
 import { hasSendablePromptContent } from "@/shared/promptContent";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { readBridge } from "@/renderer/bridge";
+import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import {
   changeThreadConfig,
   resolveThreadServerRequest,
@@ -28,10 +31,13 @@ import { storableAttachment } from "../composer/useAttachments";
 import type { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import type { TerminalPaneHandle } from "./TerminalPane";
+import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
   bindLeadingSkillUnlessLocalAction,
   resolveLocalActionUnlessSkill,
+  resolveLocalSlashCommandAction,
+  SIDE_CHAT_COMMAND_PREFIX,
 } from "./threadSlashCommands";
 
 /**
@@ -67,10 +73,12 @@ export interface ComposerSubmitContext {
   setIsSubmitting: (value: boolean) => void;
   /** Open the model/effort picker (backs the `/model` and `/effort` commands). */
   requestOpenControl: (target: "model" | "effort") => void;
-  /** Mobile override: routes through the remote transport + dock collapse. */
+  /** Optional surface override for the canonical thread-input action. */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   /** Called after the transport accepts any ordinary, steered, or queued send. */
   onSubmitSuccess?: (() => void) | undefined;
+  /** Surface-provided per-turn context, captured when the user submits. */
+  captureClientContext?: TurnClientContextCapture | undefined;
 }
 
 /**
@@ -100,6 +108,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     agentKind: thread.agentKind,
     presentationMode: ctx.presentationMode,
     runtimeLabel: agentStatus?.capabilities.runtimeLabel,
+    supportsSideChat: sideChatAvailable(thread.id, ctx.presentationMode),
   };
   const boundSegments = bindLeadingSkillUnlessLocalAction(
     segments,
@@ -108,6 +117,58 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   );
   const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
+  // Route side questions before approval denial, queueing or steering. The
+  // parent may be working (or still connecting) and must remain untouched.
+  const leadingSegment = boundSegments.find(
+    (segment) => segment.kind !== "text" || segment.content.trim().length > 0,
+  );
+  const sideAction =
+    leadingSegment?.kind === "text"
+      ? resolveLocalSlashCommandAction(flattenSegments(boundSegments), slashLookupContext)
+      : null;
+  if (sideAction?.kind === "open-side-chat") {
+    const draftAtSubmit = JSON.stringify(ctx.latestSegmentsRef.current);
+    const attachmentsAtSubmit = JSON.stringify(attachments.getAttachments());
+    const questionSegments = boundSegments.map((segment) =>
+      segment === leadingSegment && segment.kind === "text"
+        ? { ...segment, content: segment.content.replace(SIDE_CHAT_COMMAND_PREFIX, "") }
+        : segment,
+    );
+    ctx.setIsSubmitting(true);
+    const opening = sideAction.prompt
+      ? openSideChat(thread.id, sideAction.prompt, [
+          ...attachmentSegments,
+          ...selectorSegments,
+          ...questionSegments,
+        ])
+      : openSideChat(thread.id);
+    void opening
+      .then((opened) => {
+        if (
+          opened &&
+          ctx.isCurrentSession() &&
+          JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
+          JSON.stringify(attachments.getAttachments()) === attachmentsAtSubmit
+        ) {
+          mentionRef.current?.clear();
+          if (sideAction.prompt) attachments.clearAll();
+          ctx.setPrompt("");
+          ctx.setHasContent(false);
+          ctx.latestSegmentsRef.current = [];
+          if (!sideAction.prompt && attachments.getAttachments().length > 0) {
+            useAppStore.getState().saveThreadDraftContent(thread.id, {
+              segments: [],
+              attachments: attachments.getAttachments().map(storableAttachment),
+            });
+          } else useAppStore.getState().clearThreadDraftContent(thread.id);
+        }
+      })
+      .catch((error: unknown) => toast.danger(friendlyError(error)))
+      .finally(() => {
+        if (ctx.isCurrentSession()) ctx.setIsSubmitting(false);
+      });
+    return;
+  }
   if (!hasSendablePromptContent(flat, allSegments) || !ctx.canSubmit) return;
   const clearComposerText = () => {
     ctx.setPrompt("");
@@ -129,8 +190,15 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     return;
   }
   if (localAction?.kind === "toggle-fast") {
-    if (agentStatus && supportsUsableFastMode(agentStatus.capabilities, thread.config.model)) {
-      changeThreadConfig(thread.id, { ...thread.config, fast: thread.config.fast !== true });
+    if (agentStatus) {
+      const normalized = normalizeProviderModelConfig(
+        thread.agentKind,
+        thread.config,
+        agentStatus.capabilities.models,
+      );
+      if (supportsUsableFastMode(agentStatus.capabilities, normalized.model)) {
+        changeThreadConfig(thread.id, { ...normalized, fast: normalized.fast !== true });
+      }
     }
     mentionRef.current?.clear();
     mentionRef.current?.focus();
@@ -154,8 +222,12 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       attachments.restore(submittedAttachments);
     }
   };
+  // Capture now, before approval denial or focus waits: the context belongs
+  // to the moment the user sent this message.
+  const clientContextCapture = ctx.captureClientContext?.();
   let clearedBeforeSendSettled = false;
   ctx.submittedRef.current = true;
+  useAppStore.getState().clearThreadDraftContent(thread.id);
   ctx.setIsSubmitting(true);
   if (!usesTerminalPresentation) {
     useAppStore.getState().requestChatScrollToBottom(thread.id);
@@ -198,13 +270,13 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   // turn returns with `cancelled` stopReason. No optimistic chat paint —
   // the strip above the composer is the visual confirmation; the real
   // user_message item lands when the turn drains and starts.
-  const submit =
-    ctx.onSubmitInput ??
-    ((outgoingPrompt: string, outgoingSegments?: PromptSegment[]) =>
-      submitThreadInput(thread.id, outgoingPrompt, outgoingSegments));
   const runSubmission = async () => {
+    const clientContext = await clientContextCapture;
     if (!ctx.usesPendingSteerPath) {
-      await submit(flat, allSegments.length > 0 ? allSegments : undefined);
+      const outgoingSegments = allSegments.length > 0 ? allSegments : undefined;
+      await (ctx.onSubmitInput
+        ? ctx.onSubmitInput(flat, outgoingSegments)
+        : submitThreadInput(thread.id, flat, outgoingSegments, { clientContext }));
       return;
     }
     if (ctx.followUpBehavior === "queue") {
@@ -213,9 +285,15 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
         prompt: flat,
         config: thread.config,
         ...(allSegments.length > 0 ? { segments: allSegments } : {}),
+        ...(clientContext ? { clientContext } : {}),
       });
     } else {
-      await setThreadPendingSteer(thread, flat, allSegments.length > 0 ? allSegments : undefined);
+      await setThreadPendingSteer(
+        thread,
+        flat,
+        allSegments.length > 0 ? allSegments : undefined,
+        clientContext,
+      );
     }
     captureThreadPromptSubmitted(
       thread,
@@ -238,19 +316,23 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       if (!clearedBeforeSendSettled) {
         clearSubmittedComposer();
       }
-      ctx.onSubmitSuccess?.();
+      if (ctx.isCurrentSession()) ctx.onSubmitSuccess?.();
     })
     .catch((error: unknown) => {
       // Leave the prompt intact so the user can retry.
+      useAppStore.getState().saveThreadDraftContent(thread.id, {
+        segments: submittedInputSegments,
+        attachments: submittedAttachments.map(storableAttachment),
+      });
+      if (isRemoteCommandOutcomeUncertainError(error)) {
+        // The command may have committed: the send action already reconciled
+        // once and showed the localized uncertainty explanation. Keep the
+        // optimistic paint and the saved draft, but do not restore the
+        // composer — a blind resend could duplicate the effect.
+        return;
+      }
       if (ctx.isCurrentSession()) {
         restoreSubmittedComposer();
-      } else {
-        // Stash path-only attachment copies: `previewUrl` object URLs belong to
-        // the composer session that submitted and are revoked when it clears.
-        useAppStore.getState().saveThreadDraftContent(thread.id, {
-          segments: submittedInputSegments,
-          attachments: submittedAttachments.map(storableAttachment),
-        });
       }
       toast.danger(friendlyError(error));
     })

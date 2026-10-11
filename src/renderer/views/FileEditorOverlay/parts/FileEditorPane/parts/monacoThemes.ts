@@ -8,13 +8,6 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 export function defineAppThemes(monaco: Monaco) {
   const transparent = "#00000000";
 
-  // Disable Monaco's built-in TS/JS semantic validation.
-  // When LSP is enabled, the language server provides diagnostics instead.
-  // When LSP is off, we want a clean editor with no false errors.
-  const diagOpts = { noSemanticValidation: true, noSyntaxValidation: false };
-  monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(diagOpts);
-  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(diagOpts);
-
   monaco.editor.defineTheme("poracode-dark", {
     base: "vs-dark",
     inherit: true,

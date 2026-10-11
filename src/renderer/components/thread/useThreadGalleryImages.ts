@@ -1,18 +1,40 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  environmentImageRefKey,
+  environmentLocalImageKey,
+} from "@/shared/remote/clientEnvironmentImages";
+import { isRemoteSession } from "@/renderer/bridge";
+import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
+import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { i18n as i18nSingleton } from "@/renderer/i18n/i18n";
-import { openImageLightbox } from "@/renderer/components/composer/ImageLightbox";
+import {
+  openImageLightbox,
+  updateImageLightboxFromThread,
+} from "@/renderer/components/composer/ImageLightbox";
 import {
   buildGalleryResolversFromState,
   getCachedThreadGallery,
+  invalidateCachedThreadGallery,
   selectRemoteGalleryRevision,
+  threadGalleryImageAuthority,
+  type ThreadGalleryCollection,
   type ThreadGalleryImage,
 } from "./ChatPane/parts/items/threadGalleryImages";
 
 const EMPTY_IDS: readonly string[] = [];
 const EMPTY_BY_ID: Record<string, never> = {};
 const EMPTY_GALLERY: readonly ThreadGalleryImage[] = [];
+const EMPTY_COLLECTION: ThreadGalleryCollection = {
+  images: EMPTY_GALLERY,
+  pendingRemoteRefs: [],
+  pendingRemotePaths: [],
+  readyRemoteRefs: [],
+  readyRemotePaths: [],
+};
 
 /**
  * Ordered gallery of every renderable image in a thread's loaded history:
@@ -24,6 +46,13 @@ const EMPTY_GALLERY: readonly ThreadGalleryImage[] = [];
  * Collection is shared through a module cache keyed on the store slices, so
  * the bubble, the mosaic, and click-time lookups reuse one computation per
  * store update instead of rebuilding display URLs per subscriber.
+ *
+ * Host-held environment images that are still pending are NOT part of the
+ * collection yet; the hook subscribes to their existing bounded keyed
+ * readiness surface and invalidates the cache on transition, so an open
+ * gallery — and a lightbox opened from this thread's gallery — picks the image
+ * up when its authenticated blob lands. Ready coordinates remain subscribed
+ * so ordinary cache eviction also removes revoked URLs without a store tick.
  */
 export function useThreadGalleryImages(
   threadId: string | undefined,
@@ -45,13 +74,30 @@ export function useThreadGalleryImages(
     threadId ? (s.runtimeStructuralVersionByThread[threadId] ?? 0) : 0,
   );
   const remoteServerId = thread?.remoteServerId;
+  const browserImageReadiness = useRemoteBridgeImageReadiness();
+  const managedImageSession = useManagedLoopbackImageSession();
+  const imageReadinessFor = useRemoteServersStore((s) => s.imageReadinessFor);
+  const remoteServerRecord = useRemoteServersStore((s) =>
+    remoteServerId
+      ? s.servers.find((server) => (server.connectionId ?? server.desktopId) === remoteServerId)
+      : undefined,
+  );
   const remoteRevision = useRemoteServersStore((s) =>
     selectRemoteGalleryRevision(s, remoteServerId),
   );
+  const imageAuthority = threadGalleryImageAuthority(
+    thread,
+    managedImageSession,
+    browserImageReadiness,
+  );
+  const isManagedThread = thread !== undefined && managedRootOwner(thread) !== undefined;
+  // Keyed readiness or eviction transitions invalidate the cached collection
+  // without requiring unrelated transcript or connection changes.
+  const [readinessRevision, setReadinessRevision] = useState(0);
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- intentional escape hatch: the module cache below already dedupes across subscribers; this memo only re-reads the live remote clients per store update
-  return useMemo(() => {
-    if (!threadId) return EMPTY_GALLERY;
+  const collection = useMemo(() => {
+    if (!threadId) return EMPTY_COLLECTION;
     const resolvers = buildGalleryResolversFromState(useAppStore.getState(), threadId);
     return getCachedThreadGallery(
       threadId,
@@ -61,10 +107,108 @@ export function useThreadGalleryImages(
         import("@/renderer/state/slices/runtimeEventSlice").RuntimeChatItem
       >,
       resolvers,
-      { structuralVersion, remoteRevision, locale },
+      { structuralVersion, remoteRevision, locale, imageAuthority },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: resolvers derive from live store state per update
-  }, [threadId, itemIds, itemsById, thread, project, structuralVersion, remoteRevision, locale]);
+  }, [
+    threadId,
+    itemIds,
+    itemsById,
+    thread,
+    project,
+    structuralVersion,
+    remoteRevision,
+    locale,
+    readinessRevision,
+    imageAuthority,
+  ]);
+  const images = collection.images;
+  const readyRefs = collection.readyRemoteRefs;
+  const readyPaths = collection.readyRemotePaths;
+  const pendingRefs = collection.pendingRemoteRefs;
+  const pendingPaths = collection.pendingRemotePaths;
+  const pendingKey = [
+    ...pendingRefs.map(environmentImageRefKey),
+    ...pendingPaths.map(environmentLocalImageKey),
+  ].join("\n");
+  const readinessKey = [
+    ...readyRefs.map(environmentImageRefKey),
+    ...readyPaths.map(environmentLocalImageKey),
+    pendingKey,
+  ].join("\n");
+  const readyRefsRef = useRef(readyRefs);
+  const readyPathsRef = useRef(readyPaths);
+  const pendingRefsRef = useRef(pendingRefs);
+  const pendingPathsRef = useRef(pendingPaths);
+  useEffect(() => {
+    readyRefsRef.current = readyRefs;
+    readyPathsRef.current = readyPaths;
+    pendingRefsRef.current = pendingRefs;
+    pendingPathsRef.current = pendingPaths;
+  });
+
+  useEffect(() => {
+    if (
+      !threadId ||
+      (pendingKey.length === 0 &&
+        readyRefsRef.current.length === 0 &&
+        readyPathsRef.current.length === 0)
+    )
+      return;
+    // Re-resolve the readiness surface at effect time: it is bound to the live
+    // session, and a real environment-client rebuild is picked up by the
+    // subscription itself (which rebinds mounted listeners).
+    const readiness = isRemoteSession()
+      ? remoteServerId !== undefined
+        ? typeof remoteServerId === "string" && remoteServerId.length > 0
+          ? (environmentImageReadinessFor(remoteServerId) ?? browserImageReadiness)
+          : undefined
+        : browserImageReadiness
+      : remoteServerId !== undefined
+        ? remoteServerRecord
+          ? imageReadinessFor(remoteServerId)
+          : undefined
+        : isManagedThread
+          ? managedImageSession?.readiness
+          : undefined;
+    if (!readiness) return;
+    const refs = pendingRefsRef.current;
+    const paths = pendingPathsRef.current;
+    const onTransition = () => {
+      invalidateCachedThreadGallery(threadId);
+      setReadinessRevision((revision) => revision + 1);
+    };
+    const unsubscribes = [
+      ...readyRefsRef.current.map((ref) => readiness.subscribeRef(ref, onTransition)),
+      ...readyPathsRef.current.map((path) => readiness.subscribePath(path, onTransition)),
+      ...refs.map((ref) => readiness.subscribeRef(ref, onTransition)),
+      ...paths.map((path) => readiness.subscribePath(path, onTransition)),
+    ];
+    for (const ref of refs) readiness.requestRef(ref);
+    for (const path of paths) readiness.requestPath(path);
+    return () => {
+      for (const unsubscribe of unsubscribes) unsubscribe();
+    };
+  }, [
+    threadId,
+    remoteServerId,
+    pendingKey,
+    readinessKey,
+    browserImageReadiness,
+    imageReadinessFor,
+    remoteServerRecord,
+    isManagedThread,
+    managedImageSession,
+  ]);
+
+  const previousImagesRef = useRef<readonly ThreadGalleryImage[] | undefined>(undefined);
+  useEffect(() => {
+    const previous = previousImagesRef.current;
+    previousImagesRef.current = images;
+    if (previous && previous !== images) updateImageLightboxFromThread(threadId, images);
+  }, [threadId, images]);
+
+  return images;
 }
 
 /**
@@ -86,17 +230,23 @@ export function getThreadGalleryImages(threadId: string): readonly ThreadGallery
       thread?.remoteServerId,
     ),
     locale: i18nSingleton.locale,
-  });
+    imageAuthority: threadGalleryImageAuthority(thread),
+  }).images;
 }
 
-/** Open the thread gallery in the fullscreen lightbox at `initialSrc` (or 0). */
+/**
+ * Open the thread gallery in the fullscreen lightbox at `initialSrc` (or 0).
+ * `threadId` marks the lightbox live: while it is open, the thread's gallery
+ * hook keeps its image set in sync as pending host-held blobs resolve.
+ */
 export function openThreadGallery(
   images: readonly ThreadGalleryImage[],
   initialSrc?: string,
   initialIndex = 0,
+  threadId?: string,
 ): void {
   if (images.length === 0) return;
   const atSrc = initialSrc ? images.findIndex((img) => img.src === initialSrc) : -1;
   const index = atSrc >= 0 ? atSrc : Math.min(Math.max(0, initialIndex), images.length - 1);
-  openImageLightbox(images, index);
+  openImageLightbox(images, index, threadId ? { liveThreadId: threadId } : undefined);
 }

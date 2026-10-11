@@ -1,62 +1,32 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import type { Monaco } from "@monaco-editor/react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { MarkdownPreview } from "../MarkdownPreview";
-import { Editor, type BeforeMount, type Monaco, type OnMount } from "@monaco-editor/react";
-import type { editor as MonacoEditor } from "monaco-editor";
-import { isViewerBuffer, useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import {
-  useActiveBufferContent,
   useActiveBufferStatus,
   useIsActiveBufferDirty,
   useTabPaths,
 } from "@/renderer/state/fileEditorSelectors";
-import type { ProjectLocation } from "@/shared/contracts";
-import { createLspFileUri } from "@/shared/lsp";
-import { getBasename } from "@/shared/pathUtils";
-import { getLanguageFromPath, isMarkdownFile } from "./parts/langMap";
-import { defineAppThemes, useResolvedTheme } from "./parts/monacoThemes";
+import { isSvgFile } from "@/shared/fileMedia";
+import { getBasename, isMarkdownFile } from "@/shared/pathUtils";
+import { useResolvedTheme } from "./parts/monacoThemes";
 import { SortableTab } from "./parts/SortableTab";
 import { EditorToolbar } from "./parts/EditorToolbar";
-import { useLspSync } from "./parts/useLspSync";
-import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConflictContribution";
-import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
-import { setActiveFindEditor } from "@/renderer/components/find/editorFindBridge";
-import { openPdfPreview } from "@/renderer/components/pdf";
-import { isPdfPath, isSvgPath } from "@/shared/promptContent";
-import { SvgFileView } from "@/renderer/components/media/SvgFileView";
-import { EditorImageView } from "./parts/EditorMediaViews";
+import { MobileFileEditorActions } from "./parts/MobileFileEditorActions";
+import { useLspLifecycle } from "./parts/useLspSync";
+
+import { EditorBody } from "./parts/EditorBody";
 
 export { getLanguageFromPath } from "./parts/langMap";
-
-const EDITOR_OPTIONS: MonacoEditor.IStandaloneEditorConstructionOptions = {
-  fontSize: 13,
-  lineHeight: 20,
-  minimap: { enabled: false },
-  scrollBeyondLastLine: false,
-  wordWrap: "on",
-  automaticLayout: true,
-  padding: { top: 4, bottom: 4 },
-  renderLineHighlightOnlyWhenFocus: true,
-  overviewRulerLanes: 0,
-  hideCursorInOverviewRuler: true,
-  overviewRulerBorder: false,
-  scrollbar: {
-    verticalScrollbarSize: 10,
-    horizontalScrollbarSize: 10,
-    verticalSliderSize: 8,
-    horizontalSliderSize: 8,
-  },
-  contextmenu: true,
-  tabSize: 2,
-};
 
 export function FileEditorPane(props: {
   showTabs: boolean;
   headerNeedsTrafficLightPad?: boolean;
   onOpenFullscreen?: () => void;
   onClose?: () => void;
+  mobileControls?: boolean;
 }) {
   const { t } = useLingui();
   const activePath = useFileEditorStore((state) => state.activePath);
@@ -69,24 +39,13 @@ export function FileEditorPane(props: {
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
   const theme = useResolvedTheme();
 
-  const [showPreview, setShowPreview] = useState(false);
+  const hasSourcePreview = activePath ? isMarkdownFile(activePath) || isSvgFile(activePath) : false;
 
-  const isMarkdown = activePath ? isMarkdownFile(activePath) : false;
-  const isSvg = activePath ? isSvgPath(activePath) : false;
-  const hasRenderedView = isMarkdown || isSvg;
+  const { notifyDidSave } = useLspLifecycle(monacoInstance);
 
-  const { notifyDidSave } = useLspSync({ monaco: monacoInstance, activePath, bufferStatus });
-
-  // The preview follows the active file and the store's preview target; the
-  // user can still toggle it per file via setShowPreview, which leaves this
-  // key untouched. Reset during render instead of an effect so switching files
-  // never paints one frame with the previous file's toggle.
-  const previewSyncKey = `${activePath ?? ""}\0${isMarkdown ? "1" : "0"}\0${markdownPreviewPath ?? ""}`;
-  const [prevPreviewSyncKey, setPrevPreviewSyncKey] = useState(previewSyncKey);
-  if (prevPreviewSyncKey !== previewSyncKey) {
-    setPrevPreviewSyncKey(previewSyncKey);
-    setShowPreview(!!activePath && isMarkdown && markdownPreviewPath === activePath);
-  }
+  // Derived from the store so the eye button, the shortcut, and fresh mounts
+  // always agree on the preview state.
+  const showPreview = Boolean(activePath && hasSourcePreview && markdownPreviewPath === activePath);
 
   async function handleSave(path: string) {
     try {
@@ -95,6 +54,10 @@ export function FileEditorPane(props: {
     } catch (error) {
       toast.danger(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  function togglePreview() {
+    useFileEditorStore.getState().toggleMarkdownPreview();
   }
 
   function handleCloseTab(path: string) {
@@ -134,12 +97,22 @@ export function FileEditorPane(props: {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+      {props.mobileControls && activePath ? (
+        <MobileFileEditorActions
+          isDirty={isDirty}
+          isMarkdown={hasSourcePreview}
+          showPreview={showPreview}
+          onSave={() => void handleSave(activePath)}
+          onTogglePreview={togglePreview}
+        />
+      ) : null}
+
       {props.showTabs ? (
         <TabStripHeader
           isDirty={isDirty}
-          hasRenderedView={hasRenderedView}
+          hasRenderedView={hasSourcePreview}
           showPreview={showPreview}
-          setShowPreview={setShowPreview}
+          onTogglePreview={togglePreview}
           activePath={activePath}
           headerNeedsTrafficLightPad={props.headerNeedsTrafficLightPad ?? false}
           onSave={(path) => void handleSave(path)}
@@ -151,7 +124,7 @@ export function FileEditorPane(props: {
 
       {activePath && bufferStatus ? (
         <>
-          {!props.showTabs ? (
+          {!props.showTabs && !props.mobileControls ? (
             <div
               className={`flex shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] px-3 ${
                 props.headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""
@@ -164,9 +137,9 @@ export function FileEditorPane(props: {
               </span>
               <div className="flex-1" />
               <EditorToolbar
-                hasRenderedView={hasRenderedView}
+                hasRenderedView={hasSourcePreview}
                 showPreview={showPreview}
-                setShowPreview={setShowPreview}
+                onTogglePreview={togglePreview}
                 isDirty={isDirty}
                 activePath={activePath}
                 onSave={() => void handleSave(activePath)}
@@ -183,8 +156,7 @@ export function FileEditorPane(props: {
             monacoTheme={monacoTheme}
             onMonacoReady={setMonacoInstance}
             showPreview={showPreview}
-            isMarkdown={isMarkdown}
-            isSvg={isSvg}
+            isMarkdown={hasSourcePreview}
             onSave={(path) => void handleSave(path)}
           />
         </>
@@ -201,7 +173,7 @@ function TabStripHeader(props: {
   isDirty: boolean;
   hasRenderedView: boolean;
   showPreview: boolean;
-  setShowPreview: React.Dispatch<React.SetStateAction<boolean>>;
+  onTogglePreview: () => void;
   activePath: string | null;
   headerNeedsTrafficLightPad: boolean;
   onSave: (path: string) => void;
@@ -245,7 +217,7 @@ function TabStripHeader(props: {
         <EditorToolbar
           hasRenderedView={props.hasRenderedView}
           showPreview={props.showPreview}
-          setShowPreview={props.setShowPreview}
+          onTogglePreview={props.onTogglePreview}
           isDirty={props.isDirty}
           activePath={props.activePath}
           onSave={() => props.activePath && props.onSave(props.activePath)}
@@ -253,163 +225,6 @@ function TabStripHeader(props: {
           {...(props.onClose ? { onClose: props.onClose } : {})}
         />
       </div>
-    </div>
-  );
-}
-
-function EditorBody(props: {
-  activePath: string;
-  projectLocation: ProjectLocation | null;
-  bufferStatus: NonNullable<ReturnType<typeof useActiveBufferStatus>>;
-  monacoTheme: string;
-  onMonacoReady: (monaco: Monaco) => void;
-  showPreview: boolean;
-  isMarkdown: boolean;
-  isSvg: boolean;
-  onSave: (path: string) => void;
-}) {
-  const { activePath, projectLocation, bufferStatus, monacoTheme, showPreview, isMarkdown, isSvg } =
-    props;
-  const content = useActiveBufferContent();
-  const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
-  const [editorState, setEditorState] = useState<{
-    path: string;
-    editor: MonacoEditor.IStandaloneCodeEditor;
-    monaco: Monaco;
-  } | null>(null);
-  const editorInstance = editorState?.path === activePath ? editorState.editor : null;
-  const monacoInstance = editorState?.path === activePath ? editorState.monaco : null;
-  const pendingReveal = useFileEditorStore((state) => state.pendingReveal);
-  const gitDiff = useFileEditorStore((state) => {
-    const path = state.activePath;
-    if (!path) return null;
-    const buffer = state.buffers[path];
-    return buffer?.status === "ready" ? (buffer.gitDiff ?? null) : null;
-  });
-  const isPdf = isPdfPath(activePath);
-
-  useMergeConflictContribution({ editor: editorInstance, monaco: monacoInstance });
-  useGitDiffContribution({ editor: editorInstance, gitDiff, bufferStatus });
-
-  // Register this editor as the Find target while it's focused so the global
-  // Find command (Ctrl+F) can open Monaco's built-in find widget on it.
-  useEffect(() => {
-    if (!editorInstance) return;
-    setActiveFindEditor(editorInstance);
-    const focusSub = editorInstance.onDidFocusEditorText(() => setActiveFindEditor(editorInstance));
-    return () => {
-      focusSub.dispose();
-      setActiveFindEditor(null);
-    };
-  }, [editorInstance]);
-
-  useEffect(() => {
-    if (!pendingReveal || !editorInstance) return;
-    if (pendingReveal.path !== activePath) return;
-    if (bufferStatus !== "ready") return;
-    const { lineNumber, token } = pendingReveal;
-    editorInstance.revealLineInCenter(lineNumber);
-    editorInstance.setPosition({ lineNumber, column: 1 });
-    editorInstance.focus();
-    useFileEditorStore.getState().consumeReveal(token);
-  }, [pendingReveal, editorInstance, activePath, bufferStatus]);
-
-  const handleBeforeMount: BeforeMount = (monaco) => {
-    defineAppThemes(monaco);
-  };
-
-  function registerSaveCommand(editor: MonacoEditor.IStandaloneCodeEditor, monaco: Monaco) {
-    // eslint-disable-next-line no-bitwise -- Monaco uses bitmask key combos
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      const path = useFileEditorStore.getState().activePath;
-      if (path) props.onSave(path);
-    });
-  }
-
-  const handleEditorMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-    props.onMonacoReady(monaco);
-    setEditorState({ path: activePath, editor, monaco });
-    registerSaveCommand(editor, monaco);
-  };
-
-  const modelPath = projectLocation ? createLspFileUri(projectLocation, activePath) : activePath;
-
-  return (
-    <div className="min-h-0 flex-1 overflow-hidden">
-      {isPdf ? (
-        <PdfBrowserPlaceholder path={activePath} projectLocation={projectLocation} />
-      ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
-        <MarkdownPreview content={content ?? ""} />
-      ) : bufferStatus === "ready" && showPreview && isSvg ? (
-        <SvgFileView path={activePath} content={content ?? ""} />
-      ) : bufferStatus === "ready" ? (
-        <Editor
-          path={modelPath}
-          language={getLanguageFromPath(activePath)}
-          theme={monacoTheme}
-          value={content ?? ""}
-          onChange={(value) => {
-            if (value !== undefined) useFileEditorStore.getState().updateBuffer(activePath, value);
-          }}
-          beforeMount={handleBeforeMount}
-          onMount={handleEditorMount}
-          options={EDITOR_OPTIONS}
-          loading={
-            <div className="flex h-full items-center justify-center text-sm text-muted">
-              <Trans>Loading editor…</Trans>
-            </div>
-          }
-        />
-      ) : isViewerBuffer({ path: activePath, status: bufferStatus }) ? (
-        <EditorImageView
-          path={activePath}
-          projectLocation={projectLocation}
-          fallback={<FileStatusMessage status={bufferStatus} />}
-        />
-      ) : (
-        <FileStatusMessage status={bufferStatus} />
-      )}
-    </div>
-  );
-}
-
-function FileStatusMessage(props: {
-  status: NonNullable<ReturnType<typeof useActiveBufferStatus>>;
-}) {
-  return (
-    <div className="flex h-full items-center justify-center px-8 text-center text-sm text-muted">
-      {props.status === "binary" ? (
-        <Trans>Binary files can't be edited here.</Trans>
-      ) : props.status === "too_large" ? (
-        <Trans>This file is too large for the built-in editor.</Trans>
-      ) : (
-        <Trans>This file uses an unsupported encoding.</Trans>
-      )}
-    </div>
-  );
-}
-
-function PdfBrowserPlaceholder(props: { path: string; projectLocation: ProjectLocation | null }) {
-  const { t } = useLingui();
-  const location = props.projectLocation ?? undefined;
-
-  useEffect(() => {
-    openPdfPreview(props.path, location);
-  }, [props.path, location]);
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center text-sm text-muted">
-      <p>
-        <Trans>PDF preview opens in the browser.</Trans>
-      </p>
-      <button
-        type="button"
-        className="rounded-md border border-[color:var(--border)] px-3 py-1.5 text-foreground transition-colors hover:bg-[var(--row-hover)]"
-        onClick={() => openPdfPreview(props.path, location)}
-      >
-        {t`Open in browser`}
-      </button>
     </div>
   );
 }

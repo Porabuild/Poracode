@@ -15,6 +15,11 @@ import {
   readBuildSentryEnvironment,
   shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
+import {
+  isHostResourceBusyError,
+  isHostResourcePolicyUnavailableError,
+} from "@/shared/hostResourceAdmission";
+import { isGitProcessAdmissionRefusal } from "@/shared/gitProcessAdmission";
 
 type SupervisorSentryModule = typeof import("@sentry/node");
 
@@ -303,6 +308,29 @@ function knownSupervisorIpcClassification(
 ): DiagnosticFailureMetadata | undefined {
   const structuredClassification = structuredRuntimeClassification(error);
   if (structuredClassification) return structuredClassification;
+  // Capacity refusals are expected operational outcomes, not defects: a full
+  // limit or an unresolved (fail-closed) policy is a normal running state.
+  if (isHostResourceBusyError(error)) {
+    return {
+      failureClass: "expected-operational",
+      domain: "supervisor.ipc",
+      errorClass: "host-resource-busy",
+    };
+  }
+  if (isHostResourcePolicyUnavailableError(error)) {
+    return {
+      failureClass: "expected-operational",
+      domain: "supervisor.ipc",
+      errorClass: "host-resource-policy-unavailable",
+    };
+  }
+  if (isGitProcessAdmissionRefusal(error)) {
+    return {
+      failureClass: "expected-operational",
+      domain: "supervisor.ipc",
+      errorClass: "git-admission-refusal",
+    };
+  }
   const message = errorMessage(error);
   if (!message) return undefined;
   const rule = SUPERVISOR_IPC_FAILURE_RULES.find((candidate) =>

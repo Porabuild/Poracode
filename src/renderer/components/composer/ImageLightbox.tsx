@@ -21,12 +21,20 @@ export interface LightboxImage {
   /** Original download name and MIME type, retained when the display URL is opaque. */
   fileName?: string;
   mime?: string;
+  /** Optional owner-supplied byte read (e.g. the pinned client that issued a media grant). */
+  readBytes?: () => Promise<Uint8Array<ArrayBuffer>>;
 }
 
 type LightboxState = {
   images: readonly LightboxImage[];
   initialIndex: number;
   nonce: number;
+  /**
+   * Thread whose gallery opened this lightbox, when it was opened live. The
+   * thread's gallery hook updates the image set through
+   * {@link updateImageLightboxFromThread} as pending host-held blobs resolve.
+   */
+  liveThreadId: string | null;
 };
 
 type Point = { x: number; y: number };
@@ -54,14 +62,43 @@ function getLightboxSnapshot(): LightboxState | null {
   return lightboxState;
 }
 
-export function openImageLightbox(images: readonly LightboxImage[], initialIndex: number): void {
+export function openImageLightbox(
+  images: readonly LightboxImage[],
+  initialIndex: number,
+  options?: { readonly liveThreadId?: string },
+): void {
   if (images.length === 0) return;
   lightboxState = {
     images: [...images],
     initialIndex: Math.min(Math.max(0, initialIndex), images.length - 1),
     nonce: ++lightboxNonce,
+    liveThreadId: options?.liveThreadId ?? null,
   };
   emitLightboxChange();
+}
+
+/**
+ * Replaces the open lightbox's image set when (and only when) it was opened
+ * from the same thread's gallery. The view relocates its current image by
+ * source, so a pending image landing never changes what the user is looking at.
+ */
+export function updateImageLightboxFromThread(
+  threadId: string | undefined,
+  images: readonly LightboxImage[],
+): void {
+  if (!lightboxState || threadId === undefined || lightboxState.liveThreadId !== threadId) return;
+  if (lightboxState.images === images) return;
+  lightboxState = { ...lightboxState, images };
+  emitLightboxChange();
+}
+
+/** A retired editor grant must not leave actions pointing at an expired resource. */
+export function closeImageLightboxForSource(src: string): void {
+  if (
+    lightboxState?.liveThreadId === null &&
+    lightboxState.images.some((image) => image.src === src)
+  )
+    closeImageLightbox();
 }
 
 export function openAttachmentLightbox(
@@ -138,6 +175,24 @@ export function ImageLightboxView(props: {
     setScale(MIN_SCALE);
     setPan({ x: 0, y: 0 });
   }
+
+  // A live gallery update (a pending host-held blob resolving) replaces the
+  // image array while this lightbox stays open: keep the user on the same
+  // source by relocating the index, falling back to a clamp when it vanished.
+  const previousImagesRef = useRef(images);
+  const currentSrcRef = useRef(images[index]?.src);
+  useEffect(() => {
+    if (previousImagesRef.current === images) {
+      currentSrcRef.current = images[index]?.src;
+      return;
+    }
+    previousImagesRef.current = images;
+    const previousSrc = currentSrcRef.current;
+    const located = previousSrc ? images.findIndex((image) => image.src === previousSrc) : -1;
+    const nextIndex = located >= 0 ? located : Math.min(index, Math.max(0, images.length - 1));
+    currentSrcRef.current = images[nextIndex]?.src;
+    if (nextIndex !== index) setIndex(nextIndex);
+  }, [images, index]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

@@ -1,9 +1,12 @@
+import { createModelVariant } from "@/shared/modelVariant";
 import { msg } from "@lingui/core/macro";
 import { resolveGrokSessionDir } from "@/shared/grokSessionMedia";
 import type { RendererProviderManifest } from "../providerManifest";
 
 export default {
   kind: "grok",
+  defaultFastEnabled: false,
+  normalizeModelConfig: createModelVariant("-build-fast").normalizeConfig,
   label: msg`Grok Build`,
   order: 40,
   resolveMarkdownImageRoots: ({ sessionId, projectLocation, homeDir, isRemote }) => {

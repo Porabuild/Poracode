@@ -22,7 +22,6 @@ describe("createMuseAdapter shape", () => {
     expect(adapter.kind).toBe("muse");
     expect(adapter.label).toBe("Muse Code");
     expect(adapter.binary).toBe("muse");
-    expect(adapter.windowsProjectExecution).toBe("wsl");
   });
 
   it("re-exposes the installer-only update spec on the adapter", () => {
@@ -33,12 +32,13 @@ describe("createMuseAdapter shape", () => {
       args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
     });
     expect(adapter.update?.installer?.windows).toEqual({
-      binary: "wsl.exe",
+      binary: "powershell.exe",
       args: [
-        "--exec",
-        "bash",
-        "-lc",
-        "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi",
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "irm https://dev.meta.ai/install.ps1 | iex",
       ],
     });
   });
@@ -80,16 +80,16 @@ describe("createMuseAdapter shape", () => {
 describe("createMuseAdapter launch / resume argv", () => {
   const adapter = createMuseAdapter();
 
-  it("launches fresh without a sessionRef so discovery can run", () => {
-    const result = adapter.buildLaunchArgv(location, config, "hi");
+  it("launches fresh without a sessionRef so discovery can run", async () => {
+    const result = await adapter.buildLaunchArgv(location, config, "hi");
     expect(result.binary).toBe("muse");
     expect(result.sessionRef).toBeUndefined();
     expect(result.args).toEqual(["--trust-workspace", "--model", "muse-spark-1.3", "hi"]);
   });
 
-  it("resumes a discovered id with resume <uuid>", () => {
+  it("resumes a discovered id with resume <uuid>", async () => {
     const id = "966713f1-794f-480e-aa37-713e8387fe8e";
-    const result = adapter.buildResumeArgv(
+    const result = await adapter.buildResumeArgv(
       location,
       { ...config, approvalPolicy: "yolo", effort: "low" },
       "",

@@ -11,6 +11,7 @@ const spawnPtyMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 vi.mock("./agents/base", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./agents/base")>()),
   buildAgentCommand: buildAgentCommandMock,
+  prepareAgentLocationEnvironment: vi.fn<() => Promise<void>>(async () => {}),
 }));
 vi.mock("@/shared/processTree", () => ({ terminateProcessTree: terminateProcessTreeMock }));
 vi.mock("node-pty", () => ({ spawn: spawnPtyMock }));
@@ -36,18 +37,18 @@ describe("buildOneShotSpec isolateCwd", () => {
     uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
   };
 
-  it("uses the project cwd by default", () => {
-    buildOneShotSpec(windowsProject, "agy", ["-p", "hi"]);
+  it("uses the project cwd by default", async () => {
+    await buildOneShotSpec(windowsProject, "agy", ["-p", "hi"]);
     expect(capturedLocation()).toEqual(windowsProject);
   });
 
-  it("redirects a native one-shot to the OS temp dir when isolated", () => {
-    buildOneShotSpec(windowsProject, "agy", ["-p", "hi"], { isolateCwd: true });
+  it("redirects a native one-shot to the OS temp dir when isolated", async () => {
+    await buildOneShotSpec(windowsProject, "agy", ["-p", "hi"], { isolateCwd: true });
     expect(capturedLocation()).toEqual({ kind: "windows", path: tmpdir() });
   });
 
-  it("redirects a WSL one-shot to /tmp inside the distro when isolated", () => {
-    buildOneShotSpec(wslProject, "agy", ["-p", "hi"], { isolateCwd: true });
+  it("redirects a WSL one-shot to /tmp inside the distro when isolated", async () => {
+    await buildOneShotSpec(wslProject, "agy", ["-p", "hi"], { isolateCwd: true });
     // Distro + uncPath are preserved; only the working directory is neutralized.
     expect(capturedLocation()).toEqual({
       kind: "wsl",
@@ -57,8 +58,8 @@ describe("buildOneShotSpec isolateCwd", () => {
     });
   });
 
-  it("does not neutralize the cwd when isolateCwd is false", () => {
-    buildOneShotSpec(wslProject, "agy", ["-p", "hi"], { isolateCwd: false });
+  it("does not neutralize the cwd when isolateCwd is false", async () => {
+    await buildOneShotSpec(wslProject, "agy", ["-p", "hi"], { isolateCwd: false });
     expect(capturedLocation()).toEqual(wslProject);
   });
 });
@@ -166,12 +167,12 @@ describe("one-shot banner fencing", () => {
     uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
   };
 
-  it("marks one-shot login-shell scripts so startup banners can be dropped", () => {
+  it("marks one-shot login-shell scripts so startup banners can be dropped", async () => {
     buildAgentCommandMock.mockReturnValue({
       command: "wsl.exe",
       args: ["-d", "Ubuntu", "--exec", "/bin/bash", "-l", "-i", "-c", "exec 'claude' '-p'"],
     });
-    const { spec } = prepareOneShot(wslProject, { command: "claude", args: ["-p"] });
+    const { spec } = await prepareOneShot(wslProject, { command: "claude", args: ["-p"] });
     expect(spec.args.at(-1)).toBe(`printf '%s\n' '${ONE_SHOT_OUTPUT_MARKER}'; exec 'claude' '-p'`);
   });
 
@@ -184,5 +185,22 @@ describe("one-shot banner fencing", () => {
     await expect(
       spawnAgent({ command: process.execPath, args: ["-e", script] }, "", 30_000),
     ).resolves.toBe("Fix WSL cold-boot thread titles");
+  });
+});
+
+describe("spawnAgent stdin teardown", () => {
+  it("treats EPIPE on stdin as a dead child instead of an unhandled error", async () => {
+    // The child exits without ever reading stdin; an input larger than the
+    // OS pipe buffer keeps writes queued when the read end closes, so stdin
+    // emits EPIPE. The one-shot's verdict must come from the exit path and
+    // the EPIPE must not escape as an unhandled error (this exact race
+    // failed hosted CI shards through the real-mode parity tests).
+    await expect(
+      spawnAgent(
+        { command: process.execPath, args: ["-e", "process.exit(3)"] },
+        "x".repeat(4 * 1024 * 1024),
+        30_000,
+      ),
+    ).rejects.toThrow("Agent exited with code 3");
   });
 });

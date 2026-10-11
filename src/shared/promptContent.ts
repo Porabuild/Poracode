@@ -84,6 +84,11 @@ const MIME_BY_EXT: Record<string, string> = {
   flac: "audio/flac",
   aac: "audio/aac",
   opus: "audio/opus",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  ogv: "video/ogg",
+  mkv: "video/x-matroska",
   pdf: "application/pdf",
   txt: "text/plain",
   json: "application/json",
@@ -133,7 +138,12 @@ export function isTextFilePath(path: string): boolean {
 }
 
 export function mimeForPath(path: string): string | undefined {
-  return MIME_BY_EXT[getExtension(path)] ?? (isTextFilePath(path) ? "text/plain" : undefined);
+  const extension = getExtension(path);
+  return Object.hasOwn(MIME_BY_EXT, extension)
+    ? MIME_BY_EXT[extension]
+    : isTextFilePath(path)
+      ? "text/plain"
+      : undefined;
 }
 
 /** The image MIME type implied by a path's extension, when it is a known one. */

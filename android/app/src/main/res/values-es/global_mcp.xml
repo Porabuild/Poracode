@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_global_mcp_title">Servidores MCP</string>
+    <string name="settings_global_mcp_description">Gestiona servidores MCP personalizados para todo el escritorio.</string>
+    <string name="settings_manage_projects_denied">Se requiere permiso para gestionar proyectos.</string>
+    <string name="settings_global_mcp_redaction_note">Las credenciales permanecen en el escritorio. Los secretos existentes aparecen ocultos.</string>
+    <string name="settings_global_mcp_add">Añadir</string>
+    <string name="settings_global_mcp_empty">No hay servidores MCP globales configurados.</string>
+    <string name="settings_global_mcp_empty_description">Agrega un servidor o usa Descubrir para importar uno ya configurado en este escritorio.</string>
+    <string name="settings_global_mcp_uncertain">El resultado es incierto. Se solicitó la lista de servidores más reciente.</string>
+    <string name="settings_global_mcp_edit">Editar</string>
+    <string name="settings_global_mcp_delete">Eliminar</string>
+    <string name="settings_global_mcp_move">Mover al proyecto</string>
+    <string name="settings_global_mcp_move_global">Mover a Global</string>
+    <string name="settings_global_mcp_duplicate_name">Ya existe un servidor MCP con este nombre.</string>
+    <string name="settings_global_mcp_reserved_name">Este nombre está reservado para un servidor MCP integrado.</string>
+    <string name="settings_global_mcp_probe">Probar conexión</string>
+    <string name="settings_global_mcp_tools">Herramientas</string>
+    <string name="settings_global_mcp_tools_title">Herramientas de %1$s</string>
+    <string name="settings_global_mcp_authorize">Autorizar</string>
+    <string name="settings_global_mcp_clear_oauth">Borrar autorización</string>
+    <string name="settings_global_mcp_probe_summary">%1$s · Herramientas: %2$d · %3$d ms</string>
+    <string name="settings_global_mcp_open_browser">Abrir navegador</string>
+    <string name="settings_global_mcp_delete_title">¿Eliminar servidor MCP?</string>
+    <string name="settings_global_mcp_delete_message">¿Eliminar %1$s? Esta acción no se puede deshacer.</string>
+    <string name="settings_global_mcp_cancel">Cancelar</string>
+    <string name="settings_global_mcp_move_title">Mover %1$s al proyecto</string>
+    <string name="settings_global_mcp_add_title">Añadir servidor MCP</string>
+    <string name="settings_global_mcp_edit_title">Editar servidor MCP</string>
+    <string name="settings_global_mcp_name">Nombre</string>
+    <string name="settings_global_mcp_server_description">Descripción</string>
+    <string name="settings_global_mcp_command">Comando</string>
+    <string name="settings_global_mcp_url">URL</string>
+    <string name="settings_global_mcp_arguments">Argumentos, uno por línea</string>
+    <string name="settings_global_mcp_working_directory">Directorio de trabajo (opcional)</string>
+    <string name="settings_global_mcp_environment">Entorno, CLAVE=VALOR por línea</string>
+    <string name="settings_global_mcp_headers">Cabeceras, CLAVE=VALOR por línea</string>
+    <string name="settings_global_mcp_timeout">Tiempo de espera en milisegundos</string>
+    <string name="settings_global_mcp_disabled_tools">Herramientas desactivadas, una por línea</string>
+    <string name="settings_global_mcp_pairs_help">Introduce un par CLAVE=VALOR por línea.</string>
+    <string name="settings_global_mcp_save">Guardar</string>
+    <string name="settings_global_mcp_oauth_idle">El estado de OAuth no se ha comprobado.</string>
+    <string name="settings_global_mcp_oauth_checking">Comprobando el estado de OAuth…</string>
+    <string name="settings_global_mcp_oauth_ready">El estado de OAuth está actualizado.</string>
+    <string name="settings_global_mcp_oauth_starting">Iniciando autorización…</string>
+    <string name="settings_global_mcp_oauth_open_browser">Abre el navegador para continuar la autorización.</string>
+    <string name="settings_global_mcp_oauth_waiting">Esperando autorización…</string>
+    <string name="settings_global_mcp_oauth_authorized">Autorización completada.</string>
+    <string name="settings_global_mcp_oauth_failed">La autorización falló.</string>
+    <string name="settings_global_mcp_oauth_paused">La autorización está en pausa mientras la aplicación está en segundo plano.</string>
+</resources>

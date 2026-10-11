@@ -1,3 +1,5 @@
+import { prWatchInputSchema } from "@/shared/contracts/prWatch";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas";
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
@@ -43,6 +45,8 @@ const bridge = vi.hoisted(() => ({
 }));
 
 const settings = vi.hoisted(() => ({
+  conflictResolverSelection: undefined as ModelSelection | undefined,
+  wslConflictResolverSelection: undefined as ModelSelection | undefined,
   conflictResolverProvider: "codex",
   conflictResolverModel: "gpt-5.7",
   conflictResolverEffort: "high",
@@ -94,6 +98,8 @@ const toastDanger = vi.spyOn(toast, "danger").mockImplementation(() => undefined
 describe("PrWatchControls", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    settings.conflictResolverSelection = undefined;
+    settings.wslConflictResolverSelection = undefined;
     bridge.getPrWatch.mockResolvedValue(null);
     bridge.upsertPrWatch.mockImplementation(async (input) => ({
       ...(input as Omit<
@@ -114,6 +120,36 @@ describe("PrWatchControls", () => {
       blockedReason: null,
     }));
     bridge.deletePrWatch.mockResolvedValue(undefined);
+  });
+
+  it("sends canonical controls from the automation slider without utility intent", async () => {
+    const actual = {
+      model: "uncatalogued",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "",
+    };
+    settings.conflictResolverSelection = {
+      ...actual,
+      selectionBinding: {
+        version: 1,
+        kind: "family-member",
+        owner: { agentKind: agent.kind, presentationMode: "gui" },
+        model: actual.model,
+        inertValues: { fast: false },
+      },
+    };
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole("button", { name: "PR automation" }));
+    const slider = screen.getByRole("slider", { name: "PR automation" });
+    fireEvent.keyDown(slider, { key: "End" });
+    fireEvent.keyUp(slider, { key: "End" });
+    await waitFor(() => expect(bridge.upsertPrWatch).toHaveBeenCalledOnce());
+    expect(prWatchInputSchema.parse(bridge.upsertPrWatch.mock.calls[0]?.[0]).config).toStrictEqual(
+      actual,
+    );
   });
 
   it("shows a newly created PR's automation immediately while reconciling it", () => {
@@ -459,7 +495,7 @@ describe("PrWatchControls", () => {
     render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
     await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
 
-    fireEvent.click(screen.getByRole("button", { name: "PR automation: Auto Fix" }));
+    fireEvent.click(await screen.findByRole("button", { name: "PR automation: Auto Fix" }));
     const slider = screen.getByRole("slider", { name: "PR automation" });
     fireEvent.keyDown(slider, { key: "End" });
     fireEvent.keyUp(slider, { key: "End" });

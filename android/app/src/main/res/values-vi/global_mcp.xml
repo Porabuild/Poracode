@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_global_mcp_title">Máy chủ MCP</string>
+    <string name="settings_global_mcp_description">Quản lý máy chủ MCP tùy chỉnh cho toàn bộ máy tính.</string>
+    <string name="settings_manage_projects_denied">Cần quyền quản lý dự án.</string>
+    <string name="settings_global_mcp_redaction_note">Thông tin xác thực được giữ trên máy tính. Bí mật hiện có được hiển thị dưới dạng đã che.</string>
+    <string name="settings_global_mcp_add">Thêm</string>
+    <string name="settings_global_mcp_empty">Chưa cấu hình máy chủ MCP toàn cục.</string>
+    <string name="settings_global_mcp_empty_description">Thêm một máy chủ hoặc dùng Khám phá để nhập một máy chủ đã được cấu hình sẵn trên máy tính này.</string>
+    <string name="settings_global_mcp_uncertain">Kết quả chưa chắc chắn. Danh sách máy chủ mới nhất đã được yêu cầu.</string>
+    <string name="settings_global_mcp_edit">Sửa</string>
+    <string name="settings_global_mcp_delete">Xóa</string>
+    <string name="settings_global_mcp_move">Chuyển vào dự án</string>
+    <string name="settings_global_mcp_move_global">Chuyển sang Toàn cục</string>
+    <string name="settings_global_mcp_duplicate_name">Máy chủ MCP có tên này đã tồn tại.</string>
+    <string name="settings_global_mcp_reserved_name">Tên này được dành riêng cho máy chủ MCP tích hợp sẵn.</string>
+    <string name="settings_global_mcp_probe">Kiểm tra kết nối</string>
+    <string name="settings_global_mcp_tools">Công cụ</string>
+    <string name="settings_global_mcp_tools_title">Công cụ của %1$s</string>
+    <string name="settings_global_mcp_authorize">Ủy quyền</string>
+    <string name="settings_global_mcp_clear_oauth">Xóa ủy quyền</string>
+    <string name="settings_global_mcp_probe_summary">%1$s · Công cụ: %2$d · %3$d ms</string>
+    <string name="settings_global_mcp_open_browser">Mở trình duyệt</string>
+    <string name="settings_global_mcp_delete_title">Xóa máy chủ MCP?</string>
+    <string name="settings_global_mcp_delete_message">Xóa %1$s? Không thể hoàn tác.</string>
+    <string name="settings_global_mcp_cancel">Hủy</string>
+    <string name="settings_global_mcp_move_title">Chuyển %1$s vào dự án</string>
+    <string name="settings_global_mcp_add_title">Thêm máy chủ MCP</string>
+    <string name="settings_global_mcp_edit_title">Sửa máy chủ MCP</string>
+    <string name="settings_global_mcp_name">Tên</string>
+    <string name="settings_global_mcp_server_description">Mô tả</string>
+    <string name="settings_global_mcp_command">Lệnh</string>
+    <string name="settings_global_mcp_url">URL</string>
+    <string name="settings_global_mcp_arguments">Đối số, mỗi dòng một mục</string>
+    <string name="settings_global_mcp_working_directory">Thư mục làm việc (tùy chọn)</string>
+    <string name="settings_global_mcp_environment">Môi trường, mỗi dòng KEY=VALUE</string>
+    <string name="settings_global_mcp_headers">Tiêu đề, mỗi dòng KEY=VALUE</string>
+    <string name="settings_global_mcp_timeout">Thời gian chờ tính bằng mili giây</string>
+    <string name="settings_global_mcp_disabled_tools">Công cụ đã tắt, mỗi dòng một mục</string>
+    <string name="settings_global_mcp_pairs_help">Nhập một cặp KEY=VALUE trên mỗi dòng.</string>
+    <string name="settings_global_mcp_save">Lưu</string>
+    <string name="settings_global_mcp_oauth_idle">Chưa kiểm tra trạng thái OAuth.</string>
+    <string name="settings_global_mcp_oauth_checking">Đang kiểm tra trạng thái OAuth…</string>
+    <string name="settings_global_mcp_oauth_ready">Trạng thái OAuth đã được cập nhật.</string>
+    <string name="settings_global_mcp_oauth_starting">Đang bắt đầu ủy quyền…</string>
+    <string name="settings_global_mcp_oauth_open_browser">Mở trình duyệt để tiếp tục ủy quyền.</string>
+    <string name="settings_global_mcp_oauth_waiting">Đang chờ ủy quyền…</string>
+    <string name="settings_global_mcp_oauth_authorized">Đã hoàn tất ủy quyền.</string>
+    <string name="settings_global_mcp_oauth_failed">Ủy quyền thất bại.</string>
+    <string name="settings_global_mcp_oauth_paused">Ủy quyền tạm dừng khi ứng dụng chạy nền.</string>
+</resources>

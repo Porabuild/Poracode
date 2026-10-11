@@ -1,10 +1,15 @@
 import {
   cancelJudgeExperimentPayloadSchema,
   captureExperimentSnapshotPayloadSchema,
+  captureExperimentSnapshotResultSchema,
   createExperimentWorktreesPayloadSchema,
+  createExperimentWorktreesResultSchema,
   getExperimentCandidateDiffPayloadSchema,
+  getExperimentCandidateStatsResultSchema,
   judgeExperimentSnapshotPayloadSchema,
+  judgeExperimentSnapshotResultSchema,
   removeExperimentWorktreesPayloadSchema,
+  removeExperimentWorktreesResultSchema,
 } from "../../contracts";
 import type {
   CancelJudgeExperimentPayload,
@@ -19,37 +24,63 @@ import type {
   RemoveExperimentWorktreesPayload,
   RemoveExperimentWorktreesResult,
 } from "../../contracts";
-import { definePayloadProcedure } from "../core";
+import { definePayloadProcedure, omittedResultSchema } from "../core";
 
 export const experimentProcedures = {
   createExperimentWorktrees: definePayloadProcedure<
     CreateExperimentWorktreesPayload,
     CreateExperimentWorktreesResult,
     "supervisor"
-  >("createExperimentWorktrees", "supervisor", createExperimentWorktreesPayloadSchema),
+  >(
+    "createExperimentWorktrees",
+    "supervisor",
+    createExperimentWorktreesPayloadSchema,
+    createExperimentWorktreesResultSchema,
+  ),
   removeExperimentWorktrees: definePayloadProcedure<
     RemoveExperimentWorktreesPayload,
     RemoveExperimentWorktreesResult,
     "supervisor"
-  >("removeExperimentWorktrees", "supervisor", removeExperimentWorktreesPayloadSchema),
+  >(
+    "removeExperimentWorktrees",
+    "supervisor",
+    removeExperimentWorktreesPayloadSchema,
+    removeExperimentWorktreesResultSchema,
+  ),
   captureExperimentSnapshot: definePayloadProcedure<
     CaptureExperimentSnapshotPayload,
     CaptureExperimentSnapshotResult,
     "supervisor"
-  >("captureExperimentSnapshot", "supervisor", captureExperimentSnapshotPayloadSchema),
+  >(
+    "captureExperimentSnapshot",
+    "supervisor",
+    captureExperimentSnapshotPayloadSchema,
+    captureExperimentSnapshotResultSchema,
+  ),
   judgeExperimentSnapshot: definePayloadProcedure<
     JudgeExperimentSnapshotPayload,
     JudgeExperimentSnapshotResult,
     "supervisor"
-  >("judgeExperimentSnapshot", "supervisor", judgeExperimentSnapshotPayloadSchema),
+  >(
+    "judgeExperimentSnapshot",
+    "supervisor",
+    judgeExperimentSnapshotPayloadSchema,
+    judgeExperimentSnapshotResultSchema,
+  ),
   getExperimentCandidateStats: definePayloadProcedure<
     GetExperimentCandidateStatsPayload,
     GetExperimentCandidateStatsResult,
     "supervisor"
-  >("getExperimentCandidateStats", "supervisor", getExperimentCandidateDiffPayloadSchema),
+  >(
+    "getExperimentCandidateStats",
+    "supervisor",
+    getExperimentCandidateDiffPayloadSchema,
+    getExperimentCandidateStatsResultSchema,
+  ),
   cancelJudgeExperiment: definePayloadProcedure<CancelJudgeExperimentPayload, void, "supervisor">(
     "cancelJudgeExperiment",
     "supervisor",
     cancelJudgeExperimentPayloadSchema,
+    omittedResultSchema,
   ),
 } as const;

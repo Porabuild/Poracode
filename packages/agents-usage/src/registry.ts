@@ -1,3 +1,4 @@
+import { collectDevin } from "./collectors/devin";
 import { collectClaude } from "./collectors/claude";
 import { collectCodex } from "./collectors/codex";
 import { collectCommandCode } from "./collectors/commandcode";
@@ -94,6 +95,7 @@ const QODER_COLLECTOR: UsageCollector = {
 // (LS-only), not here; see src/supervisor/runtime/antigravityUsageScanner.ts.
 
 const BUILT_IN: UsageCollector[] = [
+  { descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.devin, collect: collectDevin },
   CLAUDE_COLLECTOR,
   CODEX_COLLECTOR,
   COPILOT_COLLECTOR,

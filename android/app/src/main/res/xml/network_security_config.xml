@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext policy for Poracode remote pairing.
+
+  Android cannot express private-IP CIDR ranges in domain-config, so cleartext
+  is permitted at the OS layer ONLY so intentional LAN/dev pairing works
+  (http://192.168.x.x:49152, emulator 10.0.2.2, localhost).
+
+  Security gate: com.poracode.app.protocol.CleartextPolicy rejects http/ws to
+  non-private, non-loopback hosts before any request is issued. Arbitrary
+  Internet HTTP is never allowed by the app.
+
+  Prefer HTTPS (Tailscale / public) for non-LAN desktops.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -5,14 +5,19 @@ import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAcpStructuredSession } from "../acp";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   buildAgentCommand,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
   iterm2ProgressOscHint,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
   type AgentEnvContext,
   type AgentLaunchOptions,
+  type Awaitable,
   type CreateStructuredSessionInput,
   type TerminalStatusHint,
 } from "../base";
@@ -59,19 +64,19 @@ function geminiEnvContextForLocation(location: ProjectLocation): AgentEnvContext
     : { envKind: location.kind, ...(baseDir ? { baseDir } : {}) };
 }
 
-function prepareGeminiLaunchMcpSettings(
+async function prepareGeminiLaunchMcpSettings(
   location: ProjectLocation,
   launchOptions: AgentLaunchOptions | undefined,
-): { env: Record<string, string>; cleanup: () => void } | undefined {
+): Promise<{ env: Record<string, string>; cleanup: () => Awaitable<void> } | undefined> {
   const ctx: AgentEnvContext = {
     ...geminiEnvContextForLocation(location),
     mcpServers: launchOptions?.mcpServers ?? [],
   };
   const createIfMissing = (launchOptions?.mcpServers?.length ?? 0) > 0;
-  if (!ensureGeminiLaunchSettingsFile(ctx, createIfMissing)) return undefined;
+  if (!(await ensureGeminiLaunchSettingsFile(ctx, createIfMissing))) return undefined;
 
-  syncGeminiLaunchMcpSettings(ctx, launchOptions?.mcpServers ?? []);
-  const threadSettings = createGeminiThreadSettingsFile(ctx);
+  await syncGeminiLaunchMcpSettings(ctx, launchOptions?.mcpServers ?? []);
+  const threadSettings = await createGeminiThreadSettingsFile(ctx);
   if (!threadSettings) return undefined;
   return {
     env: { GEMINI_CLI_SYSTEM_SETTINGS_PATH: threadSettings.settingsPath },
@@ -139,12 +144,12 @@ export function createGeminiAdapter(): AgentAdapter {
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installGeminiPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installGeminiPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallGeminiPlugin(ctx);
+      await uninstallGeminiPlugin(ctx);
     },
     async detectInstall(ctx) {
       const status = await detectAgentInstall(ctx, geminiDetectionSpec);
@@ -152,8 +157,8 @@ export function createGeminiAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
-      const launchSettings = prepareGeminiLaunchMcpSettings(location, launchOptions);
+    async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
+      const launchSettings = await prepareGeminiLaunchMcpSettings(location, launchOptions);
       // Pre-assign the session UUID via --session-id so we know it before
       // spawn. Avoids racing post-spawn discovery against one-shot `gemini -p`
       // calls (title gen, commit-msg, PR summary) that also create entries in
@@ -168,8 +173,8 @@ export function createGeminiAdapter(): AgentAdapter {
       };
     },
 
-    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      const launchSettings = prepareGeminiLaunchMcpSettings(location, launchOptions);
+    async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+      const launchSettings = await prepareGeminiLaunchMcpSettings(location, launchOptions);
       const args = buildGeminiArgs(config, prompt, sessionRef.providerSessionId);
       return {
         binary: "gemini",
@@ -179,6 +184,7 @@ export function createGeminiAdapter(): AgentAdapter {
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildAgentCommand(
         input.projectLocation,
         "gemini",
@@ -190,6 +196,7 @@ export function createGeminiAdapter(): AgentAdapter {
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildAgentCommand(
         location,
         "gemini",
@@ -227,11 +234,32 @@ export function createGeminiAdapter(): AgentAdapter {
 
     defaultOneShotModel: "gemini-2.5-flash",
 
-    buildOneShotCommand(model, _effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // The gemini CLI maps neither effort nor Fast in this lane (no baseline
+      // effort ladder; probes can add one, but this argv path has no flag for
+      // either). The legacy default carriers stay accepted as declared-inactive
+      // so default utility selections keep flowing; a meaningful control
+      // refuses visibly instead of being silently dropped.
+      assertOneShotControlsMapped(selection, {
+        effort: { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       if (!prompt) return undefined;
       return { command: "gemini", args: ["-p", prompt, "--model", model], stdin: "" };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, _location, model, options) {
+      const selection = resolveCheckedOneShotResumeSelection(model, options);
+      // Same provider policy as the one-shot lane: only the model maps here,
+      // so meaningful effort/Fast (and any thinking/context carrier) refuse
+      // before the command is built.
+      assertOneShotControlsMapped(selection, {
+        effort: { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       return {
         command: "gemini",
         args: [

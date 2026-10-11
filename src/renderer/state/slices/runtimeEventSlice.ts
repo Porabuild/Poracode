@@ -12,12 +12,14 @@ import type {
 import type { PersistedRuntimeItem } from "@/shared/ipc";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import {
   applyRuntimeEventsToState,
   applyRuntimeEventBatchesToState,
   mergeCompletedTurns,
 } from "./runtimeEventReducer";
-import { terminateStaleSubAgentItems } from "./staleSubAgents";
+import { markLiveCrossagentItems, terminateStaleSubAgentItems } from "./staleSubAgents";
+import { hydrateRuntimeStream, type RuntimeStreamRetention } from "./runtimeStreamRetention";
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -49,6 +51,12 @@ export interface RuntimeChatItem {
   /** Streamed content buckets (markdown text, command output, etc.). */
   streams: Partial<Record<RuntimeContentStreamKind, string>>;
   /**
+   * Session-local offsets/counts for bounded stream projections. Stored on the
+   * item so eviction/reset also releases them; never serialized or persisted.
+   * The strings above remain the display/copy representation, including gaps.
+   */
+  streamRetention?: Partial<Record<RuntimeContentStreamKind, RuntimeStreamRetention>>;
+  /**
    * Identifier of a parent tool_call row when this item was emitted by a
    * sub-agent (e.g. items inside a Claude `Task` tool use). Set on
    * `item.started` and immutable thereafter. The chat timeline groups children
@@ -68,14 +76,35 @@ export interface RuntimeChatItem {
 }
 
 export function toRuntimeChatItem(item: PersistedRuntimeItem): RuntimeChatItem {
-  return {
+  return retainHydratedItemStreams({
     id: item.id,
     type: item.type as RuntimeChatItem["type"],
     state: item.state,
     payload: item.payload,
     streams: item.streams as RuntimeChatItem["streams"],
     ...(item.parentItemId ? { parentItemId: item.parentItemId } : {}),
-  };
+  });
+}
+
+/** Also covers direct slice hydration; remote snapshots enter via toRuntimeChatItem. */
+function retainHydratedItemStreams(item: RuntimeChatItem): RuntimeChatItem {
+  let next = item;
+  for (const [stream, text] of Object.entries(item.streams) as Array<
+    [RuntimeContentStreamKind, string]
+  >) {
+    const retained = hydrateRuntimeStream(text, item.streamRetention?.[stream]);
+    if (retained.text === text && retained.retention === item.streamRetention?.[stream]) continue;
+    if (next === item) {
+      next = {
+        ...item,
+        streams: { ...item.streams },
+        streamRetention: { ...item.streamRetention },
+      };
+    }
+    next.streams[stream] = retained.text;
+    if (retained.retention) next.streamRetention![stream] = retained.retention;
+  }
+  return next;
 }
 
 export interface OpenRuntimeRequest {
@@ -126,6 +155,22 @@ export interface RuntimeEventSlice {
   fileCheckpointsByThread: Record<string, Record<string, FileCheckpointRecord>>;
   /** Completed turn file diffs keyed by the turn anchor/checkpoint item id. */
   fileCheckpointTurnsByThread: Record<string, Record<string, FileCheckpointTurn>>;
+  /**
+   * Transcript hydration status driven by chatRuntimePersister: "pending"
+   * while the first DB read for a pane is in flight, "failed" when it errored
+   * (retryable), absent when idle or complete. Lets the pane show loading and
+   * retry states instead of a false "No messages yet" (WS6).
+   */
+  runtimeHydrationStatus: Record<string, "pending" | "failed">;
+  setRuntimeHydrationStatus(threadId: string, status: "pending" | "failed" | null): void;
+  /**
+   * Remote threads (keyed `desktopId<NUL>remoteThreadId`) whose
+   * unknown-checkpoint authoritative reload budget is exhausted with an
+   * uncovered truncation still pending - the transcript may not reflect a
+   * deletion the server made. Drives the pane's resync banner (WS6).
+   */
+  truncateReloadExhausted: Record<string, true>;
+  setTruncateReloadExhausted(key: string, exhausted: boolean): void;
   applyRuntimeEvent(threadId: string, event: RuntimeEvent): void;
   applyRuntimeEvents(threadId: string, events: RuntimeEvent[]): void;
   /**
@@ -141,23 +186,62 @@ export interface RuntimeEventSlice {
    * Used when a thread has no live agent attached (after DB hydration, or when
    * a structured session exits / is about to be replaced on resume) — without
    * this, parents that never completed (denied permissions, crashes, abrupt
-   * exits) keep appearing in the active sub-agent dock forever.
+   * exits) keep appearing in the active sub-agent dock forever. Crossagent
+   * rows observed live this app session are kept unless `force` is set: the
+   * supervisor still owns those runs and their settle tile ends them
+   * authoritatively. `force` is for paths that already tore the owning
+   * supervisor session down (provider switch, backend supervisor reset).
+   * `preserveCrossagent` keeps unobserved Crossagent rows too, for data
+   * sources whose host settles orphaned runs itself (see terminateStaleSubAgentItems).
    */
   reconcileStaleSubAgents(
     threadId: string,
-    options?: { readonly preserveObservedLive?: boolean },
+    options?: {
+      readonly preserveObservedLive?: boolean;
+      readonly force?: boolean;
+      readonly preserveCrossagent?: boolean;
+    },
   ): void;
   /**
-   * Revert the visible chat transcript to a checkpoint item, preserving that
-   * item and everything before it. Used by GUI chat checkpoints.
+   * `reconcileStaleSubAgents` for every thread with items in memory, in one
+   * state write. Used when the backend supervisor is replaced: every run it
+   * owned died with it, so pass `force` — live-observation records are cleared
+   * by the caller before this runs. `matchesThread` scopes the sweep (a local
+   * backend reset must not touch remote-host threads, whose hosts live on).
    */
-  truncateThreadRuntimeAfter(threadId: string, checkpointItemId: string): void;
+  reconcileAllStaleSubAgents(options?: {
+    readonly preserveObservedLive?: boolean;
+    readonly force?: boolean;
+    readonly preserveCrossagent?: boolean;
+    readonly matchesThread?: (threadId: string) => boolean;
+  }): void;
   /** Replace the persisted item list for a thread (used during DB hydration). */
   hydrateThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
   /** Prepend an older persisted page while preserving newer live items. */
-  prependThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
+  prependThreadRuntimeItems(
+    threadId: string,
+    items: RuntimeChatItem[],
+    /** Older hidden controls relocate only when their canonical page arrives. */
+    sparseControlIds?: ReadonlySet<string>,
+  ): void;
+  /** Relocate one retained control after its canonical source order is proven. */
+  moveThreadRuntimeItemBefore(threadId: string, itemId: string, beforeItemId: string): void;
+  /**
+   * Remove `count` items of a thread starting at `startIndex` (indices into the
+   * current id list). Used by the bounded visible window (chatRuntimePersister)
+   * to trim history that the DB still holds; the pane reloads trimmed ranges
+   * lazily through the existing older-page cursor.
+   */
+  trimThreadRuntimeItems(
+    threadId: string,
+    startIndex: number,
+    count: number,
+    preserveIds?: ReadonlySet<string>,
+  ): void;
   /** Drop an inactive transcript projection without deleting its SQLite rows. */
   evictThreadRuntimeItems(threadId: string): void;
+  /** Replace the completed-turn list wholesale (bounded-window cap/drop). */
+  replaceThreadCompletedTurns(threadId: string, turns: ReadonlyArray<CompletedTurnRecord>): void;
   /** Replace the persisted completed-turn list (used during DB hydration). */
   hydrateThreadCompletedTurns(threadId: string, turns: ReadonlyArray<CompletedTurnRecord>): void;
   /**
@@ -206,6 +290,8 @@ export function createInitialRuntimeEventState(): Pick<
   | "runtimeOpenTurnByThread"
   | "fileCheckpointsByThread"
   | "fileCheckpointTurnsByThread"
+  | "runtimeHydrationStatus"
+  | "truncateReloadExhausted"
 > {
   return {
     runtimeItemIdsByThread: {},
@@ -218,24 +304,57 @@ export function createInitialRuntimeEventState(): Pick<
     runtimeOpenTurnByThread: {},
     fileCheckpointsByThread: {},
     fileCheckpointTurnsByThread: {},
+    runtimeHydrationStatus: {},
+    truncateReloadExhausted: {},
   };
 }
 
 export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) => ({
   ...createInitialRuntimeEventState(),
 
-  applyRuntimeEvent: (threadId, event) =>
-    set((state) => applyRuntimeEventsToState(state, threadId, [event])),
+  setRuntimeHydrationStatus: (threadId, status) =>
+    set((state) => {
+      if (status === null) {
+        if (!(threadId in state.runtimeHydrationStatus)) return {};
+        const { [threadId]: _removed, ...runtimeHydrationStatus } = state.runtimeHydrationStatus;
+        return { runtimeHydrationStatus };
+      }
+      if (state.runtimeHydrationStatus[threadId] === status) return {};
+      return {
+        runtimeHydrationStatus: { ...state.runtimeHydrationStatus, [threadId]: status },
+      };
+    }),
 
-  applyRuntimeEvents: (threadId, events) =>
-    set((state) => applyRuntimeEventsToState(state, threadId, events)),
+  setTruncateReloadExhausted: (key, exhausted) =>
+    set((state) => {
+      if (exhausted) {
+        if (state.truncateReloadExhausted[key]) return {};
+        return { truncateReloadExhausted: { ...state.truncateReloadExhausted, [key]: true } };
+      }
+      if (!(key in state.truncateReloadExhausted)) return {};
+      const { [key]: _removed, ...truncateReloadExhausted } = state.truncateReloadExhausted;
+      return { truncateReloadExhausted };
+    }),
 
-  applyRuntimeEventBatches: (batches) =>
-    set((state) => applyRuntimeEventBatchesToState(state, batches)),
+  applyRuntimeEvent: (threadId, event) => {
+    markLiveCrossagentItems(threadId, [event]);
+    set((state) => applyRuntimeEventsToState(state, threadId, [event]));
+  },
+
+  applyRuntimeEvents: (threadId, events) => {
+    markLiveCrossagentItems(threadId, events);
+    set((state) => applyRuntimeEventsToState(state, threadId, events));
+  },
+
+  applyRuntimeEventBatches: (batches) => {
+    for (const batch of batches) markLiveCrossagentItems(batch.threadId, batch.events);
+    set((state) => applyRuntimeEventBatchesToState(state, batches));
+  },
 
   clearThreadRuntimeEvents: (threadId) =>
     set((state) => {
       clearRuntimeStructuralChangeHint(threadId);
+      forgetThreadGalleryCache(threadId);
       if (
         !(threadId in state.runtimeItemIdsByThread) &&
         !(threadId in state.runtimeItemsByIdByThread) &&
@@ -280,7 +399,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
     set((state) => {
       const items = state.runtimeItemsByIdByThread[threadId];
       if (!items) return {};
-      const nextItems = terminateStaleSubAgentItems(items, options);
+      const nextItems = terminateStaleSubAgentItems(threadId, items, options);
       if (!nextItems) return {};
       return {
         runtimeItemsByIdByThread: {
@@ -294,49 +413,24 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       };
     }),
 
-  truncateThreadRuntimeAfter: (threadId, checkpointItemId) =>
+  reconcileAllStaleSubAgents: (options) =>
     set((state) => {
-      const itemIds = state.runtimeItemIdsByThread[threadId];
-      const items = state.runtimeItemsByIdByThread[threadId];
-      if (!itemIds?.length || !items) return {};
-
-      const checkpointIndex = itemIds.indexOf(checkpointItemId);
-      if (checkpointIndex < 0 || checkpointIndex === itemIds.length - 1) return {};
-
-      const keptIds = itemIds.slice(0, checkpointIndex + 1);
-      const keptIdSet = new Set(keptIds);
-      const keptItems: Record<string, RuntimeChatItem> = {};
-      for (const id of keptIds) {
-        const item = items[id];
-        if (item) keptItems[id] = item;
+      let runtimeItemsByIdByThread = state.runtimeItemsByIdByThread;
+      let runtimeStructuralVersionByThread = state.runtimeStructuralVersionByThread;
+      let changed = false;
+      for (const [threadId, items] of Object.entries(state.runtimeItemsByIdByThread)) {
+        if (options?.matchesThread && !options.matchesThread(threadId)) continue;
+        const nextItems = terminateStaleSubAgentItems(threadId, items, options);
+        if (!nextItems) continue;
+        changed = true;
+        runtimeItemsByIdByThread = { ...runtimeItemsByIdByThread, [threadId]: nextItems };
+        runtimeStructuralVersionByThread = {
+          ...runtimeStructuralVersionByThread,
+          [threadId]: (runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        };
       }
-
-      const completedTurns = state.runtimeCompletedTurnsByThread[threadId] ?? [];
-      const keptCompletedTurns = completedTurns.filter(
-        (turn) => turn.anchorItemId === null || keptIdSet.has(turn.anchorItemId),
-      );
-      return {
-        runtimeItemIdsByThread: {
-          ...state.runtimeItemIdsByThread,
-          [threadId]: keptIds,
-        },
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: keptItems,
-        },
-        runtimeRequestsByThread: {
-          ...state.runtimeRequestsByThread,
-          [threadId]: [],
-        },
-        runtimeStructuralVersionByThread: {
-          ...state.runtimeStructuralVersionByThread,
-          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
-        },
-        runtimeCompletedTurnsByThread: {
-          ...state.runtimeCompletedTurnsByThread,
-          [threadId]: keptCompletedTurns,
-        },
-      };
+      if (!changed) return {};
+      return { runtimeItemsByIdByThread, runtimeStructuralVersionByThread };
     }),
 
   hydrateThreadRuntimeItems: (threadId, items) =>
@@ -345,7 +439,10 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       // the live stream is the source of truth, the DB is only the seed.
       if ((state.runtimeItemIdsByThread[threadId]?.length ?? 0) > 0) return {};
       const itemIds = items.map((item) => item.id);
-      const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
+      const itemsById = Object.fromEntries(
+        items.map((item) => [item.id, retainHydratedItemStreams(item)]),
+      );
+      forgetThreadGalleryCache(threadId);
       return {
         runtimeItemIdsByThread: {
           ...state.runtimeItemIdsByThread,
@@ -362,22 +459,35 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       };
     }),
 
-  prependThreadRuntimeItems: (threadId, items) =>
+  prependThreadRuntimeItems: (threadId, items, sparseControlIds) =>
     set((state) => {
       if (items.length === 0) return {};
       const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
       const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
-      const incoming = items.filter((item) => !existingItems[item.id]);
+      const seen = new Set<string>();
+      const incoming = items.filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return !existingItems[item.id] || sparseControlIds?.has(item.id);
+      });
       if (incoming.length === 0) return {};
+      const incomingIds = new Set(incoming.map((item) => item.id));
+      const controls = existingIds.filter(
+        (id) => sparseControlIds?.has(id) && !incomingIds.has(id),
+      );
+      const tail = existingIds.filter((id) => !sparseControlIds?.has(id));
+      clearRuntimeStructuralChangeHint(threadId);
       return {
         runtimeItemIdsByThread: {
           ...state.runtimeItemIdsByThread,
-          [threadId]: [...incoming.map((item) => item.id), ...existingIds],
+          [threadId]: [...controls, ...incoming.map((item) => item.id), ...tail],
         },
         runtimeItemsByIdByThread: {
           ...state.runtimeItemsByIdByThread,
           [threadId]: {
-            ...Object.fromEntries(incoming.map((item) => [item.id, item])),
+            ...Object.fromEntries(
+              incoming.map((item) => [item.id, retainHydratedItemStreams(item)]),
+            ),
             ...existingItems,
           },
         },
@@ -391,6 +501,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
   evictThreadRuntimeItems: (threadId) =>
     set((state) => {
       clearRuntimeStructuralChangeHint(threadId);
+      forgetThreadGalleryCache(threadId);
       if (!(threadId in state.runtimeItemIdsByThread)) return {};
       const { [threadId]: _itemIds, ...runtimeItemIdsByThread } = state.runtimeItemIdsByThread;
       const { [threadId]: _items, ...runtimeItemsByIdByThread } = state.runtimeItemsByIdByThread;
@@ -410,6 +521,66 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         runtimeStructuralVersionByThread,
         runtimeCompletedTurnsByThread,
         runtimeOpenTurnByThread,
+      };
+    }),
+
+  moveThreadRuntimeItemBefore: (threadId, itemId, beforeItemId) =>
+    set((state) => {
+      const ids = state.runtimeItemIdsByThread[threadId];
+      if (!ids?.includes(itemId) || !ids.includes(beforeItemId) || itemId === beforeItemId)
+        return {};
+      const next = ids.filter((id) => id !== itemId);
+      next.splice(next.indexOf(beforeItemId), 0, itemId);
+      clearRuntimeStructuralChangeHint(threadId);
+      return {
+        runtimeItemIdsByThread: { ...state.runtimeItemIdsByThread, [threadId]: next },
+        runtimeStructuralVersionByThread: {
+          ...state.runtimeStructuralVersionByThread,
+          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        },
+      };
+    }),
+
+  trimThreadRuntimeItems: (threadId, startIndex, count, preserveIds) =>
+    set((state) => {
+      const itemIds = state.runtimeItemIdsByThread[threadId];
+      if (!itemIds || count <= 0 || startIndex < 0 || startIndex >= itemIds.length) return {};
+      const endIndex = Math.min(startIndex + count, itemIds.length);
+      const removedIds = itemIds.slice(startIndex, endIndex).filter((id) => !preserveIds?.has(id));
+      if (removedIds.length === 0) return {};
+      const itemsById = state.runtimeItemsByIdByThread[threadId] ?? {};
+      const nextItemsById = { ...itemsById };
+      for (const id of removedIds) delete nextItemsById[id];
+      clearRuntimeStructuralChangeHint(threadId);
+      forgetThreadGalleryCache(threadId);
+      return {
+        runtimeItemIdsByThread: {
+          ...state.runtimeItemIdsByThread,
+          [threadId]: [
+            ...itemIds.slice(0, startIndex),
+            ...itemIds.slice(startIndex, endIndex).filter((id) => preserveIds?.has(id)),
+            ...itemIds.slice(endIndex),
+          ],
+        },
+        runtimeItemsByIdByThread: {
+          ...state.runtimeItemsByIdByThread,
+          [threadId]: nextItemsById,
+        },
+        runtimeStructuralVersionByThread: {
+          ...state.runtimeStructuralVersionByThread,
+          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        },
+      };
+    }),
+
+  replaceThreadCompletedTurns: (threadId, turns) =>
+    set((state) => {
+      if (state.runtimeCompletedTurnsByThread[threadId] === turns) return {};
+      return {
+        runtimeCompletedTurnsByThread: {
+          ...state.runtimeCompletedTurnsByThread,
+          [threadId]: turns,
+        },
       };
     }),
 

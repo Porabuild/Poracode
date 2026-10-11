@@ -3,9 +3,11 @@ import { spawn as spawnPty, type IDisposable } from "node-pty";
 import { stripAnsi } from "@/shared/ansi";
 import type { ProjectLocation } from "@/shared/contracts";
 import { withCommandBaseSpawnEnv, type AgentAdapter } from "@/supervisor/agents/base";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { buildOneShotSpec } from "@/supervisor/oneShotSpawn";
 import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import { processEnvRecord } from "@/supervisor/processEnv";
+import { OneShotStderrTail } from "./oneShotStderrTail";
 
 /**
  * Hard ceiling on a one-shot child's process lifetime. Unlike a structured
@@ -18,9 +20,6 @@ export const ONE_SHOT_CHILD_MAX_LIFETIME_MS = 20 * 60 * 1000;
 
 /** Grace period between SIGTERM and SIGKILL when cancelling. */
 const KILL_GRACE_MS = 3_000;
-
-/** Last N chars of stderr surfaced as the failure message. */
-const STDERR_TAIL_CHARS = 2_000;
 
 /**
  * Micro-batch window for stdout deltas. Chatty CLIs can emit many tiny chunks;
@@ -46,12 +45,14 @@ export interface OneShotChildParams {
 }
 
 export interface OneShotChildHandle {
+  /** Resolves only after exit-derived settlement (or a synchronous spawn failure). */
+  readonly closed: Promise<void>;
   /** SIGTERM now, SIGKILL after a grace period. Idempotent. */
   cancel(): void;
 }
 
 /** A no-op handle returned when spawning failed synchronously (already settled). */
-const NOOP_HANDLE: OneShotChildHandle = { cancel: () => {} };
+const NOOP_HANDLE: OneShotChildHandle = { closed: Promise.resolve(), cancel: () => {} };
 
 /** Terminal result computed by a transport from its exit signal. */
 interface SettleResult {
@@ -91,10 +92,10 @@ type SpawnSpec = {
  * settle from the exit code (0 → completed with accumulated output; non-zero →
  * failed with the stderr tail / exit-code message).
  *
- * Recursion guard parity: one-shot children carry no MCP config, so they can't
- * spawn grandchildren.
+ * One-shot children carry no parent MCP config. Native delegation tools may
+ * still exist; the prepared worker prompt gives scheduling to the coordinator.
  */
-export function runOneShotChild(params: OneShotChildParams): OneShotChildHandle {
+export async function runOneShotChild(params: OneShotChildParams): Promise<OneShotChildHandle> {
   const cmd = params.adapter.buildSubagentOneShotCommand?.({
     model: params.model,
     effort: params.effort,
@@ -110,14 +111,23 @@ export function runOneShotChild(params: OneShotChildParams): OneShotChildHandle 
   }
 
   const childCommand = withCommandBaseSpawnEnv(cmd, params.adapter.baseSpawnEnv);
-  const spec = buildOneShotSpec(params.projectLocation, childCommand.command, childCommand.args, {
-    ...(childCommand.env ? { env: childCommand.env } : {}),
-  });
+  const spec = await buildOneShotSpec(
+    params.projectLocation,
+    childCommand.command,
+    childCommand.args,
+    {
+      ...(childCommand.env ? { env: childCommand.env } : {}),
+    },
+  );
   const input = childCommand.stdin ?? params.prompt;
   const maxLifetimeMs = params.maxLifetimeMs ?? ONE_SHOT_CHILD_MAX_LIFETIME_MS;
 
   let transport: ChildTransport;
   try {
+    // Mock-QA enforcement: a one-shot subagent child is a real provider CLI
+    // run with real credentials, so mock sessions refuse it like thread
+    // launches; the catch below settles the attempt as failed.
+    assertAgentLaunchAllowed("one-shot-subagent");
     transport = cmd.pty ? spawnPtyTransport(spec) : spawnProcessTransport(spec);
   } catch (error) {
     params.onSettle({
@@ -143,6 +153,8 @@ function driveChild(
   params: OneShotChildParams,
 ): OneShotChildHandle {
   let settled = false;
+  let cancelRequested = false;
+  const { promise: closed, resolve: resolveClosed } = Promise.withResolvers<void>();
   let killTimer: ReturnType<typeof setTimeout> | undefined;
   let flushTimer: ReturnType<typeof setTimeout> | undefined;
   let buffer = "";
@@ -165,12 +177,16 @@ function driveChild(
     settled = true;
     clearTimeout(lifetimeTimer);
     if (killTimer) clearTimeout(killTimer);
-    flush();
-    params.onSettle(
-      result.errorMessage
-        ? { status: result.status, errorMessage: result.errorMessage }
-        : { status: result.status },
-    );
+    try {
+      flush();
+      params.onSettle(
+        result.errorMessage
+          ? { status: result.status, errorMessage: result.errorMessage }
+          : { status: result.status },
+      );
+    } finally {
+      resolveClosed();
+    }
   };
 
   transport.onData((chunk) => {
@@ -188,15 +204,16 @@ function driveChild(
   transport.write(input);
 
   const cancel = () => {
-    if (settled) return;
-    transport.kill();
+    if (settled || cancelRequested) return;
+    cancelRequested = true;
     killTimer = armUnref(setTimeout(() => transport.killForce(), KILL_GRACE_MS));
+    transport.kill();
   };
 
-  return { cancel };
+  return { closed, cancel };
 }
 
-/** child_process lane: pipe stdio, accumulate stderr, settle from close/error. */
+/** child_process lane: pipe stdio, retain stderr diagnostic tail, settle from close/error. */
 function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
   const child = spawnChild(spec.command, spec.args, {
     stdio: ["pipe", "pipe", "pipe"],
@@ -205,9 +222,10 @@ function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
     ...(spec.env ? { env: { ...processEnvRecord(), ...spec.env } } : {}),
   });
 
-  const stderrChunks: string[] = [];
+  const stderrTail = new OneShotStderrTail();
+  let processError: Error | undefined;
   child.stderr?.on("data", (data: Buffer) => {
-    stderrChunks.push(data.toString());
+    stderrTail.append(data);
   });
 
   return {
@@ -222,12 +240,17 @@ function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
       child.stdout?.on("data", (data: Buffer) => cb(data.toString()));
     },
     onExit(cb) {
-      child.on("error", (err) => cb({ status: "failed", errorMessage: err.message }));
+      // An error can describe a failed signal or write while the process still runs.
+      child.on("error", (err) => {
+        processError = err;
+      });
       child.on("close", (code) => {
-        if (code === 0) {
+        const tail = stderrTail.consume();
+        if (processError) {
+          cb({ status: "failed", errorMessage: processError.message });
+        } else if (code === 0) {
           cb({ status: "completed" });
         } else {
-          const tail = stderrChunks.join("").slice(-STDERR_TAIL_CHARS).trim();
           cb({ status: "failed", errorMessage: tail || `Agent exited with code ${code}` });
         }
       });
@@ -236,7 +259,7 @@ function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
       child.kill("SIGTERM");
     },
     killForce() {
-      if (!child.killed) child.kill("SIGKILL");
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     },
   };
 }

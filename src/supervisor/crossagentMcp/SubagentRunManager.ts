@@ -5,15 +5,26 @@ import type {
   AgentKind,
   ProjectLocation,
   RuntimeEvent,
+  SessionRef,
   ThreadConfig,
   ThreadServerRequestId,
   ToolCallPayload,
 } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/base";
+import type { HostResourceAdmission } from "@/supervisor/runtime/hostResourceAdmission";
 import { ForwardedRuntimeItemTracker } from "./ForwardedRuntimeItemTracker";
 import { SubagentAttemptRunner, type AttemptExecutionState } from "./SubagentAttemptRunner";
+import { SubagentTranscript } from "./SubagentTranscript";
 import { SubagentSpawnError } from "./errors";
 import { prepareSubagentRun, type PreparedSubagentRun } from "./spawnPlan";
+import type { parseCompactResult } from "./compactResult";
+import { parseCompactRunReport } from "./compactRunResult";
+import { readRunResult } from "./runResult";
+import { canContinueRun, prepareContinuation, type ContinuableRun } from "./continuationPlan";
+export { MAX_RUNNING_OUTPUT_TAIL_CHARS } from "./runResult";
+import { RunLifecycle, type RunLifecycleEvent } from "./RunLifecycle";
+import { waitForRuns } from "./waitForRuns";
+export { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./waitTiming";
 import type {
   SubagentAttemptResult,
   SubagentRunSummary,
@@ -24,67 +35,36 @@ import type {
   SubagentWaitResult,
 } from "./types";
 
-/**
- * Default `wait_for_agent` / `run_agent` blocking timeout. Blocking waits must
- * finish under every MCP client's own tool-call kill timer, or the client
- * aborts the HTTP call and the caller sees an opaque transport error instead
- * of the graceful `status: "running"` re-poll result. Known ceilings: Codex
- * `tool_timeout_sec` and Gemini's per-server `timeout` (both set to 300s in
- * their `mcpCrossagent.ts` builders — keep in sync), and undici's 300s
- * default headers timeout for fetch-based clients (Claude SDK).
- */
-export const DEFAULT_WAIT_TIMEOUT_MS = 120_000;
-/** Hard cap on caller-supplied `timeout_s` — see {@link DEFAULT_WAIT_TIMEOUT_MS}. */
-export const MAX_WAIT_TIMEOUT_MS = 240_000;
 /** Max concurrent live children per parent thread. */
 export const MAX_CONCURRENT_CHILDREN_PER_PARENT = 16;
 /** Bound terminal result retention for long-lived parent threads. */
 const MAX_RETAINED_RUNS_PER_PARENT = 50;
-/**
- * Tail cap on the incremental output a wait/status call returns while a run is
- * still in progress. Mid-run text is process narration the parent rarely needs
- * verbatim; a long-polling parent otherwise re-ingests the child's entire
- * growing transcript on every check (observed at 100k+ tokens per poll).
- */
-export const MAX_RUNNING_OUTPUT_TAIL_CHARS = 1_000;
-/** Tail cap on the incremental output returned once a run has settled. */
-const MAX_SETTLED_OUTPUT_TAIL_CHARS = 16_000;
-/** Tail cap on the per-attempt outputs echoed inside `attempts`. */
-const MAX_ATTEMPT_OUTPUT_TAIL_CHARS = 2_000;
-
-/** Keep the newest `maxChars` of `text`, prefixing a marker for the omitted prefix. */
-function clipOutputTail(text: string, maxChars: number): string {
-  if (text.length <= maxChars) return text;
-  const omitted = text.length - maxChars;
-  return `[…${omitted} earlier chars omitted — pass full_output=true for the complete output]\n${text.slice(-maxChars)}`;
-}
 
 export interface SubagentRunManagerDeps {
   adapters: Map<AgentKind, AgentAdapter>;
   host: SubagentRunHost;
+  /**
+   * Optional: the supervisor's one host execution-slot owner. Every child
+   * attempt (structured and one-shot) holds one `agent-session` slot from
+   * before its process starts until disposal/exit is observed.
+   */
+  admission?: HostResourceAdmission;
   /**
    * Settings-filtered provider capabilities from the same status pipeline that
    * serves the roster. `null` explicitly denies a provider; `undefined` falls
    * back to live adapter capabilities when no cached status exists.
    */
   getStatusCapabilities?: (kind: AgentKind) => AgentCapability | null | undefined;
+  /**
+   * Optional join deadline for the whole child teardown, including creation,
+   * startup and interrupt. Production uses the shared lifecycle constant.
+   */
+  structuredDisposalTimeoutMs?: number;
 }
 
-interface OutputSegment {
-  itemId: string;
-  text: string;
-  override?: string;
-  cursorRanges: Array<{ start: number; end: number }>;
-}
-
-interface CursorOutputEdit {
-  key: string;
-  start: number;
-  end: number;
-  replacement: string;
-}
-
-interface RunRecord extends AttemptExecutionState {
+interface RunRecord extends AttemptExecutionState, ContinuableRun {
+  continuedFrom?: string;
+  report: ReturnType<typeof parseCompactResult> | undefined;
   runId: string;
   createdAt: number;
   parentThreadId: string;
@@ -98,20 +78,12 @@ interface RunRecord extends AttemptExecutionState {
   attemptResults: SubagentAttemptResult[];
   status: SubagentRunStatus;
   /** Assistant text accumulated for the current attempt. */
-  output: string;
+  readonly output: string;
   /** Assistant text accumulated across every fallback attempt. */
-  cursorOutput: string;
-  /**
-   * Per-item spans of `output`, in arrival order, so an authoritative
-   * item.updated payload rewriting or suppressing already-streamed text can
-   * replace exactly its item's contribution.
-   * `cursorOutput` is deliberately not rebuilt: callers hold character
-   * offsets into it, so it stays an append-only live tail — the same rule
-   * the chat applies (stream while live, authoritative payload once final).
-   */
-  outputSegments: OutputSegment[];
+  readonly cursorOutput: string;
+  readonly transcript: SubagentTranscript;
   /** Authoritative replacements indexed against append-only `cursorOutput`. */
-  cursorOutputEdits: CursorOutputEdit[];
+  readonly cursorOutputEdits: SubagentTranscript["cursorOutputEdits"];
   /** Direct child items started under the synthetic Agent row. */
   stepCount: number;
   /**
@@ -211,10 +183,62 @@ function parseNamespacedRequestId(
  */
 export class SubagentRunManager {
   private readonly runs = new Map<string, RunRecord>();
+  private readonly lifecycle = new RunLifecycle();
   private readonly attemptRunner: SubagentAttemptRunner;
 
   constructor(private readonly deps: SubagentRunManagerDeps) {
-    this.attemptRunner = new SubagentAttemptRunner(deps.host);
+    this.attemptRunner = new SubagentAttemptRunner(
+      deps.host,
+      deps.admission,
+      deps.structuredDisposalTimeoutMs,
+      (parentThreadId) => {
+        // Actual retirement is separate from logical turn settlement. Late
+        // confirmation makes records prunable and wakes queued capacity users.
+        this.pruneSettledRuns(parentThreadId);
+        this.lifecycle.emit(parentThreadId, "changed");
+      },
+    );
+  }
+
+  /**
+   * Join/retry every child retirement still holding capacity (bounded per
+   * child). Used by cancellation retries and supervisor shutdown; custody is
+   * retained, never cancelled, when a disposal is still hanging.
+   */
+  async retryRetirements(): Promise<void> {
+    await this.attemptRunner.retryRetirements();
+  }
+
+  /** Validate every workflow stage before any process is launched. */
+  validateRequests(parentThreadId: string, requests: readonly SpawnAgentRequest[]): void {
+    const parent = this.requireParent(parentThreadId);
+    for (const request of requests) {
+      const plan = prepareSubagentRun(this.deps, parent, request);
+      if (
+        process.platform === "win32" ||
+        plan.projectLocation.kind === "wsl" ||
+        plan.attempts.some((attempt) => attempt.config.executionEnvironment?.kind === "wsl")
+      ) {
+        throw new SubagentSpawnError(
+          "run_workflow currently requires native macOS or Linux execution. Windows and WSL worker shutdown cannot yet guarantee write ownership release; use standalone compact spawn_agent runs instead.",
+        );
+      }
+    }
+  }
+
+  subscribe(parentThreadId: string, listener: (event: RunLifecycleEvent) => void): () => void {
+    return this.lifecycle.subscribe(parentThreadId, listener);
+  }
+
+  /** Host-only join without MCP transport deadlines or parent model polling. */
+  async waitForSettlement(parentThreadId: string, runId: string): Promise<SubagentWaitResult> {
+    const record = this.ownedRun(runId, parentThreadId);
+    if (!record) return { status: "failed", output: `Unknown run_id: ${runId}` };
+    await record.settledPromise;
+    // A cancelled turn can settle before its process stops. Keep workflow
+    // ownership until teardown confirms that the worker has released it.
+    await this.teardown(record);
+    return readRunResult(record);
   }
 
   /** Validate and start one child run, returning its id immediately. */
@@ -242,7 +266,11 @@ export class SubagentRunManager {
     return plans.map((plan) => this.startRun(parentThreadId, plan));
   }
 
-  private startRun(parentThreadId: string, plan: PreparedSubagentRun): { runId: string } {
+  private startRun(
+    parentThreadId: string,
+    plan: PreparedSubagentRun,
+    continuation?: { sessionRef: SessionRef; fromRunId: string },
+  ): { runId: string } {
     const runId = randomBytes(6).toString("hex");
     const firstAttempt = plan.attempts[0]!;
     const childThreadId = this.childThreadId(parentThreadId, runId, 0);
@@ -251,7 +279,9 @@ export class SubagentRunManager {
     const settledPromise = new Promise<void>((resolve) => {
       resolveSettled = resolve;
     });
+    const transcript = new SubagentTranscript();
     const record: RunRecord = {
+      report: undefined,
       runId,
       createdAt: Date.now(),
       parentThreadId,
@@ -264,10 +294,16 @@ export class SubagentRunManager {
       steering: undefined,
       attemptResults: [],
       status: "running",
-      output: "",
-      cursorOutput: "",
-      outputSegments: [],
-      cursorOutputEdits: [],
+      transcript,
+      get output() {
+        return transcript.output;
+      },
+      get cursorOutput() {
+        return transcript.cursorOutput;
+      },
+      get cursorOutputEdits() {
+        return transcript.cursorOutputEdits;
+      },
       stepCount: 0,
       handle: undefined,
       oneShot: undefined,
@@ -277,6 +313,12 @@ export class SubagentRunManager {
       turnStarted: false,
       turnDispatched: false,
       steerReady: false,
+      ...(continuation
+        ? {
+            resumeSessionRef: continuation.sessionRef,
+            continuedFrom: continuation.fromRunId,
+          }
+        : {}),
       error: undefined,
       settled: false,
       settledPromise,
@@ -304,7 +346,7 @@ export class SubagentRunManager {
     return { runId };
   }
 
-  /** Block until the run settles or the timeout elapses. */
+  /** Block until the run settles, needs input, or the timeout elapses. */
   async waitFor(
     runId: string,
     timeoutMs: number,
@@ -315,18 +357,8 @@ export class SubagentRunManager {
     if (!record) {
       return { status: "failed", output: `Unknown run_id: ${runId}` };
     }
-    if (record.status !== "running") {
-      return this.waitResult(record, options);
-    }
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      record.settledPromise,
-      new Promise<void>((resolve) => {
-        timer = setTimeout(resolve, Math.max(0, timeoutMs));
-      }),
-    ]);
-    if (timer) clearTimeout(timer);
-    return this.waitResult(record, options);
+    await waitForRuns([record], timeoutMs, this.lifecycle);
+    return readRunResult(record, options);
   }
 
   /** Wait for several already-running children concurrently under one deadline. */
@@ -337,41 +369,14 @@ export class SubagentRunManager {
     options?: SubagentWaitOptions | ((runId: string) => SubagentWaitOptions),
     mode: "all" | "any" = "all",
   ): Promise<Array<{ run_id: string } & SubagentWaitResult>> {
-    if (mode === "any" && runIds.length > 0) {
-      const records = runIds.map((runId) => this.ownedRun(runId, parentThreadId));
-      if (records.every((record) => record?.status === "running")) {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        try {
-          await Promise.race([
-            ...records.map((record) => record!.settledPromise),
-            new Promise<void>((resolve) => {
-              timer = setTimeout(resolve, Math.max(0, timeoutMs));
-            }),
-          ]);
-        } finally {
-          if (timer) clearTimeout(timer);
-        }
-      }
-      return runIds.map((runId) => ({
-        run_id: runId,
-        ...this.getStatus(
-          runId,
-          parentThreadId,
-          typeof options === "function" ? options(runId) : options,
-        ),
-      }));
-    }
-    return await Promise.all(
-      runIds.map(async (runId) => ({
-        run_id: runId,
-        ...(await this.waitFor(
-          runId,
-          timeoutMs,
-          parentThreadId,
-          typeof options === "function" ? options(runId) : options,
-        )),
-      })),
-    );
+    const records = runIds.map((runId) => this.ownedRun(runId, parentThreadId));
+    await waitForRuns(records, timeoutMs, this.lifecycle, mode);
+    return runIds.map((runId, index) => ({
+      run_id: runId,
+      ...(records[index]
+        ? readRunResult(records[index], typeof options === "function" ? options(runId) : options)
+        : { status: "failed" as const, output: `Unknown run_id: ${runId}` }),
+    }));
   }
 
   getStatus(
@@ -381,7 +386,7 @@ export class SubagentRunManager {
   ): SubagentWaitResult {
     const record = this.ownedRun(runId, parentThreadId);
     if (!record) return { status: "failed", output: `Unknown run_id: ${runId}` };
-    return this.waitResult(record, options);
+    return readRunResult(record, options);
   }
 
   listRuns(parentThreadId: string): SubagentRunSummary[] {
@@ -396,35 +401,52 @@ export class SubagentRunManager {
         attempt: record.attemptIndex + 1,
         attempt_count: record.plan.attempts.length,
         can_steer:
-          record.status === "running" &&
-          record.steerReady &&
-          !record.steering &&
-          handleSupportsSteer(record.handle),
+          canContinueRun(record) ||
+          (record.status === "running" &&
+            record.steerReady &&
+            !record.steering &&
+            handleSupportsSteer(record.handle)),
+        ...(record.continuedBy ? { continued_by: record.continuedBy } : {}),
       });
     }
     return out;
   }
 
-  getCapacity(parentThreadId: string): { running: number; limit: number; available_slots: number } {
-    const running = this.activeCountForParent(parentThreadId);
+  getCapacity(parentThreadId: string): {
+    running: number;
+    stopping?: number;
+    limit: number;
+    available_slots: number;
+  } {
+    const occupied = this.activeCountForParent(parentThreadId);
+    const running = [...this.runs.values()].filter(
+      (record) => record.parentThreadId === parentThreadId && record.status === "running",
+    ).length;
     return {
       running,
+      ...(occupied > running ? { stopping: occupied - running } : {}),
       limit: MAX_CONCURRENT_CHILDREN_PER_PARENT,
-      available_slots: MAX_CONCURRENT_CHILDREN_PER_PARENT - running,
+      available_slots: MAX_CONCURRENT_CHILDREN_PER_PARENT - occupied,
     };
   }
 
   /**
-   * Forward a parent correction to a live child. Sessions with a native
+   * Continue a completed provider session, or correct a live child. Sessions with a native
    * `steerTurn` enqueue it onto the running turn. Every other structured
    * session takes the same interrupt-and-restart path the main thread uses:
    * preserve provider work, interrupt, wait for the turn to settle, then open
    * the correction as a fresh turn on the same session.
    */
-  async steer(runId: string, prompt: string, parentThreadId: string): Promise<void> {
+  async steer(
+    runId: string,
+    prompt: string,
+    parentThreadId: string,
+    background = false,
+  ): Promise<{ runId: string; continuedFrom?: string }> {
     const record = this.ownedRun(runId, parentThreadId);
     if (!record) throw new SubagentSpawnError(`Unknown run_id: ${runId}`);
-    if (record.status !== "running") throw new SubagentSpawnError("Subagent is no longer running");
+    if (!prompt.trim()) throw new SubagentSpawnError("prompt is required");
+    if (record.status !== "running") return this.continueCompletedRun(record, prompt, background);
     if (!record.steerReady)
       throw new SubagentSpawnError("Subagent is still starting; try again once it is ready");
     const handle = record.handle;
@@ -464,6 +486,57 @@ export class SubagentRunManager {
           this.finishAttempt(record, attemptIndex, "completed");
         }
       }
+    }
+    return { runId };
+  }
+
+  private async continueCompletedRun(
+    record: RunRecord,
+    prompt: string,
+    background: boolean,
+  ): Promise<{ runId: string; continuedFrom: string }> {
+    const parentThreadId = record.parentThreadId;
+    if (record.resuming)
+      throw new SubagentSpawnError("This worker's follow-up is already starting");
+    record.resuming = { background, cancelled: false };
+    try {
+      const previous = record.continuedBy ? this.runs.get(record.continuedBy) : undefined;
+      if (previous?.status === "failed" && !previous.turnDispatched) {
+        // An explicit retry can arrive before failed startup cleanup finishes.
+        await this.teardown(previous);
+      }
+      const plan = prepareContinuation(
+        this.deps,
+        this.requireParent(parentThreadId),
+        record,
+        prompt,
+        background,
+      );
+      // Completion releases readers before process disposal. Join it before
+      // reopening the same provider session; concurrent use can corrupt history.
+      await this.teardown(record);
+      if (
+        record.resuming.cancelled ||
+        record.cancelRequested ||
+        this.ownedRun(record.runId, parentThreadId) !== record
+      ) {
+        throw new SubagentSpawnError("Parent or worker closed before the follow-up started");
+      }
+      this.requireParent(parentThreadId);
+      if (this.activeCountForParent(parentThreadId) >= MAX_CONCURRENT_CHILDREN_PER_PARENT) {
+        throw new SubagentSpawnError("Too many concurrent subagents to start a follow-up");
+      }
+      // Keep completed reports, workflow joins and transcript cursors immutable.
+      // Only the run receipt is new: the provider conversation keeps its identity.
+      const next = this.startRun(parentThreadId, plan, {
+        sessionRef: record.sessionRef!,
+        fromRunId: record.runId,
+      });
+      record.continuedBy = next.runId;
+      return { ...next, continuedFrom: record.runId };
+    } finally {
+      delete record.resuming;
+      this.pruneSettledRuns(parentThreadId);
     }
   }
 
@@ -515,7 +588,7 @@ export class SubagentRunManager {
     if (!record) return;
     record.cancelRequested = true;
     this.settle(record, "cancelled", undefined, { teardown: false });
-    await this.attemptRunner.teardown(record);
+    await this.teardown(record);
   }
 
   /**
@@ -531,6 +604,7 @@ export class SubagentRunManager {
     const record = this.runs.get(parsed.runId);
     if (!record) return false;
     record.pendingRequestIds.delete(parsed.requestId);
+    this.lifecycle.emit(record.parentThreadId, "changed");
     if (record.handle?.resolveServerRequest) {
       void record.handle.resolveServerRequest(parsed.requestId, response).catch(() => {});
     }
@@ -539,9 +613,15 @@ export class SubagentRunManager {
 
   /**
    * Cancel every live child of a parent and evict all of its run records.
-   * Called on parent thread interrupt and close.
+   * Called on parent thread close.
+   *
+   * A record whose teardown has not confirmed still keeps reachable
+   * {lease, handle/cleanup} custody: the attempt runner retains each generation
+   * from cleanup start. Late exit/disposal releases automatically; shutdown
+   * joins pending cleanup or retries a rejection through `retryRetirements`.
    */
   cancelAllForThread(parentThreadId: string): void {
+    this.lifecycle.emit(parentThreadId, "closed");
     for (const record of [...this.runs.values()]) {
       if (record.parentThreadId !== parentThreadId) continue;
       record.cancelRequested = true;
@@ -553,6 +633,13 @@ export class SubagentRunManager {
   /** Cancel turn-scoped runs while leaving explicitly detached background work alive. */
   cancelForegroundForThread(parentThreadId: string): void {
     for (const record of this.runs.values()) {
+      if (
+        record.parentThreadId === parentThreadId &&
+        record.resuming &&
+        !record.resuming.background
+      ) {
+        record.resuming.cancelled = true;
+      }
       if (
         record.parentThreadId !== parentThreadId ||
         record.background ||
@@ -572,79 +659,6 @@ export class SubagentRunManager {
       : undefined;
   }
 
-  /**
-   * Build a caller-facing wait/status result. The caller owns the incremental
-   * cursor, so retrying the same read is idempotent. `fullOutput` bypasses both
-   * the cursor and the clip for the rare case the complete transcript is
-   * genuinely needed.
-   */
-  private waitResult(record: RunRecord, options?: SubagentWaitOptions): SubagentWaitResult {
-    const fullOutput = options?.fullOutput === true;
-    const incremental = !fullOutput && options?.afterOutputChars !== undefined;
-    const cursorOffset = options?.afterOutputChars ?? 0;
-    const displayOutput = [
-      ...record.attemptResults
-        .filter((attempt) => attempt.attempt !== record.attemptIndex + 1)
-        .map((attempt) => attempt.output),
-      record.output,
-    ].join("");
-    // Non-zero cursors index the append-only live stream a caller has already
-    // observed. Reads from the beginning and full reads use the final display
-    // projection so replaced or suppressed text is not exposed again.
-    const useCursorOutput = incremental && cursorOffset !== 0;
-    const source = fullOutput
-      ? options?.currentAttemptOnly === true
-        ? record.output
-        : displayOutput
-      : useCursorOutput
-        ? this.cursorOutputAfter(record, cursorOffset)
-        : incremental
-          ? displayOutput
-          : record.output;
-    const total = record.cursorOutput.length;
-    const delta = source;
-    const tailCap =
-      record.status === "running" ? MAX_RUNNING_OUTPUT_TAIL_CHARS : MAX_SETTLED_OUTPUT_TAIL_CHARS;
-    const output = fullOutput ? delta : clipOutputTail(delta, tailCap);
-    const isCompleteTranscript = fullOutput || (!useCursorOutput && delta.length <= tailCap);
-    return {
-      status: record.status,
-      output,
-      ...(incremental || !isCompleteTranscript ? { total_output_chars: total } : {}),
-      ...(record.error ? { error: record.error } : {}),
-      ...(record.plan.attempts.length > 1
-        ? {
-            attempts: record.attemptResults.map((attempt) => ({
-              ...attempt,
-              output: fullOutput
-                ? attempt.output
-                : clipOutputTail(attempt.output, MAX_ATTEMPT_OUTPUT_TAIL_CHARS),
-            })),
-          }
-        : {}),
-    };
-  }
-
-  private cursorOutputAfter(record: RunRecord, requestedOffset: number): string {
-    const offset = Math.min(Math.max(0, requestedOffset), record.cursorOutput.length);
-    const parts: string[] = [];
-    const emitted = new Set<string>();
-    let position = offset;
-    for (const edit of [...record.cursorOutputEdits].sort(
-      (left, right) => left.start - right.start,
-    )) {
-      if (edit.end <= position) continue;
-      if (edit.start > position) parts.push(record.cursorOutput.slice(position, edit.start));
-      if (!emitted.has(edit.key)) {
-        parts.push(edit.replacement);
-        emitted.add(edit.key);
-      }
-      position = Math.max(position, edit.end);
-    }
-    parts.push(record.cursorOutput.slice(position));
-    return parts.join("");
-  }
-
   private requireParent(parentThreadId: string): {
     projectLocation: ProjectLocation;
     config: ThreadConfig;
@@ -657,7 +671,11 @@ export class SubagentRunManager {
   private activeCountForParent(parentThreadId: string): number {
     let count = 0;
     for (const record of this.runs.values()) {
-      if (record.parentThreadId === parentThreadId && record.status === "running") count += 1;
+      if (
+        record.parentThreadId === parentThreadId &&
+        (record.status === "running" || this.attemptRunner.hasLiveResources(record))
+      )
+        count += 1;
     }
     return count;
   }
@@ -679,12 +697,12 @@ export class SubagentRunManager {
     record.steering = undefined;
     record.childThreadId = this.childThreadId(record.parentThreadId, record.runId, attemptIndex);
     record.label = attempt.label;
-    record.output = "";
-    record.outputSegments = [];
+    record.transcript.resetAttempt();
     record.error = undefined;
     record.turnStarted = false;
     record.turnDispatched = false;
     record.steerReady = false;
+    delete record.sessionRef;
     record.handle = undefined;
     record.oneShot = undefined;
 
@@ -726,27 +744,7 @@ export class SubagentRunManager {
   ): void {
     const authoritative = authoritativeAssistantText(event.payload);
     if (authoritative === null) return;
-    const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
-    if (segment) {
-      segment.override = authoritative;
-      const key = `${attemptIndex}:${event.itemId}`;
-      record.cursorOutputEdits = record.cursorOutputEdits.filter((edit) => edit.key !== key);
-      record.cursorOutputEdits.push(
-        ...segment.cursorRanges.map((range) => ({
-          key,
-          ...range,
-          replacement: authoritative,
-        })),
-      );
-    } else {
-      record.outputSegments.push({
-        itemId: event.itemId,
-        text: "",
-        override: authoritative,
-        cursorRanges: [],
-      });
-    }
-    record.output = record.outputSegments.map((s) => s.override ?? s.text).join("");
+    record.transcript.replace(event.itemId, authoritative, attemptIndex);
   }
 
   /**
@@ -783,28 +781,7 @@ export class SubagentRunManager {
               },
             });
           } else {
-            const cursorStart = record.cursorOutput.length;
-            record.output += event.delta;
-            record.cursorOutput += event.delta;
-            const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
-            if (segment) {
-              segment.text += event.delta;
-              if (segment.override !== undefined) segment.override += event.delta;
-              const lastRange = segment.cursorRanges.at(-1);
-              if (lastRange?.end === cursorStart) lastRange.end += event.delta.length;
-              else {
-                segment.cursorRanges.push({
-                  start: cursorStart,
-                  end: cursorStart + event.delta.length,
-                });
-              }
-            } else {
-              record.outputSegments.push({
-                itemId: event.itemId,
-                text: event.delta,
-                cursorRanges: [{ start: cursorStart, end: cursorStart + event.delta.length }],
-              });
-            }
+            record.transcript.append(event.itemId, event.delta);
           }
         }
         this.deps.host.appendRuntimeEvent(
@@ -852,6 +829,7 @@ export class SubagentRunManager {
       }
       case "request.opened":
         record.pendingRequestIds.add(event.requestId);
+        this.lifecycle.emit(record.parentThreadId, "changed");
         this.deps.host.appendRuntimeEvent(
           record.parentThreadId,
           this.retag(record, attemptIndex, event),
@@ -859,6 +837,7 @@ export class SubagentRunManager {
         return;
       case "request.resolved":
         record.pendingRequestIds.delete(event.requestId);
+        this.lifecycle.emit(record.parentThreadId, "changed");
         this.deps.host.appendRuntimeEvent(
           record.parentThreadId,
           this.retag(record, attemptIndex, event),
@@ -960,13 +939,17 @@ export class SubagentRunManager {
       nextAttemptIndex < record.plan.attempts.length &&
       (record.plan.retryMode === "any-failure" || !record.turnDispatched);
     if (mayRetry) {
-      void this.attemptRunner.teardown(record).then(() => {
-        if (record.cancelRequested || record.settled) {
-          this.settle(record, "cancelled");
-          return;
-        }
-        this.runAttempt(record, nextAttemptIndex);
-      });
+      void this.teardown(record).then(
+        () => {
+          if (record.cancelRequested || record.settled) {
+            this.settle(record, "cancelled");
+            return;
+          }
+          this.runAttempt(record, nextAttemptIndex);
+        },
+        (error: unknown) =>
+          this.settle(record, "failed", `Subagent cleanup failed: ${String(error)}`),
+      );
       return;
     }
 
@@ -1020,18 +1003,25 @@ export class SubagentRunManager {
       }
     }
 
-    if (options?.teardown !== false) void this.attemptRunner.teardown(record);
+    if (options?.teardown !== false) {
+      // Cancellation and host joins await this promise; legacy reads still settle with the turn.
+      void this.teardown(record).catch(() => {});
+    }
+
+    if (record.plan.resultMode === "compact") {
+      record.report = parseCompactRunReport(record.transcript.displayMessages());
+    }
 
     const text = errorMessage ? `${record.output}\n${errorMessage}`.trim() : record.output;
     if (errorMessage) {
       // Preserve the legacy failed-run output shape while also exposing the
       // structured error metadata added for retry safety.
-      record.output = text;
       record.error = {
         message: errorMessage,
         may_have_side_effects: record.turnDispatched,
       };
     }
+    record.transcript.releaseSegments(text);
     const payload: ToolCallPayload = {
       name: record.label,
       status: record.status === "completed" ? "success" : "error",
@@ -1049,6 +1039,7 @@ export class SubagentRunManager {
 
     record.resolveSettled();
     this.pruneSettledRuns(record.parentThreadId);
+    this.lifecycle.emit(record.parentThreadId, "changed");
   }
 
   /**
@@ -1063,9 +1054,34 @@ export class SubagentRunManager {
     }
   }
 
+  private async teardown(record: RunRecord): Promise<void> {
+    try {
+      await this.attemptRunner.teardown(record);
+      if (record.continuedFrom && record.status === "failed" && !record.turnDispatched) {
+        const predecessor = this.runs.get(record.continuedFrom);
+        if (predecessor?.continuedBy === record.runId) delete predecessor.continuedBy;
+      }
+    } catch (error) {
+      record.error ??= {
+        message: `Subagent cleanup failed: ${String(error)}`,
+        may_have_side_effects: record.turnDispatched,
+      };
+      throw error;
+    } finally {
+      this.pruneSettledRuns(record.parentThreadId);
+      this.lifecycle.emit(record.parentThreadId, "changed");
+    }
+  }
+
   private pruneSettledRuns(parentThreadId: string): void {
     const settled = [...this.runs.values()]
-      .filter((record) => record.parentThreadId === parentThreadId && record.status !== "running")
+      .filter(
+        (record) =>
+          record.parentThreadId === parentThreadId &&
+          record.status !== "running" &&
+          !record.resuming &&
+          !this.attemptRunner.hasLiveResources(record),
+      )
       .sort((a, b) => a.createdAt - b.createdAt);
     for (const record of settled.slice(0, -MAX_RETAINED_RUNS_PER_PARENT)) {
       this.runs.delete(record.runId);

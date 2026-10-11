@@ -7,7 +7,7 @@ import { isHomeProjectId } from "@/shared/homeScope";
  * client only imports the ones the user wants in their sidebar:
  *
  * - The remote's built-in **Home scope** row is never mirrored. It is not a real
- *   project (it is re-created on every launch and exists so the mobile client
+ *   project (it is re-created on every launch and exists so browser clients
  *   can run home-scoped threads); this client already has its own Home scope.
  * - Anything the user excluded is skipped. Exclusion is purely local state, so
  *   it applies — and can be changed — while the server is offline.
@@ -22,8 +22,11 @@ export type ExcludedRemoteProjectIds = Record<string, readonly string[]>;
 export function isRemoteProjectSynced(
   remoteProjectId: string,
   excluded: readonly string[] | undefined,
+  options: { readonly includeHomeScope?: boolean } = {},
 ): boolean {
-  if (isHomeProjectId(remoteProjectId)) return false;
+  // Projectless chat clients need the host's built-in scope and its chats.
+  // Desktop mirrors keep using their own local Home scope.
+  if (isHomeProjectId(remoteProjectId)) return options.includeHomeScope === true;
   return !excluded?.includes(remoteProjectId);
 }
 
@@ -31,8 +34,9 @@ export function isRemoteProjectSynced(
 export function filterSyncedRemoteProjects<T extends { readonly id: string }>(
   projects: readonly T[],
   excluded: readonly string[] | undefined,
+  options: { readonly includeHomeScope?: boolean } = {},
 ): T[] {
-  return projects.filter((project) => isRemoteProjectSynced(project.id, excluded));
+  return projects.filter((project) => isRemoteProjectSynced(project.id, excluded, options));
 }
 
 /**

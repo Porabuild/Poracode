@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terminal_title">Терминал</string>
+    <string name="terminal_output_description">Вывод терминала</string>
+    <string name="terminal_input_label">Ввод терминала</string>
+    <string name="terminal_input_placeholder">Введите команду</string>
+    <string name="terminal_send">Отправить</string>
+    <string name="terminal_control_c">Ctrl+C</string>
+    <string name="terminal_tab">Tab</string>
+    <string name="terminal_close">Закрыть терминал</string>
+    <string name="terminal_close_confirm_title">Закрыть этот терминал?</string>
+    <string name="terminal_close_confirm_message">Работающий процесс будет остановлен. Его можно будет запустить снова позже.</string>
+    <string name="terminal_cancel">Отмена</string>
+    <string name="terminal_control_modifier">Ctrl</string>
+    <string name="terminal_key_escape">Esc</string>
+    <string name="terminal_key_enter">Enter</string>
+    <string name="terminal_key_backspace">⌫</string>
+    <string name="terminal_key_arrow_left">Стрелка влево</string>
+    <string name="terminal_key_arrow_up">Стрелка вверх</string>
+    <string name="terminal_key_arrow_down">Стрелка вниз</string>
+    <string name="terminal_key_arrow_right">Стрелка вправо</string>
+    <string name="terminal_reconnect">Переподключить</string>
+    <string name="terminal_start">Запустить терминал</string>
+    <string name="terminal_start_description">Запустить терминал разработки для этого проекта</string>
+    <string name="terminal_status_authentication">Срок доступа к терминалу истёк</string>
+    <string name="terminal_status_permission">Доступ к терминалу не разрешён</string>
+    <string name="terminal_status_unsupported">Надёжная трансляция терминала недоступна на этом хосте</string>
+    <string name="terminal_status_protocol">Терминал отправил недопустимый ответ</string>
+    <string name="terminal_status_offline">Терминал не найден</string>
+    <string name="terminal_status_reconnecting">Переподключение терминала…</string>
+    <string name="terminal_status_connecting">Подключение терминала…</string>
+    <string name="terminal_status_synchronizing">Синхронизация терминала…</string>
+    <string name="terminal_status_suspended">Терминал приостановлен в фоне</string>
+    <string name="terminal_status_failed">Не удалось подключиться к терминалу</string>
+    <string name="terminal_status_exited">Процесс терминала завершён</string>
+    <string name="terminal_status_live">Терминал подключён</string>
+    <string name="terminal_status_idle">Терминал бездействует</string>
+</resources>

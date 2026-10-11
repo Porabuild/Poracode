@@ -3,6 +3,12 @@ export function getBasename(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
+/** True when `path` points at a Markdown file the editor can preview. */
+export function isMarkdownFile(filePath: string): boolean {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  return ext === "md" || ext === "mdx";
+}
+
 /**
  * Whether two paths name the same folder, ignoring a trailing separator and
  * `\` vs `/`. Case folding is the caller's platform rule (Windows only).

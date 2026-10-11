@@ -8,8 +8,9 @@ import {
   type GitStatusResult,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { getProjectFsPath, toWslUncPath } from "@/shared/wsl";
+import { getProjectFsPath, joinProjectPosixPath, toWslUncPath } from "@/shared/wsl";
 import type { WslBridgeClient } from "../wsl/bridge/client";
+import { normalizeProjectRelativePath, resolveContainedProjectEntryPath } from "../projectPaths";
 import {
   execGit,
   execGitBatchWslBridge,
@@ -18,6 +19,7 @@ import {
   getLocationIdentity,
   toForwardSlash,
 } from "./exec";
+import { isGitProcessAdmissionError } from "./gitProcessAdmission";
 import {
   applyNumstatCounts,
   buildGitStatusResultFromOutputs,
@@ -92,7 +94,8 @@ export class GitStatusService {
       await execGit(location, ["rev-parse", "--is-inside-work-tree"], {
         timeout: GIT_STATUS_TIMEOUT,
       });
-    } catch {
+    } catch (error) {
+      if (isGitProcessAdmissionError(error)) throw error;
       return {
         isRepo: false,
         branch: "",
@@ -111,6 +114,7 @@ export class GitStatusService {
     const [statusOutput, remoteOutput, stagedNumstat, unstagedNumstat] = await Promise.all([
       execGit(location, ["status", "--porcelain=v2", "-b"], { timeout: GIT_STATUS_TIMEOUT }),
       execGit(location, ["remote", "-v"], { timeout: GIT_STATUS_TIMEOUT }).catch((error) => {
+        if (isGitProcessAdmissionError(error)) throw error;
         console.warn("[git] 'remote -v' failed:", error);
         return "";
       }),
@@ -118,11 +122,13 @@ export class GitStatusService {
       // has a diff") that `applyNumstatCounts` prunes against.
       execGit(location, ["diff", "--cached", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch(
         (error) => {
+          if (isGitProcessAdmissionError(error)) throw error;
           console.warn("[git] 'diff --cached --numstat' failed:", error);
           return null;
         },
       ),
       execGit(location, ["diff", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch((error) => {
+        if (isGitProcessAdmissionError(error)) throw error;
         console.warn("[git] 'diff --numstat' failed:", error);
         return null;
       }),
@@ -179,6 +185,7 @@ export class GitStatusService {
         execGit(location, ["status", "--porcelain=v2", "-b"], { timeout: GIT_STATUS_TIMEOUT }),
         execGit(location, LS_FILES_UNTRACKED_ARGS, { timeout: GIT_STATUS_TIMEOUT }).catch(
           (error) => {
+            if (isGitProcessAdmissionError(error)) throw error;
             console.warn("[git] ls-files untracked failed:", error);
             return "";
           },
@@ -188,6 +195,7 @@ export class GitStatusService {
       await this.clearInheritedStartPointUpstream(location, summary);
       return summary;
     } catch (error) {
+      if (isGitProcessAdmissionError(error)) throw error;
       console.warn("[git] status summary failed, treating as non-repo:", error);
       return nonRepoSummaryStatus();
     }
@@ -233,7 +241,8 @@ export class GitStatusService {
         `branch.${status.branch}.poracodeSource`,
       ]);
       poracodeSource = result.trim() || null;
-    } catch {
+    } catch (error) {
+      if (isGitProcessAdmissionError(error)) throw error;
       return;
     }
     if (
@@ -248,6 +257,7 @@ export class GitStatusService {
     try {
       await execGit(location, ["branch", "--unset-upstream", status.branch]);
     } catch (error) {
+      if (isGitProcessAdmissionError(error)) throw error;
       console.warn("[git] failed to unset inherited worktree upstream:", error);
       return;
     }
@@ -287,7 +297,8 @@ export class GitStatusService {
           : await readFile(mergeMessagePath, "utf8");
       const message = stripCommitMessageComments(raw);
       return message || undefined;
-    } catch {
+    } catch (error) {
+      if (isGitProcessAdmissionError(error)) throw error;
       return undefined;
     }
   }
@@ -383,7 +394,8 @@ export class GitStatusService {
         try {
           const enriched = await this.enrichStatusInternal(wtLocation, base);
           out[path] = await this.applyMergeState(wtLocation, statusOutput, enriched);
-        } catch {
+        } catch (error) {
+          if (isGitProcessAdmissionError(error)) throw error;
           // Fall back to the raw batched result rather than dropping the
           // worktree from the response — callers prefer slightly stale data
           // over a missing key.
@@ -466,6 +478,7 @@ export class GitStatusService {
     const headNumstat = await execGit(location, ["diff", "HEAD", "--numstat"], {
       timeout: GIT_STATUS_TIMEOUT,
     }).catch((err: unknown) => {
+      if (isGitProcessAdmissionError(err)) throw err;
       console.warn("[git] conflict numstat failed; counts will show as 0", err);
       return "";
     });
@@ -491,6 +504,7 @@ export class GitStatusService {
     staged?: boolean,
     maxBuffer?: number,
   ): Promise<GitDiffResult> {
+    if (filePath) filePath = normalizeProjectRelativePath(filePath);
     const args = ["diff"];
     if (staged) args.push("--cached");
     if (filePath) args.push("--", filePath);
@@ -504,17 +518,36 @@ export class GitStatusService {
         timeout: GIT_DIFF_TIMEOUT,
         ...(maxBuffer ? { maxBuffer } : {}),
       }).catch((error) => {
+        if (isGitProcessAdmissionError(error)) throw error;
         console.warn(`[git] diff HEAD -- ${filePath} failed:`, error);
         return "";
       });
       if (headDiff.trim()) diff = headDiff;
     }
     if (!diff.trim() && filePath) {
+      // Deleted/index-only paths need no live file. Only the no-index fallback
+      // reads working-tree bytes, so enforce the boundary at that point.
+      try {
+        if (location.kind === "wsl") {
+          if (!this.wslClient) throw new Error("WSL bridge unavailable.");
+          const result = await this.wslClient.stat(
+            location,
+            [joinProjectPosixPath(location, filePath)],
+            { follow: true },
+          );
+          if (!result.stats[0]?.exists) return { diff };
+        } else {
+          await resolveContainedProjectEntryPath(location, filePath);
+        }
+      } catch {
+        return { diff };
+      }
       diff = await execGit(location, ["diff", "--no-index", "--", "/dev/null", filePath], {
         timeout: GIT_DIFF_TIMEOUT,
         allowNonZeroExit: true,
         ...(maxBuffer ? { maxBuffer } : {}),
       }).catch((error) => {
+        if (isGitProcessAdmissionError(error)) throw error;
         console.warn(`[git] diff --no-index for ${filePath} failed:`, error);
         if (maxBuffer) throw error;
         return "";
@@ -530,10 +563,12 @@ export class GitStatusService {
   ): Promise<GitDiffBatchResult> {
     const [stagedRaw, unstagedRaw] = await Promise.all([
       execGit(location, ["diff", "--cached"], { timeout: GIT_DIFF_TIMEOUT }).catch((error) => {
+        if (isGitProcessAdmissionError(error)) throw error;
         console.warn("[git] diff --cached failed:", error);
         return "";
       }),
       execGit(location, ["diff"], { timeout: GIT_DIFF_TIMEOUT }).catch((error) => {
+        if (isGitProcessAdmissionError(error)) throw error;
         console.warn("[git] diff failed:", error);
         return "";
       }),
@@ -564,28 +599,45 @@ export class GitStatusService {
     filePath: string,
     staged: boolean,
   ): Promise<GitFileContentResult> {
+    filePath = normalizeProjectRelativePath(filePath);
     if (staged) {
       const [oldContent, newContent] = await Promise.all([
         execGit(location, ["show", `HEAD:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
-          () => "", // expected for newly added files not yet in HEAD
+          (error) => {
+            if (isGitProcessAdmissionError(error)) throw error;
+            return ""; // expected for newly added files not yet in HEAD
+          },
         ),
         execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
-          () => "", // expected for deleted files not in the index
+          (error) => {
+            if (isGitProcessAdmissionError(error)) throw error;
+            return ""; // expected for deleted files not in the index
+          },
         ),
       ]);
       return { oldContent, newContent };
     }
 
-    const repoPath = getProjectFsPath(location);
     const [oldContent, newContent] = await Promise.all([
-      execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
-        () => "", // expected for untracked files not in the index
-      ),
-      readFile(join(repoPath, filePath), "utf-8").catch(
+      execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch((error) => {
+        if (isGitProcessAdmissionError(error)) throw error;
+        return ""; // expected for untracked files not in the index
+      }),
+      this.readProjectWorkingFile(location, filePath).catch(
         () => "", // expected for deleted files
       ),
     ]);
     return { oldContent, newContent };
+  }
+
+  private async readProjectWorkingFile(location: ProjectLocation, path: string): Promise<string> {
+    if (location.kind === "wsl") {
+      if (!this.wslClient) throw new Error("WSL bridge unavailable.");
+      const result = await this.wslClient.readFile(location, joinProjectPosixPath(location, path));
+      if (result.tooLarge) throw new Error("File exceeds the read limit.");
+      return Buffer.from(result.contentBase64, "base64").toString("utf8");
+    }
+    return readFile(await resolveContainedProjectEntryPath(location, path), "utf8");
   }
 
   private splitCombinedDiff(raw: string): Record<string, string> {
@@ -612,6 +664,7 @@ export class GitStatusService {
     const lsFilesOutput = await execGit(location, LS_FILES_UNTRACKED_ARGS, {
       timeout: GIT_STATUS_TIMEOUT,
     }).catch((error) => {
+      if (isGitProcessAdmissionError(error)) throw error;
       console.warn("[git] ls-files untracked failed:", error);
       return "";
     });

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_notification_done">완료됨</string>
+    <string name="remote_notification_needs_attention">확인 필요</string>
+    <string name="remote_notification_error">오류</string>
+    <string name="remote_notification_dismiss">알림 닫기</string>
+</resources>

@@ -1,10 +1,19 @@
+import { assertOneShotControlsMapped, type RunOneShotInput } from "../base";
 import { awaitOpenCode2Activation } from "./readiness";
-import type { RunOneShotInput } from "../base";
 import { acquireOpenCode2Server, resolveOpenCode2SessionDirectory } from "./client";
 import { parseOpenCode2ModelRef } from "./model";
 
 /** Native generation has no tool loop and keeps project-specific model routing. */
 export async function runOpenCode2OneShot(input: RunOneShotInput): Promise<string> {
+  // Model routing maps model + nonempty effort through the V2 model ref; the
+  // V2 SDK has no Fast lane, so false Fast is the declared-inactive legacy
+  // carrier while meaningful Fast — and every other present carrier — refuses
+  // before the server is acquired.
+  const model = parseOpenCode2ModelRef(input.selection.model, input.selection.effort);
+  assertOneShotControlsMapped(input.selection, {
+    effort: model?.id ? true : { inactive: [""] },
+    fast: { inactive: [false] },
+  });
   const signal = input.signal
     ? AbortSignal.any([input.signal, AbortSignal.timeout(120_000)])
     : AbortSignal.timeout(120_000);
@@ -16,7 +25,6 @@ export async function runOpenCode2OneShot(input: RunOneShotInput): Promise<strin
     await awaitOpenCode2Activation(acquired.client, { location }, { signal });
     const session = await acquired.client.session.create({ location }, { signal });
     sessionID = session.id;
-    const model = parseOpenCode2ModelRef(input.model, input.effort);
     if (model) await acquired.client.session.switchModel({ sessionID, model }, { signal });
     const result = await acquired.client.session.generate(
       { sessionID, prompt: input.prompt },

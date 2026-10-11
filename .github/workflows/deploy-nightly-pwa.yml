@@ -1,39 +1,57 @@
 name: Deploy Nightly PWA
 
-# Vercel Git deployments are disabled in vercel.json. Keep
-# app-nightly.poracode.com on relevant master builds through this workflow.
+# Vercel Git deployments are disabled in vercel.json. Either CI completion
+# wakes qualification; both exact-SHA workflows must pass before publication.
 on:
-  push:
+  workflow_run:
+    workflows: [CI, Native clients]
+    types: [completed]
     branches: [master]
-    paths:
-      - ".github/workflows/deploy-nightly-pwa.yml"
-      - ".vercelignore"
-      - "lingui.config.ts"
-      - "native/**"
-      - "package.json"
-      - "packages/**"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "postcss.config.mjs"
-      - "public/**"
-      - "resources/**"
-      - "scripts/**"
-      - "src/**"
-      - "tsconfig.json"
-      - "vercel.json"
-      - "vite.config.ts"
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: deploy-nightly-pwa-master
   cancel-in-progress: false
 
 jobs:
+  qualify:
+    name: Qualify the current master commit
+    if: >-
+      ${{ github.repository == 'Porabuild/Poracode' &&
+          ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') ||
+           (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+            github.event.workflow_run.head_repository.full_name == github.repository &&
+            github.event.workflow_run.head_branch == 'master' &&
+            (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      qualified: ${{ steps.check.outputs.qualified }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      # workflow_run's default-branch SHA is not the tested head SHA. Use the
+      # trusted controller here, then check out only the qualified SHA below.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+      - name: Require successful core and native checks
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/qualify-nightly-pwa.mjs
+
   web:
     name: Nightly PWA (Vercel)
+    needs: qualify
+    if: ${{ needs.qualify.outputs.qualified == 'true' }}
     runs-on: ubuntu-latest
     environment: mobile-web
     env:
@@ -41,8 +59,12 @@ jobs:
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
       PORACODE_MOBILE_APP_HOST: ${{ vars.PORACODE_MOBILE_APP_HOST }}
       NIGHTLY_ALIAS: app-nightly.poracode.com
+      QUALIFIED_SHA: ${{ needs.qualify.outputs.sha }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ needs.qualify.outputs.sha }}
+          persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -78,6 +100,11 @@ jobs:
       - name: Deploy and update nightly alias
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
+          # Recheck after build/environment waits. Serialized publication plus
+          # a current-head check prevents old queued runs rolling back the alias.
+          node scripts/qualify-nightly-pwa.mjs --require "$QUALIFIED_SHA"
           deployment_url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")"
+          node scripts/qualify-nightly-pwa.mjs --require "$QUALIFIED_SHA"
           vercel alias set "$deployment_url" "$NIGHTLY_ALIAS" --token="$VERCEL_TOKEN"

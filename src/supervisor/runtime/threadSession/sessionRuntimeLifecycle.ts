@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import {
   areAgentSlashCommandsEqual,
   isThreadConfigEqual,
@@ -14,6 +15,7 @@ import type { RuntimeEventRouter } from "./runtimeEventRouter";
 import { type SteerCoordinator, isSteerDrainableStatus } from "./steerCoordinator";
 import type { StructuredInterruptWatchdog } from "./structuredInterruptWatchdog";
 import type { FollowUpQueueCoordinator } from "./followUpQueueCoordinator";
+import { captureRuntimePayloadOrigin } from "@/shared/runtimePayloadOriginProtocol";
 
 export interface SessionRuntimeLifecycleContext {
   sessions: Map<string, SessionRuntime>;
@@ -40,6 +42,18 @@ export interface SessionRuntimeLifecycleContext {
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   indexSessionRef(session: SessionRuntime, prevId: string | undefined): void;
   pollSessionRefDiscovery(session: SessionRuntime): void;
+  /**
+   * A runtime generation was published for this thread (initial launch, resume,
+   * restart, or replacement). Used to reset per-generation producer state that
+   * must not outlive the session it described.
+   */
+  onSessionAttached?(threadId: string): void;
+  /**
+   * Notified when an observed effect released this session's execution lease.
+   * The manager prunes retained retirement custody on release; a timed-out
+   * retirement entry must not outlive the reservation it was protecting.
+   */
+  onResourceLeaseRelease?(session: SessionRuntime): void;
 }
 
 /** Registers a newly-created runtime and owns its structured-session / PTY event bindings. */
@@ -49,6 +63,15 @@ export class SessionRuntimeLifecycle {
   attach(session: SessionRuntime): void {
     const context = this.context;
     context.sessions.set(session.threadId, session);
+    // A replacement generation is not the stopped predecessor: per-generation
+    // overflow-stop state must not suppress this session's own hard stop.
+    context.onSessionAttached?.(session.threadId);
+    // A new incarnation starts with no negotiated inventory: publish an
+    // explicit retirement so the successor never inherits the predecessor's
+    // session controls, whether or not its own agent advertises any.
+    if (session.sessionConfigOptions === undefined) {
+      session.sessionConfigOptions = null;
+    }
     if (session.pty) {
       context.ptyLifecycle.track(session);
     }
@@ -78,8 +101,19 @@ export class SessionRuntimeLifecycle {
   }
 
   private bindStructuredSession(session: SessionRuntime): void {
+    const actualAdapter = session.adapter;
     session.structuredSession?.setListener({
       onClose: () => {
+        // Transport close is the structured side's confirmed retirement.
+        session.structuredRetired = true;
+        // A structured-only session's logical retirement is its transport
+        // close; release the slot here. When a PTY also backs this session,
+        // retirement requires both owned effects (the close path kills the
+        // PTY next and the PTY exit cannot release alone).
+        if (!session.pty) {
+          session.resourceLease?.confirmExit();
+          this.context.onResourceLeaseRelease?.(session);
+        }
         if (!this.canHandleStructuredEvent(session)) return;
         this.handleStructuredSessionClosed(session);
       },
@@ -93,7 +127,10 @@ export class SessionRuntimeLifecycle {
       },
       onRuntimeEvent: (event) => {
         if (!this.canHandleStructuredEvent(session)) return;
-        this.handleStructuredRuntimeEvent(session, event);
+        this.handleStructuredRuntimeEvent(
+          session,
+          captureRuntimePayloadOrigin(event, actualAdapter.runtimePayloadFormatOwnerKey),
+        );
       },
       onVoiceEvent: (event) => {
         if (!this.canHandleStructuredEvent(session)) return;
@@ -109,7 +146,9 @@ export class SessionRuntimeLifecycle {
     let sessionRefChanged = false;
     if (update.sessionRef) {
       const prevId = session.sessionRef?.providerSessionId;
-      sessionRefChanged = prevId !== update.sessionRef.providerSessionId;
+      sessionRefChanged =
+        prevId !== update.sessionRef.providerSessionId ||
+        session.sessionRef?.executionIdentity !== update.sessionRef.executionIdentity;
       session.sessionRef = update.sessionRef;
       session.canResumeWithConfig = true;
       context.indexSessionRef(session, prevId);
@@ -120,6 +159,11 @@ export class SessionRuntimeLifecycle {
     const slashCommandsChanged =
       update.slashCommands !== undefined &&
       !areAgentSlashCommandsEqual(session.slashCommands, update.slashCommands);
+    // `undefined` = "not stated" (older session, no update); `null` is an
+    // explicit retirement and must store and emit like any inventory.
+    const sessionConfigOptionsChanged =
+      update.sessionConfigOptions !== undefined &&
+      !isDeepStrictEqual(session.sessionConfigOptions, update.sessionConfigOptions);
     const stateChanged =
       session.status !== update.status ||
       session.attention !== update.attention ||
@@ -130,6 +174,9 @@ export class SessionRuntimeLifecycle {
     if (update.slashCommands !== undefined) {
       session.slashCommands = update.slashCommands;
     }
+    if (update.sessionConfigOptions !== undefined) {
+      session.sessionConfigOptions = update.sessionConfigOptions;
+    }
 
     if (
       session.suppressInitialStructuredIdle === true &&
@@ -137,7 +184,12 @@ export class SessionRuntimeLifecycle {
       session.status === "working" &&
       session.structuredTurnInterruptRequested !== true
     ) {
-      if (update.sessionRef || configChanged || slashCommandsChanged) {
+      if (
+        update.sessionRef ||
+        configChanged ||
+        slashCommandsChanged ||
+        sessionConfigOptionsChanged
+      ) {
         context.outputPipeline.emitState(session);
       }
       return;
@@ -175,7 +227,7 @@ export class SessionRuntimeLifecycle {
     // evaluates the newly-settled status.
     context.followUpQueue?.onStructuredUpdate(session, update.status);
     if (
-      (sessionRefChanged || configChanged || slashCommandsChanged) &&
+      (sessionRefChanged || configChanged || slashCommandsChanged || sessionConfigOptionsChanged) &&
       !stateChanged &&
       update.errorMessage === undefined
     ) {
@@ -222,8 +274,18 @@ export class SessionRuntimeLifecycle {
     pty.onExit((event) => {
       const context = this.context;
       context.ptyLifecycle.resolveExit(session);
+      // Observed PTY exit releases a terminal session's slot; instance-keyed,
+      // so a late predecessor exit cannot free a successor. A mixed session
+      // (out-of-contract PTY + structured) still owes the structured side's
+      // confirmation, so the PTY exit alone must not free its capacity.
+      if (!session.structuredSession || session.structuredRetired === true) {
+        session.resourceLease?.confirmExit();
+        context.onResourceLeaseRelease?.(session);
+      }
       try {
-        session.launchCleanup?.();
+        void Promise.resolve(session.launchCleanup?.()).catch(() => {
+          // Temporary launch-resource cleanup is best effort.
+        });
       } catch {
         // Temporary launch-resource cleanup is best effort.
       }
@@ -249,7 +311,19 @@ export class SessionRuntimeLifecycle {
   }
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {
-    if (session.status === "inactive") return;
+    // The transport is gone, so the handle can never accept another turn.
+    // Detach it: the send path relaunches (and resumes via `sessionRef`) only
+    // when no live structured session is attached. Leaving the dead handle in
+    // place routes every later submit into its closed transport.
+    session.structuredSession = undefined;
+    // The negotiated inventory died with the transport: retire it explicitly
+    // so neither the settled state nor a pulled snapshot can resurrect it.
+    const inventoryRetired = session.sessionConfigOptions !== null;
+    session.sessionConfigOptions = null;
+    if (session.status === "inactive") {
+      if (inventoryRetired) this.context.outputPipeline.emitState(session);
+      return;
+    }
     this.context.followUpQueue?.onSessionClosing(session.threadId, session);
     // onError is the authoritative non-clean boundary. A derivative transport
     // close must tear down the backing PTY without overwriting the visible

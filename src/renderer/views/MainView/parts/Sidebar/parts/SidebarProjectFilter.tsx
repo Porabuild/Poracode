@@ -6,17 +6,17 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
-import { ContextMenuSurface, MENU_BACKDROP_ATTR } from "@/renderer/components/common/ContextMenu";
+import { MENU_BACKDROP_ATTR } from "@/renderer/components/common/ContextMenu";
 import {
   ProjectSelectorIcon,
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
 import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
-import {
-  ResponsiveMenuSurface,
-  useResponsiveMenu,
-} from "@/renderer/components/common/ResponsiveMenuSurface";
+import { useResponsiveMenu } from "@/renderer/components/common/ResponsiveMenuSurface";
+import { ResponsiveContextMenuSurface } from "@/renderer/components/common/ResponsiveContextMenuSurface";
+import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { sidebarRowClass } from "@/renderer/components/common/SidebarButton";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { useProjectMenu } from "./useProjectMenu";
 
@@ -112,6 +112,8 @@ function useFilterDismissal(args: {
  */
 function ProjectRowMenuButton(props: {
   project: Project;
+  mobile?: boolean;
+  /** Extra classes for the host — used to pin the desktop button to the row end. */
   className?: string;
   onOpenMenu: (anchor: { x: number; y: number }) => void;
 }) {
@@ -127,7 +129,7 @@ function ProjectRowMenuButton(props: {
       role="button"
       tabIndex={0}
       aria-label={t`Project actions for ${props.project.name}`}
-      className={`${props.className ?? ""} -mr-1 flex size-5 shrink-0 items-center justify-center rounded text-muted/60 hover:bg-[var(--row-hover)] hover:text-foreground`}
+      className={`${props.mobile ? "size-11 rounded-lg" : "-mr-1 size-5 rounded hover:bg-[var(--row-hover)] hover:text-foreground"} flex shrink-0 items-center justify-center text-muted/60${props.className ? ` ${props.className}` : ""}`}
       onPointerDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -178,8 +180,9 @@ function ProjectOverflowMenu(props: {
     ),
   });
   return (
-    <ContextMenuSurface
+    <ResponsiveContextMenuSurface
       position={props.anchor}
+      label={props.project.name}
       items={projectMenu.items}
       onAction={(key) => {
         props.onAction();
@@ -202,7 +205,7 @@ function ProjectOverflowMenu(props: {
  * since a filter matching everything or nothing is meaningless.
  *
  * The trigger is a sidebar row labelled with the current selection; the menu
- * is a desktop dropdown and a bottom sheet in the mobile PWA, mirroring
+ * is a desktop dropdown and a bottom sheet in compact/coarse-input layout, mirroring
  * {@link SidebarWorkspaceSwitcher}.
  */
 export function SidebarProjectFilter(props: {
@@ -218,6 +221,8 @@ export function SidebarProjectFilter(props: {
    */
   value: ReadonlySet<string> | null;
   onChange: (next: string[] | null) => void;
+  /** Compact header uses an icon trigger; desktop keeps the labelled row. */
+  mobileIconTrigger?: boolean;
 }) {
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
@@ -234,7 +239,11 @@ export function SidebarProjectFilter(props: {
     setOverflowTarget(null);
   };
   useFilterDismissal({
-    isOpen,
+    // The compact surface is a modal sheet and already owns outside-press and
+    // Escape dismissal. Its project rows are plain buttons rather than menu
+    // items, so the desktop-only window listener would mistake every tap in
+    // the sheet for an outside press and close it before multi-selection.
+    isOpen: isOpen && !mobile,
     closeStacked: overflowTarget ? () => setOverflowTarget(null) : null,
     closeAll: close,
   });
@@ -318,90 +327,117 @@ export function SidebarProjectFilter(props: {
   );
 
   if (mobile) {
-    return (
-      <ResponsiveMenuSurface
-        isOpen={isOpen}
-        onOpenChange={setIsOpen}
-        label={t`Filter by project`}
-        trigger={
-          <button
-            type="button"
-            aria-label={t`Filter by project`}
-            aria-expanded={isOpen}
-            className={sidebarRowClass({ size: "xs" })}
-            onClick={() => setIsOpen(true)}
-          >
-            {triggerContent}
-          </button>
-        }
+    const trigger = props.mobileIconTrigger ? (
+      <MobileCircleButton
+        aria-label={t`Filter by project`}
+        aria-expanded={isOpen}
+        className={`poracode-mobile-project-filter ${isAll ? "text-muted" : "text-accent"}`}
+        onPointerDown={() => setIsOpen(true)}
+        onPress={() => setIsOpen(true)}
       >
-        <div className="m-sheet-list">
-          <button
-            type="button"
-            className="m-sheet-action"
-            aria-pressed={isAll || undefined}
-            onClick={selectAll}
-          >
-            <span className="flex-1 truncate">
-              <Trans>All projects</Trans>
-            </span>
-            {isAll ? <Check className="size-4 shrink-0 text-accent" /> : null}
-          </button>
-          {filterableProjects.map((project) => {
-            const selected = selectedProjects.has(project.id);
-            const remote = remoteServerFor(project);
-            return (
-              <button
-                key={project.id}
-                type="button"
-                className="m-sheet-action"
-                aria-pressed={selected || undefined}
-                onClick={() => toggleProject(project.id)}
-              >
-                <ProjectSelectorIcon project={project} remote={remote} />
-                <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                {remote.serverName ? (
-                  <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
-                    {remote.serverName}
-                  </span>
-                ) : null}
-                <span className="shrink-0 text-xs text-muted">
-                  {props.threadCounts.get(project.id) ?? 0}
-                </span>
-                {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
-              </button>
-            );
-          })}
-          {unavailableProjects.map((project) => {
-            const remote = remoteServerFor(project);
-            return (
-              <div key={project.id} className="m-sheet-action opacity-50" data-static="true">
-                <ProjectSelectorIcon project={project} remote={remote} />
-                <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                {remote.serverName ? (
-                  <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
-                    {remote.serverName}
-                  </span>
-                ) : null}
-                {isHomeProject(project) ? null : (
-                  <ProjectRowMenuButton
-                    project={project}
-                    onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {overflowTarget ? (
-          <ProjectOverflowMenu
-            project={overflowTarget.project}
-            anchor={overflowTarget.anchor}
-            onClose={() => setOverflowTarget(null)}
-            onAction={close}
-          />
-        ) : null}
-      </ResponsiveMenuSurface>
+        <ListFilter className="size-5" />
+      </MobileCircleButton>
+    ) : (
+      <button
+        type="button"
+        aria-label={t`Filter by project`}
+        aria-expanded={isOpen}
+        className={sidebarRowClass({ size: "xs" })}
+        onClick={() => setIsOpen(true)}
+      >
+        {triggerContent}
+      </button>
+    );
+    return (
+      <>
+        {trigger}
+        <BottomSheet isOpen={isOpen} label={t`Filter by project`} onClose={close}>
+          <div className="m-sheet-head">
+            <span className="truncate">{t`Filter by project`}</span>
+          </div>
+          <div className="m-sheet-list">
+            <button
+              type="button"
+              className="m-sheet-action"
+              aria-pressed={isAll || undefined}
+              onClick={selectAll}
+            >
+              <span className="flex-1 truncate">
+                <Trans>All projects</Trans>
+              </span>
+              {isAll ? <Check className="size-4 shrink-0 text-accent" /> : null}
+            </button>
+            {filterableProjects.map((project) => {
+              const selected = selectedProjects.has(project.id);
+              const remote = remoteServerFor(project);
+              return (
+                <div key={project.id} className="m-sheet-action m-sheet-action--split">
+                  <button
+                    type="button"
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5 text-left"
+                    aria-pressed={selected || undefined}
+                    onClick={() => toggleProject(project.id)}
+                  >
+                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                    {remote.serverName ? (
+                      <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
+                        {remote.serverName}
+                      </span>
+                    ) : null}
+                    <span className="shrink-0 text-xs text-muted">
+                      {props.threadCounts.get(project.id) ?? 0}
+                    </span>
+                    {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
+                  </button>
+                  {isHomeProject(project) ? null : (
+                    <ProjectRowMenuButton
+                      project={project}
+                      mobile
+                      onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {unavailableProjects.map((project) => {
+              const remote = remoteServerFor(project);
+              return (
+                <div
+                  key={project.id}
+                  className="m-sheet-action m-sheet-action--split opacity-50"
+                  data-static="true"
+                >
+                  <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5">
+                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                    {remote.serverName ? (
+                      <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
+                        {remote.serverName}
+                      </span>
+                    ) : null}
+                  </div>
+                  {isHomeProject(project) ? null : (
+                    <ProjectRowMenuButton
+                      project={project}
+                      mobile
+                      onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {overflowTarget ? (
+            <ProjectOverflowMenu
+              project={overflowTarget.project}
+              anchor={overflowTarget.anchor}
+              onClose={() => setOverflowTarget(null)}
+              onAction={close}
+            />
+          ) : null}
+        </BottomSheet>
+      </>
     );
   }
 
@@ -493,7 +529,7 @@ export function SidebarProjectFilter(props: {
             </Label>
             <Dropdown.ItemIndicator />
           </Dropdown.Item>
-          <Separator />
+          {filterableProjects.length > 0 || unavailableProjects.length > 0 ? <Separator /> : null}
           {filterableProjects.map((project) => {
             const remote = remoteServerFor(project);
             return (
@@ -519,31 +555,29 @@ export function SidebarProjectFilter(props: {
               </Dropdown.Item>
             );
           })}
-          {unavailableProjects.length > 0 ? <Separator /> : null}
-          <Dropdown.Section selectionMode="none">
-            {unavailableProjects.map((project) => {
-              const remote = remoteServerFor(project);
-              return (
-                <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
-                  <ProjectSelectorIcon project={project} remote={remote} />
-                  <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
-                  {remote.serverName ? <Description>{remote.serverName}</Description> : null}
-                  {isHomeProject(project) ? null : (
-                    <ProjectRowMenuButton
-                      project={project}
-                      className="ms-auto"
-                      onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
-                    />
-                  )}
-                  {/* Invisible while unselected; marks the row as having an
-                     indicator so `.menu-item` picks up the same left inset
-                     (ps-7) the selectable rows have. The button itself is
-                     right-aligned by `ms-auto`, not by this spacer. */}
-                  <Dropdown.ItemIndicator />
-                </Dropdown.Item>
-              );
-            })}
-          </Dropdown.Section>
+          {filterableProjects.length > 0 && unavailableProjects.length > 0 ? <Separator /> : null}
+          {unavailableProjects.length > 0 ? (
+            <Dropdown.Section selectionMode="none">
+              {unavailableProjects.map((project) => {
+                const remote = remoteServerFor(project);
+                return (
+                  <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
+                    {remote.serverName ? <Description>{remote.serverName}</Description> : null}
+                    {isHomeProject(project) ? null : (
+                      <ProjectRowMenuButton
+                        project={project}
+                        className="ms-auto"
+                        onOpenMenu={(anchor) => setOverflowTarget({ project, anchor })}
+                      />
+                    )}
+                    <Dropdown.ItemIndicator />
+                  </Dropdown.Item>
+                );
+              })}
+            </Dropdown.Section>
+          ) : null}
         </Dropdown.Menu>
         {overflowTarget ? (
           <ProjectOverflowMenu

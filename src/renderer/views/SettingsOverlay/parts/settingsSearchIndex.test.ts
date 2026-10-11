@@ -151,6 +151,15 @@ describe("searchSettings", () => {
     expect(
       searchSettings("cookies", t, { remoteSession: true }).map((r) => r.anchor),
     ).not.toContain("browser.allowDataAccess");
+    expect(
+      searchSettings("agent sessions", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("threads.maxActiveAgentSessions");
+    expect(
+      searchSettings("terminal shells", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("threads.maxActiveTerminalShells");
+    expect(
+      searchSettings("generation helpers", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("threads.maxActiveGenerationHelpers");
   });
 
   it("hides Windows-only settings on other desktop platforms", () => {

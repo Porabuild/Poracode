@@ -1,4 +1,7 @@
+import "fake-indexeddb/auto";
+import { composerDraftStorage } from "./composerDraftStorage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readRawBrowserMetadataRecordForTest } from "./browserMetadataCacheRecords";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { findPaneSlotId, type PaneLayout } from "@/shared/paneLayout";
 import {
@@ -7,14 +10,29 @@ import {
   writeStoredSizes,
 } from "@/renderer/components/layout/paneSizeStorage";
 import { useAppStore, type AppStoreState } from "./appStore";
+import type { SessionConfigOptions } from "@/shared/contracts/sessionConfigOptions";
 import { MAX_KEEP_ALIVE_PANES } from "./slices/paneCacheSlice";
 import { selectHiddenHostedAgentTerminalIds } from "@/renderer/components/terminal/hostedAgentTerminalIds";
 import { usePanelStore } from "./panelStore";
+import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
+import type { PoracodeBridge } from "@/shared/ipc";
 import { useThreadFollowUpQueueStore } from "./threadFollowUpQueueStore";
+
+const volatileInventory: SessionConfigOptions = [
+  {
+    id: "reasoning",
+    type: "select",
+    role: "effort",
+    currentValue: "high",
+    values: [{ value: "high" }, { value: "low" }],
+    groups: [],
+  },
+];
 
 describe("appStore runtime config sync", () => {
   beforeEach(() => {
     vi.useRealTimers();
+    resetClientRuntimeForTest();
     localStorage.clear();
     useAppStore.setState((state) => ({
       ...state,
@@ -28,6 +46,104 @@ describe("appStore runtime config sync", () => {
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
     useThreadFollowUpQueueStore.getState().reset();
+  });
+
+  it("commits app metadata to the async cache when only a draft changes", async () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    // Hydration replaces persisted row arrays asynchronously; let it settle so
+    // the revision assertions below only see writes caused by this test.
+    if (!useAppStore.persist.hasHydrated()) {
+      await new Promise<void>((resolve) => useAppStore.persist.onFinishHydration(() => resolve()));
+    }
+    const project = useAppStore
+      .getState()
+      .addProject({ kind: "posix", path: "/draft-write-probe" });
+    const projectsOf = (record: Awaited<ReturnType<typeof readRawBrowserMetadataRecordForTest>>) =>
+      (record?.value as { state?: { projects?: Array<{ id: string; name: string }> } } | undefined)
+        ?.state?.projects;
+    const waitForSnapshot = async (
+      predicate: (
+        record: NonNullable<Awaited<ReturnType<typeof readRawBrowserMetadataRecordForTest>>>,
+      ) => boolean,
+    ) => {
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        const record = await readRawBrowserMetadataRecordForTest("poracode-app-v2");
+        if (record && predicate(record)) return record;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      throw new Error("timed out waiting for the app snapshot commit");
+    };
+
+    // The project reaches the IndexedDB cache and its revision settles.
+    let previousRevision: number | undefined;
+    const initial = await waitForSnapshot((record) => {
+      const settled = record.revision === previousRevision;
+      previousRevision = record.revision;
+      return (
+        settled && projectsOf(record)?.some((candidate) => candidate.id === project.id) === true
+      );
+    });
+
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      for (const text of ["a", "ab", "abc"]) {
+        useAppStore.getState().saveDraftContent(project.id, {
+          segments: [{ kind: "text", content: text }],
+          attachments: [],
+        });
+      }
+      composerDraftStorage()?.flush();
+      expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(0);
+      expect(
+        writes.mock.calls.filter(([name]) => name.startsWith("poracode-composer-draft-v1:")),
+      ).toHaveLength(1);
+      // Draft-only changes never re-commit the full app metadata.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect((await readRawBrowserMetadataRecordForTest("poracode-app-v2"))?.revision).toBe(
+        initial.revision,
+      );
+
+      useAppStore.getState().renameProject(project.id, "Renamed");
+      const renamed = await waitForSnapshot(
+        (record) =>
+          record.revision === initial.revision + 1 &&
+          projectsOf(record)?.some(
+            (candidate) => candidate.id === project.id && candidate.name === "Renamed",
+          ) === true,
+      );
+      expect(renamed.value).toMatchObject({
+        state: { projects: expect.arrayContaining([expect.objectContaining({ id: project.id })]) },
+      });
+      // The app snapshot never goes through the synchronous localStorage path.
+      expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(0);
+    } finally {
+      writes.mockRestore();
+      useAppStore.getState().clearDraftContent(project.id);
+    }
+  });
+
+  it.each(["thread", "project"] as const)("removes durable drafts when deleting a %s", (kind) => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/draft-fixture" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "claude",
+      config: { model: "test-model" },
+      prompt: "fixture",
+    });
+    const draft = { segments: [{ kind: "text" as const, content: "unsent" }], attachments: [] };
+    useAppStore.getState().saveDraftContent(project.id, draft);
+    useAppStore.getState().saveThreadDraftContent(thread.id, draft);
+    composerDraftStorage()?.flush();
+    // Include a newer checkpoint still awaiting its timer.
+    useAppStore.getState().saveThreadDraftContent(thread.id, draft);
+    if (kind === "project") useAppStore.getState().deleteProject(project.id);
+    else useAppStore.getState().deleteThread(thread.id);
+    composerDraftStorage()?.flush();
+    expect(composerDraftStorage()?.load("thread")[thread.id]).toBeUndefined();
+    expect(composerDraftStorage()?.load("project")[project.id]).toEqual(
+      kind === "project" ? undefined : draft,
+    );
+    useAppStore.getState().clearDraftContent(project.id);
   });
 
   it("keeps a newer reconnect marker when an older launch finishes", () => {
@@ -94,6 +210,7 @@ describe("appStore runtime config sync", () => {
       config: { model: "auto" },
       prompt: "hello",
     });
+    useAppStore.setState({ view: { kind: "home" } });
     const merge = useAppStore.persist.getOptions().merge!;
     const hydrated = merge(
       {
@@ -156,7 +273,7 @@ describe("appStore runtime config sync", () => {
     expect(updated?.worktreeBranch).toBe("feature/x");
   });
 
-  it("keeps an unresolved optimistic worktree thread out of persisted state", () => {
+  it("desktop persisted state is preferences-only (no catalog rows at all)", () => {
     const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
     const thread = useAppStore.getState().createThread({
       projectId: project.id,
@@ -166,7 +283,7 @@ describe("appStore runtime config sync", () => {
       worktreeBranch: "poracode/feature",
       worktreeProvisioning: true,
     });
-    const experimentThread = useAppStore.getState().createThread({
+    useAppStore.getState().createThread({
       projectId: project.id,
       agentKind: "codex",
       config: { model: "gpt-5.4" },
@@ -177,12 +294,16 @@ describe("appStore runtime config sync", () => {
     });
     const partialize = useAppStore.persist.getOptions().partialize!;
 
-    const unresolved = partialize(useAppStore.getState()) as Pick<
-      AppStoreState,
-      "threads" | "view"
-    >;
-    expect(unresolved.threads).not.toContainEqual(expect.objectContaining({ id: thread.id }));
-    expect(unresolved.threads).toContainEqual(expect.objectContaining({ id: experimentThread.id }));
+    const unresolved = partialize(useAppStore.getState()) as {
+      view: AppStoreState["view"];
+      threads?: unknown;
+      projects?: unknown;
+    };
+    // The catalog is host-owned: no row ever reaches desktop persistence.
+    expect(unresolved.threads).toBeUndefined();
+    expect(unresolved.projects).toBeUndefined();
+    // A view that points at the unresolved provisioning row is not restorable
+    // after restart, so the preference falls back to home.
     expect(unresolved.view).toEqual({ kind: "home" });
 
     useAppStore.getState().updateThreadRuntime(thread.id, {
@@ -190,22 +311,23 @@ describe("appStore runtime config sync", () => {
       attention: "error",
       canResumeWithConfig: false,
     });
-    const failed = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads">;
-    expect(failed.threads).not.toContainEqual(expect.objectContaining({ id: thread.id }));
+    const failed = partialize(useAppStore.getState()) as { threads?: unknown };
+    expect(failed.threads).toBeUndefined();
 
     useAppStore
       .getState()
       .setThreadWorktree(thread.id, "C:\\worktrees\\feature", "poracode/feature");
-    const resolved = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads" | "view">;
-    expect(resolved.threads).toContainEqual(
-      expect.objectContaining({ id: thread.id, worktreePath: "C:\\worktrees\\feature" }),
-    );
+    const resolved = partialize(useAppStore.getState()) as {
+      view: AppStoreState["view"];
+      threads?: unknown;
+    };
+    expect(resolved.threads).toBeUndefined();
     expect(useAppStore.getState().provisioningWorktreeThreadIds[thread.id]).toBeUndefined();
     expect(resolved.view).toMatchObject({ kind: "thread", panes: [thread.id] });
     expect(useAppStore.persist.getOptions().version).toBe(5);
   });
 
-  it("keeps remote archived threads out of persisted state", () => {
+  it("desktop persisted state carries no threads regardless of archive/projection", () => {
     const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
     const local = useAppStore.getState().createThread({
       projectId: project.id,
@@ -228,9 +350,9 @@ describe("appStore runtime config sync", () => {
     });
 
     const partialize = useAppStore.persist.getOptions().partialize!;
-    const persisted = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads">;
+    const persisted = partialize(useAppStore.getState()) as { threads?: unknown };
 
-    expect(persisted.threads.map((thread) => thread.id)).toEqual([local.id]);
+    expect(persisted.threads).toBeUndefined();
   });
 
   it("migrates legacy archived threads to store version 5", async () => {
@@ -249,6 +371,203 @@ describe("appStore runtime config sync", () => {
     >;
 
     expect(migrated.threads[0]?.archivedAt).toBe(thread.updatedAt);
+  });
+
+  it("persists remote rows and the open transcript route in the browser runtime", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const partialize = useAppStore.persist.getOptions().partialize!;
+    useAppStore.setState({
+      projects: [
+        {
+          id: "remote-project",
+          remoteId: "project-1",
+          remoteServerId: "desktop-1",
+          name: "Remote",
+          location: { kind: "posix", path: "/remote" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "remote-thread",
+          remoteId: "thread-1",
+          remoteServerId: "desktop-1",
+          projectId: "remote-project",
+          title: "Cached thread",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          archived: false,
+          done: false,
+          starred: false,
+          presentationMode: "gui",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "thread", panes: ["remote-thread"] },
+    });
+
+    const persisted = partialize(useAppStore.getState()) as Pick<
+      AppStoreState,
+      "projects" | "threads" | "view"
+    >;
+    expect(persisted.projects).toHaveLength(1);
+    expect(persisted.threads).toHaveLength(1);
+    expect(persisted.view).toEqual({ kind: "thread", panes: ["remote-thread"] });
+  });
+
+  it("persists browser rows without the volatile session-config inventory", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const partialize = useAppStore.persist.getOptions().partialize!;
+    useAppStore.setState({
+      projects: [
+        {
+          id: "remote-project",
+          remoteId: "project-1",
+          remoteServerId: "desktop-1",
+          name: "Remote",
+          location: { kind: "posix", path: "/remote" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "remote-thread",
+          remoteId: "thread-1",
+          remoteServerId: "desktop-1",
+          projectId: "remote-project",
+          title: "Cached thread",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          archived: false,
+          done: false,
+          starred: false,
+          presentationMode: "gui",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          sessionConfigOptions: volatileInventory,
+        },
+      ],
+      view: { kind: "thread", panes: ["remote-thread"] },
+    });
+
+    const persisted = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads">;
+    const row = persisted.threads![0]!;
+    // The live session inventory never reaches durable browser storage.
+    expect("sessionConfigOptions" in row).toBe(false);
+    // Everything the user owns survives the strip.
+    expect(row).toMatchObject({
+      id: "remote-thread",
+      remoteId: "thread-1",
+      remoteServerId: "desktop-1",
+      config: { model: "gpt-5.4" },
+      title: "Cached thread",
+    });
+    // The strip clones; the live store row keeps its event-delivered inventory.
+    expect(useAppStore.getState().threads[0]?.sessionConfigOptions).toEqual(volatileInventory);
+  });
+
+  it("rehydrates a same-version persisted row without stale session-config inventory", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const merge = useAppStore.persist.getOptions().merge!;
+    const persisted = {
+      projects: [
+        {
+          id: "remote-project",
+          remoteId: "project-1",
+          remoteServerId: "desktop-1",
+          name: "Remote",
+          location: { kind: "posix", path: "/remote" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "remote-thread",
+          remoteId: "thread-1",
+          remoteServerId: "desktop-1",
+          projectId: "remote-project",
+          title: "Cached thread",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          archived: false,
+          done: false,
+          starred: false,
+          presentationMode: "gui",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          sessionConfigOptions: volatileInventory,
+        },
+      ],
+      view: { kind: "thread", panes: ["remote-thread"] },
+      groupLayouts: {},
+    };
+
+    const hydrated = merge(persisted, useAppStore.getState()) as AppStoreState;
+    const row = hydrated.threads[0]!;
+    expect("sessionConfigOptions" in row).toBe(false);
+    expect(row).toMatchObject({
+      id: "remote-thread",
+      config: { model: "gpt-5.4" },
+      title: "Cached thread",
+      status: "inactive",
+    });
+  });
+
+  it("keeps live rows' session-config inventory when persisted rows carry none", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const merge = useAppStore.persist.getOptions().merge!;
+    const liveThread: AppStoreState["threads"][number] = {
+      id: "remote-thread",
+      remoteId: "thread-1",
+      remoteServerId: "desktop-1",
+      projectId: "remote-project",
+      title: "Cached thread",
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      sessionConfigOptions: volatileInventory,
+    };
+    useAppStore.setState({ threads: [liveThread] });
+    // A catalog-bearing persisted value without a threads array must not strip
+    // the store rows it falls back to.
+    const persisted = {
+      projects: [
+        {
+          id: "remote-project",
+          remoteId: "project-1",
+          remoteServerId: "desktop-1",
+          name: "Remote",
+          location: { kind: "posix", path: "/remote" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "thread", panes: ["remote-thread"] },
+      groupLayouts: {},
+    };
+
+    const hydrated = merge(persisted, useAppStore.getState()) as AppStoreState;
+
+    expect(hydrated.threads[0]?.sessionConfigOptions).toEqual(volatileInventory);
+    // The live object itself was never mutated by the hydrate.
+    expect(useAppStore.getState().threads[0]?.sessionConfigOptions).toEqual(volatileInventory);
   });
 
   it("clears provisional worktree launch state when deleting its project", () => {
@@ -1061,6 +1380,33 @@ describe("appStore runtime config sync", () => {
     });
   });
 
+  it("retains opaque execution metadata when the live reference keeps its native session id", () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/fixture" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "fixture",
+      config: { model: "model" },
+      prompt: "",
+    });
+    const reference = { providerSessionId: "session-1", discoveredAt: "2026-10-07T10:00:00Z" };
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      sessionRef: reference,
+    });
+    const bound = { ...reference, executionIdentity: "opaque-account-scope" };
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      sessionRef: bound,
+    });
+    expect(
+      useAppStore.getState().threads.find((entry) => entry.id === thread.id)?.sessionRef,
+    ).toEqual(bound);
+  });
+
   it("openThread on finished thread transitions to idle", () => {
     const project = useAppStore.getState().addProject({
       kind: "windows",
@@ -1771,6 +2117,75 @@ describe("appStore runtime config sync", () => {
 
     expect(useAppStore.getState().threads[0]?.status).toBe("idle");
     expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBeUndefined();
+  });
+
+  it("does not record a later close that lands on the same hangable row", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "grok",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      itemType: "assistant_message",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "content.delta",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      stream: "assistant_text",
+      delta: "Done.",
+    });
+
+    vi.setSystemTime(new Date("2026-05-01T12:00:22.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toHaveLength(1);
+
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    vi.setSystemTime(new Date("2026-05-01T12:00:44.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toEqual([
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:22.000Z").getTime(),
+        anchorItemId: "assistant-1",
+      },
+    ]);
   });
 });
 

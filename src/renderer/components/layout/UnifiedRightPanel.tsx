@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode, useRef } from "react";
-import { Dropdown, Label } from "@heroui/react";
+import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
 import {
+  ArrowLeft,
   Ellipsis,
   Lock,
   LockOpen,
@@ -10,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
+import { AgentPanelTitleRow } from "./AgentPanelTitleRow";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
 import { PanelDockDropZone } from "@/renderer/components/layout/PanelDock/PanelDockDropZone";
 import { PanelSectionHeader } from "@/renderer/components/layout/PanelDock/PanelSectionHeader";
@@ -45,10 +47,14 @@ export function UnifiedRightPanel(props: {
   portsContent?: ReactNode;
   docksContent?: ReactNode;
   subagentContent?: ReactNode;
-  subagentModel?: ReactNode;
+  sideChatContent?: ReactNode;
+  showSideChatTab?: boolean;
+  conversationModel?: ReactNode;
   subagentTitle?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the usage tab is active. */
   usageHeaderActions?: ReactNode;
+  /** Tab-specific action buttons rendered in the header when the ports tab is active. */
+  portsHeaderActions?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the docks tab is active. */
   docksHeaderActions?: ReactNode;
   showTerminalTab?: boolean;
@@ -61,6 +67,7 @@ export function UnifiedRightPanel(props: {
   showSubagentTab?: boolean;
   showBrowserTab?: boolean;
   onCloseSubagent?: () => void;
+  onBackSubagent?: () => void;
   projectName: string | undefined;
   onExpandGitToOverlay?: () => void;
   onExpandFilesToOverlay?: () => void;
@@ -97,9 +104,12 @@ export function UnifiedRightPanel(props: {
     portsContent,
     docksContent,
     subagentContent,
-    subagentModel,
+    sideChatContent,
+    showSideChatTab = false,
+    conversationModel,
     subagentTitle,
     usageHeaderActions,
+    portsHeaderActions,
     docksHeaderActions,
     showTerminalTab = true,
     showFilesTab = true,
@@ -111,6 +121,7 @@ export function UnifiedRightPanel(props: {
     showSubagentTab = false,
     showBrowserTab = true,
     onCloseSubagent,
+    onBackSubagent,
     projectName,
     onExpandGitToOverlay,
     onExpandFilesToOverlay,
@@ -157,7 +168,7 @@ export function UnifiedRightPanel(props: {
     defaultPercent: 50,
     minPercent: 20,
   });
-  const hasSubagentModel = activeTab === "subagent" && subagentModel !== undefined;
+  const hasConversationModel = conversationModel !== undefined;
   const hasSubagentTitle = activeTab === "subagent" && subagentTitle !== undefined;
 
   /** Inline opacity/transition so animation is not dropped if Tailwind misses dynamic class strings. */
@@ -174,6 +185,14 @@ export function UnifiedRightPanel(props: {
   const dragCtl = "poracode-overlay-header__controls";
   const labels = usePanelTabLabels();
   const tabs = [
+    {
+      id: "sideChat",
+      label: labels.sideChat,
+      icon: PANEL_TAB_ICONS.sideChat,
+      content: sideChatContent,
+      visible: showSideChatTab,
+      onOpen: undefined,
+    },
     {
       id: "docks",
       label: labels.docks,
@@ -276,6 +295,9 @@ export function UnifiedRightPanel(props: {
   const lockLabel = followsThread
     ? t`Unlock panel from the open thread`
     : t`Lock panel to the open thread`;
+  const lockHint = followsThread
+    ? t`Switching threads updates this panel to the focused thread's project and worktree.`
+    : t`Switching threads keeps this panel on the current project and worktree.`;
   const overflowActive =
     overflowedTabs.some((tab) => isTabOnScreen(tab.id)) || (lockOverflowed && followsThread);
 
@@ -295,8 +317,8 @@ export function UnifiedRightPanel(props: {
           ref={headerLeadingRef}
           className="flex min-w-0 max-w-[55%] shrink-0 items-center gap-1.5 overflow-hidden"
         >
-          {hasSubagentModel ? (
-            <div className="flex min-w-0 flex-1 items-center">{subagentModel}</div>
+          {hasConversationModel ? (
+            <div className="flex min-w-0 flex-1 items-center">{conversationModel}</div>
           ) : projectName ? (
             <PanelHeaderProjectName
               name={projectName}
@@ -304,6 +326,9 @@ export function UnifiedRightPanel(props: {
               triggerClassName={dragCtl}
             />
           ) : null}
+        </div>
+        <div className="flex-1" />
+        <div ref={headerAccessoryRef} className="flex shrink-0 items-center gap-1.5 empty:hidden">
           {activeTab === "git" && onExpandGitToOverlay && (
             <button
               type="button"
@@ -345,12 +370,7 @@ export function UnifiedRightPanel(props: {
             </button>
           )}
           {activeTab === "usage" ? usageHeaderActions : null}
-        </div>
-        <div className="flex-1" />
-        <div
-          ref={headerAccessoryRef}
-          className={activeTab === "docks" && docksHeaderActions ? "flex shrink-0" : "hidden"}
-        >
+          {activeTab === "ports" ? portsHeaderActions : null}
           {activeTab === "docks" ? docksHeaderActions : null}
         </div>
         <div className="mx-0.5 h-3 w-px bg-border" />
@@ -389,15 +409,23 @@ export function UnifiedRightPanel(props: {
           );
         })}
         {onToggleFollowsThread && !lockOverflowed ? (
-          <button
-            type="button"
-            className={`${dragCtl} ${panelHeaderTabIconButtonClass(followsThread)}`}
-            title={lockLabel}
-            aria-pressed={followsThread}
-            onClick={onToggleFollowsThread}
-          >
-            {followsThread ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
-          </button>
+          <Tooltip delay={300}>
+            <button
+              type="button"
+              className={`${dragCtl} ${panelHeaderTabIconButtonClass(followsThread)}`}
+              aria-label={lockLabel}
+              aria-pressed={followsThread}
+              onClick={onToggleFollowsThread}
+            >
+              {followsThread ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+            </button>
+            <Tooltip.Content placement="bottom" className="max-w-64">
+              <div className="flex flex-col gap-0.5 py-0.5 text-left">
+                <p className="font-medium">{lockLabel}</p>
+                <p className="text-xs text-muted">{lockHint}</p>
+              </div>
+            </Tooltip.Content>
+          </Tooltip>
         ) : null}
         {headerOverflow.showTrigger ? (
           <Dropdown>
@@ -458,19 +486,36 @@ export function UnifiedRightPanel(props: {
         </button>
       </div>
       {hasSubagentTitle ? (
-        <div className="poracode-right-panel-subagent-meta flex h-6 shrink-0 items-center gap-2 border-b border-[color:var(--border)] px-3">
-          <div className="min-w-0 flex-1">{subagentTitle}</div>
-          {onCloseSubagent ? (
-            <button
-              type="button"
-              className={`${dragCtl} ${panelHeaderIconButtonClass}`}
-              title={t`Close subagent`}
-              onClick={onCloseSubagent}
-            >
-              <X className="size-3.5" />
-            </button>
-          ) : null}
-        </div>
+        <AgentPanelTitleRow
+          className="poracode-right-panel-subagent-meta"
+          title={subagentTitle}
+          leading={
+            onBackSubagent ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className={`${dragCtl} ${panelHeaderIconButtonClass} size-5 min-h-0 min-w-0`}
+                aria-label={t`Back to Thread Info`}
+                onPress={onBackSubagent}
+              >
+                <ArrowLeft className="size-3.5" />
+              </Button>
+            ) : null
+          }
+          actions={
+            !onBackSubagent && onCloseSubagent ? (
+              <button
+                type="button"
+                className={`${dragCtl} ${panelHeaderIconButtonClass}`}
+                title={t`Close subagent`}
+                onClick={onCloseSubagent}
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null
+          }
+        />
       ) : null}
 
       {/* Content — stacked layers cross-fade on tab change; a dropped panel-tab

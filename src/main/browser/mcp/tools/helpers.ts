@@ -1,10 +1,4 @@
-import { resolveRefToSelector } from "../../pageDriver";
 import type { ResolvedBrowserTab, ToolContext } from "./types";
-
-export function clampInteger(value: unknown, fallback: number, min: number, max: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.max(min, Math.min(max, Math.floor(value)));
-}
 
 /** createTab options for an agent-created tab, carrying the calling thread so it
  *  joins that thread's tab group (named by the task). */
@@ -37,19 +31,6 @@ export async function resolveTabId(
   }
   const info = await ctx.manager.createTab({ activate: true }, agentTabOpts(ctx));
   return info.tabId;
-}
-
-export async function resolveSelectorArg(
-  tab: { webContents: Pick<ResolvedBrowserTab["webContents"], "executeJavaScript"> },
-  payload: Record<string, unknown>,
-): Promise<string | null> {
-  if (typeof payload.selector === "string" && payload.selector.length > 0) {
-    return payload.selector;
-  }
-  if (typeof payload.ref === "string" && payload.ref.length > 0) {
-    return await resolveRefToSelector(tab.webContents, payload.ref);
-  }
-  return null;
 }
 
 export async function requireTab(

@@ -1,0 +1,507 @@
+import {
+  isChromeExtensionOrigin,
+  resolveChromeSidebarExtensionIds,
+} from "@/shared/chromeSidebarProtocol";
+import { isIP } from "node:net";
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
+import { isLoopbackHostname } from "@/shared/http";
+import {
+  REMOTE_COMMAND_ID_HEADER,
+  REMOTE_PROJECT_COMMAND_RESULT_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  type RemoteAccessScope,
+} from "@/shared/remote";
+import {
+  ENVIRONMENT_AUTH_AUTHORITY_HEADER,
+  ENVIRONMENT_AUTHORIZATION_HEADER,
+} from "@/shared/environments";
+import { remoteTrustedProxyAddresses } from "../config";
+import { hasRelayLoopbackHopMarker } from "./relayHopSecret";
+import { socketMatchesTrustedProxy } from "./trustedProxy";
+import {
+  parseBearerAuthorizationHeader,
+  RemoteHttpError,
+  type AuthenticatedRemoteSession,
+  type RemoteAuthStore,
+} from "../auth";
+import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
+
+// Webview origins trusted for CORS. The `capacitor://` and `ionic://` schemes
+// exist solely for backward compatibility with the retired Capacitor mobile
+// shell, which may still be installed on a user's device. Capacitor itself is
+// fully removed from this repository and must not be reintroduced.
+const NATIVE_WEBVIEW_ORIGINS = new Set([
+  "capacitor://localhost",
+  "ionic://localhost",
+  "http://localhost",
+  "https://localhost",
+]);
+
+export const DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT = {
+  maxAttempts: 20,
+  windowMs: 5 * 60 * 1000,
+} as const;
+
+interface RateLimitBucket {
+  count: number;
+  resetAtMs: number;
+}
+
+export function normalizeHostForUrl(host: string): string {
+  return host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+}
+
+/**
+ * The ONE socket-address loopback classifier for peer-gating (deep-review
+ * consolidation: httpRouteHandlers, security, and desktopInternalStream each
+ * kept a slightly divergent copy). `undefined` means no socket address was
+ * reported (never admit); an empty address is a unix-domain socket (local by
+ * construction).
+ */
+export function isLoopbackSocketAddress(address: string | undefined): boolean {
+  if (address === undefined) return false;
+  const normalized = address.trim().toLowerCase();
+  if (normalized === "") return true;
+  if (normalized === "::1" || normalized === "[::1]") return true;
+  const mapped = normalized.startsWith("::ffff:") ? normalized.slice("::ffff:".length) : normalized;
+  const host = mapped.startsWith("[") ? mapped.slice(1, mapped.indexOf("]")) : mapped;
+  return host === "127.0.0.1" || host.startsWith("127.");
+}
+
+export { RELAY_LOOPBACK_HOP_HEADER, hasRelayLoopbackHopMarker } from "./relayHopSecret";
+
+/** The request slice the direct-loopback peer classifier reads. */
+export interface DirectLoopbackPeerRequest {
+  readonly headers: IncomingHttpHeaders;
+  readonly socket: { readonly remoteAddress?: string | undefined };
+}
+
+/**
+ * Headers a reverse proxy or tunnel stamps when dialing on someone else's
+ * behalf. Presence alone is the claim — a direct local dial never carries one,
+ * and a genuine local client that sends one only downgrades itself — so any of
+ * these disqualifies locality regardless of the trusted-proxy configuration
+ * (which only covers proxies the operator knew to declare).
+ */
+const PROXY_FORWARDING_HEADERS = ["x-forwarded-for", "forwarded", "x-real-ip"] as const;
+
+/** Whether the request carries any proxy-forwarding claim (single or array form). */
+export function hasProxyForwardingHeaders(req: { readonly headers: IncomingHttpHeaders }): boolean {
+  return PROXY_FORWARDING_HEADERS.some((header) => req.headers[header] !== undefined);
+}
+
+/**
+ * Whether the request is a DIRECT loopback peer: socket address loopback AND
+ * no proxied-dial marker. The relay adapter connects from loopback, which
+ * alone would make every remote visitor 'local' to address-based gates; a
+ * configured trusted proxy (or a request advertising forwarding via
+ * `X-Forwarded-For` / `Forwarded` / `X-Real-IP`) hides the real visitor behind
+ * that same loopback socket — all three fail closed here.
+ */
+export function isDirectLoopbackPeer(
+  req: DirectLoopbackPeerRequest,
+  trustedProxies: readonly string[] = [],
+): boolean {
+  return (
+    isLoopbackSocketAddress(req.socket.remoteAddress) &&
+    !hasRelayLoopbackHopMarker(req) &&
+    !socketMatchesTrustedProxy(req.socket.remoteAddress, trustedProxies) &&
+    !hasProxyForwardingHeaders(req)
+  );
+}
+
+/**
+ * The ONE trusted-proxy allow-list resolver: explicit server options win,
+ * `PORACODE_REMOTE_TRUSTED_PROXIES` is the shared fallback (the standalone
+ * server seeds it from `--trusted-proxies`; the embedded server reads the
+ * environment directly). Resolved per request so every gate — rate limiting
+ * and the direct-loopback locality gates alike — sees the same list.
+ */
+export function resolvedTrustedProxies(options: {
+  readonly trustedProxies?: readonly string[] | undefined;
+}): readonly string[] {
+  return options.trustedProxies ?? remoteTrustedProxyAddresses();
+}
+
+/**
+ * Keys the rate-limit bucket on the real visitor. Behind the relay, every
+ * request arrives from loopback (`relayHost` proxies to the server's own
+ * loopback port), which would collapse all remote devices into one shared
+ * bucket and defeat per-client throttling.
+ *
+ * `X-Forwarded-For` is honored only when the request carries this process's
+ * relay hop secret (the in-process adapter stamps it) or the socket matches
+ * `PORACODE_REMOTE_TRUSTED_PROXIES` (exact address or CIDR). A client-set
+ * hop marker is stripped at ingress and never grants a budget (V6 A.6).
+ */
+export function resolveRateLimitClient(
+  req: IncomingMessage,
+  trustedProxies: readonly string[] = [],
+): string {
+  const remoteAddress = req.socket.remoteAddress ?? "unknown";
+  const mayTrustXff =
+    hasRelayLoopbackHopMarker(req) ||
+    socketMatchesTrustedProxy(req.socket.remoteAddress, trustedProxies);
+  if (!mayTrustXff) return remoteAddress;
+  const forwarded = req.headers["x-forwarded-for"];
+  const hops = (Array.isArray(forwarded) ? forwarded.join(",") : (forwarded ?? ""))
+    .split(",")
+    .map((hop) => unbracketForwardedHop(hop.trim()))
+    .filter((hop) => hop.length > 0);
+  // Walk from the nearest hop outward and stop at the first address that is
+  // not itself a trusted proxy. The leftmost entry is whatever the client
+  // sent before any proxy appended to it, so keying on it would let a
+  // client mint a fresh bucket per request and bypass the limits.
+  // When every hop is itself trusted, the nearest entry is still the one our
+  // own proxy appended; the leftmost would again be client-chosen.
+  const visitor = hops.findLast((hop) => !socketMatchesTrustedProxy(hop, trustedProxies));
+  return visitor ?? hops.at(-1) ?? remoteAddress;
+}
+
+/** `[2001:db8::1]` or `[2001:db8::1]:443` → `2001:db8::1`, so bracketed IPv6
+ * hops compare against trusted-proxy entries like socket addresses do. */
+function unbracketForwardedHop(hop: string): string {
+  if (!hop.startsWith("[")) return hop;
+  const end = hop.indexOf("]");
+  return end > 1 ? hop.slice(1, end) : hop;
+}
+
+/**
+ * A loopback web origin (any port), e.g. `http://localhost:3100` or
+ * `http://127.0.0.1:8080`. The page itself is local, but its target Poracode
+ * app may be any paired desktop/headless host. Pairing still requires the
+ * one-time credential, and the resulting access token remains isolated to the
+ * page's exact browser origin.
+ */
+function isLoopbackWebOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    return isLoopbackHostname(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function normalizeCorsOrigin(rawOrigin: string): string | null {
+  const trimmed = rawOrigin.trim().replace(/\/+$/, "");
+  if (!trimmed || trimmed === "null") return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.origin !== "null") return url.origin;
+    if (url.protocol === "capacitor:" || url.protocol === "ionic:") {
+      return `${url.protocol}//${url.host}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** State + accessors the security helpers need from the orchestrator. */
+export interface SecurityContext {
+  /** The advertised HTTP base URL once the server has started (the CORS key). */
+  getHttpBaseUrl(): string | undefined;
+  /**
+   * The local (this listener's) base URL once the server has started — carries
+   * the actual bound port even when the advertised origin is a reverse proxy.
+   */
+  getLocalHttpBaseUrl(): string | undefined;
+  readonly options: RemoteAccessServerOptions;
+  readonly auth: RemoteAuthStore;
+}
+
+/**
+ * Owns the CORS trust decision, the per-client rate-limit buckets, and bearer
+ * authentication for the remote HTTP surface. Keeps its mutable caches
+ * (`trustedCorsOrigins`, `rateLimitBuckets`) private so the orchestrator only
+ * delegates rather than reaching into them.
+ */
+export class RemoteServerSecurity {
+  private readonly rateLimitBuckets = new Map<string, RateLimitBucket>();
+  /** Cached normalized allow-list, keyed on the (only) mutable input `httpBaseUrl`. */
+  private trustedCorsOrigins: { key: string | undefined; origins: ReadonlySet<string> } | null =
+    null;
+  /**
+   * Cached Host-header allowlist (Gate 6 item 4.7), keyed on the advertised
+   * base URL — the only input that changes after startup.
+   */
+  private allowedHostForms: { key: string | undefined; forms: AllowedHostForms } | null = null;
+
+  constructor(private readonly ctx: SecurityContext) {}
+
+  /**
+   * The resolved client address used by the pre-auth fairness bound (B3) and
+   * the rate limiter: relay-hop / trusted-proxy aware, and never treated as
+   * identity for authentication or post-auth accounting.
+   */
+  resolveClientAddress(req: IncomingMessage): string {
+    return resolveRateLimitClient(req, resolvedTrustedProxies(this.ctx.options));
+  }
+
+  applyCors(req: IncomingMessage, res: ServerResponse): boolean {
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      // Fixed allow-list, never a reflection of `Access-Control-Request-Headers`.
+      // The C1 parent proxy credential travels in its own reserved header
+      // (never `Authorization`, which stays the child's bearer), so browser
+      // preflights on the environment data plane must be allowed to send it.
+      // The bounded project-command declaration is an ordinary request header
+      // too: `window.fetch` cannot send it (directly or through the parent
+      // proxy) unless a preflight names it here. The writer-generation header
+      // (remote 13) is the same class: the PWA attaches it to every
+      // authenticated non-GET request, and every writer route refuses without
+      // it, so a preflight that cannot name it would refuse every mutation.
+      `authorization, content-type, ${REMOTE_COMMAND_ID_HEADER}, ` +
+        `${ENVIRONMENT_AUTHORIZATION_HEADER}, ${REMOTE_PROJECT_COMMAND_RESULT_HEADER}, ` +
+        REMOTE_PROTOCOL_VERSION_HEADER,
+    );
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    // C1 R1: the parent's auth-authority marker is a response header the
+    // browser client must be able to read off a failed proxied request;
+    // `window.fetch` cannot see non-exposed response headers. `Vary` already
+    // carries `Origin` below, and the marker is emitted by the parent only.
+    res.setHeader("Access-Control-Expose-Headers", ENVIRONMENT_AUTH_AUTHORITY_HEADER);
+    // An absent Origin is a distinct cache variant too (native vs browser).
+    res.setHeader("Vary", "Origin");
+    const origin = this.trustedRequestOrigin(req);
+    if (origin === false) return false;
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+    if (req.method === "OPTIONS" && origin) {
+      // Reuse the CORS permission check without another network round trip.
+      // Every actual request still validates its origin and bearer credential.
+      res.setHeader("Access-Control-Max-Age", "600");
+    }
+    return true;
+  }
+
+  private trustedRequestOrigin(req: IncomingMessage): string | null | false {
+    const rawOrigin = Array.isArray(req.headers.origin)
+      ? req.headers.origin[0]
+      : req.headers.origin;
+    if (!rawOrigin) return null;
+    // The companion client pairs through the existing local Chrome bridge.
+    // Origin trust grants CORS only, for pinned extension IDs; all data still
+    // requires the normal bearer.
+    if (
+      isChromeExtensionOrigin(rawOrigin, resolveChromeSidebarExtensionIds(process.env)) &&
+      isDirectLoopbackPeer(req, resolvedTrustedProxies(this.ctx.options))
+    )
+      return rawOrigin!;
+    const origin = normalizeCorsOrigin(rawOrigin);
+    if (!origin || !this.isTrustedCorsOrigin(origin)) return false;
+    return origin;
+  }
+
+  private isTrustedCorsOrigin(origin: string): boolean {
+    if (NATIVE_WEBVIEW_ORIGINS.has(origin)) return true;
+    if (isLoopbackWebOrigin(origin)) return true;
+    const relayOrigin = this.ctx.options.getRelayPublicOrigin?.();
+    if (relayOrigin && normalizeCorsOrigin(relayOrigin) === origin) return true;
+    const key = this.ctx.getHttpBaseUrl();
+    let cache = this.trustedCorsOrigins;
+    if (!cache || cache.key !== key) {
+      const origins = new Set<string>();
+      for (const value of [
+        key,
+        this.ctx.options.pairingAppUrl,
+        this.ctx.options.devWebAppUrl,
+        ...(this.ctx.options.trustedCorsOrigins ?? []),
+      ]) {
+        if (!value) continue;
+        const normalized = normalizeCorsOrigin(value);
+        if (normalized) origins.add(normalized);
+      }
+      cache = { key, origins };
+      this.trustedCorsOrigins = cache;
+    }
+    return cache.origins.has(origin);
+  }
+
+  enforceRateLimit(
+    req: IncomingMessage,
+    bucketName: string,
+    config: { readonly maxAttempts: number; readonly windowMs: number },
+  ): void {
+    const now = Date.now();
+    for (const [key, bucket] of this.rateLimitBuckets) {
+      if (bucket.resetAtMs <= now) {
+        this.rateLimitBuckets.delete(key);
+      }
+    }
+    const client = resolveRateLimitClient(req, resolvedTrustedProxies(this.ctx.options));
+    const key = `${bucketName}:${client}`;
+    const bucket = this.rateLimitBuckets.get(key);
+    if (!bucket || bucket.resetAtMs <= now) {
+      this.rateLimitBuckets.set(key, { count: 1, resetAtMs: now + config.windowMs });
+      return;
+    }
+    if (bucket.count >= config.maxAttempts) {
+      throw new RemoteHttpError(
+        "rate_limited",
+        "Too many remote access attempts. Try again shortly.",
+        429,
+      );
+    }
+    bucket.count += 1;
+  }
+
+  requireBearer(req: IncomingMessage, scopes: readonly RemoteAccessScope[]): string {
+    return this.requireBearerSession(req, scopes).token;
+  }
+
+  /**
+   * Bearer authentication that also hands back the authenticated session, so
+   * the dispatcher can attach it to the route call (audit trail, per-session
+   * decisions) without re-hashing the token. Same checks as
+   * {@link requireBearer}.
+   */
+  requireBearerSession(
+    req: IncomingMessage,
+    scopes: readonly RemoteAccessScope[],
+  ): { token: string; session: AuthenticatedRemoteSession } {
+    const header = Array.isArray(req.headers.authorization)
+      ? req.headers.authorization[0]
+      : req.headers.authorization;
+    const token = parseBearerAuthorizationHeader(header);
+    if (!token) {
+      throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
+    }
+    const session = this.ctx.auth.authenticateBearerToken(token, scopes);
+    return { token, session };
+  }
+
+  /**
+   * Gate 6 item 4.7 (S7): DNS-rebinding defense on the remote server, same
+   * posture as the MCP ingress (`StreamableHttpMcpIngress.isAllowedHost`): a
+   * browser that resolves an attacker-controlled DNS name to this server sends
+   * that name in `Host`, so only the server's own advertised host/port forms
+   * are admitted — loopback names, raw IP literals (direct LAN/tailnet and
+   * relay-proxy dials), and the explicitly advertised hostnames
+   * (`advertisedHost`, `advertisedBaseUrl`, `tailscaleHttpBaseUrl`). When the
+   * `Host` header carries a port it must be the bound port (or, for an
+   * advertised hostname, that origin's own proxy port). Fails closed.
+   *
+   * Runs on the Poracode API/PWA request path only: forward child-origin
+   * traffic is dispatched (or bounded-errored) before this router, and the
+   * relay's local adapter dials the server by its loopback address, which the
+   * IP-literal rule admits.
+   */
+  enforceHostHeader(req: IncomingMessage): void {
+    const hostHeader = Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host;
+    const trimmed = hostHeader?.trim();
+    if (!trimmed) {
+      throw new RemoteHttpError(
+        "host_not_allowed",
+        "Request host is not allowed for this server.",
+        403,
+      );
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(`http://${trimmed}`);
+    } catch {
+      throw new RemoteHttpError(
+        "host_not_allowed",
+        "Request host is not allowed for this server.",
+        403,
+      );
+    }
+    let hostname = parsed.hostname.toLowerCase();
+    if (hostname.startsWith("[") && hostname.endsWith("]")) {
+      hostname = hostname.slice(1, -1);
+    }
+    const headerPort = parsed.port === "" ? null : Number(parsed.port);
+    const forms = this.resolveAllowedHostForms();
+    if (isIP(hostname) !== 0 || hostname === "localhost") {
+      // Loopback and raw IP dials must target the bound port when they say one.
+      if (headerPort !== null && headerPort !== forms.localPort) {
+        throw new RemoteHttpError(
+          "host_not_allowed",
+          "Request host is not allowed for this server.",
+          403,
+        );
+      }
+      return;
+    }
+    if (forms.hostnames.has(hostname)) {
+      const allowedPorts = forms.hostnamePorts.get(hostname);
+      // Hostnames of advertised origins may arrive without a port (proxied
+      // default-port requests); an explicit port must be one that origin is
+      // actually advertised on (or the bound port).
+      if (headerPort !== null && !allowedPorts?.includes(headerPort)) {
+        throw new RemoteHttpError(
+          "host_not_allowed",
+          "Request host is not allowed for this server.",
+          403,
+        );
+      }
+      return;
+    }
+    throw new RemoteHttpError(
+      "host_not_allowed",
+      "Request host is not allowed for this server.",
+      403,
+    );
+  }
+
+  private resolveAllowedHostForms(): AllowedHostForms {
+    const key = this.ctx.getHttpBaseUrl();
+    let cache = this.allowedHostForms;
+    if (!cache || cache.key !== key) {
+      const localPort = portOf(this.ctx.getLocalHttpBaseUrl());
+      const hostnames = new Set<string>();
+      const hostnamePorts = new Map<string, number[]>();
+      const addHostnameForm = (rawOrigin: string | undefined, includeDefaultPort: boolean) => {
+        if (!rawOrigin) return;
+        try {
+          const origin = new URL(rawOrigin);
+          const hostname = origin.hostname.toLowerCase();
+          if (!hostname || isIP(hostname) !== 0 || hostname === "localhost") return;
+          if (hostnames.has(hostname)) return;
+          hostnames.add(hostname);
+          const ports = new Set<number>();
+          if (localPort !== null) ports.add(localPort);
+          if (origin.port !== "") ports.add(Number(origin.port));
+          // A proxied origin advertised without an explicit port is reached
+          // with the scheme's default port (https → 443); a Host header that
+          // spells it out must still be admitted.
+          else if (includeDefaultPort && origin.protocol === "https:") ports.add(443);
+          else if (includeDefaultPort && origin.protocol === "http:") ports.add(80);
+          hostnamePorts.set(hostname, [...ports]);
+        } catch {
+          // A malformed advertised origin contributes nothing.
+        }
+      };
+      addHostnameForm(
+        this.ctx.options.advertisedHost ? `http://${this.ctx.options.advertisedHost}` : undefined,
+        false,
+      );
+      addHostnameForm(this.ctx.options.advertisedBaseUrl, true);
+      addHostnameForm(this.ctx.options.tailscaleHttpBaseUrl, true);
+      cache = { key, forms: { localPort, hostnames, hostnamePorts } };
+      this.allowedHostForms = cache;
+    }
+    return cache.forms;
+  }
+}
+
+/** Port the listener is actually bound to, parsed from the local base URL. */
+function portOf(baseUrl: string | undefined): number | null {
+  if (!baseUrl) return null;
+  try {
+    const parsed = new URL(baseUrl);
+    return parsed.port === "" ? null : Number(parsed.port);
+  } catch {
+    return null;
+  }
+}
+
+/** The cached Host-header allowlist: bound port plus advertised hostname forms. */
+interface AllowedHostForms {
+  readonly localPort: number | null;
+  readonly hostnames: ReadonlySet<string>;
+  readonly hostnamePorts: ReadonlyMap<string, readonly number[]>;
+}

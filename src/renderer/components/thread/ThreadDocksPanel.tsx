@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { GripVertical } from "lucide-react";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { reorderVisibleThreadDocks, type ThreadDockKind } from "@/shared/settings";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -118,7 +118,7 @@ export function ThreadDocksPanel({
       summary.backgroundTaskCount > 0 ? (
         <ThreadBackgroundTasksDock threadId={threadId} placement="right" />
       ) : null,
-    images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} /> : null,
+    images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} threadId={threadId} /> : null,
   };
   const labels: Record<ThreadDockKind, string> = {
     goal: t`Goal`,
@@ -144,6 +144,11 @@ export function ThreadDocksPanel({
     <div role="region" aria-label={t`Thread docks`} className="flex h-full min-h-0 flex-col">
       {/* The title and placement toggle live in the shared right-panel header. */}
       <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+        {visibleOrder.length === 0 ? (
+          <p className="px-3 py-3 text-xs text-foreground-muted">
+            <Trans>No active tasks.</Trans>
+          </p>
+        ) : null}
         <DragDropProvider onDragEnd={handleDragEnd}>
           {visibleOrder.map((kind, index) => (
             <DockSection key={kind} kind={kind} index={index} label={labels[kind]}>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="runtime_context_label">Ngữ cảnh</string>
+    <string name="runtime_context_usage">Mức sử dụng ngữ cảnh</string>
+    <string name="runtime_context_show_details">Hiện chi tiết mức sử dụng ngữ cảnh</string>
+    <string name="runtime_context_hide_details">Ẩn chi tiết mức sử dụng ngữ cảnh</string>
+    <string name="runtime_context_percent_full">Đã dùng %1$d%%</string>
+    <string name="runtime_context_percent">%1$d%%</string>
+    <string name="runtime_context_used_and_limit">%1$s / %2$s token</string>
+    <string name="runtime_context_used_value">Đã dùng %1$s</string>
+    <string name="runtime_context_limit_value">Giới hạn: %1$s</string>
+    <string name="runtime_context_used">Đã dùng</string>
+    <string name="runtime_context_unknown">Không xác định</string>
+    <string name="runtime_context_provider_unreported">Nhà cung cấp chưa báo cáo mức sử dụng token.</string>
+    <string name="runtime_context_summary">%1$s: %2$s</string>
+    <string name="runtime_context_compact_thousands">%1$s N</string>
+    <string name="runtime_context_compact_millions">%1$s Tr</string>
+</resources>

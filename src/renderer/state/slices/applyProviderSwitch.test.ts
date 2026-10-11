@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "../appStore";
+import { clearLiveObservedCrossagentItems } from "./staleSubAgents";
 
 function currentThread(threadId: string) {
   return useAppStore.getState().threads.find((thread) => thread.id === threadId);
@@ -384,5 +385,47 @@ describe("queueThreadLaunch provider switch marker", () => {
     });
     expect(items.done).toMatchObject({ state: "completed", payload: { status: "completed" } });
     expect(useAppStore.getState().runtimeStructuralVersionByThread[thread.id]).toBe(4);
+  });
+
+  // The switch path force-terminates even live-observed Crossagent rows: the
+  // supervisor tears the thread down through closeThread, which cancels every
+  // run for it. Seeding via applyRuntimeEvent marks the row live, so this pins
+  // the `force` flag itself — without it the tile would keep spinning forever.
+  it("finalizes a live-observed Crossagent row on the provider switch force path", () => {
+    clearLiveObservedCrossagentItems();
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "claude",
+      config: { model: "claude-opus-5" },
+      prompt: "start the task",
+      presentationMode: "gui",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "cross-live",
+      itemType: "tool_call",
+      payload: {
+        name: "spawn_agent",
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+
+    useAppStore.getState().applyProviderSwitch(thread.id, {
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      presentationMode: "gui",
+    });
+
+    expect(useAppStore.getState().runtimeItemsByIdByThread[thread.id]!["cross-live"]).toMatchObject(
+      {
+        state: "completed",
+        payload: { status: "error", crossagentStatus: "failed" },
+      },
+    );
+    clearLiveObservedCrossagentItems();
   });
 });

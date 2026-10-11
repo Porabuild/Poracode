@@ -1,5 +1,6 @@
 import type { DraftContent } from "./slices/types";
 import type { ComposerSeed, PendingComposerSeed } from "./slices/draftSlice";
+import { hasAnyClientBridge, readClientRuntime } from "@/renderer/clientRuntime";
 
 export {
   remapProjectView,
@@ -70,7 +71,6 @@ export function projectIdentityOptions(platform: NodeJS.Platform) {
 }
 
 export function currentProjectIdentityOptions() {
-  const platform =
-    typeof window !== "undefined" && window.poracode ? window.poracode.platform : "linux";
+  const platform = hasAnyClientBridge() ? readClientRuntime().native.platform : "linux";
   return projectIdentityOptions(platform);
 }

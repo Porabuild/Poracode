@@ -1,9 +1,11 @@
 import type { PoracodeChannel } from "../channel";
+import type { SideChatBootstrap, SideChatThreadBinding, SideChatWindowsChanged } from "./sideChat";
 import type { RemoteThreadCommand } from "../contracts";
 import type { RemoteAccessPairingInfo } from "../remote";
 import type { SharedSettings } from "../settings";
+import type { UserNotification } from "../threadNotification";
 import type { GitStatePatch } from "../gitState";
-import { createChannel } from "./core";
+import type { PoracodeWindowKind } from "./channels";
 import {
   ipcProcedureMap,
   type IpcProcedureName,
@@ -16,15 +18,24 @@ import type {
   BrowserEvent,
   PrWatchMergedEvent,
   PrWatchStatusEvent,
-  ProjectStateChangedEvent,
   SupervisorEvent,
   ThreadOpenRequestedEvent,
   UpdateStatus,
 } from "./events";
 import type { QuickComposerSubmission } from "./schemas";
+import type {
+  RemoteHttpBridgeCancelRequest,
+  RemoteHttpBridgeOpenRequest,
+  RemoteHttpBridgeOpenResult,
+} from "../remote/httpBridgeProtocol";
+import type { EventSequenceSpace } from "../eventSequenceSpace";
 
-export const PORACODE_WINDOW_KINDS = ["main", "browserExtract", "quickComposer"] as const;
-export type PoracodeWindowKind = (typeof PORACODE_WINDOW_KINDS)[number];
+export {
+  IPC_EVENT_CHANNELS,
+  IPC_WINDOW_CHANNELS,
+  PORACODE_WINDOW_KINDS,
+  type PoracodeWindowKind,
+} from "./channels";
 
 type ProcedureArgs<Name extends IpcProcedureName> =
   (typeof ipcProcedureMap)[Name]["__types"]["args"];
@@ -34,6 +45,14 @@ export type PoracodeInvokeBridge = {
 };
 
 export type PoracodeBridge = PoracodeInvokeBridge & {
+  openSideChatWindow?: (input: SideChatBootstrap) => Promise<void>;
+  openSideChatPanel?: (input: SideChatBootstrap) => Promise<void>;
+  attachSideChatWindow?: (input: SideChatThreadBinding) => Promise<void>;
+  closeSideChatPanel?: () => Promise<void>;
+  getSideChatWindowInfo?: () => Promise<SideChatBootstrap | null>;
+  bindSideChatThread?: (input: SideChatThreadBinding) => Promise<void>;
+  getSideChatThreadIds?: () => Promise<string[]>;
+  onSideChatWindowsChanged?: (listener: (event: SideChatWindowsChanged) => void) => () => void;
   platform: NodeJS.Platform;
   appVersion: string;
   arch: string;
@@ -55,17 +74,23 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   posthogKey: string;
   sentryEnabled: boolean;
   getDroppedFilePaths(files: File[]): string[];
-  onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
+  onSupervisorEvent(
+    listener: (
+      event: SupervisorEvent,
+      rendererSequence?: number,
+      sequenceSpace?: EventSequenceSpace,
+    ) => void,
+  ): () => void;
   onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
   onBrowserEvent(listener: (event: BrowserEvent) => void): () => void;
-  /** Thread-metadata mutations issued by paired remote clients (mobile PWA). */
+  /** Thread-metadata mutations issued by paired browser clients. */
   onRemoteThreadCommand(listener: (command: RemoteThreadCommand) => void): () => void;
   /** Active remote-access code or paired-device state changed in main. */
   onRemoteAccessPairingChanged(listener: (info: RemoteAccessPairingInfo) => void): () => void;
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
   onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
-  onProjectStateChanged(listener: (event: ProjectStateChangedEvent) => void): () => void;
   onGitStateChanged(listener: (patch: GitStatePatch) => void): () => void;
+  onUserNotification(listener: (notification: UserNotification) => void): () => void;
   onPrWatchMerged(listener: (event: PrWatchMergedEvent) => void): () => void;
   /** Live PR state observed by the PR-watch loop, so watched PRs stay fresh. */
   onPrWatchStatus(listener: (event: PrWatchStatusEvent) => void): () => void;
@@ -77,6 +102,15 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   reloadRenderer(): Promise<void>;
   onQuickComposerSubmit(listener: (submission: QuickComposerSubmission) => void): () => void;
   onQuickComposerDismissRequested(listener: () => void): () => void;
+  onQuickComposerShown(listener: () => void): () => void;
+  /**
+   * Electron-only off-main remote HTTP bridge. Browser runtimes omit these and
+   * use native `fetch`; the Electron preload provides them at facade version 11
+   * along with the `remoteHttpBridgeVersion` marker.
+   */
+  remoteHttpBridgeVersion?: number;
+  openRemoteHttpBridge?(request: RemoteHttpBridgeOpenRequest): Promise<RemoteHttpBridgeOpenResult>;
+  cancelRemoteHttpBridge?(request: RemoteHttpBridgeCancelRequest): Promise<void>;
 };
 
 export function createInvokeBridge(
@@ -132,27 +166,3 @@ export function defineSupervisorIpcHandlers<THandlers extends SupervisorIpcHandl
 ): THandlers {
   return handlers;
 }
-
-export const IPC_EVENT_CHANNELS = {
-  supervisorEvent: createChannel("supervisorEvent"),
-  updateStatus: createChannel("updateStatus"),
-  browserEvent: createChannel("browserEvent"),
-  remoteThreadCommand: createChannel("remoteThreadCommand"),
-  remoteAccessPairingChanged: createChannel("remoteAccessPairingChanged"),
-  sharedSettingsChanged: createChannel("sharedSettingsChanged"),
-  projectStateChanged: createChannel("projectStateChanged"),
-  gitStateChanged: createChannel("gitStateChanged"),
-  prWatchMerged: createChannel("prWatchMerged"),
-  prWatchStatus: createChannel("prWatchStatus"),
-  threadOpenRequested: createChannel("threadOpenRequested"),
-  quickComposerSubmit: createChannel("quickComposerSubmit"),
-  quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),
-} as const;
-
-export const IPC_WINDOW_CHANNELS = {
-  quickComposerSubmit: createChannel("quickComposerWindowSubmit"),
-  quickComposerDismiss: createChannel("quickComposerWindowDismiss"),
-  quickComposerPickFiles: createChannel("quickComposerWindowPickFiles"),
-  quickComposerMainReady: createChannel("quickComposerMainReady"),
-  rendererReload: createChannel("rendererReload"),
-} as const;

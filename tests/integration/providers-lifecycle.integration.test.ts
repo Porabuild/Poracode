@@ -15,6 +15,11 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import { createAgentRegistry } from "@/supervisor/agents/registry";
 import { SupervisorRuntime } from "@/supervisor/supervisorRuntime";
+import {
+  LIVE_PROVIDERS_REQUIRED_ENV,
+  parseRequiredLiveProviders,
+  skipOrThrowRequired,
+} from "./helpers/liveProvidersRequired";
 
 // Live-CLI integration: for each adapter in `createAgentRegistry()`, this test
 // starts a real thread with a cheap model, waits for sessionRef discovery,
@@ -22,6 +27,12 @@ import { SupervisorRuntime } from "@/supervisor/supervisorRuntime";
 // the resumed PTY's terminal scrollback. Providers that aren't installed or
 // authenticated are skipped — the test fails only when an installed +
 // authenticated provider loses the initial message across close/resume.
+//
+// Strict mode: set PORACODE_LIVE_PROVIDERS_REQUIRED to a comma-separated list
+// of provider kinds that MUST run (e.g. "claude,codex"). Every named kind must
+// be a known registry kind, and none of them may silently skip — a missing
+// binary, credential, or model fails the named provider's test instead of
+// skipping it. Unset, the suite keeps its ordinary skip-for-absent behavior.
 
 const PROMPT_TOKEN = `poracode-int-${randomUUID().slice(0, 8)}`;
 const PROMPT = `Reply with the single word OK. (token: ${PROMPT_TOKEN})`;
@@ -35,6 +46,7 @@ const SCROLLBACK_WAIT_TIMEOUT_MS = 120_000;
 // model. None of these defaults are guaranteed to exist on every host — the
 // test will surface a clear error if the chosen model is rejected by the CLI.
 const PREFERRED_MODEL: Record<string, string> = {
+  devin: "swe-1-6-fast",
   claude: "haiku",
   cursor: "auto",
   antigravity: "auto",
@@ -44,19 +56,30 @@ const PREFERRED_MODEL: Record<string, string> = {
   kimi: "kimi-code/kimi-for-coding",
   muse: "muse-spark-1.3",
   qwen: "qwen3.8-max",
-  qoder: "lite",
+  // qoder: was "lite" — stale pin. qodercli 1.1.61's discovered catalog is
+  // auto (default), ultimate, performance, efficient, … with no "lite"; the
+  // ACP lane rejects set_model("lite") with "Invalid or unavailable model".
+  qoder: "auto",
 };
 
 const CHEAP_NAME_HINTS = ["haiku", "mini", "flash-lite", "flash", "lite", "small", "fast", "nano"];
 
 // First-run interactive prompts we know how to answer in the test. The
 // scrollback contains ANSI escapes (cursor positioning, colors), so the
-// matcher only looks at decoded text fragments. Each entry sends its keystroke
-// once and is then disarmed for the rest of the run.
+// matcher only looks at decoded text fragments. Note that CLIs often paint
+// modal text word-by-word with cursor-position escapes, so the decoded text
+// has no spaces between those words — needles join words with `\s*` (zero or
+// more) rather than `\s+`.
 interface DialogResponder {
   needle: RegExp;
   response: string;
   reason: string;
+  // The test relaunches the CLI for the resume leg, and each launch starts a
+  // fresh PTY transcript. Gates that reappear on every launch (claude
+  // re-runs onboarding; a dialog whose acceptance wasn't persisted) must be
+  // answerable again, so a fired responder re-arms once its needle
+  // disappears from the decoded scrollback, up to maxFires (default 1).
+  maxFires?: number;
 }
 
 const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
@@ -66,9 +89,99 @@ const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
   // always see this prompt; auto-select "2. Trust all and continue".
   codex: [
     {
-      needle: /Hooks\s+need\s+review/i,
+      needle: /Hooks\s*need\s*review/i,
       response: "2\r",
       reason: "codex: accept hooks trust dialog",
+      maxFires: 2,
+    },
+    {
+      // Codex 0.155+ blocks startup on a model-retirement modal while the
+      // pinned model is being retired ("GPT-5.5 retires on October 14, 2026.
+      // … › 1. Try new model  2. Use existing model"). Answering "2" keeps
+      // the configured model instead of switching the CLI's default.
+      // Anchored to the modal's option chrome (see the update responder).
+      needle: /retires\s*on[\s\S]*Try\s*new\s*model[\s\S]*Use\s*existing\s*model/i,
+      response: "2\r",
+      reason: "codex: keep configured model on retirement modal",
+      maxFires: 2,
+    },
+    {
+      // Non-deterministic update-available modal ("✨ Update available!
+      // 0.155.1 -> 0.156.0 … › 1. Update now  2. Skip  3. Skip until next
+      // version"). Answer "2" — the default is "Update now", which pipes a
+      // remote install script through `sh`, so a bare "\r" here is dangerous.
+      // Require the modal's own option chrome, not words a model reply could
+      // contain: this needle is matched against the whole decoded transcript.
+      needle: /1\.\s*Update\s*now[\s\S]*2\.\s*Skip[\s\S]*3\.\s*Skip\s*until\s*next\s*version/i,
+      response: "2\r",
+      reason: "codex: skip update-available modal (default is Update now!)",
+      maxFires: 2,
+    },
+  ],
+  // Claude 2.1.280 re-runs first-run onboarding on interactive TUI launches
+  // when the stored onboarding version lags the CLI — dir-independent and
+  // unaffected by adapter flags. The captured probe chain is: theme screen
+  // ("Choose the text style…", cursor already on the default "2. Dark mode ✔")
+  // → security-notes screen → folder-trust dialog → bypass-permissions
+  // confirmation. Which screens re-appear varies per launch (partial state
+  // persists), so every responder stays armed. Screens paint word-by-word,
+  // so the decoded text drops spaces inside dialog bodies; needles join with
+  // \s* so they match painted and stripped renderings alike.
+  claude: [
+    {
+      needle: /Choose\s*the\s*text\s*style/i,
+      response: "\r",
+      reason: "claude: accept default theme on first-run onboarding",
+      maxFires: 3,
+    },
+    {
+      // Static security notice after the theme screen ("Security notes: …
+      // Learn more: https://code.claude.com/docs/en/security — Press Enter to
+      // continue…"). Advances on Enter. Anchored on "Security notes" so the
+      // trailing "Press enter to continue" phrasing can never match a codex
+      // modal.
+      needle: /Security\s*notes[\s\S]*Press\s*Enter\s*to\s*continue/i,
+      response: "\r",
+      reason: "claude: accept security notes",
+      maxFires: 2,
+    },
+    {
+      // Folder-trust dialog for the repo cwd ("⚠ This folder pre-approves 23
+      // tool permissions in .claude/settings.local.json …"). The default
+      // cursor sits on "❯ No, exit", so a bare Enter would terminate the CLI —
+      // send Down+Enter to select "Yes, I trust this folder". Never answer
+      // this dialog with a plain "\r".
+      needle: /Yes,\s*I\s*trust\s*this\s*folder/i,
+      response: "\x1b[B\r",
+      reason: "claude: trust repo folder (down+enter, default is No)",
+      maxFires: 2,
+    },
+    {
+      // Bypass-permissions confirmation, shown because the supervisor launches
+      // claude with --allow-dangerously-skip-permissions ("In Bypass
+      // Permissions mode, Claude Code will not ask for your approval …").
+      // Default cursor is again "❯ No, exit" — send Down+Enter to select
+      // "Yes, I accept". Never answer this dialog with a plain "\r".
+      needle: /Bypass\s*Permissions[\s\S]*Yes,\s*I\s*accept/i,
+      response: "\x1b[B\r",
+      reason: "claude: accept bypass-permissions dialog (down+enter, default is No)",
+      maxFires: 2,
+    },
+  ],
+  // qodercli gates an untrusted cwd on its folder-trust dialog before the
+  // composer paints ("Do you trust the files in this folder?" — the suite's
+  // repo cwd is not in qoder's permissions.trustDirectories), and no prompt
+  // is ever submitted while it blocks. The default cursor sits on
+  // "❯ 1. Trust folder", so bare Enter is the SAFE answer here (unlike the
+  // claude/codex dialogs above, whose defaults exit). Answering persists the
+  // cwd into ~/.qoder/settings.json → permissions.trustDirectories — the
+  // same class of host side effect as the claude trust responder.
+  qoder: [
+    {
+      needle: /Do\s*you\s*trust\s*the\s*files\s*in\s*this\s*folder/i,
+      response: "\r",
+      reason: "qoder: trust folder (default is Trust folder)",
+      maxFires: 2,
     },
   ],
 };
@@ -109,17 +222,61 @@ function armDialogAutoResponder(
   threadId: string,
   kind: string,
 ): () => void {
-  const responders = (KIND_DIALOG_RESPONDERS[kind] ?? []).map((r) => ({ ...r, fired: false }));
-  if (responders.length === 0) return () => undefined;
+  const responders = (KIND_DIALOG_RESPONDERS[kind] ?? []).map((r) => ({
+    ...r,
+    maxFires: r.maxFires ?? 1,
+    fires: 0,
+    armed: true,
+  }));
   const state = { stopped: false };
   void (async () => {
+    // Beyond painted dialogs, some CLIs probe the terminal with device
+    // queries during startup and stall or exit silently when nothing answers
+    // (muse 1.3.x sends OSC palette queries, kitty `CSI ?u`, primary DA
+    // `CSI c`, and cursor-position `CSI 6n`, then exits 0 with no output).
+    // The real app is unaffected — its xterm.js surface parses the queries
+    // and emits the replies through its onData channel — but the headless
+    // supervisor PTY answers nothing. Emulate that one terminal behavior
+    // here, generically for every kind: watch the RAW (undecoded) scrollback
+    // for new `CSI 6n` cursor-position queries and answer each new
+    // occurrence once with a `CSI 1;1R` report. Strictly reactive — nothing
+    // else is ever written, and `decodeScrollbackText` strips CSI sequences,
+    // so the queries are invisible to the needle responders below and the
+    // report bytes never satisfy a needle either. Transcripts are
+    // append-only per launch, so answered occurrences are counted per
+    // transcript; a shrinking raw scrollback means the resume leg's fresh
+    // transcript has started and counting restarts.
+    const CURSOR_QUERY = "\x1b[6n";
+    const CURSOR_REPORT = "\x1b[1;1R";
+    let answeredQueries = 0;
+    let lastRawLength = 0;
     while (!state.stopped) {
-      const text = decodeScrollbackText(
-        runtime.threadSessionManager.readTerminalScrollback(threadId),
-      );
+      const raw = runtime.threadSessionManager.readTerminalScrollback(threadId);
+      if (raw.length < lastRawLength) answeredQueries = 0;
+      lastRawLength = raw.length;
+      let queries = 0;
+      for (let idx = raw.indexOf(CURSOR_QUERY); idx !== -1; queries += 1) {
+        idx = raw.indexOf(CURSOR_QUERY, idx + CURSOR_QUERY.length);
+      }
+      while (queries > answeredQueries) {
+        answeredQueries += 1;
+        try {
+          await runtime.threadSessionManager.writeTerminal({ threadId, data: CURSOR_REPORT });
+          // eslint-disable-next-line no-console
+          console.log(
+            "[int-test] auto-respond → cursor-position query (CSI 6n) with CSI 1;1R report",
+          );
+        } catch {
+          answeredQueries -= 1;
+          break; // PTY may have closed; ignore.
+        }
+      }
+      const text = decodeScrollbackText(raw);
       for (const r of responders) {
-        if (!r.fired && r.needle.test(text)) {
-          r.fired = true;
+        const matched = r.needle.test(text);
+        if (matched && r.armed && r.fires < r.maxFires) {
+          r.armed = false;
+          r.fires += 1;
           try {
             await runtime.threadSessionManager.writeTerminal({ threadId, data: r.response });
             // eslint-disable-next-line no-console
@@ -127,9 +284,15 @@ function armDialogAutoResponder(
           } catch {
             // PTY may have closed; ignore.
           }
+        } else if (!matched && !r.armed) {
+          // The needle left the fresh-per-launch transcript, so the next
+          // launch (resume leg) can be answered again.
+          r.armed = true;
         }
       }
-      if (responders.every((r) => r.fired)) return;
+      // No early exit: the cursor-query watch must stay armed for the whole
+      // thread lifetime (including the resume relaunch), so the loop stops
+      // only via the returned cancel, which the test's finally always calls.
       await sleep(500);
     }
   })();
@@ -242,7 +405,13 @@ async function waitForTurnComplete(
   }
   throw new Error(
     `Timed out after ${timeoutMs}ms waiting for turn to settle on thread ${threadId} ` +
-      `(promptSeen=${promptSeen})`,
+      `(promptSeen=${promptSeen}). ` +
+      `Scrollback tail: ${
+        decodeScrollbackText(runtime.threadSessionManager.readTerminalScrollback(threadId))
+          .slice(-600)
+          .replace(/\s+/g, " ")
+          .trim() || "(empty)"
+      }`,
   );
 }
 
@@ -344,17 +513,30 @@ afterEach(() => {
 
 const REGISTRY_KINDS = createAgentRegistry().map((a) => a.kind);
 
+// Validated once at module load: an invalid list fails the whole file with an
+// actionable error before any provider is started.
+const REQUIRED_PROVIDERS = parseRequiredLiveProviders(
+  process.env[LIVE_PROVIDERS_REQUIRED_ENV],
+  REGISTRY_KINDS,
+);
+
 describe("provider lifecycle: create → unload → resume → initial message visible", () => {
   for (const kind of REGISTRY_KINDS) {
     it(`${kind}`, async (testCtx) => {
+      // Strict mode converts every skip below into a hard failure for the
+      // named kinds only; all other providers keep ordinary skip behavior.
+      const isRequired = REQUIRED_PROVIDERS.names.includes(kind);
+      const skipOrThrow = (reason: string) =>
+        skipOrThrowRequired(testCtx, isRequired, kind, reason);
+
       const adapter = ctx.adapters.find((a) => a.kind === kind);
       if (!adapter) {
-        testCtx.skip(`adapter ${kind} not in registry`);
+        skipOrThrow(`adapter ${kind} not in registry`);
         return;
       }
 
       if (!adapter.capabilities.supportsResume) {
-        testCtx.skip(`${kind}: adapter does not support resume`);
+        skipOrThrow(`${kind}: adapter does not support resume`);
         return;
       }
 
@@ -362,23 +544,23 @@ describe("provider lifecycle: create → unload → resume → initial message v
         adapter.capabilities.presentationMode,
       ];
       if (!presentationModes.includes("terminal")) {
-        testCtx.skip(`${kind}: adapter does not support terminal presentation`);
+        skipOrThrow(`${kind}: adapter does not support terminal presentation`);
         return;
       }
 
       const status = await adapter.detectInstall();
       if (!status.installed) {
-        testCtx.skip(`${kind}: CLI not installed`);
+        skipOrThrow(`${kind}: CLI not installed`);
         return;
       }
       if (status.authState !== "authenticated") {
-        testCtx.skip(`${kind}: authState=${status.authState} (need "authenticated")`);
+        skipOrThrow(`${kind}: authState=${status.authState} (need "authenticated")`);
         return;
       }
 
       const model = pickCheapModel(adapter, status);
       if (!model) {
-        testCtx.skip(`${kind}: no model available in capabilities`);
+        skipOrThrow(`${kind}: no model available in capabilities`);
         return;
       }
       // eslint-disable-next-line no-console

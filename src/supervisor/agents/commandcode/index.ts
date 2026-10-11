@@ -1,6 +1,8 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   detectAgentInstall,
   type AgentAdapter,
   type TerminalStatusHint,
@@ -111,12 +113,12 @@ export function createCommandCodeAdapter(): AgentAdapter {
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installCommandCodePlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installCommandCodePlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCommandCodePlugin(ctx);
+      await uninstallCommandCodePlugin(ctx);
     },
 
     async detectInstall(ctx) {
@@ -125,14 +127,14 @@ export function createCommandCodeAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
+    async buildLaunchArgv(location, config, prompt, _sessionRef, options) {
       // `command-code` has no flag to pre-assign or report a session id, so we
       // snapshot the existing transcripts here and let the runtime discover the
       // real id afterward (discoverSessionRef below). Returning no sessionRef
       // is what enables that discovery path; resume then targets the exact id.
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
       snapshotCommandCodePreSpawnSessions(location, cwd);
-      const mcp = commandCodeMcpLaunch(location, options?.mcpServers);
+      const mcp = await commandCodeMcpLaunch(location, options?.mcpServers);
       return {
         ...mcp,
         binary: "command-code",
@@ -140,7 +142,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       };
     },
 
-    buildResumeArgv(location, config, prompt, sessionRef, options) {
+    async buildResumeArgv(location, config, prompt, sessionRef, options) {
       // Resume the exact discovered session id (`--resume <id>`). A dead/stale
       // id surfaces command-code's "found to resume" error, which the runtime
       // recovers by relaunching fresh (see detectCommandCodeInvalidSessionRef)
@@ -148,7 +150,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       // back to `--continue`.
       const id = sessionRef?.providerSessionId;
       const args = buildCommandCodeArgs(config, prompt, id && isUuid(id) ? id : "");
-      const mcp = commandCodeMcpLaunch(location, options?.mcpServers);
+      const mcp = await commandCodeMcpLaunch(location, options?.mcpServers);
       return { ...mcp, binary: "command-code", args: [...mcp.args, ...args] };
     },
 
@@ -188,7 +190,15 @@ export function createCommandCodeAdapter(): AgentAdapter {
 
     allowsImplicitOneShotModel: true,
 
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Reasoning effort maps natively (`--effort`); the command-code CLI has
+      // no Fast lane, so false Fast is the declared-inactive legacy carrier and
+      // meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) return undefined;
       return {
         command: "command-code",

@@ -2,6 +2,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { compareVersions } from "@/shared/changelog";
+import { msg } from "@/shared/messages";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readAgentCommandOutput, resolveExecutablePathAsync } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
@@ -32,10 +33,7 @@ export function supportsOpenCode2Version(version: string | undefined): boolean {
 }
 
 export function requireOpenCode2Version(version: string | undefined): void {
-  if (!supportsOpenCode2Version(version))
-    throw new Error(
-      `OpenCode 2 ${version ?? "unknown"} is unsupported. Update OpenCode 2 to ${OPENCODE2_MIN_VERSION} or newer in provider settings.`,
-    );
+  if (!supportsOpenCode2Version(version)) throw new Error(msg("provider.versionUnsupported"));
 }
 
 export function acceptOpenCode2Binary(

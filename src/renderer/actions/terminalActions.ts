@@ -7,6 +7,7 @@ import {
   whenSharedSettingsHydrated,
 } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import {
   closeThreads,
   startShellWithToast,
@@ -25,16 +26,22 @@ function applyTerminalPanel(
   if (!project) return;
 
   const store = useDevTerminalStore.getState();
+  const panelStore = usePanelStore.getState();
+  const compactLayout = isCompactLayoutViewport();
   const isBottom = useSharedSettings.getState().terminalPosition === "bottom";
 
   if (options.toggleCloseIfActive) {
-    const rightPanelTab = usePanelStore.getState().rightPanelTab;
+    const rightPanelTab = panelStore.rightPanelTab;
     const isSameTerminal =
       store.isOpen &&
       store.activeProjectId === projectId &&
       (store.activeWorktreePath ?? undefined) === worktreePath;
-    if (isSameTerminal && (isBottom || rightPanelTab === "terminal")) {
-      if (!isBottom) closeAllPanels();
+    const terminalIsVisible = compactLayout
+      ? panelStore.mobileUtilityPage === "terminal"
+      : isBottom || rightPanelTab === "terminal";
+    if (isSameTerminal && terminalIsVisible) {
+      if (compactLayout) panelStore.closeMobileUtilityPage();
+      else if (!isBottom) closeAllPanels();
       store.closePanel();
       return;
     }
@@ -45,7 +52,8 @@ function applyTerminalPanel(
   } else {
     store.openPanel(projectId);
   }
-  if (!isBottom) usePanelStore.getState().setRightPanelTab("terminal");
+  if (compactLayout) panelStore.openMobileUtilityPage("terminal");
+  else if (!isBottom) panelStore.setRightPanelTab("terminal");
 
   const existingTab = store.tabs.find(
     (t) => t.projectId === projectId && (t.worktreePath ?? undefined) === worktreePath,
@@ -106,6 +114,9 @@ export function runProjectAction(projectId: string, actionId: string, worktreePa
       store.openWorktreePanel(projectId, worktreePath);
     } else {
       store.openPanel(projectId);
+    }
+    if (isCompactLayoutViewport()) {
+      usePanelStore.getState().openMobileUtilityPage("terminal");
     }
   });
 

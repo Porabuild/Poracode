@@ -3,7 +3,12 @@ import { resolve as resolveWindowsPath } from "node:path/win32";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveOpenCode2Binary } from "./binary";
 import { buildOpenCode2ServerCommand } from "./argv";
-import type { OpenCode2Client } from "./clientTypes";
+import type { CredentialEntry, OpenCode2Client } from "./clientTypes";
+import {
+  clearOpenCode2CredentialCompatibility,
+  revokeOpenCode2Credential,
+  synchronizeOpenCode2Credentials,
+} from "./credentialCompatibility";
 import {
   cachedOpenCode2SessionDatabase,
   clearOpenCode2SessionDatabases,
@@ -289,6 +294,47 @@ async function syncLocationMcpServers(
 export async function acquireOpenCode2Server(
   input: AcquireOpenCode2ServerInput,
 ): Promise<AcquiredOpenCode2Server> {
+  const acquired = await acquireResolvedOpenCode2Server(input);
+  try {
+    await synchronizeOpenCode2Credentials(input.projectLocation, acquired, (database) =>
+      acquireOpenCode2ServerInner({ projectLocation: input.projectLocation, database }, true),
+    );
+    return acquired;
+  } catch (error) {
+    await acquired.dispose();
+    throw error;
+  }
+}
+
+export async function removeOpenCode2Credential(
+  location: ProjectLocation,
+  id: string,
+): Promise<void> {
+  await revokeOpenCode2Credential(location, id, (database) =>
+    acquireOpenCode2ServerInner({ projectLocation: location, database }, true),
+  );
+}
+
+/** Legacy OAuth grants stay removable without duplicating their refresh tokens. */
+export async function listOpenCode2LegacyOAuthCredentials(
+  location: ProjectLocation,
+): Promise<CredentialEntry[]> {
+  const acquired = await acquireOpenCode2ServerInner(
+    { projectLocation: location, database: "legacy-isolated" },
+    true,
+  );
+  try {
+    return (await acquired.client.credential.list({ signal: AbortSignal.timeout(30_000) })).filter(
+      (entry) => entry.value.type === "oauth",
+    );
+  } finally {
+    await acquired.dispose();
+  }
+}
+
+async function acquireResolvedOpenCode2Server(
+  input: AcquireOpenCode2ServerInput,
+): Promise<AcquiredOpenCode2Server> {
   const sessionID = input.resumeSessionId;
   const known = sessionID
     ? cachedOpenCode2SessionDatabase(input.projectLocation, sessionID)
@@ -441,5 +487,6 @@ export function shutdownSpawnedOpenCode2Servers(): void {
   for (const entry of pool.values()) clearIdleShutdown(entry);
   pool.clear();
   clearOpenCode2SessionDatabases();
+  clearOpenCode2CredentialCompatibility();
   disposeSpawnedOpenCode2ServerHandles();
 }

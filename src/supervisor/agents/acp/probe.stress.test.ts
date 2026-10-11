@@ -41,6 +41,69 @@ async function waitForFile(path: string): Promise<void> {
 }
 
 describe("probeAcpCapabilities live-process paths", () => {
+  it.each(["plain,reasoning", "reasoning,plain"])(
+    "preserves verified empty effort selectors for catalog %s when declared",
+    async (models) => {
+      const result = await probeAcpCapabilities(process.execPath, [FIXTURE], process.cwd(), {
+        env: {
+          FAKE_MODELS: models,
+          FAKE_REASONING_EFFORT: "1",
+          FAKE_NO_EFFORT_MODELS: "plain",
+        },
+        timeoutMs: 3_000,
+        preserveEmptyModelEfforts: true,
+      });
+
+      expect(result?.modelEfforts).toEqual({ plain: [], reasoning: ["low", "high"] });
+    },
+  );
+
+  it("keeps absent effort selectors unspecified for undeclared probe behavior", async () => {
+    const result = await probeWith(
+      {
+        FAKE_MODELS: "reasoning,plain",
+        FAKE_REASONING_EFFORT: "1",
+        FAKE_NO_EFFORT_MODELS: "plain",
+      },
+      3_000,
+    );
+
+    expect(result?.modelEfforts).toEqual({ reasoning: ["low", "high"] });
+  });
+
+  it.each([false, true])(
+    "can discover a persistent runtime without creating or authenticating a session (preserve empty efforts: %s)",
+    async (preserveEmptyModelEfforts) => {
+      const root = await mkdtemp(join(tmpdir(), "poracode-acp-init-only-"));
+      const initMarker = join(root, "initialize.json");
+      const newMarker = join(root, "created.txt");
+      try {
+        const result = await probeAcpCapabilities(process.execPath, [FIXTURE], process.cwd(), {
+          timeoutMs: 3_000,
+          sessionProbe: "initialize-only",
+          preserveEmptyModelEfforts,
+          fsTextCapability: false,
+          terminalCapability: false,
+          env: {
+            FAKE_INITIALIZE_MARKER: initMarker,
+            FAKE_SESSION_NEW_MARKER: newMarker,
+            FAKE_LOAD_CAPABILITY: "1",
+          },
+        });
+        expect(result?.supportsResume).toBe(true);
+        expect(result?.sessionEstablished).not.toBe(true);
+        expect(result?.modelEfforts).toBeUndefined();
+        expect(JSON.parse(await readFile(initMarker, "utf8"))).toMatchObject({
+          fs: { readTextFile: false, writeTextFile: false },
+          terminal: false,
+        });
+        await expect(access(newMarker)).rejects.toMatchObject({ code: "ENOENT" });
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
   it.each([
     { env: { FAKE_SESSION_RESUME_CAPABILITY: "1" }, capability: "session/resume" },
     { env: { FAKE_LOAD_CAPABILITY: "1" }, capability: "session/load" },
@@ -297,6 +360,49 @@ describe("probeAcpCapabilities live-process paths", () => {
       expect(Date.now() - started).toBeLessThan(1_000);
     } finally {
       await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports why the probe produced no result via onFailureDetail", async () => {
+    // An agent that exits before the handshake used to fail silently; an
+    // install that cleanses and retries must be able to name the failure.
+    const details: string[] = [];
+    const result = await probeAcpCapabilities(
+      process.execPath,
+      ["-e", "process.exit(3)"],
+      process.cwd(),
+      { timeoutMs: 5_000, label: "detail-exit", onFailureDetail: (reason) => details.push(reason) },
+    );
+
+    expect(result).toBeUndefined();
+    expect(details).toHaveLength(1);
+    // The SDK may report the exit as a closed connection before the probe's
+    // own child-exited race fires; either way the reason must be surfaced.
+    expect(details[0]).toMatch(/closed|exited/);
+  });
+
+  it("reports a refused launch under an enforced mock session via onFailureDetail", async () => {
+    const originalMock = process.env.PORACODE_MOCK_AGENTS;
+    const originalDev = process.env.PORACODE_IS_DEV;
+    process.env.PORACODE_MOCK_AGENTS = "1";
+    process.env.PORACODE_IS_DEV = "1";
+    try {
+      const details: string[] = [];
+      const result = await probeAcpCapabilities(process.execPath, [FIXTURE], process.cwd(), {
+        timeoutMs: 5_000,
+        label: "detail-mock",
+        onFailureDetail: (reason) => details.push(reason),
+      });
+
+      expect(result).toBeUndefined();
+      expect(details).toHaveLength(1);
+      expect(details[0]).toContain("mock QA session");
+      expect(details[0]).toContain("session-probe");
+    } finally {
+      if (originalMock === undefined) delete process.env.PORACODE_MOCK_AGENTS;
+      else process.env.PORACODE_MOCK_AGENTS = originalMock;
+      if (originalDev === undefined) delete process.env.PORACODE_IS_DEV;
+      else process.env.PORACODE_IS_DEV = originalDev;
     }
   });
 });

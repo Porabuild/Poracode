@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
 import type { AgentAdapter } from "./agents/base";
 
 const spawnMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
@@ -16,7 +17,6 @@ const buildAgentCommandMock = vi.hoisted(() =>
 const resolveAgentProjectLocationMock = vi.hoisted(() =>
   vi.fn<
     (
-      _adapter: AgentAdapter,
       location: ProjectLocation,
       _environment?: unknown,
       signal?: AbortSignal,
@@ -38,7 +38,9 @@ import {
   isArgvLikelyTooLong,
   isArgvTooLongError,
   runOneShotPromptWithFallback,
+  runTextOnlyOneShotPromptWithFallback,
 } from "./oneShotPromptRunner";
+import { UnsupportedOneShotControlError } from "./agents/base";
 
 type MockChildProcess = EventEmitter & {
   stdout: EventEmitter;
@@ -68,6 +70,10 @@ const windowsProject: ProjectLocation = {
   path: "C:\\Users\\demo\\project",
 };
 
+function selection(overrides: Partial<ModelSelection> = {}): ModelSelection {
+  return { model: "haiku", ...overrides };
+}
+
 // Adapter that embeds the prompt directly in argv (mirrors Claude/Gemini/Copilot).
 function argvProneAdapter(): AgentAdapter {
   return {
@@ -82,7 +88,7 @@ function argvProneAdapter(): AgentAdapter {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  resolveAgentProjectLocationMock.mockImplementation(async (_adapter, location) => location);
+  resolveAgentProjectLocationMock.mockImplementation(async (location) => location);
   buildAgentCommandMock.mockImplementation(
     (location: ProjectLocation, command: string, args: string[]) =>
       location.kind === "wsl" ? { command, args } : { command, args, cwd: location.path },
@@ -140,20 +146,14 @@ describe("runOneShotPromptWithFallback", () => {
     await runOneShotPromptWithFallback({
       location: windowsProject,
       adapter,
-      model: "model",
-      effort: undefined,
+      selection: selection({ model: "model" }),
       timeoutMs: 10_000,
       logTag: "test",
       attempts: [{ level: "full", buildPrompt: () => "hello" }],
       signal,
     });
 
-    expect(resolveAgentProjectLocationMock).toHaveBeenCalledWith(
-      adapter,
-      windowsProject,
-      undefined,
-      signal,
-    );
+    expect(resolveAgentProjectLocationMock).toHaveBeenCalledWith(windowsProject, undefined, signal);
     expect(runOneShot).toHaveBeenCalledWith(expect.objectContaining({ location: wslProject }));
   });
 
@@ -168,8 +168,7 @@ describe("runOneShotPromptWithFallback", () => {
       runOneShotPromptWithFallback({
         location: windowsProject,
         adapter,
-        model: "model",
-        effort: undefined,
+        selection: selection({ model: "model" }),
         timeoutMs: 10_000,
         logTag: "test",
         readOnlyWorkspace: true,
@@ -193,8 +192,7 @@ describe("runOneShotPromptWithFallback", () => {
     const pending = runOneShotPromptWithFallback({
       location: windowsProject,
       adapter: argvProneAdapter(),
-      model: "haiku",
-      effort: undefined,
+      selection: selection(),
       timeoutMs: 10_000,
       logTag: "test",
       attempts: [
@@ -228,8 +226,7 @@ describe("runOneShotPromptWithFallback", () => {
     const pending = runOneShotPromptWithFallback({
       location: windowsProject,
       adapter,
-      model: "model",
-      effort: undefined,
+      selection: selection({ model: "model" }),
       timeoutMs: 10_000,
       logTag: "test",
       readOnlyWorkspace: true,
@@ -265,8 +262,7 @@ describe("runOneShotPromptWithFallback", () => {
     const pending = runOneShotPromptWithFallback({
       location: windowsProject,
       adapter,
-      model: "model-a",
-      effort: undefined,
+      selection: selection({ model: "model-a" }),
       timeoutMs: 10_000,
       logTag: "test",
       attempts: [{ level: "full", buildPrompt: () => "summarize" }],
@@ -295,8 +291,7 @@ describe("runOneShotPromptWithFallback", () => {
     const pending = runOneShotPromptWithFallback({
       location: windowsProject,
       adapter: argvProneAdapter(),
-      model: "haiku",
-      effort: undefined,
+      selection: selection(),
       timeoutMs: 10_000,
       logTag: "test",
       attempts: [
@@ -324,8 +319,7 @@ describe("runOneShotPromptWithFallback", () => {
     const pending = runOneShotPromptWithFallback({
       location: windowsProject,
       adapter: argvProneAdapter(),
-      model: "haiku",
-      effort: undefined,
+      selection: selection(),
       timeoutMs: 10_000,
       logTag: "test",
       attempts: [
@@ -357,8 +351,7 @@ describe("runOneShotPromptWithFallback", () => {
     const pending = runOneShotPromptWithFallback({
       location: windowsProject,
       adapter: argvProneAdapter(),
-      model: "haiku",
-      effort: undefined,
+      selection: selection(),
       timeoutMs: 10_000,
       logTag: "test",
       attempts: [
@@ -383,8 +376,7 @@ describe("runOneShotPromptWithFallback", () => {
     const pending = runOneShotPromptWithFallback({
       location: windowsProject,
       adapter: argvProneAdapter(),
-      model: "haiku",
-      effort: undefined,
+      selection: selection(),
       timeoutMs: 10_000,
       logTag: "test",
       attempts: [
@@ -406,8 +398,7 @@ describe("runOneShotPromptWithFallback", () => {
       runOneShotPromptWithFallback({
         location: windowsProject,
         adapter,
-        model: "x",
-        effort: undefined,
+        selection: selection({ model: "x" }),
         timeoutMs: 1000,
         logTag: "test",
         attempts: [{ level: "full", buildPrompt: () => "x" }],
@@ -420,12 +411,301 @@ describe("runOneShotPromptWithFallback", () => {
       runOneShotPromptWithFallback({
         location: windowsProject,
         adapter: argvProneAdapter(),
-        model: "haiku",
-        effort: undefined,
+        selection: selection(),
         timeoutMs: 1000,
         logTag: "test",
         attempts: [],
       }),
     ).rejects.toThrow("no attempts provided");
+  });
+});
+
+describe("runOneShotPromptWithFallback selection transport", () => {
+  it("passes the complete tuple to the SDK path with carriers and binding intact", async () => {
+    const runOneShot = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>().mockResolvedValue("ok");
+    const adapter = { label: "Structured", runOneShot } as unknown as AgentAdapter;
+    const fullSelection = selection({
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "default",
+      selectionBinding: {
+        version: 1,
+        kind: "family-member",
+        owner: { agentKind: "devin:acme", presentationMode: "terminal" },
+        model: "haiku",
+        inertValues: { effort: "" },
+      },
+    });
+
+    await runOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter,
+      selection: fullSelection,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [{ level: "full", buildPrompt: () => "hello" }],
+    });
+
+    expect(runOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: windowsProject,
+        selection: fullSelection,
+        prompt: "hello",
+      }),
+    );
+  });
+
+  it.each([
+    ["general", runOneShotPromptWithFallback],
+    ["text-only", runTextOnlyOneShotPromptWithFallback],
+  ] as const)("treats unsupported controls as terminal on the %s SDK lane", async (_lane, run) => {
+    const frozenSelection = Object.freeze(selection({ thinking: true }));
+    const seen: ModelSelection[] = [];
+    const runOneShot = vi
+      .fn<NonNullable<AgentAdapter["runOneShot"]>>()
+      .mockImplementation(async (input) => {
+        seen.push(input.selection);
+        expect(input.selection).toBe(frozenSelection);
+        throw new UnsupportedOneShotControlError(["thinking"]);
+      });
+    const adapter = {
+      label: "Structured",
+      runOneShot,
+      runTextOnlyOneShot: runOneShot,
+    } as unknown as AgentAdapter;
+
+    const laterPrompt = vi.fn<() => string>(() => "slim");
+    await expect(
+      run({
+        location: windowsProject,
+        adapter,
+        selection: frozenSelection,
+        timeoutMs: 10_000,
+        logTag: "test",
+        attempts: [
+          { level: "full", buildPrompt: () => "big prompt" },
+          { level: "slim", buildPrompt: laterPrompt },
+          { level: "tiny", buildPrompt: laterPrompt },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(UnsupportedOneShotControlError);
+
+    // Real counter: exactly one SDK call for three attempts — the deterministic
+    // refusal stops the identical-prompt retries with zero further effects.
+    expect(runOneShot).toHaveBeenCalledTimes(1);
+    expect(seen).toEqual([frozenSelection]);
+    expect(laterPrompt).not.toHaveBeenCalled();
+  });
+
+  it("keeps explicit SDK aborts terminal on both utility lanes", async () => {
+    for (const run of [runOneShotPromptWithFallback, runTextOnlyOneShotPromptWithFallback]) {
+      const error = new Error("cancelled");
+      error.name = "AbortError";
+      const sdk = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>().mockRejectedValue(error);
+      const adapter = {
+        label: "Structured",
+        runOneShot: sdk,
+        runTextOnlyOneShot: sdk,
+      } as unknown as AgentAdapter;
+      await expect(
+        run({
+          location: windowsProject,
+          adapter,
+          selection: selection(),
+          timeoutMs: 10_000,
+          logTag: "test",
+          attempts: [
+            { level: "full", buildPrompt: () => "full" },
+            { level: "slim", buildPrompt: () => "slim" },
+          ],
+        }),
+      ).rejects.toBe(error);
+      expect(sdk).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("keeps retrying recoverable SDK failures after a non-terminal error", async () => {
+    const runOneShot = vi
+      .fn<NonNullable<AgentAdapter["runOneShot"]>>()
+      .mockRejectedValueOnce(new Error("transient"))
+      .mockResolvedValue("recovered");
+    const adapter = { label: "Structured", runOneShot } as unknown as AgentAdapter;
+
+    await expect(
+      runOneShotPromptWithFallback({
+        location: windowsProject,
+        adapter,
+        selection: selection(),
+        timeoutMs: 10_000,
+        logTag: "test",
+        attempts: [
+          { level: "full", buildPrompt: () => "big prompt" },
+          { level: "slim", buildPrompt: () => "slim" },
+        ],
+      }),
+    ).resolves.toBe("recovered");
+    expect(runOneShot).toHaveBeenCalledTimes(2);
+  });
+
+  it("derives the legacy positionals once and passes the full selection as argument 6 on every retry", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValueOnce(child);
+    const buildOneShotCommand = vi
+      .fn<NonNullable<AgentAdapter["buildOneShotCommand"]>>()
+      .mockResolvedValue({ command: "cli", args: ["-p", "x"], stdin: "" });
+    const adapter = { label: "Cli", buildOneShotCommand } as unknown as AgentAdapter;
+    // Empty effort / false Fast are present carriers: they must reach the
+    // builder positionals exactly, not be collapsed to omitted values.
+    const tuple = selection({ effort: "", fast: false });
+
+    const pending = runOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter,
+      selection: tuple,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [
+        { level: "full", buildPrompt: () => "big prompt" },
+        { level: "slim", buildPrompt: () => "slim" },
+      ],
+    });
+    await flushPromises();
+    child.stdout.emit("data", Buffer.from("ok"));
+    child.emit("close", 0);
+    await expect(pending).resolves.toBe("ok");
+
+    expect(buildOneShotCommand).toHaveBeenCalledTimes(1);
+    const [model, effort, prompt, , fast, options] = buildOneShotCommand.mock.calls[0]!;
+    expect(model).toBe("haiku");
+    expect(effort).toBe("");
+    expect(fast).toBe(false);
+    expect(prompt).toBe("big prompt");
+    expect(options).toEqual({ readOnlyWorkspace: undefined, selection: tuple });
+  });
+
+  it("keeps the full selection and read-only flag reaching a WSL provider", async () => {
+    const wslProject: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/home/demo/project",
+      uncPath: "\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+    };
+    resolveAgentProjectLocationMock.mockResolvedValue(wslProject);
+    const runOneShot = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>().mockResolvedValue("ok");
+    const adapter = { label: "WslStructured", runOneShot } as unknown as AgentAdapter;
+    const tuple = selection({ effort: "high", fast: true });
+
+    await runOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter,
+      selection: tuple,
+      readOnlyWorkspace: true,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [{ level: "full", buildPrompt: () => "wsl prompt" }],
+    });
+
+    expect(runOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: wslProject,
+        selection: tuple,
+        readOnlyWorkspace: true,
+        prompt: "wsl prompt",
+      }),
+    );
+  });
+
+  it("reuses the identical selection object across prompt-size retries", async () => {
+    const first = createMockChildProcess();
+    // Only the slim attempt spawns (the oversized one is skipped
+    // proactively), so exactly one queued child is consumed.
+    spawnMock.mockReturnValueOnce(first);
+    // The prompt rides argv so the oversized first attempt is skipped
+    // proactively and the slim attempt actually spawns.
+    const buildOneShotCommand = vi.fn<NonNullable<AgentAdapter["buildOneShotCommand"]>>(
+      (_model: string, _effort?: string, prompt?: string) => ({
+        command: "cli",
+        args: ["-p", prompt ?? ""],
+        stdin: "",
+      }),
+    );
+    const adapter = { label: "Cli", buildOneShotCommand } as unknown as AgentAdapter;
+    const tuple = selection({ effort: "low", thinking: true });
+
+    const pending = runOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter,
+      selection: tuple,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [
+        { level: "full", buildPrompt: () => "x".repeat(300_000) },
+        { level: "slim", buildPrompt: () => "slim" },
+      ],
+    });
+    await flushPromises();
+    first.stdout.emit("data", Buffer.from("ok"));
+    first.emit("close", 0);
+    await expect(pending).resolves.toBe("ok");
+
+    // The oversized attempt was skipped before spawning; the slim attempt
+    // spawned with the identical selection in argument 6.
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(buildOneShotCommand).toHaveBeenCalledTimes(2);
+    const optionArgs = buildOneShotCommand.mock.calls.map((call) => call[5]);
+    for (const options of optionArgs) {
+      expect(options?.selection).toBe(tuple);
+    }
+  });
+});
+
+describe("runTextOnlyOneShotPromptWithFallback selection transport", () => {
+  it("passes the full selection into the text-only SDK and builder lanes with argument 6", async () => {
+    const tuple = selection({ effort: "", fast: false, contextSize: "" });
+
+    // SDK lane: runTextOnlyOneShot receives the complete selection.
+    const runTextOnlyOneShot = vi
+      .fn<NonNullable<AgentAdapter["runTextOnlyOneShot"]>>()
+      .mockResolvedValue("ok");
+    const sdkAdapter = { label: "Sdk", runTextOnlyOneShot } as unknown as AgentAdapter;
+    await runTextOnlyOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter: sdkAdapter,
+      selection: tuple,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [{ level: "full", buildPrompt: () => "hello" }],
+    });
+    expect(runTextOnlyOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({ selection: tuple, prompt: "hello" }),
+    );
+  });
+
+  it("passes the full selection into the text-only builder lane with argument 6", async () => {
+    const tuple = selection({ effort: "", fast: false, contextSize: "" });
+    // Builder lane: buildTextOnlyOneShotCommand takes the SAME argument 6.
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValueOnce(child);
+    const buildTextOnlyOneShotCommand = vi
+      .fn<NonNullable<AgentAdapter["buildTextOnlyOneShotCommand"]>>()
+      .mockResolvedValue({ command: "cli", args: ["-p", "x"], stdin: "" });
+    const cliAdapter = { label: "Cli", buildTextOnlyOneShotCommand } as unknown as AgentAdapter;
+    const pending = runTextOnlyOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter: cliAdapter,
+      selection: tuple,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [{ level: "full", buildPrompt: () => "hello" }],
+    });
+    await flushPromises();
+    child.stdout.emit("data", Buffer.from("ok"));
+    child.emit("close", 0);
+    await expect(pending).resolves.toBe("ok");
+
+    const [model, effort, , , fast, options] = buildTextOnlyOneShotCommand.mock.calls[0]!;
+    expect([model, effort, fast]).toEqual(["haiku", "", false]);
+    expect(options).toEqual({ readOnlyWorkspace: undefined, selection: tuple });
   });
 });

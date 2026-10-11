@@ -1,7 +1,7 @@
 import { msg as linguiMsg } from "@lingui/core/macro";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import { titlePromptFromSegments } from "@/shared/threadTitle";
+import { resolveThreadTitlePrompt, titlePromptFromSegments } from "@/shared/threadTitle";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
@@ -56,9 +56,19 @@ export function applyRemoteThreadStartCommand(command: RemoteStartCommand): void
 
   const project = store.projects.find((p) => p.id === command.projectId);
   if (!project) return;
+  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+  const projectAgentStatuses = getProjectAgentStatuses(
+    project.location,
+    agentStatuses,
+    wslAgentStatuses,
+  );
+  const titleCommands = projectAgentStatuses.find((status) => status.kind === command.agentKind)
+    ?.capabilities.threadTitleCommands;
   const titlePrompt =
-    titlePromptFromSegments(command.prompt, command.segments).trim() ||
-    i18n._(linguiMsg`New thread`);
+    resolveThreadTitlePrompt(
+      titlePromptFromSegments(command.prompt, command.segments),
+      titleCommands,
+    ).trim() || i18n._(linguiMsg`New thread`);
   const thread = store.createThread({
     threadId: command.threadId,
     projectId: project.id,
@@ -89,12 +99,6 @@ export function applyRemoteThreadStartCommand(command: RemoteStartCommand): void
       store.queueThreadLaunch(thread.id, command.prompt, command.segments);
     }
   }
-  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-  const projectAgentStatuses = getProjectAgentStatuses(
-    project.location,
-    agentStatuses,
-    wslAgentStatuses,
-  );
   // An explicit title (e.g. an orchestrator-provided ticket key) is
   // authoritative — don't let AI title generation overwrite it.
   if (!command.title) {

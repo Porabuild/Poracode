@@ -1,0 +1,56 @@
+import { PortProxy } from "./portProxy";
+import type { ForwardOriginIdentity } from "./forwardOriginIdentity";
+import { RemotePortForwardGateway } from "../RemotePortForwardGateway";
+
+export interface PortForwardingOptions {
+  /** Host the forward listeners bind to (see {@link RemotePortForwardGateway}). */
+  readonly bindHost: string;
+  /** The remote-access server's own port, rejected as a self-referential
+   * forward target (see {@link RemotePortForwardGateway}). */
+  readonly remoteAccessPort: number;
+  /** Configured browser-forward child-origin identity. Absent = browser
+   * forwarding unavailable (raw TCP only). The same identity must be passed
+   * to `RemoteAccessServerOptions.forwardOrigin` — composition roots build it
+   * once via `createForwardOriginIdentity`. */
+  readonly forwardOrigin?: ForwardOriginIdentity;
+  /** Ports a paired client may forward (one allowlist shared by the discovery
+   * scan and the forward gate; see {@link RemotePortForwardGateway}). Defaults
+   * to the curated dev-port list. An explicit empty list refuses all forwards. */
+  readonly forwardablePorts?: readonly number[];
+}
+
+/**
+ * The paired raw-TCP gateway + authenticated HTTP/WS proxy that back port
+ * forwarding. They are always built, reused, and torn down together — the proxy
+ * holds in-memory enter-token/session state keyed to the gateway's forwards, so
+ * one can never outlive or be swapped independently of the other. This bundles
+ * that lockstep lifecycle behind a single unit so the Electron main composition
+ * root and the headless host keep just one nullable ref instead of two that must
+ * be manually kept in sync.
+ */
+export interface PortForwarding {
+  readonly gateway: RemotePortForwardGateway;
+  readonly proxy: PortProxy;
+  /** Disposes both, gateway first then proxy. Safe to call multiple times. */
+  dispose(): void;
+}
+
+export function createPortForwarding(options: PortForwardingOptions): PortForwarding {
+  const gateway = new RemotePortForwardGateway({
+    bindHost: options.bindHost,
+    remoteAccessPort: options.remoteAccessPort,
+    ...(options.forwardablePorts ? { forwardablePorts: options.forwardablePorts } : {}),
+  });
+  const proxy = new PortProxy({
+    gateway,
+    ...(options.forwardOrigin ? { forwardOrigin: options.forwardOrigin } : {}),
+  });
+  return {
+    gateway,
+    proxy,
+    dispose() {
+      gateway.dispose();
+      proxy.dispose();
+    },
+  };
+}

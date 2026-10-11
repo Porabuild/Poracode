@@ -327,6 +327,12 @@ export type WebSearchPayload = z.infer<typeof webSearchPayloadSchema>;
 
 export const errorItemPayloadSchema = z.object({
   message: z.string(),
+  /**
+   * `"warning"` marks an advisory notice rather than a failure (a `warning`
+   * event with `presentation: "notice"`). Absent means an error. Readers that
+   * predate the field show such an item as an error.
+   */
+  severity: z.enum(["error", "warning"]).optional(),
 });
 export type ErrorItemPayload = z.infer<typeof errorItemPayloadSchema>;
 
@@ -595,7 +601,7 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     itemId: z.string(),
     stream: runtimeContentStreamKindSchema,
     delta: z.string(),
-    /** Authoritative stream snapshot after transport loss; omitted means append. */
+    /** Authoritative stream snapshot; omitted means append. */
     replace: z.boolean().optional(),
   }),
   z.object({
@@ -632,10 +638,42 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     requestId: z.string(),
     outcome: requestOutcomeSchema,
   }),
+  /**
+   * Host-issued checkpoint rollback: every runtime item after `itemId` was
+   * deleted on the host and the completed turns anchored on those items went
+   * with them. `removedCompletedTurnAnchors` lists exactly the anchor ids of
+   * the completed turns the host deleted, computed in the same transaction as
+   * the deletion — clients prune by this server-declared set instead of local
+   * orphan detection, so turns anchored in older unloaded pages survive. The
+   * host publishes this event only for an actual truncation (runtime items
+   * were really deleted); a missing or already-last checkpoint removes
+   * nothing and is never broadcast, so a replayed event can only roll back
+   * state the host actually rolled back. An empty array is still meaningful:
+   * items were removed but no completed turns were anchored on them.
+   *
+   * Remote protocol v10: destructive synchronization semantics require a
+   * coordinated version; older exact-match peers cannot pair with a v10 host.
+   */
+  z.object({
+    type: z.literal("runtime.truncated"),
+    threadId: z.string(),
+    /** Checkpoint item that stays; every item after it was rolled back. */
+    itemId: z.string(),
+    /** Anchor item ids of the completed turns the host deleted. */
+    removedCompletedTurnAnchors: z.array(z.string()),
+  }),
   z.object({
     type: z.literal("warning"),
     threadId: z.string(),
     message: z.string(),
+    /**
+     * How the warning reaches the user. Absent (the default, e.g. transient
+     * retry statuses): not shown. `"notice"`: shown beside the thread's
+     * errors in the composer notice dock with a warning treatment, for
+     * advisories the user should read. Optional and additive: older readers
+     * ignore it and keep the warning hidden.
+     */
+    presentation: z.literal("notice").optional(),
   }),
   z.object({
     type: z.literal("error"),

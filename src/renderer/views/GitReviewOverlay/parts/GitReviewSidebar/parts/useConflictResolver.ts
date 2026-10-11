@@ -11,10 +11,10 @@ import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import {
   getConflictResolverCandidates,
   readConflictResolverSettingsForProject,
-  resolveConflictResolverLaunchConfig,
+  resolveConflictResolverSettingsLaunchConfig,
 } from "@/renderer/components/providers/conflictResolver";
-import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { recordAiAction } from "@/renderer/state/usageRecorder";
+
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -57,6 +57,8 @@ export function useConflictResolver(params: {
   // React #185 "Maximum update depth exceeded" the moment the git panel mounts.
   const sharedSettings = useSharedSettings(
     useShallow((s) => ({
+      conflictResolverSelection: s.conflictResolverSelection,
+      wslConflictResolverSelection: s.wslConflictResolverSelection,
       conflictResolverProvider: s.conflictResolverProvider,
       conflictResolverModel: s.conflictResolverModel,
       conflictResolverEffort: s.conflictResolverEffort,
@@ -96,15 +98,7 @@ export function useConflictResolver(params: {
     const provider = candidates[0];
     if (!provider) return;
 
-    const { model, effort } = resolveConflictResolverLaunchConfig(
-      liveSettings.provider,
-      provider,
-      liveSettings.model,
-      liveSettings.effort,
-    );
-    // Only carry fast through when the resolved model can actually use it, so a
-    // stale fast=true on a non-Opus model doesn't set an unusable session flag.
-    const fast = resolveFastValue(provider, model, liveSettings.fast);
+    const config = resolveConflictResolverSettingsLaunchConfig(liveSettings, provider);
 
     const fileList = mergeConflictFiles.map((f) => `- ${f.path}`).join("\n");
     const prompt = t`Resolve conflicts in this worktree. First inspect Git status and the active operation; the file list below may be stale. Compare both sides and the base, preserving intended behavior and unrelated edits. During rebase, verify what ours/theirs refer to. Handle rename/delete, binary, and generated-file conflicts using repository conventions. If intent is ambiguous, ask before discarding changes. Validate the resolution with appropriate checks, then stage only resolved paths. Do not commit, continue or abort the operation, or push. Report resolutions, checks, and remaining conflicts.
@@ -121,9 +115,7 @@ ${fileList}`;
     const launchInput: ConflictResolverLaunchInput = {
       agentKind: provider.kind,
       config: {
-        model,
-        ...(effort ? { effort } : {}),
-        ...(fast ? { fast: true } : {}),
+        ...config,
         approvalPolicy: bypass?.approvalPolicy ?? "bypassPermissions",
         ...(bypass?.sandboxMode ? { sandboxMode: bypass.sandboxMode } : {}),
       },
@@ -134,7 +126,7 @@ ${fileList}`;
     };
     if (params.onLaunchResolverThread) {
       params.onLaunchResolverThread(launchInput);
-      recordAiAction("conflict", provider.kind, model || "default");
+      recordAiAction("conflict", provider.kind, config.model || "default");
       return;
     }
 
@@ -149,7 +141,7 @@ ${fileList}`;
       ...(worktreeBranch ? { worktreeBranch } : {}),
     });
     store.queueThreadLaunch(thread.id, prompt);
-    recordAiAction("conflict", provider.kind, model || "default");
+    recordAiAction("conflict", provider.kind, config.model || "default");
   }
 
   return { canResolveWithAgent, handleResolveWithAgent, projectAgentStatuses };

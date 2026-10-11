@@ -4,8 +4,10 @@ import type {
   GenerateCommitMessageResult,
   ProjectLocation,
 } from "@/shared/contracts";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas";
 import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { toErrorMessage } from "@/shared/errorMessage";
+import { resolveUtilitySelection } from "@/renderer/utils/utilitySelection";
 import {
   createUtilityTaskRegistry,
   getMiniModelId,
@@ -47,10 +49,21 @@ interface GenerateCommitMessageWithFallbackInput {
   projectLocation: ProjectLocation;
   agentStatuses: readonly AgentStatus[];
   provider: string;
-  model: string;
-  effort: string;
+  /**
+   * Legacy scalar preset, kept for callers that still read the scalar
+   * siblings. Superseded by `selection` when it is present.
+   */
+  model?: string;
+  effort?: string;
   /** Opus-only fast mode; only forwarded when the resolved candidate model supports it. */
   fast?: boolean;
+  /**
+   * Canonical complete utility selection — the sole tuple when present.
+   * Absent, the scalars above convert to an unstamped tuple at this
+   * boundary. Empty effort and false Fast survive transport exactly, and a
+   * recognized binding travels with its own selection only.
+   */
+  selection?: ModelSelection;
   /** English name of the language to write the commit message in. Omitted = English. */
   language?: string;
   invoke: (payload: GenerateCommitMessagePayload) => Promise<GenerateCommitMessageResult>;
@@ -70,25 +83,35 @@ export async function generateCommitMessageWithFallbackDetails(
     throw new Error("No agent available to generate commit message");
   }
 
+  const legacy = {
+    model: input.model ?? "",
+    effort: input.effort ?? "",
+    fast: input.fast ?? false,
+  };
+
   const failures: string[] = [];
 
   for (const candidate of candidates) {
-    const resolvedCommitGen = resolveCommitGenConfig(candidate, input.model, input.effort);
-    const fast = resolveFastValue(candidate, resolvedCommitGen.model, input.fast);
+    const selection = resolveUtilitySelection(input.selection, legacy, (scalars) => {
+      const resolved = resolveCommitGenConfig(candidate, scalars.model, scalars.effort);
+      return {
+        model: resolved.model,
+        effort: resolved.effort,
+        fast: resolveFastValue(candidate, resolved.model, scalars.fast),
+      };
+    });
 
     try {
       const result = await input.invoke({
         projectLocation: input.projectLocation,
         agentKind: candidate.kind,
-        ...(resolvedCommitGen.model ? { model: resolvedCommitGen.model } : {}),
-        ...(resolvedCommitGen.effort ? { effort: resolvedCommitGen.effort } : {}),
-        ...(fast ? { fast: true } : {}),
+        selection,
         ...(input.language ? { language: input.language } : {}),
       });
       return {
         message: result.message,
         provider: candidate.kind,
-        model: resolvedCommitGen.model || "default",
+        model: selection.model || "default",
       };
     } catch (error) {
       const message = toErrorMessage(error);

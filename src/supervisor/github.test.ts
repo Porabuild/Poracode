@@ -423,6 +423,18 @@ describe("GitHubService", () => {
       await expect(new GitHubService().listPrs(location)).resolves.toEqual({});
     });
 
+    it.each([
+      "To get started with GitHub CLI, please run:  gh auth login",
+      "HTTP 401: Requires authentication (https://api.github.com/graphql)\nTry authenticating with:  gh auth login -h github.com",
+      "spawn gh ENOENT",
+      "HTTP 401: Bad credentials (https://api.github.com/graphql)",
+      "sh: 1: gh: not found",
+    ])("returns an empty map when gh is missing or unauthenticated: %s", async (message) => {
+      execFileAsyncMock.mockRejectedValue(new Error(message));
+
+      await expect(new GitHubService().listPrs(location)).resolves.toEqual({});
+    });
+
     it("does not hide unrelated gh failures", async () => {
       execFileAsyncMock.mockRejectedValue(new Error("GraphQL: API rate limit exceeded"));
 
@@ -2131,6 +2143,20 @@ describe("GitHub Actions mappers", () => {
 });
 
 describe("resolveClonedProjectPath", () => {
+  it("keeps a DrvFs WSL parent on the UNC path so the clone stays a WSL project", () => {
+    expect(
+      resolveClonedProjectPath(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/mnt/c/code",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\code",
+        },
+        "repo",
+      ),
+    ).toBe("\\\\wsl.localhost\\Ubuntu\\mnt\\c\\code\\repo");
+  });
+
   it("joins posix parents with /", () => {
     expect(resolveClonedProjectPath({ kind: "posix", path: "/home/me/code" }, "repo")).toBe(
       "/home/me/code/repo",

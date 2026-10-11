@@ -10,7 +10,71 @@ import { i18n } from "./i18n";
  * runtime via {@link setMessageResolver}. `{param}` placeholders are ICU
  * arguments resolved with the values passed to `msg()`.
  */
-const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "provider.signInDataUnavailable": msg({
+    message: "The provider's sign-in data could not be read. Try again or update Poracode.",
+  }),
+  "provider.unavailable": msg({
+    message: "The provider is unavailable. Install or update it in provider settings.",
+  }),
+  "provider.credentialRequired": msg({ message: "Choose a saved credential to sign out." }),
+  "provider.credentialsBusy": msg({
+    message: "Another Poracode process is updating these credentials. Wait and try again.",
+  }),
+  "provider.previousSessionCredential": msg({
+    message: "Previous sessions; sign in again for new threads.",
+  }),
+  "provider.versionUnsupported": msg({
+    message: "The installed provider version is unsupported. Update it in provider settings.",
+  }),
+  "modelSelection.lead": msg({ message: "Lead" }),
+  "modelSelection.sidekick": msg({ message: "Sidekick" }),
+  "modelSelection.unsupportedOptions": msg({
+    message:
+      "This agent does not support the selected model options. Choose different options and try again.",
+  }),
+  "modelSelection.unsupportedStoredData": msg({
+    message:
+      "These model settings contain unsupported selection data. Update the app before changing them.",
+  }),
+  "schedule.executionStale": msg({
+    message:
+      "This scheduled task changed or was removed before it could run. Review the schedule and try again.",
+  }),
+  "thread.projectLaunchStale": msg({
+    message:
+      "The project moved or was removed before the thread could launch. Review the project and try again.",
+  }),
+  "prWatch.retirementUnconfirmed": msg({
+    message:
+      'Could not confirm that the Auto Fix thread "{id}" was stopped. Poracode keeps it recorded and will retry stopping it.',
+  }),
+  "settings.dataNotPrepared": msg({
+    message:
+      "The app's data is not ready for these settings. Restart or update the app and try again.",
+  }),
+  "profile.executionUnavailable": msg({
+    message:
+      "This profile cannot launch with its current login and configuration. Review the profile settings and try again.",
+  }),
+  "profile.dependencyUnavailable": msg({
+    message:
+      'Profile "{profile}" needs account owner "{dependency}". Reassign its account before changing or removing the owner.',
+  }),
+  "thread.configSelectionRejected": msg({
+    message:
+      "The session rejected the requested configuration. Review the selected settings and try again.",
+  }),
+  "thread.workspaceLaunchUnavailable": msg({
+    message:
+      "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again.",
+  }),
+  "thread.sessionActionFailed": msg({
+    message: "The session action failed. Try again or reopen the session.",
+  }),
+  "thread.sessionActionUnavailable": msg({
+    message: "Session actions are unavailable for this thread.",
+  }),
   "voice.unavailable": msg({ message: "Live voice is unavailable for this thread." }),
   "voice.alreadyConnected": msg({ message: "A voice conversation is already active." }),
   "voice.subscriptionRequired": msg({
@@ -20,6 +84,13 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "voice.connectionFailed": msg({ message: "The voice connection failed. Try again." }),
   "voice.cancelled": msg({ message: "The voice connection was cancelled." }),
   "supervisor.sendTerminalInput": msg({ message: "Send terminal input" }),
+  "startup.failure.title": msg({ message: "Poracode could not start" }),
+  "startup.failure.body": msg({
+    message:
+      "Poracode failed to start:\n\n{detail}\n\nRetry (for example, once the other owner has finished starting) or quit.",
+  }),
+  "startup.failure.retry": msg({ message: "Retry" }),
+  "startup.failure.quit": msg({ message: "Quit" }),
   "supervisor.followUpQueue.guiOnly": msg({
     message: "Queued follow-ups are only supported for chat threads.",
   }),
@@ -211,6 +282,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "supervisor.exited": msg({ message: "Background process exited unexpectedly" }),
   "supervisor.notRunning": msg({ message: "Background process is not running" }),
   "supervisor.proposedPlan": msg({ message: "Proposed plan" }),
+  "runtime.delegatedAgentInterrupted": msg({
+    message: "Interrupted: agent session ended before completion.",
+  }),
   "supervisor.handoffTranscriptUnavailable": msg({
     message:
       "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
@@ -221,6 +295,16 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   }),
   "opencode.retryFallback": msg({
     message: "OpenCode request failed, retrying...",
+  }),
+  "codex.compactUnavailableDuringTurn": msg({
+    message:
+      "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes.",
+  }),
+  "codex.compactFailed": msg({
+    message: "Codex could not compact the conversation: {detail}",
+  }),
+  "codex.modelRerouted": msg({
+    message: "Model rerouted from {fromModel} to {toModel}.",
   }),
   "acp.authenticationUnverified": msg({
     message:
@@ -275,6 +359,29 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
     message:
       "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
   }),
+  "remote.helper.ownerUnverified": msg({
+    message:
+      "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect.",
+  }),
+  "remote.helper.ownerUnresponsive": msg({
+    message:
+      "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect.",
+  }),
+  "remote.helper.ownerIncompatible": msg({
+    message:
+      "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version.",
+  }),
+  "remote.helper.ownerConflict": msg({
+    message:
+      "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect.",
+  }),
+  "remote.helper.busy": msg({
+    message: "Another Poracode client is preparing this connection. Try again in a moment.",
+  }),
+  "remote.helper.drainTimeout": msg({
+    message:
+      "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again.",
+  }),
   "ssh.runtimeManifest.invalid": msg({
     message: "Poracode SSH runtime manifest is missing or invalid: {path}",
   }),
@@ -305,6 +412,17 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   }),
   "thread.compact.noop": msg({
     message: "Nothing to compact yet — the conversation is still small.",
+  }),
+  "thread.goal.none": msg({ message: "No active goal in this session." }),
+  "thread.goal.invalidState": msg({ message: "The goal can't do that in its current state." }),
+  "thread.goal.editUsage": msg({ message: "Usage: /goal edit <objective>" }),
+  "thread.goal.unsupported": msg({
+    message:
+      "This version of Muse Code does not support session goals. Update Muse Code and try again.",
+  }),
+  "desktop.promotion.progress.title": msg({ message: "Poracode" }),
+  "desktop.promotion.progress.body": msg({
+    message: "Promoting this profile into the owned data root…",
   }),
 };
 

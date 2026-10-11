@@ -1,0 +1,406 @@
+import Foundation
+
+/// Stable app-owned access to the generated remote-v3 root codecs.
+///
+/// Hash-derived generated model names must remain behind this boundary. App code exchanges
+/// canonical JSON data and continues to project it into the stable domain models it owns.
+enum GeneratedRemoteV3Contract {
+  /// Aliased to the app-owned primary constant so a future protocol bump
+  /// stays a one-line change in `ProtocolConstants`.
+  static let expectedProtocolVersion = ProtocolConstants.remoteProtocolVersion
+  static let expectedBindingFormatVersion = 2
+  static let expectedGeneratorVersion = 4
+  /// 2 added the generated pairing state machine to the native bundle
+  /// (V5 5.2); 3 adds the generated terminal-cursor machine and the
+  /// `stateMachines` count; 4 adds the generated terminal hardware-key
+  /// encoder; 5 adds background-task reduce and follow-up queue.
+  /// A v4 manifest predates those machines and is refused.
+  static let expectedNativeBundleManifestFormatVersion = 5
+
+  static var isCompatible: Bool {
+    RemoteContractMetadata.protocolVersion == expectedProtocolVersion
+      && RemoteContractMetadata.bindingFormatVersion == expectedBindingFormatVersion
+      && RemoteContractMetadata.generatorVersion == expectedGeneratorVersion
+  }
+
+  static func assertCompatibility() {
+    guard let url = Bundle.main.url(forResource: "native-bindings", withExtension: "json"),
+      let data = try? Data(contentsOf: url)
+    else {
+      preconditionFailure("The generated remote-v3 binding manifest is missing.")
+    }
+    precondition(
+      isCompatible(withNativeBundleManifest: data),
+      "Generated remote-v3 bindings are incompatible with this app."
+    )
+  }
+
+  static func isCompatible(withNativeBundleManifest data: Data) -> Bool {
+    isCompatible(
+      withNativeBundleManifest: data,
+      expectedFormatVersion: expectedNativeBundleManifestFormatVersion
+    )
+  }
+
+  /// Test seam for the old-reader direction: a reader built against an earlier
+  /// bundle format must refuse a newer manifest (exact equality, never `<=`),
+  /// because format bumps add machines the old reader cannot decode.
+  static func isCompatible(
+    withNativeBundleManifest data: Data,
+    expectedFormatVersion: Int
+  ) -> Bool {
+    guard let manifest = try? JSONDecoder().decode(CompatibilityManifest.self, from: data)
+    else { return false }
+    return isCompatible
+      && manifest.protocolVersion == RemoteContractMetadata.protocolVersion
+      && manifest.bindingFormatVersion == RemoteContractMetadata.bindingFormatVersion
+      && manifest.generatorVersion == RemoteContractMetadata.generatorVersion
+      && manifest.formatVersion == expectedFormatVersion
+  }
+
+  static func environmentResponse(_ data: Data, legacy: Bool) throws -> Data {
+    if legacy {
+      return try canonicalData(
+        data, codec: RemoteRootCodecs.routeU2EEnvironmentU2DLegacyU2EResponse,
+        boundary: "legacy environment response"
+      )
+    }
+    return try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EEnvironmentU2EResponse,
+      boundary: "environment response"
+    )
+  }
+
+  static func tokenExchangeRequest(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2ETokenU2DExchangeU2ERequest,
+      boundary: "token exchange request"
+    )
+  }
+
+  static func tokenExchangeResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse,
+      boundary: "token exchange response"
+    )
+  }
+
+  static func shellSnapshotResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse,
+      boundary: "shell snapshot response"
+    )
+  }
+
+  static func threadHistoryPath(threadId: String) throws -> String {
+    try canonicalThreadId(
+      threadId, codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2EPath,
+      boundary: "thread history path"
+    )
+  }
+
+  static func threadHistoryQuery(
+    targetTimelineEntryCount: Int?,
+    notices: Bool = false
+  ) throws -> [URLQueryItem] {
+    var object: [String: Any] = ["runtimePage": "1"]
+    if let targetTimelineEntryCount {
+      object["targetTimelineEntryCount"] = targetTimelineEntryCount
+    }
+    if notices { object["notices"] = "v1" }
+    let snapshot = try canonicalSnapshot(
+      jsonData(object), codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery,
+      boundary: "thread history query"
+    )
+    return try queryItems(snapshot, order: ["notices", "runtimePage", "targetTimelineEntryCount"])
+  }
+
+  static func threadHistoryResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2EResponse,
+      boundary: "thread history response"
+    )
+  }
+
+  static func historyItemsPath(threadId: String) throws -> String {
+    try canonicalThreadId(
+      threadId, codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EPath,
+      boundary: "history items path"
+    )
+  }
+
+  static func historyItemsQuery(
+    beforePosition: Int?, limit: Int, targetTimelineEntryCount: Int?, notices: Bool = false
+  ) throws -> [URLQueryItem] {
+    var object: [String: Any] = ["limit": limit]
+    if let beforePosition { object["beforePosition"] = beforePosition }
+    if let targetTimelineEntryCount {
+      object["targetTimelineEntryCount"] = targetTimelineEntryCount
+    }
+    if notices { object["notices"] = "v1" }
+    let snapshot = try canonicalSnapshot(
+      jsonData(object), codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EQuery,
+      boundary: "history items query"
+    )
+    return try queryItems(
+      snapshot, order: ["notices", "limit", "beforePosition", "targetTimelineEntryCount"]
+    )
+  }
+
+  static func historyItemsResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EResponse,
+      boundary: "history items response"
+    )
+  }
+
+  static func threadSendPath(threadId: String) throws -> String {
+    try canonicalThreadId(
+      threadId, codec: RemoteRootCodecs.routeU2EThreadU2DSendU2EPath,
+      boundary: "thread send path"
+    )
+  }
+
+  static func threadSendRequest(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DSendU2ERequest,
+      boundary: "thread send request"
+    )
+  }
+
+  static func threadSendResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DSendU2EResponse,
+      boundary: "thread send response"
+    )
+  }
+
+  static func interruptPath(threadId: String) throws -> String {
+    try canonicalThreadId(
+      threadId, codec: RemoteRootCodecs.routeU2EThreadU2DInterruptU2EPath,
+      boundary: "thread interrupt path"
+    )
+  }
+
+  static func interruptRequest() throws -> Data {
+    try canonicalData(
+      Data("{}".utf8), codec: RemoteRootCodecs.routeU2EThreadU2DInterruptU2ERequest,
+      boundary: "thread interrupt request"
+    )
+  }
+
+  static func interruptResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DInterruptU2EResponse,
+      boundary: "thread interrupt response"
+    )
+  }
+
+  static func websocketTicketResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EWebsocketU2DTicketU2EResponse,
+      boundary: "WebSocket ticket response"
+    )
+  }
+
+  /// Canonical `GET /api/agent-statuses` response. Session-core hydration reads
+  /// this route directly instead of depending on the Settings transport.
+  static func agentStatusesResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse,
+      boundary: "agent statuses response"
+    )
+  }
+
+  /// Generated path for `agent-statuses`, validated against the bearer +
+  /// `session:read` shape the session code depends on.
+  static let agentStatusesRoutePath: String = {
+    guard let route = RemoteContractMetadata.routes.first(where: { $0.id == "agent-statuses" }),
+      route.auth == "bearer",
+      route.scopes == ["session:read"],
+      route.method == "GET"
+    else {
+      preconditionFailure("Generated remote-v3 route metadata is incompatible: agent-statuses")
+    }
+    return route.path
+  }()
+
+  static func hostDescribeResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EHostU2DDescribeU2EResponse,
+      boundary: "host describe response"
+    )
+  }
+
+  /// Generated path for `host-describe`, validated against the bearer +
+  /// `session:read` shape pairing and session restore depend on.
+  static let hostDescribeRoutePath: String = {
+    guard let route = RemoteContractMetadata.routes.first(where: { $0.id == "host-describe" }),
+      route.auth == "bearer",
+      route.scopes == ["session:read"],
+      route.method == "GET"
+    else {
+      preconditionFailure("Generated remote-v3 route metadata is incompatible: host-describe")
+    }
+    return route.path
+  }()
+
+  static func pushRegisterRequest(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EPushU2DRegisterU2ERequest,
+      boundary: "push register request"
+    )
+  }
+
+  static func pushRegisterResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EPushU2DRegisterU2EResponse,
+      boundary: "push register response"
+    )
+  }
+
+  static func pushUnregisterRequest(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EPushU2DUnregisterU2ERequest,
+      boundary: "push unregister request"
+    )
+  }
+
+  static func pushUnregisterResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EPushU2DUnregisterU2EResponse,
+      boundary: "push unregister response"
+    )
+  }
+
+  // MARK: - B1 runtime gap routes
+
+  /// `GET /api/threads/{threadId}/runtime/gap` — declared-only (`notices=v1`).
+  static func runtimeGapPath(threadId: String) throws -> String {
+    try canonicalThreadId(
+      threadId, codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EPath,
+      boundary: "runtime gap path"
+    )
+  }
+
+  static func runtimeGapQuery() throws -> [URLQueryItem] {
+    try queryItems(
+      canonicalSnapshot(
+        jsonData(["notices": "v1"]), codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EQuery,
+        boundary: "runtime gap query"
+      ),
+      order: ["notices"]
+    )
+  }
+
+  static func runtimeGapResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EResponse,
+      boundary: "runtime gap response"
+    )
+  }
+
+  static func runtimeGapAcknowledgePath(threadId: String) throws -> String {
+    try canonicalThreadId(
+      threadId,
+      codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EPath,
+      boundary: "runtime gap acknowledge path"
+    )
+  }
+
+  static func runtimeGapAcknowledgeQuery() throws -> [URLQueryItem] {
+    try queryItems(
+      canonicalSnapshot(
+        jsonData(["notices": "v1"]),
+        codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EQuery,
+        boundary: "runtime gap acknowledge query"
+      ),
+      order: ["notices"]
+    )
+  }
+
+  static func runtimeGapAcknowledgeRequest(
+    threadId: String, episodeToken: String
+  ) throws -> Data {
+    try canonicalData(
+      jsonData(["threadId": threadId, "episodeToken": episodeToken]),
+      codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2ERequest,
+      boundary: "runtime gap acknowledge request"
+    )
+  }
+
+  static func runtimeGapAcknowledgeResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EResponse,
+      boundary: "runtime gap acknowledge response"
+    )
+  }
+
+  private static func canonicalThreadId<Value: Codable & Sendable>(
+    _ threadId: String, codec: RemoteRootCodec<Value>, boundary: String
+  ) throws -> String {
+    let snapshot = try canonicalSnapshot(
+      jsonData(["threadId": threadId]), codec: codec, boundary: boundary
+    )
+    guard case .object(let object) = snapshot, case .string(let value)? = object["threadId"] else {
+      throw RemoteClientError.invalidResponse("The generated codec returned an invalid path.")
+    }
+    return value
+  }
+
+  private static func queryItems(
+    _ snapshot: RemoteJSONValue, order: [String]
+  ) throws -> [URLQueryItem] {
+    guard case .object(let object) = snapshot else {
+      throw RemoteClientError.invalidResponse("The generated codec returned an invalid query.")
+    }
+    return try order.compactMap { name in
+      guard let value = object[name] else { return nil }
+      switch value {
+      case .string(let text): return URLQueryItem(name: name, value: text)
+      case .int(let number):
+        return URLQueryItem(name: name, value: try RemoteQueryCodec.encodeInt(number))
+      default:
+        throw RemoteClientError.invalidResponse("The generated codec returned an invalid query.")
+      }
+    }
+  }
+
+  private static func jsonData(_ object: [String: Any]) throws -> Data {
+    try JSONSerialization.data(withJSONObject: object)
+  }
+
+  static func canonicalData<Value: Codable & Sendable>(
+    _ data: Data, codec: RemoteRootCodec<Value>, boundary: String
+  ) throws -> Data {
+    do {
+      let result = try codec.decode(data, decoder: JSONDecoding.decoder)
+      return try codec.encodeSnapshot(result)
+    } catch {
+      throw RemoteClientError.invalidResponse("Invalid \(boundary).")
+    }
+  }
+
+  private static func canonicalSnapshot<Value: Codable & Sendable>(
+    _ data: Data, codec: RemoteRootCodec<Value>, boundary: String
+  ) throws -> RemoteJSONValue {
+    try canonicalResult(data, codec: codec, boundary: boundary).validatedSnapshot
+  }
+
+  private static func canonicalResult<Value: Codable & Sendable>(
+    _ data: Data, codec: RemoteRootCodec<Value>, boundary: String
+  ) throws -> RemoteRootValue<Value> {
+    do {
+      return try codec.decode(data, decoder: JSONDecoding.decoder)
+    } catch {
+      throw RemoteClientError.invalidResponse("Invalid \(boundary).")
+    }
+  }
+}
+
+private struct CompatibilityManifest: Decodable {
+  let protocolVersion: Int
+  let bindingFormatVersion: Int
+  let generatorVersion: Int
+  let formatVersion: Int
+}

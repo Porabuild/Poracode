@@ -10,15 +10,20 @@ import type {
   PromptSegment,
   ThreadConfig,
   ThreadPresentationMode,
+  TurnClientContext,
 } from "@/shared/contracts";
 import { MAX_EXPERIMENT_CANDIDATES } from "@/shared/contracts";
 import { hasSelectableReasoning } from "@/shared/agentSelection";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
-import { isHomeProjectId } from "@/shared/homeScope";
+import { isHomeProject } from "@/shared/homeScope";
 import { hasSendablePromptContent, skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { friendlyError } from "@/shared/messages";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
+import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
+import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 import {
   AttachmentBar,
   ComputerUseChip,
@@ -31,6 +36,7 @@ import {
 } from "@/renderer/components/composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
 import { LiveVoiceButton } from "@/renderer/components/composer/LiveVoiceControls";
+import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
 import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
@@ -80,6 +86,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDrafts";
 import { composerSeedQueue } from "@/renderer/state/projectReferences";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
@@ -130,6 +137,8 @@ export type DraftStartInput = {
   worktreeIsNewBranch?: boolean | undefined;
   worktreeTransferUncommitted?: boolean | undefined;
   presentationMode?: ThreadPresentationMode | undefined;
+  /** Per-turn context the launching surface captured for the initial prompt. */
+  clientContext?: TurnClientContext | undefined;
 };
 
 function HookInstallProposal(props: {
@@ -148,12 +157,7 @@ function HookInstallProposal(props: {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (
-      props.presentationMode !== "terminal" ||
-      dismissed ||
-      typeof window === "undefined" ||
-      !window.poracode?.getAgentHookPluginStatuses
-    ) {
+    if (props.presentationMode !== "terminal" || dismissed || !hasAnyClientBridge()) {
       setStatus(undefined);
       return;
     }
@@ -247,6 +251,7 @@ function DraftComposerAfterControls(props: {
   pluginLabels: Readonly<Record<string, string>>;
   onPickFiles: () => void;
   showVoiceInputButton: boolean;
+  voiceInputUnavailableHint?: string | undefined;
   isDisabled: boolean;
   readOnlyMcp?: boolean;
   experiment?: {
@@ -283,6 +288,9 @@ function DraftComposerAfterControls(props: {
       <ComposerVoiceInput
         show={props.showVoiceInputButton}
         isDisabled={props.isDisabled}
+        {...(props.voiceInputUnavailableHint !== undefined
+          ? { unavailableHint: props.voiceInputUnavailableHint }
+          : {})}
         mentionRef={props.mentionRef}
         voiceInputRef={props.voiceInputRef}
       />
@@ -298,6 +306,8 @@ export function ThreadDraftComposerArea(props: {
   controls: ComposerControl[];
   config: ThreadConfig;
   compact: boolean | undefined;
+  /** Embedded clients cannot manage branches or experiment workspaces. */
+  hideWorkspaceControls?: boolean;
   paneCount: number | undefined;
   gitBranch: string | undefined;
   worktreeMode: boolean;
@@ -306,8 +316,14 @@ export function ThreadDraftComposerArea(props: {
   placeholder?: string;
   /** Restores the selection replaced by a one-shot worktree target when this token changes. */
   restoreWorktreeSelectionToken?: number;
-  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  /**
+   * Override whether unmodified Enter submits instead of inserting a newline.
+   * Defaults to submit on desktop (Electron and desktop PWA) and newline on
+   * compact/mobile PWA.
+   */
   submitOnEnter?: boolean;
+  /** Override mount autofocus without changing the active submit behavior. */
+  autoFocus?: boolean;
   pickFiles?: () => Promise<string[] | null>;
   saveClipboardImage?: SaveClipboardImage;
   onConfigChange: (patch: Partial<ThreadConfig>) => void;
@@ -318,6 +334,7 @@ export function ThreadDraftComposerArea(props: {
 }) {
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
+  const implicitMcpServers = useImplicitMcpServers();
   const promptRef = useRef("");
   const [hasContent, setHasContent] = useState(false);
   // Set to true while an agent-binary update is running for this project's env.
@@ -329,11 +346,20 @@ export function ThreadDraftComposerArea(props: {
   const [experimentMode, setExperimentMode] = useState(false);
   const [experimentCandidates, setExperimentCandidates] = useState<ExperimentDraftCandidate[]>([]);
   const [experimentBaseBranch, setExperimentBaseBranch] = useState<string | null>(null);
+  const compactLayout = useCompactLayout();
   const isRemoteSurface = isRemoteSession();
+  const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isRemoteSurface);
   const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
-  const isQuickComposer = window.poracode ? isQuickComposerWindow() : false;
-  const showVoiceInputButton =
-    useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
+  const isQuickComposer = hasAnyClientBridge() ? isQuickComposerWindow() : false;
+  const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
+  // Remote sessions have no local capture path: keep the button visible (when
+  // enabled) but disabled with the reason, instead of hiding it silently.
+  const showVoiceInputButton = voiceInputEnabled;
+  const voiceInputUnavailableHint = voiceInputEnabled
+    ? isRemoteSurface
+      ? t`Voice input is unavailable on remote sessions.`
+      : undefined
+    : undefined;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
@@ -346,15 +372,36 @@ export function ThreadDraftComposerArea(props: {
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
+  const browserImageReadiness = useRemoteBridgeImageReadiness();
   // Remote-project attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = props.project.remoteServerId;
+  const remoteImageServer = useRemoteServersStore((state) =>
+    remoteDesktopId
+      ? state.servers.find(
+          (server) => (server.connectionId ?? server.desktopId) === remoteDesktopId,
+        )
+      : undefined,
+  );
   const hostUpdateRestarting = useRemoteServersStore((state) =>
     remoteDesktopId ? state.hostUpdateRestarts[remoteDesktopId] !== undefined : false,
   );
   const attachmentImageUrlForPath = remoteDesktopId
-    ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
+    ? (path: string) =>
+        isRemoteSurface
+          ? remoteBridgeLocalImageUrl(path)
+          : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
+  // Host-owned environment attachments resolve through the keyed readiness
+  // subscription; direct/ssh keep their synchronous endpoint URL.
+  const remoteImageReadiness =
+    remoteDesktopId && remoteImageServer
+      ? isRemoteSurface
+        ? (environmentImageReadinessFor(remoteDesktopId) ?? browserImageReadiness)
+        : useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
+      : isRemoteSurface
+        ? browserImageReadiness
+        : undefined;
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
   const projectId = props.project.id;
@@ -417,6 +464,16 @@ export function ThreadDraftComposerArea(props: {
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
   const attachmentsRef = useRef(attachments.attachments);
   attachmentsRef.current = attachments.attachments;
+  const mountedDraftActionsRef = useRef({
+    getAttachments: attachments.getAttachments,
+    restoreAttachments: attachments.restore,
+    saveDraftContent,
+  });
+  mountedDraftActionsRef.current = {
+    getAttachments: attachments.getAttachments,
+    restoreAttachments: attachments.restore,
+    saveDraftContent,
+  };
   const initialDraftRef = useRef(useAppStore.getState().draftContents[props.project.id]);
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     props.project.location,
@@ -447,7 +504,7 @@ export function ThreadDraftComposerArea(props: {
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
   const showCommandPanel = filteredCommands.length > 0;
   const authRequired = props.selectedAgent.authState === "missing";
-  const isHomeScope = isHomeProjectId(props.project.id);
+  const isHomeScope = isHomeProject(props.project);
   const threadMentions = useThreadMentionItems(
     isHomeScope
       ? { kind: "workspace", currentWorktreePath: branchSelection?.worktreePath }
@@ -462,7 +519,9 @@ export function ThreadDraftComposerArea(props: {
   // id — not the per-thread config flag. A new MCP server means adding one
   // descriptor to the registry.
   const availableComposerMcpServers = composerMcpServers.filter(
-    (descriptor) => disabledBuiltInMcpServers[descriptor.id] !== true,
+    (descriptor) =>
+      disabledBuiltInMcpServers[descriptor.id] !== true &&
+      !implicitMcpServers.includes(descriptor.id),
   );
   const providerOwnsMcp = providerOwnsMcpConfig(props.selectedAgent.capabilities);
   // A desktop remote project launches on the paired host, whose provider
@@ -879,9 +938,17 @@ export function ThreadDraftComposerArea(props: {
     if (authRequired) {
       return;
     }
+    // Draft state may hold an empty model until one is chosen, but the wire
+    // contract (threadConfigSchema) rejects it, so the launch would be refused
+    // and silently dropped. Admit nonempty models only, before any launch or
+    // draft-clear side effect.
+    if (!props.config.model) {
+      return;
+    }
 
     resetDraftRefs();
     submittedRef.current = true;
+    clearDraftContent(props.project.id);
     setIsSubmitting(true);
     const useWorktree = branchSelection?.isWorktree ?? props.worktreeMode;
     if (props.supportsModePicker) {
@@ -917,11 +984,10 @@ export function ThreadDraftComposerArea(props: {
     // return void or a promise; Promise.resolve normalizes both.
     return Promise.resolve(startResult).catch((error: unknown) => {
       submittedRef.current = false;
-      // resetDraftRefs() above cleared the snapshot the unmount-cleanup save
-      // reads. The prompt is still in the editor, so re-capture it — otherwise
-      // navigating away without another edit would silently drop it.
+      // Restore the checkpoint from the editor after a failed launch.
       latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
       attachmentsRef.current = attachments.attachments;
+      checkpointDraft();
       setIsSubmitting(false);
       if (voiceThreadId) throw error;
     });
@@ -995,7 +1061,6 @@ export function ThreadDraftComposerArea(props: {
     if (saved.attachments.length > 0) {
       attachments.restore(saved.attachments);
     }
-    clearDraftContent(props.project.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time mount restore
   }, []);
 
@@ -1109,6 +1174,21 @@ export function ThreadDraftComposerArea(props: {
     pendingFallbackComposerInputs,
   ]);
 
+  function checkpointDraft() {
+    if (submittedRef.current) return;
+    const content = {
+      segments: latestSegmentsRef.current,
+      attachments: attachmentsRef.current.map(storableAttachment),
+    };
+    if (isDraftContentNonEmpty(content)) saveDraftContent(props.project.id, content);
+    else clearDraftContent(props.project.id);
+  }
+
+  useEffect(() => {
+    checkpointDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- text is checkpointed by onTextChange; attachments update after commit
+  }, [attachments.attachments]);
+
   useEffect(() => {
     const pid = props.project.id;
     let transferred = false;
@@ -1118,12 +1198,12 @@ export function ThreadDraftComposerArea(props: {
           ? null
           : {
               segments: latestSegmentsRef.current,
-              attachments: attachments.getAttachments().map(storableAttachment),
+              attachments: mountedDraftActionsRef.current.getAttachments().map(storableAttachment),
             },
       restore: (content) => {
         mentionRef.current?.restoreFromSegments(content.segments);
         latestSegmentsRef.current = content.segments;
-        attachments.restore(content.attachments);
+        mountedDraftActionsRef.current.restoreAttachments(content.attachments);
         attachmentsRef.current = content.attachments;
       },
       transfer: () => {
@@ -1142,11 +1222,10 @@ export function ThreadDraftComposerArea(props: {
         attachments: attachmentsRef.current.map(storableAttachment),
       };
       if (isDraftContentNonEmpty(content)) {
-        saveDraftContent(pid, content);
+        mountedDraftActionsRef.current.saveDraftContent(pid, content);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup-only effect keyed on project
-  }, [props.project.id, saveDraftContent]);
+  }, [props.project.id]);
 
   useEffect(() => {
     setSlashActiveIndex(0);
@@ -1172,7 +1251,7 @@ export function ThreadDraftComposerArea(props: {
   return (
     <>
       <ThreadComposer
-        autoFocus={(props.paneCount ?? 1) === 1 && !isRemoteSurface} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
+        autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus -- caller controls whether this surface should take focus on mount
         compact={props.compact ?? false}
         variant="draft"
         controls={controls}
@@ -1249,6 +1328,7 @@ export function ThreadDraftComposerArea(props: {
             }}
             onPreviewPdf={(att) => openPdfPreview(att.path)}
             {...(attachmentImageUrlForPath ? { imageUrlForPath: attachmentImageUrlForPath } : {})}
+            remoteImageReadiness={remoteImageReadiness}
             leading={
               mentionedMcpServers.length > 0 || showComputerUseChip ? (
                 <>
@@ -1277,7 +1357,7 @@ export function ThreadDraftComposerArea(props: {
         inputContent={
           <MentionInput
             ref={mentionRef}
-            autoFocus={(props.paneCount ?? 1) === 1 && !isRemoteSurface} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
+            autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus -- caller controls whether this surface should take focus on mount
             compact={props.compact ?? false}
             // The PWA surfaces this draft as the home screen's compact composer
             // pill, where an invitation reads better than the generic prompt.
@@ -1285,7 +1365,7 @@ export function ThreadDraftComposerArea(props: {
               props.placeholder ?? (isRemoteSurface ? t`Plan, ask, build…` : t`Send a message...`)
             }
             projectLocation={isHomeScope ? undefined : props.project.location}
-            submitOnEnter={props.submitOnEnter ?? !isRemoteSurface}
+            submitOnEnter={props.submitOnEnter ?? !compactLayout}
             {...(showCommandPanel
               ? {
                   commandListId,
@@ -1298,6 +1378,7 @@ export function ThreadDraftComposerArea(props: {
               setHasContent(hasText);
               const segments = mentionRef.current?.serializeSegments() ?? [];
               latestSegmentsRef.current = segments;
+              checkpointDraft();
             }}
             mcpMentions={composerMcpMentions}
             pluginMentions={composerPluginMentions}
@@ -1353,6 +1434,7 @@ export function ThreadDraftComposerArea(props: {
           agentUpdating ||
           hostUpdateRestarting ||
           isSubmitting ||
+          (!experimentMode && !props.config.model) ||
           !(hasContent || attachments.attachments.length > 0) ||
           (experimentMode && experimentCandidates.length < 2)
         }
@@ -1422,8 +1504,13 @@ export function ThreadDraftComposerArea(props: {
             customMcpServers={customMcpServers}
             readOnlyMcp={providerOwnsMcpForComposer}
             showVoiceInputButton={showVoiceInputButton && !liveVoiceActive}
+            {...(voiceInputUnavailableHint !== undefined ? { voiceInputUnavailableHint } : {})}
             isDisabled={authRequired || agentUpdating || isSubmitting}
-            {...(!isHomeScope && !usesRemoteTransport && !isQuickComposer && props.gitBranch
+            {...(!props.hideWorkspaceControls &&
+            !isHomeScope &&
+            !usesRemoteTransport &&
+            !isQuickComposer &&
+            props.gitBranch
               ? {
                   experiment: {
                     enabled: experimentMode,
@@ -1464,7 +1551,7 @@ export function ThreadDraftComposerArea(props: {
           />
         }
       />
-      {props.gitBranch ? (
+      {props.hideWorkspaceControls ? null : props.gitBranch ? (
         <div data-draft-worktree-row="" className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
           <WorktreeModeSelect
             mode={experimentMode ? "new" : worktreeMode}

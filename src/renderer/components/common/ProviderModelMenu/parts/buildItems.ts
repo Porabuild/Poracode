@@ -1,11 +1,14 @@
 import { msg } from "@lingui/core/macro";
+import { msg as sharedMessage } from "@/shared/messages";
 import type { MessageDescriptor } from "@lingui/core";
+import { i18n } from "@/renderer/i18n/i18n";
 import {
   baseAgentKind,
   type AgentCapability,
   type AgentStatus,
   type ThreadPresentationMode,
 } from "@/shared/contracts";
+import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
 import { stripBracketParams } from "@/shared/modelLabels";
 import { deriveSubProvider, listSubProviderOrder } from "./deriveSubProvider";
 import {
@@ -19,6 +22,14 @@ import {
   providerVisibilityKey,
 } from "./providerIdentity";
 import { getProviderModelPickerRank } from "@/renderer/components/providers/providerManifest";
+import { primaryModelChoices } from "@/renderer/components/providers/modelPickerLayout";
+import { separatePrimaryModelRows } from "./primaryModelRows";
+import {
+  aggregateModelPriceTerms,
+  formatModelPriceHint,
+  formatProviderModelDescription,
+} from "@/renderer/components/providers/modelDescription";
+import { cachedProjectedFamilies, modelFamilyMemberCompactLabel } from "./modelFamilyDisplay";
 import type { ProviderModelItem } from "./types";
 
 export interface ProviderModelMenuProvider {
@@ -115,26 +126,24 @@ interface ModelEntry {
   searchText: string;
 }
 
-// Surface the model's reported context window(s) as a muted secondary hint in
-// the row. Cursor models with multiple selectable sizes show "272K / 1M";
-// OpenCode models with a single registry context show "128K". Filters out the
-// abstract "Default" id so we don't pollute rows with non-informative text.
+// Surface a fixed context window as a muted row hint when the model has
+// exactly one concrete size and no Context picker. Selectable multi-size
+// models omit the chip — the composer control is the source of truth.
+// Filters out the abstract "Default" id so we don't pollute rows with
+// non-informative text.
 function pickContextDescription(modelId: string, capability: AgentCapability): string | undefined {
   const ids = capability.modelContextSizes?.[modelId];
   if (!ids || ids.length === 0) return undefined;
-  const labels: string[] = [];
-  for (const id of ids) {
-    if (id.toLowerCase() === "default") continue;
-    // Prefer the explicit `contextSizes` label when present; otherwise fall
-    // back to the id itself uppercased so Cursor's "200k" / "1m" ids render
-    // as "200K" / "1M" without the provider having to publish a label entry
-    // (which would otherwise spawn a single-option context picker).
-    const label =
-      capability.contextSizes?.find((option) => option.id === id)?.label ?? id.toUpperCase();
-    if (!label) continue;
-    if (!labels.includes(label)) labels.push(label);
-  }
-  return labels.length > 0 ? labels.join(" / ") : undefined;
+  const concrete = ids.filter((id) => id.toLowerCase() !== "default");
+  if (concrete.length !== 1) return undefined;
+  const id = concrete[0]!;
+  // Prefer the explicit `contextSizes` label when present; otherwise fall
+  // back to the id itself uppercased so Cursor's "200k" / "1m" ids render
+  // as "200K" / "1M" without the provider having to publish a label entry
+  // (which would otherwise spawn a single-option context picker).
+  const label =
+    capability.contextSizes?.find((option) => option.id === id)?.label ?? id.toUpperCase();
+  return label || undefined;
 }
 
 function formatModelDescription(description: string | undefined): string | undefined {
@@ -147,6 +156,15 @@ function formatModelDescription(description: string | undefined): string | undef
 function joinHints(...hints: Array<string | undefined>): string | undefined {
   const parts = hints.filter((hint): hint is string => Boolean(hint));
   return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
+function distinctGroupLabel(
+  modelLabel: string,
+  groupLabel: string | undefined,
+): string | undefined {
+  return groupLabel?.trim().toLowerCase() !== modelLabel.trim().toLowerCase()
+    ? groupLabel
+    : undefined;
 }
 
 /**
@@ -180,9 +198,48 @@ function formatTooltipDescription(input: {
   return description;
 }
 
+/**
+ * Muted right-hand price text for one row. An exact row shows its own
+ * provider-parsed price; a projected family row aggregates the complete
+ * relation member inventory into an honest input/output range — rendered only
+ * when EVERY member's price is known, never fabricated over partial terms.
+ * The vendor cost text is parsed exclusively by the provider leaf formatter
+ * through the description seam; this side only consumes parsed terms.
+ */
+function rowPriceLine(
+  providerKind: string,
+  entry: ModelEntry,
+  cache: ProviderModelCache,
+  intent: "projected" | "exact" = "projected",
+): string | undefined {
+  const memberIds = intent === "exact" ? undefined : cache.familyMemberIds.get(entry.id);
+  if (memberIds) {
+    const terms = aggregateModelPriceTerms(
+      memberIds.map((id) =>
+        formatProviderModelDescription(providerKind, cache.modelById.get(id)?.tooltipDescription),
+      ),
+    );
+    return terms ? formatModelPriceHint(terms) : undefined;
+  }
+  return formatProviderModelDescription(providerKind, entry.tooltipDescription)?.hint;
+}
+
 interface ProviderModelCache {
+  /** Locale of the translated selector search tokens and compact member labels. */
+  locale: string;
+  /** The raw, backwards-compatible selection inventory (every exact member keeps its row data). */
   models: ModelEntry[];
   modelById: Map<string, ModelEntry>;
+  /**
+   * The visible main list: projected family rows (one per relation, labeled with
+   * the family name) replacing their member rows, every other raw choice kept.
+   * Absent when the surface declares no relation.
+   */
+  pickRows: ModelEntry[];
+  /** Compact family label per member UID, for favorites/recents rows that keep exact ids. */
+  memberLabels: Map<string, string>;
+  /** Representative UID → every exact member id its projected row stands for. */
+  familyMemberIds: Map<string, readonly string[]>;
 }
 
 const providerModelCache = new WeakMap<AgentCapability, ProviderModelCache>();
@@ -252,7 +309,7 @@ function makeModelEntry(
 
 function getProviderModelCache(capability: AgentCapability): ProviderModelCache {
   const cached = providerModelCache.get(capability);
-  if (cached) return cached;
+  if (cached?.locale === i18n.locale) return cached;
 
   const models: ModelEntry[] = [];
   const modelById = new Map<string, ModelEntry>();
@@ -268,9 +325,76 @@ function getProviderModelCache(capability: AgentCapability): ProviderModelCache 
     modelById.set(entry.id, entry);
   }
 
-  const next: ProviderModelCache = { models, modelById };
+  // Project the optional family relations into the visible list only: one row
+  // per relation at the representative's catalog position, member rows dropped,
+  // raw `models` untouched. Members stay resolvable for favorites/recents with
+  // a compact family label instead of the giant native pair label.
+  const families = cachedProjectedFamilies(capability);
+  const memberLabels = new Map<string, string>();
+  const familyMemberIds = new Map<string, readonly string[]>();
+  let pickRows = models;
+  if (families.length > 0) {
+    const members = new Set(families.flatMap((family) => family.members.map((m) => m.model)));
+    const representativeByModel = new Map(families.map((family) => [family.model, family]));
+    const rows: ModelEntry[] = [];
+    for (const entry of models) {
+      const family = representativeByModel.get(entry.id);
+      if (family) {
+        const sub = deriveSubProvider(entry.id, capability);
+        const searchParts = [entry.id, family.label];
+        for (const selector of family.selectors) {
+          // The localized selector label is what the menus display, so it is
+          // searchable too.
+          searchParts.push(sharedMessage(selector.labelKey));
+          for (const option of selector.options) {
+            searchParts.push(option.id, option.label);
+          }
+        }
+        // The Fast coordinate is part of the family's reachability even though
+        // no selector option carries it.
+        if (family.bindings.fast === "model") searchParts.push("fast");
+        if (sub) searchParts.push(sub.id, sub.label);
+        rows.push({
+          id: entry.id,
+          label: family.label,
+          ...(sub ? { subId: sub.id, subLabel: sub.label } : {}),
+          searchText: searchParts.join("\n").toLowerCase(),
+        });
+        continue;
+      }
+      if (!members.has(entry.id)) rows.push(entry);
+    }
+    pickRows = rows;
+    for (const family of families) {
+      familyMemberIds.set(
+        family.model,
+        family.members.map((member) => member.model),
+      );
+      for (const member of family.members) {
+        memberLabels.set(member.model, modelFamilyMemberCompactLabel(family, member));
+      }
+    }
+  }
+
+  const next: ProviderModelCache = {
+    locale: i18n.locale,
+    models,
+    modelById,
+    pickRows,
+    memberLabels,
+    familyMemberIds,
+  };
   providerModelCache.set(capability, next);
   return next;
+}
+
+/** Optional spread carrying a projected family row's exact member ids. */
+function familyModelIdsField(
+  cache: ProviderModelCache,
+  modelId: string,
+): {} | { familyModelIds: readonly string[] } {
+  const ids = cache.familyMemberIds.get(modelId);
+  return ids ? { familyModelIds: ids } : {};
 }
 
 interface VisibleProvider {
@@ -281,8 +405,14 @@ interface VisibleProvider {
   searchText: string;
 }
 
-function findModelEntry(cache: ProviderModelCache, modelId: string): ModelEntry | undefined {
-  for (const alias of modelLookupAliases(modelId)) {
+function findModelEntry(
+  cache: ProviderModelCache,
+  modelId: string,
+  agentKind: string,
+): ModelEntry | undefined {
+  for (const alias of modelLookupAliases(
+    canonicalProviderModelId(agentKind, modelId, cache.models),
+  )) {
     const direct = cache.modelById.get(alias);
     if (direct) return direct;
   }
@@ -341,7 +471,7 @@ function resolveModelRef(
   const visibleProvider = findVisibleProvider(providersByKind, ref.agentKind, ref.presentationMode);
   if (!visibleProvider) return undefined;
   const { provider, cache } = visibleProvider;
-  let model = findModelEntry(cache, ref.modelId);
+  let model = findModelEntry(cache, ref.modelId, ref.agentKind);
   if (!model) {
     // Missing from the visible catalog means the caller either hid this model or
     // never offered it. Hidden ones drop out of the section; genuinely unknown
@@ -361,12 +491,17 @@ function resolveModelRef(
   }
   const resolved: ResolvedModelRef = {
     ref,
-    label: formatShortcutModelLabel(ref.agentKind, ref.modelId, model.label),
+    // Family members keep their exact persisted id but read as the compact
+    // family + selector summary; the group label would only repeat the family.
+    label:
+      cache.memberLabels.get(ref.modelId) ??
+      formatShortcutModelLabel(ref.agentKind, ref.modelId, model.label),
     providerLabel: provider.label,
     searchText: model.searchText,
     providerSearchText: visibleProvider.searchText,
   };
-  if (model.subLabel) resolved.subProviderLabel = model.subLabel;
+  if (model.subLabel && !cache.memberLabels.has(ref.modelId))
+    resolved.subProviderLabel = model.subLabel;
   if (model.contextDescription) resolved.contextDescription = model.contextDescription;
   if (model.modelDescription) resolved.modelDescription = model.modelDescription;
   if (model.tooltipDescription) resolved.tooltipDescription = model.tooltipDescription;
@@ -437,8 +572,21 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
   const singleProviderMode = visibleProviders.length === 1;
   const showProviderHeaders = visibleProviders.length > 1;
   const visibleKinds = new Set(visibleProviders.map((p) => p.kind));
-  const sectionFavoriteSet = new Set((favorites ?? []).map(refKey));
-  const favoriteStateSet = new Set((favoriteStateRefs ?? favorites ?? []).map(refKey));
+  function canonicalRefKey(ref: ModelRef): string {
+    const provider = findVisibleProvider(
+      visibleProvidersByKind,
+      ref.agentKind,
+      ref.presentationMode,
+    );
+    const modelId = canonicalProviderModelId(
+      ref.agentKind,
+      ref.modelId,
+      provider?.provider.capabilities.models ?? [],
+    );
+    return `${ref.agentKind}:${modelId}`;
+  }
+  const sectionFavoriteSet = new Set((favorites ?? []).map(canonicalRefKey));
+  const favoriteStateSet = new Set((favoriteStateRefs ?? favorites ?? []).map(canonicalRefKey));
 
   // In single-provider mode the standalone Favorites/Recent sections would just
   // duplicate rows from the provider's own model list (and a provider icon column
@@ -481,21 +629,32 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       });
     if (items.length === 0) return;
     out.push({ type: "header-plain", id: `header:${sectionId}`, label: headerLabel });
+    const seenCanonical = new Set<string>();
     for (const m of items) {
       const visibleProvider = findVisibleProvider(
         visibleProvidersByKind,
         m.ref.agentKind,
         m.ref.presentationMode,
       );
+      const catalog = visibleProvider?.provider.capabilities.models ?? [];
+      const modelId = canonicalProviderModelId(m.ref.agentKind, m.ref.modelId, catalog);
+      const canonicalKey = `${m.ref.agentKind}:${modelId}`;
+      if (seenCanonical.has(canonicalKey)) continue;
+      seenCanonical.add(canonicalKey);
       const providerIcon = visibleProvider?.provider.icon;
       const shortcutSubLabel = disambiguatedSubLabel(
-        m.ref.modelId,
-        m.subProviderLabel,
+        modelId,
+        distinctGroupLabel(m.label, m.subProviderLabel),
         visibleProvider?.provider.label,
       );
+      // Shortcut rows are always exact rows, so the price is the member's own.
+      const shortcutPriceLine = formatProviderModelDescription(
+        m.ref.agentKind,
+        m.tooltipDescription,
+      )?.hint;
       out.push({
         type: "model",
-        id: `${sectionId}:${m.ref.agentKind}:${m.ref.modelId}`,
+        id: `${sectionId}:${m.ref.agentKind}:${modelId}`,
         providerKind: m.ref.agentKind,
         providerKey: visibleProvider?.key ?? m.ref.agentKind,
         hiddenModelsKey: visibleProvider?.visibilityKey ?? m.ref.agentKind,
@@ -507,12 +666,12 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         ...(shortcutSubLabel ? { subProviderLabel: shortcutSubLabel } : {}),
         ...modelHintProps(m),
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+        ...(shortcutPriceLine ? { priceLine: shortcutPriceLine } : {}),
         showProviderIcon: true,
-        ...(visibleProvider &&
-        supportsFastModel(visibleProvider.provider.capabilities, m.ref.modelId)
+        ...(visibleProvider && supportsFastModel(visibleProvider.provider.capabilities, modelId)
           ? { supportsFast: true }
           : {}),
-        isFavorite: favoriteStateSet.has(refKey(m.ref)),
+        isFavorite: favoriteStateSet.has(canonicalRefKey(m.ref)),
       });
     }
   }
@@ -523,7 +682,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     }
     if (recents?.length) {
       const filteredRecents = recents
-        .filter((r) => !sectionFavoriteSet.has(refKey(r)))
+        .filter((r) => !sectionFavoriteSet.has(canonicalRefKey(r)))
         .slice(0, recentsLimit);
       if (filteredRecents.length > 0) {
         pushShortcutSection("recent", msg`Recent`, filteredRecents);
@@ -538,11 +697,12 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       currentAgentKind === provider.kind && currentModel && !cache.modelById.has(currentModel)
         ? makeModelEntry(currentModel, DEFAULT_LABEL(currentModel), cap)
         : undefined;
-    const sourceModelCount = cache.models.length + (currentEntry ? 1 : 0);
+    // The projected main list: family rows stand in for their members; a
+    // current model the catalog doesn't know at all keeps its synthesized row.
+    const sourceRows = currentEntry ? [...cache.pickRows, currentEntry] : cache.pickRows;
 
     const filtered: ModelEntry[] = [];
-    for (let index = 0; index < sourceModelCount; index += 1) {
-      const model = index < cache.models.length ? cache.models[index]! : currentEntry!;
+    for (const model of sourceRows) {
       if (!isSearching || providerHit || model.searchText.includes(query)) {
         filtered.push(model);
       }
@@ -562,10 +722,59 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       });
     }
 
+    const providerRowsStart = out.length;
+    const finishProviderRows = () => {
+      const rows = out.splice(providerRowsStart);
+      out.push(...separatePrimaryModelRows(rows, key, primaryModelChoices(provider.kind, cap)));
+    };
+
+    // Favorited family members keep explicit exact rows in single-provider
+    // mode: the member's ordinary row collapsed into the projected family
+    // row, but the favorite is persisted against the exact member id and must
+    // stay selectable as is — including the representative, whose only visible
+    // row is the family row itself. Exact rows carry no family metadata, so a
+    // click selects the exact UID (`selectionIntent: "exact"`) instead of
+    // retaining the family's current member.
+    if (singleProviderMode) {
+      const familyMembers = new Set([...cache.familyMemberIds.values()].flat());
+      for (const m of cache.models) {
+        if (!familyMembers.has(m.id) || !sectionFavoriteSet.has(`${provider.kind}:${m.id}`)) {
+          continue;
+        }
+        const hasExactRow = filtered.some(
+          (row) => row.id === m.id && !cache.familyMemberIds.has(row.id),
+        );
+        if (hasExactRow) continue;
+        const exactFavoritePriceLine = rowPriceLine(provider.kind, m, cache, "exact");
+        out.push({
+          type: "model",
+          id: `model-exact:${key}:${m.id}`,
+          providerKind: provider.kind,
+          providerKey: key,
+          hiddenModelsKey: visibilityKey,
+          providerLabel: provider.label,
+          modelId: m.id,
+          label: cache.memberLabels.get(m.id) ?? m.label,
+          ...(provider.presentationMode ? { presentationMode: provider.presentationMode } : {}),
+          ...(provider.icon ? { providerIcon: provider.icon } : {}),
+          ...modelHintProps(m),
+          ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+          ...(exactFavoritePriceLine ? { priceLine: exactFavoritePriceLine } : {}),
+          ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
+          isFavorite: true,
+        });
+      }
+    }
+
     if (isSearching) {
       // Flat under the provider; sub-provider promoted to right-rail label.
       for (const m of sortFavoritesFirst(filtered, provider.kind)) {
-        const subProviderLabel = disambiguatedSubLabel(m.id, m.subLabel, provider.label);
+        const subProviderLabel = disambiguatedSubLabel(
+          m.id,
+          distinctGroupLabel(m.label, m.subLabel),
+          provider.label,
+        );
+        const searchPriceLine = rowPriceLine(provider.kind, m, cache);
         out.push({
           type: "model",
           id: `model:${key}:${m.id}`,
@@ -580,11 +789,14 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
           ...(subProviderLabel ? { subProviderLabel } : {}),
           ...modelHintProps(m),
           ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+          ...(searchPriceLine ? { priceLine: searchPriceLine } : {}),
           showProviderIcon: true,
           ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
+          ...familyModelIdsField(cache, m.id),
           isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
         });
       }
+      finishProviderRows();
       continue;
     }
 
@@ -604,6 +816,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     }
 
     for (const m of sortFavoritesFirst(ungrouped, provider.kind)) {
+      const ungroupedPriceLine = rowPriceLine(provider.kind, m, cache);
       out.push({
         type: "model",
         id: `model:${key}:${m.id}`,
@@ -617,26 +830,33 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         ...(provider.icon ? { providerIcon: provider.icon } : {}),
         ...modelHintProps(m),
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+        ...(ungroupedPriceLine ? { priceLine: ungroupedPriceLine } : {}),
         ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
+        ...familyModelIdsField(cache, m.id),
         isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
       });
     }
 
-    if (grouped.size === 0) continue;
+    if (grouped.size === 0) {
+      finishProviderRows();
+      continue;
+    }
 
     for (const sp of listSubProviderOrder(cap, grouped.keys())) {
       const models = grouped.get(sp.id);
       if (!models?.length) continue;
-      out.push({
-        type: "header-sub",
-        id: `sub:${key}:${sp.id}`,
-        providerKind: provider.kind,
-        providerKey: key,
-        hiddenModelsKey: visibilityKey,
-        subId: sp.id,
-        label: sp.label,
-      });
+      if (models.length !== 1 || distinctGroupLabel(models[0]!.label, sp.label))
+        out.push({
+          type: "header-sub",
+          id: `sub:${key}:${sp.id}`,
+          providerKind: provider.kind,
+          providerKey: key,
+          hiddenModelsKey: visibilityKey,
+          subId: sp.id,
+          label: sp.label,
+        });
       for (const m of sortFavoritesFirst(models, provider.kind)) {
+        const groupedPriceLine = rowPriceLine(provider.kind, m, cache);
         out.push({
           type: "model",
           id: `model:${key}:${m.id}`,
@@ -650,11 +870,14 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
           ...(provider.icon ? { providerIcon: provider.icon } : {}),
           ...modelHintProps(m),
           ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+          ...(groupedPriceLine ? { priceLine: groupedPriceLine } : {}),
           ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
+          ...familyModelIdsField(cache, m.id),
           isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
         });
       }
     }
+    finishProviderRows();
   }
 
   return out;

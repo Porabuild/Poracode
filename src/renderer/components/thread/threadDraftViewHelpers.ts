@@ -4,16 +4,22 @@ import type {
   AgentStatus,
   ProjectDraftConfig,
   ProviderDraftConfig,
+  ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { baseAgentKind } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
+import {
+  defaultFastEnabled,
+  normalizeProviderModelConfig,
+} from "@/renderer/components/providers/modelConfig";
 import {
   agentStatusForPresentation,
   modelSelectionFor,
   resolveModelSelection,
   resolveReasoningSelection,
 } from "@/shared/agentSelection";
+import { modelFamilyForModel } from "@/shared/modelFamilySelection";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { ProviderModelPreference } from "@/shared/settings";
 
@@ -48,14 +54,38 @@ export function resolvePreferredAgentKind(
   return installedAgents[0]?.kind;
 }
 
+/**
+ * Resolve the saved draft posture for one provider, overlaying the app-wide
+ * per-model preferences the way every non-family model expects.
+ *
+ * When `capabilities` is given and the saved model is a member of that
+ * surface's projected family relation, the saved family's own carriers are
+ * authoritative instead: the project/provider-saved `effort`/`fast` are kept
+ * verbatim — inert seeds stay inert and independent choices stay as chosen —
+ * and the preference overlay is skipped. Preferences are keyed by model UID
+ * only, and the same UID accepts both carrier semantics across presentation
+ * surfaces, so replaying them onto a family member would overwrite a valid
+ * Terminal draft with GUI carriers (or the reverse).
+ */
 export function resolveSavedProviderDraftConfig(
   agentKind: AgentStatus["kind"],
   lastDraftConfig: ProjectDraftConfig | undefined,
   providerConfigs: Record<string, ProviderDraftConfig>,
   providerModelPreferences: Record<string, Record<string, ProviderModelPreference>> = {},
+  capabilities?: AgentCapability,
 ): Partial<ProviderDraftConfig> | undefined {
   const providerConfig = providerConfigs[agentKind];
   if (lastDraftConfig?.agentKind === agentKind && lastDraftConfig.model.trim()) {
+    if (capabilities && modelFamilyForModel(capabilities, lastDraftConfig.model)) {
+      // An own empty `contextSize` is an exact carrier; only an absent one
+      // (a draft that predates context persistence) inherits the preset.
+      return {
+        ...lastDraftConfig,
+        ...(lastDraftConfig.contextSize === undefined && providerConfig?.contextSize
+          ? { contextSize: providerConfig.contextSize }
+          : {}),
+      };
+    }
     const projectConfig = { ...lastDraftConfig };
     delete projectConfig.effort;
     delete projectConfig.fast;
@@ -79,6 +109,9 @@ export function resolveSavedProviderDraftConfig(
   }
 
   if (!providerConfig) return undefined;
+  if (capabilities && modelFamilyForModel(capabilities, providerConfig.model)) {
+    return { ...providerConfig };
+  }
   const modelPreference = resolveProviderModelPreference(
     agentKind,
     providerConfig.model,
@@ -143,11 +176,7 @@ export function resolveModeValue(agent: AgentStatus, preferred?: string): string
     : (modes[0] ?? "agent");
 }
 
-export function formatEffortLabel(id: string): string {
-  if (id === "xhigh" || id === "xHigh") return i18n._(msg`Extra High`);
-  if (id === "ultracode") return "Ultracode";
-  return id.charAt(0).toUpperCase() + id.slice(1);
-}
+export { formatEffortLabel } from "@/renderer/components/common/effortLabel";
 
 /**
  * A saved policy only wins while the surface still advertises it. Carrying an
@@ -214,6 +243,7 @@ function normalizeCursorPreferredDraft(
     ...preferred,
     model: baseModel,
     ...(parsed.effort && !preferred.effort ? { effort: parsed.effort } : {}),
+    ...(parsed.contextSize && !preferred.contextSize ? { contextSize: parsed.contextSize } : {}),
     fast: preferred.fast ?? parsed.fast,
     thinking: preferred.thinking ?? parsed.thinking,
   };
@@ -223,24 +253,57 @@ export function resolveProviderDraftConfig(
   agent: AgentStatus,
   preferred?: Partial<ProviderDraftConfig>,
 ): ProviderDraftConfig {
-  const normalizedPreferred = normalizeCursorPreferredDraft(agent, preferred);
-  const nextModel = resolveModelValue(agent, normalizedPreferred?.model);
-  const nextEffort = resolveEffortValue(agent, nextModel, normalizedPreferred?.effort);
-  const nextContext = resolveContextSizeValue(agent, nextModel, normalizedPreferred?.contextSize);
+  const normalizedPreferred = normalizeProviderModelConfig(
+    agent.kind,
+    normalizeCursorPreferredDraft(agent, preferred) ?? {},
+    agent.capabilities.models,
+  );
+  const nextModel = resolveModelValue(agent, normalizedPreferred.model);
+  // Family members own their display coordinates: a model-bound axis carries
+  // them in the exact UID (restore keeps the stored seeds — an empty effort and
+  // a false Fast stay inert and are never ladder-filled), and a config-bound
+  // axis keeps whatever the user saved for the accepted pair even when the
+  // detection ladder disagrees. A meaningful legacy override is preserved as-is
+  // so the strict resolver keeps rejecting it until an explicit edit replaces
+  // the selection.
+  const family = modelFamilyForModel(agent.capabilities, normalizedPreferred.model);
+  const effortBound = family?.bindings.effort === "model";
+  const nextEffort = family
+    ? effortBound
+      ? (normalizedPreferred.effort ?? "")
+      : (normalizedPreferred.effort ??
+        resolveEffortValue(agent, nextModel, normalizedPreferred.effort))
+    : resolveEffortValue(agent, nextModel, normalizedPreferred.effort);
+  const nextContext = family
+    ? (normalizedPreferred.contextSize ??
+      resolveContextSizeValue(agent, nextModel, normalizedPreferred.contextSize))
+    : resolveContextSizeValue(agent, nextModel, normalizedPreferred.contextSize);
   const supportsFast = supportsUsableFastMode(agent.capabilities, nextModel);
   // Fast mode is the composer's default for every model that can actually use
-  // it; only an explicitly saved `false` keeps it off. AI helpers (title/commit
-  // generation, schedules, PR automation) call `resolveFastValue` directly and
-  // keep their opt-in default, so background work doesn't silently spend fast
-  // requests.
-  const nextFast = resolveFastValue(agent, nextModel, normalizedPreferred?.fast ?? true);
+  // it unless the provider declares an opt-in default. AI helpers call
+  // `resolveFastValue` directly and keep their opt-in default, so background
+  // work doesn't silently spend fast requests.
+  const fastBound = family?.bindings.fast === "model";
+  const nextFast = family
+    ? fastBound
+      ? (normalizedPreferred.fast ?? false)
+      : (normalizedPreferred.fast ??
+        resolveFastValue(
+          agent,
+          nextModel,
+          normalizedPreferred.fast ?? defaultFastEnabled(agent.kind),
+        ))
+    : resolveFastValue(
+        agent,
+        nextModel,
+        normalizedPreferred.fast ?? defaultFastEnabled(agent.kind),
+      );
   // Thinking starts enabled for every model that offers the toggle. An
   // explicitly saved `false` remains authoritative.
-  const nextThinking = resolveThinkingValue(
-    agent,
-    nextModel,
-    normalizedPreferred?.thinking ?? true,
-  );
+  const nextThinking = family
+    ? (normalizedPreferred.thinking ??
+      resolveThinkingValue(agent, nextModel, normalizedPreferred?.thinking ?? true))
+    : resolveThinkingValue(agent, nextModel, normalizedPreferred?.thinking ?? true);
   const supportsThinking = agent.capabilities.thinkingModels?.includes(nextModel) === true;
   const nextMode = resolveModeValue(agent, normalizedPreferred?.mode) as
     | "agent"
@@ -254,13 +317,59 @@ export function resolveProviderDraftConfig(
   return {
     model: nextModel,
     effort: nextEffort,
-    ...(nextContext ? { contextSize: nextContext } : {}),
-    ...(supportsFast ? { fast: nextFast } : {}),
-    ...(supportsThinking ? { thinking: nextThinking } : {}),
+    // A family member's own empty context is an exact carrier, not "unset".
+    ...(nextContext !== undefined &&
+    (nextContext !== "" || (family && normalizedPreferred.contextSize !== undefined))
+      ? { contextSize: nextContext }
+      : {}),
+    ...(supportsFast ||
+    (family && (family.bindings.fast === "model" || normalizedPreferred.fast !== undefined))
+      ? { fast: nextFast }
+      : {}),
+    ...(supportsThinking || (family && normalizedPreferred.thinking !== undefined)
+      ? { thinking: nextThinking }
+      : {}),
     mode: nextMode,
     approvalPolicy: nextApproval,
     ...(nextReviewer !== undefined ? { approvalsReviewer: nextReviewer } : {}),
     sandboxMode: nextSandbox,
+    // Restoration copies a recorded binding intact — never minted or repaired
+    // here; deliberate edits re-derive it through the shared mutation.
+    ...(preferred?.selectionBinding ? { selectionBinding: preferred.selectionBinding } : {}),
+  };
+}
+
+/**
+ * The selection fields a launch carries (draft start, provider handoff). A
+ * family member's own carriers
+ * — empty strings, `false`, and absence alike — and its selection binding are
+ * exact and forwarded verbatim; other models keep the projection that omits
+ * empty and unsupported values.
+ */
+export function launchSelectionFields(
+  config: ProviderDraftConfig,
+  capabilities: AgentCapability | undefined,
+): Pick<
+  ThreadConfig,
+  "model" | "effort" | "contextSize" | "fast" | "thinking" | "selectionBinding"
+> {
+  const { model, effort, contextSize, fast, thinking, selectionBinding } = config;
+  if (capabilities && modelFamilyForModel(capabilities, model)) {
+    return {
+      model,
+      ...(effort !== undefined ? { effort } : {}),
+      ...(contextSize !== undefined ? { contextSize } : {}),
+      ...(fast !== undefined ? { fast } : {}),
+      ...(thinking !== undefined ? { thinking } : {}),
+      ...(selectionBinding ? { selectionBinding } : {}),
+    };
+  }
+  return {
+    model,
+    ...(effort ? { effort } : {}),
+    ...(contextSize ? { contextSize } : {}),
+    ...(capabilities && supportsUsableFastMode(capabilities, model) ? { fast: fast ?? false } : {}),
+    ...(thinking ? { thinking } : {}),
   };
 }
 

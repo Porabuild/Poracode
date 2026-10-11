@@ -210,7 +210,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
         wsl: [],
       }),
     );
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(49);
     expect(service.getCachedCapabilities("codex")).toBeUndefined();
   });
 
@@ -456,6 +456,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
       envKind: "wsl",
       wslDistro: "Ubuntu",
       agentSettings: updatedSettings,
+      signal: expect.any(AbortSignal),
     });
   });
 });

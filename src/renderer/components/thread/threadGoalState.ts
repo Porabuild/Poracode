@@ -5,6 +5,7 @@ import {
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { currentProviderItemStart } from "./threadProviderEra";
+import { hasUnlocatedRuntimeHistoryControl } from "@/renderer/state/runtimeHistoryBoundary";
 
 export interface ThreadGoalDockState {
   sourceItemId: string;
@@ -30,6 +31,7 @@ const goalDockStateCache = new Map<
   string,
   {
     itemIds: readonly string[] | undefined;
+    itemsIndex: WeakRef<AppStoreState["runtimeItemsByIdByThread"]>;
     latestGoalItem: RuntimeChatItem | undefined;
     result: ThreadGoalDockState | null;
   }
@@ -39,11 +41,26 @@ export function selectThreadGoalDockState(
   state: AppStoreState,
   threadId: string,
 ): ThreadGoalDockState | null {
+  // A snapshot's global pin does not locate a new goal relative to handoffs
+  // inside an already loaded reader span. Its canonical lookup triggers an
+  // item-order update once proven; older goals must not resurrect meanwhile.
+  if (hasUnlocatedRuntimeHistoryControl(threadId)) return null;
   const itemIds = state.runtimeItemIdsByThread[threadId];
   const itemsById = state.runtimeItemsByIdByThread[threadId];
-  const latestGoalItem = selectLatestThreadGoalItem(itemIds, itemsById);
   const cached = goalDockStateCache.get(threadId);
+  // Draft/settings updates retain the outer index. The reducer mutates inner
+  // thread indexes but replaces the outer one, so only that snapshot is a safe
+  // fast-path key. A weak reference must not retain old transcript maps.
+  if (
+    cached &&
+    cached.itemIds === itemIds &&
+    cached.itemsIndex.deref() === state.runtimeItemsByIdByThread
+  ) {
+    return cached.result;
+  }
+  const latestGoalItem = selectLatestThreadGoalItem(itemIds, itemsById);
   if (cached && cached.itemIds === itemIds && cached.latestGoalItem === latestGoalItem) {
+    cached.itemsIndex = new WeakRef(state.runtimeItemsByIdByThread);
     return cached.result;
   }
   const result = getThreadGoalDockStateFromThreadItems(itemIds, itemsById);
@@ -53,7 +70,12 @@ export function selectThreadGoalDockState(
   // (goal dock, composer bubbles) don't re-render on every streamed message.
   const stableResult =
     cached && goalDockStatesEqual(cached.result, result) ? cached.result : result;
-  goalDockStateCache.set(threadId, { itemIds, latestGoalItem, result: stableResult });
+  goalDockStateCache.set(threadId, {
+    itemIds,
+    itemsIndex: new WeakRef(state.runtimeItemsByIdByThread),
+    latestGoalItem,
+    result: stableResult,
+  });
   return stableResult;
 }
 

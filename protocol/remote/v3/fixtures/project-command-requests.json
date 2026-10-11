@@ -1,0 +1,74 @@
+{
+  "cases": [
+    {
+      "id": "add-existing",
+      "request": {
+        "kind": "add-existing",
+        "path": "/Users/zoë/Проекты/Poracode",
+        "name": "Poracode Desktop"
+      }
+    },
+    {
+      "id": "create",
+      "request": {
+        "kind": "create",
+        "parentPath": "C:\\Users\\Zoë\\Projects",
+        "name": "Fresh project"
+      }
+    },
+    {
+      "id": "clone-url",
+      "request": {
+        "kind": "clone",
+        "parentPath": "/srv/projects",
+        "name": "poracode-mobile",
+        "source": {
+          "kind": "url",
+          "url": "https://github.com/example/poracode-mobile.git"
+        }
+      }
+    },
+    {
+      "id": "clone-github",
+      "request": {
+        "kind": "clone",
+        "parentPath": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\projects",
+        "name": "private-app",
+        "source": {
+          "kind": "github",
+          "nameWithOwner": "example/private-app",
+          "account": {
+            "host": "github.com",
+            "login": "octocat"
+          }
+        }
+      }
+    },
+    {
+      "id": "update",
+      "request": {
+        "kind": "update",
+        "projectId": "project-update",
+        "patch": {
+          "name": "Renamed project",
+          "disabled": false
+        }
+      }
+    },
+    {
+      "id": "relocate",
+      "request": {
+        "kind": "relocate",
+        "projectId": "project-relocate",
+        "path": "/Volumes/团队/Poracode"
+      }
+    },
+    {
+      "id": "remove",
+      "request": {
+        "kind": "remove",
+        "projectId": "project-remove"
+      }
+    }
+  ]
+}

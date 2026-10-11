@@ -92,6 +92,12 @@ export function TodoList(props: { projectId: string }) {
             enterKeyHint="done"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onFocus={(event) => {
+              const input = event.currentTarget;
+              window.setTimeout(() => {
+                input.scrollIntoView({ block: "center", behavior: "smooth" });
+              }, 250);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();

@@ -338,6 +338,7 @@ export const MentionInput = forwardRef<
     compact?: boolean;
     disabled?: boolean;
     placeholder: string;
+    ariaDescribedBy?: string;
     projectLocation: ProjectLocation | undefined;
     projectId?: string;
     onTextChange: (hasText: boolean) => void;
@@ -394,6 +395,7 @@ export const MentionInput = forwardRef<
     .map((item) => `${item.threadId}:${item.updatedAt}:${item.title}:${item.projectName ?? ""}`)
     .join(",");
   const editorRef = useRef<HTMLDivElement>(null);
+  const imeConfirmEventTimeStampRef = useRef<number | null>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
   const [mention, setMention] = useState<MentionState | null>(null);
@@ -903,7 +905,21 @@ export const MentionInput = forwardRef<
   }, []);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    if (e.nativeEvent.isComposing || e.keyCode === 229) {
+      if (e.key === "Enter") {
+        const timeStamp = e.nativeEvent.timeStamp;
+        imeConfirmEventTimeStampRef.current = timeStamp > 0 ? timeStamp : null;
+      }
+      return;
+    }
+    // An IME can replay its confirming Enter after composition ends (macOS
+    // Korean does this), keeping the same native timestamp but clearing the
+    // composition flags. The next physical Enter has a distinct timestamp.
+    if (e.key === "Enter" && e.nativeEvent.timeStamp === imeConfirmEventTimeStampRef.current) {
+      e.preventDefault();
+      return;
+    }
+    imeConfirmEventTimeStampRef.current = null;
     const historyAction = historyActionForKey(e);
     if (historyAction) {
       e.preventDefault();
@@ -1064,6 +1080,7 @@ export const MentionInput = forwardRef<
         role="textbox"
         tabIndex={0}
         aria-disabled={disabled || undefined}
+        aria-describedby={props.ariaDescribedBy}
         aria-multiline="true"
         aria-controls={commandListId}
         aria-activedescendant={commandActiveDescendant}

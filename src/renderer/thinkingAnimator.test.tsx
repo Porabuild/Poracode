@@ -1,6 +1,6 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useBrainThinking, useShimmer } from "./thinkingAnimator";
+import { ThinkingAnimationVisibility, useBrainThinking, useShimmer } from "./thinkingAnimator";
 
 function ShimmerProbe({ active }: { active: boolean }) {
   const ref = useShimmer<HTMLSpanElement>(active);
@@ -62,6 +62,47 @@ describe("thinkingAnimator", () => {
     const el = getByTestId("shimmer") as HTMLSpanElement;
     vi.advanceTimersByTime(500);
     expect(el.style.backgroundPositionX).toBe("");
+  });
+
+  it("stops the shared timer for hidden retained panes and resumes at the current phase", () => {
+    const pane = (visible: boolean) => (
+      <ThinkingAnimationVisibility value={visible}>
+        <ShimmerProbe active={true} />
+        <BrainProbe active={true} />
+      </ThinkingAnimationVisibility>
+    );
+    const view = render(pane(true));
+    vi.advanceTimersByTime(50);
+    const shimmer = view.getByTestId("shimmer");
+    const brain = view.getByTestId("p0");
+    const position = shimmer.style.backgroundPositionX;
+    const opacity = brain.style.opacity;
+    view.rerender(pane(false));
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(500);
+    expect(shimmer.style.backgroundPositionX).toBe(position);
+    expect(brain.style.opacity).toBe(opacity);
+    view.rerender(pane(true));
+    expect(vi.getTimerCount()).toBe(1);
+    expect(parseFloat(shimmer.style.backgroundPositionX)).toBeCloseTo(-50, 1);
+    // The second registry joins an already-running shared timer.
+    vi.advanceTimersByTime(50);
+    expect(brain.style.opacity).not.toBe(opacity);
+  });
+
+  it("does not register initially hidden targets or stop another visible pane", () => {
+    const view = render(
+      <>
+        <ThinkingAnimationVisibility value={false}>
+          <ShimmerProbe active={true} />
+        </ThinkingAnimationVisibility>
+        <BrainProbe active={true} />
+      </>,
+    );
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(500);
+    expect(view.getByTestId("shimmer").style.backgroundPositionX).toBe("");
+    expect(view.getByTestId("p0").style.opacity).not.toBe("0.450");
   });
 
   it.each(["data-app-hidden", "data-app-unfocused"])(

@@ -2,9 +2,13 @@ name: CI
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, poracode/v2, poracode/v4-integration]
   push:
-    branches: [master]
+    branches: [master, poracode/v2, poracode/v4-integration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,18 +20,38 @@ env:
   PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
 
 jobs:
+  changes:
+    name: Classify PR changes
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.scope.outputs.core }}
+    steps:
+      - name: Checkout complete history for PR diff
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Classify affected CI surfaces
+        id: scope
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-change-scope.mjs
+
   typecheck:
     name: Typecheck
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -43,16 +67,18 @@ jobs:
 
   lint:
     name: Lint
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -66,18 +92,48 @@ jobs:
       - name: Release version regression tests
         run: node --test scripts/resolve-release-version.test.mjs
 
+      - name: Architecture boundary audit and analyzer tests
+        run: pnpm run architecture:check
+
+      - name: Managed smoke harness regression tests
+        run: |
+          node --test .agents/skills/interactive-testing/scripts/*.test.mjs
+          pnpm exec vitest run --config tests/native-e2e/vitest.config.ts helpers/managedAppSession.test.ts
+
+      # Protocol changes classify as core, so the operation map's
+      # manifestHash lock over the generated inventory runs in core CI too:
+      # a regenerated protocol/remote/v3/generated/inventory.json without a
+      # refreshed tests/native-e2e/harness/operation-map.json fails here
+      # (cheap single-file lock) instead of only in the native foundation job.
+      - name: Protocol inventory operation-map lock
+        run: pnpm exec vitest run --config tests/native-e2e/vitest.config.ts operationMap.test.ts
+
+      - name: Nightly qualification regression tests
+        run: node --test scripts/package-chrome-extension.test.mjs scripts/chrome-extension-worker.test.mjs scripts/ci-change-scope.test.mjs scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs scripts/server-gate-workflows.test.mjs scripts/verify-server-tarball-contents.test.mjs scripts/prepare-server-native.test.mjs scripts/server-release-install.test.mjs scripts/runtime-closure.test.mjs scripts/generate-runtime-manifest.test.mjs scripts/set-release-version.test.mjs scripts/build-ssh-runtime-archive.test.mjs scripts/poracode-cli-qualification.test.mjs scripts/publish-npm-package.test.mjs packages/poracode-cli/test/launcher.test.mjs
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Validate GitHub Actions workflows
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 \
+            -o "$RUNNER_TEMP/actionlint.tar.gz" \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/actionlint.tar.gz" \
+            | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck= -pyflakes=
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -88,18 +144,55 @@ jobs:
       - name: Format check
         run: pnpm run fmt:check
 
-  runtime_deps:
-    name: Runtime dependencies
+  web_build:
+    name: Canonical web build
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Codex protocol types
+        run: pnpm run codex-protocol:gen
+
+      - name: Build canonical web client
+        run: pnpm run build:web
+
+      - name: Verify finalized web outputs
+        run: |
+          test -f dist/web/index.html
+          test -f dist/web/manifest.webmanifest
+          test -f dist/web/service-worker.js
+          test -f dist/web/poracode-ssh-runtime/manifest.json
+          test -f dist/web/poracode-ssh-runtime/runtime.bin
+
+  runtime_deps:
+    name: Runtime dependencies
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -118,6 +211,8 @@ jobs:
 
   rust_helper:
     name: Rust helper (${{ matrix.os }})
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -128,16 +223,16 @@ jobs:
         working-directory: native/computer-use-helper
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.98.1
           components: rustfmt, clippy
 
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: native/computer-use-helper
 
@@ -174,6 +269,8 @@ jobs:
 
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -191,13 +288,13 @@ jobs:
       ELECTRON_OVERRIDE_DIST_PATH: node_modules/electron/dist
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -206,32 +303,76 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build test native dependencies
-        # node-pty ships no Linux prebuild, so every shard compiles it from
-        # source and downloads Node headers from nodejs.org. A flaky transfer
-        # crashes node-gyp's downloader (undici assert(!this.paused)) instead
-        # of failing cleanly, so retry the rebuild like other network steps.
-        run: |
-          for attempt in 1 2 3; do
-            if pnpm rebuild node-pty; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::Native dependency rebuild failed after $attempt attempts."
-              exit 1
-            fi
-            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
-            sleep $((attempt * 10))
-          done
-        shell: bash
+        # Compile against setup-node's local headers; CI must not download the
+        # same Node headers independently in every isolated test job.
+        run: scripts/ci-rebuild-node-pty.sh
 
       - name: Test shard
-        run: pnpm run test --shard=${{ matrix.shard }}/8
+        # The generated Swift/Kotlin compiler fixture belongs to the scoped
+        # native-contract lane. Keeping it here made renderer-only PRs spend
+        # most of their critical path compiling native fixtures.
+        run: pnpm run test --shard=${{ matrix.shard }}/8 --exclude='src/shared/remote/contract/native/runtime.test.ts'
 
-  test:
+  test_perf:
+    name: Perf suites (uncontended)
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
+    runs-on: ubuntu-latest
+    # Absolute latency budgets are only meaningful on an unloaded runner, so
+    # the perf suites are excluded from the sharded unit run and executed
+    # here as their own invocation (vitest.perf.config.ts). The browser bench
+    # stays opt-in locally: CI deliberately skips the Chromium download.
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      ELECTRON_OVERRIDE_DIST_PATH: node_modules/electron/dist
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build test native dependencies
+        # The perf runner exercises the supervisor's node-pty runtime chain.
+        run: scripts/ci-rebuild-node-pty.sh
+
+      - name: CLI hook perf suite
+        run: pnpm run test:perf:cli-hook
+
+      - name: Remote protocol perf suite
+        run: pnpm run test:perf:remote
+
+  ci_gate:
     name: Test
     if: ${{ always() }}
-    needs: test_shard
+    needs:
+      [changes, typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test_perf]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Verify test shards
-        run: test "${{ needs.test_shard.result }}" = "success"
+      - name: Require all core checks
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+          CORE_REQUIRED: ${{ needs.changes.outputs.core }}
+        run: |
+          node - <<'NODE'
+          const jobs = JSON.parse(process.env.JOB_RESULTS);
+          if (!["true", "false"].includes(process.env.CORE_REQUIRED)) throw new Error("core change scope is missing");
+          const required = new Set(["changes", "fmt"]);
+          if (process.env.CORE_REQUIRED === "true") {
+            for (const name of ["typecheck", "lint", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf"]) required.add(name);
+          }
+          for (const [name, job] of Object.entries(jobs)) {
+            const expected = required.has(name) ? "success" : "skipped";
+            if (job.result !== expected) throw new Error(`${name}: expected ${expected}, received ${job.result}`);
+          }
+          NODE

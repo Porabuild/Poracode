@@ -1,9 +1,15 @@
 import { useShallow } from "zustand/shallow";
 import { Tooltip } from "@heroui/react";
-import { GitFork, GitPullRequest } from "lucide-react";
+import { GitBranch, GitFork, GitPullRequest } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { getBasename } from "@/shared/pathUtils";
-import { closeAllPanels, showGitReviewPanel } from "@/renderer/actions/panelActions";
+import {
+  closeAllPanels,
+  openGitReview,
+  showGitReviewPage,
+  showGitReviewPanel,
+} from "@/renderer/actions/panelActions";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { DiffStat } from "@/renderer/components/common";
 import {
   floatingGlassActiveClass,
@@ -31,8 +37,10 @@ export function ThreadChangesBubble(props: {
   projectId: string;
   worktreePath?: string | undefined;
   worktreeName?: string | undefined;
+  compact?: boolean | undefined;
 }) {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const {
     insertions,
     deletions,
@@ -42,6 +50,7 @@ export function ThreadChangesBubble(props: {
     reviewDecision,
     mergeable,
     mergeStateStatus,
+    branch,
   } = useGitStore(
     useShallow((s) => {
       const status = props.worktreePath
@@ -57,6 +66,7 @@ export function ThreadChangesBubble(props: {
         reviewDecision: pr?.reviewDecision,
         mergeable: pr?.mergeable,
         mergeStateStatus: pr?.mergeStateStatus,
+        branch: status?.branch ?? "",
         checksStatus: combineChecksStatus(
           aggregatePrChecksStatus(details?.checks),
           pr?.checksStatus,
@@ -64,14 +74,15 @@ export function ThreadChangesBubble(props: {
       };
     }),
   );
-  // Active only when the docked Git panel is showing *this* thread's scope.
-  const isOpen = usePanelStore(
-    (s) =>
-      s.rightPanelTab === "git" &&
-      s.gitReviewAsPanel &&
+  // Active only when the current Git surface is showing this thread's scope.
+  const isOpen = usePanelStore((s) => {
+    const sameContext =
       s.gitReviewContext?.projectId === props.projectId &&
-      s.gitReviewContext?.worktreePath === props.worktreePath,
-  );
+      s.gitReviewContext?.worktreePath === props.worktreePath;
+    return compactLayout
+      ? sameContext && s.gitOverlayOpen && !s.gitReviewAsPanel
+      : sameContext && s.rightPanelTab === "git" && s.gitReviewAsPanel;
+  });
 
   const hasChanges = insertions > 0 || deletions > 0;
   const hasVisiblePr =
@@ -80,8 +91,36 @@ export function ThreadChangesBubble(props: {
     (prState !== "merged" || props.worktreePath !== undefined);
   const worktreeName =
     props.worktreeName ?? (props.worktreePath ? getBasename(props.worktreePath) : undefined);
+  const scopeName = worktreeName || branch || undefined;
 
   if (!hasChanges && !props.worktreePath && !hasVisiblePr) return null;
+
+  if (props.compact) {
+    return (
+      <button
+        type="button"
+        className="m-chip"
+        {...(scopeName ? { title: scopeName } : {})}
+        aria-label={t`Review changes`}
+        onClick={() => openGitReview(props.projectId, props.worktreePath)}
+      >
+        {props.worktreePath ? (
+          <GitFork className="size-3.5 shrink-0 text-muted" />
+        ) : (
+          <GitBranch className="size-3.5 shrink-0 text-muted" />
+        )}
+        {hasVisiblePr ? (
+          <>
+            <GitPullRequest
+              className={`size-3.5 shrink-0 ${PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus, { reviewDecision, mergeable, mergeStateStatus })]}`}
+            />
+            <span>#{prNumber}</span>
+          </>
+        ) : null}
+        {hasChanges ? <DiffStat insertions={insertions} deletions={deletions} /> : null}
+      </button>
+    );
+  }
 
   const bubble = (
     <button
@@ -99,7 +138,11 @@ export function ThreadChangesBubble(props: {
           closeAllPanels();
           return;
         }
-        showGitReviewPanel(props.projectId, props.worktreePath);
+        if (compactLayout) {
+          showGitReviewPage(props.projectId, props.worktreePath);
+        } else {
+          showGitReviewPanel(props.projectId, props.worktreePath);
+        }
       }}
     >
       {hasVisiblePr ? (

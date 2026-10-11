@@ -4,11 +4,14 @@ import { cursorProfileKind } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
   inheritBaseSpawnEnv,
   mergeSpawnEnv,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -18,7 +21,9 @@ import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/i
 import { transformCursorAcpSessionUpdate } from "./acpTransform";
 import { handleCursorAcpExtensionNotification } from "./acpExtension";
 import { buildCursorArgs } from "./argv";
+import { resolveCursorOneShotModel } from "./oneShotSelection";
 import {
+  CURSOR_ACP_CLIENT_CAPABILITIES_META,
   cursorDefaultCapabilities,
   cursorDetectionSpec,
   isCursorVersionSupportedForHooks,
@@ -29,7 +34,7 @@ import {
   readBundledCursorPluginVersion,
   uninstallCursorPlugin,
 } from "./plugin/install";
-import { createCursorChatSync } from "./session";
+import { createCursorChat } from "./session";
 import { CURSOR_IDLE_RE, CURSOR_WORKING_RE, detectCursorTerminalStatus } from "./terminal";
 import { applyCursorSdkProbe, probeCursorSdkRuntime } from "./sdkDetection";
 import { CursorSdkSession } from "./sdkSession";
@@ -44,6 +49,7 @@ export {
   buildCursorAcpModelPickerCapabilities,
   buildCursorModelPickerCapabilities,
   buildCursorProbeSpec,
+  CURSOR_ACP_CLIENT_CAPABILITIES_META,
   parseCursorModels,
   sortCursorModels,
 } from "./detection";
@@ -192,12 +198,12 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installCursorPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installCursorPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCursorPlugin(ctx);
+      await uninstallCursorPlugin(ctx);
     },
 
     detectInstall: async (ctx) => {
@@ -218,9 +224,9 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         configuredCursorStructuredRuntime(ctx?.agentSettings),
       );
     },
-    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
-      const mcp = cursorMcpLaunch(location, launchOptions?.mcpServers);
-      const chatId = createCursorChatSync(location);
+    async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
+      const mcp = await cursorMcpLaunch(location, launchOptions?.mcpServers);
+      const chatId = await createCursorChat(location);
       const args = [...mcp.args, ...buildCursorArgs(config, prompt, chatId)];
       return {
         ...mcp,
@@ -228,8 +234,8 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         ...(chatId ? { sessionRef: createKnownSessionRef(chatId) } : {}),
       };
     },
-    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      const mcp = cursorMcpLaunch(location, launchOptions?.mcpServers);
+    async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+      const mcp = await cursorMcpLaunch(location, launchOptions?.mcpServers);
       const args = [...mcp.args, ...buildCursorArgs(config, prompt, sessionRef.providerSessionId)];
       return { ...mcp, ...buildCursorArgvSpec(location, args) };
     },
@@ -255,6 +261,7 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
           });
         }
       }
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildCursorAgentCommand(input.projectLocation, ["acp"]);
       const acpEnv = mergeSpawnEnv(input.baseSpawnEnv, profileKeyEnv);
       return createAcpStructuredSession(command, {
@@ -263,14 +270,18 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         loadSessionErrorRewriter: rewriteCursorLoadSessionError,
         acpSessionUpdateTransform: transformCursorAcpSessionUpdate,
         acpExtensionNotificationHandler: handleCursorAcpExtensionNotification,
+        acpClientCapabilitiesMeta: CURSOR_ACP_CLIENT_CAPABILITIES_META,
       });
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildCursorAgentCommand(location, ["acp"]);
     },
     async buildAcpLogoutCommand(ctx) {
-      return buildCursorAgentCommand(detectProbeLocation(ctx), ["logout"]);
+      const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
+      return buildCursorAgentCommand(location, ["logout"]);
     },
     buildDirectInput(prompt, _segments, _config, projectLocation) {
       // Cursor's TUI debounces fast incoming bytes as a paste burst. With
@@ -300,10 +311,15 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
     },
     shouldApplyTerminalStatusWhileHookActive: cursorHookActiveTerminalFallback,
     defaultOneShotModel: "composer-2.5",
-    buildOneShotCommand(model, _effort, _prompt, location) {
+    buildOneShotCommand(model, effort, _prompt, location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      const resolvedModel = resolveCursorOneShotModel(selection);
       const args = ["--print", "--force", "--trust", "--output-format", "json"];
-      if (model && model !== "auto") {
-        args.push("--model", model);
+      if (resolvedModel && resolvedModel !== "auto") {
+        args.push("--model", resolvedModel);
       }
       if (location) {
         const spec = buildCursorArgvSpec(location, args);
@@ -311,11 +327,13 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
       }
       return { command: "cursor-agent", args };
     },
-    buildContextExtractionCommand(sessionRef, location, model) {
+    buildContextExtractionCommand(sessionRef, location, model, oneShotOptions) {
       // `sdk:` identifies Cursor's SDK-local Agent store, not a cursor-agent
       // CLI chat. Passing it to `cursor-agent --resume` can open the wrong
       // conversation or fail with an invalid session id.
       if (sessionRef.providerSessionId.startsWith(CURSOR_SDK_SESSION_PREFIX)) return undefined;
+      const selection = resolveCheckedOneShotResumeSelection(model, oneShotOptions);
+      const resolvedModel = resolveCursorOneShotModel(selection);
       const args = [
         "--print",
         "--force",
@@ -324,8 +342,8 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         "--output-format",
         "json",
       ];
-      if (model && model !== "auto") {
-        args.push("--model", model);
+      if (resolvedModel && resolvedModel !== "auto") {
+        args.push("--model", resolvedModel);
       }
       const spec = buildCursorArgvSpec(location, args);
       return { command: spec.binary, args: spec.args, ...(spec.env ? { env: spec.env } : {}) };

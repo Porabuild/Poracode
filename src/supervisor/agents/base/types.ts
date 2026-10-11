@@ -16,7 +16,9 @@ import type {
   BackgroundTask,
   ProjectLocation,
   PromptSegment,
+  ProviderRevertAnchor,
   RuntimeEvent,
+  SessionConfigOptions,
   SessionRef,
   SkillInvocation,
   ThreadAttention,
@@ -30,6 +32,17 @@ import type {
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
+
+/**
+ * A value an adapter/installer may produce synchronously or through awaited
+ * orchestration. Adapters stay free to keep synchronous implementations; the
+ * runtime always awaits, so WSL staging (an async worker operation) can flow
+ * through a signature that was previously synchronous without a provider
+ * branch anywhere in shared code.
+ */
+export type Awaitable<T> = T | Promise<T>;
 
 export interface CommandSpec {
   command: string;
@@ -37,7 +50,7 @@ export interface CommandSpec {
   cwd?: string;
   sessionRef?: SessionRef;
   /** Best-effort cleanup for per-launch resources such as temporary MCP configs. */
-  cleanup?: () => void;
+  cleanup?: () => Awaitable<void>;
   /**
    * Environment variables that should be set for the agent process.
    * For WSL commands these are baked into the shell script as `export` statements
@@ -81,6 +94,12 @@ export interface StructuredSessionUpdate {
   sessionRef?: SessionRef;
   errorMessage?: string;
   slashCommands?: AgentSlashCommand[];
+  /**
+   * Live negotiated session config-option inventory, published changed-only
+   * by structured sessions that negotiate one. `null` retires a previous
+   * inventory; absence leaves any older state alone.
+   */
+  sessionConfigOptions?: SessionConfigOptions | null;
 }
 
 export interface StructuredSessionListener {
@@ -100,6 +119,16 @@ export interface StartTurnOptions {
    * payload only — never painted into the chat's user_message item.
    */
   inlineInstructions?: string;
+  /**
+   * Per-turn client context (for example the browser tab the user was looking
+   * at when they sent this message), already rendered as untrusted metadata.
+   * Only passed to a handle that declares `placesTurnContext`; every other
+   * handle receives it at the front of `inlineInstructions`, except on a
+   * prompt that invokes a command the session advertised in `slashCommands`.
+   * Never painted into the chat's user_message item and never a skill
+   * fallback.
+   */
+  turnContext?: string;
 }
 
 /** Result used by provider controls that complete without opening a turn. */
@@ -129,6 +158,17 @@ export interface ThreadHistory {
 
 export interface StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
+  /** Complete provider reference, including opaque resume-scope metadata, after open. */
+  getSessionRef?(): SessionRef | undefined;
+  /**
+   * Declares that `startTurn`/`steerTurn` place `StartTurnOptions.turnContext`
+   * themselves. Set it when the provider infers meaning from the presence of
+   * `inlineInstructions` or must keep context out of a position the provider
+   * protocol reserves. Absent: the runtime prepends the context to
+   * `inlineInstructions`, which every handle already delivers, and withholds
+   * it from a prompt that invokes an advertised non-skill slash command.
+   */
+  readonly placesTurnContext?: boolean;
   /** Whether a provider-native root or child session belongs to this thread. */
   ownsProviderSession?(providerSessionId: string): boolean;
   activate?(): Promise<void>;
@@ -193,15 +233,57 @@ export interface StructuredSessionHandle {
   updateMcpServers?(mcpServers: readonly ResolvedMcpServer[]): Promise<void>;
   readThread?(): Promise<ThreadHistory>;
   rollbackThread?(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory>;
+  /**
+   * WS2 stage 3: compute an ABSOLUTE revert target for the last `numTurns`
+   * completed turns without mutating session or provider state. The returned
+   * anchor is durable JSON the backend journals before any restore side
+   * effect, so a resumed operation restores from the stored anchor instead of
+   * recomputing against a possibly-mutated conversation (the over-rollback
+   * window). Implementations declare this capability by defining the method;
+   * sessions without it fall back to the relative `rollbackThread` contract.
+   */
+  createRevertAnchor?(numTurns: number, config?: ThreadConfig): Promise<ProviderRevertAnchor>;
+  /**
+   * Applies a previously created anchor. Must be idempotent: re-issuing an
+   * anchor that was already applied converges on the same conversation
+   * position instead of rolling back further. Receives the turn config
+   * alongside the anchor because providers re-derive launch overrides from it
+   * on a resume.
+   */
+  restoreToRevertAnchor?(
+    anchor: ProviderRevertAnchor,
+    config?: ThreadConfig,
+  ): Promise<ThreadHistory>;
   setListener(listener: StructuredSessionListener): void;
   dispose(): Promise<void>;
+  /**
+   * Neutral catalog of outbound session actions the provider declared for
+   * this session. Empty when the provider declares none — an absent catalog
+   * is a capability statement, not an error.
+   */
+  listSessionActions?(): readonly AcpSessionActionInfo[];
+  /**
+   * Invoke a declared session action by its neutral id with a payload the
+   * provider's own validator accepts. Addresses only registered actions —
+   * there is deliberately no raw-method variant, so host callers can never
+   * tunnel arbitrary RPCs to the agent.
+   */
+  invokeSessionAction?(actionId: string, payload: unknown): Promise<Record<string, unknown>>;
 }
 
 export type ResolveExecutablePath = (command: string) => string | undefined;
 
+/**
+ * Provider-supplied normalizer for one ACP session's advertised config
+ * options. See {@link CreateStructuredSessionInput.acpConfigOptionsNormalizer}.
+ */
+export type AcpConfigOptionsNormalizer = (configOptions: readonly unknown[]) => readonly unknown[];
+
 export interface CreateStructuredSessionInput {
   threadId: string;
   projectLocation: ProjectLocation;
+  /** User-approved roots on the same execution host; immutable for this runtime. */
+  additionalDirectories?: readonly ProjectLocation[];
   config: ThreadConfig;
   agentSettings?: Record<string, boolean | string>;
   env?: Record<string, string>;
@@ -215,6 +297,13 @@ export interface CreateStructuredSessionInput {
   mcpServers?: readonly ResolvedMcpServer[];
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
+  /**
+   * Read the owning project's live language-server diagnostics. An absent
+   * source returns undefined; an available source can legitimately be empty.
+   * Provider hooks translate this neutral host data into their own protocol.
+   * The caller's signal fences requests retired by the session lifecycle.
+   */
+  readHostDiagnostics?: (signal: AbortSignal) => Promise<HostDiagnosticsSnapshot | undefined>;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;
   /**
    * Provider-boundary guard for ACP agents that can incorrectly return a
@@ -243,10 +332,58 @@ export interface CreateStructuredSessionInput {
   /** Vendor metadata added to the ACP `initialize` request. */
   acpInitializeMeta?: Record<string, unknown>;
   /**
+   * Extra keys merged into `initialize.clientCapabilities._meta`. Agents that
+   * gate Session Config Options on an undocumented client capability
+   * advertise them here.
+   */
+  acpClientCapabilitiesMeta?: Record<string, unknown>;
+  /**
    * Handle vendor ACP extension notifications (e.g. Cursor's `cursor/task`)
    * that carry metadata absent from the standard `session/update` stream.
    */
   acpExtensionNotificationHandler?: AcpExtensionNotificationHandler;
+  /**
+   * Answer agent-initiated ACP extension *requests* with typed results and
+   * explicit handled/unhandled outcomes. Without it, extension requests that
+   * do not carry a standard session-notification payload are answered with a
+   * real `method not found` JSON-RPC error instead of a fabricated success.
+   */
+  acpExtensionRequestHandler?: AcpExtensionRequestHandler;
+  /**
+   * Bound for pending agent-initiated extension requests, in milliseconds.
+   * On expiry the agent receives a cancelled error exactly once and a late
+   * handler resolution is discarded. Defaults to the shared ACP lifecycle
+   * default; raise it for handlers that wait on slow human input.
+   */
+  acpExtensionRequestTimeoutMs?: number;
+  /**
+   * Outbound session actions this provider supports, declared as neutral
+   * descriptors with provider-owned payload validation and invocation.
+   * Invoked through the structured session by neutral id only — never by
+   * raw wire method — so host code cannot tunnel arbitrary RPCs to the agent.
+   */
+  acpSessionActions?: readonly AcpSessionActionDescriptor[] | AcpSessionActionBuilder;
+  /**
+   * Advertise the ACP client capability for `type: "boolean"` session config
+   * options. Default `false`: the shared session records boolean options it
+   * observes, but host plumbing to render or set a generic boolean control
+   * does not exist yet, so no provider should advertise what it cannot honor.
+   */
+  acpBooleanConfigOptions?: boolean;
+  /**
+   * Provider-supplied normalizer for one ACP session's advertised config
+   * options. Applied consistently wherever the shared session ingests an
+   * option list — `session/new` / `session/load` / `resumeSession` snapshots,
+   * agent-owned `config_option_update` notifications, and
+   * `session/set_config_option` replies — so the retained cache, the typed
+   * descriptor inventory, the confirmation checks, and the config reduction
+   * all see the same normalized view. Receives the raw wire array exactly as
+   * the agent sent it and must return the same wire shape (option ids, value
+   * ids, labels, groups and `_meta` preserved); the default is pass-through.
+   * Must be pure and must not throw: a throwing normalizer keeps the
+   * previously retained options instead of corrupting the cache.
+   */
+  acpConfigOptionsNormalizer?: AcpConfigOptionsNormalizer;
   /**
    * Home-relative directories (posix-style, e.g. ".kimi-code") this provider
    * may read and write through the ACP fs bridge even though they live outside
@@ -266,7 +403,25 @@ export interface CreateStructuredSessionInput {
    * no unsaved editor buffers, so the on-disk content the agent reads locally
    * is the same content the bridge would have served.
    */
+  /** Disable client-hosted terminal operations for agents executing outside the host's filesystem. */
+  acpTerminalCapability?: boolean;
   acpFsTextCapability?: boolean;
+  /**
+   * When `false`, do not read host files to inline agent-origin image
+   * references (a uri-only image block, or a completed read-kind tool call's
+   * locations, including a path outside the workspace). Image bytes already
+   * inline in the tool result stay. Approved outgoing prompt attachments are
+   * unaffected. Default `true`. Independent of {@link acpFsTextCapability}.
+   */
+  acpLocalResourceResolution?: boolean;
+  /**
+   * Optional presentation copy of an elicitation request. The shared session
+   * shows this copy and keeps the original request for reply normalization.
+   * The default is the request unchanged.
+   */
+  acpElicitationPresentation?: (
+    request: import("@agentclientprotocol/sdk").CreateElicitationRequest,
+  ) => import("@agentclientprotocol/sdk").CreateElicitationRequest;
   /**
    * MCP transports relayed optimistically: included in the first
    * `session/new` / `session/load` attempt and dropped from the retry set if
@@ -309,9 +464,133 @@ export type AcpExtensionNotificationHandler = (
   params: Record<string, unknown>,
   ctx: {
     threadId: string;
+    /** Current native session owner; absent before a session opens. */
+    readonly sessionId?: string;
+    /** Canonical foreground turn owner; absent between completed turns. */
+    readonly turnId?: string;
     resolveToolCallItemId: (toolCallId: string) => string | undefined;
   },
 ) => import("@/shared/contracts").RuntimeEvent[];
+
+/**
+ * Context handed to a provider-owned handler for one agent-initiated ACP
+ * extension request (a JSON-RPC request outside the ACP v1 method set).
+ */
+export interface AcpExtensionRequestContext {
+  /** Poracode thread that owns the ACP session the request arrived on. */
+  readonly threadId: string;
+  /** Live ACP session id, or `undefined` while the session is not open. */
+  readonly sessionId: string | undefined;
+  /**
+   * Aborted when the request times out, pending requests are cancelled
+   * (interrupt / transport loss / session identity change), or the session
+   * disposes. A resolution that arrives after the abort is discarded — the
+   * agent has already received a cancelled error exactly once.
+   */
+  readonly signal: AbortSignal;
+}
+
+/**
+ * Explicit outcome of a provider-owned extension request handler. Returning
+ * `{ handled: false }` lets the request fall through (and eventually answer
+ * the agent with a real `method not found` error); there is deliberately no
+ * silent empty-success shape — an unclaimed request must never be ACKed
+ * behind the provider's back.
+ */
+export type AcpExtensionRequestOutcome =
+  | { readonly handled: true; readonly result: Record<string, unknown> }
+  | { readonly handled: false };
+
+/**
+ * Handler an adapter supplies to answer agent-initiated ACP extension
+ * requests with typed results/errors. Must return an explicit
+ * {@link AcpExtensionRequestOutcome}; throwing surfaces a typed bounded
+ * JSON-RPC error to the agent instead of a fabricated success.
+ */
+export type AcpExtensionRequestHandler = (
+  method: string,
+  params: Record<string, unknown>,
+  ctx: AcpExtensionRequestContext,
+) => AcpExtensionRequestOutcome | Promise<AcpExtensionRequestOutcome>;
+
+/** Context handed to a provider-owned outbound session action invocation. */
+export interface AcpSessionActionContext {
+  /** Poracode thread that owns the ACP session the action runs against. */
+  readonly threadId: string;
+  /** Live ACP session id, or `undefined` while the session is not open. */
+  readonly sessionId: string | undefined;
+  /** Aborted when pending actions are cancelled or the session disposes. */
+  readonly signal: AbortSignal;
+}
+
+/**
+ * One provider-declared outbound session action. The provider owns the
+ * payload validation and the invocation (typically one vendor extension RPC
+ * behind a stable neutral id). The shared session only ever addresses these
+ * by `id` with a validated payload — never with a raw wire method and
+ * parameters, so no caller gets an arbitrary RPC tunnel into the agent.
+ */
+export interface AcpSessionActionDescriptor {
+  /** Stable neutral action id the provider validates invocations against. */
+  readonly id: string;
+  /**
+   * Validate and normalize an inbound payload; throw to reject it. Omit for
+   * actions that accept an empty object payload.
+   */
+  readonly validatePayload?: (payload: unknown) => Record<string, unknown>;
+  /** Run the action; must resolve to a JSON-object result. */
+  readonly invoke: (
+    payload: Record<string, unknown>,
+    ctx: AcpSessionActionContext,
+  ) => Promise<Record<string, unknown>>;
+}
+
+/** Consumer-facing projection of a declared session action (metadata only). */
+export interface AcpSessionActionInfo {
+  readonly id: string;
+}
+
+/** Internal provider composition hook; only declared action callbacks receive
+ * this transport. Host/renderer callers address validated action ids. */
+export interface AcpSessionActionTransport {
+  request(
+    method: string,
+    params: Record<string, unknown>,
+    options?: { signal?: AbortSignal },
+  ): Promise<unknown>;
+  /**
+   * Detached, bounded snapshot (≤512 KiB, depth ≤64) of the live session's
+   * config options exactly as normalized when they were retained — never
+   * writable aliases into session state. Compose descriptors from it with the
+   * shared `describeConfigOptions` helper. Read-only cache view: it does not
+   * touch the wire and reports the last known state even while the session
+   * is closing.
+   */
+  getConfigOptions?(): readonly unknown[];
+  /**
+   * Set one advertised config option through the standard ACP
+   * `session/set_config_option` wire method — never an extension RPC. The
+   * shared session validates the exact advertised id and value (including
+   * legitimate empty-string select values; booleans only when the boolean
+   * capability was negotiated, sent with `type: "boolean"`), sends the write
+   * exactly once, requires full echoed/confirmed state before resolving, and
+   * reconciles the thread config through the normal config listener. Fails
+   * with a typed error before any wire send when the option is unknown,
+   * removed, unsupported, or the value is invalid, and with a conflict error
+   * while another config write is in progress or a foreground prompt owns the
+   * session (unless the provider's behavior opts into prompt-time writes).
+   */
+  setConfigOption?(
+    configId: string,
+    value: AcpSessionConfigOptionWriteValue,
+    options?: { signal?: AbortSignal },
+  ): Promise<void>;
+}
+/** A value writable to one advertised session config option: a select value id, or a boolean for negotiated boolean options. */
+export type AcpSessionConfigOptionWriteValue = string | boolean;
+export type AcpSessionActionBuilder = (
+  transport: AcpSessionActionTransport,
+) => readonly AcpSessionActionDescriptor[];
 
 export interface AgentArgvSpec {
   binary: string;
@@ -319,7 +598,7 @@ export interface AgentArgvSpec {
   env?: Record<string, string>;
   sessionRef?: SessionRef;
   preferShell?: boolean;
-  cleanup?: () => void;
+  cleanup?: () => Awaitable<void>;
 }
 
 export interface DetectProbeCtx {
@@ -436,20 +715,25 @@ export interface AgentMetadata {
 }
 
 export interface AgentLauncher {
+  /**
+   * May be synchronous or async; the runtime awaits. An adapter that stages
+   * launch helpers (e.g. WSL MCP extensions) returns a promise instead of
+   * blocking the supervisor control loop.
+   */
   buildLaunchArgv(
     location: ProjectLocation,
     config: ThreadConfig,
     prompt: string,
     sessionRef?: SessionRef,
     launchOptions?: AgentLaunchOptions,
-  ): AgentArgvSpec;
+  ): Awaitable<AgentArgvSpec>;
   buildResumeArgv(
     location: ProjectLocation,
     config: ThreadConfig,
     prompt: string,
     sessionRef: SessionRef,
     launchOptions?: AgentLaunchOptions,
-  ): AgentArgvSpec;
+  ): Awaitable<AgentArgvSpec>;
   /**
    * Index at which hook-launch extra CLI args are inserted into the argv.
    * Omit to append at the end. Adapters whose CLIs read trailing tokens as
@@ -560,6 +844,11 @@ export interface AgentTerminalObserver {
 }
 
 export interface AgentSessionTracker {
+  /** Internal opt-in: the structured GUI factory consumes approved additionalDirectories
+   * without dropping them on open/resume. Native negotiation remains authoritative.
+   * This does not qualify terminal, one-shot, child fallback, or public capability UI.
+   */
+  supportsStructuredWorkspaceDirectories?: boolean;
   createInitialSessionRef(): SessionRef | undefined;
   createStructuredSession?(
     input: CreateStructuredSessionInput,
@@ -571,10 +860,15 @@ export interface AgentSessionTracker {
 
 export interface RunOneShotInput {
   location: ProjectLocation;
-  model: string;
-  effort?: string | undefined;
-  /** Opus-only fast-mode session flag. Adapters that don't support it ignore it. */
-  fast?: boolean | undefined;
+  /**
+   * Canonical complete utility selection. Replaces the former scalar
+   * model/effort/fast triple so one full tuple travels through every lane:
+   * empty effort and false Fast survive transport exactly, thinking/context
+   * carriers reach providers that map them (or refuse them visibly), and a
+   * recognized selection binding rides only with its own selection. An empty
+   * `model` follows the existing implicit/default-model convention.
+   */
+  selection: ModelSelection;
   /** Allow only filesystem read/search/list tools inside the supplied workspace. */
   readOnlyWorkspace?: boolean | undefined;
   prompt: string;
@@ -615,6 +909,15 @@ export interface OneShotGenerationCommand extends OneShotCommand {
 export interface OneShotGenerationOptions {
   /** The cwd is an isolated artifact workspace that must remain read-only. */
   readOnlyWorkspace?: boolean | undefined;
+  /**
+   * Canonical complete utility selection. When present, a builder validates
+   * its model/effort/fast positionals against it before any effect and
+   * refuses disagreement as a visible input error; when absent, the builder
+   * constructs the unstamped selection its scalars represent. Never a second
+   * independently mutable model choice, and never a metadata-only flag: the
+   * positionals stay the executed values.
+   */
+  selection?: ModelSelection | undefined;
 }
 
 export interface AgentOneShotRunner {
@@ -639,12 +942,15 @@ export interface AgentOneShotRunner {
     location?: ProjectLocation,
     fast?: boolean,
     options?: OneShotGenerationOptions,
-  ): OneShotGenerationCommand | undefined;
+  ): Awaitable<OneShotGenerationCommand | undefined>;
   runOneShot?(input: RunOneShotInput): Promise<string>;
   /**
    * Build a provider-enforced text-only one-shot invocation. Unlike the
    * general one-shot lane, this must disable every tool, MCP, plugin, and hook
    * surface rather than relying on prompt instructions or approval policy.
+   * Takes the SAME optional {@link OneShotGenerationOptions} argument 6 as
+   * {@link buildOneShotCommand} — the full selection rides argument 6 on both
+   * builder lanes; there is no argument 7.
    */
   buildTextOnlyOneShotCommand?(
     model: string,
@@ -652,14 +958,28 @@ export interface AgentOneShotRunner {
     prompt?: string,
     location?: ProjectLocation,
     fast?: boolean,
-  ): OneShotGenerationCommand | undefined;
+    options?: OneShotGenerationOptions,
+  ): Awaitable<OneShotGenerationCommand | undefined>;
   /** Run a provider-enforced text-only one-shot through a structured runtime. */
   runTextOnlyOneShot?(input: RunOneShotInput): Promise<string>;
+  /**
+   * Build the `--resume`-style context-extraction invocation for one session.
+   * The scalar `model` is only the checked projection of
+   * `options.selection` (a supplied selection must agree with it; a missing
+   * options argument is the unstamped legacy direct call), and the FULL
+   * selection rides {@link OneShotGenerationOptions} at this argument 4 so the
+   * implementation can map or visibly refuse every carrier before its command
+   * is built or spawned — the same policy its one-shot builder lane enforces.
+   * There is no argument 5.
+   */
   buildContextExtractionCommand?(
     sessionRef: SessionRef,
     location: ProjectLocation,
     model?: string,
-  ): { command: string; args: string[]; stdin?: string; env?: Record<string, string> } | undefined;
+    options?: OneShotGenerationOptions,
+  ): Awaitable<
+    { command: string; args: string[]; stdin?: string; env?: Record<string, string> } | undefined
+  >;
 }
 
 /**
@@ -786,6 +1106,9 @@ export interface AgentAdapter
     Partial<AgentAcpAuth>,
     Partial<AgentCliHookPluginSupport>,
     Partial<AgentNativePluginSupport> {
+  /** Stable normalized payload format of this actual producer, independent of thread/profile routing. */
+  readonly runtimePayloadFormatOwnerKey?: string;
+
   /** Manage native provider package plugins in the selected execution environment. */
   managePlugins?(
     input: Omit<ManageAgentPluginsPayload, "agentKind">,
@@ -799,8 +1122,6 @@ export interface AgentAdapter
     input: Omit<ManageAgentCredentialsPayload, "agentKind">,
   ): Promise<ManageAgentCredentialsResult>;
 
-  /** Run this provider inside WSL when its project lives on native Windows. */
-  readonly windowsProjectExecution?: "wsl";
   readonly skillSupport?: AgentSkillSupport;
   /** Release provider-owned shared processes after all thread sessions have closed. */
   shutdown?(): void | Promise<void>;

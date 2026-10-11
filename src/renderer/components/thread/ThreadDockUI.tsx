@@ -1,5 +1,6 @@
 import { forwardRef, type MouseEventHandler, type ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
+import { ChevronDown } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
 
@@ -45,6 +46,7 @@ export function ThreadDockHeader({
   title,
   countLabel,
   actions,
+  stackedContent = false,
   children,
 }: {
   icon: React.ElementType<{ className?: string }>;
@@ -52,15 +54,21 @@ export function ThreadDockHeader({
   title: string;
   countLabel?: ReactNode;
   actions?: ReactNode;
+  stackedContent?: boolean;
   children?: ReactNode;
 }) {
   return (
     <div className="flex h-8 items-center gap-2 px-2 leading-none">
       <Icon className={`size-3.5 shrink-0 ${iconClassName}`} />
-      <div className="flex min-w-0 flex-1 items-center gap-2 leading-none">
+      <div
+        className={`flex min-w-0 flex-1 leading-none ${
+          stackedContent ? "flex-col items-start gap-0.5" : "items-baseline gap-2"
+        }`}
+        data-stacked={stackedContent ? "true" : undefined}
+      >
         <span className="font-semibold text-foreground">{title}</span>
         {countLabel && (
-          <span className="flex items-center gap-1 text-[0.85em] text-[color:var(--muted)]">
+          <span className="inline-flex items-baseline gap-1 text-[0.85em] leading-none text-[color:var(--muted)]">
             {countLabel}
           </span>
         )}
@@ -77,6 +85,8 @@ export function ThreadDockIconButton({
   danger = false,
   isDisabled = false,
   isPending = false,
+  ariaExpanded,
+  ariaControls,
   onMouseDown,
   onPress,
   children,
@@ -86,6 +96,8 @@ export function ThreadDockIconButton({
   danger?: boolean;
   isDisabled?: boolean;
   isPending?: boolean;
+  ariaExpanded?: boolean;
+  ariaControls?: string;
   onMouseDown?: MouseEventHandler<HTMLButtonElement>;
   onPress: () => void;
   children: ReactNode;
@@ -98,6 +110,8 @@ export function ThreadDockIconButton({
           size="sm"
           variant="ghost"
           aria-label={label}
+          {...(ariaExpanded !== undefined ? { "aria-expanded": ariaExpanded } : {})}
+          {...(ariaControls ? { "aria-controls": ariaControls } : {})}
           className={`h-6 w-6 min-w-0 shrink-0 text-muted/70 ${
             danger
               ? "hover:bg-danger-500/10 hover:text-danger-500"
@@ -113,6 +127,33 @@ export function ThreadDockIconButton({
       </Tooltip.Trigger>
       <Tooltip.Content>{tooltip}</Tooltip.Content>
     </Tooltip>
+  );
+}
+
+export function ThreadDockCollapseButton({
+  collapsed,
+  label,
+  controlsId,
+  onPress,
+}: {
+  collapsed: boolean;
+  label: string;
+  controlsId?: string;
+  onPress: () => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <ThreadDockIconButton
+      label={label}
+      tooltip={collapsed ? t`Expand` : t`Collapse`}
+      ariaExpanded={!collapsed}
+      {...(controlsId ? { ariaControls: controlsId } : {})}
+      onPress={onPress}
+    >
+      <ChevronDown
+        className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
+      />
+    </ThreadDockIconButton>
   );
 }
 

@@ -11,15 +11,11 @@ import {
   type RefObject,
   type WheelEventHandler,
 } from "react";
-import { LegendList, type LegendListRef, type LegendListState } from "@legendapp/list/react";
-import { Surface } from "@heroui/react";
-import { Trans } from "@lingui/react/macro";
-import type {
-  MessageItemPayload,
-  ProjectLocation,
-  ThreadConfig,
-  ToolCallPayload,
-} from "@/shared/contracts";
+import { LegendList, type LegendListRef } from "@legendapp/list/react";
+import { Surface, toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { MessageItemPayload, ProjectLocation, ToolCallPayload } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { threadMentionLabel } from "@/shared/promptContent";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
@@ -29,7 +25,6 @@ import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
   type CompletedTurnRecord,
-  type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
@@ -49,29 +44,30 @@ import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
+import { useTimelineMeasurements } from "./useTimelineMeasurements";
+import { createUnderfilledHistoryTrigger, type HistoryStartReached } from "./underfilledHistory";
 import {
-  getTimelineMeasurementSignature,
-  readTimelineMeasurements,
-  writeTimelineMeasurements,
-} from "./timelineMeasurementCache";
-import { syncFollowingVirtualRowPositions } from "./virtualRowLayout";
+  useVirtualRowMeasurement,
+  type RemeasureVirtualRow,
+  type VirtualRowSize,
+} from "./useVirtualRowMeasurement";
+import {
+  findCheckpointBeforeUserMessage,
+  mintCheckpointOperationKey,
+} from "./checkpointRevertIdentity";
 
 export interface CheckpointRevertActions {
-  rollbackThreadConversation(input: {
-    threadId: string;
-    numTurns: number;
-    config?: ThreadConfig;
-  }): Promise<void>;
-  restoreFileCheckpoint(input: {
+  revertCheckpoint(input: {
     threadId: string;
     checkpointItemId: string;
-    projectLocation: ProjectLocation;
-  }): Promise<void>;
+    operationKey: string;
+  }): Promise<{
+    outcome: "completed" | "completed_local_only" | "ambiguous" | "failed" | "noop";
+  }>;
 }
 
 interface MessageListProps {
   threadId: string;
-  threadConfig?: ThreadConfig;
   entries: readonly ChatTimelineEntry[];
   isTurnActive?: boolean;
   markTailAsLive?: boolean;
@@ -90,7 +86,7 @@ interface MessageListProps {
   onWheelCapture?: WheelEventHandler<HTMLDivElement>;
   onPointerDownCapture?: PointerEventHandler<HTMLDivElement>;
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>;
-  onStartReached?: () => void;
+  onStartReached?: HistoryStartReached;
   drawDistance?: number;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
@@ -133,7 +129,6 @@ const SKIP_REVERT_CONFIRM_PREF_KEY = "poracode-chat-checkpoint-revert-skip-confi
 // while moving the DOM, so the virtualizer must re-render to re-measure.
 export function MessageList({
   threadId,
-  threadConfig,
   entries,
   isTurnActive = false,
   markTailAsLive = true,
@@ -161,43 +156,72 @@ export function MessageList({
   suppressInlineTurnAnchorId = null,
   registerScrollToIndex,
 }: MessageListProps) {
+  const { t } = useLingui();
   const hasItems = entries.length > 0;
   const parentActions = useChatPaneActions();
+  const onContentHeightNotification = onContentHeightChange ?? parentActions?.onContentHeightChange;
   const listRef = useRef<LegendListRef | null>(null);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const underfilledHistoryRef = useRef<ReturnType<typeof createUnderfilledHistoryTrigger> | null>(
+    null,
+  );
+  if (underfilledHistoryRef.current === null) {
+    underfilledHistoryRef.current = createUnderfilledHistoryTrigger();
+  }
+  function notifyContentHeight() {
+    onContentHeightNotification?.();
+    underfilledHistoryRef.current?.measure({
+      threadId,
+      oldestEntryId: entries[0]?.id,
+      scroller: scrollElementRef.current,
+      onStartReached,
+    });
+  }
+  function retryUnderfilledHistory(event: {
+    defaultPrevented: boolean;
+    target: EventTarget | null;
+  }) {
+    if (
+      event.defaultPrevented ||
+      (event.target instanceof Element &&
+        event.target.closest(
+          "button, input, textarea, select, [role='button'], [contenteditable]:not([contenteditable='false'])",
+        ))
+    )
+      return;
+    underfilledHistoryRef.current?.retry({
+      threadId,
+      oldestEntryId: entries[0]?.id,
+      scroller: scrollElementRef.current,
+      onStartReached,
+    });
+  }
   const entriesRef = useRef(entries);
   useLayoutEffect(() => {
     entriesRef.current = entries;
   });
   const virtualSizeBoxRef = useRef<HTMLDivElement | null>(null);
-  const totalSizeUnsubscribeRef = useRef<(() => void) | null>(null);
-  const measurementSignatureRef = useRef<string | null>(null);
-  const restoredMeasurementSignatureRef = useRef<string | null>(null);
-  const [pendingRevert, setPendingRevert] = useState<{ itemId: string; userItemId: string } | null>(
-    null,
-  );
+  const [pendingRevert, setPendingRevert] = useState<{
+    itemId: string;
+    userItemId: string;
+    operationKey: string;
+  } | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
-  const revertingRef = useRef(false);
+  const [revertInFlight, setRevertInFlight] = useState(false);
+  // Keys for attempts whose transport promise rejected without an explicit
+  // server outcome. Retained across dialog close/skip-confirm clicks so a
+  // lost-response retry reconciles the same operation; cleared once an
+  // explicit outcome (completed/local_only/failed/ambiguous/noop) is observed.
+  const unsettledKeysRef = useRef(new Map<string, string>());
 
-  const snapshotMeasurements = useCallback(
-    (instance: LegendListRef, scrollElement: HTMLDivElement) => {
-      const signature = measurementSignatureRef.current;
-      if (!signature || getTimelineMeasurementSignature(scrollElement) !== signature) return;
-      const state = useAppStore.getState();
-      const sizes = instance.getState().sizes;
-      const measurements = entriesRef.current.flatMap((entry, index) => {
-        if (entry.kind !== "item") return [];
-        if (!isRemountStableSnapshotItem(selectRuntimeItemById(state, threadId, entry.id))) {
-          return [];
-        }
-        const size = sizes.get(entry.id);
-        return size === undefined ? [] : [{ key: entry.id, index, size }];
-      });
-      writeTimelineMeasurements(threadId, signature, measurements);
-    },
-    [threadId],
-  );
+  const snapshotMeasurements = useTimelineMeasurements({
+    threadId,
+    hasItems,
+    entriesRef,
+    listRef,
+    scrollElementRef,
+  });
 
   const setListRef = useCallback(
     (instance: LegendListRef | null) => {
@@ -206,9 +230,8 @@ export function MessageList({
       if (!instance && previousInstance && previousScrollElement) {
         snapshotMeasurements(previousInstance, previousScrollElement);
       }
-      totalSizeUnsubscribeRef.current?.();
-      totalSizeUnsubscribeRef.current = null;
       listRef.current = instance;
+      if (!instance) underfilledHistoryRef.current?.reset();
       const scrollElement = instance?.getScrollableNode() as HTMLDivElement | undefined;
       const contentElement = scrollElement?.querySelector<HTMLDivElement>(
         ".legend-list-content-container",
@@ -221,41 +244,9 @@ export function MessageList({
       }
       if (scrollContentRef) scrollContentRef.current = contentElement ?? null;
       setScrollContainer?.(scrollElement ?? null);
-      if (instance) {
-        totalSizeUnsubscribeRef.current = instance
-          .getState()
-          .listen("totalSize", () =>
-            (onContentHeightChange ?? parentActions?.onContentHeightChange)?.(),
-          );
-      }
     },
-    [
-      onContentHeightChange,
-      parentActions,
-      scrollContentRef,
-      setScrollContainer,
-      snapshotMeasurements,
-    ],
+    [scrollContentRef, setScrollContainer, snapshotMeasurements],
   );
-
-  useLayoutEffect(() => {
-    const instance = listRef.current;
-    const scrollElement = scrollElementRef.current;
-    if (!instance || !scrollElement || entries.length === 0) return;
-    const signature = getTimelineMeasurementSignature(scrollElement);
-    measurementSignatureRef.current = signature;
-    if (!signature || restoredMeasurementSignatureRef.current === signature) return;
-    restoredMeasurementSignatureRef.current = signature;
-    const entryIds = new Set(entries.map((entry) => entry.id));
-    const measurements = readTimelineMeasurements(threadId, signature);
-    for (const measurement of measurements) {
-      if (!entryIds.has(String(measurement.key))) continue;
-      instance.setItemSize(String(measurement.key), {
-        height: measurement.size,
-        width: scrollElement.clientWidth,
-      });
-    }
-  }, [entries, threadId]);
 
   useLayoutEffect(() => {
     const register = registerVirtualScrollToBottom ?? parentActions?.registerVirtualScrollToBottom;
@@ -311,10 +302,15 @@ export function MessageList({
   const lastLiveIndex = useAppStore(liveTailSelector);
 
   const remeasureRowElement = useCallback(
-    (itemKey: string, element: HTMLDivElement | null, liveStreamGrowth = false) => {
+    (
+      itemKey: string,
+      element: HTMLDivElement | null,
+      liveStreamGrowth = false,
+      observedSize?: VirtualRowSize,
+    ) => {
       const instance = listRef.current;
       if (!element || !instance) return null;
-      const height = element.offsetHeight;
+      const height = observedSize?.height ?? element.offsetHeight;
       // A streamed store delta and the live-row ResizeObserver can report the
       // same painted size in either order. Let the first path update LegendList
       // and make the second a no-op instead of starting a redundant anchor /
@@ -329,94 +325,102 @@ export function MessageList({
       }
       instance.setItemSize(itemKey, {
         height,
-        width: element.offsetWidth,
+        width: observedSize?.width ?? element.offsetWidth,
       });
       return instance.getState();
     },
     [onLiveVirtualizerLayoutChange, onVirtualizerLayoutChange],
   );
 
+  const readMeasuredRowHeight = (itemKey: string, index: number) => {
+    const state = listRef.current?.getState();
+    const height = state?.sizes.get(itemKey) ?? state?.sizeAtIndex(index);
+    return height !== undefined && Number.isFinite(height) && height >= 0 ? height : undefined;
+  };
+
   const performRevert = useCallback(
-    async (itemId: string, userItemId: string) => {
-      if (revertingRef.current) return false;
-      revertingRef.current = true;
-      // Promise cleanup lets memoization analysis see this callback's dependencies.
-      return (async () => {
-        const state = useAppStore.getState();
-        const itemIds = state.runtimeItemIdsByThread[threadId];
-        const itemsById = state.runtimeItemsByIdByThread[threadId];
-        const completedTurns = state.runtimeCompletedTurnsByThread[threadId] ?? [];
-        const checkpoint = state.fileCheckpointsByThread[threadId]?.[itemId];
-        const rollbackTurns =
-          itemIds && itemsById
-            ? countRollbackTurnsAfterCheckpoint(itemIds, itemsById, completedTurns, itemId)
-            : 0;
-        // Snapshot before any await: provider rollback / file restore can take time,
-        // and a late runtime event must not drop the prompts we are about to restore.
-        const userItem = itemsById?.[userItemId];
-        const restoredContent =
-          userItem?.type === "user_message" && !userItem.parentItemId
-            ? getRuntimeItemPayload<MessageItemPayload>(userItem, "user_message")?.content.map(
-                (block) => ({ ...block }),
-              )
-            : undefined;
-        const revert = checkpointActions ?? readBridge();
-        let providerRollbackSucceeded = rollbackTurns === 0;
-        if (rollbackTurns > 0) {
-          try {
-            await revert.rollbackThreadConversation({
-              threadId,
-              numTurns: rollbackTurns,
-              ...(threadConfig ? { config: threadConfig } : {}),
-            });
-            providerRollbackSucceeded = true;
-          } catch (error) {
-            console.warn(
-              "[checkpoint] provider rollback failed; continuing with local revert",
-              error,
-            );
-          }
-        }
-        if (projectLocation && checkpoint) {
-          await revert.restoreFileCheckpoint({
-            threadId,
-            checkpointItemId: itemId,
-            projectLocation,
-          });
-        }
-        if (restoredContent?.length) {
-          useRevertedPromptStore.getState().restore(threadId, restoredContent);
-        }
-        state.truncateThreadRuntimeAfter(threadId, itemId);
-        await readBridge().dbTruncateThreadRuntimeAfter({ threadId, itemId });
-        const thread = state.threads.find((item) => item.id === threadId);
-        captureProductEvent("thread.checkpoint_reverted", {
-          ...(thread ? threadProductProperties(thread) : {}),
-          has_file_checkpoint: Boolean(projectLocation && checkpoint),
-          outcome: providerRollbackSucceeded ? "complete" : "local_only",
-          rollback_turn_count: rollbackTurns,
+    async (itemId: string, userItemId: string, operationKey: string) => {
+      // Snapshot before any await: the compound runs server-side, and the
+      // composer should get back the prompt we are reverting even when a late
+      // runtime event has already refreshed the transcript.
+      const state = useAppStore.getState();
+      const itemsById = state.runtimeItemsByIdByThread[threadId];
+      const userItem = itemsById?.[userItemId];
+      const restoredContent =
+        userItem?.type === "user_message" && !userItem.parentItemId
+          ? getRuntimeItemPayload<MessageItemPayload>(userItem, "user_message")?.content.map(
+              (block) => ({ ...block }),
+            )
+          : undefined;
+      const revert = checkpointActions ?? readBridge();
+      let result: Awaited<ReturnType<typeof revert.revertCheckpoint>>;
+      try {
+        result = await revert.revertCheckpoint({
+          threadId,
+          checkpointItemId: itemId,
+          operationKey,
         });
-        parentActions?.onContentHeightChange?.();
-        return true;
-      })().finally(() => {
-        revertingRef.current = false;
+      } catch (error) {
+        // A transport promise rejection carries no authoritative operation
+        // outcome (the mutation may have been accepted with a lost reply).
+        // Retain the key so the next attempt reconciles the same operation
+        // instead of minting a new action.
+        unsettledKeysRef.current.set(itemId, operationKey);
+        throw error;
+      }
+      // An explicit outcome settled this action: lost-response retention no
+      // longer applies. Retries within the same dialog reuse `pendingRevert`'s
+      // key (resume/replay); a later deliberate action after close mints fresh.
+      unsettledKeysRef.current.delete(itemId);
+      if (result.outcome === "failed" || result.outcome === "ambiguous") {
+        throw new Error(
+          result.outcome === "ambiguous"
+            ? t`Revert state is unknown; the provider did not confirm the rollback in time.`
+            : t`The checkpoint could not be restored.`,
+        );
+      }
+      if (result.outcome === "completed_local_only") {
+        toast.warning(t`Provider conversation was not restored`, {
+          description: t`Local chat history was reverted. The provider may still use the removed messages.`,
+          timeout: 0,
+        });
+      }
+      if (restoredContent?.length) {
+        useRevertedPromptStore.getState().restore(threadId, restoredContent);
+      }
+      const thread = state.threads.find((item) => item.id === threadId);
+      captureProductEvent("thread.checkpoint_reverted", {
+        ...(thread ? threadProductProperties(thread) : {}),
+        outcome:
+          result.outcome === "completed"
+            ? "complete"
+            : result.outcome === "completed_local_only"
+              ? "local_only"
+              : result.outcome,
       });
+      parentActions?.onContentHeightChange?.();
+      return true;
     },
-    [checkpointActions, parentActions, projectLocation, threadConfig, threadId],
+    [checkpointActions, parentActions, t, threadId],
   );
 
   const requestRevert = useCallback(
     (itemId: string, userItemId: string) => {
-      if (revertingRef.current) return;
+      // A retained unsettled key means the previous attempt's transport
+      // rejected without an outcome: reuse it so the retry reconciles the
+      // same operation. Otherwise this deliberate action mints fresh.
+      const retained = unsettledKeysRef.current.get(itemId);
+      const operationKey = retained ?? mintCheckpointOperationKey();
       if (localStorage.getItem(SKIP_REVERT_CONFIRM_PREF_KEY) === "1") {
-        void performRevert(itemId, userItemId).catch((error) => {
+        void performRevert(itemId, userItemId, operationKey).catch((error) => {
           console.warn("[checkpoint] failed to revert checkpoint", error);
+          toast.danger(friendlyError(error));
         });
         return;
       }
       setDontAskAgain(false);
       setRevertError(null);
-      setPendingRevert({ itemId, userItemId });
+      setPendingRevert({ itemId, userItemId, operationKey });
     },
     [performRevert],
   );
@@ -430,7 +434,8 @@ export function MessageList({
   const confirmRevert = useCallback(() => {
     if (!pendingRevert) return;
     setRevertError(null);
-    void performRevert(pendingRevert.itemId, pendingRevert.userItemId)
+    setRevertInFlight(true);
+    void performRevert(pendingRevert.itemId, pendingRevert.userItemId, pendingRevert.operationKey)
       .then((performed) => {
         if (!performed) return;
         if (dontAskAgain) {
@@ -443,6 +448,9 @@ export function MessageList({
       .catch((error) => {
         console.warn("[checkpoint] failed to revert checkpoint", error);
         setRevertError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        setRevertInFlight(false);
       });
   }, [dontAskAgain, pendingRevert, performRevert, threadId]);
 
@@ -459,7 +467,7 @@ export function MessageList({
         estimatedItemSize={DEFAULT_ROW_ESTIMATE_PX}
         extraData={`${lastLiveIndex}:${isTurnActive}:${markTailAsLive}:${suppressInlineTurnAnchorId ?? ""}:${canRevertCheckpoints}`}
         getFixedItemSize={(entry) =>
-          getFixedTimelineEntrySize(entry, threadId, scrollElementRef.current?.clientWidth)
+          getFixedTimelineEntrySize(entry, threadId, () => scrollElementRef.current?.clientWidth)
         }
         getItemType={(entry, index) =>
           getTimelineEntryType(
@@ -478,8 +486,18 @@ export function MessageList({
         }}
         maintainScrollAtEndThreshold={0}
         maintainVisibleContentPosition={{ data: true, size: true }}
+        {...(onContentHeightNotification || onStartReached
+          ? { onContentSizeCommit: notifyContentHeight }
+          : {})}
         {...(drawDistance !== undefined ? { drawDistance } : {})}
-        {...(onStartReached ? { onStartReached, onStartReachedThreshold: 0.75 } : {})}
+        {...(onStartReached
+          ? {
+              onStartReached: () => {
+                void onStartReached();
+              },
+              onStartReachedThreshold: 0.75,
+            }
+          : {})}
         recycleItems={false}
         renderItem={({ item: entry, index }) => (
           <VirtualChatListRow
@@ -489,6 +507,7 @@ export function MessageList({
             isLastEntry={markTailAsLive && index === lastLiveIndex}
             isTurnActive={isTurnActive}
             remeasureElement={remeasureRowElement}
+            readMeasuredRowHeight={readMeasuredRowHeight}
             {...(onVirtualizerLayoutChange ? { onVirtualizerLayoutChange } : {})}
             suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
             canRevertCheckpoints={canRevertCheckpoints}
@@ -513,15 +532,32 @@ export function MessageList({
           transition: "--lc-chat-bottom-mask-end-alpha 150ms ease-out",
         }}
         data-poracode-chat-scroller="true"
-        {...(onKeyDownCapture ? { onKeyDownCapture } : {})}
-        onLoad={() => (onContentHeightChange ?? parentActions?.onContentHeightChange)?.()}
+        {...(onKeyDownCapture || onStartReached
+          ? {
+              onKeyDownCapture: (event) => {
+                onKeyDownCapture?.(event);
+                if (event.key === "ArrowUp" || event.key === "PageUp" || event.key === "Home") {
+                  retryUnderfilledHistory(event);
+                }
+              },
+            }
+          : {})}
+        onLoad={notifyContentHeight}
         {...(onPointerDownCapture ? { onPointerDownCapture } : {})}
-        {...(onWheelCapture ? { onWheelCapture } : {})}
+        {...(onWheelCapture || onStartReached
+          ? {
+              onWheelCapture: (event) => {
+                onWheelCapture?.(event);
+                if (event.deltaY < 0) retryUnderfilledHistory(event);
+              },
+            }
+          : {})}
         {...(scrollStyle ? { style: scrollStyle } : {})}
       />
       <RevertCheckpointDialog
         isOpen={pendingRevert !== null}
         dontAskAgain={dontAskAgain}
+        isInFlight={revertInFlight}
         checkpointGuard={checkpointGuard ?? DEFAULT_CHECKPOINT_GUARD}
         canRestoreFiles={projectLocation !== undefined && pendingCheckpoint !== undefined}
         errorMessage={revertError ?? undefined}
@@ -539,11 +575,8 @@ type VirtualChatListRowProps = {
   index: number;
   isLastEntry: boolean;
   isTurnActive: boolean;
-  remeasureElement: (
-    itemKey: string,
-    element: HTMLDivElement | null,
-    liveStreamGrowth?: boolean,
-  ) => LegendListState | null;
+  remeasureElement: RemeasureVirtualRow;
+  readMeasuredRowHeight: (itemKey: string, index: number) => number | undefined;
   onVirtualizerLayoutChange?: () => void;
   suppressInlineTurnAnchorId: string | null;
   canRevertCheckpoints: boolean;
@@ -557,99 +590,18 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
   isLastEntry,
   isTurnActive,
   remeasureElement,
+  readMeasuredRowHeight,
   onVirtualizerLayoutChange,
   suppressInlineTurnAnchorId,
   canRevertCheckpoints,
   onRequestRevert,
 }: VirtualChatListRowProps) {
-  const rowElementRef = useRef<HTMLDivElement | null>(null);
-  const liveMeasureRafRef = useRef<number | null>(null);
-  // Keep the observer mounted when an appended prompt changes this row from
-  // tail to mid-list; resetting its height baseline there misses completion
-  // growth that lands in the same commit.
-  const isLastEntryRef = useRef(isLastEntry);
-  useLayoutEffect(() => {
-    isLastEntryRef.current = isLastEntry;
-  });
-  const ref = useCallback((element: HTMLDivElement | null) => {
-    rowElementRef.current = element;
-  }, []);
-  const remeasureRow = useCallback(() => {
-    const element = rowElementRef.current;
-    if (!element) return;
-    remeasureElement(entry.id, element);
-  }, [entry.id, remeasureElement]);
-  const scheduleLiveMeasure = useCallback(() => {
-    if (liveMeasureRafRef.current !== null) return;
-    liveMeasureRafRef.current = requestAnimationFrame(() => {
-      liveMeasureRafRef.current = null;
-      const element = rowElementRef.current;
-      if (!element) return;
-      remeasureElement(entry.id, element, true);
-    });
-  }, [entry.id, remeasureElement]);
-  useLayoutEffect(() => {
-    if (!isLastEntry) return;
-    return useAppStore.subscribe(
-      (state) => {
-        const items = state.runtimeItemsByIdByThread[threadId];
-        if (entry.kind === "item") return liveStreamMeasureToken(items?.[entry.id]);
-        // A live tool-call group can hold a streaming row (e.g. reasoning
-        // expanded while the model thinks) that grows the virtualized row.
-        // Scan from the tail — the streaming row is the newest, so the loop
-        // short-circuits without walking the completed rows above it.
-        for (let i = entry.itemIds.length - 1; i >= 0; i -= 1) {
-          const token = liveStreamMeasureToken(items?.[entry.itemIds[i]!]);
-          if (token !== null) return token;
-        }
-        return null;
-      },
-      (token) => {
-        if (token !== null) scheduleLiveMeasure();
-      },
-    );
-  }, [entry, isLastEntry, scheduleLiveMeasure, threadId]);
-  useLayoutEffect(() => {
-    const element = rowElementRef.current;
-    if (!element) return;
-
-    let previousHeight = element.offsetHeight;
-    let previousWidth = element.offsetWidth;
-    const observer = new ResizeObserver(() => {
-      const nextHeight = element.offsetHeight;
-      const nextWidth = element.offsetWidth;
-      if (nextHeight === previousHeight && nextWidth === previousWidth) return;
-      const previousMeasuredHeight = previousHeight;
-      const heightDelta = nextHeight - previousMeasuredHeight;
-      previousHeight = nextHeight;
-      previousWidth = nextWidth;
-      // The smoothed Markdown renderer can grow between provider deltas, and the
-      // completion commit renders the final text concurrently — often a few
-      // frames after the store event. The DOM resize is the earliest reliable
-      // signal and ResizeObserver runs after layout but before paint, so measure
-      // LegendList here rather than waiting for the next stream event or frame.
-      const layout = remeasureElement(entry.id, element, true);
-      // LegendList may commit its position wrappers on this frame or the next.
-      // Nothing sits below the tail, but a growing mid-list row can briefly
-      // paint into its neighbour. Mirror the virtualizer's authoritative
-      // single-column positions before paint; never infer them from DOM deltas.
-      // Shrinks remain entirely LegendList-owned because it deliberately
-      // confirms them on the next animation frame.
-      if (layout && !isLastEntryRef.current && heightDelta > 0) {
-        syncFollowingVirtualRowPositions(element, layout);
-      }
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [entry.id, remeasureElement]);
-  useLayoutEffect(
-    () => () => {
-      if (liveMeasureRafRef.current !== null) {
-        cancelAnimationFrame(liveMeasureRafRef.current);
-        liveMeasureRafRef.current = null;
-      }
-    },
-    [],
+  const { rowElementRef, remeasureRow, scheduleLiveMeasure } = useVirtualRowMeasurement(
+    entry,
+    isLastEntry,
+    remeasureElement,
+    (itemKey) => readMeasuredRowHeight(itemKey, index),
+    onVirtualizerLayoutChange,
   );
   const isUserMessage = useAppStore((state) =>
     entry.kind === "item"
@@ -680,7 +632,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
 
   return (
     <div
-      ref={ref}
+      ref={rowElementRef}
       data-chat-virtual-row="true"
       data-index={index}
       data-item-id={entry.id}
@@ -756,16 +708,6 @@ function isLastTimelineEntryAssistantMessage(
   return state.runtimeItemsByIdByThread[threadId]?.[lastEntry.id]?.type === "assistant_message";
 }
 
-/**
- * Change token for an in-flight item whose streamed content grows its row.
- * Includes the item id so back-to-back streaming items inside one group still
- * produce distinct tokens.
- */
-function liveStreamMeasureToken(item: RuntimeChatItem | undefined): string | null {
-  if (!item || item.state === "completed") return null;
-  return `${item.id}:${item.state}:${growingStreamLength(item)}`;
-}
-
 function getTimelineEntryType(
   entry: ChatTimelineEntry,
   threadId: string,
@@ -815,9 +757,9 @@ function getTimelineEntryType(
 function getFixedTimelineEntrySize(
   entry: ChatTimelineEntry,
   threadId: string,
-  listWidth: number | undefined,
+  readListWidth: () => number | undefined,
 ): number | undefined {
-  if (entry.kind !== "item" || !listWidth) return undefined;
+  if (entry.kind !== "item") return undefined;
   const item = selectRuntimeItemById(useAppStore.getState(), threadId, entry.id);
   if (!item || !isToolLikeItem(item) || !imageViewRendersInline(item.payload)) return undefined;
   // Legend's single fallback estimate is intentionally message-sized. Inline
@@ -825,6 +767,9 @@ function getFixedTimelineEntrySize(
   // responsive height before the row mounts and MVCP never anchors to 59px.
   const source = resolveImageViewSource(item.payload as ToolCallPayload | undefined);
   if (!source?.width || !source.height) return undefined;
+  // Ordinary message/tool rows need no geometry read at all.
+  const listWidth = readListWidth();
+  if (!listWidth) return undefined;
   const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
   const maxHeight = Math.min(
     INLINE_IMAGE_MAX_HEIGHT_REM * (Number.isFinite(rootFontSize) ? rootFontSize : 16),
@@ -837,74 +782,4 @@ function getFixedTimelineEntrySize(
     (availableWidth * source.height) / source.width,
   );
   return Math.round(renderedHeight + INLINE_IMAGE_ROW_CHROME_PX);
-}
-
-/**
- * Whether a completed row's measured height survives a remount unchanged, so its
- * cached measurement may be restored (see `writeTimelineMeasurements`, applied
- * via LegendList's `setItemSize`). A row type with local expand/collapse state
- * remounts collapsed (its `useState` dies with the fiber), so restoring an
- * expanded-state size would anchor the list to a stale height on first revisit
- * — the jump the snapshot cache exists to prevent. Tool-call groups, reasoning
- * ("Thought" toggle), user messages (clamped "Show more"), and every tool/
- * command/file/search accordion are therefore unstable; non-completed rows are
- * dropped too since their height keeps changing while the thread works in the
- * background.
- */
-function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean {
-  if (!item || item.state !== "completed") return false;
-  switch (item.type) {
-    case "assistant_message":
-    case "plan":
-    case "question_answer":
-    case "provider_handoff":
-    case "error":
-      return true;
-    default:
-      // Inline image cards have no disclosure; every other tool-like row renders
-      // the collapsible accordion and remounts collapsed.
-      return isToolLikeItem(item) && imageViewRendersInline(item.payload);
-  }
-}
-
-function findCheckpointBeforeUserMessage(
-  itemIds: readonly string[],
-  itemsById: ReturnType<typeof useAppStore.getState>["runtimeItemsByIdByThread"][string],
-  userItemId: string,
-): string | null {
-  const userIndex = itemIds.indexOf(userItemId);
-  if (userIndex <= 0) return null;
-
-  for (let idx = userIndex - 1; idx >= 0; idx -= 1) {
-    const itemId = itemIds[idx]!;
-    if (itemsById[itemId]?.type === "assistant_message") return itemId;
-  }
-
-  return null;
-}
-
-function countRollbackTurnsAfterCheckpoint(
-  itemIds: readonly string[],
-  itemsById: ReturnType<typeof useAppStore.getState>["runtimeItemsByIdByThread"][string],
-  completedTurns: ReadonlyArray<CompletedTurnRecord>,
-  checkpointItemId: string,
-): number {
-  const checkpointIndex = itemIds.indexOf(checkpointItemId);
-  if (checkpointIndex < 0) return 0;
-
-  if (completedTurns.length > 0) {
-    let count = 0;
-    for (const turn of completedTurns) {
-      if (!turn.anchorItemId) continue;
-      if (itemIds.indexOf(turn.anchorItemId) > checkpointIndex) count += 1;
-    }
-    return count;
-  }
-
-  let count = 0;
-  for (let idx = checkpointIndex + 1; idx < itemIds.length; idx += 1) {
-    const itemId = itemIds[idx]!;
-    if (itemsById[itemId]?.type === "assistant_message") count += 1;
-  }
-  return count;
 }

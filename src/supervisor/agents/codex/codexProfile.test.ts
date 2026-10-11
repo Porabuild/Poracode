@@ -1,8 +1,18 @@
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
+import type { WslBridgeClient } from "../../wsl/bridge/client";
+
+const ensureWslDirectory = vi.hoisted(() =>
+  vi.fn<(distro: string, path: string) => Promise<void>>(async () => {}),
+);
+
+vi.mock("../plugin/installerBase", async (original) => ({
+  ...(await original<typeof import("../plugin/installerBase")>()),
+  ensureWslDirectory,
+}));
 
 // These tests only exercise env plumbing. Skip the real `~/.codex/sessions`
 // walk and the `codex --version` probe, both of which flake under parallel
@@ -33,6 +43,12 @@ import { createCodexAdapter, createCodexProfileAdapter } from "./index";
 import { codexTerminalAuthMethod } from "./detection";
 import { codexAppServerPoolKey } from "./serverPool";
 import { buildCodexAppServerCommand } from "./argv";
+import { createCodexProfileContext } from "./profileContext";
+import {
+  clearExecutablePathCache,
+  primeWslLaunchEnvironment,
+  setWslProcessBridgeClient,
+} from "../base";
 import {
   readCodexRolloutsForLocation,
   readCodexSessionIndexForLocation,
@@ -40,6 +56,12 @@ import {
 } from "./session";
 
 const projectLocation: ProjectLocation = { kind: "posix", path: "/repo" };
+
+afterEach(() => {
+  setWslProcessBridgeClient(undefined);
+  clearExecutablePathCache();
+  ensureWslDirectory.mockReset();
+});
 
 function workProfile() {
   return createCodexProfileAdapter({
@@ -53,23 +75,26 @@ function workProfile() {
 describe("createCodexProfileAdapter", () => {
   const expectedHome = path.join(homedir(), ".codex-work");
 
-  it("creates a distinct Codex adapter backed by a separate CODEX_HOME", () => {
+  it("creates a distinct Codex adapter backed by a separate CODEX_HOME", async () => {
     const adapter = workProfile();
     expect(adapter.kind).toBe("codex:work");
     expect(adapter.label).toBe("Codex Work");
     expect(adapter.binary).toBe("codex");
 
     expect(
-      adapter.buildLaunchArgv(projectLocation, { model: "gpt-5.5" }, "hello").env?.CODEX_HOME,
+      (await adapter.buildLaunchArgv(projectLocation, { model: "gpt-5.5" }, "hello")).env
+        ?.CODEX_HOME,
     ).toBe(expectedHome);
     expect(
-      adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hello", {
-        providerSessionId: "thread-1",
-        discoveredAt: "test",
-      })?.env?.CODEX_HOME,
+      (
+        await adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hello", {
+          providerSessionId: "thread-1",
+          discoveredAt: "test",
+        })
+      )?.env?.CODEX_HOME,
     ).toBe(expectedHome);
     expect(
-      adapter.buildOneShotCommand?.("gpt-5.5", undefined, "Summarize", projectLocation)?.env
+      (await adapter.buildOneShotCommand?.("gpt-5.5", undefined, "Summarize", projectLocation))?.env
         ?.CODEX_HOME,
     ).toBe(expectedHome);
   });
@@ -87,19 +112,21 @@ describe("createCodexProfileAdapter", () => {
     expect(rendered).toMatch(/logout/);
   });
 
-  it("leaves the base Codex adapter without a CODEX_HOME override", () => {
+  it("leaves the base Codex adapter without a CODEX_HOME override", async () => {
     const adapter = createCodexAdapter();
     expect(adapter.kind).toBe("codex");
     // `buildResumeArgv` shapes the same argv as launch without the pre-spawn
     // snapshot of the real `~/.codex/sessions` tree.
     expect(
-      adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hello", {
-        providerSessionId: "thread-1",
-        discoveredAt: "test",
-      })?.env?.CODEX_HOME,
+      (
+        await adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hello", {
+          providerSessionId: "thread-1",
+          discoveredAt: "test",
+        })
+      )?.env?.CODEX_HOME,
     ).toBeUndefined();
     expect(
-      adapter.buildOneShotCommand?.("gpt-5.5", undefined, "Summarize", projectLocation)?.env
+      (await adapter.buildOneShotCommand?.("gpt-5.5", undefined, "Summarize", projectLocation))?.env
         ?.CODEX_HOME,
     ).toBeUndefined();
   });
@@ -110,11 +137,12 @@ describe("createCodexProfileAdapter", () => {
     const ctx = { envKind: "posix" as const, baseDir };
     const extras = await adapter.pluginLaunchExtras?.(ctx);
     expect(extras?.env?.CODEX_HOME).toBe(
-      getCodexPluginPaths(ctx, { profileId: "work", sourceHomeDir: expectedHome }).codexHomeDir,
+      (await getCodexPluginPaths(ctx, { profileId: "work", sourceHomeDir: expectedHome }))
+        .codexHomeDir,
     );
   });
 
-  it("creates a missing profile home so Codex can start before the first login", () => {
+  it("creates a missing profile home so Codex can start before the first login", async () => {
     const parent = mkdtempSync(path.join(tmpdir(), "poracode-codex-profile-new-"));
     const homeDir = path.join(parent, "fresh-home");
     const adapter = createCodexProfileAdapter({
@@ -124,10 +152,12 @@ describe("createCodexProfileAdapter", () => {
       config: { homeDir },
     });
     expect(existsSync(homeDir)).toBe(false);
-    const env = adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hello", {
-      providerSessionId: "thread-1",
-      discoveredAt: "test",
-    })?.env;
+    const env = (
+      await adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hello", {
+        providerSessionId: "thread-1",
+        discoveredAt: "test",
+      })
+    )?.env;
     expect(env?.CODEX_HOME).toBe(homeDir);
     expect(existsSync(homeDir)).toBe(true);
   });
@@ -147,9 +177,11 @@ describe("createCodexProfileAdapter", () => {
     });
 
     const extras = await adapter.pluginLaunchExtras?.({ envKind: "posix", baseDir });
-    const overlay = getCodexPluginPaths(
-      { envKind: "posix", baseDir },
-      { profileId: "late", sourceHomeDir: homeDir },
+    const overlay = (
+      await getCodexPluginPaths(
+        { envKind: "posix", baseDir },
+        { profileId: "late", sourceHomeDir: homeDir },
+      )
     ).codexHomeDir;
     expect(extras?.env?.CODEX_HOME).toBe(overlay);
     expect(existsSync(path.join(overlay, "auth.json"))).toBe(true);
@@ -176,41 +208,110 @@ describe("codexTerminalAuthMethod", () => {
 });
 
 describe("Codex app-server env plumbing", () => {
-  it("forwards a CODEX_HOME override into the app-server spawn env", () => {
-    const command = buildCodexAppServerCommand(projectLocation, {
+  it("forwards a CODEX_HOME override into the app-server spawn env", async () => {
+    const command = await buildCodexAppServerCommand(projectLocation, {
       env: { CODEX_HOME: "/home/demo/.codex-work" },
     });
     expect(command.env?.CODEX_HOME).toBe("/home/demo/.codex-work");
   });
 
-  it("emits env overrides through /usr/bin/env for WSL app-servers", () => {
+  it("emits env overrides through /usr/bin/env for WSL app-servers", async () => {
     const wsl: ProjectLocation = {
       kind: "wsl",
       distro: "Ubuntu",
       linuxPath: "/home/demo/repo",
-      uncPath: "\\wsl.localhostUbuntuhomedemo\repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\repo",
     };
-    const command = buildCodexAppServerCommand(wsl, {
+    const command = await buildCodexAppServerCommand(wsl, {
       env: { CODEX_HOME: "/home/demo/.codex-work" },
     });
     expect(command.args).toContain("CODEX_HOME=/home/demo/.codex-work");
   });
 
-  it("keys the shared app-server pool by env so profiles never share a server", () => {
-    const base = codexAppServerPoolKey(projectLocation, []);
-    const work = codexAppServerPoolKey(projectLocation, [], undefined, undefined, {
+  it("keys the shared app-server pool by env so profiles never share a server", async () => {
+    const base = await codexAppServerPoolKey(projectLocation, []);
+    const work = await codexAppServerPoolKey(projectLocation, [], undefined, undefined, {
       CODEX_HOME: "/home/demo/.codex-work",
     });
-    const personal = codexAppServerPoolKey(projectLocation, [], undefined, undefined, {
+    const personal = await codexAppServerPoolKey(projectLocation, [], undefined, undefined, {
       CODEX_HOME: "/home/demo/.codex-personal",
     });
     expect(work).not.toBe(base);
     expect(work).not.toBe(personal);
     expect(
-      codexAppServerPoolKey(projectLocation, [], undefined, undefined, {
+      await codexAppServerPoolKey(projectLocation, [], undefined, undefined, {
         CODEX_HOME: "/home/demo/.codex-work",
       }),
     ).toBe(work);
+  });
+});
+
+describe("Codex WSL profile preparation", () => {
+  it("awaits authoritative home resolution and worker mkdir before admitting profile env", async () => {
+    const location: ProjectLocation = {
+      kind: "wsl",
+      distro: "ProfilePreparation",
+      linuxPath: "/repo",
+      uncPath: "\\\\wsl.localhost\\ProfilePreparation\\repo",
+    };
+    const homeProbe = Promise.withResolvers<{
+      ok: true;
+      stdout: string;
+      stderr: string;
+      exitCode: number;
+    }>();
+    const directoryStarted = Promise.withResolvers<void>();
+    const directoryPrepared = Promise.withResolvers<void>();
+    const processExec = vi.fn<WslBridgeClient["processExec"]>(async () => homeProbe.promise);
+    setWslProcessBridgeClient({ processExec } as unknown as WslBridgeClient);
+    ensureWslDirectory.mockImplementationOnce(async () => {
+      directoryStarted.resolve();
+      await directoryPrepared.promise;
+    });
+    const context = createCodexProfileContext({ profileId: "work", homeDir: "~/.codex-work" });
+    let settled = false;
+    const pending = context.profileEnv(location);
+    void pending.then(() => {
+      settled = true;
+    });
+    expect(processExec).toHaveBeenCalledOnce();
+    expect(ensureWslDirectory).not.toHaveBeenCalled();
+    expect(settled).toBe(false);
+
+    homeProbe.resolve({
+      ok: true,
+      stdout: "__PORACODE_WSL_ENV__\n/bin/zsh\n/home/profile-user\n",
+      stderr: "",
+      exitCode: 0,
+    });
+    await directoryStarted.promise;
+    expect(ensureWslDirectory).toHaveBeenCalledExactlyOnceWith(
+      location.distro,
+      "/home/profile-user/.codex-work",
+    );
+    expect(settled).toBe(false);
+    directoryPrepared.resolve();
+    await expect(pending).resolves.toEqual({
+      CODEX_HOME: "/home/profile-user/.codex-work",
+      OPENAI_API_KEY: "",
+      CODEX_API_KEY: "",
+      CODEX_ACCESS_TOKEN: "",
+    });
+  });
+
+  it("refuses an unresolved WSL profile home without creating a guessed directory", async () => {
+    const location: ProjectLocation = {
+      kind: "wsl",
+      distro: "ProfileMissingHome",
+      linuxPath: "/repo",
+      uncPath: "\\\\wsl.localhost\\ProfileMissingHome\\repo",
+    };
+    primeWslLaunchEnvironment(location.distro, { shellPath: "/bin/zsh", home: undefined });
+    const context = createCodexProfileContext({ profileId: "work", homeDir: "~/.codex-work" });
+    await expect(context.profileEnv(location)).rejects.toThrow(
+      "Unable to resolve the Codex profile home",
+    );
+    expect(ensureWslDirectory).not.toHaveBeenCalled();
   });
 });
 
@@ -231,26 +332,30 @@ describe("Codex profile account isolation", () => {
 
   it("blanks inherited host credentials on every profile launch lane", async () => {
     const adapter = workProfile();
-    expect(adapter.buildLaunchArgv(projectLocation, { model: "gpt-5.5" }, "hi").env).toMatchObject(
-      blanked,
-    );
     expect(
-      adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hi", sessionRef)?.env,
+      (await adapter.buildLaunchArgv(projectLocation, { model: "gpt-5.5" }, "hi")).env,
     ).toMatchObject(blanked);
     expect(
-      adapter.buildOneShotCommand?.("gpt-5.5", undefined, "Summarize", projectLocation)?.env,
+      (await adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hi", sessionRef))
+        ?.env,
+    ).toMatchObject(blanked);
+    expect(
+      (await adapter.buildOneShotCommand?.("gpt-5.5", undefined, "Summarize", projectLocation))
+        ?.env,
     ).toMatchObject(blanked);
     expect((await adapter.buildAcpLogoutCommand?.({ envKind: "posix" }))?.env).toMatchObject(
       blanked,
     );
   });
 
-  it("leaves host credentials alone for the base account", () => {
-    const env = createCodexAdapter().buildResumeArgv?.(
-      projectLocation,
-      { model: "gpt-5.5" },
-      "hi",
-      sessionRef,
+  it("leaves host credentials alone for the base account", async () => {
+    const env = (
+      await createCodexAdapter().buildResumeArgv?.(
+        projectLocation,
+        { model: "gpt-5.5" },
+        "hi",
+        sessionRef,
+      )
     )?.env;
     expect(env ?? {}).not.toHaveProperty("OPENAI_API_KEY");
   });

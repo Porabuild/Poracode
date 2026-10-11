@@ -3,7 +3,7 @@ import type { Project, Thread } from "@/shared/contracts";
 import type { DragSourceData } from "@/renderer/dnd";
 import { resolveThreadReorder } from "@/renderer/hooks/useDndHandlers";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { useAppStore, type AppStoreState } from "@/renderer/state/appStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { removeRemoteAppRows, syncRemoteAppRows } from "@/renderer/state/remoteServers/appRows";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import {
@@ -125,7 +125,7 @@ describe("flat Manual order with remote mirrors", () => {
     expect(flatOrder()).toEqual(["a1", "b1", r1, r2]);
   });
 
-  it("keeps a local move across an unchanged snapshot, a reconnect and a reload", () => {
+  it("keeps a local move across an unchanged remote snapshot and reconnect", () => {
     expect(drop("b1", "a1")).toBe(true);
     const moved = ["b1", "a1", r1, r2];
     expect(flatOrder()).toEqual(moved);
@@ -138,10 +138,10 @@ describe("flat Manual order with remote mirrors", () => {
     expect(flatOrder()).toEqual(moved);
 
     const partialize = useAppStore.persist.getOptions().partialize!;
-    const persisted = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads">;
-    expect(persisted.threads.map((thread) => thread.id)).toEqual(["b1", "a1"]);
-    useAppStore.setState({ threads: persisted.threads });
-    syncRemoteAppRows("d1", hostProjects, hostThreads);
-    expect(flatOrder()).toEqual(moved);
+    // Desktop reloads the catalog from the host. SQLite/HTTP regressions own
+    // durable reload proof; this renderer payload contains preferences only.
+    const persisted = partialize(useAppStore.getState());
+    expect(persisted).not.toHaveProperty("projects");
+    expect(persisted).not.toHaveProperty("threads");
   });
 });

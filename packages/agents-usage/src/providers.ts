@@ -27,7 +27,7 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     label: "Cursor",
     mechanism: "oauth-endpoint",
     needsLogin: false,
-    windowIds: ["monthly", "cursor-auto", "cursor-api"],
+    windowIds: ["monthly", "cursor-auto", "cursor-api", "extra-usage"],
   },
   grok: {
     id: "grok",
@@ -55,14 +55,11 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
   muse: {
     id: "muse",
     label: "Muse Code",
-    // The signed-in dev.meta.ai dashboard is the source for Muse's weighted
-    // 5h / weekly quota windows and billed spend (see `collectors/muse.ts`).
-    // The CLI's device-code login can stand in for plan + account, but its
-    // meters are optional — so keep offering the dashboard sign-in until a
-    // browser session is captured.
-    mechanism: "cookie",
+    // CLI OAuth supplies quota; an optional dashboard session adds billed spend
+    // and fills in meters when the CLI endpoint does not report them.
+    mechanism: "oauth-endpoint",
     needsLogin: true,
-    needsBrowserSessionForUsage: true,
+    browserSessionForDetails: true,
     windowIds: ["session-5h", "weekly"],
   },
   factory: {
@@ -79,6 +76,13 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     mechanism: "api-key",
     needsLogin: true,
     windowIds: ["session-5h", "weekly", "monthly"],
+  },
+  devin: {
+    id: "devin",
+    label: "Devin",
+    mechanism: "oauth-endpoint",
+    needsLogin: false,
+    windowIds: ["daily", "weekly"],
   },
   kimi: {
     id: "kimi",
@@ -119,9 +123,11 @@ export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
  * collected supervisor-side because they need process / SQLite access the pure
  * HTTP registry can't do — they have a descriptor here but no package collector:
  * `antigravity` prefers its local language server and falls back to Cloud Code
- * with official ACP credentials, while `opencode` needs the supervisor for the
- * opencode.ai cookie session plus a local `auth.json` probe (Go plan badge). Go
- * quota meters are web-only — never derived from local `opencode.db` spend.
+ * with official ACP credentials, while `opencode` needs the supervisor to read
+ * the CLI's local `auth.json` Go key (direct `/zen/go/v1/usage` endpoint) plus
+ * the opencode.ai cookie session for the Zen balance. Go quota meters come from
+ * the API key first, the web session as fallback — never from local
+ * `opencode.db` spend.
  */
 export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[] = [
   {
@@ -134,10 +140,10 @@ export const LOCAL_USAGE_PROVIDER_DESCRIPTORS: readonly UsageProviderDescriptor[
   {
     id: "opencode",
     label: "OpenCode",
-    // Cookie login for live Go/Zen meters; local auth.json only gates the plan badge.
+    // Go plan meters come from the CLI's Go API key directly; the cookie login
+    // remains for the Zen balance and as a fallback source for the Go windows.
     mechanism: "cookie",
     needsLogin: true,
-    needsBrowserSessionForUsage: true,
     windowIds: ["session-5h", "weekly", "monthly"],
   },
 ];

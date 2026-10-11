@@ -34,6 +34,7 @@ type MockLegendProps = {
   className?: string;
   contentContainerClassName?: string;
   contentContainerStyle?: React.CSSProperties;
+  onContentSizeCommit?: (info: { size: number; horizontal: boolean }) => void;
   onLoad?: () => void;
   onWheelCapture?: React.WheelEventHandler<HTMLDivElement>;
   onPointerDownCapture?: React.PointerEventHandler<HTMLDivElement>;
@@ -237,6 +238,8 @@ describe("MessageList", () => {
     props.onStartReached?.();
     expect(onStartReached).toHaveBeenCalledOnce();
     expect(props.recycleItems).toBe(false);
+    expect(props.onContentSizeCommit).toEqual(expect.any(Function));
+    expect(totalSizeListener.current).toBeNull();
   });
 
   it("keeps long assistant rows out of short-message size estimates", () => {
@@ -263,6 +266,128 @@ describe("MessageList", () => {
     expect(props.getItemType(entries[0]!, 0)).toBe("assistant_message:short");
     expect(props.getItemType(entries[1]!, 1)).toBe("assistant_message:long");
   });
+
+  it("does not read list geometry when estimating ordinary streamed rows", () => {
+    seedStartedItem("thread-1", "assistant-1", "assistant_message");
+    const entries = makeEntries(["assistant-1"]);
+    const view = render(<MessageList threadId="thread-1" entries={entries} />);
+    const scroller = view.container.querySelector("[data-poracode-chat-scroller]");
+    const readWidth = vi.fn<() => number>(() => 500);
+    Object.defineProperty(scroller, "clientWidth", { configurable: true, get: readWidth });
+    const props = latestLegendProps.current as MockLegendProps;
+    expect(props.getFixedItemSize(entries[0]!, 0, "assistant_message:live")).toBeUndefined();
+    expect(readWidth).not.toHaveBeenCalled();
+  });
+
+  it("uses browser-supplied resize geometry and retains the observer across callback changes", () => {
+    const resize = installResizeObserverHarness();
+    try {
+      seedStartedItem("thread-1", "assistant-1", "assistant_message");
+      const entries = makeEntries(["assistant-1"]);
+      const oldLayout = vi.fn<() => void>();
+      const nextLayout = vi.fn<() => void>();
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={entries}
+          onLiveVirtualizerLayoutChange={oldLayout}
+        />,
+      );
+      const row = getVirtualRow(view.container, "assistant-1");
+      const observer = resize.records.find((record) => record.target === row)!;
+      view.rerender(
+        <MessageList
+          threadId="thread-1"
+          entries={entries}
+          onLiveVirtualizerLayoutChange={nextLayout}
+        />,
+      );
+      expect(observer.active).toBe(true);
+      expect(resize.records.filter((record) => record.target === row)).toHaveLength(1);
+      setElementSize(
+        row,
+        () => {
+          throw new Error("forced height read");
+        },
+        () => {
+          throw new Error("forced width read");
+        },
+      );
+      setItemSizeMock.mockClear();
+      oldLayout.mockClear();
+      nextLayout.mockClear();
+      act(() =>
+        observer.callback(
+          [
+            {
+              target: row,
+              borderBoxSize: [{ blockSize: 118, inlineSize: 500 }],
+            } as unknown as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        ),
+      );
+      expect(setItemSizeMock).toHaveBeenCalledWith("assistant-1", { height: 118, width: 500 });
+      expect(oldLayout).not.toHaveBeenCalled();
+      expect(nextLayout).toHaveBeenCalledOnce();
+      // The same painted size must not trigger a second reconciliation.
+      act(() =>
+        observer.callback(
+          [
+            {
+              target: row,
+              borderBoxSize: [{ blockSize: 118, inlineSize: 500 }],
+            } as unknown as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        ),
+      );
+      expect(setItemSizeMock).toHaveBeenCalledTimes(1);
+    } finally {
+      resize.restore();
+    }
+  });
+
+  it.each([
+    { cached: 200, delivered: 100, following: 200 },
+    { cached: 100, delivered: 180, following: 180 },
+    { cached: 100, delivered: 100, following: 100 },
+  ])(
+    "uses the library baseline on first delivery ($cached → $delivered)",
+    ({ cached, delivered, following }) => {
+      const resize = installResizeObserverHarness();
+      try {
+        legendDomReflowMode.current = "deferred";
+        seedCompletedItem("thread-1", "assistant-1", "assistant_message");
+        seedCompletedItem("thread-1", "user-1", "user_message");
+        legendSizes.set("assistant-1", cached);
+        const view = render(
+          <MessageList threadId="thread-1" entries={makeEntries(["assistant-1", "user-1"])} />,
+        );
+        const row = getVirtualRow(view.container, "assistant-1");
+        const next = row.parentElement!.nextElementSibling as HTMLElement;
+        expect(Number.parseFloat(next.style.top)).toBe(cached);
+        const observer = resize.records.find((record) => record.target === row)!;
+        act(() =>
+          observer.callback(
+            [
+              {
+                target: row,
+                borderBoxSize: [{ blockSize: delivered, inlineSize: 500 }],
+              } as unknown as ResizeObserverEntry,
+            ],
+            {} as ResizeObserver,
+          ),
+        );
+        expect(Number.parseFloat(next.style.top)).toBe(following);
+        // A first shrink stays deferred, including when the library delivered
+        // its observation first. Only actual growth mirrors positions pre-paint.
+      } finally {
+        resize.restore();
+        legendDomReflowMode.current = "sync";
+      }
+    },
+  );
 
   it("provides a stable initial size for intrinsic inline images", () => {
     useAppStore.getState().applyRuntimeEvent("thread-1", {
@@ -347,6 +472,15 @@ describe("MessageList", () => {
   });
 
   it("restores stable measured rows when the same thread remounts at the same width", () => {
+    useAppStore.getState().createThread({
+      threadId: "thread-1",
+      projectId: "project",
+      agentKind: "test-agent",
+      config: { model: "auto" },
+      prompt: "Measurement owner",
+      focus: false,
+      suppressHostCreateIntent: true,
+    });
     seedCompletedItem("thread-1", "assistant-1", "assistant_message");
     legendSizes.set("assistant-1", 184);
     const first = render(
@@ -404,60 +538,170 @@ describe("MessageList", () => {
     expect(onContentHeightChange).toHaveBeenCalledOnce();
   });
 
-  it("remeasures the anchor row when a completed turn moves from the footer inline", async () => {
-    vi.useFakeTimers();
-    try {
-      const threadId = "thread-1";
-      const assistantItemId = "assistant-1";
-      const beginVirtualizerLayoutChange = vi.fn<() => void>();
-      seedCompletedItem(threadId, assistantItemId, "assistant_message");
-      seedCompletedItem(threadId, "user-1", "user_message");
-      useAppStore.getState().hydrateThreadCompletedTurns(threadId, [
-        {
-          startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
-          endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
-          anchorItemId: assistantItemId,
-        },
-      ]);
-      const entries = makeEntries([assistantItemId, "user-1"]);
-      const { rerender } = render(
-        <MessageList
-          threadId={threadId}
-          entries={entries}
-          suppressInlineTurnAnchorId={assistantItemId}
-          onVirtualizerLayoutChange={beginVirtualizerLayoutChange}
-        />,
-      );
-      const anchorRow = screen.getByText(assistantItemId).closest("[data-chat-virtual-row='true']");
-      if (!(anchorRow instanceof HTMLDivElement)) throw new Error("missing anchor row");
-      Object.defineProperties(anchorRow, {
-        offsetHeight: { configurable: true, value: 91 },
-        offsetWidth: { configurable: true, value: 500 },
-      });
-      setItemSizeMock.mockClear();
-      beginVirtualizerLayoutChange.mockClear();
-
-      rerender(
-        <MessageList
-          threadId={threadId}
-          entries={entries}
-          suppressInlineTurnAnchorId={null}
-          onVirtualizerLayoutChange={beginVirtualizerLayoutChange}
-        />,
-      );
-
-      expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
-      expect(setItemSizeMock).not.toHaveBeenCalled();
-      await act(async () => vi.advanceTimersByTimeAsync(16));
-      expect(setItemSizeMock).toHaveBeenCalledWith(assistantItemId, { height: 91, width: 500 });
-      expect(beginVirtualizerLayoutChange).toHaveBeenCalledOnce();
-      expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[0]!).toBeLessThan(
-        setItemSizeMock.mock.invocationCallOrder[0]!,
-      );
-    } finally {
-      vi.useRealTimers();
-    }
+  it("requests underfilled history when committed data arrives and preserves height notifications", () => {
+    const onStartReached = vi.fn<() => void>();
+    const onContentHeightChange = vi.fn<() => void>();
+    const view = render(
+      <MessageList
+        threadId="thread-1"
+        entries={[]}
+        onStartReached={onStartReached}
+        onContentHeightChange={onContentHeightChange}
+      />,
+    );
+    const scroller = view.container.querySelector("[data-poracode-chat-scroller]");
+    expect(scroller).not.toBeNull();
+    Object.defineProperties(scroller!, {
+      clientHeight: { configurable: true, value: 776 },
+      scrollHeight: { configurable: true, value: 776 },
+    });
+    onContentHeightChange.mockClear();
+    const commit = () => {
+      const props = latestLegendProps.current as MockLegendProps;
+      expect(props.onStartReached).toEqual(expect.any(Function));
+      act(() => props.onContentSizeCommit?.({ size: 100, horizontal: false }));
+    };
+    commit();
+    expect(onStartReached).not.toHaveBeenCalled();
+    view.rerender(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["tail"])}
+        onStartReached={onStartReached}
+        onContentHeightChange={onContentHeightChange}
+      />,
+    );
+    commit();
+    commit();
+    expect(onStartReached).toHaveBeenCalledOnce();
+    expect(onContentHeightChange).toHaveBeenCalledTimes(3);
+    view.rerender(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["older", "tail"])}
+        onStartReached={onStartReached}
+        onContentHeightChange={onContentHeightChange}
+      />,
+    );
+    commit();
+    expect(onStartReached).toHaveBeenCalledTimes(2);
+    expect(onContentHeightChange).toHaveBeenCalledTimes(4);
   });
+
+  it("retries a failed underfilled boundary only on unhandled public upward intent", async () => {
+    const onStartReached = vi.fn<() => Promise<boolean>>().mockResolvedValue(false);
+    const onWheelCapture = vi.fn<React.WheelEventHandler<HTMLDivElement>>((event) => {
+      if (event.deltaY === -2) event.preventDefault();
+    });
+    const onKeyDownCapture = vi.fn<React.KeyboardEventHandler<HTMLDivElement>>((event) => {
+      if (event.key === "Home") event.preventDefault();
+    });
+    const view = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["tail"])}
+        onStartReached={onStartReached}
+        onWheelCapture={onWheelCapture}
+        onKeyDownCapture={onKeyDownCapture}
+      />,
+    );
+    const scroller = view.container.querySelector("[data-poracode-chat-scroller]")!;
+    Object.defineProperties(scroller, {
+      clientHeight: { configurable: true, value: 776 },
+      scrollHeight: { configurable: true, value: 776 },
+    });
+    fireEvent.wheel(scroller, { deltaY: -1 });
+    expect(onStartReached).not.toHaveBeenCalled();
+    const props = latestLegendProps.current as MockLegendProps;
+    await act(async () => props.onContentSizeCommit?.({ size: 100, horizontal: false }));
+    for (let count = 0; count < 20; count++) {
+      act(() => props.onContentSizeCommit?.({ size: 100, horizontal: false }));
+    }
+    expect(onStartReached).toHaveBeenCalledOnce();
+    await act(async () => fireEvent.wheel(scroller, { deltaY: -1 }));
+    expect(onStartReached).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(scroller, { key: "PageDown" });
+    fireEvent.keyDown(scroller, { key: "Home" });
+    fireEvent.wheel(scroller, { deltaY: -2 });
+    for (const tag of ["input", "textarea", "button", "div"] as const) {
+      const target = document.createElement(tag);
+      if (tag === "div") target.setAttribute("contenteditable", "true");
+      scroller.appendChild(target);
+      fireEvent.keyDown(target, { key: "PageUp" });
+      fireEvent.wheel(target, { deltaY: -1 });
+      target.remove();
+    }
+    expect(onStartReached).toHaveBeenCalledTimes(2);
+    await act(async () => fireEvent.keyDown(scroller, { key: "PageUp" }));
+    expect(onStartReached).toHaveBeenCalledTimes(3);
+    expect(onWheelCapture).toHaveBeenCalledTimes(7);
+    expect(onKeyDownCapture).toHaveBeenCalledTimes(7);
+  });
+
+  it.each([false, true])(
+    "measures inline completion unless unmounted before its frame: %s",
+    async (unmountBeforeFrame) => {
+      vi.useFakeTimers();
+      try {
+        const threadId = "thread-1";
+        const assistantItemId = "assistant-1";
+        const beginVirtualizerLayoutChange = vi.fn<() => void>();
+        seedCompletedItem(threadId, assistantItemId, "assistant_message");
+        seedCompletedItem(threadId, "user-1", "user_message");
+        useAppStore.getState().hydrateThreadCompletedTurns(threadId, [
+          {
+            startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+            endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+            anchorItemId: assistantItemId,
+          },
+        ]);
+        const entries = makeEntries([assistantItemId, "user-1"]);
+        const { rerender, unmount } = render(
+          <MessageList
+            threadId={threadId}
+            entries={entries}
+            suppressInlineTurnAnchorId={assistantItemId}
+            onVirtualizerLayoutChange={beginVirtualizerLayoutChange}
+          />,
+        );
+        const anchorRow = screen
+          .getByText(assistantItemId)
+          .closest("[data-chat-virtual-row='true']");
+        if (!(anchorRow instanceof HTMLDivElement)) throw new Error("missing anchor row");
+        Object.defineProperties(anchorRow, {
+          offsetHeight: { configurable: true, value: 91 },
+          offsetWidth: { configurable: true, value: 500 },
+        });
+        setItemSizeMock.mockClear();
+        beginVirtualizerLayoutChange.mockClear();
+
+        rerender(
+          <MessageList
+            threadId={threadId}
+            entries={entries}
+            suppressInlineTurnAnchorId={null}
+            onVirtualizerLayoutChange={beginVirtualizerLayoutChange}
+          />,
+        );
+
+        expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
+        expect(setItemSizeMock).not.toHaveBeenCalled();
+        if (unmountBeforeFrame) {
+          unmount();
+        }
+        await act(async () => vi.advanceTimersByTimeAsync(16));
+        expect(setItemSizeMock.mock.calls).toEqual(
+          unmountBeforeFrame ? [] : [[assistantItemId, { height: 91, width: 500 }]],
+        );
+        expect(beginVirtualizerLayoutChange).toHaveBeenCalledOnce();
+        expect(beginVirtualizerLayoutChange.mock.invocationCallOrder[0]!).toBeLessThan(
+          setItemSizeMock.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("pushes the rows below down when a mid-list row grows, before LegendList reflows", () => {
     legendDomReflowMode.current = "deferred";
@@ -577,7 +821,14 @@ describe("MessageList", () => {
 
     try {
       const threadId = "thread-1";
-      seedCompletedItem(threadId, "assistant-1", "assistant_message");
+      seedStartedItem(threadId, "assistant-1", "assistant_message");
+      useAppStore.getState().applyRuntimeEvent(threadId, {
+        type: "content.delta",
+        threadId,
+        itemId: "assistant-1",
+        stream: "assistant_text",
+        delta: "answer",
+      });
       seedCompletedItem(threadId, "user-1", "user_message");
       const view = render(
         <MessageList threadId={threadId} entries={makeEntries(["assistant-1"])} />,
@@ -593,6 +844,15 @@ describe("MessageList", () => {
       if (!initialObserver) throw new Error("row is not observed");
       act(() => initialObserver.callback());
 
+      // Complete the actually active item after the initial observer baseline.
+      // Final rendering can grow later, without another provider delta.
+      act(() => {
+        useAppStore.getState().applyRuntimeEvent(threadId, {
+          type: "item.completed",
+          threadId,
+          itemId: "assistant-1",
+        });
+      });
       rowHeight = 180;
       view.rerender(
         <MessageList threadId={threadId} entries={makeEntries(["assistant-1", "user-1"])} />,
@@ -614,52 +874,62 @@ describe("MessageList", () => {
     }
   });
 
-  it("coalesces live streaming remeasurement to one animation frame", async () => {
-    vi.useFakeTimers();
-    try {
-      const threadId = "thread-1";
-      const onLiveVirtualizerLayoutChange = vi.fn<() => void>();
-      useAppStore.getState().applyRuntimeEvent(threadId, {
-        type: "item.started",
-        threadId,
-        itemId: "assistant-1",
-        itemType: "assistant_message",
-      });
-      render(
-        <MessageList
-          threadId={threadId}
-          entries={makeEntries(["assistant-1"])}
-          onLiveVirtualizerLayoutChange={onLiveVirtualizerLayoutChange}
-        />,
-      );
-      setItemSizeMock.mockClear();
-      onLiveVirtualizerLayoutChange.mockClear();
-
-      act(() => {
+  it.each(["item", "tool_call_group"] as const)(
+    "does not measure unchanged %s geometry for streamed store deltas",
+    async (kind) => {
+      vi.useFakeTimers();
+      try {
+        const threadId = "thread-1";
+        const onLiveVirtualizerLayoutChange = vi.fn<() => void>();
         useAppStore.getState().applyRuntimeEvent(threadId, {
-          type: "content.delta",
+          type: "item.started",
           threadId,
           itemId: "assistant-1",
-          stream: "assistant_text",
-          delta: "more text",
+          itemType: kind === "item" ? "assistant_message" : "reasoning",
         });
-        useAppStore.getState().applyRuntimeEvent(threadId, {
-          type: "content.delta",
-          threadId,
-          itemId: "assistant-1",
-          stream: "assistant_text",
-          delta: " and more",
-        });
-      });
+        const rowId = kind === "item" ? "assistant-1" : "group-1";
+        const entries: ChatTimelineEntry[] =
+          kind === "item"
+            ? makeEntries(["assistant-1"])
+            : [{ kind, id: rowId, itemIds: ["assistant-1"] }];
+        const view = render(
+          <MessageList
+            threadId={threadId}
+            entries={entries}
+            onLiveVirtualizerLayoutChange={onLiveVirtualizerLayoutChange}
+          />,
+        );
+        const row = getVirtualRow(view.container, rowId);
+        const readHeight = vi.fn<() => number>(() => 100);
+        const readWidth = vi.fn<() => number>(() => 500);
+        setElementSize(row, readHeight, readWidth);
+        setItemSizeMock.mockClear();
+        onLiveVirtualizerLayoutChange.mockClear();
 
-      expect(setItemSizeMock).not.toHaveBeenCalled();
-      await act(async () => vi.advanceTimersByTimeAsync(16));
-      expect(setItemSizeMock).toHaveBeenCalledTimes(1);
-      expect(onLiveVirtualizerLayoutChange).toHaveBeenCalledOnce();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
+        for (let index = 0; index < 100; index += 1) {
+          act(() => {
+            useAppStore.getState().applyRuntimeEvent(threadId, {
+              type: "content.delta",
+              threadId,
+              itemId: "assistant-1",
+              stream: "assistant_text",
+              delta: "more text",
+            });
+          });
+          await act(async () => vi.advanceTimersByTimeAsync(16));
+        }
+
+        expect(setItemSizeMock).not.toHaveBeenCalled();
+        await act(async () => vi.advanceTimersByTimeAsync(16));
+        expect(readHeight).not.toHaveBeenCalled();
+        expect(readWidth).not.toHaveBeenCalled();
+        expect(setItemSizeMock).not.toHaveBeenCalled();
+        expect(onLiveVirtualizerLayoutChange).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("remeasures live DOM growth before paint even without another provider delta", () => {
     const resizeCallbacks: ResizeObserverCallback[] = [];
@@ -896,7 +1166,7 @@ describe("MessageList", () => {
     }
   });
 
-  it("cancels queued live measurement and disconnects row observation on unmount", async () => {
+  it("disconnects row observation on unmount after streamed store deltas", async () => {
     vi.useFakeTimers();
     const resize = installResizeObserverHarness();
     try {
@@ -951,21 +1221,33 @@ describe("MessageList", () => {
     );
   });
 
-  it("notifies scroll controls directly when LegendList's total size changes", () => {
-    const onContentHeightChange = vi.fn<() => void>();
-    render(
-      <MessageList
-        threadId="thread-1"
-        entries={makeEntries(["item-1"])}
-        onContentHeightChange={onContentHeightChange}
-      />,
-    );
-    onContentHeightChange.mockClear();
+  it.each([false, true])(
+    "routes the committed-size signal through the explicit or parent pane handler: %s",
+    (explicit) => {
+      const onContentHeightChange = vi.fn<() => void>();
+      const parentHeightChange = vi.fn<() => void>();
+      render(
+        <ChatPaneActionsContext.Provider
+          value={makeActions({ onContentHeightChange: parentHeightChange })}
+        >
+          <MessageList
+            threadId="thread-1"
+            entries={makeEntries(["item-1"])}
+            {...(explicit ? { onContentHeightChange } : {})}
+          />
+        </ChatPaneActionsContext.Provider>,
+      );
+      onContentHeightChange.mockClear();
+      parentHeightChange.mockClear();
+      const props = latestLegendProps.current as MockLegendProps;
+      expect(totalSizeListener.current).toBeNull();
 
-    act(() => totalSizeListener.current?.());
+      act(() => props.onContentSizeCommit?.({ size: 180, horizontal: false }));
 
-    expect(onContentHeightChange).toHaveBeenCalledOnce();
-  });
+      expect(onContentHeightChange).toHaveBeenCalledTimes(explicit ? 1 : 0);
+      expect(parentHeightChange).toHaveBeenCalledTimes(explicit ? 0 : 1);
+    },
+  );
 });
 
 function makeEntries(itemIds: string[]): ChatTimelineEntry[] {

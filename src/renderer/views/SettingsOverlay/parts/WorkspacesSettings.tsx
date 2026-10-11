@@ -21,6 +21,7 @@ import {
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useActiveWorkspaceId } from "@/renderer/state/workspaceStore";
+import { dispatchManagedRootProjectWorkspace } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import { SettingsPage } from "./SettingsForm";
 
 type NameDialogState = { mode: "create" } | { mode: "rename"; workspace: Workspace };
@@ -169,6 +170,7 @@ export function WorkspacesSettings() {
                       ? undefined
                       : workspaces.find((w) => workspaceMenuKey(w.id) === next)?.id;
                   useAppStore.getState().setProjectWorkspace(project.id, workspaceId);
+                  dispatchManagedRootProjectWorkspace(project.id, workspaceId);
                 }}
               />
             </div>

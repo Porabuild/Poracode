@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
-import { getWslCommand, injectWslEnv, buildAgentCommand } from "./base";
+import { getWslCommand, injectWslEnv, buildAgentCommand, primeWslLaunchEnvironment } from "./base";
 
 const wslProject: ProjectLocation = {
   kind: "wsl",
@@ -10,6 +10,10 @@ const wslProject: ProjectLocation = {
 };
 
 describe.skipIf(process.platform !== "win32")("buildAgentCommand", () => {
+  beforeEach(() => {
+    primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
+  });
+
   it("launches WSL agent commands through the resolved login shell", () => {
     expect(buildAgentCommand(wslProject, "codex", ["--version"])).toEqual({
       command: getWslCommand(),
@@ -63,6 +67,10 @@ describe.skipIf(process.platform !== "win32")("buildAgentCommand", () => {
 });
 
 describe("injectWslEnv", () => {
+  beforeEach(() => {
+    primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
+  });
+
   it("prepends export statements to the WSL script arg", () => {
     const original = buildAgentCommand(wslProject, "claude", ["--version"]);
     const patched = injectWslEnv(original, wslProject, {

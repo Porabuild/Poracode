@@ -1,0 +1,27 @@
+{
+  "cases": [
+    {
+      "id": "omitted-result",
+      "request": {
+        "projectLocation": {
+          "kind": "wsl",
+          "distro": "Ubuntu-24.04",
+          "linuxPath": "/home/dev/project",
+          "uncPath": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\project"
+        }
+      },
+      "result": {}
+    },
+    {
+      "id": "concrete-result",
+      "request": {
+        "projectLocation": {
+          "kind": "posix",
+          "path": "/Users/zoë/Projects/app",
+          "remoteServerId": "remote-host-1"
+        }
+      },
+      "result": { "setupScript": "pnpm install" }
+    }
+  ]
+}

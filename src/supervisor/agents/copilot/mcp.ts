@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
-import { toWslUncPath } from "@/shared/wsl";
+import { ensureWslDirectory, removeWslPath, writeWslTextFile } from "../plugin/wslStaging";
+import type { Awaitable } from "../base";
 
 type CopilotMcpServer =
   | {
@@ -86,35 +87,43 @@ export function buildCopilotMcpLaunchConfig(
   return { config: { mcpServers }, env };
 }
 
-export function writeCopilotMcpConfig(
+export async function writeCopilotMcpConfig(
   location: ProjectLocation,
   sessionId: string,
   servers: readonly ResolvedMcpServer[],
-): { argument: string; env: Record<string, string>; cleanup: () => void } | undefined {
+): Promise<
+  { argument: string; env: Record<string, string>; cleanup: () => Awaitable<void> } | undefined
+> {
   if (servers.length === 0) return undefined;
 
   const safeSessionId = sessionId.replace(/[^A-Za-z0-9._-]/gu, "_");
   const directoryName = "poracode-copilot-mcp";
   const fileName = `${safeSessionId}-${randomUUID()}.json`;
   const linuxDirectory = `/tmp/${directoryName}`;
-  const filePath =
-    location.kind === "wsl"
-      ? toWslUncPath(location.distro, `${linuxDirectory}/${fileName}`)
-      : join(tmpdir(), directoryName, fileName);
-  const directoryPath =
-    location.kind === "wsl"
-      ? toWslUncPath(location.distro, linuxDirectory)
-      : join(tmpdir(), directoryName);
-  const argumentPath = location.kind === "wsl" ? `${linuxDirectory}/${fileName}` : filePath;
   const launch = buildCopilotMcpLaunchConfig(servers);
 
-  mkdirSync(directoryPath, { recursive: true, mode: 0o700 });
+  if (location.kind === "wsl") {
+    const distro = location.distro;
+    const linuxFilePath = `${linuxDirectory}/${fileName}`;
+    await ensureWslDirectory(distro, linuxDirectory, { mode: 0o700 });
+    await writeWslTextFile(distro, linuxFilePath, `${JSON.stringify(launch.config, null, 2)}\n`, {
+      mode: 0o600,
+    });
+    return {
+      argument: `@${linuxFilePath}`,
+      env: launch.env,
+      cleanup: () => removeWslPath(distro, linuxFilePath),
+    };
+  }
+
+  const filePath = join(tmpdir(), directoryName, fileName);
+  mkdirSync(join(tmpdir(), directoryName), { recursive: true, mode: 0o700 });
   writeFileSync(filePath, `${JSON.stringify(launch.config, null, 2)}\n`, {
     encoding: "utf8",
     mode: 0o600,
   });
   return {
-    argument: `@${argumentPath}`,
+    argument: `@${filePath}`,
     env: launch.env,
     cleanup: () => {
       try {

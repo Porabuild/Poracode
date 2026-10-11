@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
+import { PanelExitContent } from "@/renderer/components/layout/panelMotion";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { resolveProjectLocation } from "@/shared/worktree";
 import {
@@ -20,20 +21,30 @@ import { ProjectFilesPanel } from "@/renderer/views/FileEditorOverlay/parts/Proj
 import { NotesPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel";
 import { UsagePanel } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel";
 import { UsagePanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions";
+import { PortsPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel";
+import { PortsPanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/parts/PortsPanelHeaderActions";
 import {
   SubAgentContent,
   SubAgentHeaderText,
 } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
 import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel";
+import { SideChatModelText } from "@/renderer/components/thread/SideChat/SideChatModelText";
+import { SideChatBody } from "@/renderer/components/thread/SideChat/SideChatBody";
+import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
 import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
-import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import { usePanelStore, type GitReviewContext } from "@/renderer/state/panelStore";
+import {
+  selectBrowserBridgeServer,
+  selectBrowserPanelAvailable,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
@@ -73,13 +84,19 @@ function scopeFromFilesContext(context: FileEditorRootContext | null): PanelProj
   };
 }
 
-export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible: boolean }) {
+export function ProjectAuxiliaryPanel(props: {
+  includeTerminal: boolean;
+  visible: boolean;
+  onClose?: () => void;
+}) {
   const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
   const filesPanelContext = usePanelStore((s) => s.filesPanelContext);
   const subAgentPanelContext = usePanelStore((s) => s.subAgentPanelContext);
+  const sideChatEntry = useSideChatPanelStore((s) => s.entry);
+  const sideChatPanelOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
   const rightPanelSplit = usePanelStore((s) => s.rightPanelSplit);
   const bottomDocks = useBottomDockedTabs();
@@ -91,11 +108,19 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   const rightPanelFollowsThread = usePanelStore((s) => s.rightPanelFollowsThread);
   const toggleRightPanelFollowsThread = usePanelStore((s) => s.toggleRightPanelFollowsThread);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
+  const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
   const browserExtracted = useBrowserPanelStore((s) => s.extracted);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const setUsagePanelOpen = usePanelStore((s) => s.setUsagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
   const setNotesPanelOpen = usePanelStore((s) => s.setNotesPanelOpen);
+  const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
+  const setPortsPanelOpen = usePanelStore((s) => s.setPortsPanelOpen);
+  const browserBridgeServer = useRemoteServersStore(selectBrowserBridgeServer);
+  // Ports forwarding operates on the connected remote server in every client
+  // runtime — the PWA's desktop host and the Electron-as-client's mirrored
+  // hosts expose the same routes, and entry URLs open externally.
+  const portsAvailable = browserBridgeServer !== undefined;
   // Reactive id of the project the notes panel should show — recomputed (and
   // re-rendered) as the user navigates between threads/drafts/projects.
   const currentProjectId = useAppStore(() => getCurrentProjectId());
@@ -120,7 +145,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     currentThread && currentThreadProject
       ? resolveProjectLocation(currentThreadProject.location, currentThread.worktreePath)
       : undefined;
-  const docksInCurrentThread = useDocksPanelHasContent();
+  const docksInCurrentThread = useThreadDocksPanelAvailable();
   // Image-only threads offer the Docks tab without making image presence itself
   // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
@@ -165,15 +190,15 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   const resolvedFilesPanelContext = resolveFilesRootContext(rawFilesPanelContext, projects);
 
   const requestedTab: RightPanelTab = props.includeTerminal
-    ? rightPanelTab === "ports"
-      ? "git"
-      : rightPanelTab
+    ? rightPanelTab
     : rightPanelTab === "files" ||
         rightPanelTab === "browser" ||
         rightPanelTab === "usage" ||
         rightPanelTab === "notes" ||
+        rightPanelTab === "ports" ||
         rightPanelTab === "docks" ||
-        rightPanelTab === "subagent"
+        rightPanelTab === "subagent" ||
+        rightPanelTab === "sideChat"
       ? rightPanelTab
       : "git";
 
@@ -181,12 +206,14 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     // A bottom-docked tab already renders in the bottom row.
     if (isBottomDocked(requestedTab)) return false;
     if (requestedTab === "subagent") return subAgentInCurrentThread;
+    if (requestedTab === "sideChat") return sideChatPanelOpen && sideChatEntry !== null;
     if (requestedTab === "docks") return docksTabAvailable;
     // The browser panel is dismissed out-of-band when its last tab closes (the
     // browser sync clears browserPanelOpen but leaves rightPanelTab pointing at
     // "browser"), so it must honor its open flag even when no plan is present —
     // otherwise the panel stays open on an empty browser layer.
-    if (requestedTab === "browser") return browserPanelOpen;
+    if (requestedTab === "browser") return browserPanelAvailable && browserPanelOpen;
+    if (requestedTab === "ports") return portsAvailable && portsPanelOpen;
     if (!docksInCurrentThread) return true;
     if (requestedTab === "terminal") return terminalOpen;
     if (requestedTab === "files") return filesPanelOpen;
@@ -196,13 +223,15 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   }
 
   function fallbackActiveTab(): RightPanelTab {
+    if (sideChatPanelOpen && sideChatEntry) return "sideChat";
     if (docksInCurrentThread) return "docks";
     if (subAgentInCurrentThread) return "subagent";
     if (filesPanelOpen && !isBottomDocked("files")) return "files";
     if (gitPanelOpen && !isBottomDocked("git")) return "git";
-    if (browserPanelOpen && !isBottomDocked("browser")) return "browser";
+    if (browserPanelAvailable && browserPanelOpen && !isBottomDocked("browser")) return "browser";
     if (usagePanelOpen && !isBottomDocked("usage")) return "usage";
     if (notesPanelOpen && !isBottomDocked("notes")) return "notes";
+    if (portsAvailable && portsPanelOpen) return "ports";
     if (props.includeTerminal && terminalOpen) return "terminal";
     return "git";
   }
@@ -283,6 +312,8 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
         return t`Usage`;
       case "notes":
         return notesProjectId ? projectNameForScope({ projectId: notesProjectId }) : t`Notes`;
+      case "ports":
+        return t`Ports`;
       case "terminal": {
         const terminalProjectName = projectNameForScope(terminalScope);
         return terminalProjectName
@@ -339,6 +370,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       useDevTerminalStore.getState().closePanel();
     }
     closeAllPanels();
+    props.onClose?.();
   }
 
   function handleCloseSubAgent() {
@@ -346,19 +378,28 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     handleClose();
   }
 
+  function handleBackFromSubAgent() {
+    const panel = usePanelStore.getState();
+    if (panel.subAgentPanelContext) {
+      panel.returnToThreadDocksPanel(panel.subAgentPanelContext.threadId);
+    }
+  }
+
   // A bottom-docked tab renders in the bottom row; keep it out of this panel so
   // singleton surfaces (the browser webview) are never mounted twice.
   const renderTerminalContent = props.includeTerminal && terminalOpen;
   const renderGitContent = gitPanelOpen && !isBottomDocked("git");
   const renderFilesContent = filesPanelOpen && !isBottomDocked("files");
-  const renderBrowserContent = browserPanelOpen && !isBottomDocked("browser");
+  const renderBrowserContent =
+    browserPanelAvailable && browserPanelOpen && !isBottomDocked("browser");
   const renderUsageContent = usagePanelOpen && !isBottomDocked("usage");
   const renderNotesContent =
     notesPanelOpen && notesProjectId !== undefined && !isBottomDocked("notes");
+  const renderPortsContent = portsAvailable && portsPanelOpen;
   const renderDocksContent = docksTabAvailable;
   const renderSubAgentContent = subAgentInCurrentThread;
 
-  return (
+  const panelContent = (
     <UnifiedRightPanel
       activeTab={activeTab}
       onTabChange={(tab) => {
@@ -404,12 +445,14 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
           />
         ) : undefined
       }
+      showBrowserTab={browserPanelAvailable}
       usageContent={renderUsageContent ? <UsagePanel /> : undefined}
       notesContent={
         renderNotesContent && notesProjectId ? (
           <NotesPanel key={notesProjectId} projectId={notesProjectId} />
         ) : undefined
       }
+      portsContent={renderPortsContent ? <PortsPanel /> : undefined}
       {...(renderDocksContent && currentThreadId
         ? {
             docksContent: (
@@ -430,14 +473,36 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
             threadId={subAgentPanelContext.threadId}
             parentItemId={subAgentPanelContext.parentItemId}
             hideHeader
+            initialScrollRevealDelayMs={0}
             {...(subAgentPanelContext.projectLocation
               ? { projectLocation: subAgentPanelContext.projectLocation }
               : {})}
           />
         ) : undefined
       }
+      sideChatContent={
+        sideChatEntry ? (
+          <SideChatBody key={sideChatEntry.id} entry={sideChatEntry} surface="panel" />
+        ) : undefined
+      }
+      showSideChatTab={sideChatEntry !== null}
+      conversationModel={
+        activeTab === "sideChat" && sideChatEntry ? (
+          <SideChatModelText entry={sideChatEntry} />
+        ) : activeTab === "subagent" && renderSubAgentContent ? (
+          <SubAgentHeaderText
+            threadId={subAgentPanelContext.threadId}
+            parentItemId={subAgentPanelContext.parentItemId}
+            compact
+            part="description"
+          />
+        ) : undefined
+      }
       usageHeaderActions={
         <UsagePanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
+      }
+      portsHeaderActions={
+        <PortsPanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
       }
       docksHeaderActions={
         <ThreadDocksPlacementToggle
@@ -449,18 +514,11 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       showFilesTab={!isHomeScope}
       showGitTab={!isHomeScope}
       showNotesTab={notesProjectId !== undefined}
+      showPortsTab={portsAvailable}
       showDocksTab={renderDocksContent}
       showSubagentTab={renderSubAgentContent}
       {...(renderSubAgentContent
         ? {
-            subagentModel: (
-              <SubAgentHeaderText
-                threadId={subAgentPanelContext.threadId}
-                parentItemId={subAgentPanelContext.parentItemId}
-                compact
-                part="description"
-              />
-            ),
             subagentTitle: (
               <SubAgentHeaderText
                 threadId={subAgentPanelContext.threadId}
@@ -470,6 +528,9 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
               />
             ),
             onCloseSubagent: handleCloseSubAgent,
+            ...(subAgentPanelContext.returnToThreadInfo
+              ? { onBackSubagent: handleBackFromSubAgent }
+              : {}),
           }
         : {})}
       projectName={projectName}
@@ -507,6 +568,10 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
           setRightPanelTab("notes");
         })
       }
+      onOpenPorts={() => {
+        setPortsPanelOpen(true);
+        setRightPanelTab("ports");
+      }}
       followsThread={rightPanelFollowsThread}
       onToggleFollowsThread={toggleRightPanelFollowsThread}
       dockedTabs={dockedTabs}
@@ -520,4 +585,5 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       onClose={handleClose}
     />
   );
+  return <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>;
 }

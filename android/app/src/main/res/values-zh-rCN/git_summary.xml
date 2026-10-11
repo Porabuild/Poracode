@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="git_summary_ahead_behind">领先 %1$d，落后 %2$d</string>
+    <string name="git_summary_additions_deletions">+%1$d / −%2$d</string>
+    <string name="git_summary_not_repo">非仓库</string>
+    <string name="git_summary_pull_request">拉取请求 #%1$d</string>
+    <string name="git_summary_state_description">分支 %1$s，领先远程 %2$d 个提交，落后 %3$d 个提交。</string>
+    <plurals name="git_summary_project_active_threads">
+        <item quantity="other">%1$d 个有更改的线程</item>
+    </plurals>
+</resources>

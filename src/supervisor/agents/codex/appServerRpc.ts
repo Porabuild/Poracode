@@ -207,18 +207,16 @@ export class CodexAppServerConnection {
     response: unknown,
   ): void {
     const inbound = this.inboundRequests.get(String(requestId));
-    if (inbound && inbound.channelId !== channelId) {
+    if (!inbound || inbound.channelId !== channelId) {
       return;
     }
     this.inboundRequests.delete(String(requestId));
-    const result = inbound
-      ? translateCodexCanonicalResponse(inbound.method, inbound.params, response)
-      : response;
+    const result = translateCodexCanonicalResponse(inbound.method, inbound.params, response);
     this.write(channelId, {
-      id: inbound?.id ?? requestId,
+      id: inbound.id,
       result,
     });
-    if (inbound?.method === "item/tool/requestUserInput") {
+    if (inbound.method === "item/tool/requestUserInput") {
       const channel = this.channels.get(channelId);
       if (channel) {
         channel.listener?.onRuntimeEvents(
@@ -413,6 +411,28 @@ export class CodexAppServerConnection {
     payload: unknown,
   ): void {
     const threadId = readMessageThreadId(params);
+    if (method === "serverRequest/resolved") {
+      const requestId = params?.requestId;
+      const inbound =
+        typeof requestId === "string" || typeof requestId === "number"
+          ? this.inboundRequests.get(String(requestId))
+          : undefined;
+      const ownerThreadId = inbound ? readMessageThreadId(inbound.params) : undefined;
+      if (inbound && ownerThreadId) {
+        const currentOwner = this.remoteThreadChannels.get(ownerThreadId);
+        if (
+          inbound.id !== requestId ||
+          ownerThreadId !== threadId ||
+          (currentOwner !== undefined && currentOwner !== inbound.channelId)
+        ) {
+          return;
+        }
+        // Retire before callbacks can answer or dispose this session. Ordinary
+        // client answers already retire their entry; still forward their later
+        // resolved notification so canonical lifecycle completion is delivered.
+        this.inboundRequests.delete(String(requestId));
+      }
+    }
     if (!threadId) {
       for (const channel of this.channels.values()) {
         channel.listener?.onDebug?.("codex->poracode", payload);

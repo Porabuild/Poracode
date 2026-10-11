@@ -1,5 +1,6 @@
 import { Disclosure, Tooltip } from "@heroui/react";
 import { useRef, useState, type ReactNode } from "react";
+import { StartTruncatedText } from "@/renderer/components/common/StartTruncatedText";
 import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatFilePath } from "./ChatFilePath";
@@ -142,9 +143,9 @@ export function ChatItemAccordion({
           dirClassName="!text-[color:var(--muted)]"
         />
       ) : (
-        <span ref={pathRef} className="lc-truncate-start flex-1">
+        <StartTruncatedText ref={pathRef} className="flex-1">
           {titleParts.path}
-        </span>
+        </StartTruncatedText>
       )}
     </code>
   ) : (

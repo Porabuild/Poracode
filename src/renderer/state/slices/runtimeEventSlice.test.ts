@@ -7,6 +7,11 @@ import {
   type RuntimeChatItem,
   type RuntimeEventSlice,
 } from "./runtimeEventSlice";
+import {
+  clearLiveObservedCrossagentItems,
+  pruneLiveObservedCrossagentItems,
+  terminateStaleSubAgentItems,
+} from "./staleSubAgents";
 
 /**
  * Reducer tests for the runtime event slice. Exercise it as a standalone
@@ -26,6 +31,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
   let store: ReturnType<typeof makeStore>;
 
   beforeEach(() => {
+    clearLiveObservedCrossagentItems();
     store = makeStore();
   });
 
@@ -600,18 +606,22 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
   });
 
   it("marks a stale Crossagent terminal in both status fields", () => {
-    apply("t1", {
-      type: "item.started",
-      threadId: "t1",
-      itemId: "crossagent-tool",
-      itemType: "tool_call",
-      payload: {
-        name: "Crossagent",
-        status: "running",
-        isCrossagent: true,
-        crossagentStatus: "running",
+    // Hydrate a row persisted by a previous app session: its run died with
+    // that session's supervisor, so reconciliation must terminate it.
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "crossagent-tool",
+        type: "tool_call",
+        state: "updated",
+        payload: {
+          name: "Crossagent",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+        streams: {},
       },
-    });
+    ]);
 
     store.getState().reconcileStaleSubAgents("t1");
 
@@ -620,9 +630,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       payload: {
         status: "error",
         crossagentStatus: "failed",
-        result: {
-          error: "Interrupted: agent session ended before completion.",
-        },
+        result: "Interrupted: agent session ended before completion.",
       },
     });
   });
@@ -648,6 +656,349 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
+  it("keeps a live-observed Crossagent row running through stale reconciliation", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "sub:run-live",
+      itemType: "tool_call",
+      payload: {
+        name: "Crossagent · live run",
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+
+    // Fires on parent thread-state error/inactive and on DB rehydration. The
+    // supervisor still owns the run, so the row must not be painted failed.
+    store.getState().reconcileStaleSubAgents("t1");
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-live"]).toMatchObject({
+      state: "started",
+      payload: {
+        status: "running",
+        crossagentStatus: "running",
+      },
+    });
+  });
+
+  it("terminates Crossagent rows that were never observed live (prior app session)", () => {
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:run-old",
+        type: "tool_call",
+        state: "updated",
+        payload: {
+          name: "Crossagent · orphaned run",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+        streams: {},
+      },
+    ]);
+
+    store.getState().reconcileStaleSubAgents("t1", { preserveObservedLive: true });
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-old"]).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        crossagentStatus: "failed",
+        result: "Interrupted: agent session ended before completion.",
+      },
+    });
+  });
+
+  it("keeps a live-observed Crossagent row across item eviction and rehydration", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "sub:run-evicted",
+      itemType: "tool_call",
+      payload: {
+        name: "Crossagent · evicted run",
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+
+    // Renderer cache pressure evicts the projection; reopening the thread
+    // rehydrates the still-running tile from the DB (no `observedLive` flag).
+    store.getState().evictThreadRuntimeItems("t1");
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:run-evicted",
+        type: "tool_call",
+        state: "updated",
+        payload: {
+          name: "Crossagent · evicted run",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+        streams: {},
+      },
+    ]);
+    store.getState().reconcileStaleSubAgents("t1", { preserveObservedLive: true });
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-evicted"]).toMatchObject({
+      state: "updated",
+      payload: {
+        status: "running",
+        crossagentStatus: "running",
+      },
+    });
+  });
+
+  it("still terminates a live-observed Crossagent row on the force path (provider switch)", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "sub:run-switch",
+      itemType: "tool_call",
+      payload: {
+        name: "Crossagent · switched-away run",
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+
+    const items = store.getState().runtimeItemsByIdByThread["t1"]!;
+    const settled = terminateStaleSubAgentItems("t1", items, { force: true });
+
+    expect(settled?.["sub:run-switch"]).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        crossagentStatus: "failed",
+      },
+    });
+  });
+
+  it("marks a mid-run attach live from its first progress frame (item.updated)", () => {
+    // A renderer that attaches mid-run never sees item.started again — the
+    // snapshot seeds the row, and the first live frame is a progress update.
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:run-attached",
+        type: "tool_call",
+        state: "updated",
+        payload: {
+          name: "Crossagent · attached run",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+        streams: {},
+      },
+    ]);
+
+    apply("t1", {
+      type: "item.updated",
+      threadId: "t1",
+      itemId: "sub:run-attached",
+      payload: {
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+
+    // Parent thread-state error/inactive must not fail a run the supervisor
+    // is demonstrably still streaming progress for.
+    store.getState().reconcileStaleSubAgents("t1");
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-attached"]).toMatchObject({
+      payload: {
+        status: "running",
+        crossagentStatus: "running",
+      },
+    });
+  });
+
+  it("keeps a Crossagent row live-marked through batch ingestion", () => {
+    store.getState().applyRuntimeEventBatches([
+      {
+        threadId: "t1",
+        events: [
+          {
+            type: "item.started",
+            threadId: "t1",
+            itemId: "sub:run-batch",
+            itemType: "tool_call",
+            payload: {
+              name: "Crossagent · batched run",
+              status: "running",
+              isCrossagent: true,
+              crossagentStatus: "running",
+            },
+          },
+        ],
+      },
+    ]);
+
+    store.getState().reconcileStaleSubAgents("t1");
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-batch"]).toMatchObject({
+      payload: {
+        status: "running",
+        crossagentStatus: "running",
+      },
+    });
+  });
+
+  it("force-settles every thread when the backend supervisor is replaced", () => {
+    for (const threadId of ["t1", "t2"]) {
+      apply(threadId, {
+        type: "item.started",
+        threadId,
+        itemId: `sub:run-${threadId}`,
+        itemType: "tool_call",
+        payload: {
+          name: "Crossagent · doomed run",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+      });
+    }
+
+    // The reset handler drops the live-observation records first: the runs
+    // died with the replaced supervisor child.
+    clearLiveObservedCrossagentItems();
+    store.getState().reconcileAllStaleSubAgents({ force: true });
+
+    for (const threadId of ["t1", "t2"]) {
+      expect(
+        store.getState().runtimeItemsByIdByThread[threadId]?.[`sub:run-${threadId}`],
+      ).toMatchObject({
+        state: "completed",
+        payload: {
+          status: "error",
+          crossagentStatus: "failed",
+        },
+      });
+    }
+  });
+
+  it("prunes live-observation records only for threads under a removed host prefix", () => {
+    for (const [threadId, itemId] of [
+      ["remote:desk-1:thread:abc", "sub:run-remote"],
+      ["t1", "sub:run-local"],
+    ] as const) {
+      apply(threadId, {
+        type: "item.started",
+        threadId,
+        itemId,
+        itemType: "tool_call",
+        payload: {
+          name: "Crossagent · prefix prune",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+      });
+    }
+
+    pruneLiveObservedCrossagentItems((threadId) => threadId.startsWith("remote:desk-1:thread:"));
+
+    store.getState().reconcileStaleSubAgents("remote:desk-1:thread:abc");
+    store.getState().reconcileStaleSubAgents("t1");
+
+    expect(
+      store.getState().runtimeItemsByIdByThread["remote:desk-1:thread:abc"]?.["sub:run-remote"],
+    ).toMatchObject({
+      payload: { crossagentStatus: "failed" },
+    });
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-local"]).toMatchObject({
+      payload: { crossagentStatus: "running" },
+    });
+  });
+
+  it("terminates without clobbering an existing result payload", () => {
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:run-partial",
+        type: "tool_call",
+        state: "updated",
+        payload: {
+          name: "Crossagent · partial output",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+          result: { summary: "partial output before the interrupt" },
+        },
+        streams: {},
+      },
+    ]);
+
+    store.getState().reconcileStaleSubAgents("t1");
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-partial"]).toMatchObject({
+      state: "completed",
+      payload: {
+        status: "error",
+        crossagentStatus: "failed",
+        result: { summary: "partial output before the interrupt" },
+      },
+    });
+  });
+
+  it("keeps unobserved Crossagent rows when the source host settles orphans itself", () => {
+    // The local backend sweeps orphaned Crossagent rows at boot and on every
+    // supervisor reset, so a running row hydrated from its database is a
+    // live run — the hydration reconcile must keep it (native rows still go).
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:run-honest-source",
+        type: "tool_call",
+        state: "updated",
+        payload: {
+          name: "Crossagent · swept source",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+        streams: {},
+      },
+      {
+        id: "native-honest-source",
+        type: "tool_call",
+        state: "started",
+        payload: { name: "Task", status: "running", isSubAgent: true },
+        streams: {},
+      },
+    ]);
+
+    store
+      .getState()
+      .reconcileStaleSubAgents("t1", { preserveObservedLive: true, preserveCrossagent: true });
+
+    const items = store.getState().runtimeItemsByIdByThread["t1"]!;
+    expect(items["sub:run-honest-source"]).toMatchObject({
+      payload: { status: "running", crossagentStatus: "running" },
+    });
+    expect(items["native-honest-source"]).toMatchObject({
+      state: "completed",
+      payload: { status: "error" },
+    });
+
+    // The force path (provider switch, supervisor reset) still wins: those
+    // paths cancelled the runs for real.
+    store
+      .getState()
+      .reconcileAllStaleSubAgents({ force: true, matchesThread: (threadId) => threadId === "t1" });
+    expect(
+      store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-honest-source"],
+    ).toMatchObject({
+      payload: { crossagentStatus: "failed" },
+    });
+  });
+
   it("opens and resolves runtime requests", () => {
     apply("t1", {
       type: "request.opened",
@@ -662,7 +1013,15 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeRequestsByThread["t1"]).toHaveLength(0);
   });
 
-  it("synthesises an inline error item on error events", () => {
+  it("keeps warnings out of the transcript while preserving the final error", () => {
+    apply("t1", { type: "turn.started", threadId: "t1", turnId: "turn-1" });
+    applyBatch("t1", [
+      { type: "warning", threadId: "t1", message: "boom" },
+      { type: "warning", threadId: "t1", message: "boom" },
+    ]);
+    expect(store.getState().runtimeItemIdsByThread["t1"] ?? []).toEqual([]);
+    expect(store.getState().runtimeOpenTurnByThread["t1"]).toBe(true);
+
     apply("t1", { type: "error", threadId: "t1", message: "boom" });
     const state = store.getState();
     expect(state.runtimeItemIdsByThread["t1"]).toHaveLength(1);
@@ -704,35 +1063,73 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeItemIdsByThread["t2"]).toEqual(["i2"]);
   });
 
-  it("truncates a thread transcript to a checkpoint item", () => {
-    for (const itemId of ["user-1", "assistant-1", "user-2", "assistant-2"]) {
+  it.each(["checkpoint", "unloaded-checkpoint"])(
+    "prunes only server-declared turn anchors when reverting %s",
+    (checkpoint) => {
+      for (const itemId of ["checkpoint", "removed"]) {
+        apply("t1", {
+          type: "item.started",
+          threadId: "t1",
+          itemId,
+          itemType: "assistant_message",
+        });
+      }
+      const older = { startedAt: 1, endedAt: 2, anchorItemId: "older-unloaded" };
+      store
+        .getState()
+        .hydrateThreadCompletedTurns("t1", [
+          older,
+          { startedAt: 3, endedAt: 4, anchorItemId: "removed" },
+        ]);
       apply("t1", {
-        type: "item.started",
+        type: "runtime.truncated",
         threadId: "t1",
-        itemId,
-        itemType: itemId.startsWith("user") ? "user_message" : "assistant_message",
+        itemId: checkpoint,
+        removedCompletedTurnAnchors: ["removed"],
       });
-    }
+      expect(store.getState().runtimeCompletedTurnsByThread.t1).toEqual([older]);
+      expect(store.getState().runtimeItemIdsByThread.t1).toEqual(
+        checkpoint === "checkpoint" ? ["checkpoint"] : ["checkpoint", "removed"],
+      );
+    },
+  );
+
+  it("prunes server-declared turns even when the checkpoint is already last", () => {
     apply("t1", {
-      type: "request.opened",
+      type: "item.started",
       threadId: "t1",
-      requestId: "r1",
-      requestType: "tool_user_input",
-      payload: { summary: "Pick" },
+      itemId: "checkpoint",
+      itemType: "assistant_message",
     });
-    store.getState().hydrateThreadCompletedTurns("t1", [
-      { startedAt: 1, endedAt: 2, anchorItemId: "assistant-1" },
-      { startedAt: 3, endedAt: 4, anchorItemId: "assistant-2" },
-    ]);
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [{ startedAt: 1, endedAt: 2, anchorItemId: "removed" }]);
+    apply("t1", {
+      type: "runtime.truncated",
+      threadId: "t1",
+      itemId: "checkpoint",
+      removedCompletedTurnAnchors: ["removed"],
+    });
+    expect(store.getState().runtimeCompletedTurnsByThread.t1).toEqual([]);
+  });
 
-    store.getState().truncateThreadRuntimeAfter("t1", "assistant-1");
-
-    expect(store.getState().runtimeItemIdsByThread["t1"]).toEqual(["user-1", "assistant-1"]);
-    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["user-2"]).toBeUndefined();
-    expect(store.getState().runtimeRequestsByThread["t1"]).toEqual([]);
-    expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
-      { startedAt: 1, endedAt: 2, anchorItemId: "assistant-1" },
+  it("keeps events after a live truncation in the same batch", () => {
+    for (const itemId of ["checkpoint", "removed"]) {
+      apply("t1", { type: "item.started", threadId: "t1", itemId, itemType: "assistant_message" });
+    }
+    const previousVersion = store.getState().runtimeStructuralVersionByThread.t1 ?? 0;
+    applyBatch("t1", [
+      {
+        type: "runtime.truncated",
+        threadId: "t1",
+        itemId: "checkpoint",
+        removedCompletedTurnAnchors: [],
+      },
+      { type: "item.started", threadId: "t1", itemId: "new", itemType: "assistant_message" },
     ]);
+    expect(store.getState().runtimeItemIdsByThread.t1).toEqual(["checkpoint", "new"]);
+    expect(store.getState().runtimeItemsByIdByThread.t1?.removed).toBeUndefined();
+    expect(store.getState().runtimeStructuralVersionByThread.t1).toBe(previousVersion + 1);
   });
 
   it("merges persisted completed turns with live turns during hydration", () => {
@@ -747,6 +1144,21 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
       { startedAt: 1, endedAt: 10, anchorItemId: "old" },
       { startedAt: 20, endedAt: 30, anchorItemId: "live" },
+    ]);
+  });
+
+  it("collapses the same completed-turn window stored under two anchors", () => {
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [
+        { startedAt: 20, endedAt: 42, anchorItemId: "assistant-1" },
+      ]);
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [{ startedAt: 20, endedAt: 42, anchorItemId: "goal-1" }]);
+
+    expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
+      { startedAt: 20, endedAt: 42, anchorItemId: "assistant-1" },
     ]);
   });
 
@@ -779,6 +1191,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       streams: { assistant_text: "newer" },
     };
     store.getState().hydrateThreadRuntimeItems("t1", [newer]);
+    const hydratedNewer = store.getState().runtimeItemsByIdByThread["t1"]?.["newer"];
     apply("t1", {
       type: "item.started",
       threadId: "t1",
@@ -800,7 +1213,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     ]);
 
     expect(store.getState().runtimeItemIdsByThread["t1"]).toEqual(["older", "newer", "live"]);
-    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["newer"]).toBe(newer);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["newer"]).toBe(hydratedNewer);
     expect(store.getState().runtimeItemsByIdByThread["t1"]?.["live"]?.observedLive).toBe(true);
   });
 

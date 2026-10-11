@@ -1,7 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createAcpStructuredSession } from "../acp";
-import type { CreateStructuredSessionInput } from "../base";
+import {
+  primeWslLaunchEnvironment,
+  UnsupportedOneShotControlError,
+  type CreateStructuredSessionInput,
+} from "../base";
 import { createQwenAdapter } from ".";
 import { buildQwenArgs, QWEN_DEFAULT_MODEL_ID } from "./argv";
 import {
@@ -86,9 +90,9 @@ describe("createQwenAdapter", () => {
   const project: ProjectLocation = { kind: "windows", path: "C:\\demo" };
   const config: ThreadConfig = { model: QWEN_DEFAULT_MODEL_ID };
 
-  it("preassigns a stable session ID and resumes that exact ID", () => {
+  it("preassigns a stable session ID and resumes that exact ID", async () => {
     const adapter = createQwenAdapter();
-    const launch = adapter.buildLaunchArgv(project, config, "hello");
+    const launch = await adapter.buildLaunchArgv(project, config, "hello");
     const sessionIndex = launch.args.indexOf("--session-id");
     const sessionId = launch.args[sessionIndex + 1];
 
@@ -96,7 +100,7 @@ describe("createQwenAdapter", () => {
     expect(sessionId).toMatch(UUID_RE);
     expect(launch.sessionRef?.providerSessionId).toBe(sessionId);
 
-    const resume = adapter.buildResumeArgv(project, config, "again", launch.sessionRef!);
+    const resume = await adapter.buildResumeArgv(project, config, "again", launch.sessionRef!);
     expect(resume.args).toContain("--resume");
     expect(resume.args).toContain(sessionId);
     expect(resume.args).not.toContain("--session-id");
@@ -124,6 +128,72 @@ describe("createQwenAdapter", () => {
       stdin: "",
     });
   });
+
+  it("refuses meaningful effort and Fast with zero effects on both lanes", async () => {
+    const adapter = createQwenAdapter();
+    // The qwen CLI maps neither carrier in this lane: a meaningful control
+    // refuses before any command is built instead of being silently dropped.
+    // The builders throw synchronously, so capture through a deferred call.
+    for (const selection of [
+      { model: "qwen3.8-max", effort: "high" },
+      { model: "qwen3.8-max", fast: true },
+    ]) {
+      const outcome = await Promise.resolve()
+        .then(() =>
+          adapter.buildOneShotCommand?.(
+            selection.model,
+            selection.effort,
+            "title",
+            undefined,
+            selection.fast,
+            { selection },
+          ),
+        )
+        .then(
+          () => "built",
+          (error: unknown) => error,
+        );
+      expect(outcome).toBeInstanceOf(UnsupportedOneShotControlError);
+      expect((outcome as UnsupportedOneShotControlError).axes).toEqual([
+        selection.effort !== undefined ? "effort" : "fast",
+      ]);
+    }
+
+    // The resume lane enforces the same provider policy before its command.
+    const resumeOutcome = await Promise.resolve()
+      .then(() =>
+        adapter.buildContextExtractionCommand?.(
+          { providerSessionId: "s-1", discoveredAt: "2026-10-09T00:00:00.000Z" },
+          { kind: "posix", path: "/fixture/repo" },
+          "qwen3.8-max",
+          { selection: { model: "qwen3.8-max", effort: "high", fast: true } },
+        ),
+      )
+      .then(
+        () => "built",
+        (error: unknown) => error,
+      );
+    expect(resumeOutcome).toBeInstanceOf(UnsupportedOneShotControlError);
+    expect((resumeOutcome as UnsupportedOneShotControlError).axes).toEqual(["effort", "fast"]);
+
+    // The legacy default carriers stay present and accepted on both lanes.
+    const legacy = await adapter.buildOneShotCommand?.(
+      "qwen3.8-max",
+      "",
+      "title",
+      undefined,
+      false,
+      { selection: { model: "qwen3.8-max", effort: "", fast: false } },
+    );
+    expect(legacy?.args).toEqual([
+      "-p",
+      "title",
+      "--model",
+      "qwen3.8-max",
+      "--approval-mode",
+      "plan",
+    ]);
+  });
 });
 
 describe("buildQwenAcpSessionArgs", () => {
@@ -138,6 +208,10 @@ describe("buildQwenAcpSessionArgs", () => {
     expect(buildQwenAcpSessionArgs("0.21.14-nightly.20260822")).toEqual(["--acp"]);
     expect(buildQwenAcpSessionArgs(undefined)).toEqual(["--acp"]);
   });
+});
+
+beforeEach(() => {
+  primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
 });
 
 describe("Qwen ACP session spawn", () => {

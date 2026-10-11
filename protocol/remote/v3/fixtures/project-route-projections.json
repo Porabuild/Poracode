@@ -1,0 +1,63 @@
+{
+  "cases": [
+    {
+      "id": "project-command",
+      "routeId": "project-command",
+      "method": "POST",
+      "pathTemplate": "/api/projects/command",
+      "resolvedPath": "/api/projects/command",
+      "pathParams": {},
+      "body": { "kind": "remove", "projectId": "project-remove" }
+    },
+    {
+      "id": "project-settings",
+      "routeId": "project-settings",
+      "method": "GET",
+      "pathTemplate": "/api/projects/{projectId}/settings",
+      "resolvedPath": "/api/projects/project%20settings%20%E6%9D%B1%E4%BA%AC/settings",
+      "pathParams": { "projectId": "project settings 東京" }
+    },
+    {
+      "id": "project-notes-read",
+      "routeId": "project-notes-read",
+      "method": "GET",
+      "pathTemplate": "/api/projects/{projectId}/notes",
+      "resolvedPath": "/api/projects/project%20notes/notes",
+      "pathParams": { "projectId": "project notes" }
+    },
+    {
+      "id": "project-notes-write",
+      "routeId": "project-notes-write",
+      "method": "POST",
+      "pathTemplate": "/api/projects/{projectId}/notes",
+      "resolvedPath": "/api/projects/project%20notes/notes",
+      "pathParams": { "projectId": "project notes" },
+      "body": {
+        "doc": null,
+        "todos": [
+          {
+            "id": "todo-route",
+            "text": "Keep projectId in the path",
+            "done": false,
+            "createdAt": "2026-08-12T11:00:00.000Z"
+          }
+        ],
+        "updatedAt": "2026-08-12T11:01:00.000Z"
+      }
+    },
+    {
+      "id": "procedure-detect-setup-script",
+      "routeId": "procedure-call",
+      "method": "POST",
+      "pathTemplate": "/api/git/call",
+      "resolvedPath": "/api/git/call",
+      "pathParams": {},
+      "body": {
+        "procedure": "detectSetupScript",
+        "payload": {
+          "projectLocation": { "kind": "windows", "path": "C:\\src\\fixture" }
+        }
+      }
+    }
+  ]
+}

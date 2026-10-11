@@ -1,4 +1,8 @@
-import { resolveNativeNode } from "../native/runtime";
+import {
+  disposeNativeRuntime,
+  resolveNativeNode,
+  startNativeRuntimeSession,
+} from "../native/runtime";
 
 /**
  * Kick off the native Node resolver during supervisor boot so the
@@ -12,7 +16,8 @@ import { resolveNativeNode } from "../native/runtime";
  * this, failures are completely silent and users keep paying the
  * Electron-as-Node startup tax indefinitely.
  */
-export function prefetchNativeNodeRuntime(baseDir: string): void {
+export function prefetchNativeNodeRuntime(baseDir: string): () => Promise<void> {
+  startNativeRuntimeSession(baseDir);
   let warnedFailure = false;
   void resolveNativeNode({
     baseDir,
@@ -32,5 +37,9 @@ export function prefetchNativeNodeRuntime(baseDir: string): void {
         );
       }
     },
+  }).catch((error) => {
+    if (error?.name !== "AbortError")
+      console.warn("[supervisor] Node runtime probe failed:", error);
   });
+  return () => disposeNativeRuntime(baseDir);
 }

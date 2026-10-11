@@ -69,7 +69,15 @@ function capabilitiesEqual(
   if (a.models.length !== b.models.length) return false;
   if (a.efforts.length !== b.efforts.length) return false;
   for (let i = 0; i < a.models.length; i++) {
-    if (a.models[i]!.id !== b.models[i]!.id) return false;
+    const previous = a.models[i]!;
+    const next = b.models[i]!;
+    if (
+      previous.id !== next.id ||
+      previous.label !== next.label ||
+      previous.description !== next.description ||
+      previous.tooltipDescription !== next.tooltipDescription
+    )
+      return false;
   }
   for (let i = 0; i < a.efforts.length; i++) {
     if (a.efforts[i] !== b.efforts[i]) return false;
@@ -264,10 +272,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 33,
-      // v33 mirrors supervisor STATUS_CACHE_VERSION=36: re-probe account catalogs
-      // that previously read the isolated session database.
-
+      version: 45,
+      // v45 mirrors supervisor STATUS_CACHE_VERSION=49: re-probe native account
+      // catalogs and retain V2 model-family and per-model effort declarations.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

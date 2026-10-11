@@ -28,7 +28,14 @@ rule is about control flow and data shape, not about erasing history.
 
 1. **Declared capability.** The provider states a fact about itself in its
    `DetectionSpec` / `AgentAdapter` (`acpFsTextCapability`, `acpGoalCommands`,
-   `acpOptimisticMcpTransports`, `baseSpawnEnv`). Shared code reads the flag.
+   `acpOptimisticMcpTransports`, `acpClientCapabilitiesMeta`, `baseSpawnEnv`).
+   Shared code reads the flag. A structured handle that must position per-turn
+   client context itself declares `placesTurnContext` and reads
+   `StartTurnOptions.turnContext`; undeclared handles receive that context at the
+   front of `inlineInstructions`, except on a prompt whose leading `/token`
+   exactly matches a non-skill command the session advertised in
+   `slashCommands` — the provider dispatches that command itself, so the runtime
+   withholds the context rather than corrupting the command's arguments.
 2. **Behavior profile.** Lifecycle differences the transport must honor go in a
    named options object — for ACP, `AcpSessionBehavior`
    (`suppressOutputAfterInterrupt`, `suppressStderrLogging`). Each field is
@@ -41,6 +48,9 @@ rule is about control flow and data shape, not about erasing history.
    `acpExtensionNotificationHandler` (vendor JSON-RPC notifications).
    Probe customization uses `normalizeProbeResult` for discovered capabilities
    and `modelLabel` for fallback labels when the agent supplies no display name.
+   Probes whose per-model config snapshots are authoritative declare
+   `preserveEmptyModelEfforts`: verified models with no effort choices record
+   `[]`, while an unprobed model remains absent and eligible for catalog fallback.
    Skill frontmatter rules use `skillSupport.invocationForSkill`.
 
 Message payloads can declare `turnIndependent: true` when a conversation stream
@@ -50,6 +60,22 @@ Providers own this classification; ordinary messages keep the default behavior.
 
 If none of the three fits, the right move is to add a new hook with a
 capability-shaped name and document it here — not to add a branch.
+
+`AcpStructuredSessionOptions.configureOpenedSession` runs provider-owned setup
+after the native open response and options are adopted, before the shared
+launch configuration or first prompt. Its bounded detached response is opaque
+to shared code. Readers and echo-confirmed writes are fenced to one open
+generation and expire when the hook ends. Setup failure rejects the open while
+retaining its allocated session reference for failed-start custody. Absent
+hooks preserve the ordinary open path. `allowUnlistedSelectValue` is a separate
+provider declaration for qualified compound select values: only a detached
+current select and a string rejected by ordinary membership reach it. All
+writer locks, owner checks and echo confirmation still apply.
+
+Model descriptions can opt into compact inline hints through the renderer
+`registerModelDescriptionFormatter` hook. Providers parse their own catalog text
+and supply a numeric hint plus a localized explanation; the shared picker never
+parses vendor pricing formats.
 
 ### Extensions own their state
 
@@ -123,15 +149,6 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 - `buildLaunchArgv()` / `buildResumeArgv()` — Return an `AgentArgvSpec` (`{ binary, args, env?, sessionRef? }`). The runtime wraps it through `resolveLaunchSpec` which owns WSL login-shell, Windows PowerShell encoding, and env injection. **Adapters must never call `buildAgentCommand` on the main launch path** — the contract is structurally argv-only.
 - `createInitialSessionRef()` — Generate a session ID on first launch (or `undefined` if the CLI generates its own).
 
-### Optional — Execution Environment
-
-- `windowsProjectExecution?: "wsl"` — Run this provider in the default WSL
-  distro when the project is native Windows. Detection, terminal launch/resume,
-  auth/logout, one-shot generation, attachments, skills, MCPs, and provider
-  session discovery all use the resolved WSL environment; the project itself
-  remains a native Windows project. Use only when the provider has no native
-  Windows runtime.
-
 ### Optional — Terminal Heuristics
 
 - `isReadyForInitialPrompt?(text)` — True when the TUI is ready to receive the first user prompt.
@@ -191,20 +208,21 @@ Model/effort lists below are the **statically declared defaults**. Several provi
 
 The **Structured Session** column reflects whether the adapter implements `createStructuredSession` (i.e. supports a `"gui"` presentation mode); it is not a model-list default and is authoritative.
 
-| Provider     | Models                                                                             | Efforts                                  | Live Input            | Structured Session               |
-| ------------ | ---------------------------------------------------------------------------------- | ---------------------------------------- | --------------------- | -------------------------------- |
-| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                               | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)                        |
-| Codex        | (probed dynamically via app-server)                                                | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server)           |
-| Gemini       | (probed dynamically via ACP)                                                       | (probed dynamically)                     | terminal              | Yes (ACP)                        |
-| Copilot      | (probed via ACP)                                                                   | (probed via ACP)                         | terminal              | Yes (ACP)                        |
-| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`)           | (embedded in model name)                 | terminal              | Yes (ACP)                        |
-| Grok         | grok-build (probed via ACP)                                                        | (none)                                   | terminal              | Yes (ACP)                        |
-| OpenCode     | (probed dynamically via SDK)                                                       | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                 |
-| OpenCode 2   | (probed dynamically via `@opencode/client`; utility default `opencode/big-pickle`) | Probed per model                         | terminal / GUI server | Yes (V2 HTTP server)             |
-| Pi           | (authenticated models probed via SDK)                                              | off…max, per model                       | terminal              | Yes (native SDK)                 |
-| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                                     | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`) |
-| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                             | (none)                                   | terminal              | No                               |
-| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries                 | probed (`none…ultra` fallback)           | terminal              | Yes (MSP over `muse serve`)      |
+| Provider     | Models                                                                             | Efforts                                                                                                 | Live Input            | Structured Session               |
+| ------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------- | -------------------------------- |
+| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                               | low, medium, high, xHigh, max, ultracode                                                                | terminal              | Yes (SDK)                        |
+| Codex        | (probed dynamically via app-server)                                                | (probed dynamically)                                                                                    | terminal / GUI server | Yes (stdio app-server)           |
+| Gemini       | (probed dynamically via ACP)                                                       | (probed dynamically)                                                                                    | terminal              | Yes (ACP)                        |
+| Copilot      | (probed via ACP)                                                                   | (probed via ACP)                                                                                        | terminal              | Yes (ACP)                        |
+| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`)           | CLI: embedded in model name; ACP GUI: per-model Session Config Options after `parameterizedModelPicker` | terminal              | Yes (ACP)                        |
+| Grok         | grok-build (probed via ACP)                                                        | (none)                                                                                                  | terminal              | Yes (ACP)                        |
+| OpenCode     | (probed dynamically via SDK)                                                       | (probed dynamically)                                                                                    | terminal / GUI server | Yes (SDK server)                 |
+| OpenCode 2   | (probed dynamically via `@opencode/client`; utility default `opencode/big-pickle`) | Probed per model                                                                                        | terminal / GUI server | Yes (V2 HTTP server)             |
+| Pi           | (authenticated models probed via SDK)                                              | off…max, per model                                                                                      | terminal              | Yes (native SDK)                 |
+| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                                     | ACP registry probe                                                                                      | terminal / GUI server | Yes (official `antigravity-acp`) |
+| Devin        | (families from CLI models list)                                                    | per-model variants                                                                                      | terminal              | Yes (official `devin acp`)       |
+| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                             | (none)                                                                                                  | terminal              | No                               |
+| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries                 | probed (`none…ultra` fallback)                                                                          | terminal              | Yes (MSP over `muse serve`)      |
 
 Antigravity is one built-in agent and one registry card with two managed runtime
 prerequisites: `agy` backs Terminal, while the official `antigravity-acp` registry
@@ -219,6 +237,21 @@ in `acpRegistryAutoInstallOptOuts`, so a deliberate removal is never undone; the
 next explicit install clears it. Composer, registry-card, and
 provider-settings update surfaces compare both installed versions with their
 independent latest sources, then one action updates whichever runtimes are stale.
+
+Devin uses Smart permissions in Terminal and Bypass in structured Chat (Plan
+still selects the ACP plan mode). Signed-in ACP also advertises Smart; Bypass remains the requested GUI policy.
+The adapter declares a `resolveMode` hook for this mapping; shared ACP code
+contains no provider-specific mode rules. Remote MCP servers are relayed through
+the existing tool-filter stdio worker, because Devin 3000.10.21 advertises only stdio MCP.
+A per-session configuration overlay makes injected servers visible to its native
+MCP discovery tools; it preserves existing config and durable session storage. Terminal launches use native SQLite ID discovery without reading transcript
+content; overlapping discoveries in the same cwd deliberately remain unresolved.
+ACP runs only for GUI threads because session/new alone does not persist a native
+session. Terminal MCP injection is not yet supported; the CLI has no verified
+per-thread MCP override, and shared user/project config is left untouched. The usage collector uses the private CLI quota endpoint,
+returns unsupported for accounts without quota windows, and shows overage as a
+remaining credit balance. Authenticated usage was verified with Devin 3000.10.21;
+account metadata is not parsed from undocumented CLI output.
 
 ### OpenCode 2 (`opencode2`)
 
@@ -239,6 +272,14 @@ MCP configuration, per-session forms, permission decisions, and `session.update`
   native `SessionNotFoundError` selects a separate legacy sidecar. Terminal
   attachment uses that same selected database. New sessions and account management
   use the native database; OpenCode owns its schema migrations.
+  Key/external credentials from older Poracode sessions migrate through the
+  credential API with a versioned, atomic compatibility journal. Sign-out records
+  revocation before deleting the credential ID from both stores. OAuth grants
+  remain in their original database so independently running sidecars cannot
+  duplicate a rotating refresh token. Settings keeps legacy OAuth accounts
+  visible/removable and explains that new native threads require a fresh sign-in;
+  legacy accounts do not falsely authenticate the native status probe. Key sync
+  preserves each integration's selected legacy OAuth account.
 - **Server:** the pooled runtime starts `serve --hostname=127.0.0.1 --port=0
 --print-logs`, reads its URL and generated Basic-auth password, and redacts
   readiness credentials from diagnostics. Catalog reads wait for
@@ -265,7 +306,7 @@ MCP configuration, per-session forms, permission decisions, and `session.update`
 - **Compatibility copies:** provider discovery changes invalidate both the
   supervisor status cache and the renderer's persisted capability cache.
   Runtime `content.delta.replace` carries authoritative stream snapshots; remote
-  protocol v10 prevents older peers from appending them as deltas. Existing
+  protocol v12 prevents older peers from appending them as deltas. Existing
   persisted streams remain valid. Provider wire compatibility is enforced at
   detection and server acquisition.
 
@@ -516,6 +557,45 @@ Edit `PORACODE_PINNED_NODE_VERSION` in `src/supervisor/runtime/pinnedNode.ts`, t
 ## Capability-Based UI
 
 The UI only shows controls that the agent's `capabilities` object declares. Do not show fake controls for features a CLI cannot support (e.g. no effort selector for Gemini, no sandbox modes for Claude).
+
+### ACP prompt usage and notification ownership
+
+Providers whose ACP text messages have stable identities and authoritative
+snapshots normalize them into `poracodeTextStream` metadata through
+`canonicalMapping/textStreamSnapshots.ts`. The declaration carries only an
+opaque message `id` and `mode: "append" | "replace"`; native event types and
+overwrite flags remain inside the provider. The shared mapper correlates by
+session, owner, and text stream, and uses the existing `content.delta.replace`
+contract to update the same canonical item even after a tool or another stream
+closed it. Annotated chunks are explicitly typed plain assistant or reasoning
+text. Do not infer snapshots from repeated prose, suppress equal deltas, or
+reuse one owner's identity for another owner. Unannotated ACP messages retain
+the ordinary mapping path.
+
+Known child correlations remain addressable after their parent finishes via
+the existing neutral parent-tool declaration. An unknown or evicted declared
+owner must never replace a root or sibling stream with the same native id.
+
+A late replacement of an existing canonical item is a history correction,
+not evidence of a new autonomous turn. Session ownership checks the mapped
+effects: a nonempty batch of only replacing text deltas must neither reopen
+work nor extend an orphan turn's idle window. New item allocations, appends,
+and other lifecycle events keep the ordinary activity rules.
+
+Declare prompt usage semantics through `AcpSessionBehavior`.
+`promptUsageCounterKind` defaults to `cumulative`; `per-call` counts each
+accepted prompt with its own stable `acp-prompt-v1` sample ID, including equal
+or decreasing totals. Set `promptUsageReportsContext: false` when that payload
+measures consumption rather than context-window occupancy. Standard
+`usage_update` notifications continue to report context independently. Do not
+count a vendor notification again when it echoes the standard prompt reply.
+Qualify the declared semantics against multiple turns and each runtime target.
+
+An extension notification handler receives the current native `sessionId` and
+canonical foreground `turnId`, when present. Providers validate their payload's
+owner before emitting events. Replayed, disposed, and closed transports do not
+deliver extension notifications. A vendor stop notification must not complete
+the foreground turn a second time; the standard prompt result owns completion.
 
 ### Terminal MCP launch integration
 

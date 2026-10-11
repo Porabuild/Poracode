@@ -84,7 +84,10 @@ describe("installCursorPlugin", () => {
     const baseDir = makeTempDir("install");
     const globalCursorDirOverride = makeTempDir("cursor-home");
 
-    const result = installCursorPlugin({ envKind: "posix", baseDir }, { globalCursorDirOverride });
+    const result = await installCursorPlugin(
+      { envKind: "posix", baseDir },
+      { globalCursorDirOverride },
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -113,24 +116,33 @@ describe("installCursorPlugin", () => {
   // adapter must route through the `cmd.exe`-invoked `.cmd` wrapper
   // instead — see installCursorPlugin in plugin/install.ts.
   const isWindows = process.platform === "win32";
-  it.skipIf(!isWindows)("writes a pwsh-free `cmd.exe /d /s /c call` command on Windows", () => {
-    const baseDir = makeTempDir("install-windows-shape");
-    const globalCursorDirOverride = makeTempDir("cursor-home-windows-shape");
-    const result = installCursorPlugin({ envKind: "posix", baseDir }, { globalCursorDirOverride });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const doc = JSON.parse(readFileSync(result.paths.globalHooksPath, "utf8")) as {
-      hooks: Record<string, Array<{ command: string }>>;
-    };
-    const command = doc.hooks.sessionStart?.[0]?.command ?? "";
-    expect(command).toMatch(/^cmd\.exe \/d \/s \/c call "/);
-    expect(command).not.toMatch(/pwsh|powershell/i);
-  });
+  it.skipIf(!isWindows)(
+    "writes a pwsh-free `cmd.exe /d /s /c call` command on Windows",
+    async () => {
+      const baseDir = makeTempDir("install-windows-shape");
+      const globalCursorDirOverride = makeTempDir("cursor-home-windows-shape");
+      const result = await installCursorPlugin(
+        { envKind: "posix", baseDir },
+        { globalCursorDirOverride },
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const doc = JSON.parse(readFileSync(result.paths.globalHooksPath, "utf8")) as {
+        hooks: Record<string, Array<{ command: string }>>;
+      };
+      const command = doc.hooks.sessionStart?.[0]?.command ?? "";
+      expect(command).toMatch(/^cmd\.exe \/d \/s \/c call "/);
+      expect(command).not.toMatch(/pwsh|powershell/i);
+    },
+  );
 
-  it.skipIf(isWindows)("writes a bare wrapper path on POSIX", () => {
+  it.skipIf(isWindows)("writes a bare wrapper path on POSIX", async () => {
     const baseDir = makeTempDir("install-posix-shape");
     const globalCursorDirOverride = makeTempDir("cursor-home-posix-shape");
-    const result = installCursorPlugin({ envKind: "posix", baseDir }, { globalCursorDirOverride });
+    const result = await installCursorPlugin(
+      { envKind: "posix", baseDir },
+      { globalCursorDirOverride },
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const doc = JSON.parse(readFileSync(result.paths.globalHooksPath, "utf8")) as {
@@ -139,12 +151,15 @@ describe("installCursorPlugin", () => {
     expect(doc.hooks.sessionStart?.[0]?.command ?? "").not.toMatch(/^cmd\.exe/);
   });
 
-  it("preserves user-authored entries during a re-install", () => {
+  it("preserves user-authored entries during a re-install", async () => {
     const baseDir = makeTempDir("install-merge");
     const globalCursorDirOverride = makeTempDir("cursor-home-merge");
 
     // First install seeds our entry.
-    const first = installCursorPlugin({ envKind: "posix", baseDir }, { globalCursorDirOverride });
+    const first = await installCursorPlugin(
+      { envKind: "posix", baseDir },
+      { globalCursorDirOverride },
+    );
     expect(first.ok).toBe(true);
     if (!first.ok) return;
 
@@ -161,7 +176,10 @@ describe("installCursorPlugin", () => {
     writeFileSync(docPath, `${JSON.stringify(docBefore, null, 2)}\n`);
 
     // Re-install must keep the user's audit.sh and replace ours in place.
-    const second = installCursorPlugin({ envKind: "posix", baseDir }, { globalCursorDirOverride });
+    const second = await installCursorPlugin(
+      { envKind: "posix", baseDir },
+      { globalCursorDirOverride },
+    );
     expect(second.ok).toBe(true);
 
     const doc = JSON.parse(readFileSync(docPath, "utf8")) as {
@@ -173,13 +191,16 @@ describe("installCursorPlugin", () => {
     expect(sessionStart[1]?.command).toMatch(/poracode-hook\.(?:sh|cmd|ps1)['"]? sessionStart$/);
   });
 
-  it("regenerates a zero-filled hooks.json", () => {
+  it("regenerates a zero-filled hooks.json", async () => {
     const baseDir = makeTempDir("install-zero-filled");
     const globalCursorDirOverride = makeTempDir("cursor-home-zero-filled");
     const hooksPath = join(globalCursorDirOverride, "hooks.json");
     writeFileSync(hooksPath, Buffer.alloc(64));
 
-    const result = installCursorPlugin({ envKind: "posix", baseDir }, { globalCursorDirOverride });
+    const result = await installCursorPlugin(
+      { envKind: "posix", baseDir },
+      { globalCursorDirOverride },
+    );
 
     expect(result.ok).toBe(true);
     const doc = JSON.parse(readFileSync(hooksPath, "utf8")) as {

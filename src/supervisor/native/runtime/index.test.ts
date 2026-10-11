@@ -24,7 +24,8 @@ vi.mock("../../runtime/download", () => ({
   verifySha256: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
-vi.mock("../../runtime/spawn", () => ({
+vi.mock("../../runtime/spawn", async () => ({
+  ...(await vi.importActual<typeof import("../../runtime/spawn")>("../../runtime/spawn")),
   // Stand in for `tar` extraction: read the target dir from argv and
   // create the expected `node-v<x>-<target>/<binRelPath>` tree so the
   // post-extract existsSync passes.
@@ -233,3 +234,6 @@ describe("resolveNativeNode probe-missing path", () => {
     }
   });
 });
+
+// Exercise the lower resolver layers as in an Electron-owned supervisor.
+vi.mock("./hostNode", () => ({ resolveHostNode: () => null }));

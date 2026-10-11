@@ -4,11 +4,23 @@ import type { ProjectLocation, StartShellPayload } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { waitForPendingSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { CommandCompletionParser } from "./commandCompletion";
+import {
+  beginShellLaunch,
+  failShellLaunch,
+  finishShellLaunch,
+  forgetShellLaunch,
+  noteShellExited,
+} from "@/renderer/utils/shellStartRegistry";
 import {
   createRoutedShellSession,
   disposeRoutedShellSession,
 } from "@/renderer/utils/routedShellSession";
 
+export {
+  noteShellExited,
+  wasShellLaunched as wasShellStartedDeferred,
+} from "@/renderer/utils/shellStartRegistry";
 export { disposeRoutedShellSession } from "@/renderer/utils/routedShellSession";
 
 /**
@@ -25,15 +37,67 @@ export function wasShellStartedEagerly(shellId: string): boolean {
   return eagerlyStartedShells.has(shellId);
 }
 
+/**
+ * Forgets every start mark for a shell (eager and deferred) and detaches its
+ * routed session. The panel's tab-close paths and `closeThreads` call this so
+ * a closed shell can never suppress a future spawn.
+ */
 export function clearEagerShellStart(shellId: string): void {
   eagerlyStartedShells.delete(shellId);
   eagerStartTokens.delete(shellId);
+  forgetShellLaunch(shellId);
   disposeRoutedShellSession(shellId);
+}
+
+let shellExitListenerUnsubscribe: (() => void) | null = null;
+let shellExitListenerSource: unknown = null;
+
+/**
+ * Clears a shell's start mark when its PTY exits, so a later panel remount
+ * starts fresh instead of showing a dead terminal. Local only: the web
+ * bridge's supervisor stream is a no-op, and remote shells clear through the
+ * remoteServersStore `thread-exited` branch instead.
+ */
+function ensureShellExitListener(): void {
+  const bridge = readBridge();
+  const subscribe = bridge.onSupervisorEvent;
+  // Test bridges may not implement the supervisor stream.
+  if (typeof subscribe !== "function") return;
+  // Bound to the actual source: a replaced bridge (tests) re-subscribes.
+  if (shellExitListenerSource === subscribe && shellExitListenerUnsubscribe) return;
+  shellExitListenerUnsubscribe?.();
+  shellExitListenerSource = subscribe;
+  const unsubscribe = subscribe.call(bridge, (event) => {
+    if (event.type === "thread-exited") noteShellExited(event.threadId);
+  });
+  shellExitListenerUnsubscribe = typeof unsubscribe === "function" ? unsubscribe : null;
 }
 
 export async function startShellWithCurrentSettings(payload: StartShellPayload): Promise<void> {
   await waitForPendingSharedSettings().catch(() => undefined);
   await readBridge().startShell(payload);
+}
+
+/**
+ * Starts a terminal-panel shell and records it in the deferred-start registry,
+ * so a panel remount re-attaches to the live PTY instead of re-issuing the
+ * destructive startShell. The mark lands synchronously before the first await,
+ * so a concurrent resize for the same id observes it and dedupes. Only
+ * panel-managed shells may go through here: other startShell callers tear
+ * down via `closeThread` (which emits no exit event), so a mark would leak —
+ * run actions keep their own eager registry. Marks clear on exit,
+ * `clearEagerShellStart`, and failed starts.
+ */
+export async function startDeferredPanelShell(payload: StartShellPayload): Promise<void> {
+  ensureShellExitListener();
+  const launchToken = beginShellLaunch(payload.shellId);
+  try {
+    await startShellWithCurrentSettings(payload);
+    finishShellLaunch(payload.shellId, launchToken);
+  } catch (error) {
+    failShellLaunch(payload.shellId, launchToken);
+    throw error;
+  }
 }
 
 export function startShellWithToast(payload: StartShellPayload, label: string): Promise<boolean> {
@@ -219,12 +283,19 @@ export function writeScriptToShellThenExitOnSuccess(
   }\r`;
 
   let commandCompleted = false;
-  let outputBuffer = "";
+  const completion = completionToken
+    ? new CommandCompletionParser(shellCompletionMarker(completionToken))
+    : null;
   let detach: () => void = () => undefined;
   const reportCommandComplete = (exitCode: number) => {
     if (commandCompleted) return;
     commandCompleted = true;
     onCommandComplete?.(exitCode);
+  };
+  const scanCompletion = (output: string, replace = false) => {
+    if (commandCompleted || !completion) return;
+    const exitCode = replace ? completion.replace(output) : completion.push(output);
+    if (exitCode !== null) reportCommandComplete(exitCode);
   };
   detach = createRoutedShellSession({
     shellId,
@@ -233,19 +304,14 @@ export function writeScriptToShellThenExitOnSuccess(
     onReset: () => {
       // A fresh PTY spawned; re-send on its first output so the command runs
       // in the survivor rather than a PTY that is about to be replaced.
-      outputBuffer = "";
+      completion?.reset();
       outputHandlers?.onReset();
     },
     onOutput: (output) => {
       outputHandlers?.onOutput(output);
-      if (!completionToken) return;
-      outputBuffer = `${outputBuffer}${output}`.slice(-1024);
-      const marker = shellCompletionMarker(completionToken);
-      const markerStart = outputBuffer.lastIndexOf(marker);
-      if (markerStart < 0) return;
-      const match = /^(\d+)/u.exec(outputBuffer.slice(markerStart + marker.length));
-      if (match) reportCommandComplete(Number(match[1]));
+      scanCompletion(output);
     },
+    onSnapshot: (snapshot) => scanCompletion(snapshot.data, true),
     onExited: (exitCode) => {
       reportCommandComplete(exitCode ?? -1);
       onExit(exitCode);
@@ -305,6 +371,7 @@ export async function closeThreads(threadIds: readonly string[]): Promise<void> 
   for (const threadId of uniqueThreadIds) {
     eagerlyStartedShells.delete(threadId);
     eagerStartTokens.delete(threadId);
+    forgetShellLaunch(threadId);
     disposeRoutedShellSession(threadId);
   }
   await Promise.allSettled(

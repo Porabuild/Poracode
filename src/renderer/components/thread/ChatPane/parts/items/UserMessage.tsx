@@ -34,7 +34,7 @@ import {
   isImagePath,
   threadMentionLabel,
 } from "@/shared/promptContent";
-import { isRemoteSession } from "@/renderer/bridge";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -44,6 +44,8 @@ import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { isRemoteSession } from "@/renderer/bridge";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { openUserMessageActions } from "../../userMessageActions";
@@ -92,7 +94,10 @@ export const UserMessage = memo(function UserMessage({
     (state) => state.threads.find((thread) => thread.id === threadId)?.remoteServerId,
   );
   const imageUrlForPath = remoteServerId
-    ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
+    ? (path: string) =>
+        isRemoteSession()
+          ? remoteBridgeLocalImageUrl(path)
+          : useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
     : undefined;
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasVisualOverflow, setHasVisualOverflow] = useState(false);
@@ -220,13 +225,12 @@ export const UserMessage = memo(function UserMessage({
     };
   }, []);
 
-  // On touch (the PWA) there is no hover to reveal the copy/revert strip, and
+  // In compact layout there is no reliable hover to reveal the copy/revert strip, and
   // permanently visible icons crowd a one-line bubble — so the strip is
-  // dropped there and a long-press on the bubble opens the mobile action
-  // sheet instead (see src/mobile/UserMessageActionsSheet.tsx).
-  const isRemote = isRemoteSession();
+  // dropped there and a long-press opens the shared action sheet instead.
+  const compact = useCompactLayout();
   const longPressHandlers = useLongPress(
-    isRemote
+    compact
       ? () =>
           openUserMessageActions({
             text: rawText,
@@ -253,7 +257,7 @@ export const UserMessage = memo(function UserMessage({
       : isCollapsible
         ? "max-h-[50vh] overflow-y-auto"
         : "";
-  const baseBodyClass = `min-w-0 leading-snug ${!isRemote && checkpointRevert ? "pr-12" : "pr-7"} ${collapseClass}`;
+  const baseBodyClass = `min-w-0 leading-snug ${!compact && checkpointRevert ? "pr-12" : "pr-7"} ${collapseClass}`;
   const inlineBodyClass = `${baseBodyClass} poracode-user-message-inline-content whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] text-foreground`;
 
   let bodyContent: ReactNode = null;
@@ -297,6 +301,9 @@ export const UserMessage = memo(function UserMessage({
               layout="flush"
               imagesAsPreview
               {...(imageUrlForPath ? { imageUrlForPath } : {})}
+              {...(actions?.remoteImageReadiness
+                ? { remoteImageReadiness: actions.remoteImageReadiness }
+                : {})}
               onPreviewImage={(att) => {
                 // Prefer the thread-wide gallery so prev/next walks the whole
                 // history (resolved click-time, no extra subscription); fall
@@ -306,7 +313,7 @@ export const UserMessage = memo(function UserMessage({
                 if (gallery.length > 1) {
                   const src = attachmentImageUrl(att, imageUrlForPath);
                   if (gallery.some((img) => img.src === src)) {
-                    openThreadGallery(gallery, src);
+                    openThreadGallery(gallery, src, 0, threadId);
                     return;
                   }
                 }
@@ -347,7 +354,7 @@ export const UserMessage = memo(function UserMessage({
           </Tooltip>
         </>
       ) : null}
-      {!isRemote ? (
+      {!compact ? (
         <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
           {checkpointRevert ? (
             <CheckpointRevertButton

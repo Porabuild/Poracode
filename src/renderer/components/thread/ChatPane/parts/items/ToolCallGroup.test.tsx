@@ -778,8 +778,10 @@ describe("ToolCallGroup", () => {
 
     const animated = Array.from(view.container.querySelectorAll(".poracode-thinking-text"));
     expect(animated.map((el) => el.getAttribute("data-poracode-shimmer-text"))).toEqual([
-      "1 command",
+      "command",
     ]);
+    expect(animated[0]!.textContent).toBe("command");
+    expect(animated[0]!.closest("code")!.textContent).toBe("1 command");
   });
 
   it("keeps the collapsed header static when every item completed", () => {

@@ -2,6 +2,7 @@ import type { BuiltInMcpServerId } from "@/shared/contracts";
 import type { Attachment } from "@/renderer/components/composer/useAttachments";
 import type { DraftContent, PendingDraftWorktreeSelection } from "./types";
 import type { SliceCreator } from "./shared";
+import { composerDraftStorage } from "../composerDraftStorage";
 
 export interface ComposerSeedOptions {
   bindLeadingSkill?: boolean;
@@ -32,12 +33,8 @@ export interface PendingComposerSeed extends ComposerSeed {
 export interface DraftSlice {
   draftContents: Record<string, DraftContent>;
   /**
-   * Unsent composer content for *already-launched* threads, keyed by threadId.
-   * Saved when a thread's composer unmounts (switching panes/threads remounts
-   * it, see ThreadPane's `key={threadId}`) and restored when it mounts again,
-   * so an in-progress message survives navigating away. In-memory only — not
-   * persisted across app restarts (see appStore `partialize`), matching the
-   * per-project `draftContents` behavior.
+   * Unsent content for launched threads. Remote IDs include the owning server.
+   * Client-local checkpoints also preserve active drafts across reloads.
    */
   threadDraftContents: Record<string, DraftContent>;
   pendingDraftWorktreeSelections: Record<string, PendingDraftWorktreeSelection>;
@@ -65,22 +62,27 @@ export interface DraftSlice {
 }
 
 export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
-  draftContents: {},
-  threadDraftContents: {},
+  draftContents: composerDraftStorage()?.load("project") ?? {},
+  threadDraftContents: composerDraftStorage()?.load("thread") ?? {},
   pendingDraftWorktreeSelections: {},
   pendingComposerSeeds: {},
   draftContentDiscardRequests: {},
-  saveDraftContent: (projectId, content) =>
+  saveDraftContent: (projectId, content) => {
+    composerDraftStorage()?.save("project", projectId, content);
     set((state) => ({
       draftContents: { ...state.draftContents, [projectId]: content },
-    })),
-  clearDraftContent: (projectId) =>
+    }));
+  },
+  clearDraftContent: (projectId) => {
+    composerDraftStorage()?.remove("project", projectId);
     set((state) => {
       if (!(projectId in state.draftContents)) return {};
       const { [projectId]: _, ...rest } = state.draftContents;
       return { draftContents: rest };
-    }),
-  discardDraftContent: (projectId) =>
+    });
+  },
+  discardDraftContent: (projectId) => {
+    composerDraftStorage()?.remove("project", projectId);
     set((state) => {
       const { [projectId]: _draft, ...draftContents } = state.draftContents;
       return {
@@ -90,7 +92,8 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
           [projectId]: true,
         },
       };
-    }),
+    });
+  },
   consumeDraftContentDiscard: (projectId) => {
     let shouldDiscard = false;
     set((state) => {
@@ -101,27 +104,33 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
     });
     return shouldDiscard;
   },
-  saveThreadDraftContent: (threadId, content) =>
+  saveThreadDraftContent: (threadId, content) => {
+    composerDraftStorage()?.save("thread", threadId, content);
     set((state) => ({
       threadDraftContents: { ...state.threadDraftContents, [threadId]: content },
-    })),
-  clearThreadDraftContent: (threadId) =>
+    }));
+  },
+  clearThreadDraftContent: (threadId) => {
+    composerDraftStorage()?.remove("thread", threadId);
     set((state) => {
       if (!(threadId in state.threadDraftContents)) return {};
       const { [threadId]: _, ...rest } = state.threadDraftContents;
       return { threadDraftContents: rest };
-    }),
+    });
+  },
   appendThreadDraftAttachments: (threadId, attachments) =>
     set((state) => {
       if (attachments.length === 0) return {};
       const draft = state.threadDraftContents[threadId];
+      const content: DraftContent = {
+        segments: draft?.segments ?? [],
+        attachments: [...(draft?.attachments ?? []), ...attachments],
+      };
+      composerDraftStorage()?.save("thread", threadId, content);
       return {
         threadDraftContents: {
           ...state.threadDraftContents,
-          [threadId]: {
-            segments: draft?.segments ?? [],
-            attachments: [...(draft?.attachments ?? []), ...attachments],
-          },
+          [threadId]: content,
         },
       };
     }),

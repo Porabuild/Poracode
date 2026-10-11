@@ -4,11 +4,15 @@ import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   applyTerminalHintToConfig,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
   iterm2ProgressOscHint,
+  prepareAgentLocationEnvironment,
   shellExecOscHint,
   type AgentAdapter,
   type AgentEnvContext,
@@ -109,19 +113,19 @@ export function createCopilotAdapter(): AgentAdapter {
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installCopilotPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installCopilotPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCopilotPlugin(ctx);
+      await uninstallCopilotPlugin(ctx);
     },
     // No `pluginLaunchExtras` needed — Copilot CLI auto-loads
     // `${COPILOT_HOME ?? ~/.copilot}/hooks/poracode-status.json` written at
     // install time, and `PORACODE_HOOK_*` env is injected by the coordinator.
-    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
+    async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId ?? randomUUID();
-      const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
+      const mcp = await writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
       return {
         binary: "copilot",
         args: buildCopilotArgs(config, prompt, sessionId, launchOptions, mcp?.argument),
@@ -130,9 +134,9 @@ export function createCopilotAdapter(): AgentAdapter {
         sessionRef: createKnownSessionRef(sessionId),
       };
     },
-    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+    async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId ?? sessionRef.providerSessionId;
-      const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
+      const mcp = await writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
       return {
         binary: "copilot",
         args: buildCopilotArgs(config, prompt, sessionId, launchOptions, mcp?.argument),
@@ -144,6 +148,7 @@ export function createCopilotAdapter(): AgentAdapter {
       // Resume/presentation gating lives in `createAcpStructuredSession` so
       // every ACP-speaking provider behaves identically — we just hand it the
       // command and let it decide whether to actually spawn.
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const args = ["--acp", "--stdio"];
       if (input.config.approvalPolicy === "never") {
         args.push("--yolo");
@@ -157,6 +162,7 @@ export function createCopilotAdapter(): AgentAdapter {
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildCopilotCommand(
         location,
         ["--acp", "--stdio"],
@@ -201,7 +207,15 @@ export function createCopilotAdapter(): AgentAdapter {
     },
     syncConfigFromTerminalState: applyTerminalHintToConfig,
     defaultOneShotModel: "",
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Reasoning effort maps natively (`--effort`); the copilot CLI has no
+      // Fast lane, so false Fast is the declared-inactive legacy carrier and
+      // meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) {
         return undefined;
       }
@@ -216,7 +230,13 @@ export function createCopilotAdapter(): AgentAdapter {
 
       return { command: "copilot", args, stdin: "" };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, _location, model, options) {
+      const selection = resolveCheckedOneShotResumeSelection(model, options);
+      // The resume print run consumes the same native effort mapping as the
+      // one-shot lane (`--effort`); copilot has no Fast lane, so false Fast is
+      // the declared-inactive legacy carrier and meaningful Fast (and any
+      // thinking/context carrier) refuses before the command is built.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       // Copilot's -p flag takes the prompt inline as an arg.
       // The orchestrator pipes the extraction prompt via stdin,
       // so we pass a brief directive via -p and let stdin carry the full prompt.
@@ -229,6 +249,9 @@ export function createCopilotAdapter(): AgentAdapter {
       ];
       if (model) {
         args.push("--model", model);
+      }
+      if (selection.effort) {
+        args.push("--effort", selection.effort);
       }
       return { command: "copilot", args, stdin: "" };
     },

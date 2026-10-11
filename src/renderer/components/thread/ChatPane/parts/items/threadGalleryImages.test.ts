@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { remoteImageRef } from "@/shared/remote/imageRef";
+import type { RemoteImageRefValue } from "@/shared/remote";
+import type { RemoteServerRecord, RemoteServersState } from "@/renderer/state/remoteServers/types";
 import {
   buildGalleryResolversFromState,
+  collectThreadGallery,
   collectThreadGalleryImages,
   extractMarkdownGalleryImages,
+  selectRemoteGalleryRevision,
 } from "./threadGalleryImages";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 
@@ -38,6 +43,47 @@ function attachmentImage(path: string, name: string): unknown {
 }
 
 describe("threadGalleryImages", () => {
+  it.each(["image_view", "tool_call", "mcp_tool_call", "dynamic_tool_call"] as const)(
+    "collects all distinct images within a %s row newest-first",
+    (type) => {
+      const first = "data:image/png;base64,AAAA";
+      const second = "data:image/png;base64,BBBB";
+      const item: RuntimeChatItem = {
+        id: "multiple",
+        type,
+        state: "completed",
+        streams: {},
+        payload: { status: "success", images: [first, second, first] },
+      };
+      expect(collectThreadGalleryImages([item]).map((image) => image.src)).toEqual([first, second]);
+      item.payload = { status: "success", images: [first, second] };
+      expect(collectThreadGalleryImages([item]).map((image) => image.src)).toEqual([second, first]);
+    },
+  );
+
+  it("tracks all pending and ready tool coordinates before URL deduplication", () => {
+    const refs: RemoteImageRefValue[] = [0, 1, 2].map((index) => ({
+      threadId: "thread",
+      itemId: "multiple",
+      path: ["images", index],
+      mime: "image/png",
+      bytes: 100,
+    }));
+    const item: RuntimeChatItem = {
+      id: "multiple",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+      payload: { images: refs.map(remoteImageRef) },
+    };
+    const collection = collectThreadGallery([item], {
+      remoteImageRefUrl: (ref) => (ref.path[1] === 0 ? "" : "blob:shared"),
+    });
+    expect(collection.images.map((image) => image.src)).toEqual(["blob:shared"]);
+    expect(collection.pendingRemoteRefs).toEqual([refs[0]]);
+    expect(collection.readyRemoteRefs).toEqual([refs[2], refs[1]]);
+  });
+
   it("collects user attachment images newest-first", () => {
     const items = [
       userItem("u1", [
@@ -74,6 +120,17 @@ describe("threadGalleryImages", () => {
     expect(gallery[0]).toMatchObject({ fileName: "a.png", mime: "image/png" });
   });
 
+  it("retains a pending remote attachment path until its image bytes are ready", () => {
+    const items = [userItem("u1", [attachmentImage("/tmp/a.png", "a.png")])];
+    const pending = collectThreadGallery(items, { imageUrlForPath: () => "" });
+    expect(pending.images).toEqual([]);
+    expect(pending.pendingRemotePaths).toEqual(["/tmp/a.png"]);
+
+    const ready = collectThreadGallery(items, { imageUrlForPath: () => "blob:attachment" });
+    expect(ready.pendingRemotePaths).toEqual([]);
+    expect(ready.images[0]?.src).toBe("blob:attachment");
+  });
+
   it("collects assistant image blocks and markdown images newest-first", () => {
     const items = [
       assistantItem(
@@ -81,7 +138,7 @@ describe("threadGalleryImages", () => {
         [
           {
             kind: "image",
-            dataUrl: "data:image/png;base64,AAA",
+            dataUrl: "data:image/png;base64,AAAA",
             mimeType: "image/png",
             name: "gen.png",
           },
@@ -93,7 +150,7 @@ describe("threadGalleryImages", () => {
     expect(gallery.length).toBe(2);
     // Newest display position first: structured blocks paint after inline
     // markdown, so the block leads when iterating newest-first.
-    expect(gallery[0]!.src).toBe("data:image/png;base64,AAA");
+    expect(gallery[0]!.src).toBe("data:image/png;base64,AAAA");
     expect(gallery[0]).toMatchObject({ fileName: "gen-png.png", mime: "image/png" });
     expect(gallery[1]!.src).toBe("https://example.test/x.png");
   });
@@ -106,13 +163,13 @@ describe("threadGalleryImages", () => {
       payload: {
         name: "imageGeneration",
         status: "success",
-        result: { image: "data:image/png;base64,BBB" },
+        result: { image: "data:image/png;base64,BBBB" },
       },
       streams: {},
     };
     const gallery = collectThreadGalleryImages([tool], {});
     expect(gallery.length).toBe(1);
-    expect(gallery[0]!.src).toBe("data:image/png;base64,BBB");
+    expect(gallery[0]!.src).toBe("data:image/png;base64,BBBB");
   });
 
   it("skips errored image_view rows like the transcript does", () => {
@@ -333,4 +390,129 @@ describe("threadGalleryImages", () => {
     );
     expect(local.projectRoot).toBe("E:\\work\\project");
   });
+});
+
+describe("threadGalleryImages host-held readiness (C1 R3/F8)", () => {
+  const ENV_KEY = "conn-child";
+  const CHILD_DESKTOP = "child-desktop";
+
+  function hostRef(): RemoteImageRefValue {
+    return {
+      threadId: "t",
+      itemId: "i",
+      path: ["images", 0],
+      mime: "image/png",
+      bytes: 1,
+      width: 4,
+      height: 4,
+    };
+  }
+
+  function refBlock(): unknown {
+    return { kind: "image", dataUrl: remoteImageRef(hostRef()), name: "host.png" };
+  }
+
+  const environment: RemoteServerRecord = {
+    connectionId: ENV_KEY,
+    desktopId: CHILD_DESKTOP,
+    label: "Child",
+    endpoint: "http://127.0.0.1:49153/api/environments/x/proxy/",
+    accessToken: "child-access",
+    scopes: ["session:read"],
+    transport: {
+      kind: "environment",
+      parentConnectionId: "conn-parent",
+      environmentId: "e1",
+      childDesktopId: CHILD_DESKTOP,
+    },
+  } as RemoteServerRecord;
+
+  it("reports a pending host-held ref separately instead of dropping or painting it", () => {
+    const collection = collectThreadGallery([assistantItem("a1", [refBlock()])], {
+      remoteImageRefUrl: () => "",
+    });
+    expect(collection.images).toHaveLength(0);
+    expect(collection.pendingRemoteRefs).toHaveLength(1);
+    expect(collection.pendingRemoteRefs[0]?.itemId).toBe("i");
+  });
+
+  it("includes the host-held ref once its resolver is ready", () => {
+    const collection = collectThreadGallery([assistantItem("a1", [refBlock()])], {
+      remoteImageRefUrl: () => "blob:ready",
+    });
+    expect(collection.images).toHaveLength(1);
+    expect(collection.images[0]?.src).toBe("blob:ready");
+    expect(collection.pendingRemoteRefs).toHaveLength(0);
+  });
+
+  it("keys the gallery revision by the environment connection key", () => {
+    const state = {
+      servers: [environment],
+      runtime: { [ENV_KEY]: { status: "online" as const } },
+    } as unknown as RemoteServersState;
+    const revision = selectRemoteGalleryRevision(state, ENV_KEY);
+    expect(revision).toContain(environment.endpoint);
+    expect(revision).toContain("child-access");
+    expect(revision).toContain("online");
+    // The child host identity alone must no longer match the record.
+    expect(selectRemoteGalleryRevision(state, CHILD_DESKTOP)).not.toContain(environment.endpoint);
+  });
+});
+
+it("retains both ready coordinates when identical resolved URLs collapse to one gallery entry", () => {
+  const refs = ["older", "newer"].map((itemId) => ({
+    threadId: "thread",
+    itemId,
+    path: ["images", 0],
+    mime: "image/png",
+    bytes: 4,
+  }));
+  const items = refs.map(
+    (ref) =>
+      ({
+        id: ref.itemId,
+        type: "image_view",
+        state: "completed",
+        streams: {},
+        payload: { images: [remoteImageRef(ref)] },
+      }) as RuntimeChatItem,
+  );
+  const collection = collectThreadGallery(items, { remoteImageRefUrl: () => "blob:shared" });
+  expect(collection.images).toHaveLength(1);
+  expect(collection.readyRemoteRefs.map((ref) => ref.itemId)).toEqual(["newer", "older"]);
+  expect(collection.pendingRemoteRefs).toEqual([]);
+});
+
+it("tracks ready and pending remote Markdown paths while keeping native paths outside byte-cache readiness", () => {
+  const item = assistantItem(
+    "image",
+    [],
+    "![first](images/ready.png) ![second](images/pending.png)",
+  );
+  const remote = collectThreadGallery([item], {
+    projectRoot: "/project",
+    remoteLocalImageUrl: (url) => (url.endsWith("/ready.png") ? "blob:ready" : ""),
+  });
+  expect(remote.images.map((image) => image.src)).toEqual(["blob:ready"]);
+  expect(remote.readyRemotePaths).toEqual(["/project/images/ready.png"]);
+  expect(remote.pendingRemotePaths).toEqual(["/project/images/pending.png"]);
+  const native = collectThreadGallery([item], {
+    projectRoot: "/project",
+    remoteLocalImageUrl: (url) => url,
+  });
+  expect(native.images).toHaveLength(2);
+  expect(native.readyRemotePaths).toEqual([]);
+  expect(native.pendingRemotePaths).toEqual([]);
+});
+
+it("uses the host path decoder for ready Windows Markdown provenance", () => {
+  const collection = collectThreadGallery(
+    [assistantItem("image", [], "![win](/images/ready.png)")],
+    {
+      projectRoot: "/project",
+      remoteLocalImageUrl: () => "blob:windows",
+      localImagePathForUrl: () => "C:/project/ready.png",
+    },
+  );
+  expect(collection.readyRemotePaths).toEqual(["C:/project/ready.png"]);
 });

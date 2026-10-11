@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   AgentSlashCommand,
   PromptSegment,
@@ -42,6 +43,15 @@ interface PendingDialog {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Pi takes one text message per prompt or steer, so inline instructions (skill
+ * injections, provider-handoff text, per-turn client context) follow the
+ * user's prompt in it (see StartTurnOptions.inlineInstructions).
+ */
+function withInlineInstructions(prompt: string, options: StartTurnOptions | undefined): string {
+  return options?.inlineInstructions ? `${prompt}\n\n${options.inlineInstructions}` : prompt;
 }
 
 function recordOf(value: unknown): Record<string, unknown> | undefined {
@@ -110,8 +120,11 @@ export class PiRpcSession implements StructuredSessionHandle {
   private readonly openToolItems = new Map<string, string>();
   private readonly unsubscribeEvents: () => void;
   private readonly unsubscribeExit: () => void;
-  private readonly cleanupMcp: (() => void) | undefined;
+  private readonly cleanupMcp: (() => Promise<void>) | undefined;
   private dialogSequence = 0;
+  // These counters identify new live events, not messages replayed from Pi's
+  // saved session. A resumed RPC process must not reuse persisted item/turn IDs.
+  private readonly runtimeId = randomUUID();
   private itemSequence = 0;
   private turnSequence = 0;
   private currentTurnId: string | undefined;
@@ -133,6 +146,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   /** Pi assigns its session id asynchronously; do not publish a placeholder. */
   private sessionRef: ReturnType<typeof createKnownSessionRef> | undefined;
   private disposed = false;
+  private disposePromise: Promise<void> | undefined;
   private interruptRequested = false;
   /** True when the CLI was launched with `--session <id>` (resumed, not fresh). */
   private readonly launchedWithResume: boolean;
@@ -144,7 +158,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   private constructor(
     private readonly input: CreateStructuredSessionInput,
     client: PiRpcClient,
-    cleanupMcp?: () => void,
+    cleanupMcp?: () => Promise<void>,
   ) {
     this.launchOptions = {
       ...(input.agentSettings ? { agentSettings: input.agentSettings } : {}),
@@ -167,7 +181,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     }
     const cwd = input.projectLocation.path;
     const binary = options?.binary ?? resolveAgentBinaryPath(input.projectLocation, "pi") ?? "pi";
-    const mcp = piMcpLaunch(input.projectLocation, input.mcpServers);
+    const mcp = await piMcpLaunch(input.projectLocation, input.mcpServers);
 
     const args = ["--mode", "rpc", "--approve"];
     const resumeId = input.sessionRef?.providerSessionId;
@@ -192,7 +206,7 @@ export class PiRpcSession implements StructuredSessionHandle {
       return new PiRpcSession(input, client, mcp.cleanup);
     } catch (error) {
       await client.close();
-      mcp.cleanup?.();
+      await mcp.cleanup?.();
       throw error;
     }
   }
@@ -208,6 +222,18 @@ export class PiRpcSession implements StructuredSessionHandle {
     void this.publishSlashCommands();
   }
 
+  /** The factory already selected --session; confirm the CLI's actual identity before input. */
+  async openThread(): Promise<string> {
+    const response = await this.client.request("get_state");
+    const sessionId = recordOf(response.data)?.sessionId;
+    if (!response.success || typeof sessionId !== "string" || !sessionId.trim()) {
+      throw new Error("Pi did not report its session identity");
+    }
+    this.sessionRef = createKnownSessionRef(sessionId);
+    this.publishUpdate("idle", "none");
+    return sessionId;
+  }
+
   async startTurn(
     prompt: string,
     config: ThreadConfig,
@@ -220,13 +246,9 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.publishUpdate("working", "none");
     const completion = this.turnCompletion;
     try {
-      // Inline instructions (skill injections, provider-handoff context) ride
-      // with the prompt Pi receives but stay out of the painted user_message —
-      // `beginTurn` above records the user's own text (see
-      // StartTurnOptions.inlineInstructions).
-      const message = options?.inlineInstructions
-        ? `${prompt}\n\n${options.inlineInstructions}`
-        : prompt;
+      // `beginTurn` above records the user's own text for the painted
+      // user_message; the provider message carries the inline instructions.
+      const message = withInlineInstructions(prompt, options);
       const response = await this.client.request("prompt", { message, source: "rpc" });
       if (!response.success) {
         this.failTurn(response.error ?? "Pi rejected the prompt.");
@@ -255,7 +277,9 @@ export class PiRpcSession implements StructuredSessionHandle {
   ): Promise<void> {
     await this.applyConfig(config);
     if (!this.currentTurnId) return this.startTurn(prompt, config, undefined, options);
-    const response = await this.client.request("steer", { message: prompt });
+    const response = await this.client.request("steer", {
+      message: withInlineInstructions(prompt, options),
+    });
     if (!response.success) {
       throw new Error(response.error ?? "Pi could not steer the current turn.");
     }
@@ -309,15 +333,22 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.publishUpdate(this.currentTurnId ? "working" : "idle", "none");
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeOnce().catch((error: unknown) => {
+      this.disposePromise = undefined;
+      throw error;
+    });
+    return this.disposePromise;
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.disposed = true;
     this.clearTurnWatchdog();
     this.cancelDialogs();
     this.unsubscribeEvents();
     this.unsubscribeExit();
     await this.client.close();
-    this.cleanupMcp?.();
+    await this.cleanupMcp?.();
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "disposed" });
     this.listener.onClose();
   }
@@ -346,7 +377,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   }
 
   private beginTurn(prompt: string, userMessageItemId?: string): void {
-    this.currentTurnId = `pi-turn-${++this.turnSequence}`;
+    this.currentTurnId = `pi-turn-${this.runtimeId}-${++this.turnSequence}`;
     this.interruptRequested = false;
     this.agentStarted = false;
     this.turnErrorMessage = undefined;
@@ -975,7 +1006,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   }
 
   private nextItemId(kind: string): string {
-    return `pi-${kind}-${++this.itemSequence}`;
+    return `pi-${kind}-${this.runtimeId}-${++this.itemSequence}`;
   }
 
   private emit(event: RuntimeEvent): void {

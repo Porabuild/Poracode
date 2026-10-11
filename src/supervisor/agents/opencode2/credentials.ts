@@ -1,11 +1,18 @@
 import type {
   AgentConnectedProvider,
+  ProjectLocation,
   ManageAgentCredentialsPayload,
   ManageAgentCredentialsResult,
 } from "@/shared/contracts";
 import type { StatusProbeResult } from "../base/types";
 import { detectProbeLocation } from "../base";
-import { acquireOpenCode2Server, resolveOpenCode2SessionDirectory } from "./client";
+import { msg } from "@/shared/messages";
+import {
+  acquireOpenCode2Server,
+  listOpenCode2LegacyOAuthCredentials,
+  removeOpenCode2Credential,
+  resolveOpenCode2SessionDirectory,
+} from "./client";
 
 /**
  * One stored credential for an integration. `id` is what `credential.remove`
@@ -57,14 +64,34 @@ export function openCode2ConnectedProviders(
  */
 export function buildOpenCode2StatusFromIntegrations(
   integrations: readonly OpenCode2InventoryIntegration[],
+  legacyProviders: readonly AgentConnectedProvider[] = [],
 ): StatusProbeResult {
-  const connectedProviders = openCode2ConnectedProviders(integrations);
+  const nativeProviders = openCode2ConnectedProviders(integrations);
   const signedIn =
-    connectedProviders.length > 0 || integrations.some((integration) => integration.envBacked);
+    nativeProviders.length > 0 || integrations.some((integration) => integration.envBacked);
+  const connectedProviders = [
+    ...nativeProviders,
+    ...legacyProviders.filter(
+      (legacy) => !nativeProviders.some((native) => native.id === legacy.id),
+    ),
+  ];
   return {
     authState: signedIn ? "authenticated" : "missing",
     ...(connectedProviders.length > 0 ? { providerMetadata: { connectedProviders } } : {}),
   };
+}
+
+/** Display old OAuth accounts without advertising them as native authentication. */
+export async function readOpenCode2LegacyProviders(
+  location: ProjectLocation,
+  integrations: readonly OpenCode2InventoryIntegration[],
+): Promise<AgentConnectedProvider[]> {
+  const names = new Map(integrations.map((integration) => [integration.id, integration.name]));
+  return (await listOpenCode2LegacyOAuthCredentials(location)).map((entry) => ({
+    id: entry.id,
+    label: `${names.get(entry.integrationID) || entry.integrationID}${entry.label.trim() ? ` · ${entry.label.trim()}` : ""}`,
+    detail: msg("provider.previousSessionCredential"),
+  }));
 }
 
 /** Shape the server's integration list into the inventory entry above. */
@@ -107,17 +134,17 @@ export async function manageOpenCode2Credentials(
     const options = { signal: AbortSignal.timeout(30_000) };
     const locationInput = { directory: resolveOpenCode2SessionDirectory(location) };
     if (input.action === "remove") {
-      await acquired.client.credential.remove(
-        {
-          credentialID: input.credentialId as Parameters<
-            typeof acquired.client.credential.remove
-          >[0]["credentialID"],
-        },
-        options,
-      );
+      if (!input.credentialId) throw new Error(msg("provider.credentialRequired"));
+      await removeOpenCode2Credential(location, input.credentialId);
     }
     const listed = await acquired.client.integration.list({ location: locationInput }, options);
-    return { providers: openCode2ConnectedProviders(readOpenCode2Integrations(listed.data)) };
+    const integrations = readOpenCode2Integrations(listed.data);
+    const legacyProviders = await readOpenCode2LegacyProviders(location, integrations);
+    return {
+      providers:
+        buildOpenCode2StatusFromIntegrations(integrations, legacyProviders).providerMetadata
+          ?.connectedProviders ?? [],
+    };
   } finally {
     await acquired.dispose();
   }

@@ -11,6 +11,7 @@ import { withReadonlyDb } from "./sqliteRead";
  */
 
 const OPENCODE_GO_PROVIDER_ID = "opencode-go";
+const OPENCODE_PROVIDER_ID = "opencode";
 
 function openCodeDataDirs(): string[] {
   const home = homedir();
@@ -99,20 +100,33 @@ export function normalizeRows(raw: { createdMs?: unknown; cost?: unknown }[]): O
   return rows;
 }
 
-export function hasOpenCodeGoAuth(): boolean {
+/**
+ * The OpenCode Go API key from the CLI's `auth.json`, for the direct
+ * `/zen/go/v1/usage` endpoint. The `opencode-go` entry is the Go key; the
+ * `opencode` entry is the fallback (a Zen key authenticates the same
+ * Anthropic-compatible endpoint). Read-only and fail-safe — any error degrades
+ * to "no key".
+ */
+export function readOpenCodeGoApiKey(): string | undefined {
   for (const path of openCodeAuthPaths()) {
     if (!existsSync(path)) continue;
     try {
       const parsed = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-      const entry = parsed[OPENCODE_GO_PROVIDER_ID];
-      if (!entry || typeof entry !== "object") continue;
-      const key = (entry as { key?: unknown }).key;
-      if (typeof key === "string" && key.trim()) return true;
+      for (const id of [OPENCODE_GO_PROVIDER_ID, OPENCODE_PROVIDER_ID]) {
+        const entry = parsed[id];
+        if (!entry || typeof entry !== "object") continue;
+        const key = (entry as { key?: unknown }).key;
+        if (typeof key === "string" && key.trim()) return key.trim();
+      }
     } catch {
       // try the next auth path
     }
   }
-  return false;
+  return undefined;
+}
+
+export function hasOpenCodeGoAuth(): boolean {
+  return readOpenCodeGoApiKey() !== undefined;
 }
 
 export async function readOpenCodeGoRows(): Promise<OpenCodeCostRow[] | undefined> {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_notification_done">已完成</string>
+    <string name="remote_notification_needs_attention">需要注意</string>
+    <string name="remote_notification_error">错误</string>
+    <string name="remote_notification_dismiss">关闭通知</string>
+</resources>

@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  settingsStringListSchema,
+  settingsUnknownRecordSchema,
+} from "./settingsNormalizationSchemas";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import { customThemesSchema } from "./customThemes";
 import {
@@ -21,6 +25,7 @@ import {
   worktreeStorageModeSchema,
   mcpServerListSchema,
   installedPluginsSchema,
+  normalizeBuiltInMcpDisabledTools,
   workspaceListSchema,
 } from "./contracts";
 import {
@@ -28,8 +33,13 @@ import {
   machineScopeModesSchema,
   machineSettingsEntrySchema,
 } from "./machineSettings";
+import {
+  DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS,
+  hostResourceAdmissionSettingsSchema,
+} from "./hostResourceAdmission";
 import { parseMachineKey } from "./machines";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
+import { modelSelectionSchema } from "./selectionBinding.schemas.ts";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
 import { QWEN_DEFAULT_MODEL_ID, QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
 import {
@@ -212,7 +222,7 @@ const usageSettingsSchema = z.object({
   providerRefreshIntervals: z.record(z.string(), z.number().int().min(2).max(120)).default({}),
   /**
    * Show estimated $ cost (reconstructed from local logs at public API rates).
-   * Opt-in and panel-only — it is meaningless for subscription/OAuth users.
+   * Opt-in — it is meaningless for subscription/OAuth users.
    */
   showEstimatedCost: z.boolean().default(false),
   /** Show the per-provider usage circles in the sidebar (master toggle). */
@@ -362,6 +372,26 @@ export const sharedSettingsSchema = z.object({
   wslConflictResolverEffort: z.string(),
   wslConflictResolverFast: z.boolean(),
   wslConflictResolverPresentationMode: threadPresentationModeSchema,
+  /**
+   * Canonical complete AI-utility selections, one per utility domain
+   * (non-WSL and WSL commit/title/conflict-resolver plus the experiment
+   * judge). Optional and defaultless on purpose: a present object is the sole
+   * modern tuple (carrying `thinking`/`contextSize` and a recognized selection
+   * binding that the legacy scalar triple could never hold); an absent field
+   * keeps the legacy scalar siblings above as the conservative compatibility
+   * read. There is no backfill — normalization and defaults never mint a
+   * canonical object from scalar values, and a legacy scalar setter path owns
+   * updating or revoking the matching object (later renderer lanes). These are
+   * part of the settings containing-document guard: raw unsupported metadata
+   * must be preserved, not silently rewritten (selectionBinding contract §5).
+   */
+  commitGenSelection: modelSelectionSchema.optional(),
+  titleGenSelection: modelSelectionSchema.optional(),
+  conflictResolverSelection: modelSelectionSchema.optional(),
+  experimentJudgeSelection: modelSelectionSchema.optional(),
+  wslCommitGenSelection: modelSelectionSchema.optional(),
+  wslTitleGenSelection: modelSelectionSchema.optional(),
+  wslConflictResolverSelection: modelSelectionSchema.optional(),
   /** Per-agent settings keyed by agent kind, then setting key. */
   agentSettings: z.record(z.string(), z.record(z.string(), z.union([z.boolean(), z.string()]))),
   /**
@@ -423,6 +453,13 @@ export const sharedSettingsSchema = z.object({
   autoArchiveDoneAfterDays: z.number().int().min(0),
   /** Terminal scrollback scroll speed multiplier. */
   scrollSpeed: z.number().int().min(1).max(10),
+  /** Device-local installed family for every xterm surface. Empty uses the bundled fallback stack. */
+  terminalFontFamily: z
+    .string()
+    .max(256)
+    // eslint-disable-next-line no-control-regex -- persisted family names must exclude control characters
+    .regex(/^[^\u0000-\u001f\u007f]*$/)
+    .default(""),
   /** Base font size for agent terminals. Auto-shrinks in narrow/short panes. */
   agentTerminalFontSize: z.number().int().min(8).max(20),
   /** Base font size for agent thread chat (GUI / ACP markdown surface), in px. */
@@ -602,7 +639,7 @@ export const sharedSettingsSchema = z.object({
    * Which one is *active* is not stored here but per-window (see the renderer's
    * `workspaceStore`), so switching in one window leaves the others alone.
    *
-   * Not part of `remoteSettingsSchema`, so paired clients (mobile PWA) receive no
+   * Not part of `remoteSettingsSchema`, so paired browser clients receive no
    * workspace list and therefore show every project — add it to that allowlist if
    * workspaces should scope remote sessions too.
    */
@@ -683,6 +720,16 @@ export const sharedSettingsSchema = z.object({
   audio: audioSettingsSchema,
   /** Provider usage tracking (auto-refresh cadence, per-provider opt-out, cost). */
   usage: usageSettingsSchema,
+  /**
+   * Supervisor execution-slot bounds. Each value is a nonnegative finite safe
+   * integer with no arbitrary ceiling; `0` is explicitly unlimited and is the
+   * pre-measurement transitional default, not a validated protective number.
+   * The count bounds supervisor execution slots (agent sessions, user terminal
+   * shells, short-lived generation helpers), never provider descendants, OS
+   * processes or RSS. The supervisor reads the raw document through its own
+   * settings cache; a present invalid value never becomes unlimited.
+   */
+  hostResourceAdmission: hostResourceAdmissionSettingsSchema,
   /**
    * Free-text routing instructions appended to the Crossagents MCP server
    * `instructions`, guiding how an agent picks which connected agent/model to
@@ -772,6 +819,7 @@ export const defaultSharedSettings: SharedSettings = {
   staleThreadUnloadMinutes: 60,
   autoArchiveDoneAfterDays: 3,
   scrollSpeed: 2,
+  terminalFontFamily: "",
   agentTerminalFontSize: 12,
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
@@ -796,7 +844,7 @@ export const defaultSharedSettings: SharedSettings = {
   worktreeBasePath: "",
   wslWorktreeBasePath: "",
   gitReviewMode: "panel",
-  prCreateMode: "dialog",
+  prCreateMode: "auto",
   prAutomationDefault: "off",
   prMergeMethod: "squash",
   commitDefaultAction: "commit-push",
@@ -855,6 +903,7 @@ export const defaultSharedSettings: SharedSettings = {
     collapsedProviders: [],
     selectedRingGroups: {},
   },
+  hostResourceAdmission: { ...DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS },
   crossagentRoutingGuide: "",
 };
 
@@ -867,13 +916,27 @@ function normalizeObjectFromSchema<
   TShape extends z.ZodRawShape,
   TOutput extends z.infer<z.ZodObject<TShape>>,
 >(shape: TShape, defaults: TOutput, value: unknown): TOutput {
-  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  const parsed = settingsUnknownRecordSchema.safeParse(value);
   const data = parsed.success ? parsed.data : {};
   const normalized = {} as TOutput;
 
   for (const key of Object.keys(defaults) as (keyof TOutput)[]) {
     const schema = shape[key as string] as z.ZodType<TOutput[typeof key]>;
     normalized[key] = parseSettingOrDefault(schema, data[key as string], defaults[key]);
+  }
+
+  // Defaultless optional keys (the canonical AI-utility selections) are not
+  // covered by the defaults-driven loop: a present value is preserved exactly
+  // when it parses; an absent value stays absent (no backfill from the legacy
+  // scalar siblings, no minted default); a present value that fails its schema
+  // is dropped from the projection, never replaced.
+  for (const key of Object.keys(shape)) {
+    if (Object.hasOwn(defaults, key)) continue;
+    const schema = shape[key] as z.ZodType;
+    const optional = schema.safeParse(data[key]);
+    if (optional.success && optional.data !== undefined) {
+      normalized[key as keyof TOutput] = optional.data as TOutput[keyof TOutput];
+    }
   }
 
   return normalized;
@@ -1548,7 +1611,7 @@ export function pickAntigravityAcpAliasMigratedFields(
  * resetting the whole map (which the per-field schema fallback would do).
  */
 function normalizeMachineSettings(value: unknown): SharedSettings["machineSettings"] {
-  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  const parsed = settingsUnknownRecordSchema.safeParse(value);
   if (!parsed.success) return {};
   const result: SharedSettings["machineSettings"] = {};
   for (const [key, entry] of Object.entries(parsed.data)) {
@@ -1563,46 +1626,54 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
   settings: SharedSettings;
   acpAliasMigrated: boolean;
 } {
+  const migratedValue = sanitizeLegacyMcpServerUrls(value);
   const normalized = normalizeObjectFromSchema(
     sharedSettingsSchema.shape,
     defaultSharedSettings,
-    value,
+    migratedValue,
   );
-  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  const parsed = settingsUnknownRecordSchema.safeParse(migratedValue);
   if (!parsed.success) return { settings: normalized, acpAliasMigrated: false };
+  return migrateSharedSettingsValues(
+    { ...normalized, machineSettings: normalizeMachineSettings(parsed.data.machineSettings) },
+    parsed.data,
+  );
+}
 
-  const hasAutomationMode = prAutomationModeSchema.safeParse(
-    parsed.data.prAutomationDefault,
-  ).success;
+/** Applies existing migrations to validated values; object spreads retain private future fields. */
+export function migrateSharedSettingsValues(
+  normalized: SharedSettings,
+  source: Record<string, unknown>,
+): { settings: SharedSettings; acpAliasMigrated: boolean } {
+  const hasAutomationMode = prAutomationModeSchema.safeParse(source.prAutomationDefault).success;
   const legacyAutomationMode =
-    parsed.data.prAutoMergeDefault === true
-      ? "merge"
-      : parsed.data.prWatchDefault === true
-        ? "fix"
-        : "off";
+    source.prAutoMergeDefault === true ? "merge" : source.prWatchDefault === true ? "fix" : "off";
   // Unversioned settings file: migrate the two legacy sleep booleans into
   // the single `preventSleep` enum. An explicit valid value always wins.
   const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(
-    parsed.data.preventSleep,
+    source.preventSleep,
   ).success;
   const hasLegacyPreventSleepKeys =
-    "preventSleepWhileWorking" in parsed.data || "remoteAccessPreventSleep" in parsed.data;
+    "preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source;
   const migratedPreventSleep =
     !hasPreventSleep && hasLegacyPreventSleepKeys
-      ? parsed.data.remoteAccessPreventSleep === true
+      ? source.remoteAccessPreventSleep === true
         ? ("while-remote-access" as const)
         : ("while-working" as const)
       : normalized.preventSleep;
-  const usage = z.record(z.string(), z.unknown()).safeParse(parsed.data.usage);
+  const usage = settingsUnknownRecordSchema.safeParse(source.usage);
   const disabledProviders = usage.success
-    ? z.array(z.string()).safeParse(usage.data.disabledProviders)
+    ? settingsStringListSchema.safeParse(usage.data.disabledProviders)
     : undefined;
   return migrateAntigravityAcpAliasState(
     migrateRetiredQwenPreviewModel({
       ...normalized,
-      machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
+      // Legacy `chrome_`-prefixed tool names are normalized once here at the
+      // load boundary so the Zod schema (and the remote-v3 wire derived from
+      // it) can stay transform-free.
+      disabledBuiltInMcpTools: normalizeBuiltInMcpDisabledTools(normalized.disabledBuiltInMcpTools),
       prAutomationDefault: hasAutomationMode
         ? normalized.prAutomationDefault
         : legacyAutomationMode,
@@ -1617,6 +1688,44 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       },
     }),
   );
+}
+
+/**
+ * Older unversioned settings accepted URL userinfo and fragments for HTTP/SSE
+ * MCP transports. Strip those credential-bearing components before the
+ * stricter schema parses the list so one legacy entry does not reset all MCP
+ * servers to the default empty list.
+ */
+export function sanitizeLegacyMcpServerUrls(value: unknown): unknown {
+  const root = settingsUnknownRecordSchema.safeParse(value);
+  if (!root.success || !Array.isArray(root.data.mcpServers)) return value;
+  return {
+    ...(value as Record<string, unknown>),
+    mcpServers: root.data.mcpServers.map((entry) => {
+      const server = settingsUnknownRecordSchema.safeParse(entry);
+      if (!server.success) return entry;
+      const transport = settingsUnknownRecordSchema.safeParse(server.data.transport);
+      if (
+        !transport.success ||
+        (transport.data.type !== "http" && transport.data.type !== "sse") ||
+        typeof transport.data.url !== "string"
+      ) {
+        return entry;
+      }
+      try {
+        const url = new URL(transport.data.url);
+        url.username = "";
+        url.password = "";
+        url.hash = "";
+        return {
+          ...(entry as Record<string, unknown>),
+          transport: { ...(server.data.transport as Record<string, unknown>), url: url.toString() },
+        };
+      } catch {
+        return entry;
+      }
+    }),
+  };
 }
 
 export function normalizeSharedSettings(value: unknown): SharedSettings {

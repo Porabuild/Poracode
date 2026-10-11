@@ -170,6 +170,7 @@ function makeRequests(
     ensureMapperState: () => createAcpMapperState("thread-1"),
     emitRuntimeEvents,
     setRequestAttention,
+    createRequestId: (kind, seq) => `acp-${kind}-${seq}`,
   });
   return { emitRuntimeEvents, requests, setRequestAttention };
 }
@@ -284,7 +285,7 @@ describe("AcpSessionRequests permissions", () => {
     ]);
   });
 
-  it("cancels Qwen AskUserQuestion without forwarding answers", async () => {
+  it("cancels Qwen AskUserQuestion without forwarding answers and stays answered", async () => {
     const { emitRuntimeEvents, requests, setRequestAttention } = makeRequests();
     const response = requests.requestPermission(questionPermissionRequest());
 
@@ -696,7 +697,7 @@ describe("AcpSessionRequests elicitations", () => {
     ]);
   });
 
-  it("resolves a URL elicitation from its completion notification exactly once", async () => {
+  it("resolves a URL elicitation from its completion notification exactly once and stays answered", async () => {
     const { emitRuntimeEvents, requests } = makeRequests();
     const response = requests.createElicitation(urlElicitation());
     emitRuntimeEvents.mockClear();
@@ -719,6 +720,98 @@ describe("AcpSessionRequests elicitations", () => {
     emitRuntimeEvents.mockClear();
     requests.completeElicitation({ elicitationId: "elicit-1" });
     expect(emitRuntimeEvents).not.toHaveBeenCalled();
+  });
+});
+
+describe("AcpSessionRequests elicitation outcomes", () => {
+  it.each([
+    {
+      label: "accept→answered",
+      action: "accept",
+      reply: { action: "accept", content: { scope: "Scope A" } },
+      outcome: "answered",
+    },
+    {
+      label: "decline→declined",
+      action: "decline",
+      reply: { action: "decline" },
+      outcome: "declined",
+    },
+    {
+      label: "cancel→cancelled",
+      action: "cancel",
+      reply: { action: "cancel" },
+      outcome: "cancelled",
+    },
+  ] as const)("records elicitation $label", async ({ action, reply, outcome }) => {
+    const { emitRuntimeEvents, requests } = makeRequests();
+    const response = requests.createElicitation(formElicitation());
+    emitRuntimeEvents.mockClear();
+
+    expect(requests.resolve("acp-elicit-0", reply)).toBe(true);
+
+    await expect(response).resolves.toMatchObject({ action });
+    const events = emitRuntimeEvents.mock.calls.flatMap(([batch]) => batch);
+    expect(events).toContainEqual({
+      type: "request.resolved",
+      threadId: "thread-1",
+      requestId: "acp-elicit-0",
+      outcome,
+    });
+    expect(events.some((event) => event.type === "item.started")).toBe(action === "accept");
+
+    emitRuntimeEvents.mockClear();
+    expect(requests.resolve("acp-elicit-0", reply)).toBe(false);
+    expect(emitRuntimeEvents).not.toHaveBeenCalled();
+  });
+});
+
+describe("AcpSessionRequests request ids", () => {
+  function makeProductionIdRequests() {
+    const emitRuntimeEvents = vi.fn<(events: RuntimeEvent[]) => void>();
+    const requests = new AcpSessionRequests({
+      threadId: "thread-1",
+      getPermissionContext: () => ({ config: undefined, availableModeIds: [] }),
+      ensureMapperState: () => createAcpMapperState("thread-1"),
+      emitRuntimeEvents,
+      setRequestAttention:
+        vi.fn<(attention: "needs_approval" | "needs_reply" | "working") => void>(),
+    });
+    const openedIds = () =>
+      emitRuntimeEvents.mock.calls
+        .flatMap(([batch]) => batch)
+        .flatMap((event) => (event.type === "request.opened" ? [event.requestId] : []));
+    return { openedIds, requests };
+  }
+
+  it("keeps four request ids distinct across instances, and a foreign id does not resolve", async () => {
+    const first = makeProductionIdRequests();
+    const second = makeProductionIdRequests();
+
+    const firstResponse = first.requests.createElicitation(formElicitation());
+    const secondResponse = second.requests.createElicitation(formElicitation());
+    const firstPermission = first.requests.requestPermission(permissionRequest());
+    const secondPermission = second.requests.requestPermission(permissionRequest());
+
+    const [firstElicitId, firstPermId] = first.openedIds();
+    const [secondElicitId, secondPermId] = second.openedIds();
+    expect(firstElicitId).toMatch(/^acp-elicit-.+-0$/);
+    expect(firstPermId).toMatch(/^acp-perm-.+-0$/);
+    expect(new Set([firstElicitId, firstPermId, secondElicitId, secondPermId]).size).toBe(4);
+
+    // A delayed reply addressed to the first instance's id must not touch the second.
+    expect(second.requests.resolve(firstElicitId!, { action: "accept", content: {} })).toBe(false);
+    expect(second.requests.resolve(firstPermId!, { optionId: "once" })).toBe(false);
+
+    expect(first.requests.resolve(firstElicitId!, { action: "decline" })).toBe(true);
+    await expect(firstResponse).resolves.toEqual({ action: "decline" });
+    expect(second.requests.resolve(secondElicitId!, { action: "cancel" })).toBe(true);
+    await expect(secondResponse).resolves.toEqual({ action: "cancel" });
+
+    first.requests.cancelPending();
+    second.requests.cancelPending();
+    await expect(firstPermission).resolves.toEqual({ outcome: { outcome: "cancelled" } });
+    await expect(secondPermission).resolves.toEqual({ outcome: { outcome: "cancelled" } });
   });
 });
 

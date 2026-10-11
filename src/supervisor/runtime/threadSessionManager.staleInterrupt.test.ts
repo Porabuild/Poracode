@@ -528,4 +528,45 @@ describe("ThreadSessionManager steer capability", () => {
 
     expect(structuredSession.interruptTurn).toHaveBeenCalledTimes(1);
   });
+
+  it("interrupt-drain steer applies the replacement model, effort, and Fast", async () => {
+    const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(async () => {});
+    const structuredSession = steerableSession(false);
+    structuredSession.startTurn = startTurn;
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+    const nextConfig = {
+      model: "gpt-5.5",
+      effort: "low",
+      fast: false,
+    };
+
+    await manager.setPendingSteer({
+      threadId: THREAD_ID,
+      prompt: "steer with new picker",
+      config: nextConfig,
+    });
+
+    expect(session.config).toEqual(nextConfig);
+    expect(structuredSession.interruptTurn).toHaveBeenCalledTimes(1);
+
+    session.status = "idle";
+    await (
+      manager as unknown as {
+        steerCoordinator: {
+          maybeDrainPendingSteer(current: SessionRuntime): Promise<void> | undefined;
+        };
+      }
+    ).steerCoordinator.maybeDrainPendingSteer(session);
+
+    expect(startTurn).toHaveBeenCalledWith(
+      "steer with new picker",
+      nextConfig,
+      undefined,
+      expect.objectContaining({ userMessageItemId: expect.any(String) }),
+    );
+    expect(session.config).toEqual(nextConfig);
+  });
 });

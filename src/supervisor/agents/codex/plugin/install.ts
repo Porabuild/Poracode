@@ -5,14 +5,12 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
-  readFileSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
 import { buildAgentCommand, execInWsl, quotePosixShellArg } from "../../base";
 import { resolveAgentBinaryPath } from "../../binaryResolver";
@@ -22,22 +20,27 @@ import {
   copyForwardRuntimeFile,
   copyPluginAssetsIfStale,
   createPluginSourceResolver,
-  ctxCacheKey,
   ensureNativeStateLink,
+  getNativeHookWrapperFilename,
   getNativePluginBaseDir,
-  getWslPluginBaseDirs,
-  hasNativeHookWrapper,
   isWslPluginContext,
-  memoByCtx,
   parseExistingHooksJson,
   readBundledPluginVersion,
   readPluginManifest,
+  readPluginManifestWith,
+  resolvePluginVerificationIo,
+  resolveWslPluginBaseDirs,
+  ensureWslDirectory,
+  parseHooksJsonText,
+  readWslTextFile,
   removeStagedPluginDir,
   removeWithoutFollowingSymlinks,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   writeHooksJsonFile,
   writeNativeHookWrapper,
   type PluginManifest,
+  type PluginVerificationTarget,
 } from "../../plugin/installerBase";
 import { resolveCodexNativeExecutableForWindows } from "../windowsExecutable";
 import { refreshProfileOverlayState } from "./profileOverlay";
@@ -48,7 +51,7 @@ export interface CodexPluginPaths {
   codexHomeDir: string;
   /** Path to hooks.json inside the private CODEX_HOME. */
   codexHooksPath: string;
-  version: string;
+  version?: string;
 }
 
 const CODEX_HOOK_EVENTS = [
@@ -107,28 +110,30 @@ function overlayHomeDir(pluginDir: string, overlay?: CodexHomeOverlay): string {
   return join(pluginDir, PROFILE_OVERLAYS_DIR, overlay.profileId, homeKey, "home");
 }
 
-function computeCodexPluginPaths(ctx?: AgentEnvContext): CodexPluginPaths {
+/**
+ * Resolve Codex's private plugin paths. WSL resolves the home directory
+ * through the bounded worker-backed probe, so a caller never receives empty
+ * paths merely because the sync home cache was cold. Native profiles use an
+ * account-scoped overlay; WSL profiles run without the hook plugin.
+ */
+export async function getCodexPluginPaths(
+  ctx?: AgentEnvContext,
+  overlay?: CodexHomeOverlay,
+): Promise<CodexPluginPaths> {
   if (isWslPluginContext(ctx)) {
-    const wsl = getWslPluginBaseDirs(ctx.wslDistro, "codex");
+    const wsl = await resolveWslPluginBaseDirs(ctx.wslDistro, "codex");
     if (!wsl) {
       return { pluginDir: "", codexHomeDir: "", codexHooksPath: "", version: "0.0.0" };
     }
     const linuxCodexHome = `${wsl.linuxBase}/home`;
-    let version = "0.0.0";
-    try {
-      version = readPluginManifest(wsl.uncBase).version;
-    } catch {
-      // ignore
-    }
     return {
       pluginDir: wsl.linuxBase,
       codexHomeDir: linuxCodexHome,
       codexHooksPath: `${linuxCodexHome}/hooks.json`,
-      version,
     };
   }
   const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
-  const codexHomeDir = join(pluginDir, "home");
+  const codexHomeDir = overlayHomeDir(pluginDir, overlay);
   let version = "0.0.0";
   try {
     version = readPluginManifest(pluginDir).version;
@@ -141,18 +146,6 @@ function computeCodexPluginPaths(ctx?: AgentEnvContext): CodexPluginPaths {
     codexHooksPath: join(codexHomeDir, "hooks.json"),
     version,
   };
-}
-
-const codexPluginPathsMemo = memoByCtx(computeCodexPluginPaths, ctxCacheKey);
-
-export function getCodexPluginPaths(
-  ctx?: AgentEnvContext,
-  overlay?: CodexHomeOverlay,
-): CodexPluginPaths {
-  const base = codexPluginPathsMemo.call(ctx);
-  if (!overlay || isWslPluginContext(ctx)) return base;
-  const codexHomeDir = overlayHomeDir(base.pluginDir, overlay);
-  return { ...base, codexHomeDir, codexHooksPath: join(codexHomeDir, "hooks.json") };
 }
 
 function prunePoracodeGroups(groups: unknown): unknown[] {
@@ -274,8 +267,7 @@ async function seedWslCodexHome(
   home: string,
   linuxCodexHome: string,
 ): Promise<void> {
-  const uncCodexHome = toWslUncPath(distro, linuxCodexHome);
-  mkdirSync(uncCodexHome, { recursive: true });
+  await ensureWslDirectory(distro, linuxCodexHome);
   const globalCodexHome = `${home}/.codex`;
   const linkExists = (path: string) =>
     `[ -e ${quotePosixShellArg(path)} ] || [ -L ${quotePosixShellArg(path)} ]`;
@@ -477,7 +469,7 @@ async function installCodexPluginWsl(
   manifest: PluginManifest,
   resolvedNodePath: string,
 ): Promise<{ ok: true; paths: CodexPluginPaths; version: string } | { ok: false; reason: string }> {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "codex", {
+  const staged = await stagePluginAssetsToWsl(distro, sourceDir, "codex", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
@@ -486,10 +478,10 @@ async function installCodexPluginWsl(
   const linuxCodexHome = `${staged.linuxPluginDir}/home`;
   await seedWslCodexHome(distro, staged.deploy.home, linuxCodexHome);
   const linuxHooksPath = `${linuxCodexHome}/hooks.json`;
-  const uncHooks = toWslUncPath(distro, linuxHooksPath);
 
-  const existing = parseExistingHooksJson(uncHooks);
-  if (existing === null && existsSync(uncHooks)) {
+  const raw = await readWslTextFile(distro, linuxHooksPath);
+  const existing = raw === null ? null : parseHooksJsonText(raw);
+  if (existing === null && raw !== null) {
     return {
       ok: false,
       reason: `malformed private Codex hooks.json in wsl distro ${distro}`,
@@ -503,7 +495,7 @@ async function installCodexPluginWsl(
 
   try {
     const merged = mergeCodexHooksDocument(existing, commandHead);
-    writeHooksJsonFile(uncHooks, merged);
+    await writeWslTextFile(distro, linuxHooksPath, `${JSON.stringify(merged, null, 2)}\n`);
   } catch (error) {
     return {
       ok: false,
@@ -533,19 +525,17 @@ async function installCodexPluginWsl(
   };
 }
 
-export function isCodexPluginInstalled(
+export async function isCodexPluginInstalled(
   ctx?: AgentEnvContext,
   overlay?: CodexHomeOverlay,
 ): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
-    const wsl = getWslPluginBaseDirs(ctx.wslDistro, "codex");
-    if (!wsl) return Promise.resolve({ installed: false });
-    return Promise.resolve(verifyCodexInstallAt(wsl.uncBase, "wsl"));
+    const wsl = await resolveWslPluginBaseDirs(ctx.wslDistro, "codex");
+    if (!wsl) return { installed: false };
+    return verifyCodexInstallAt(wsl.linuxBase, "wsl", { distro: ctx.wslDistro });
   }
   const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
-  return Promise.resolve(
-    verifyCodexInstallAt(pluginDir, "native", overlayHomeDir(pluginDir, overlay)),
-  );
+  return verifyCodexInstallAt(pluginDir, "native", undefined, overlayHomeDir(pluginDir, overlay));
 }
 
 /** True when any profile overlay under `pluginDir` still has its hooks installed. */
@@ -565,9 +555,12 @@ function hasInstalledProfileOverlay(pluginDir: string): boolean {
     .some((overlayRoot) => existsSync(join(overlayRoot, "home", "hooks.json")));
 }
 
-export function uninstallCodexPlugin(ctx?: AgentEnvContext, overlay?: CodexHomeOverlay): void {
+export async function uninstallCodexPlugin(
+  ctx?: AgentEnvContext,
+  overlay?: CodexHomeOverlay,
+): Promise<void> {
   if (isWslPluginContext(ctx)) {
-    removeStagedPluginDir("codex", ctx);
+    await removeStagedPluginDir("codex", ctx);
     return;
   }
   const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
@@ -575,14 +568,15 @@ export function uninstallCodexPlugin(ctx?: AgentEnvContext, overlay?: CodexHomeO
     // Assets are shared with the base account and other profiles; only
     // disable this profile home's hook entrypoint.
     try {
-      unlinkSync(getCodexPluginPaths(ctx, overlay).codexHooksPath);
+      const paths = await getCodexPluginPaths(ctx, overlay);
+      unlinkSync(paths.codexHooksPath);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
     return;
   }
   if (!hasInstalledProfileOverlay(pluginDir)) {
-    removeStagedPluginDir("codex", ctx);
+    await removeStagedPluginDir("codex", ctx);
     return;
   }
   // Profiles still run hooks from the shared assets: remove only the base
@@ -590,19 +584,28 @@ export function uninstallCodexPlugin(ctx?: AgentEnvContext, overlay?: CodexHomeO
   removeWithoutFollowingSymlinks(join(pluginDir, "home"));
 }
 
-function verifyCodexInstallAt(
+const CODEX_VERIFY_ASSETS = ["plugin.json", "forward.mjs", FORWARD_RUNTIME_FILE] as const;
+
+async function verifyCodexInstallAt(
   readableDir: string,
   target: "native" | "wsl",
-  homeDir: string = join(readableDir, "home"),
-): { installed: boolean; version?: string } {
-  const hooksPath = join(homeDir, "hooks.json");
-  if (!existsSync(join(readableDir, "plugin.json"))) return { installed: false };
-  if (!existsSync(join(readableDir, "forward.mjs"))) return { installed: false };
-  if (!existsSync(join(readableDir, FORWARD_RUNTIME_FILE))) return { installed: false };
-  if (!hasNativeHookWrapper(readableDir, target)) return { installed: false };
-  if (!existsSync(hooksPath)) return { installed: false };
+  options?: PluginVerificationTarget,
+  homeDir?: string,
+): Promise<{ installed: boolean; version?: string }> {
+  const io = resolvePluginVerificationIo(target, options);
+  for (const asset of CODEX_VERIFY_ASSETS) {
+    if (!(await io.pathExists(io.joinPath(readableDir, asset)))) return { installed: false };
+  }
+  if (
+    target === "native" &&
+    !(await io.pathExists(io.joinPath(readableDir, getNativeHookWrapperFilename())))
+  ) {
+    return { installed: false };
+  }
+  const hooksPath = io.joinPath(homeDir ?? io.joinPath(readableDir, "home"), "hooks.json");
   try {
-    const raw = readFileSync(hooksPath, "utf8");
+    const raw = await io.readTextFile(hooksPath);
+    if (raw === null) return { installed: false };
     const doc = JSON.parse(raw) as { hooks?: Record<string, unknown> };
     if (!doc.hooks) return { installed: false };
     let found = false;
@@ -624,8 +627,8 @@ function verifyCodexInstallAt(
       }
     }
     if (!found) return { installed: false };
-    const version = readPluginManifest(readableDir).version;
-    return { installed: true, version };
+    const manifest = await readPluginManifestWith(io, readableDir);
+    return { installed: true, version: manifest.version };
   } catch {
     return { installed: false };
   }

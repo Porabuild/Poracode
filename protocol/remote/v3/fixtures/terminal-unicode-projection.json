@@ -1,0 +1,80 @@
+{
+  "unicodeVersion": "11",
+  "cases": [
+    {
+      "id": "wide-redraw",
+      "input": "漢字🌐\u001b[2D🌐",
+      "expected": "漢字🌐"
+    },
+    {
+      "id": "overwrite-wide-leading",
+      "input": "漢字🌐\u001b[3GX",
+      "expected": "漢X 🌐"
+    },
+    {
+      "id": "overwrite-wide-trailing",
+      "input": "漢字\u001b[2GX",
+      "expected": " X字"
+    },
+    {
+      "id": "combining-column",
+      "input": "éX\u001b[2GZ",
+      "expected": "éZ"
+    },
+    {
+      "id": "wide-backspace",
+      "input": "漢X\bZ",
+      "expected": "漢Z"
+    },
+    {
+      "id": "wide-tab",
+      "input": "漢\tX",
+      "expected": "漢      X"
+    },
+    {
+      "id": "erase-before-preserves-column",
+      "input": "漢字Z\u001b[3G\u001b[1KX",
+      "expected": "  X Z"
+    },
+    {
+      "id": "erase-entire-preserves-column",
+      "input": "ab\u001b[2KX",
+      "expected": "  X"
+    },
+    {
+      "id": "erase-after-wide-trailing",
+      "input": "漢字\u001b[2G\u001b[KX",
+      "expected": " X"
+    },
+    {
+      "id": "supplementary-cjk",
+      "input": "𠀀X\u001b[3GZ",
+      "expected": "𠀀Z"
+    },
+    {
+      "id": "combining-after-style",
+      "input": "e\u001b[31ḿX\u001b[2GZ",
+      "expected": "eZX"
+    },
+    {
+      "id": "crlf-redraw",
+      "input": "hello\r\n漢字\r\u001b[Kdone",
+      "expected": "hello\ndone"
+    },
+    {
+      "id": "osc-title-hidden",
+      "input": "before\u001b]0;private title\u0007after",
+      "expected": "beforeafter"
+    },
+    {
+      "id": "osc-link-hidden",
+      "input": "\u001b]8;;https://example.test/private\u001b\\link\u001b]8;;\u001b\\",
+      "expected": "link"
+    },
+    {
+      "id": "long-control-string-hidden",
+      "input": "before\u001b]0;metadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadatametadata\u001b\\after",
+      "expected": "beforeafter"
+    }
+  ]
+}

@@ -1,15 +1,42 @@
 export const productionRoots = [
   "src/main/",
+  "src/backend/",
+  "src/host/",
   "src/preload/",
   "src/renderer/",
   "src/shared/",
   "src/supervisor/",
-  "src/mobile/",
   "src/server/",
   "chrome-extension/",
 ];
 
 export const functionalAreas = [
+  {
+    id: "renderer-styles",
+    title: "Shared and component renderer styles",
+    patterns: [/^src\/renderer\/.*\.css$/],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
+    id: "delegated-agent-recovery",
+    title: "Delegated-agent host restart and remote snapshot recovery",
+    patterns: [
+      /delegatedAgent/i,
+      /staleSubAgents/,
+      /resetThreadProjection/,
+      /toolCallClassification/,
+    ],
+    automated: ["baseline"],
+    manual: ["delegated-agent-recovery"],
+  },
+  {
+    id: "remote-provider-usage",
+    title: "Host-scoped provider usage and live remote refresh",
+    patterns: [/hostUsage/i, /HostUsageSettings/, /parts\/UsageSettings/],
+    automated: ["baseline", "settings"],
+    manual: ["remote-usage"],
+  },
   {
     id: "live-voice",
     title: "Subscription live voice, microphone ownership, WebRTC, and transcripts",
@@ -46,14 +73,40 @@ export const functionalAreas = [
   {
     id: "providers-models",
     title: "Provider discovery, model selection, and provider plugins",
-    patterns: [/providers?\//i, /agents\/registry/i, /agentRegistry/i, /ProviderModelMenu/],
+    patterns: [
+      /agents\/devin\//i,
+      /providers?\//i,
+      /agents\/registry/i,
+      /agentRegistry/i,
+      /ProviderModelMenu/,
+    ],
     automated: ["baseline"],
     manual: ["provider-live"],
   },
   {
+    id: "session-actions",
+    title: "Live structured session actions and provider control ownership",
+    patterns: [
+      /sessionActions/i,
+      /sessionAction/i,
+      /providerSessionControls/i,
+      /providers\/devin\/liveSessionControls/i,
+      /providers\/devin\/sessionOwnership/i,
+    ],
+    automated: ["baseline"],
+    manual: ["ipc-roundtrip", "provider-live", "changed-surface", "remote-client"],
+  },
+  {
     id: "threads-chat",
     title: "Thread draft, composer, chat, history, and runtime requests",
-    patterns: [/thread/i, /ChatPane/, /composer/i, /runtimeEvent/i, /session/i],
+    patterns: [
+      /thread/i,
+      /ChatPane/,
+      /composer/i,
+      /runtimeEvent/i,
+      /session/i,
+      /agents\/acp\/canonicalMapping\//,
+    ],
     automated: ["baseline", "thread-search"],
     manual: ["provider-live", "runtime-requests"],
   },
@@ -74,7 +127,17 @@ export const functionalAreas = [
   {
     id: "git-review",
     title: "Git status, staging, review, conflicts, and pull requests",
-    patterns: [/git/i, /PrReview/i, /mergeConflict/i],
+    patterns: [
+      /git/i,
+      /PrReview/i,
+      /mergeConflict/i,
+      /MobileWorkspacePage/,
+      /components\/media\//,
+      /fileMedia/i,
+      /clientApiMedia/,
+      /playbackGrants/,
+      /fileResponseStream/,
+    ],
     automated: ["baseline"],
     manual: ["git-mutations"],
   },
@@ -88,9 +151,20 @@ export const functionalAreas = [
   {
     id: "file-editor",
     title: "Project tree, file editor, Monaco, and file mutations",
-    patterns: [/FileEditor/i, /fileEditor/i, /projectTree/i, /FileIndex/i],
+    patterns: [
+      /FileEditor/i,
+      /fileEditor/i,
+      /projectTree/i,
+      /FileIndex/i,
+      /MobileWorkspacePage/,
+      /components\/media\//,
+      /fileMedia/i,
+      /clientApiMedia/,
+      /playbackGrants/,
+      /fileResponseStream/,
+    ],
     automated: ["baseline"],
-    manual: ["file-editor"],
+    manual: ["file-editor", "editor-media"],
   },
   {
     id: "browser",
@@ -104,7 +178,7 @@ export const functionalAreas = [
     title: "Device scheduled tasks, persistence, and remote management",
     patterns: [/schedule/i],
     automated: ["baseline", "schedules"],
-    manual: ["ipc-roundtrip", "remote-mobile"],
+    manual: ["ipc-roundtrip", "remote-client"],
   },
   {
     id: "settings",
@@ -132,11 +206,11 @@ export const functionalAreas = [
     manual: ["native-auth-update"],
   },
   {
-    id: "remote-mobile",
-    title: "Remote access, mobile UI, pairing, and push",
-    patterns: [/^src\/mobile\//, /remote/i, /pairing/i, /push/i],
+    id: "remote-client",
+    title: "Remote access, adaptive client, chat sidebar, pairing, and push",
+    patterns: [/^src\/renderer\/(?:browser|native|pwa|sidebar)\//, /remote/i, /pairing/i, /push/i],
     automated: ["settings"],
-    manual: ["remote-mobile"],
+    manual: ["remote-client"],
   },
   {
     id: "native-mcp-setup",
@@ -181,9 +255,31 @@ export const functionalAreas = [
     manual: ["quick-composer"],
   },
   {
+    id: "side-chat",
+    title: "Independent GUI side conversations and native window ownership",
+    patterns: [/sideChat/i, /SideChat/, /auxiliaryThreadWindows/],
+    automated: ["baseline"],
+    manual: ["side-chat"],
+  },
+  {
+    id: "performance-diagnostics",
+    title: "Optional local process performance recording and shutdown",
+    patterns: [
+      /^src\/shared\/diagnostics\/(processPerformanceSampler|performanceEvidenceWriter|nodePerformanceDiagnostics)/,
+    ],
+    automated: ["baseline"],
+    manual: ["ipc-roundtrip"],
+  },
+  {
     id: "shared-runtime",
     title: "Shared contracts, persistence, runtime utilities, and server infrastructure",
-    patterns: [/^src\/shared\//, /^src\/supervisor\//, /^src\/server\//],
+    patterns: [
+      /^src\/backend\//,
+      /^src\/host\//,
+      /^src\/shared\//,
+      /^src\/supervisor\//,
+      /^src\/server\//,
+    ],
     automated: ["baseline"],
     manual: ["ipc-roundtrip"],
   },
@@ -197,10 +293,16 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "delegated-agent-recovery":
+    "Restart an isolated host with historical native and Crossagent rows; verify terminal state, retained output, current/stale snapshot fencing and live-run preservation.",
+  "remote-usage":
+    "Select two isolated hosts with matching provider IDs, verify separate accounts and real host collection, then check attached Electron, viewer/auth denial, stale/offline/reconnect, and compact browser settings. Credentials must remain on each owning host.",
   "live-voice":
     "Start voice from the composer, exchange speech, mute, hang up, and verify microphone cleanup and saved transcripts.",
   "changed-surface": "Exercise the changed renderer surface through its real controls.",
   "file-editor": "Open, edit, save, rename, and close a fixture file.",
+  "editor-media":
+    "Inspect images and inert SVG source/preview; play and seek audio/video, reload changed files, and verify desktop plus paired compact presentation.",
   "git-mutations": "Stage/unstage a fixture file and open Git Review without touching user data.",
   "github-actions-live":
     "Against an isolated GitHub fixture, list workflows and runs, dispatch a safe workflow, then verify rerun and delete controls.",
@@ -213,12 +315,14 @@ export const manualGates = {
     "Create or select an isolated project/worktree and verify persistence after reload.",
   "quick-composer":
     "Invoke the global composer, drag and reopen it, exercise controls and dismissal motion, then submit and verify the new thread opens in the main window.",
+  "side-chat":
+    "Open the right panel from bare /btw and the separate + item, send /btw questions with hidden parent context, detach/attach the same session and draft, reload, follow up, and close without changing the parent.",
   "provider-live":
     "Launch a fresh isolated thread with each changed provider and observe first output.",
   "provider-skill-delivery":
     "Launch each supported provider with an isolated managed skill and verify the provider discovers and invokes it.",
-  "remote-mobile":
-    "Pair an isolated mobile client and verify reconnect plus one read-only action; for push changes, verify background delivery and notification-tap routing.",
+  "remote-client":
+    "Pair the canonical app in an isolated browser or native shell and verify reconnect plus one read-only action; for push changes, verify background delivery and notification-tap routing.",
   "runtime-requests": "Trigger approval and structured-input requests; deny or submit safely.",
   "terminal-pty": "Launch a terminal thread, send input, resize, interrupt, and stop the real PTY.",
   "skills-manager":
@@ -229,7 +333,7 @@ export const manualGates = {
 
 export function isProductionFile(file) {
   if (!productionRoots.some((root) => file.startsWith(root))) return false;
-  if (!/\.(?:[cm]?[jt]sx?)$/.test(file)) return false;
+  if (!/\.(?:[cm]?[jt]sx?|css)$/.test(file)) return false;
   return !/(?:^|\/)(?:__tests__|fixtures)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file);
 }
 

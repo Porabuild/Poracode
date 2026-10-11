@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "id": "empty-path-home-unicode-truncated",
+      "request": { "path": "" },
+      "result": {
+        "path": "/Users/zoë",
+        "parentPath": "/Users",
+        "homePath": "/Users/zoë",
+        "entries": [
+          { "name": ".config", "path": "/Users/zoë/.config", "type": "directory" },
+          { "name": "项目", "path": "/Users/zoë/项目", "type": "directory" },
+          { "name": "résumé.md", "path": "/Users/zoë/résumé.md", "type": "file" }
+        ],
+        "truncated": true
+      }
+    },
+    {
+      "id": "posix-root",
+      "request": { "path": "/" },
+      "result": {
+        "path": "/",
+        "parentPath": null,
+        "homePath": "/home/dev",
+        "entries": [
+          { "name": "etc", "path": "/etc", "type": "directory" },
+          { "name": "home", "path": "/home", "type": "directory" }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "id": "windows-drive-pseudo-root",
+      "request": { "path": "::drives::" },
+      "result": {
+        "path": "::drives::",
+        "parentPath": null,
+        "homePath": "C:\\Users\\Dev",
+        "entries": [
+          { "name": "C:", "path": "C:\\", "type": "directory" },
+          { "name": "D:", "path": "D:\\", "type": "directory" }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "id": "wsl-localhost-unc",
+      "request": { "path": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\zoë\\项目" },
+      "result": {
+        "path": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\zoë\\项目",
+        "parentPath": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\zoë",
+        "homePath": "C:\\Users\\Zoë",
+        "entries": [
+          {
+            "name": "src",
+            "path": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\zoë\\项目\\src",
+            "type": "directory"
+          },
+          {
+            "name": "README.md",
+            "path": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\zoë\\项目\\README.md",
+            "type": "file"
+          }
+        ],
+        "truncated": false
+      }
+    },
+    {
+      "id": "wsl-dollar-unc",
+      "request": { "path": "\\\\wsl$\\Debian\\home\\dev\\repo" },
+      "result": {
+        "path": "\\\\wsl$\\Debian\\home\\dev\\repo",
+        "parentPath": "\\\\wsl$\\Debian\\home\\dev",
+        "homePath": "C:\\Users\\Dev",
+        "entries": [],
+        "truncated": false
+      }
+    }
+  ]
+}

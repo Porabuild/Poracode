@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { MUSE_GOAL_THREAD_TITLE_COMMAND } from "@/shared/agents/museGoalCommand";
 import { stripAnsi } from "@/shared/ansi";
 import type { AgentCapability, AgentTerminalAuthMethod, ProjectLocation } from "@/shared/contracts";
 import {
@@ -36,7 +37,15 @@ const MUSE_STATIC_MODELS: Array<{ id: string; label: string }> = [
 
 const MUSE_MODEL_IDS: string[] = MUSE_STATIC_MODELS.map((model) => model.id);
 
-/** Static effort ladder (also the MSP `ReasoningEffort` closed enum — see msp/schemaFixture.test.ts). */
+/**
+ * Static effort ladder: the fallback when the `--help` probe yields nothing.
+ * It must stay a subset of the pinned fixture's `ReasoningEffort` enum (see
+ * msp/schemaFixture.test.ts) — never the other way round. Additive host
+ * growth (1.3.0 shipped `max`) is adopted at runtime by the help probe,
+ * which only takes ladders that keep every entry here; baking a new rung
+ * into the static list would offer it to pre-growth hosts whose closed enum
+ * rejects it.
+ */
 export const MUSE_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "ultra"] as const;
 
 // Muse approval modes: untrusted | on-request | never (CLI default on-request).
@@ -76,6 +85,9 @@ export const museDefaultCapabilities: AgentCapability = {
   bypassPermissions: { approvalPolicy: "yolo" },
   mcpScope: { terminal: "none", gui: "none" },
   settingDefs: [],
+  // `/goal <objective>` starts goal-driven work; title such threads from the
+  // objective rather than the raw command.
+  threadTitleCommands: [MUSE_GOAL_THREAD_TITLE_COMMAND],
   ...contextCaps,
 };
 
@@ -441,12 +453,12 @@ export const museDetectionSpec: DetectionSpec = {
       ...(overlay ?? {}),
     };
   },
-  // Muse ships via Meta's installer script only — no npm package, no
-  // `muse update` / self-updater. Re-run the official install script for
-  // updates. The script uses bash-isms (`set -o pipefail`), so it must be
+  // Muse ships via Meta's installer only — no npm package, no
+  // `muse update` / self-updater. Re-run the official installer for
+  // updates: the shell script on POSIX, the PowerShell script on Windows.
+  // The POSIX script uses bash-isms (`set -o pipefail`), so it must be
   // piped to `bash`, not `sh` (dash aborts with "Illegal option -o pipefail"
-  // and curl then fails with SIGPIPE). Windows runs the same installer in its
-  // default WSL distro (schema requires both platforms when `installer` is set).
+  // and curl then fails with SIGPIPE).
   update: {
     installer: {
       posix: {
@@ -454,12 +466,13 @@ export const museDetectionSpec: DetectionSpec = {
         args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
       },
       windows: {
-        binary: "wsl.exe",
+        binary: "powershell.exe",
         args: [
-          "--exec",
-          "bash",
-          "-lc",
-          "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi",
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          "irm https://dev.meta.ai/install.ps1 | iex",
         ],
       },
     },

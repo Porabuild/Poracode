@@ -15,6 +15,8 @@ import {
   normalizeItemType,
   streamForType,
 } from "../canonicalMappingState";
+import { isCodexAdvisoryNotification, mapCodexAdvisoryNotification } from "./advisory";
+import { isCodexContextCompactionItem, mapCodexContextCompaction } from "./compaction";
 import { isNewCodexGoal, readCodexGoal, updateCodexGoalIdentity } from "./goal";
 import {
   buildCompletedPayload,
@@ -51,18 +53,17 @@ export interface MapCodexNotificationOptions {
   turnSettled?: boolean;
 }
 
-/** Internal Codex item kinds that carry no chat row of their own. */
+/**
+ * Internal Codex item kinds that carry no chat row of their own. The public
+ * `contextCompaction` item is not internal — it renders via
+ * `mapCodexContextCompaction`.
+ */
 function isInternalCodexItem(item: unknown): boolean {
   if (!item || typeof item !== "object") return false;
   const kind = normalizeItemType(
     (item as CodexItemPayload).type ?? (item as CodexItemPayload).kind,
   );
-  return (
-    kind === "context compaction" ||
-    kind === "compaction" ||
-    kind === "compaction trigger" ||
-    kind === "sleep"
-  );
+  return kind === "compaction" || kind === "compaction trigger" || kind === "sleep";
 }
 
 export function mapCodexNotification(
@@ -158,6 +159,10 @@ export function mapCodexNotification(
       : [{ type: "error", threadId, message }];
   }
 
+  if (isCodexAdvisoryNotification(method)) {
+    return mapCodexAdvisoryNotification(method, params, state);
+  }
+
   if (method === "serverRequest/resolved") {
     const requestId =
       typeof params?.requestId === "string" || typeof params?.requestId === "number"
@@ -232,9 +237,12 @@ export function mapCodexNotification(
     const item = readItem(params);
     const codexItemId = readItemId(params, item);
     if (!item || !codexItemId) return [];
-    // Internal lifecycle items (auto-compaction, `clock.sleep`) render no row
-    // and must not occupy per-item mapper state.
+    // Internal lifecycle items (`clock.sleep`, raw compaction markers) render
+    // no row and must not occupy per-item mapper state.
     if (isInternalCodexItem(item)) return [];
+    if (isCodexContextCompactionItem(item)) {
+      return mapCodexContextCompaction("started", codexItemId, state);
+    }
     if (state.itemIdMap.has(codexItemId)) return [];
     const itemType = canonicalTypeFor(item.type ?? item.kind);
     // `CodexStructuredSession.startTurn` emits the user bubble before `turn/start`;
@@ -275,6 +283,9 @@ export function mapCodexNotification(
     // synthesizing a row (the completed-without-started path would otherwise
     // recreate one).
     if (isInternalCodexItem(item)) return [];
+    if (isCodexContextCompactionItem(item)) {
+      return mapCodexContextCompaction("completed", codexItemId, state);
+    }
     const internalId = state.itemIdMap.get(codexItemId);
     if (!internalId) {
       // Item completed without us seeing started — synthesize both so the chat
