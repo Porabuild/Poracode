@@ -38,6 +38,12 @@ export async function readRuntimeWindowPage(
   threadId: string,
   readPage: (beforePosition: number) => Promise<RuntimeWindowPage | undefined>,
   isCurrent: () => boolean,
+  /** Canonical pages admitted by the cursor or an exact retained raw boundary. */
+  onAcceptedPage?: (
+    page: RuntimeWindowPage,
+    beforePosition: number,
+    boundaryItemId?: string,
+  ) => void,
 ): Promise<RuntimeWindowPageResult> {
   const boundary = runtimeHistoryBoundary(threadId);
   const generation = boundary.generation;
@@ -72,10 +78,13 @@ export async function readRuntimeWindowPage(
     ) {
       throw new Error("Runtime history page cursor did not advance.");
     }
+    const rawPage = page;
+    let acceptedBoundaryId: string | undefined;
     if (findingBoundary) {
       const index = page.items.findIndex((item) => item.id === sourceId);
       if (index >= 0) {
         findingBoundary = false;
+        acceptedBoundaryId = sourceId;
         page = { ...page, items: page.items.slice(0, index) };
       } else if (page.nextCursor === null) {
         // No source proof: leave the public cursor intact and permit retry.
@@ -83,6 +92,7 @@ export async function readRuntimeWindowPage(
         return { kind: "unavailable" };
       }
     }
+    if (!findingBoundary) onAcceptedPage?.(rawPage, beforePosition, acceptedBoundaryId);
     if (!findingBoundary && (page.items.length > 0 || page.nextCursor === null)) {
       return { kind: "page", page };
     }

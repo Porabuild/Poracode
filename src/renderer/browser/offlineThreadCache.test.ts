@@ -2,6 +2,16 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfigOptions } from "@/shared/contracts/sessionConfigOptions";
 import { remoteThreadSnapshotSchema, type RemoteThreadSnapshot } from "@/shared/remote";
+import { useAppStore } from "@/renderer/state/appStore";
+import {
+  runtimeHistoryBoundary,
+  forgetRuntimeHistoryBoundary,
+} from "@/renderer/state/runtimeHistoryBoundary";
+import {
+  readRuntimeWindowPage,
+  type RuntimeWindowPage,
+} from "@/renderer/state/runtimeHistoryPaging";
+import { toRuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   __resetBrowserThreadCacheForTest,
   cacheBrowserThreadSnapshot,
@@ -10,6 +20,58 @@ import {
 } from "./offlineThreadCache";
 
 describe("loaded older browser history", () => {
+  it("reopens an older raw prefix located by a rebased live reader", async () => {
+    const original = useAppStore.getState();
+    const tail = { ...snapshot("rebased-reader"), runtimeNextCursor: 80 };
+    tail.runtimeItems[0] = { ...tail.runtimeItems[0]!, id: "row-80" };
+    const older = { ...tail.runtimeItems[0]!, id: "row-79" };
+    const newer = { ...older, id: "row-81" };
+    const pending: Promise<void>[] = [];
+    try {
+      await cacheBrowserThreadSnapshot(tail);
+      useAppStore
+        .getState()
+        .hydrateThreadRuntimeItems(
+          tail.thread.id,
+          [...tail.runtimeItems, newer].map(toRuntimeChatItem),
+        );
+      const boundary = runtimeHistoryBoundary(tail.thread.id);
+      boundary.cursor = 80;
+      boundary.needsRebase = true;
+      const read = vi
+        .fn<(beforePosition: number) => Promise<RuntimeWindowPage>>()
+        .mockResolvedValue({ items: [older, ...tail.runtimeItems, newer], nextCursor: 78 });
+      const result = await readRuntimeWindowPage(
+        tail.thread.id,
+        read,
+        () => true,
+        (page, beforePosition, boundaryItemId) => {
+          pending.push(
+            cacheBrowserThreadRuntimePage(
+              tail.thread.id,
+              {
+                ...page,
+                beforePosition,
+                ...(boundaryItemId ? { boundaryItemId } : {}),
+              },
+              () => true,
+            ),
+          );
+        },
+      );
+      expect(read).toHaveBeenCalledWith(Number.MAX_SAFE_INTEGER);
+      expect(result).toEqual({ kind: "page", page: { items: [older], nextCursor: 78 } });
+      await Promise.all(pending);
+      __resetBrowserThreadCacheForTest();
+      const restored = await readCachedBrowserThreadSnapshot(tail.thread.id);
+      expect(restored?.runtimeNextCursor).toBe(78);
+      expect(restored?.runtimeItems.map((row) => row.id)).toEqual(["row-79", "row-80"]);
+    } finally {
+      useAppStore.setState(original, true);
+      forgetRuntimeHistoryBoundary(tail.thread.id);
+    }
+  });
+
   it("keeps an admitted page when an overlapping refresh renews its UI generation before the cache read", async () => {
     const tail = { ...snapshot("refresh-during-cache-read"), runtimeNextCursor: 20 };
     await cacheBrowserThreadSnapshot(tail);

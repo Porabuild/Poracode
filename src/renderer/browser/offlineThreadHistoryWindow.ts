@@ -33,9 +33,11 @@ export function prependCachedRuntimePage(
     readonly beforePosition: number;
     readonly nextCursor: number | null;
     readonly items: readonly PersistedRuntimeItem[];
+    /** Exact raw row located by a rebased reader; never a scan-cursor guess. */
+    readonly boundaryItemId?: string;
   },
 ): RemoteThreadSnapshot | null {
-  if (!current || current.runtimeNextCursor !== page.beforePosition) return null;
+  if (!current) return null;
   if (
     page.nextCursor !== null &&
     (!Number.isSafeInteger(page.nextCursor) ||
@@ -45,13 +47,22 @@ export function prependCachedRuntimePage(
     return null;
   const firstOrdinary = current.runtimeItems.findIndex((item) => item.type !== "goal");
   const leadingCount = firstOrdinary < 0 ? current.runtimeItems.length : firstOrdinary;
-  const pageIds = new Set(page.items.map((item) => item.id));
+  let pageItems = page.items;
+  if (page.boundaryItemId !== undefined) {
+    const boundaryIndex = page.items.findIndex((item) => item.id === page.boundaryItemId);
+    if (current.runtimeItems[firstOrdinary]?.id !== page.boundaryItemId || boundaryIndex < 0)
+      return null;
+    pageItems = page.items.slice(0, boundaryIndex);
+  } else if (current.runtimeNextCursor !== page.beforePosition) {
+    return null;
+  }
+  const pageIds = new Set(pageItems.map((item) => item.id));
   const detachedGoals = current.runtimeItems
     .slice(0, leadingCount)
     .filter((item) => !pageIds.has(item.id));
   const tail = current.runtimeItems.slice(leadingCount);
   const ids = new Set(tail.map((item) => item.id));
-  const prefix = page.items.filter((item) => {
+  const prefix = pageItems.filter((item) => {
     if (ids.has(item.id)) return false;
     ids.add(item.id);
     return true;

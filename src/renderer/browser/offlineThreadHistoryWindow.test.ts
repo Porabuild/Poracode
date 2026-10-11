@@ -19,6 +19,20 @@ function snapshot(items: PersistedRuntimeItem[], cursor: number | null = 20): Re
 }
 
 describe("offline raw history windows", () => {
+  it("requires a located cached raw boundary before accepting a rebase scan", () => {
+    const cached = snapshot([item("tail")], 80);
+    const page = {
+      beforePosition: Number.MAX_SAFE_INTEGER,
+      nextCursor: 78,
+      items: [item("older"), item("tail"), item("newer")],
+    };
+    expect(prependCachedRuntimePage(cached, page)).toBeNull();
+    expect(prependCachedRuntimePage(cached, { ...page, boundaryItemId: "missing" })).toBeNull();
+    const accepted = prependCachedRuntimePage(cached, { ...page, boundaryItemId: "tail" });
+    expect(accepted?.runtimeItems.map((row) => row.id)).toEqual(["older", "tail"]);
+    expect(accepted?.runtimeNextCursor).toBe(78);
+  });
+
   it("locates a previously detached goal at its canonical page position", () => {
     const goal = item("goal", "goal");
     const cached = snapshot([goal, item("tail")]);

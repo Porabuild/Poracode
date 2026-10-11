@@ -230,11 +230,26 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
   setRuntimeWindowPaging(threadId, true);
   const load = (async () => {
     while (isCurrent()) {
-      const beforePosition = runtimeWindowPageCursor(threadId);
       const result = await readRuntimeWindowPage(
         threadId,
         (position) => readOlderRuntimePage(threadId, position),
         isCurrent,
+        isBrowserClientRuntime()
+          ? (page, beforePosition, boundaryItemId) => {
+              // Persist the raw accepted page, including its rebase anchor,
+              // before UI slicing/compaction. Persistence never delays paint.
+              void cacheBrowserThreadRuntimePage(
+                threadId,
+                {
+                  beforePosition,
+                  nextCursor: page.nextCursor,
+                  items: page.items,
+                  ...(boundaryItemId ? { boundaryItemId } : {}),
+                },
+                isCurrent,
+              );
+            }
+          : undefined,
       );
       if (!isCurrent() || result.kind === "unavailable") return false;
       if (result.kind === "page") {
@@ -261,14 +276,6 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
         );
         markRuntimeItemsPaged(threadId, addedVisibleItems);
         evictOversizedInactiveThreadRuntimeItems([threadId]);
-        if (isBrowserClientRuntime() && beforePosition !== undefined && beforePosition !== null) {
-          // Best-effort persistence must not delay presentation or the next page.
-          void cacheBrowserThreadRuntimePage(
-            threadId,
-            { beforePosition, nextCursor: page.nextCursor, items: page.items },
-            isCurrent,
-          );
-        }
         if (addedVisibleItems.length > 0) return true;
         if (page.nextCursor === null) return false;
       }

@@ -3226,7 +3226,11 @@ transactions preserve the order of accepted pages and subsequent refreshes.
 Persisted event sequence numbers are not compared across host restarts, where
 the sequence counter resets. Regression coverage starts with existing v2 rows
 and checks restart resets, overlapping refresh during a queued page write,
-authoritative replacement, detached goal ordering and aborted writes. Writes
+authoritative replacement, detached goal ordering and aborted writes. Rebased
+reads carry the located raw boundary before UI slicing: a scan cursor alone
+never authorizes a cache splice. An existing cached row must match that exact
+boundary before its canonical older prefix can extend the cache. A regression
+reopens the v2 cache after an actual rebased reader locates that prefix. Writes
 remain best-effort, do not block presentation, have a five-second completion
 deadline and use the existing logical history content budget. No database,
 remote protocol or native binding version bump is required; finalized PWA asset
