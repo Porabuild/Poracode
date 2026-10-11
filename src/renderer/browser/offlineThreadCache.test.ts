@@ -1,12 +1,142 @@
 import "fake-indexeddb/auto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfigOptions } from "@/shared/contracts/sessionConfigOptions";
-import type { RemoteThreadSnapshot } from "@/shared/remote";
+import { remoteThreadSnapshotSchema, type RemoteThreadSnapshot } from "@/shared/remote";
 import {
   __resetBrowserThreadCacheForTest,
   cacheBrowserThreadSnapshot,
+  cacheBrowserThreadRuntimePage,
   readCachedBrowserThreadSnapshot,
 } from "./offlineThreadCache";
+
+describe("loaded older browser history", () => {
+  it("keeps an admitted page when an overlapping refresh renews its UI generation before the cache read", async () => {
+    const tail = { ...snapshot("refresh-during-cache-read"), runtimeNextCursor: 20 };
+    await cacheBrowserThreadSnapshot(tail);
+    const older = { ...tail.runtimeItems[0]!, id: "older", streams: {} };
+    let current = true;
+    const pageWrite = cacheBrowserThreadRuntimePage(
+      tail.thread.id,
+      { beforePosition: 20, nextCursor: 10, items: [older] },
+      () => current,
+    );
+    // Neither transaction has read its row yet. Live sync accepts the newer
+    // tail, retains the UI prefix, and invalidates the earlier page request.
+    current = false;
+    const refreshWrite = cacheBrowserThreadSnapshot({ ...tail, snapshotSeq: 2 });
+    await Promise.all([pageWrite, refreshWrite]);
+    await cacheBrowserThreadRuntimePage(
+      tail.thread.id,
+      { beforePosition: 10, nextCursor: null, items: [{ ...older, id: "oldest" }] },
+      () => true,
+    );
+    const cached = await readCachedBrowserThreadSnapshot(tail.thread.id);
+    expect(cached?.runtimeNextCursor).toBeNull();
+    expect(cached?.runtimeItems.map((row) => row.id)).toEqual(["oldest", "older", "message-1"]);
+  });
+
+  it("lets a queued history reset replace an already admitted page", async () => {
+    const tail = { ...snapshot("reset-during-cache-read"), runtimeNextCursor: 20 };
+    await cacheBrowserThreadSnapshot(tail);
+    const pageWrite = cacheBrowserThreadRuntimePage(
+      tail.thread.id,
+      { beforePosition: 20, nextCursor: null, items: [{ ...tail.runtimeItems[0]!, id: "older" }] },
+      () => true,
+    );
+    const resetWrite = cacheBrowserThreadSnapshot({
+      ...tail,
+      snapshotSeq: 0,
+      runtimeNextCursor: null,
+    });
+    await Promise.all([pageWrite, resetWrite]);
+    expect(
+      (await readCachedBrowserThreadSnapshot(tail.thread.id))?.runtimeItems.map((row) => row.id),
+    ).toEqual(["message-1"]);
+  });
+
+  it("settles an aborted cache write while preserving the previous tail", async () => {
+    const tail = { ...snapshot("aborted-page"), runtimeNextCursor: 20 };
+    await cacheBrowserThreadSnapshot(tail);
+    const original = IDBDatabase.prototype.transaction;
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const transaction = vi
+      .spyOn(IDBDatabase.prototype, "transaction")
+      .mockImplementationOnce(function (this: IDBDatabase, ...args) {
+        const value = original.apply(this, args);
+        queueMicrotask(() => value.abort());
+        return value;
+      });
+    try {
+      await cacheBrowserThreadRuntimePage(
+        tail.thread.id,
+        { beforePosition: 20, nextCursor: null, items: [] },
+        () => true,
+      );
+      expect(warning).toHaveBeenCalled();
+      expect((await readCachedBrowserThreadSnapshot(tail.thread.id))?.runtimeNextCursor).toBe(20);
+    } finally {
+      transaction.mockRestore();
+      warning.mockRestore();
+    }
+  });
+
+  it("extends a pre-existing v2 tail and preserves its raw pages across a newer overlapping tail", async () => {
+    const tail = { ...snapshot("cached-prefix"), runtimeNextCursor: 20 };
+    remoteThreadSnapshotSchema.parse(tail);
+    await cacheBrowserThreadSnapshot(tail);
+    const older = { ...tail.runtimeItems[0]!, id: "older-message", streams: {} };
+    await cacheBrowserThreadRuntimePage(
+      tail.thread.id,
+      { beforePosition: 20, nextCursor: 10, items: [older] },
+      () => true,
+    );
+    expect(
+      (await readCachedBrowserThreadSnapshot(tail.thread.id))?.runtimeItems.map((i) => i.id),
+    ).toEqual(["older-message", "message-1"]);
+    await cacheBrowserThreadSnapshot({ ...tail, snapshotSeq: 2 });
+    const cached = await readCachedBrowserThreadSnapshot(tail.thread.id);
+    expect(cached?.runtimeNextCursor).toBe(10);
+    expect(cached?.runtimeItems.map((i) => i.id)).toEqual(["older-message", "message-1"]);
+  });
+
+  it("refuses a stale page or a page that no longer matches the cached cursor", async () => {
+    const tail = { ...snapshot("cursor-fenced"), runtimeNextCursor: 20 };
+    await cacheBrowserThreadSnapshot(tail);
+    const item = { ...tail.runtimeItems[0]!, id: "older", streams: {} };
+    await cacheBrowserThreadRuntimePage(
+      tail.thread.id,
+      { beforePosition: 20, nextCursor: null, items: [item] },
+      () => false,
+    );
+    await cacheBrowserThreadRuntimePage(
+      tail.thread.id,
+      { beforePosition: 10, nextCursor: null, items: [item] },
+      () => true,
+    );
+    expect((await readCachedBrowserThreadSnapshot(tail.thread.id))?.runtimeNextCursor).toBe(20);
+    expect(
+      (await readCachedBrowserThreadSnapshot(tail.thread.id))?.runtimeItems.map((i) => i.id),
+    ).toEqual(["message-1"]);
+  });
+
+  it("lets an authoritative complete snapshot replace the previously loaded prefix", async () => {
+    const tail = { ...snapshot("reset-prefix"), runtimeNextCursor: 20 };
+    await cacheBrowserThreadSnapshot(tail);
+    await cacheBrowserThreadRuntimePage(
+      tail.thread.id,
+      {
+        beforePosition: 20,
+        nextCursor: null,
+        items: [{ ...tail.runtimeItems[0]!, id: "old", streams: {} }],
+      },
+      () => true,
+    );
+    await cacheBrowserThreadSnapshot({ ...tail, snapshotSeq: 2, runtimeNextCursor: null });
+    expect(
+      (await readCachedBrowserThreadSnapshot(tail.thread.id))?.runtimeItems.map((i) => i.id),
+    ).toEqual(["message-1"]);
+  });
+});
 
 function snapshot(threadId: string): RemoteThreadSnapshot {
   return {
@@ -16,7 +146,7 @@ function snapshot(threadId: string): RemoteThreadSnapshot {
       projectId: "project-1",
       title: "Cached transcript",
       agentKind: "codex",
-      config: {},
+      config: { model: "test-model" },
       status: "idle",
       attention: "none",
       canResumeWithConfig: false,
@@ -34,6 +164,7 @@ function snapshot(threadId: string): RemoteThreadSnapshot {
         type: "assistant_message",
         state: "completed",
         payload: { text: "available offline" },
+        streams: {},
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
       },

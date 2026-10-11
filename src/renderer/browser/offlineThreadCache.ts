@@ -1,5 +1,6 @@
-import type { RemoteThreadSnapshot } from "@/shared/remote";
+import { remoteThreadSnapshotSchema, type RemoteThreadSnapshot } from "@/shared/remote";
 import { stripVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
+import { mergeCachedThreadSnapshot, prependCachedRuntimePage } from "./offlineThreadHistoryWindow";
 
 const DATABASE_NAME = "poracode-browser-cache";
 const STORE_NAME = "threadSnapshots";
@@ -87,35 +88,93 @@ function stripVolatileSessionConfigOptionsFromSnapshot(
 }
 
 export async function cacheBrowserThreadSnapshot(snapshot: RemoteThreadSnapshot): Promise<void> {
+  await updateCachedSnapshot(snapshot.thread.id, (current) =>
+    mergeCachedThreadSnapshot(current, snapshot),
+  );
+}
+
+export async function cacheBrowserThreadRuntimePage(
+  threadId: string,
+  page: Parameters<typeof prependCachedRuntimePage>[1],
+  isCurrent: () => boolean,
+): Promise<void> {
+  // Admission is fenced synchronously, before the first await. Once admitted,
+  // preserve write order with later snapshots: an overlapping refresh may renew
+  // the UI generation while this transaction is queued. Its newer transaction
+  // merges the accepted prefix or replaces it when the history resets.
+  if (!isCurrent()) return;
+  await updateCachedSnapshot(threadId, (current) => prependCachedRuntimePage(current, page));
+}
+
+async function updateCachedSnapshot(
+  threadId: string,
+  update: (current: RemoteThreadSnapshot | null) => RemoteThreadSnapshot | null,
+): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
     const database = await openDatabase();
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(STORE_NAME, "readwrite");
       const store = transaction.objectStore(STORE_NAME);
-      store.put({
-        threadId: snapshot.thread.id,
-        snapshot: stripVolatileSessionConfigOptionsFromSnapshot(snapshot),
-        updatedAt: Date.now(),
-      } satisfies CachedThreadSnapshot);
-      // Prune over the updatedAt index newest-first in the SAME transaction —
-      // no full-table read or in-memory sort. The row just written has the
-      // newest timestamp, so the retention window always keeps it.
-      let kept = 0;
-      const cursorRequest = store.index(UPDATED_AT_INDEX).openCursor(null, "prev");
-      cursorRequest.onsuccess = () => {
-        const cursor = cursorRequest.result;
-        if (!cursor) return;
-        if (kept < MAX_CACHED_THREAD_SNAPSHOTS) {
-          kept += 1;
-        } else {
-          cursor.delete();
-        }
-        cursor.continue();
+      let settled = false;
+      const finish = (error: unknown): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve();
       };
-      transaction.oncomplete = () => resolve();
+      const timer = setTimeout(() => {
+        if (settled) return;
+        try {
+          transaction.abort();
+        } catch {
+          /* Already completed. */
+        }
+        finish(new Error("Browser cache write timed out."));
+      }, CACHE_ACCESS_TIMEOUT_MS);
+      const request = store.get(threadId);
+      request.onsuccess = () => {
+        if (settled) return;
+        try {
+          const current = (request.result as CachedThreadSnapshot | undefined)?.snapshot ?? null;
+          const parsed = remoteThreadSnapshotSchema.safeParse(current);
+          const snapshot = update(parsed.success ? parsed.data : null);
+          if (!snapshot) return;
+          store.put({
+            threadId,
+            snapshot: stripVolatileSessionConfigOptionsFromSnapshot(snapshot),
+            updatedAt: Date.now(),
+          } satisfies CachedThreadSnapshot);
+          // Prune over the updatedAt index newest-first in the SAME transaction —
+          // no full-table read or in-memory sort. The row just written has the
+          // newest timestamp, so the retention window always keeps it.
+          let kept = 0;
+          const cursorRequest = store.index(UPDATED_AT_INDEX).openCursor(null, "prev");
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) return;
+            if (kept < MAX_CACHED_THREAD_SNAPSHOTS) {
+              kept += 1;
+            } else {
+              cursor.delete();
+            }
+            cursor.continue();
+          };
+        } catch (error) {
+          try {
+            transaction.abort();
+          } catch {
+            /* Already completed. */
+          }
+          finish(error);
+        }
+      };
+      transaction.oncomplete = () => finish(null);
       transaction.onerror = () =>
-        reject(transaction.error ?? new Error("Unable to write browser cache."));
+        finish(transaction.error ?? new Error("Unable to write browser cache."));
+      transaction.onabort = () =>
+        finish(transaction.error ?? new Error("Browser cache write aborted."));
     });
   } catch (error) {
     console.warn("[browser-cache] unable to cache thread snapshot", error);

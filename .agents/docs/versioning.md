@@ -3216,6 +3216,22 @@ queued contexts and checks ordinary drain, caller mutation, edit and queued stee
 
 ### PWA startup cache integrity
 
+Older browser history pages now extend the existing IndexedDB v2 thread snapshot
+in canonical raw form, before renderer summary compaction. The store, index,
+snapshot envelope and cursor meaning stay unchanged; existing v2 partial tails
+remain valid and are extended only when their cursor matches the admitted page.
+A later overlapping tail retains a proven older prefix; a complete or disjoint
+snapshot replaces it. Live admission fences stale page requests, and same-store
+transactions preserve the order of accepted pages and subsequent refreshes.
+Persisted event sequence numbers are not compared across host restarts, where
+the sequence counter resets. Regression coverage starts with existing v2 rows
+and checks restart resets, overlapping refresh during a queued page write,
+authoritative replacement, detached goal ordering and aborted writes. Writes
+remain best-effort, do not block presentation, have a five-second completion
+deadline and use the existing logical history content budget. No database,
+remote protocol or native binding version bump is required; finalized PWA asset
+identity changes with the new source build.
+
 The hosted worker now rejects installation when its canonical shell or a
 shell-referenced build asset cannot be cached. Optional manifest/icon fills
 remain best-effort. Install and optional prewarming reject HTML fallback

@@ -3,6 +3,7 @@ import { captureRendererException } from "../diagnostics/sentry";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "../components/thread/ChatPane/chatPaneSelectors";
 import { readBridge } from "../bridge";
 import { hasClientCapability, isBrowserClientRuntime } from "../clientRuntime";
+import { cacheBrowserThreadRuntimePage } from "../browser/offlineThreadCache";
 import {
   browserRuntimeHydrationResults,
   readBrowserRuntimeHydrationCache,
@@ -229,9 +230,10 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
   setRuntimeWindowPaging(threadId, true);
   const load = (async () => {
     while (isCurrent()) {
+      const beforePosition = runtimeWindowPageCursor(threadId);
       const result = await readRuntimeWindowPage(
         threadId,
-        (beforePosition) => readOlderRuntimePage(threadId, beforePosition),
+        (position) => readOlderRuntimePage(threadId, position),
         isCurrent,
       );
       if (!isCurrent() || result.kind === "unavailable") return false;
@@ -259,6 +261,14 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
         );
         markRuntimeItemsPaged(threadId, addedVisibleItems);
         evictOversizedInactiveThreadRuntimeItems([threadId]);
+        if (isBrowserClientRuntime() && beforePosition !== undefined && beforePosition !== null) {
+          // Best-effort persistence must not delay presentation or the next page.
+          void cacheBrowserThreadRuntimePage(
+            threadId,
+            { beforePosition, nextCursor: page.nextCursor, items: page.items },
+            isCurrent,
+          );
+        }
         if (addedVisibleItems.length > 0) return true;
         if (page.nextCursor === null) return false;
       }
