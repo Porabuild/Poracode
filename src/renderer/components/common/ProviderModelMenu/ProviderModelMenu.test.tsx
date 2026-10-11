@@ -220,6 +220,39 @@ describe("ProviderModelMenu", () => {
     expect(listbox.querySelector('[data-active="true"]')).not.toBeNull();
   });
 
+  it("removes a recent shortcut in the mobile drawer without focusing search", async () => {
+    layoutMock.compact = true;
+    useSharedSettings.setState({
+      recentModels: [{ agentKind: "other", modelId: "model-2", presentationMode: "gui" }],
+    });
+    const onChange = vi.fn<(next: { agentKind: string; model: string }) => void>();
+    render(
+      <ProviderModelMenu
+        providers={[makeNamedProvider("agent", "Agent", 2), makeNamedProvider("other", "Other", 2)]}
+        currentAgentKind="agent"
+        currentModel="model-1"
+        presentationMode="gui"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(listbox).toHaveAttribute("data-mobile", "true");
+    const search = screen.getByRole("combobox");
+    expect(search).not.toHaveFocus();
+    fireEvent.change(search, { target: { value: "Model 2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Remove from recent" }));
+
+    expect(useSharedSettings.getState().recentModels).toEqual([]);
+    expect(search).toHaveValue("Model 2");
+    expect(search).not.toHaveFocus();
+    expect(listbox).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove from recent" })).not.toBeInTheDocument();
+    expect(within(listbox).getAllByText("Model 2")).not.toHaveLength(0);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("uses a renamed Cursor profile label for the trigger badge", () => {
     const provider = makeCursorProvider();
     provider.kind = "cursor:work";

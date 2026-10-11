@@ -500,7 +500,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     const settings = useSharedSettings.getState();
     settings.removeRecentModels(settings.recentModels.filter(matches));
     setSessionRecents((current) => (current ?? recents).filter((entry) => !matches(entry)));
-    searchRef.current?.focus();
+    if (!mobile) searchRef.current?.focus();
   }
 
   function selectModelItem(selected: ProviderModelItem | undefined) {
