@@ -3,6 +3,7 @@ import { THEME_SPECS } from "@/renderer/theme/themePresets";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import type { SharedSettings } from "@/shared/settings";
+import { normalizeSharedSettings } from "@/shared/settings";
 import {
   applyExternalSharedSettings,
   flushSharedSettings,
@@ -381,6 +382,58 @@ describe("sharedSettingsStore", () => {
     useSharedSettings.getState().uninstallPlugin(pluginFixture("browser-tools"));
     expect(useSharedSettings.getState().installedPlugins).toEqual({});
     expect(persistedPlugins()).toEqual({});
+  });
+
+  it("reorders existing saved favorites, persists their unchanged shape and ignores stale or unchanged moves", () => {
+    const saved = normalizeSharedSettings({
+      favoriteModels: [
+        { agentKind: "agent", modelId: "first", presentationMode: "terminal" },
+        { agentKind: "agent", modelId: "other-mode", presentationMode: "gui" },
+        { agentKind: "agent", modelId: "last", presentationMode: "terminal" },
+      ],
+    }).favoriteModels;
+    useSharedSettings.setState({ favoriteModels: saved });
+    const ordered = [saved[2]!, saved[0]!];
+    useSharedSettings.getState().reorderFavoriteModels(ordered);
+    const expected = [saved[2], saved[1], saved[0]];
+    expect(useSharedSettings.getState().favoriteModels).toEqual(expected);
+    const disk = JSON.parse(localStorage.getItem("poracode-shared-settings")!);
+    expect(normalizeSharedSettings(disk).favoriteModels).toEqual(expected);
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    useSharedSettings.getState().reorderFavoriteModels(ordered);
+    expect(writes).not.toHaveBeenCalled();
+    // A drag started before a favorite was removed must not restore it, and
+    // a newly added favorite must retain its existing slot.
+    const added = { agentKind: "agent", modelId: "new", presentationMode: "terminal" as const };
+    useSharedSettings.setState({ favoriteModels: [saved[0]!, added] });
+    useSharedSettings.getState().reorderFavoriteModels(ordered);
+    expect(useSharedSettings.getState().favoriteModels).toEqual([saved[0], added]);
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
+  });
+
+  it("removes saved recent references once while retaining other presentations and usage history", () => {
+    const saved = normalizeSharedSettings({
+      recentModels: [
+        { agentKind: "agent", modelId: "model", presentationMode: "terminal" },
+        { agentKind: "agent", modelId: "model", presentationMode: "gui" },
+        { agentKind: "other", modelId: "model", presentationMode: "terminal" },
+      ],
+    }).recentModels;
+    useSharedSettings.setState({ recentModels: saved });
+    const usage = useSharedSettings.getState().agentSelectionUsage;
+    const favorites = useSharedSettings.getState().favoriteModels;
+    useSharedSettings.getState().removeRecentModels([saved[0]!]);
+    const expected = saved.slice(1);
+    expect(useSharedSettings.getState().recentModels).toEqual(expected);
+    const disk = JSON.parse(localStorage.getItem("poracode-shared-settings")!);
+    expect(normalizeSharedSettings(disk).recentModels).toEqual(expected);
+    expect(useSharedSettings.getState().agentSelectionUsage).toBe(usage);
+    expect(useSharedSettings.getState().favoriteModels).toBe(favorites);
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    useSharedSettings.getState().removeRecentModels([saved[0]!]);
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
   });
 
   describe("toggleFavoriteModelAnyMode", () => {

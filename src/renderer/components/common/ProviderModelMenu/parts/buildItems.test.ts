@@ -722,4 +722,5 @@ it("removes primary group headers while retaining regular model groups", () => {
   expect(rows.some((row) => row.type === "header-sub" && row.subId === "workflow")).toBe(false);
   expect(rows.find((row) => row.type === "header-sub" && row.subId === "standard")).toBeDefined();
   expect(rows[0]?.id).toBe("model:grouped-primary-fixture:pair");
+  expect(rows.some((row) => row.id === "models:grouped-primary-fixture")).toBe(true);
 });

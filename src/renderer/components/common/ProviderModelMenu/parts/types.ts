@@ -1,5 +1,6 @@
 import type { MessageDescriptor } from "@lingui/core";
 import type { ThreadPresentationMode } from "@/shared/contracts";
+import type { ModelPickerRef } from "@/shared/modelPickerOrder";
 
 /**
  * Ephemeral UI origin of one picker selection event, resolved by the row the
@@ -69,8 +70,12 @@ export interface ProviderModelRow {
   priceLine?: string;
   /** Full provider-provided model description. Rendered in a delayed tooltip. */
   tooltipDescription?: string;
-  /** When true, show the provider icon in the row right rail. */
+  /** When true, show the provider icon before the model label. */
   showProviderIcon?: boolean;
+  /** Original persisted identity of a reorderable favorite (before alias resolution). */
+  favoriteRef?: ModelPickerRef;
+  /** Original persisted identity of a removable Recent shortcut. */
+  recentRef?: ModelPickerRef;
   /** When true, this model supports a usable fast mode (drives the fast-mode hint glyph). */
   supportsFast?: boolean;
   /**

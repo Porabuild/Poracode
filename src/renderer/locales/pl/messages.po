@@ -1167,7 +1167,7 @@ msgstr "Dodaj tag..."
 msgid "Add to composer"
 msgstr "Dodaj do kompozytora"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Add to favorites"
 msgstr "Dodaj do ulubionych"
 
@@ -5298,6 +5298,10 @@ msgstr "Przeciągnij, aby zmienić kolejność dostawców na {0}."
 msgid "Drag to reorder; double-click to edit"
 msgstr "Przeciągnij, aby zmienić kolejność; kliknij dwukrotnie, aby edytować"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+msgid "Draggable model"
+msgstr "Model do przeciągania"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -6056,7 +6060,7 @@ msgstr "Szybki"
 msgid "Fast is unavailable for this pairing"
 msgstr "Tryb szybki jest niedostępny dla tej kombinacji"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "Tryb szybki"
@@ -11052,6 +11056,10 @@ msgstr "Naciśnij Enter, aby zastosować."
 msgid "Press shortcut…"
 msgstr "Naciśnij skrót…"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Press Space to start reordering. Use the arrow keys to move, Space to drop, or Escape to cancel."
+msgstr "Naciśnij Spację, aby rozpocząć zmianę kolejności. Użyj strzałek do przesuwania, Spacji do upuszczenia lub Escape do anulowania."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep"
@@ -11984,7 +11992,7 @@ msgstr "Usuń klucz API SDK Cursor"
 msgid "Remove environment variable"
 msgstr "Usuń zmienną środowiskową"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Remove from favorites"
 msgstr "Usuń z ulubionych"
 
@@ -11995,6 +12003,10 @@ msgstr "Usuń z grupy"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove from panel"
 msgstr "Usuń z panelu"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+msgid "Remove from recent"
+msgstr "Usuń z ostatnich"
 
 #. placeholder {0}: providerLabel(entry.agentKind)
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
@@ -12154,6 +12166,8 @@ msgstr "Moduł renderujący napotkał nieobsłużone odrzucenie obietnicy"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: shortcut.label
+#. placeholder {0}: splitModelLabel(props.item.label).name
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Reorder {0}"
@@ -12167,6 +12181,18 @@ msgstr "Zmień kolejność {label}"
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Reorder queued follow-up"
 msgstr "Zmień kolejność wiadomości w kolejce"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordered {name}. Position {position} of {count}."
+msgstr "Zmieniono kolejność modelu {name}. Pozycja {position} z {count}."
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordering {name}. Position {position} of {count}."
+msgstr "Zmiana kolejności modelu {name}. Pozycja {position} z {count}."
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordering canceled."
+msgstr "Anulowano zmianę kolejności."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -14420,7 +14446,7 @@ msgstr "Tryb wsparcia pojawi się po nawiązaniu połączenia sesji."
 msgid "Support:"
 msgstr "Wsparcie:"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "Obsługuje tryb szybki"

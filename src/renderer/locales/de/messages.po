@@ -1167,7 +1167,7 @@ msgstr "Tag hinzufügen..."
 msgid "Add to composer"
 msgstr "Zum Composer hinzufügen"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Add to favorites"
 msgstr "Zu Favoriten hinzufügen"
 
@@ -5298,6 +5298,10 @@ msgstr "Ziehen, um die Provider auf {0} neu anzuordnen."
 msgid "Drag to reorder; double-click to edit"
 msgstr "Zum Neuanordnen ziehen; Doppelklicken Sie zum Bearbeiten"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+msgid "Draggable model"
+msgstr "Verschiebbares Modell"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -6056,7 +6060,7 @@ msgstr "Schnell"
 msgid "Fast is unavailable for this pairing"
 msgstr "Der Schnellmodus ist für diese Kombination nicht verfügbar"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "Schnellmodus"
@@ -11052,6 +11056,10 @@ msgstr "Zum Anwenden die Eingabetaste drücken."
 msgid "Press shortcut…"
 msgstr "Tastenkürzel drücken…"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Press Space to start reordering. Use the arrow keys to move, Space to drop, or Escape to cancel."
+msgstr "Drücke die Leertaste, um die Reihenfolge zu ändern. Nutze die Pfeiltasten zum Verschieben, die Leertaste zum Ablegen oder Escape zum Abbrechen."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep"
@@ -11984,7 +11992,7 @@ msgstr "Cursor-SDK-API-Schlüssel entfernen"
 msgid "Remove environment variable"
 msgstr "Umgebungsvariable entfernen"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Remove from favorites"
 msgstr "Aus Favoriten entfernen"
 
@@ -11995,6 +12003,10 @@ msgstr "Aus der Gruppe entfernen"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove from panel"
 msgstr "Aus dem Panel entfernen"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
+msgid "Remove from recent"
+msgstr "Aus „Zuletzt verwendet“ entfernen"
 
 #. placeholder {0}: providerLabel(entry.agentKind)
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
@@ -12154,6 +12166,8 @@ msgstr "Im Renderer trat eine unbehandelte Promise-Ablehnung auf"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: shortcut.label
+#. placeholder {0}: splitModelLabel(props.item.label).name
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Reorder {0}"
@@ -12167,6 +12181,18 @@ msgstr "{label} neu anordnen"
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Reorder queued follow-up"
 msgstr "Folgenachricht in der Warteschlange verschieben"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordered {name}. Position {position} of {count}."
+msgstr "{name} wurde neu angeordnet. Position {position} von {count}."
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordering {name}. Position {position} of {count}."
+msgstr "{name} wird neu angeordnet. Position {position} von {count}."
+
+#: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
+msgid "Reordering canceled."
+msgstr "Änderung der Reihenfolge abgebrochen."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -14420,7 +14446,7 @@ msgstr "Der Support-Modus wird angezeigt, sobald die Sitzung verbunden ist."
 msgid "Support:"
 msgstr "Unterstützung:"
 
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "Unterstützt Schnellmodus"

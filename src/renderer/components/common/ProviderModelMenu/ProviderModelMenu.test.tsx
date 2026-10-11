@@ -709,7 +709,7 @@ describe("ProviderModelMenu", () => {
     expect((await screen.findAllByText("Favorites")).length).toBeGreaterThan(0);
   });
 
-  it("shows shortcut sub-provider labels before provider icons", async () => {
+  it("shows shortcut provider icons before model and sub-provider labels", async () => {
     useSharedSettings.setState({
       favoriteModels: [
         { agentKind: "opencode", modelId: "github-copilot/model-1", presentationMode: "gui" },
@@ -742,7 +742,7 @@ describe("ProviderModelMenu", () => {
       const label = within(row as HTMLElement).getByText(subProviderLabel);
       const providerIcon = (row as HTMLElement).querySelector(".poracode-provider-icon");
       expect(providerIcon).not.toBeNull();
-      expect(label.compareDocumentPosition(providerIcon as Element)).toBe(
+      expect((providerIcon as Element).compareDocumentPosition(label)).toBe(
         Node.DOCUMENT_POSITION_FOLLOWING,
       );
     };
@@ -795,14 +795,13 @@ describe("ProviderModelMenu", () => {
     const subProviderLabel = within(row as HTMLElement).getByText(
       "An Extremely Long Sub-Provider Display Name",
     );
-    const subProviderRail = subProviderLabel.parentElement as HTMLElement;
 
     // The model name owns the flexible space, so it only truncates once the
     // sub-provider rail has fully shrunk. The rail is additionally width-capped
     // so the model always keeps the majority of the row.
     expect(modelName.parentElement?.className).toContain("flex-1");
-    expect(subProviderRail.className).toContain("max-w-[45%]");
-    expect(subProviderRail.className).not.toContain("shrink-0");
+    expect(subProviderLabel.className).toContain("max-w-[45%]");
+    expect(subProviderLabel.className).not.toContain("shrink-0");
     expect(subProviderLabel.className).toContain("min-w-0");
     expect(subProviderLabel.className).toContain("truncate");
   });
