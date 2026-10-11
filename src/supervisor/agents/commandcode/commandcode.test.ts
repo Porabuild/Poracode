@@ -148,7 +148,7 @@ describe("createCommandCodeAdapter", () => {
       "yolo",
     ]);
     expect(adapter.capabilities.defaultApprovalPolicy).toBe("yolo");
-    expect(defaultCommandCodeCapabilities.presentationModes).toEqual(["terminal"]);
+    expect(defaultCommandCodeCapabilities.presentationModes).toEqual(["terminal", "gui"]);
     expect(adapter.defaultOneShotModel).toBeUndefined();
     expect(adapter.allowsImplicitOneShotModel).toBe(true);
   });
@@ -722,6 +722,19 @@ describe("dynamic Command Code effort discovery", () => {
 });
 
 describe("commandCodeDetectionSpec capabilitiesProbe", () => {
+  it("keeps current catalog IDs with free-tier suffixes", () => {
+    expect(
+      parseCommandCodeModels("Open Source\nstealth/glyph-cluster:free  FREE reasoning model"),
+    ).toEqual([
+      {
+        id: "stealth/glyph-cluster:free",
+        description: "FREE reasoning model",
+        providerId: "open-source",
+        providerLabel: "Open Source",
+      },
+    ]);
+  });
+
   it("returns only the terminal auth method when the binary is absent", async () => {
     const result = await commandCodeDetectionSpec.capabilitiesProbe?.({
       location: { kind: "posix", path: "/tmp" },

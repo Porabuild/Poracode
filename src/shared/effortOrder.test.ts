@@ -14,6 +14,16 @@ describe("canonicalizeEffortId", () => {
 });
 
 describe("sortEffortsByCanonicalOrder", () => {
+  it("places disabled reasoning before explicit tiers without changing its wire ID", () => {
+    expect(sortEffortsByCanonicalOrder(["low", "high", "max", "off"])).toEqual([
+      "off",
+      "low",
+      "high",
+      "max",
+    ]);
+    expect(canonicalizeEffortId("off")).toBe("off");
+  });
+
   it("orders a scrambled ladder weakest to strongest", () => {
     expect(sortEffortsByCanonicalOrder(["xhigh", "low", "medium", "none"])).toEqual([
       "none",

@@ -48,7 +48,8 @@ export function createLocalSnapshotRecovery(deps: {
     const generation = rendererTransportGeneration;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const before = { ...latestRendererSequenceByThread.get(threadId) };
-      useAppStore.getState().clearThreadRuntimeEvents(threadId);
+      // The DB contains transcript rows, not authoritative open requests.
+      useAppStore.getState().clearThreadRuntimeEvents(threadId, { keepOpenRequests: true });
       clearRuntimeItemStoreSelectorCacheForThread(threadId);
       const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId);
       if (!recovered) return false;
@@ -67,6 +68,7 @@ export function createLocalSnapshotRecovery(deps: {
   }
 
   const strategy: RuntimeEventRecoveryStrategy = {
+    preservesOpenRequests: true,
     recoverFromQueueOverflow: (threadIds) => {
       if (threadIds.length === 1) {
         const [threadId] = threadIds;

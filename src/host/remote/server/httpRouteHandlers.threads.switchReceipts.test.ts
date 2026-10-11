@@ -13,6 +13,7 @@ import {
 import { closeDatabase, initDatabase } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { dbGetThread, dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
+import { persistThreadStateEvent } from "./threadStatePersistence";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import {
   RemoteAccessServer,
@@ -65,168 +66,244 @@ function receiptState(commandId: string): string | undefined {
   )?.state;
 }
 
-describe.skipIf(!sqliteAvailable)("provider-switch validation receipts", () => {
-  let dir: string;
-  let info: RemoteAccessServerInfo;
-  let token: string;
-  let server: RemoteAccessServer;
-  let callSupervisor: ReturnType<typeof vi.fn<RemoteAccessServerOptions["callSupervisor"]>>;
-  let dispatched: ReturnType<
-    typeof vi.fn<NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>>
-  >;
+describe.skipIf(!sqliteAvailable).each(["/api/threads/start", "/api/git/call"])(
+  "provider-switch validation receipts via %s",
+  (route) => {
+    let dir: string;
+    let info: RemoteAccessServerInfo;
+    let token: string;
+    let server: RemoteAccessServer;
+    let callSupervisor: ReturnType<typeof vi.fn<RemoteAccessServerOptions["callSupervisor"]>>;
+    let dispatched: ReturnType<
+      typeof vi.fn<NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>>
+    >;
 
-  beforeEach(async () => {
-    if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
-    dir = mkdtempSync(join(tmpdir(), "poracode-switch-receipts-"));
-    initDatabase(join(dir, "state.sqlite"));
-    dbUpsertProject(
-      {
-        id: "project-1",
-        name: "Switch project",
-        location: { kind: "posix", path: "/tmp/project" },
-        createdAt: "2026-01-01T00:00:00.000Z",
-      },
-      0,
-    );
-    dbUpsertThread({ ...testThread(), id: GUI, presentationMode: "gui" }, 0);
-    dbUpsertThread({ ...testThread(), id: TERMINAL, presentationMode: "terminal" }, 1);
-    callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
-      async () => ({ threadId: GUI }) as never,
-    );
-    dispatched = vi.fn<NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>>(() => true);
-    server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      callSupervisor,
-      dispatchThreadCommand: dispatched,
-    } satisfies RemoteAccessServerOptions);
-    info = await server.start();
-    token = await exchangePairingUrl(info.pairingUrl);
-  });
-
-  afterEach(async () => {
-    await server.dispose();
-    closeDatabase();
-    rmSync(dir, { recursive: true, force: true });
-    delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
-  });
-
-  const post = (commandId: string, body: Record<string, unknown>): Promise<Response> =>
-    fetch(new URL("/api/threads/start", info.httpBaseUrl), {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "application/json",
-        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
-        "x-poracode-command-id": commandId,
-      },
-      body: JSON.stringify(body),
+    beforeEach(async () => {
+      if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
+      dir = mkdtempSync(join(tmpdir(), "poracode-switch-receipts-"));
+      initDatabase(join(dir, "state.sqlite"));
+      dbUpsertProject(
+        {
+          id: "project-1",
+          name: "Switch project",
+          location: { kind: "posix", path: "/tmp/project" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+        0,
+      );
+      dbUpsertThread({ ...testThread(), id: GUI, presentationMode: "gui" }, 0);
+      dbUpsertThread({ ...testThread(), id: TERMINAL, presentationMode: "terminal" }, 1);
+      callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+        async () => ({ threadId: GUI }) as never,
+      );
+      dispatched = vi.fn<NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>>(
+        () => true,
+      );
+      server = new RemoteAccessServer({
+        truncateThreadRuntime: () => {},
+        appVersion: "1.0.0",
+        identity: { desktopId: "desktop-test", label: "Test Desktop" },
+        host: "127.0.0.1",
+        port: 0,
+        callSupervisor,
+        dispatchThreadCommand: dispatched,
+      } satisfies RemoteAccessServerOptions);
+      info = await server.start();
+      token = await exchangePairingUrl(info.pairingUrl);
     });
 
-  const switchBody = (threadId: string, fromAgentKind: string, agentKind = "claude") => ({
-    threadId,
-    projectLocation: { kind: "posix", path: "/tmp/project" },
-    agentKind,
-    config: { model: `${agentKind}-model` },
-    prompt: "continue",
-    initialSize: { cols: 120, rows: 30 },
-    presentationMode: "gui",
-    providerSwitch: { fromAgentKind },
-  });
-
-  it("records a stale-source rejection as a definite failure with no effect", async () => {
-    const commandId = "switch-stale";
-    const body = switchBody(GUI, "claude");
-    const first = await post(commandId, body);
-    expect(first.status).toBe(409);
-    await expect(first.json()).resolves.toMatchObject({
-      error: { code: "provider_switch_stale" },
+    afterEach(async () => {
+      await server.dispose();
+      closeDatabase();
+      rmSync(dir, { recursive: true, force: true });
+      delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
     });
-    expect(receiptState(commandId)).toBe("failed");
-    expect(callSupervisor).not.toHaveBeenCalled();
-    expect(dispatched).not.toHaveBeenCalled();
-    expect(dbGetThread(GUI)).toMatchObject({
-      agentKind: "codex",
+
+    const post = (commandId: string, body: Record<string, unknown>): Promise<Response> =>
+      fetch(new URL(route, info.httpBaseUrl), {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+          "x-poracode-command-id": commandId,
+        },
+        body: JSON.stringify(
+          route === "/api/git/call" ? { procedure: "startThread", payload: body } : body,
+        ),
+      });
+
+    const switchBody = (threadId: string, fromAgentKind: string, agentKind = "claude") => ({
+      threadId,
+      projectLocation: { kind: "posix", path: "/tmp/project" },
+      agentKind,
+      config: { model: `${agentKind}-model` },
+      prompt: "continue",
+      initialSize: { cols: 120, rows: 30 },
       presentationMode: "gui",
-      status: "working",
+      providerSwitch: { fromAgentKind },
     });
 
-    const retry = await post(commandId, body);
-    expect(retry.status).toBe(409);
-    await expect(retry.json()).resolves.toMatchObject({ error: { code: "command_failed" } });
-    expect(callSupervisor).not.toHaveBeenCalled();
-    expect(receiptState(commandId)).toBe("failed");
-  });
+    it("records a stale-source rejection as a definite failure with no effect", async () => {
+      const commandId = "switch-stale";
+      const body = switchBody(GUI, "claude");
+      const first = await post(commandId, body);
+      expect(first.status).toBe(409);
+      await expect(first.json()).resolves.toMatchObject({
+        error: { code: "provider_switch_stale" },
+      });
+      expect(receiptState(commandId)).toBe("failed");
+      expect(callSupervisor).not.toHaveBeenCalled();
+      expect(dispatched).not.toHaveBeenCalled();
+      expect(dbGetThread(GUI)).toMatchObject({
+        agentKind: "codex",
+        presentationMode: "gui",
+        status: "working",
+      });
 
-  it("records a durable-row GUI rejection as a definite failure with no effect", async () => {
-    const commandId = "switch-requires-gui";
-    const body = switchBody(TERMINAL, "codex");
-    const first = await post(commandId, body);
-    expect(first.status).toBe(409);
-    await expect(first.json()).resolves.toMatchObject({
-      error: { code: "provider_switch_requires_gui" },
+      const retry = await post(commandId, body);
+      expect(retry.status).toBe(409);
+      await expect(retry.json()).resolves.toMatchObject({ error: { code: "command_failed" } });
+      expect(callSupervisor).not.toHaveBeenCalled();
+      expect(receiptState(commandId)).toBe("failed");
     });
-    expect(receiptState(commandId)).toBe("failed");
-    expect(callSupervisor).not.toHaveBeenCalled();
-    expect(dispatched).not.toHaveBeenCalled();
-    expect(dbGetThread(TERMINAL)).toMatchObject({ presentationMode: "terminal" });
 
-    const retry = await post(commandId, body);
-    expect(retry.status).toBe(409);
-    await expect(retry.json()).resolves.toMatchObject({ error: { code: "command_failed" } });
-    expect(callSupervisor).not.toHaveBeenCalled();
-  });
+    it("records a durable-row GUI rejection as a definite failure with no effect", async () => {
+      const commandId = "switch-requires-gui";
+      const body = switchBody(TERMINAL, "codex");
+      const first = await post(commandId, body);
+      expect(first.status).toBe(409);
+      await expect(first.json()).resolves.toMatchObject({
+        error: { code: "provider_switch_requires_gui" },
+      });
+      expect(receiptState(commandId)).toBe("failed");
+      expect(callSupervisor).not.toHaveBeenCalled();
+      expect(dispatched).not.toHaveBeenCalled();
+      expect(dbGetThread(TERMINAL)).toMatchObject({ presentationMode: "terminal" });
 
-  it("completes a valid switch and replays the same-id result without a second effect", async () => {
-    const commandId = "switch-valid";
-    const body = switchBody(GUI, "codex");
-    const first = await post(commandId, body);
-    expect(first.status).toBe(200);
-    await expect(first.json()).resolves.toEqual({ threadId: GUI });
-    expect(receiptState(commandId)).toBe("completed");
-    expect(dbGetThread(GUI)).toMatchObject({ agentKind: "claude", status: "launching" });
-    expect(callSupervisor).toHaveBeenCalledTimes(1);
-    expect(dispatched).toHaveBeenCalledTimes(1);
-
-    const replay = await post(commandId, body);
-    expect(replay.status).toBe(200);
-    await expect(replay.json()).resolves.toEqual({ threadId: GUI });
-    expect(callSupervisor).toHaveBeenCalledTimes(1);
-    expect(dispatched).toHaveBeenCalledTimes(1);
-    expect(receiptState(commandId)).toBe("completed");
-  });
-
-  it("keeps a post-retarget admission refusal uncertain and never downgrades it", async () => {
-    const commandId = "switch-busy";
-    const body = switchBody(GUI, "codex");
-    callSupervisor.mockImplementationOnce(async () => {
-      throw busyRefusal();
+      const retry = await post(commandId, body);
+      expect(retry.status).toBe(409);
+      await expect(retry.json()).resolves.toMatchObject({ error: { code: "command_failed" } });
+      expect(callSupervisor).not.toHaveBeenCalled();
     });
-    const first = await post(commandId, body);
-    expect(first.status).toBe(409);
-    await expect(first.json()).resolves.toMatchObject({
-      error: { code: "command_outcome_uncertain" },
-    });
-    expect(receiptState(commandId)).toBe("uncertain");
-    expect(callSupervisor).toHaveBeenCalledTimes(1);
-    // The retarget and its compensating renderer mirror really happened: the
-    // refusal is genuinely ambiguous, not a pure validation rejection.
-    expect(dispatched).toHaveBeenCalledTimes(2);
 
-    // Make the durable row reject the switch shape, then retry: a previously
-    // uncertain receipt must not be downgraded by current-attempt validation.
-    const restored = dbGetThread(GUI)!;
-    dbUpsertThread({ ...restored, presentationMode: "terminal" }, 0);
-    const retry = await post(commandId, body);
-    expect(retry.status).toBe(409);
-    await expect(retry.json()).resolves.toMatchObject({
-      error: { code: "command_outcome_uncertain" },
+    it("completes a valid switch and replays the same-id result without a second effect", async () => {
+      const commandId = "switch-valid";
+      const body = switchBody(GUI, "codex");
+      const first = await post(commandId, body);
+      expect(first.status).toBe(200);
+      await expect(first.json()).resolves.toEqual(
+        route === "/api/git/call" ? { result: { threadId: GUI } } : { threadId: GUI },
+      );
+      expect(receiptState(commandId)).toBe("completed");
+      expect(dbGetThread(GUI)).toMatchObject({ agentKind: "claude", status: "launching" });
+      expect(callSupervisor).toHaveBeenCalledTimes(1);
+      expect(dispatched).toHaveBeenCalledTimes(1);
+
+      const replay = await post(commandId, body);
+      expect(replay.status).toBe(200);
+      await expect(replay.json()).resolves.toEqual(
+        route === "/api/git/call" ? { result: { threadId: GUI } } : { threadId: GUI },
+      );
+      expect(callSupervisor).toHaveBeenCalledTimes(1);
+      expect(dispatched).toHaveBeenCalledTimes(1);
+      expect(receiptState(commandId)).toBe("completed");
     });
-    expect(callSupervisor).toHaveBeenCalledTimes(1);
-    expect(dispatched).toHaveBeenCalledTimes(2);
-    expect(receiptState(commandId)).toBe("uncertain");
-  });
-});
+
+    it("persists target state during launch and preserves it across catalog refresh and database reopen", async () => {
+      const body = switchBody(GUI, "codex", "target-fixture");
+      const sessionRef = {
+        providerSessionId: "target-session",
+        discoveredAt: "2026-10-11T00:00:00Z",
+      };
+      callSupervisor.mockImplementationOnce(async () => {
+        expect(dbGetThread(GUI)).toMatchObject({
+          agentKind: "target-fixture",
+          config: body.config,
+        });
+        persistThreadStateEvent({
+          type: "thread-state",
+          threadId: GUI,
+          status: "working",
+          attention: "working",
+          canResumeWithConfig: false,
+          config: body.config,
+        });
+        persistThreadStateEvent({
+          type: "thread-state",
+          threadId: GUI,
+          agentKind: "target-fixture",
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: true,
+          config: body.config,
+          sessionRef,
+        });
+        return { threadId: GUI } as never;
+      });
+      const response = await post("switch-state-during-launch", body);
+      expect(response.status).toBe(200);
+      persistThreadStateEvent({
+        type: "thread-state",
+        threadId: GUI,
+        agentKind: "codex",
+        status: "working",
+        attention: "working",
+        canResumeWithConfig: false,
+        config: { model: "stale-source" },
+        sessionRef: { ...sessionRef, providerSessionId: "source-session" },
+      });
+      const catalog = await fetch(new URL("/api/threads?limit=20", info.httpBaseUrl), {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(catalog.status).toBe(200);
+      expect(JSON.stringify(await catalog.json())).toContain("target-session");
+      closeDatabase();
+      initDatabase(join(dir, "state.sqlite"));
+      expect(dbGetThread(GUI)).toMatchObject({
+        id: GUI,
+        agentKind: "target-fixture",
+        config: body.config,
+        status: "idle",
+        sessionRef,
+      });
+    });
+
+    it("keeps a post-retarget admission refusal uncertain and never downgrades it", async () => {
+      const commandId = "switch-busy";
+      const body = switchBody(GUI, "codex");
+      callSupervisor.mockImplementationOnce(async () => {
+        throw busyRefusal();
+      });
+      const first = await post(commandId, body);
+      expect(first.status).toBe(409);
+      await expect(first.json()).resolves.toMatchObject({
+        error: { code: "command_outcome_uncertain" },
+      });
+      expect(receiptState(commandId)).toBe("uncertain");
+      expect(callSupervisor).toHaveBeenCalledTimes(1);
+      // The retarget and its compensating renderer mirror really happened: the
+      // refusal is genuinely ambiguous, not a pure validation rejection.
+      expect(dispatched).toHaveBeenCalledTimes(2);
+      expect(dbGetThread(GUI)).toMatchObject({
+        agentKind: "codex",
+        status: "inactive",
+        config: { model: "gpt-5" },
+      });
+      expect(dbGetThread(GUI)?.sessionRef).toBeUndefined();
+
+      // Make the durable row reject the switch shape, then retry: a previously
+      // uncertain receipt must not be downgraded by current-attempt validation.
+      const restored = dbGetThread(GUI)!;
+      dbUpsertThread({ ...restored, presentationMode: "terminal" }, 0);
+      const retry = await post(commandId, body);
+      expect(retry.status).toBe(409);
+      await expect(retry.json()).resolves.toMatchObject({
+        error: { code: "command_outcome_uncertain" },
+      });
+      expect(callSupervisor).toHaveBeenCalledTimes(1);
+      expect(dispatched).toHaveBeenCalledTimes(2);
+      expect(receiptState(commandId)).toBe("uncertain");
+    });
+  },
+);

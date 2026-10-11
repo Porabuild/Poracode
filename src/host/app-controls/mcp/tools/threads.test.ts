@@ -19,6 +19,44 @@ vi.mock("../../../db", () => ({
 import { threadTools } from "./threads";
 
 describe("read_thread", () => {
+  it.each(["user_message", "assistant_message"] as const)(
+    "preserves a named image's readable path in %s history",
+    async (type) => {
+      const path = "/app/attachments/source/image.png";
+      getConversationPage.mockResolvedValue({
+        nextCursor: null,
+        items: [
+          {
+            id: "image",
+            type,
+            state: "completed",
+            streams: {},
+            payload: {
+              content: [
+                {
+                  kind: "image",
+                  mimeType: "image/png",
+                  dataUrl: "data:image/png;base64,eA==",
+                  name: "image.png",
+                  path,
+                },
+                { kind: "text", text: "Name both colors." },
+              ],
+            },
+          },
+        ],
+      });
+      const ctx = {
+        getThread: () => ({ id: "source" }) as Thread,
+      } as unknown as AppControlsToolContext;
+      const result = (await threadTools.handlers.read_thread!({ threadId: "source" }, ctx)) as {
+        items: Array<{ text: string }>;
+      };
+      expect(result.items[0]?.text).toContain(`[image: ${path}]`);
+      expect(result.items[0]?.text).toContain("Name both colors.");
+    },
+  );
+
   it("returns canonical user prompt content and bounded assistant text", async () => {
     getConversationPage.mockResolvedValue({
       nextCursor: 12,

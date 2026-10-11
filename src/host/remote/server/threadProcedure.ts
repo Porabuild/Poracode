@@ -17,6 +17,7 @@ import { readJsonBody } from "./requestBody";
 import { runRemoteCommand } from "./remoteCommandIdempotency";
 import { authorizeProjectProcedurePayload } from "./projectProcedureAuthorization";
 import { requireCurrentRemoteProtocolVersion } from "./writerProtocolAdmission";
+import { applyRemoteThreadSwitch } from "./threadSwitch";
 
 /**
  * Generic desktop-supervisor passthrough. The PWA reuses desktop-backed
@@ -117,12 +118,26 @@ export async function runRemoteProcedure(
         route: `procedure:${name}`,
         principalId,
         requestPayload: startPayload,
-        // The whole operation is the supervisor call: the B1 pre-launch touch
-        // is evidence, not a command effect, and the supervisor refuses a
-        // capacity/policy admission before teardown or queue mutation. An
-        // admission refusal here is therefore a definite failure (429).
-        isPreEffectFailure: isHostResourceAdmissionRefusal,
+        // A plain start has no effect before supervisor admission. A switch
+        // retargets the durable row first, so a later refusal is uncertain.
+        ...(startPayload.providerSwitch
+          ? {}
+          : { isPreEffectFailure: isHostResourceAdmissionRefusal }),
         operation: (markDispatched) => {
+          if (startPayload.providerSwitch) {
+            if (!startPayload.threadId) {
+              throw new RemoteHttpError(
+                "thread_id_required",
+                "A provider switch requires an existing thread id.",
+                400,
+              );
+            }
+            return applyRemoteThreadSwitch(
+              ctx,
+              { ...startPayload, threadId: startPayload.threadId },
+              markDispatched,
+            );
+          }
           markDispatched();
           return ctx.options.callSupervisor("startThread", startPayload);
         },

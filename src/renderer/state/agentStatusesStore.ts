@@ -272,9 +272,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 45,
-      // v45 mirrors supervisor STATUS_CACHE_VERSION=49: re-probe native account
-      // catalogs and retain V2 model-family and per-model effort declarations.
+      version: 47,
+      // v47 mirrors supervisor STATUS_CACHE_VERSION=51: refresh complete per-model
+      // reasoning catalogs before the first native Chat turn.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

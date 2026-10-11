@@ -91,6 +91,17 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
     expect(createSpy.mock.calls[0]?.[3]).toMatchObject({ resolveMode });
   });
 
+  it("forwards provider-owned permission request normalization", () => {
+    const create = spyOnCreate();
+    const permissionRequestTransform = (
+      request: import("@agentclientprotocol/sdk").RequestPermissionRequest,
+    ) => request;
+    createAcpStructuredSession({ command: "test-agent", args: [] }, makeInput(), {
+      permissionRequestTransform,
+    });
+    expect(create.mock.calls[0]?.[3]).toMatchObject({ permissionRequestTransform });
+  });
+
   it("applies input.baseSpawnEnv to the spawned ACP command", () => {
     const createSpy = spyOnCreate();
 

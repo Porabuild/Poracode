@@ -482,6 +482,112 @@ describe("localSnapshotRecovery — sequence arbitration", () => {
     vi.clearAllMocks();
   });
 
+  it.each(["opened", "resolved"] as const)(
+    "keeps live requests authoritative when a request is %s during a history-gap read",
+    async (action) => {
+      let reducer: SupervisorEventReducer;
+      let finishRead!: () => void;
+      const read = new Promise<void>((resolve) => {
+        finishRead = resolve;
+      });
+      vi.mocked(rehydrateThreadRuntimeItemsAfterReset)
+        .mockImplementationOnce(async () => {
+          await read;
+          return true;
+        })
+        .mockResolvedValue(true);
+      const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+      reducer = createSupervisorEventReducer({
+        recovery: recovery.strategy,
+        onSequencedEvent: recovery.noteSequencedSupervisorEvent,
+      });
+      const opened: RuntimeEvent = {
+        type: "request.opened",
+        threadId: "thread-1",
+        requestId: "approval",
+        requestType: "command_execution_approval",
+        payload: { summary: "Read-only command" },
+      };
+      try {
+        reducer.dispatch({ type: "thread-runtime-event", threadId: "thread-1", event: opened }, 1);
+        // A background approval is actionable before the transcript queue flushes.
+        expect(useAppStore.getState().runtimeRequestsByThread["thread-1"]).toHaveLength(1);
+        reducer.recoverRuntimeHistory("thread-1");
+        expect(useAppStore.getState().runtimeRequestsByThread["thread-1"]).toHaveLength(1);
+        reducer.dispatch(
+          {
+            type: "thread-runtime-event",
+            threadId: "thread-1",
+            event:
+              action === "opened"
+                ? { ...opened, requestId: "second" }
+                : {
+                    type: "request.resolved",
+                    threadId: "thread-1",
+                    requestId: "approval",
+                    outcome: "declined",
+                  },
+          },
+          2,
+        );
+        const expected = action === "opened" ? ["approval", "second"] : [];
+        expect(
+          useAppStore.getState().runtimeRequestsByThread["thread-1"]?.map((r) => r.requestId),
+        ).toEqual(expected);
+        finishRead();
+        await vi.waitFor(() =>
+          expect(rehydrateThreadRuntimeItemsAfterReset).toHaveBeenCalledTimes(2),
+        );
+        await Promise.resolve();
+        reducer.flushSync("thread-1");
+        expect(
+          useAppStore.getState().runtimeRequestsByThread["thread-1"]?.map((r) => r.requestId),
+        ).toEqual(expected);
+      } finally {
+        finishRead();
+        reducer.clear();
+      }
+    },
+  );
+
+  it("retains a live approval from an oversized mixed transcript envelope", async () => {
+    let reducer: SupervisorEventReducer;
+    const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+    reducer = createSupervisorEventReducer({
+      recovery: recovery.strategy,
+      onSequencedEvent: recovery.noteSequencedSupervisorEvent,
+      queueLimits: { maxEvents: 1 },
+    });
+    vi.mocked(rehydrateThreadRuntimeItemsAfterReset).mockResolvedValue(true);
+    try {
+      reducer.dispatch(
+        {
+          type: "thread-runtime-events",
+          threadId: "thread-1",
+          events: [
+            itemStarted("one"),
+            itemStarted("two"),
+            {
+              type: "request.opened",
+              threadId: "thread-1",
+              requestId: "approval",
+              requestType: "command_execution_approval",
+              payload: { summary: "Read-only command" },
+            },
+          ],
+        },
+        1,
+      );
+      expect(useAppStore.getState().runtimeRequestsByThread["thread-1"]).toHaveLength(1);
+      await vi.waitFor(() =>
+        expect(rehydrateThreadRuntimeItemsAfterReset).toHaveBeenCalledTimes(1),
+      );
+      expect(useAppStore.getState().runtimeRequestsByThread["thread-1"]).toHaveLength(1);
+    } finally {
+      reducer.clear();
+    }
+  });
+
   it("holds newly subscribed deltas behind a history-gap read and resumes without clearing steer", async () => {
     let reducer: SupervisorEventReducer;
     let finishRead: (() => void) | undefined;

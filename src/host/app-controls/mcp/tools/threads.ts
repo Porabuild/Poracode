@@ -704,7 +704,9 @@ function itemText(item: {
         case "file":
           return `@${block.path}`;
         case "image":
-          return `[image: ${block.name ?? block.path ?? "attachment"}]`;
+          // A filename alone cannot locate an attachment stored outside the
+          // project when another provider reads this conversation.
+          return `[image: ${block.path ?? block.name ?? "attachment"}]`;
       }
     })
     .join("")

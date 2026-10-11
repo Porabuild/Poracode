@@ -38,6 +38,8 @@ import {
 type RequestAttention = "needs_approval" | "needs_reply" | "working";
 
 interface AcpSessionRequestsOptions {
+  /** A declared provider mode mapping also owns native permission enforcement. */
+  resolveMode?: typeof import("./sessionConfig").resolveAcpMode;
   threadId: string;
   getPermissionContext: () => {
     config: ThreadConfig | undefined;
@@ -229,6 +231,8 @@ export class AcpSessionRequests {
     const policy = config?.approvalPolicy;
     if (!config || config.mode === "plan" || !policy) return false;
     if (!isFullBypassApprovalPolicy(policy)) return false;
+    const declaredMode = this.options.resolveMode?.(config, availableModeIds);
+    if (declaredMode && availableModeIds.includes(declaredMode)) return false;
     return !hasNativeAcpPermissionMode(policy, availableModeIds);
   }
 

@@ -1,4 +1,5 @@
 import type { ThreadConfig } from "@/shared/contracts";
+import { resolveCommandCodePermissionMode } from "./permissionMode";
 
 /**
  * Assemble the `command-code` CLI argv for an interactive PTY launch (or a
@@ -49,14 +50,12 @@ export function buildCommandCodeArgs(
   // unlock rather than becoming the initial mode. A Bypass pick (never/yolo) in
   // non-plan mode intentionally omits the start mode, so the trailing `--yolo`
   // opens the session directly in bypass.
-  if (config.mode === "plan") {
-    args.push("--permission-mode", "plan");
-  } else if (config.approvalPolicy === "auto_edit") {
-    args.push("--permission-mode", "auto-accept");
-  } else if (config.approvalPolicy === "dont-ask") {
-    args.push("--permission-mode", "dont-ask");
-  } else if (config.approvalPolicy !== "never" && config.approvalPolicy !== "yolo") {
-    args.push("--permission-mode", "default");
+  const permissionMode = resolveCommandCodePermissionMode(config);
+  if (permissionMode !== "bypass") {
+    args.push(
+      "--permission-mode",
+      ["plan", "auto-accept", "dont-ask"].includes(permissionMode) ? permissionMode : "default",
+    );
   }
 
   // Always unlock bypass in the picker (and select it when no mode is pinned).

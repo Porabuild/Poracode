@@ -180,7 +180,7 @@ export interface RuntimeEventSlice {
   applyRuntimeEventBatches(
     batches: ReadonlyArray<{ threadId: string; events: RuntimeEvent[] }>,
   ): void;
-  clearThreadRuntimeEvents(threadId: string): void;
+  clearThreadRuntimeEvents(threadId: string, options?: { keepOpenRequests?: boolean }): void;
   /**
    * Force-terminate any still-running sub-agent tool_call items in a thread.
    * Used when a thread has no live agent attached (after DB hydration, or when
@@ -351,7 +351,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
     set((state) => applyRuntimeEventBatchesToState(state, batches));
   },
 
-  clearThreadRuntimeEvents: (threadId) =>
+  clearThreadRuntimeEvents: (threadId, options) =>
     set((state) => {
       clearRuntimeStructuralChangeHint(threadId);
       forgetThreadGalleryCache(threadId);
@@ -386,7 +386,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       return {
         runtimeItemIdsByThread,
         runtimeItemsByIdByThread,
-        runtimeRequestsByThread,
+        ...(options?.keepOpenRequests ? {} : { runtimeRequestsByThread }),
         runtimeContextByThread,
         runtimeBackgroundTasksByThread,
         runtimeStructuralVersionByThread,

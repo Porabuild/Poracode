@@ -53,6 +53,7 @@ export function createAcpStructuredSession(
     | "textStreamExtension"
     | "stderrTurnSignalParser"
     | "resolveMode"
+    | "permissionRequestTransform"
     | "resolveModelConfig"
     | "configureOpenedSession"
     | "allowUnlistedSelectValue"
@@ -126,6 +127,9 @@ export function createAcpStructuredSession(
       ? { assumedMcpCapabilities: overrides.assumedMcpCapabilities }
       : {}),
     ...(overrides?.resolveMode ? { resolveMode: overrides.resolveMode } : {}),
+    ...(overrides?.permissionRequestTransform
+      ? { permissionRequestTransform: overrides.permissionRequestTransform }
+      : {}),
     ...(overrides?.resolveModelConfig ? { resolveModelConfig: overrides.resolveModelConfig } : {}),
     ...(overrides?.behavior ? { behavior: overrides.behavior } : {}),
     ...(overrides?.textStreamExtension
