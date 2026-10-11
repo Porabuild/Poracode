@@ -1,5 +1,7 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { V2Event } from "./clientTypes";
+import { readNonNegativeInteger } from "../contextUsage";
+import { openCode2ToolPayload, type OpenCode2ToolItemState } from "./toolPayload";
 import {
   closeOpenCode2Items,
   createOpenCode2MapperState,
@@ -11,7 +13,11 @@ import {
 
 interface ChildSession {
   state: OpenCode2MapperState;
-  parentItemId?: string;
+  parentTool?: OpenCode2ToolItemState;
+  /** Stable rows seen across every continuation of this native session. */
+  itemIds: Set<string>;
+  /** New rows attached to the current parent invocation. */
+  stepCount: number;
   pending: V2Event[];
 }
 
@@ -44,7 +50,7 @@ export class OpenCode2Subagents {
     if (sessionID === this.root.sessionID) return this.link(event, this.root);
     const child = this.children.get(sessionID);
     if (!child) return [];
-    if (!child.parentItemId) {
+    if (!child.parentTool) {
       child.pending.push(event);
       return [];
     }
@@ -60,8 +66,8 @@ export class OpenCode2Subagents {
   close(): RuntimeEvent[] {
     const events: RuntimeEvent[] = [];
     for (const child of this.children.values()) {
-      if (child.parentItemId)
-        events.push(...this.tag(closeOpenCode2Items(child.state), child.parentItemId));
+      if (child.parentTool)
+        events.push(...this.tag(closeOpenCode2Items(child.state), child.parentTool.itemId));
     }
     this.children.clear();
     return events;
@@ -72,7 +78,7 @@ export class OpenCode2Subagents {
     if (!child) {
       const state = createOpenCode2MapperState(this.root.threadId);
       setOpenCode2SessionId(state, sessionID, { fresh: true });
-      child = { state, pending: [] };
+      child = { state, pending: [], itemIds: new Set(), stepCount: 0 };
       this.children.set(sessionID, child);
     }
     return child;
@@ -90,14 +96,40 @@ export class OpenCode2Subagents {
     const tool = parent.messages.get(event.data.assistantMessageID)?.tools.get(event.data.id);
     if (!tool || !["task", "subagent"].includes(tool.name.toLowerCase())) return [];
     const child = this.ensure(childID);
-    child.parentItemId = tool.itemId;
+    if (child.parentTool && child.parentTool.itemId !== tool.itemId) child.stepCount = 0;
+    child.parentTool = tool;
     const pending = child.pending;
     child.pending = [];
-    return pending.flatMap((entry) => this.map(entry));
+    return [...pending.flatMap((entry) => this.map(entry)), ...this.updateProgress(child)];
   }
 
   private mapChild(child: ChildSession, event: V2Event): RuntimeEvent[] {
-    return this.tag(mapOpenCode2Event(event, child.state), child.parentItemId!);
+    const events = this.tag(mapOpenCode2Event(event, child.state), child.parentTool!.itemId);
+    // Native operation replays can reannounce a stable canonical row.
+    for (const entry of events) {
+      if (entry.type !== "item.started" || child.itemIds.has(entry.itemId)) continue;
+      child.itemIds.add(entry.itemId);
+      child.stepCount += 1;
+    }
+    // Child rows are gated while their panel is closed. Publish the count on
+    // the parent tool as well so the main transcript still sees live progress.
+    events.push(...this.updateProgress(child));
+    return events;
+  }
+
+  private updateProgress(child: ChildSession): RuntimeEvent[] {
+    const parent = child.parentTool;
+    const stepCount = child.stepCount;
+    if (!parent || stepCount <= (readNonNegativeInteger(parent.progress.stepCount) ?? 0)) return [];
+    parent.progress = { ...parent.progress, stepCount };
+    return [
+      {
+        type: "item.updated",
+        threadId: this.root.threadId,
+        itemId: parent.itemId,
+        payload: openCode2ToolPayload(parent),
+      },
+    ];
   }
 
   private tag(events: RuntimeEvent[], parentItemId: string): RuntimeEvent[] {
