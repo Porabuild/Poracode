@@ -22,7 +22,7 @@
         "location_distro": null,
         "location_linux_path": null,
         "location_unc_path": null,
-        "last_draft_config": "{\"model\":\"gpt-5\",\"effort\":\"high\",\"fast\":false,\"thinking\":false,\"contextSize\":\"default\"}",
+        "last_draft_config": "{\"model\":\"gpt-5\",\"effort\":\"high\",\"fast\":false,\"thinking\":false,\"contextSize\":\"default\",\"agentKind\":\"codex\"}",
         "scripts": "{\"actions\":[]}",
         "worktree_location": null,
         "workspace_id": null,

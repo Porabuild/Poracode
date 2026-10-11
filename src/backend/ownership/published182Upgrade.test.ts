@@ -15,6 +15,8 @@ import { afterEach, expect, it, vi } from "vitest";
 import { closeDatabase, initDatabase } from "@/host/db/connection";
 import { dbGetThreadRuntimeItems } from "@/host/db/runtimeItems";
 import { dbGetSchedules } from "@/host/db/schedules";
+import { dbGetProjects, dbGetThreads } from "@/host/db/projectsThreads";
+import { projectSchema, threadSchema } from "@/shared/contracts";
 import { scheduledTaskSchema } from "@/shared/contracts/schedule";
 import { HostOwnerLease } from "./hostOwnerLease";
 import { resolveDesktopHostRootPaths } from "./hostRootPaths";
@@ -87,8 +89,10 @@ it("promotes the actual released schema42 and preserves history through schema57
     });
     expect(db.pragma("integrity_check")).toEqual([{ integrity_check: "ok" }]);
     expect(db.pragma("foreign_key_check")).toEqual([]);
-    // Startup returns schedules through this schema even when disabled.
+    // Validate the catalog returned at startup, including disabled schedules.
     expect(dbGetSchedules().map((task) => scheduledTaskSchema.parse(task))).toHaveLength(1);
+    expect(dbGetProjects().map((project) => projectSchema.parse(project))).toHaveLength(1);
+    expect(dbGetThreads().map((thread) => threadSchema.parse(thread))).toHaveLength(2);
     for (const table of [
       "projects",
       "threads",
