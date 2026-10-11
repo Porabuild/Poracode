@@ -1,6 +1,50 @@
 {
   "releases": [
     {
+      "version": "1.8.2",
+      "tagline": "Steady Sessions",
+      "date": "2026-10-11",
+      "title": "OpenCode 2 reliability & clearer chat controls",
+      "summary": "OpenCode 2 finds your native accounts and models reliably, preserves existing sessions, and shows live subagent progress. Chat answers are easier to pick, reasoning defaults are consistent, and Prevent sleep now keeps the display awake.",
+      "changes": [
+        {
+          "kind": "improved",
+          "label": "Chat",
+          "text": "Single-choice question forms show numbered answer rows with a clear selection state, and you can clear an optional answer by clicking it again."
+        },
+        {
+          "kind": "improved",
+          "label": "Models",
+          "text": "New threads, model changes, and schedules default to the highest supported reasoning effort when no valid choice is saved, while preserving your existing selections."
+        },
+        {
+          "kind": "fixed",
+          "label": "OpenCode 2",
+          "text": "Provider, model, plugin, and skill discovery works with current OpenCode 2 releases, and stale empty catalogs refresh after upgrading."
+        },
+        {
+          "kind": "fixed",
+          "label": "OpenCode 2",
+          "text": "Poracode uses the accounts you signed into through the native CLI while keeping older Poracode sessions resumable in both Chat and terminal views."
+        },
+        {
+          "kind": "fixed",
+          "label": "OpenCode 2",
+          "text": "Install and update now target OpenCode 2.0.26, with working slash commands, question replies, permission decisions, and session approval settings."
+        },
+        {
+          "kind": "fixed",
+          "label": "OpenCode 2",
+          "text": "Subagent step counts update in the parent chat even when the child panel is closed, without double-counting replayed work or carrying counts into a new invocation."
+        },
+        {
+          "kind": "fixed",
+          "label": "Power",
+          "text": "The Prevent sleep policy keeps both the system and display awake on macOS, Windows, and Linux, with clearer settings text explaining that it can delay automatic screen locking."
+        }
+      ]
+    },
+    {
       "version": "1.8.1",
       "tagline": "Personal Flow",
       "date": "2026-10-10",
