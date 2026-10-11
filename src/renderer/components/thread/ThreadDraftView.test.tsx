@@ -1624,7 +1624,7 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentAgentKind).toBe("codex");
       expect(providerModel?.currentModel).toBe("gpt-5.4");
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
-      expect(effortContext?.effortValue).toBe("high");
+      expect(effortContext?.effortValue).toBe("xhigh");
       const permission = props.controls.find((control) => control.value === "auto-review");
       expect(permission?.options?.some((option) => option.label === "Auto-review")).toBe(true);
     });
@@ -1636,7 +1636,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "high",
+        effort: "xhigh",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "auto_review",
@@ -1877,7 +1877,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "high",
+        effort: "xhigh",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
@@ -1961,7 +1961,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "high",
+        effort: "xhigh",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "auto_review",
@@ -2236,7 +2236,7 @@ describe("ThreadDraftView", () => {
         controls: Array<{ kind?: string; effortValue?: string; currentModel?: string }>;
       };
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
-      expect(effortContext?.effortValue).toBe("high");
+      expect(effortContext?.effortValue).toBe("xhigh");
     });
 
     act(() => {
