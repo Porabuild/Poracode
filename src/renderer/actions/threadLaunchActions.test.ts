@@ -927,13 +927,15 @@ describe("startThreadFromDraft host transport", () => {
     mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
     mocks.remoteState.runtime = { d1: { status: "offline" } };
 
-    await startThreadFromDraft(remoteProject, {
-      agentKind: "codex",
-      config: { model: "gpt-5.6" },
-      prompt: "build it",
-      worktreeBranch: "feature",
-      worktreeIsNewBranch: true,
-    });
+    await expect(
+      startThreadFromDraft(remoteProject, {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build it",
+        worktreeBranch: "feature",
+        worktreeIsNewBranch: true,
+      }),
+    ).rejects.toThrow("This project's remote server is offline. Reconnect it to start a thread.");
 
     // Bails before creating a worktree we would have to unwind.
     expect(mocks.createWorktree).not.toHaveBeenCalled();

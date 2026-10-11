@@ -379,10 +379,11 @@ export async function startThreadFromDraft(
   // can't launch while its server is unreachable. Bail before creating a
   // worktree we would then have to unwind.
   if (isRemoteProjectUnreachable(project)) {
-    toast.danger(
-      i18n._(msg`This project's remote server is offline. Reconnect it to start a thread.`),
+    const message = i18n._(
+      msg`This project's remote server is offline. Reconnect it to start a thread.`,
     );
-    return;
+    toast.danger(message);
+    throw new Error(message);
   }
 
   const isHomeScope = isHomeProject(project);

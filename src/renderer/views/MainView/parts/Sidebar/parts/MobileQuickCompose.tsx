@@ -8,11 +8,11 @@ import { useAppStore } from "@/renderer/state/appStore";
 
 export function MobileQuickCompose(props: { projectId: string }) {
   const { t } = useLingui();
-  const [expanded, setExpanded] = useState(false);
-  const [projectId, setProjectId] = useState(props.projectId);
+  const [draft, setDraft] = useState({ projectId: props.projectId, revision: 0, expanded: false });
+  const { expanded } = draft;
   const [restoreWorktreeSelectionToken, setRestoreWorktreeSelectionToken] = useState(0);
   const project = useAppStore((state) =>
-    state.projects.find((candidate) => candidate.id === projectId),
+    state.projects.find((candidate) => candidate.id === draft.projectId),
   );
   const draftEnvironment = useDraftEnvironment(project);
 
@@ -20,7 +20,9 @@ export function MobileQuickCompose(props: { projectId: string }) {
   // user may have switched projects inside the composer, so the sync pauses
   // until the next collapse. Adjusted during render so the draft never paints
   // a frame for the wrong project.
-  if (!expanded && projectId !== props.projectId) setProjectId(props.projectId);
+  if (!expanded && draft.projectId !== props.projectId) {
+    setDraft({ ...draft, projectId: props.projectId, revision: draft.revision + 1 });
+  }
 
   if (!project) return null;
 
@@ -33,7 +35,7 @@ export function MobileQuickCompose(props: { projectId: string }) {
       collapsedTapLabel={t`New thread`}
       onExpandedChange={(next) => {
         if (!next) setRestoreWorktreeSelectionToken((token) => token + 1);
-        setExpanded(next);
+        setDraft((current) => ({ ...current, expanded: next }));
       }}
     >
       <section className="m-draft">
@@ -41,7 +43,7 @@ export function MobileQuickCompose(props: { projectId: string }) {
           {t`Plan, ask, build…`}
         </span>
         <ThreadDraftView
-          key={project.id}
+          key={`${project.id}:${draft.revision}`}
           project={project}
           agentStatuses={draftEnvironment.agentStatuses}
           isDetectingAgents={draftEnvironment.isDetectingAgents}
@@ -54,10 +56,22 @@ export function MobileQuickCompose(props: { projectId: string }) {
             ? { saveClipboardImage: draftEnvironment.saveClipboardImage }
             : {})}
           {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
-          onProjectChange={setProjectId}
+          onProjectChange={(projectId) => {
+            setDraft((current) =>
+              current.projectId === projectId
+                ? current
+                : { ...current, projectId, revision: current.revision + 1 },
+            );
+          }}
           onStart={async (input) => {
             await startThreadFromDraft(project, input);
-            setExpanded(false);
+            // The mobile dock remains mounted after launch. Start a fresh editor
+            // without resetting an unsent draft selected while launch was pending.
+            setDraft((current) =>
+              current.projectId === project.id && current.revision === draft.revision
+                ? { ...current, revision: current.revision + 1, expanded: false }
+                : current,
+            );
           }}
         />
       </section>
