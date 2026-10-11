@@ -9,14 +9,14 @@
     "verificationLimit": "This records the verified state and a recovery copy; it does not prevent a future manual deletion in the app.",
     "supersededByScopeRevision": true
   },
-  "updatedAt": "2026-10-10T22:30:28.627897+00:00",
+  "updatedAt": "2026-10-11T00:04:40.509861+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize poracode/v2 for a safe merge into master with practical performance and regression confidence, preserving historical progress and evidence.",
   "progress": {
-    "completedMilestones": 2,
+    "completedMilestones": 3,
     "totalMilestones": 6,
-    "inProgress": ["F3", "F4", "F5", "F6"],
+    "inProgress": ["F4", "F5", "F6"],
     "blocked": [],
     "pending": [],
     "completedScopedTasks": [
@@ -32,16 +32,17 @@
       "F1-ranged-file-read",
       "F4-actual-fs-source",
       "F4-quality-tooling",
-      "F1-stop"
+      "F1-stop",
+      "F3-attribution"
     ],
     "taskCount": {
-      "complete": 13,
+      "complete": 14,
       "total": 18,
-      "percent": 72.2,
+      "percent": 77.8,
       "meaning": "Unweighted checklist only, not optimization savings/remaining effort/final signoff."
     },
-    "completedMilestoneIds": ["F1", "F2"],
-    "recordedCompletionCounterEvidenceScope": "Historical13/18tasks and2/6milestones retained. Final-source merge readiness requires the five reconciled open tasks; historical scoped evidence is reused only where relevant inputs still match.",
+    "completedMilestoneIds": ["F1", "F2", "F3"],
+    "recordedCompletionCounterEvidenceScope": "Historical baseline:13/18tasks,2/6milestones. Revised current scope:14/18tasks,3/6milestones after F3-attribution completion. Four tasks remain open. Historical scoped evidence is reused only where relevant inputs still match; these counters do not establish final-source signoff.",
     "historicalCountersPreservedByExplicitScopeRevision": true
   },
   "currentWork": {
@@ -66,7 +67,7 @@
       "externalProviderAndModelFilesAttested": false
     },
     "buildSession": null,
-    "nextAction": "Use prepared actual scroll-driven older-history hydration when admitted; prepare independent maintained GUI/PTY and existing-counter matched lanes against settled source. Old missing reports stay historical evidence gaps, not current preparation gates.",
+    "nextAction": "Qualify the patched current-source saved-history flow, complete final-head CI, then audit and update PR725. Main remains poracode/v2.",
     "lastResult": "User-authorized unblock replaced obsolete fixture dependencies with freshly compiled frozen73 owner/reader and maintained source helpers.17focused checks PASS. Two current production app/browser runs activateworker/readinactive savedpane and retire8originalhandles with exactcanonical/artifact/ports conservation; both whole runs remainFAIL. Actual production reader proves intended initial1/cursor31 and next31 -> full32/302102bytes/exactdigest. Correct scroll-driven hydration prepared/tested, unexecuted; no third lane launch. Historical artifacts remainmissing but no longer current execution prerequisites. Fullgoal incomplete, no gain, commits/push/install.",
     "lastDeclaration": "One normalization-only diagnostic plus one source-fix allocation validation, no unchanged usage/wholeapp cohort or renderer attribution restart. Differential syntax error caused shell to continue into validation before corrected110case preflight; originalincorrectdeclaration/failedlog retained and sequencing annotated offline, no measurement rerun. CachechurnoneattemptFAIL retained; source cleanup/bounds/data scope distinct from collectionproof.",
     "liveRootHandles": [],
@@ -92,7 +93,7 @@
       "actualModelRoster": "Actual installed/authenticated/selectable fixture-model roster PASS",
       "richPresentation": "96 scripted GUI calls; 24 case types per light/heavy/bursty profile; source/canonical negative oracle PASS",
       "genuineExecution": "Supervisor-owned standalone child and ordered two-stage workflow: three actual fixture reads with native source custody and exact dependency receipts PASS",
-      "liveGroupsAndMedia": "8→16→8 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
+      "liveGroupsAndMedia": "8\u219216\u21928 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
       "savedCompactPwa": "R116 scopedPASS saved gallery exact dimensions/navigation and compact390x844 canonical replay with actually activated PWA worker. Full saved-summary scanFAIL3/4; rich offline/reconnect remains unqualified.",
       "retirement": "Both strict owner cleanup verdicts PASS; 380 original PID numbers freshly ESRCH before correction; 175 historical rows in correction cleanup",
       "evidence": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
@@ -571,7 +572,7 @@
         "native startup/ownership/model admission",
         "48 scripted rich calls across 24 tool-card shapes",
         "canonical conservation and seq+1 negative oracle",
-        "live groups 8→16→8",
+        "live groups 8\u219216\u21928",
         "two PNG decode/navigation/close 320x240/1024x768"
       ],
       "notReached": [
@@ -625,7 +626,7 @@
     "lifecycleInputReconciliation": {
       "path": "tmp/v2-streaming-perf-20260930/round127/lifecycle-input-reconciliation.json",
       "retention": "tmp/v2-streaming-perf-20260930/round127/retention-source-equivalence.json",
-      "scope": "R109→R122199packages/23489files/374edges exact equality;1417 selected lifecycle sources equal;4/6R76 retention inputs equal. Changed gallery/cache/CSS paths remain scoped current checks, not whole-renderer equivalence."
+      "scope": "R109\u2192R122199packages/23489files/374edges exact equality;1417 selected lifecycle sources equal;4/6R76 retention inputs equal. Changed gallery/cache/CSS paths remain scoped current checks, not whole-renderer equivalence."
     },
     "safariQualification": {
       "result": "tmp/v2-streaming-perf-20260930/round127/root-safari-result.json",
@@ -651,7 +652,7 @@
     },
     "currentInputReconciliation": {
       "retention": "R128 current64tests/4filesPASS with exact8source/test seals; logical admission limits only, no heap/private RAM inference",
-      "editorCreate": "Independent bounded comparison verified10editor/LSP and17producer/storage sources plus18fixture/helper seals; all199package/23489file/374edge runtime closure rows equal. Electron44.0.0→44.4.4 and changed main/renderer bundles prevent whole-runtime/native-replay equivalence",
+      "editorCreate": "Independent bounded comparison verified10editor/LSP and17producer/storage sources plus18fixture/helper seals; all199package/23489file/374edge runtime closure rows equal. Electron44.0.0\u219244.4.4 and changed main/renderer bundles prevent whole-runtime/native-replay equivalence",
       "pty": "R156 R146 current Electron44.4.4 real kernel PTY controls/retained reopen/interrupt/publicexit/nativequit PASS. Long-session/cap-eviction/RAM/p95 still open.",
       "evidence": "tmp/v2-streaming-perf-20260930/round128/root-round128-result.json"
     },
@@ -663,7 +664,7 @@
     },
     "savedNativeAttemptHistory": {
       "R129": "FAIL before any seeds: complete discovery refused ESRCH children;19recordedPIDs freshly absent,cleanupPASS;attempt1/no correction consumed",
-      "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs→11exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
+      "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs\u219211exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
       "cumulativeAffectedNativeLaunches": 46,
       "counterReset": false,
       "productionChanges": true,
@@ -1261,7 +1262,7 @@
       },
       "resolvedSchemaParity": "PASS",
       "realFileReadVectorsPassed": 4,
-      "desktopGroupControls": "PASS 8→10→8",
+      "desktopGroupControls": "PASS 8\u219210\u21928",
       "desktopGallery": "PASS exact320x240/1024x768 PNG bytes, Next/Previous/Close",
       "maskedBrowserAction": "UNTESTED: no actual browser descriptor",
       "partialError": "Actual source/DB result intact; public detail not qualified",
@@ -1574,10 +1575,10 @@
         "R231 owning collapsed public tap to expanded real editor, exact text and Enter acknowledgements",
         "R232 both owning public Send controls; source3prompts/10scriptedcards/actualmedia completed and actualpartial failed result; no full settlement or replay qualification",
         "R233 actual mock media/error delivery and visible exact partial-error/icon",
-        "R233 scripted10segmentgroup8→10→8, two exactsuccessPNGs Next/Previous/Close and errorimage exclusion",
+        "R233 scripted10segmentgroup8\u219210\u21928, two exactsuccessPNGs Next/Previous/Close and errorimage exclusion",
         "R233 public reload newloader, canonical/source no-replay assertions reached; stopped21rows/12toolIDs conserved"
       ],
-      "remaining": "Only saved error/group/gallery controls in this compact path remain unqualified. Live actual media/error delivery, visible error/icon, group8→10→8 and bothsuccessPNG Next/Previous/Close PASS. Reload exact canonical/noReplay/sameepoch assertions reached; saved error raw-card locator exhausts finite24scroll cap. Diagnose saved hydration/locator; reuse live passes without re-emission or replay.",
+      "remaining": "Only saved error/group/gallery controls in this compact path remain unqualified. Live actual media/error delivery, visible error/icon, group8\u219210\u21928 and bothsuccessPNG Next/Previous/Close PASS. Reload exact canonical/noReplay/sameepoch assertions reached; saved error raw-card locator exhausts finite24scroll cap. Diagnose saved hydration/locator; reuse live passes without re-emission or replay.",
       "inputSealsVerified": 109,
       "reviewSealsVerified": 130,
       "freshObservedProcessAbsences": 136,
@@ -4354,7 +4355,7 @@
           "target": {
             "version": 1,
             "itemId": "asst-cb43d49f-cc11-47f6-82d1-8833cd8b986d",
-            "marker": "⟦a=0 s=378 t=1791505936961⟧",
+            "marker": "\u27e6a=0 s=378 t=1791505936961\u27e7",
             "sourceSlot": 0,
             "sourceSeq": 378
           },
@@ -4374,7 +4375,7 @@
           "target": {
             "version": 1,
             "itemId": "asst-cb43d49f-cc11-47f6-82d1-8833cd8b986d",
-            "marker": "⟦a=0 s=378 t=1791505936961⟧",
+            "marker": "\u27e6a=0 s=378 t=1791505936961\u27e7",
             "sourceSlot": 0,
             "sourceSeq": 378
           },
@@ -4394,7 +4395,7 @@
           "target": {
             "version": 1,
             "itemId": "asst-cb43d49f-cc11-47f6-82d1-8833cd8b986d",
-            "marker": "⟦a=0 s=378 t=1791505936961⟧",
+            "marker": "\u27e6a=0 s=378 t=1791505936961\u27e7",
             "sourceSlot": 0,
             "sourceSeq": 378
           },
@@ -5730,7 +5731,7 @@
       "required": true,
       "screenLocked": false,
       "evidence": "tmp/v2-media-playback-20261010/desktop-state.json",
-      "limit": "Fresh prelaunch probe only. Old full-run console state at the109–2133ms visibility-loss transition was unobserved; later unlocked observations cannot prove it. Original UI FAIL retained."
+      "limit": "Fresh prelaunch probe only. Old full-run console state at the109\u20132133ms visibility-loss transition was unobserved; later unlocked observations cannot prove it. Original UI FAIL retained."
     },
     "metadataMutationToolBatch": {
       "state": "PASS_SCOPED",
@@ -9753,6 +9754,60 @@
       "canonicalAndArtifactUnchanged": true,
       "newMasterMergedSourceQualified": false,
       "userAuthorizedExtensionConsumed": true
+    },
+    "mergeReadiness20261011": {
+      "historicalStart": "13/18tasks,2/6milestones",
+      "current": "14/18tasks,3/6milestones",
+      "masterIntegrated": "028d86b8e4a04629bd0b35f8bdab3823999d58b9",
+      "mergeCommit": "ef6879fd8a6cc542f7496042825e5cb326982ef2",
+      "sourceHead": "9d74bffd7ae8a7a65e433f8decf1dfddf5168ac7",
+      "priorExactHeadCI": "6c00fae9d core push/PR and native push/PR all success. 9d74bffd7 core push/PR and native push pass; native PR fails scheduler test assuming completion after 20 Task.yield calls. Explicit completion expectation correction prepared; final-head CI remains pending.",
+      "localQuality": "2016files/23096tests pass,6files/102tests skipped; typecheck/lint/fmt, desktop/web builds, protocol/localization pass. New patch80focused checks and normal precommit hooks pass. 9d adjustment patch90 focused tests pass. Offline raw-prefix candidate64tests/4files, typecheck, touched lint/format pass; immutable candidate production verification pending.",
+      "ordinaryTerminal": "56540845e isolated DEV actual shell trusted input/output, same shell hide/reopen, CtrlC/continued input;2screenshots reviewed, owner stop verified. Initial unselected-project failure retained.",
+      "pwa": "9d74bffd7 online display matches the actual current projection: all17 rows, exact payload receipt. Canonical32 raw rows remain exact. Durable history cache fails because older pages were not persisted; raw-prefix caching candidate and race regressions prepared. Offline/reconnect completion remains open.",
+      "historicalBudgetsPreserved": true,
+      "pwaFollowup": {
+        "source": "9d74bffd7ae8a7a65e433f8decf1dfddf5168ac7",
+        "runs": [
+          {
+            "path": "tmp/v2-finalize-20261011/current-pwa-paging-verification-6c00fae9d/execution-result.json",
+            "status": "failed",
+            "failure": "older saved history progress deadline",
+            "scope": "Input arrived while initial scrolling was active; does not isolate ordinary settled paging."
+          },
+          {
+            "path": "tmp/v2-finalize-20261011/current-pwa-settled-correction1-6c00fae9d/execution-result.json",
+            "status": "failed",
+            "failure": "owning list initial scrolling settled deadline",
+            "scope": "Overstrict unsampled readiness predicate; retained initial targets can be finished and DOM scroll offsets are clamped. Cause of this run remains unproved."
+          },
+          {
+            "path": "tmp/v2-finalize-20261011/current-pwa-settlement-observed-correction2-6c00fae9d/execution-result.json",
+            "status": "failed",
+            "failure": "older saved history progress deadline",
+            "scope": "Observed startup settled; exact saved receipt progressed1\u219211\u219217 then stalled. Per-page adjustment ledger was not sampled, so exact cause is unproved."
+          },
+          {
+            "path": "tmp/v2-finalize-20261011/current-pwa-adjustment-verification-9d74bffd7/execution-result.json",
+            "status": "failed",
+            "failure": "older saved history progress deadline",
+            "scope": "Original raw32-row UI oracle was invalid: independent actual image-ref/compaction projection proves the loaded17 rows match completely. Dependency adjustment race did not occur in the sampled final-page ledger. Failure retained."
+          },
+          {
+            "path": "tmp/v2-finalize-20261011/current-pwa-display-projection-correction-9d74bffd7/execution-result.json",
+            "status": "failed",
+            "failure": "durable exact saved rich snapshot deadline",
+            "scope": "Online display17-row projection exact; durable cache remains initial tail because source path never persisted loaded older pages. Offline/reconnect not reached. Durable cache must be checked against raw remote32 image-ref rows, separately from the compacted17 UI rows."
+          }
+        ],
+        "custody": "Each run joined all4 owned handles, closed4ports, retained exact10-table canonical data and immutable artifacts; zero recorded renderer errors.",
+        "networkObserverLimitation": "Initial CDP Network enabled by domain loop. Existing helper retains only first512 events, so later HTTP history responses may be absent from retained events; empty history filter proves no request absence. Actual remote paging uses /history/items HTTP routes.",
+        "dependencyRaceReproduction": "tmp/v2-finalize-20261011/history-edge-latch-review/adjust-reproduction.json",
+        "reproductionScope": "Exact installed adjustment/updateScroll/threshold functions prove suppressed dispatch when an adjustment native event is coalesced with a subsequent user scroll. This is not proof of the unsampled current-run adjustment ledger.",
+        "completion": false,
+        "projectionScope": "32canonical raw rows become17 displayed rows through intentional completed-tool summaries and image-ref projection. Ordinary tool detail payloads remain in canonical storage but are intentionally absent from renderer summaries; no full raw-detail UI fidelity claim.",
+        "cacheCandidate": "Persist raw older pages in IndexedDBv2 with matching cursor, detached-goal positioning, authoritative refresh replacement, synchronous admission and serialized refresh writes. Writes nonblocking, five-second bounded, existing16MiB logical budget.64focused tests pass; production qualification pending."
+      }
     }
   },
   "milestones": [
@@ -9904,7 +9959,7 @@
     {
       "id": "F3",
       "title": "Practical performance attribution and retention",
-      "status": "in_progress",
+      "status": "complete",
       "dependsOn": ["F1"],
       "owner": "Coordinator",
       "scope": [
@@ -9928,9 +9983,10 @@
         "tmp/v2-streaming-perf-20260930/round82/root-round82-result.json",
         "tmp/v2-streaming-perf-20260930/round83/root-round83-result.json",
         "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
-        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+        "tmp/v2-finalize-20261011/diagnostics-benchmark/results.json"
       ],
-      "nextAction": "Investigate only proven high-impact CPU, memory or I/O costs; verify bounds/retirement and resource regressions on available hardware. No unavailable GPU/private-profile prerequisite or marginal tuning.",
+      "nextAction": "Complete for revised scope; remaining paging/CI/readiness tasks retain their separate gates.",
       "qualifiedSubgates": {
         "profilingSnapshot": "R122 all8buildstages/source/output/web/dependencyclosure PASS; snapshot does not imply profile or resource qualification.",
         "currentServerDiagnostic": "PASS200reads/144tools/canonical; p95 6.08ms,app3.25onecore%,supervisor1.24onecore%; singleheadless diagnostic, no gain claim",
@@ -9976,7 +10032,8 @@
           "No extra cache, batching or cost transfer is adopted without profile evidence and canonical parity."
         ],
         "nextAction": "Current-server scoped comparison qualified. Finish required broader Electron/browser attribution with honest family/private/hardware limits and retained functional checks; no marginal server tuning or universal native framework."
-      }
+      },
+      "completedAt": "2026-10-11T00:04:40.509861+00:00"
     },
     {
       "id": "F4",
@@ -10122,7 +10179,7 @@
           "The final report separates performance-phase completion from the separate v2 production-readiness program.",
           "Goal is marked complete only after the actual completion audit passes. User-authorized commits/push are permitted; publication, merges and installed-app replacement remain separate."
         ],
-        "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1–G4 remaining gates close."
+        "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1\u2013G4 remaining gates close."
       }
     }
   ],
@@ -10156,7 +10213,7 @@
       "at": "2026-10-05T15:02:59.657296+00:00",
       "round": "R116-final",
       "result": "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-      "summary": "Real two-stage navigation, saved authenticated gallery and compact390x844 replay/activated worker PASS. Summary scan retainsFAIL3/4. Four backend measured arms/576richcalls/800reads requalified: appCPU8–12%lower, supervisor5–14%lower versusR78 v2; p95mixed+0.61/-2.79ms, no repeatable material worsening. Original schema54 observerFAIL preserved; corrected stopped-DB audit and negative checks qualify data without repeating that arm. F5 inprogress; 13/18 tasks, zero final signoffs."
+      "summary": "Real two-stage navigation, saved authenticated gallery and compact390x844 replay/activated worker PASS. Summary scan retainsFAIL3/4. Four backend measured arms/576richcalls/800reads requalified: appCPU8\u201312%lower, supervisor5\u201314%lower versusR78 v2; p95mixed+0.61/-2.79ms, no repeatable material worsening. Original schema54 observerFAIL preserved; corrected stopped-DB audit and negative checks qualify data without repeating that arm. F5 inprogress; 13/18 tasks, zero final signoffs."
     },
     {
       "at": "2026-10-05T14:01:59.919944+00:00",
@@ -10300,7 +10357,7 @@
       "at": "2026-10-04T18:26:37.413028+00:00",
       "round": "round87",
       "result": "tmp/v2-streaming-perf-20260930/round87/catalog-d0-review.json",
-      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38→40); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
+      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38\u219240); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
     },
     {
       "at": "2026-10-04T18:38:22.821265+00:00",
@@ -10310,7 +10367,7 @@
     },
     {
       "at": "2026-10-04T20:20:43.342415+00:00",
-      "round": "round88–round91",
+      "round": "round88\u2013round91",
       "result": "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
       "summary": "Reviewed offline prewarm/cancellation ownership fix compiledR89, original root+nested offline native gatesPASS R90. R91 desktop driver correction208tests/reviewPASS; nativeearlier A-warm observer unmatched2API requests/4responses preventsqualification. All127PIDs/4ports/78seals/fulldeps/canonical/exactAretiredverified. FlashX7source/report seals+nativeidgapverified; candidatecorrection notyetimplemented/qualified. All requiredchildrenjoined."
     },
@@ -10499,7 +10556,7 @@
     },
     {
       "at": "2026-10-05T23:37:02.094286+00:00",
-      "scope": "R137–R144 GUI contract correction and actualqualification",
+      "scope": "R137\u2013R144 GUI contract correction and actualqualification",
       "result": "R138 three realGUIanswers/negative scopedPASS, fullFAIL optional-wire mismatch; exactrequestSHAreconstructed. R140 fourthcontrolsteerPASS, fullFAIL omittedgenuineSDKresolutionnotification. Root/Solverify pinned0.155.1source, correctonlyprivatefixture/guard; R144allfiveGUIcontrols+negative+strictnativequit/bounds/cleanupPASS.8freshknownabsences,59source/32originalseals stable,37preflights. BothCIworkflowsgreenon94d. Goalactive13/18tasks/1of6milestones; no newresourcegain."
     },
     {
@@ -10515,7 +10572,7 @@
     {
       "at": "2026-10-06T04:50:33.153475+00:00",
       "scope": "R178 exact saved-history delivery",
-      "result": "Native33 delivers all61raw IDs/four image items/sixblocks in6.088s with36trusted viewport wheels and older cursors60→49→21→end. Gallerybubble opens and two thumbnail controls exist, but first safe-click refuses occluded. FullFAIL preserved; decode/navigation/release/quit unqualified. Source/canonical/config/key/settings transition and cleanup9fresh owned absences PASS;0capturederrors. Superseding prelaunch88tests/21syntax/377seals and execution446seals verify; first prelaunch refusal and unavailable old test-log bytes remain disclosed. No production edits/resource windows/gain or task completion."
+      "result": "Native33 delivers all61raw IDs/four image items/sixblocks in6.088s with36trusted viewport wheels and older cursors60\u219249\u219221\u2192end. Gallerybubble opens and two thumbnail controls exist, but first safe-click refuses occluded. FullFAIL preserved; decode/navigation/release/quit unqualified. Source/canonical/config/key/settings transition and cleanup9fresh owned absences PASS;0capturederrors. Superseding prelaunch88tests/21syntax/377seals and execution446seals verify; first prelaunch refusal and unavailable old test-log bytes remain disclosed. No production edits/resource windows/gain or task completion."
     },
     {
       "at": "2026-10-06T05:57:51.541779+00:00",
@@ -10569,18 +10626,18 @@
     },
     {
       "at": "2026-10-06T17:40:42.434239+00:00",
-      "scope": "R220–R224 accounting, backend writes and current GUI/PTY lifecycle",
-      "result": "Native49 passes actual PTY T1–T7 and GUI generation/retirement G1/G2; overall FAIL is preserved because the settings guard rejects the supported reconnect preference update. Native50 reviews the exact preference correction but FAILS startup discovery before GUI actions. Quit/cleanup,16 fresh observed absences,65 seals and independent stopped canonical pass; protected baseline was not initialized. Backend native writes are attributed to serverMain with late-window bursts; cause remains unproved. Metadata observer leaf reviewed only. No production change or new gain; tasks13/18,milestones2/6 unchanged."
+      "scope": "R220\u2013R224 accounting, backend writes and current GUI/PTY lifecycle",
+      "result": "Native49 passes actual PTY T1\u2013T7 and GUI generation/retirement G1/G2; overall FAIL is preserved because the settings guard rejects the supported reconnect preference update. Native50 reviews the exact preference correction but FAILS startup discovery before GUI actions. Quit/cleanup,16 fresh observed absences,65 seals and independent stopped canonical pass; protected baseline was not initialized. Backend native writes are attributed to serverMain with late-window bursts; cause remains unproved. Metadata observer leaf reviewed only. No production change or new gain; tasks13/18,milestones2/6 unchanged."
     },
     {
       "at": "2026-10-06T23:15:50.907602+00:00",
       "scope": "Current GUI51 lifecycle and bounded serverMain I/O diagnosis",
-      "result": "GUI G1–G4 PASS; real-PTY49 seven steps reused. Root verifies72seals,9freshESRCH,declared capped projection/two PNGs/reopen without re-emission/full cascade/key+manifest+all other settings/quit/cleanup/errors0. I/O R225fails an unsupported direct-root rootPid guard; corrected R226admits serverMain but fails full-member admission before metadata/window; failing active member is unretained, prior startup bsdtar is not causal proof. Both references remainUNTESTED, original write increasesunresolved. Named-core binding review next; counts13/18 and2/6 unchanged."
+      "result": "GUI G1\u2013G4 PASS; real-PTY49 seven steps reused. Root verifies72seals,9freshESRCH,declared capped projection/two PNGs/reopen without re-emission/full cascade/key+manifest+all other settings/quit/cleanup/errors0. I/O R225fails an unsupported direct-root rootPid guard; corrected R226admits serverMain but fails full-member admission before metadata/window; failing active member is unretained, prior startup bsdtar is not causal proof. Both references remainUNTESTED, original write increasesunresolved. Named-core binding review next; counts13/18 and2/6 unchanged."
     },
     {
       "at": "2026-10-07T01:09:06.420031+00:00",
       "scope": "Retained named CPU/footprint and current compact navigation/composer diagnosis",
-      "result": "R230 retained R227 named CPU derivation reproduced without execution: current server/supervisor3.483%/1.991% onecore vsR78v2 2.734%/1.434%; current sampled supervisor footprint higher; no whole-family/gain claim. R228 stale navigation refused; R229 actual navigationPASS; R230 captured intentional collapsed tap; R231 tap/expanded editor/text/EnterACK PASS but media deadline, sourceADMITonly/tools0. Each consumed once/0retry; root verifies107inputs/130reviewseals/85freshabsences/join0pending/protected/cleanup/errors0. Remaining compact workflow and F3–F6 open; counts13/18 and2/6 unchanged."
+      "result": "R230 retained R227 named CPU derivation reproduced without execution: current server/supervisor3.483%/1.991% onecore vsR78v2 2.734%/1.434%; current sampled supervisor footprint higher; no whole-family/gain claim. R228 stale navigation refused; R229 actual navigationPASS; R230 captured intentional collapsed tap; R231 tap/expanded editor/text/EnterACK PASS but media deadline, sourceADMITonly/tools0. Each consumed once/0retry; root verifies107inputs/130reviewseals/85freshabsences/join0pending/protected/cleanup/errors0. Remaining compact workflow and F3\u2013F6 open; counts13/18 and2/6 unchanged."
     },
     {
       "at": "2026-10-07T01:31:09.496094+00:00",
@@ -10590,7 +10647,7 @@
     {
       "at": "2026-10-07T01:36:15.430299+00:00",
       "scope": "Current live compact media/error/groups/gallery qualified; saved locator remaining",
-      "result": "Corrected R233 iconpredicate independentreviewPASS and3changedchecksPASS. Actual3prompts/3replies,12tools (10scripted,2ownedmock), publicerror detail/icon, group8→10→8, bothoriginalPNG hashes/dimensions Next/Previous/Close PASS. Ownreloadnewloader and exactcanonical/noReplay/sameepoch assertions reached; fullrunFAILsavederrorcard24scrollcap. Root109inputs/130reviewseals/136freshESRCH/stopped21rows12toolIDs/zero pendingoperations/errors/protected+cleanupPASS. Nextsaved-onlydiagnosis, no acceptedactivecohort replay. Counts13/18,2/6 unchanged."
+      "result": "Corrected R233 iconpredicate independentreviewPASS and3changedchecksPASS. Actual3prompts/3replies,12tools (10scripted,2ownedmock), publicerror detail/icon, group8\u219210\u21928, bothoriginalPNG hashes/dimensions Next/Previous/Close PASS. Ownreloadnewloader and exactcanonical/noReplay/sameepoch assertions reached; fullrunFAILsavederrorcard24scrollcap. Root109inputs/130reviewseals/136freshESRCH/stopped21rows12toolIDs/zero pendingoperations/errors/protected+cleanupPASS. Nextsaved-onlydiagnosis, no acceptedactivecohort replay. Counts13/18,2/6 unchanged."
     },
     {
       "at": "2026-10-07T02:39:25.267094+00:00",
@@ -10610,7 +10667,7 @@
     },
     {
       "at": "2026-10-07T05:32:46.574872+00:00",
-      "round": "R257–R258-native-and-pwa-contracts",
+      "round": "R257\u2013R258-native-and-pwa-contracts",
       "result": "tmp/v2-streaming-perf-20260930/round258/root-pwa-seals-verification.json",
       "summary": "PWA observer custody/retirement corrections12focused/3syntax PASS with independent leaf review; inert. Native C+Node nonnull unitsPASS and meaningful10negatives; null PID/errno scopedPASS but spawnp valid delegation refused, outside-root data gap preserved, broaderuse blocked. No product/benchmark/gain;13/18tasks,2/6milestones unchanged."
     },
@@ -10823,15 +10880,15 @@
     },
     {
       "at": "2026-10-10T01:15:39.798669+00:00",
-      "summary": "Self-contained current host/private-owner seed+ACP fixture/canonical reader replaces missing inherited bindings. Delegated35-source/offline settings roundtrip120keys/6declared fields and byte-sealed productionruntime PASS; agentjoined. First actual app refused missingcredentialcustody beforeDB; root addedofficial headless keyinitialization underfreshlease beforeDB (guardunchanged),offlineverify PASS. One materialvalidation then executed create_thread and expected GUIstructuredruntime reply before oracle JSON-parsed structured rawOutput and failed. Root auditedactual source and recovered exact rawMCP request/response→canonicalcard,3caller+2targetrows,actualworkerprompt/stdoutcallback,model/fast/callerconfig/all120settings/project conservation PASS-scoped; raworiginalFAIL retained. Typed-result oracle corrected and7purefixtures/negativeproofchecks PASS. Both apps/3correctionhandles andknownPIDs joined/ESRCH,bothportsclosed,frozenbytesunchanged. Original1app+1keycorrectionvalidation consumed; no unchangedlaunch/reset/full11call/nativeUI/resumeStop/p95/CPU/GPU/RAM gaincredit. Currentmerged create_thread scoped only; older50/75 historical, broadergoal13/18 active unchanged."
+      "summary": "Self-contained current host/private-owner seed+ACP fixture/canonical reader replaces missing inherited bindings. Delegated35-source/offline settings roundtrip120keys/6declared fields and byte-sealed productionruntime PASS; agentjoined. First actual app refused missingcredentialcustody beforeDB; root addedofficial headless keyinitialization underfreshlease beforeDB (guardunchanged),offlineverify PASS. One materialvalidation then executed create_thread and expected GUIstructuredruntime reply before oracle JSON-parsed structured rawOutput and failed. Root auditedactual source and recovered exact rawMCP request/response\u2192canonicalcard,3caller+2targetrows,actualworkerprompt/stdoutcallback,model/fast/callerconfig/all120settings/project conservation PASS-scoped; raworiginalFAIL retained. Typed-result oracle corrected and7purefixtures/negativeproofchecks PASS. Both apps/3correctionhandles andknownPIDs joined/ESRCH,bothportsclosed,frozenbytesunchanged. Original1app+1keycorrectionvalidation consumed; no unchangedlaunch/reset/full11call/nativeUI/resumeStop/p95/CPU/GPU/RAM gaincredit. Currentmerged create_thread scoped only; older50/75 historical, broadergoal13/18 active unchanged."
     },
     {
       "at": "2026-10-10T01:29:41.191820+00:00",
-      "summary": "Independent currentcompiled localGit workflow PASS7realMCPcalls/4newnames git_stage(stage/unstage/restage),git_commit,git_discard,git_branch(create/switch). Actualproductionhandler/nativeGit effect checks validate UTF8index,realcommitobject/message,trackeddiscard bytes and branchHEAD in privatefixture withoutremote.21canonicalitems exactrawrequest/response/card binding;7fencedpublichistory comparisons and5table/live→stopped itemidentity PASS;120settingskeys unchanged.4originalhandlesnormal0 joined/6knownPIDsfreshESRCH,bothportsclosed,frozenruntimebytes unchanged. Initialstage attempt failedoracle comparing newercompletedpublic snapshot against earlierupdated localrow and omittedundefinedpayload; failedreport/cleanup preserved, requireterminalitems+exactJSONwire normalization corrected, singlematerialvalidation PASS. Both attempts consumed/no unchanged repeat; oldcontrols/PWA/resource caps unchanged. Gitdomain source byteexactretainedcandidate, currentwhole75-toolmetadata notrecaptured. Five currentmerged genuinelyscoped names total(create plus4Git),no GUIrender/externalprovider/p95/CPU/GPU/RAM gaincredit;goalactive13/18,2/6 unchanged."
+      "summary": "Independent currentcompiled localGit workflow PASS7realMCPcalls/4newnames git_stage(stage/unstage/restage),git_commit,git_discard,git_branch(create/switch). Actualproductionhandler/nativeGit effect checks validate UTF8index,realcommitobject/message,trackeddiscard bytes and branchHEAD in privatefixture withoutremote.21canonicalitems exactrawrequest/response/card binding;7fencedpublichistory comparisons and5table/live\u2192stopped itemidentity PASS;120settingskeys unchanged.4originalhandlesnormal0 joined/6knownPIDsfreshESRCH,bothportsclosed,frozenruntimebytes unchanged. Initialstage attempt failedoracle comparing newercompletedpublic snapshot against earlierupdated localrow and omittedundefinedpayload; failedreport/cleanup preserved, requireterminalitems+exactJSONwire normalization corrected, singlematerialvalidation PASS. Both attempts consumed/no unchanged repeat; oldcontrols/PWA/resource caps unchanged. Gitdomain source byteexactretainedcandidate, currentwhole75-toolmetadata notrecaptured. Five currentmerged genuinelyscoped names total(create plus4Git),no GUIrender/externalprovider/p95/CPU/GPU/RAM gaincredit;goalactive13/18,2/6 unchanged."
     },
     {
       "at": "2026-10-10T01:52:21.114128+00:00",
-      "summary": "Current compiled MCPprobe/catalog/realordinaryPTY residual PASS8actualMCPcalls(7positive+1expectedclosedreaderror),24canonicalitems exactrawrequest/result/cards/all8publichistory/live→stopped5tables;120settingskeys conserved. Probe connectsactualSDK tolocalstdiofixture,negotiatesinitialize/tools-list/cleanup (externalservice mocked;echo toolnotexecuted). One actualPTY blocksread/printf underexec sh,test-t stdin/stdouttrue;2PINGwrites emitexactsamePID,explicitclose→freshESRCH,live membershipgone andread_terminal correctlyrejects. Normalrootquit4originalhandles0exit joined,8knownPIDsfreshESRCH,4trackedpublic/control/actualMCPingressportsclosed,immutableproductionbytesunchanged. Agentdc996 contract8sources matchesfrozen/code; protocol13/header/sourcechanges justifyonly residual, old2/2PTY+GUI/matched/control/resource capsunchanged. Captured current75deliverednames (63poracode+12crossagents),noadded/removed;73inputschemasexact,wait_for_agent/get_status schemas/descriptionschanged; old50namehistorynotpromotedcurrent. Current8scopednames;genuinefull75/allGUI/subagent/workflow/matchedRAM/GPU/CPU/I/O/p95 unqualified. MCPfixturecallbacknull prelaunchfailure retained/corrected, noappretry;1declaredappused. Desktoplocked/noGUIlaunch/protectedSimuntouched. Goalactive13/18,2/6 unchanged."
+      "summary": "Current compiled MCPprobe/catalog/realordinaryPTY residual PASS8actualMCPcalls(7positive+1expectedclosedreaderror),24canonicalitems exactrawrequest/result/cards/all8publichistory/live\u2192stopped5tables;120settingskeys conserved. Probe connectsactualSDK tolocalstdiofixture,negotiatesinitialize/tools-list/cleanup (externalservice mocked;echo toolnotexecuted). One actualPTY blocksread/printf underexec sh,test-t stdin/stdouttrue;2PINGwrites emitexactsamePID,explicitclose\u2192freshESRCH,live membershipgone andread_terminal correctlyrejects. Normalrootquit4originalhandles0exit joined,8knownPIDsfreshESRCH,4trackedpublic/control/actualMCPingressportsclosed,immutableproductionbytesunchanged. Agentdc996 contract8sources matchesfrozen/code; protocol13/header/sourcechanges justifyonly residual, old2/2PTY+GUI/matched/control/resource capsunchanged. Captured current75deliverednames (63poracode+12crossagents),noadded/removed;73inputschemasexact,wait_for_agent/get_status schemas/descriptionschanged; old50namehistorynotpromotedcurrent. Current8scopednames;genuinefull75/allGUI/subagent/workflow/matchedRAM/GPU/CPU/I/O/p95 unqualified. MCPfixturecallbacknull prelaunchfailure retained/corrected, noappretry;1declaredappused. Desktoplocked/noGUIlaunch/protectedSimuntouched. Goalactive13/18,2/6 unchanged."
     },
     {
       "at": "2026-10-10T02:03:20.603163+00:00",
@@ -10909,7 +10966,7 @@
     },
     {
       "at": "2026-10-10T15:51:33.217607+00:00",
-      "summary": "OneofficialisolatedfrozenDEVapp current5455source/698packages:all23Settingssections andauthoritativeMCPimportstorage→visiblepresentationPASS;usagepromiseisolationmockPASS; standaloneBrowser13PASSmarkers andquickcomposernativeclose/reopen/model/presentation/typing/submitIPChandoffmockPASS.0renderererrors;7pureoracle testsPASS. Originalhandles82723/53028/21902andruntime91708joined0. Officialowner20761/stop49492joined0; runtimeRemoved/ownerfreshESRCH/4portsclosed. Backendshuttingdownwindowboundswarningretained/no normalQuitclaim. Missing4remaining-resourceplanreceipts verifiedabsent; noresourcecohortreset. 13/18tasks2/6milestones/fullscopeincomplete.",
+      "summary": "OneofficialisolatedfrozenDEVapp current5455source/698packages:all23Settingssections andauthoritativeMCPimportstorage\u2192visiblepresentationPASS;usagepromiseisolationmockPASS; standaloneBrowser13PASSmarkers andquickcomposernativeclose/reopen/model/presentation/typing/submitIPChandoffmockPASS.0renderererrors;7pureoracle testsPASS. Originalhandles82723/53028/21902andruntime91708joined0. Officialowner20761/stop49492joined0; runtimeRemoved/ownerfreshESRCH/4portsclosed. Backendshuttingdownwindowboundswarningretained/no normalQuitclaim. Missing4remaining-resourceplanreceipts verifiedabsent; noresourcecohortreset. 13/18tasks2/6milestones/fullscopeincomplete.",
       "evidence": "tmp/v2-settings-usage-20261010-affected/root-verification.json"
     },
     {
@@ -10977,6 +11034,15 @@
     {
       "at": "2026-10-10T22:30:28.627897+00:00",
       "summary": "User explicitly rewrote the goal to finalize V2 for merging into master while retaining realistic performance,18tasks/six milestones and historical13/18,2/6progress. Updated goal saved/verified in app. Main checkout returned to V2; latest master integration has11content conflicts resolved, typecheckPASS and focused356PASS/one stale renamed-command-field assertion identified/corrected. Pending verified QA fixes adopted from detached worktree. Authorized73 PWA hydration run remainsFAIL on older-history progress;4handles retirezero/canonicalandartifactsconserved. No final completion/performance gain claim; prior budgets and failures unchanged. Necessary verified commits/pushes now authorized; no final merge/release/install."
+    },
+    {
+      "at": "2026-10-11T00:04:40.509861+00:00",
+      "type": "revised-scope-task-complete",
+      "task": "F3-attribution",
+      "progress": "14/18 tasks,3/6 milestones",
+      "evidence": "tmp/v2-finalize-20261011/diagnostics-benchmark/results.json",
+      "remaining": "F2-pwa,F4-matrix,F5-matched,F6-audit",
+      "historicalStartAndFailuresPreserved": true
     }
   ],
   "tasks": [
@@ -11125,9 +11191,9 @@
       "id": "F3-attribution",
       "milestone": "F3",
       "title": "Practical performance attribution and retention",
-      "status": "in_progress",
+      "status": "complete",
       "owner": "Coordinator",
-      "nextAction": "Investigate only proven high-impact CPU, memory or I/O costs; verify bounds/retirement and resource regressions on available hardware. No unavailable GPU/private-profile prerequisite or marginal tuning.",
+      "nextAction": "Complete for revised scope; remaining paging/CI/readiness tasks retain their separate gates.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
@@ -11163,10 +11229,21 @@
         "tmp/v2-buffer-sizing-20261010/frozen-production/runtime-manifest.json",
         "tmp/v2-row-retainer-20261010/root-verification.json",
         "tmp/v2-mixed-runtime-20261010/root-verification.json",
-        "tmp/v2-mixed-runtime-20261010/desktop-state.json"
+        "tmp/v2-mixed-runtime-20261010/desktop-state.json",
+        "tmp/v2-finalize-20261011/diagnostics-benchmark/results.json",
+        "tmp/v2-finalize-20261011/perf-final-head-measured.log",
+        "tmp/v2-finalize-20261011/final-review-receipt.json"
       ],
       "currentBackendScopedVerification": "tmp/v2-streaming-perf-20260930/current-backend-20261009/loaded-root-pairs-corrected/parent-evidence/root-consolidated-result.json",
-      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00"
+      "scopeReconciledAt": "2026-10-10T22:30:28.627897+00:00",
+      "completedAt": "2026-10-11T00:04:40.509861+00:00",
+      "revisedScopeOutcome": {
+        "source": "6c00fae9d5f293386871ff3591832d4bf8b38b33",
+        "moduleHashesRechecked": true,
+        "provenFix": "Owned diagnostic marks/measures no longer accumulate; ring overflow uses a cursor and disposal releases retained observations. Runtime graph traversal no longer repeats resolves/manifest reads.",
+        "matchedDiagnosticWork": "Two alternating before/current pairs, 30,000 spans each: baseline retains 60,000 timeline entries; current retains zero, with exact 512-row FIFO ring and 29,488 dropped records. Node batch p95 current0.986/1.087ms, baseline1.455/2.397ms.",
+        "scopeLimits": "Isolated actual-module bookkeeping, not UI paint or whole-app savings. Native/private RAM and hardware GPU measurements remain unmeasured. Historical failures and all eight budget records remain unchanged."
+      }
     },
     {
       "id": "F4-matrix",
