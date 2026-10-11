@@ -1,3 +1,26 @@
+Command Code native ACP support (CLI 1.74.0+, verified on 1.79.2) advances the
+supervisor agent-status cache from 49 to 51 and the renderer persisted copy from
+45 to 47. Prior terminal-only inventories and the incomplete 50/46 reasoning
+catalogs must be discarded and re-probed so Chat, session-local MCP and all
+negotiated model/effort choices appear. Regression
+fixtures include the immediate prior cache versions. Existing thread configs,
+session IDs, canonical history, settings, IPC/wire protocols and deployed hook
+plugin formats remain compatible; the provider maps saved terminal permission
+IDs to native ACP modes and accepts ACP permission IDs on terminal handoff.
+The permission-request normalization hook is process-local configuration, not
+a serialized or wire field; existing protocols and native bindings remain valid.
+The managed desktop's generic start route now applies the existing durable
+provider-switch operation before launching, matching the dedicated remote
+endpoint. The existing payload, receipt format and database schema are unchanged;
+route-parity regressions cover launch-time state persistence, stale-source
+rejection, restart and compensating rollback. Rebuilt host bundles replace the
+incorrect dispatcher; no compatibility version bump is required.
+The built-in `read_thread` transcript now retains an image's existing file path
+when it also has a display name, so an incoming provider can locate it. This
+corrects bounded message text without changing MCP arguments/result fields or
+stored history; filename-only image markers remain compatible. No wire, schema
+or deployed-plugin version changes are required.
+
 Master integration on 2026-10-11 combines OpenCode 2 native-account discovery and
 the pinned 2.0.26 provider client with V2 model-family and per-model effort
 metadata. Supervisor agent-status cache version advances from 48 to 49, and its

@@ -27,6 +27,62 @@ import {
 beforeEach(setupManagedRootFixture);
 afterEach(teardownManagedRootFixture);
 
+it("reopens background history without losing its pending approval", async () => {
+  const threadId = "t-background-approval";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  await activate();
+  await vi.waitFor(() => expect(threadRow(threadId)).toBeDefined(), { timeout: 15_000 });
+  await hydrateThreadRuntimeItems(threadId);
+  let reducer: SupervisorEventReducer;
+  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  reducer = createSupervisorEventReducer({
+    recovery: recovery.strategy,
+    onSequencedEvent: recovery.noteSequencedSupervisorEvent,
+  });
+  const uninstall = installRuntimeHistoryRecovery(reducer.recoverRuntimeHistory);
+  try {
+    reducer.dispatch(
+      {
+        type: "thread-runtime-event",
+        threadId,
+        event: {
+          type: "request.opened",
+          threadId,
+          requestId: "approval",
+          requestType: "command_execution_approval",
+          payload: { summary: "Read-only command" },
+        },
+      },
+      1,
+    );
+    hydrateThreadRuntimeItemsForInterest(threadId, false);
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]),
+    );
+    expect(useAppStore.getState().runtimeRequestsByThread[threadId]).toMatchObject([
+      { requestId: "approval" },
+    ]);
+    reducer.dispatch(
+      {
+        type: "thread-runtime-event",
+        threadId,
+        event: {
+          type: "request.resolved",
+          threadId,
+          requestId: "approval",
+          outcome: "declined",
+        },
+      },
+      2,
+    );
+    expect(useAppStore.getState().runtimeRequestsByThread[threadId]).toEqual([]);
+  } finally {
+    uninstall();
+    reducer.clear();
+  }
+}, 60_000);
+
 it("hydrates the out-of-window goal from bounded history without a legacy supervisor read", async () => {
   seedThread("t-goal-history");
   seedRuntimeItems("t-goal-history", 700);

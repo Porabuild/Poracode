@@ -46,6 +46,8 @@ rule is about control flow and data shape, not about erasing history.
    (agent-text, background-task, and tool-lifecycle quirks), `acpSessionUpdateTransform` /
    `acpExtensionSessionUpdateTransform` (payload normalization),
    `acpExtensionNotificationHandler` (vendor JSON-RPC notifications).
+   `permissionRequestTransform` normalizes vendor permission/question requests
+   before shared request classification; reply option IDs remain transport IDs.
    Probe customization uses `normalizeProbeResult` for discovered capabilities
    and `modelLabel` for fallback labels when the agent supplies no display name.
    Probes whose per-model config snapshots are authoritative declare
@@ -221,7 +223,7 @@ The **Structured Session** column reflects whether the adapter implements `creat
 | Pi           | (authenticated models probed via SDK)                                              | off…max, per model                                                                                      | terminal              | Yes (native SDK)                 |
 | Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                                     | ACP registry probe                                                                                      | terminal / GUI server | Yes (official `antigravity-acp`) |
 | Devin        | (families from CLI models list)                                                    | per-model variants                                                                                      | terminal              | Yes (official `devin acp`)       |
-| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                             | (none)                                                                                                  | terminal              | No                               |
+| Command Code | Live CLI catalog; Chat negotiates models through native ACP (1.74.0+)              | Per-model native ACP config options, CLI fallback for older versions                                    | terminal / GUI server | Yes (native `command-code acp`)  |
 | Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries                 | probed (`none…ultra` fallback)                                                                          | terminal              | Yes (MSP over `muse serve`)      |
 
 Antigravity is one built-in agent and one registry card with two managed runtime

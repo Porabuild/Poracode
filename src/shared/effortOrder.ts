@@ -6,7 +6,7 @@
  * `xhigh, low, medium, none`, which draws the picker out of order. Sorting on
  * this ladder keeps every provider's effort menu reading weakest → strongest.
  */
-const CANONICAL_EFFORT_ORDER = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+const CANONICAL_EFFORT_ORDER = ["off", "none", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 const CANONICAL_EFFORT_ALIASES: Record<string, string> = {
   "extra-high": "xhigh",

@@ -16,6 +16,7 @@ import {
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageDir = join(repoRoot, "packages", "poracode-cli");
+const packageVersion = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8")).version;
 const tempDirs = [];
 after(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
@@ -29,7 +30,7 @@ function tempDir(prefix) {
 
 const sha = (letter) => letter.repeat(64);
 
-function writeInputs({ version = "1.8.1", targets = ["linux-x64"], url } = {}) {
+function writeInputs({ version = packageVersion, targets = ["linux-x64"], url } = {}) {
   const root = tempDir("poracode-npm-publish-");
   const metadata = {
     formatVersion: 1,
@@ -83,7 +84,7 @@ void test("verifyPublicationInputs refuses version, target, and mutable-latest p
     manifest: good.manifestPath,
     packageDir,
   });
-  assert.equal(inputs.manifest.version, "1.8.1");
+  assert.equal(inputs.manifest.version, packageVersion);
   assert.deepEqual(Object.keys(inputs.manifest.targets), ["linux-x64"]);
 
   const wrongVersion = writeInputs({ version: "9.9.9" });

@@ -75,6 +75,7 @@ export const functionalAreas = [
     title: "Provider discovery, model selection, and provider plugins",
     patterns: [
       /agents\/devin\//i,
+      /agents\/commandcode\//i,
       /providers?\//i,
       /agents\/registry/i,
       /agentRegistry/i,

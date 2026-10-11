@@ -131,7 +131,9 @@ const execFileAsync = promisify(execFile);
 // v49 combines native-account catalogs and the current provider protocol with
 // V2 model-family/effort metadata. Both integrated parents (v48 and v36) must
 // re-probe; renderer persisted copy advances independently to v45.
-export const STATUS_CACHE_VERSION = 49;
+// v50 discovers Command Code's native ACP Chat surface and session MCP support.
+// v51 completes native effort catalogs, including models beyond the ACP sweep.
+export const STATUS_CACHE_VERSION = 51;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

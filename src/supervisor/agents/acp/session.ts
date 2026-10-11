@@ -292,6 +292,8 @@ export interface AcpSessionBehavior {
 }
 
 export interface AcpStructuredSessionOptions {
+  /** Normalize vendor request payloads before shared permission/question handling. */
+  permissionRequestTransform?: (request: RequestPermissionRequest) => RequestPermissionRequest;
   /** User-approved roots, snapshotted before spawn; no live scope mutation. */
   additionalDirectories?: readonly ProjectLocation[];
   /** Resolve the provider's session mode when its permission modes differ from the terminal client. */
@@ -470,6 +472,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private readonly resolveModelConfig: AcpStructuredSessionOptions["resolveModelConfig"];
   private readonly resolveMode: AcpStructuredSessionOptions["resolveMode"];
+  private readonly permissionRequestTransform: AcpStructuredSessionOptions["permissionRequestTransform"];
 
   private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
 
@@ -808,6 +811,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private get sessionRequests(): AcpSessionRequests {
     if (!this._sessionRequests) {
       this._sessionRequests = new AcpSessionRequests({
+        ...(this.resolveMode ? { resolveMode: this.resolveMode } : {}),
         threadId: this.threadId,
         getPermissionContext: () => ({
           config: this.currentConfig,
@@ -872,6 +876,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     options?: AcpStructuredSessionOptions,
   ) {
     this.resolveMode = options?.resolveMode;
+    this.permissionRequestTransform = options?.permissionRequestTransform;
     this.resolveModelConfig = options?.resolveModelConfig;
     this.child = child;
     this.connection = connection;
@@ -2175,7 +2180,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private handlePermissionRequest(
     params: RequestPermissionRequest,
   ): Promise<RequestPermissionResponse> {
-    return this.sessionRequests.requestPermission(params);
+    return this.sessionRequests.requestPermission(
+      this.permissionRequestTransform?.(params) ?? params,
+    );
   }
 
   private handleElicitationRequest(

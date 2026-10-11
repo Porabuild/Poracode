@@ -22,6 +22,7 @@ import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import { modelFamilyForModel } from "@/shared/modelFamilySelection";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { ProviderModelPreference } from "@/shared/settings";
+import { getConfigNormalizer } from "@/renderer/components/providers/providerComposer";
 
 export function resolveProviderModelPreference(
   agentKind: AgentStatus["kind"],
@@ -126,7 +127,12 @@ export function resolveSavedProviderDraftConfig(
 }
 
 export function resolveModelValue(agent: AgentStatus, preferred?: string): string {
-  return resolveModelSelection(agent.capabilities, preferred);
+  const normalized = normalizeProviderModelConfig(
+    agent.kind,
+    { model: preferred },
+    agent.capabilities.models,
+  );
+  return resolveModelSelection(agent.capabilities, normalized.model);
 }
 
 export function resolveEffortValue(agent: AgentStatus, model: string, preferred?: string): string {
@@ -253,11 +259,23 @@ export function resolveProviderDraftConfig(
   agent: AgentStatus,
   preferred?: Partial<ProviderDraftConfig>,
 ): ProviderDraftConfig {
-  const normalizedPreferred = normalizeProviderModelConfig(
+  const preferredModelConfig = normalizeProviderModelConfig(
     agent.kind,
     normalizeCursorPreferredDraft(agent, preferred) ?? {},
     agent.capabilities.models,
   );
+  // Normalize surface-specific intent before unsupported values fall back to
+  // defaults, so a restored permission alias keeps its original posture.
+  const normalizer = getConfigNormalizer(agent.kind);
+  const normalizedApprovalPolicy = normalizer?.({
+    capabilities: agent.capabilities,
+    config: { ...preferredModelConfig, model: preferredModelConfig.model ?? "" },
+    presentationMode: agent.capabilities.presentationMode,
+  }).approvalPolicy;
+  const normalizedPreferred = {
+    ...preferredModelConfig,
+    ...(normalizedApprovalPolicy !== undefined ? { approvalPolicy: normalizedApprovalPolicy } : {}),
+  };
   const nextModel = resolveModelValue(agent, normalizedPreferred.model);
   // Family members own their display coordinates: a model-bound axis carries
   // them in the exact UID (restore keeps the stored seeds — an empty effort and

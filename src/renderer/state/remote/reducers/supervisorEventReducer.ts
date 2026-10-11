@@ -64,6 +64,8 @@ export type ProviderUsageAllSupervisorEvent = Extract<
  * own ordering inline (the remote reset path resumes immediately).
  */
 export interface RuntimeEventRecoveryStrategy {
+  /** Transcript-only snapshots do not replace the live pending-request map. */
+  readonly preservesOpenRequests?: boolean;
   readonly recoverFromQueueOverflow: (
     threadIds: readonly string[],
     resume: () => void,
@@ -405,9 +407,15 @@ export function createSupervisorEventReducer(
     }
     const overflowed: string[] = [];
     for (const batch of batches) {
+      // Requests are live control state, absent from transcript snapshots.
+      // Apply them before bulk history can be blocked, discarded or overflow.
+      const isRequest = (event: RuntimeEvent) =>
+        event.type === "request.opened" || event.type === "request.resolved";
+      const requests = batch.events.filter(isRequest);
+      if (requests.length > 0) useAppStore.getState().applyRuntimeEvents(batch.threadId, requests);
       const result = queue.enqueue(
         batch.threadId,
-        batch.events,
+        requests.length > 0 ? batch.events.filter((event) => !isRequest(event)) : batch.events,
         options?.rendererSequence,
         options?.sequenceSpace ?? "ipc",
       );
@@ -426,7 +434,9 @@ export function createSupervisorEventReducer(
         // new deltas.
         overflowed.push(batch.threadId);
         runtimeRecoveryInFlight.add(batch.threadId);
-        useAppStore.getState().clearThreadRuntimeEvents(batch.threadId);
+        useAppStore.getState().clearThreadRuntimeEvents(batch.threadId, {
+          keepOpenRequests: config.recovery.preservesOpenRequests === true,
+        });
         forgetThreadRuntimeWindow(batch.threadId);
         useAppStore.getState().clearAllPendingSteer(batch.threadId);
         clearRuntimeItemStoreSelectorCacheForThread(batch.threadId);
