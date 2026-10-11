@@ -471,6 +471,20 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       return cachedResult;
     }
 
+    const loadingBuffer = withGitDiff(
+      {
+        path: openPath,
+        status: "ready",
+        modifiedAtMs: 0,
+        content: "",
+        savedContent: "",
+        lineEnding: "lf",
+        hasBom: false,
+        isDirty: false,
+        isLoading: true,
+      },
+      options?.gitDiff,
+    );
     set((state) => {
       const changes = computeTabOpen(state, openPath, mode, preview);
       return {
@@ -480,20 +494,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         ...(reveal ? { pendingReveal: reveal } : {}),
         buffers: {
           ...changes.buffers,
-          [openPath]: withGitDiff(
-            {
-              path: openPath,
-              status: "ready",
-              modifiedAtMs: 0,
-              content: "",
-              savedContent: "",
-              lineEnding: "lf",
-              hasBom: false,
-              isDirty: false,
-              isLoading: true,
-            },
-            options?.gitDiff,
-          ),
+          [openPath]: loadingBuffer,
         },
       };
     });
@@ -517,21 +518,12 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       }
       return result;
     } catch (error) {
-      if (get().rootContext !== rootContext) throw error;
-      set((state) => {
-        const { [openPath]: _, ...rest } = state.buffers;
-        return {
-          buffers: rest,
-          tabs: state.tabs.filter((tabPath) => tabPath !== openPath),
-          activePath:
-            state.activePath === openPath
-              ? (state.tabs.find((tabPath) => tabPath !== openPath) ?? null)
-              : state.activePath,
-          previewTab: state.previewTab === openPath ? null : state.previewTab,
-          markdownPreviewPath:
-            state.markdownPreviewPath === openPath ? null : state.markdownPreviewPath,
-        };
-      });
+      const state = get();
+      // A retry or reopened tab may have replaced this request's loading buffer.
+      if (state.rootContext === rootContext && state.buffers[openPath] === loadingBuffer) {
+        // Closing the last tab also dismisses the otherwise empty inline panel.
+        state.closeTab(openPath);
+      }
       throw error;
     }
   },
@@ -632,6 +624,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         activePath: nextActivePath,
         previewTab: state.previewTab === path ? null : state.previewTab,
         markdownPreviewPath: state.markdownPreviewPath === path ? null : state.markdownPreviewPath,
+        pendingReveal: state.pendingReveal?.path === path ? null : state.pendingReveal,
         overlayMode:
           tabs.length === 0 && state.overlayMode !== "fullscreen" ? null : state.overlayMode,
       };
