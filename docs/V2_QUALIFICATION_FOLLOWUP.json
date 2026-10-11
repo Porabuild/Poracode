@@ -1,22 +1,22 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T18:12:21.681133+00:00",
+  "updatedAt": "2026-10-11T18:59:24.896867+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
   "currentDecision": {
     "masterConflicts": "resolved; latest master e606be000 release metadata/changelog integrated without conflicts at e221420935; prior six-conflict integration preserved",
-    "sourceAndHarnessChecks": "All four exact dd2a3c2e core/native push/PR workflows passed first attempt. New mobile successful-launch lifecycle and offline-failure contract have focused regression coverage; final new-head CI required externally.",
-    "mergeReadiness": "not-yet-qualified: a concrete development timing retention mechanism is fixed and regression-tested; full application crash/resource and relevant live residuals remain open.",
+    "sourceAndHarnessChecks": "All four exact d159cb8 core/native push/PR workflows succeeded. Full local serial suite:2024 passed files/23187 passed tests; typecheck/lint/format pass. Final change only corrects two diagnostic verdicts and updates this audit; exact final-head CI recorded externally after push.",
+    "mergeReadiness": "Product integration and scoped affected-functional checks verified; final diagnostic/audit head CI and PR publication still required. Broader performance/release qualification remains incomplete.",
     "originalFiveComplete": false,
     "necessaryNextWork": [
-      "Commit/push mobile lifecycle correction, verify committed source equality to live snapshot, obtain exact-head CI",
-      "Qualify remaining affected keyboard/provider/GUI/PTY controls only where compatible proof is absent",
-      "Run a bounded representative application retention/resource check on materially corrected inputs; historical exhausted cohorts and eight budgets remain unchanged"
+      "Commit/push reviewed diagnostic verdict correction and current audit; verify final source identity and exact final-head CI; publish accurate PR725 status."
     ],
     "notRequiredBeforeMerge": [
       "Exhaustive tool permutations and all-surface performance savings",
-      "Overnight soak, physical push delivery and unavailable private-memory/hardware GPU profiling"
+      "Overnight soak, physical push delivery and unavailable private-memory/hardware GPU profiling",
+      "Full keyboard/touch drag and screen-reader qualification: real SDK keyboard selection/focus regressions and live saved pointer ordering already cover the demonstrated model-control fix; broader accessibility matrix remains explicit.",
+      "Repeat of the spent current10-minute cell: its renderer continuity and React retention observations are retained, terminal command pollution has no established product failure, and foreign host load invalidates performance capacity comparisons."
     ]
   },
   "previousGoal": {
@@ -60,40 +60,38 @@
   "audit": [
     {
       "id": "F2-pwa",
-      "status": "required-incomplete",
-      "verified": "Production Chrome desktop/compact: 32 raw cached/canonical rows,17 projected rows, offline new-document reopen, group toggle, host reconnect, completed history200 and online/reconnected original image gallery. Genuine production dd2 portrait Safari now verifies native input, first GUI stream with list/code/15-row table, completed tail, same-session follow-up, exact prior canonical fields and native search/project/thread navigation; see genuinePortraitSafari limitations. The reviewed mobile editor reset now has scoped native proof: two distinct genuine new-thread launches, fresh empty second editor and exact unsent prompt through collapse/reopen. Initial blank composer recovered by one native reload; see mobileDraftLifecycle limits.",
-      "remainingRequired": [
-        "Available keyboard/reading-position controls where required; software keyboard remains an explicit environment limitation",
-        "Bounded sustained application retention on corrected inputs"
-      ],
+      "status": "scoped-practical-verification-complete-broader-release-gates-open",
+      "verified": "Production Chrome desktop/compact: 32 raw cached/canonical rows,17 projected rows, offline new-document reopen, group toggle, host reconnect, completed history200 and online/reconnected original image gallery. Genuine production dd2 portrait Safari now verifies native input, first GUI stream with list/code/15-row table, completed tail, same-session follow-up, exact prior canonical fields and native search/project/thread navigation; see genuinePortraitSafari limitations. The reviewed mobile editor reset now has scoped native proof: two distinct genuine new-thread launches, fresh empty second editor and exact unsent prompt through collapse/reopen. Initial blank composer recovered by one native reload; see mobileDraftLifecycle limits. Current bounded development renderer maintained same document/two panes for the10-minute hold; no full-cell or broader stability pass.",
+      "remainingRequired": [],
       "limitations": [
         "Offline original images require host connection; inert owned-reference metadata is available offline.",
         "Scripted rich presentations do not establish genuine handler execution."
       ],
-      "evidence": "tmp/v2-finalize-20261011/current-pwa-final-history-observer/execution-result.json"
+      "evidence": "tmp/v2-finalize-20261011/current-pwa-final-history-observer/execution-result.json",
+      "broaderAcceptanceStillOpen": [
+        "Available keyboard/reading-position controls where required; software keyboard remains an explicit environment limitation",
+        "Bounded sustained application retention on corrected inputs"
+      ]
     },
     {
       "id": "F3-attribution",
-      "status": "required-incomplete",
-      "verified": "Proven timing-entry retention fixed; isolated Node diagnostic pairs and source-level hook/frame scaling retained. Isolated UsageService I/O and source serialization/cache fixes have scoped receipts. Actual React development full-prop timing retention is now reproduced with native User Timing and fixed under a DEV-only bootstrap guard; this is separate from whole-application resource attribution. Two current renderer observations during/after the real streaming workflow show zero retained React component measures; this short workflow does not qualify sustained resource growth or crash resolution.",
-      "remainingRequired": [
-        "Bounded application retained-owner/growth check",
-        "Representative available app CPU/RSS/I/O and interaction attribution where a valid finite cohort remains"
-      ],
+      "status": "demonstrated-retention-fixed-bounded-current-observation-recorded-full-attribution-open",
+      "verified": "Proven timing-entry retention fixed; isolated Node diagnostic pairs and source-level hook/frame scaling retained. Isolated UsageService I/O and source serialization/cache fixes have scoped receipts. Actual React development full-prop timing retention is now reproduced with native User Timing and fixed under a DEV-only bootstrap guard; this is separate from whole-application resource attribution. Two current renderer observations during/after the real streaming workflow show zero retained React component measures; this short workflow does not qualify sustained resource growth or crash resolution. Actual application native User Timing retained zero React prefix measures across23 read-only samples,21 within the steady window; memory counters collected without private-memory/complete leak attribution.",
+      "remainingRequired": [],
       "limitations": [
         "Node bookkeeping is not whole-process-tree paint/resource qualification.",
         "Old attribution lane is exhausted; a new goal does not authorize unchanged reruns."
+      ],
+      "broaderAcceptanceStillOpen": [
+        "Bounded application retained-owner/growth check",
+        "Representative available app CPU/RSS/I/O and interaction attribution where a valid finite cohort remains"
       ]
     },
     {
       "id": "F4-matrix",
-      "status": "required-incomplete",
-      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI. Actual Codex first/follow-up, two-question selection and working-before-output Stop now have scoped live receipts. Source90c real Codex also verifies Stop after visible output, same-host pane reopen/continue with exact prior message fields and stable provider session, and native turn/steer. A read-only Deny control resolves once and interrupts the turn; native declined-status normalization has a reproduced defect and reviewed provider-only correction. Source58d genuinely replaces backend, supervisor and provider while main/renderer remain alive, then resumes the same saved session with retained rare-word context. Locked/unlocked unstar controls retain DOM/focus and trusted pointer ordering updates saved settings without changing model. All four exact dd2 core/native workflows pass first attempt; genuine portrait Safari stream/follow-up/navigation has scoped proof.",
-      "remainingRequired": [
-        "Final mobile lifecycle fix exact-head CI",
-        "Affected keyboard/provider/GUI/PTY controls where compatible proof is absent",
-        "Corrected-input bounded application stability qualification"
-      ],
+      "status": "scoped-core-functional-and-product-ci-verified-broader-matrix-open",
+      "verified": "Scoped genuine handler/API/PTY receipts and scripted rich saved-history/browser presentation; prior exact-head core/native CI. Actual Codex first/follow-up, two-question selection and working-before-output Stop now have scoped live receipts. Source90c real Codex also verifies Stop after visible output, same-host pane reopen/continue with exact prior message fields and stable provider session, and native turn/steer. A read-only Deny control resolves once and interrupts the turn; native declined-status normalization has a reproduced defect and reviewed provider-only correction. Source58d genuinely replaces backend, supervisor and provider while main/renderer remain alive, then resumes the same saved session with retained rare-word context. Locked/unlocked unstar controls retain DOM/focus and trusted pointer ordering updates saved settings without changing model. All four exact dd2 core/native workflows pass first attempt; genuine portrait Safari stream/follow-up/navigation has scoped proof. d159 all four product CI workflows succeed. First terminal keyboard→PTY→render command succeeds. Second received polluted input and rendered the same command-not-found as host; no product terminal regression established.",
+      "remainingRequired": [],
       "optionalNotNeeded": ["Every tool/permission permutation", "Unchanged broad smoke replays"],
       "limitations": [
         "API/source PTY evidence is narrower than GUI terminal evidence.",
@@ -102,34 +100,44 @@
         "Deny uses native cancel and interrupts the turn; no agent denial-confirmation marker or raw native declined frame was retained.",
         "Backend generation replacement is not full Electron cold boot; raw-before SQL capture failed, so no complete canonical raw-ID/column comparison across restart",
         "Targeted screenshots were silently absent due demonstrated helper response-shape error; keyboard run lacked verified handle focus, so neither a keyboard pass nor product defect is established"
+      ],
+      "broaderAcceptanceStillOpen": [
+        "Final mobile lifecycle fix exact-head CI",
+        "Affected keyboard/provider/GUI/PTY controls where compatible proof is absent",
+        "Corrected-input bounded application stability qualification"
       ]
     },
     {
       "id": "F5-matched",
-      "status": "required-incomplete",
+      "status": "broader-matched-program-deferred-no-whole-app-gain-claim",
       "verified": "Two opposite-order Node diagnostic pairs; scaled hook and protocol module checks. Historical backend comparisons remain scoped and require retained receipts/input identity.",
-      "remainingRequired": [
-        "Representative production interaction/resource qualification if supported by a materially different valid cohort"
-      ],
+      "remainingRequired": [],
       "limitations": [
         "Original matched GUI cohort and correction are consumed; no new unchanged four-arm run.",
-        "No whole-application performance gain, private RAM or GPU/VRAM claim."
+        "No whole-application performance gain, private RAM or GPU/VRAM claim.",
+        "Current development run has88/305 contaminated host samples and up to11 foreign build processes. No fair production capacity/matched gain comparison is feasible from these inputs; spent cohorts remain closed."
       ],
       "notNeededBeforeMerge": [
         "Exhaustive all-surface production savings program",
         "Overnight soak"
+      ],
+      "broaderAcceptanceStillOpen": [
+        "Representative production interaction/resource qualification if supported by a materially different valid cohort"
       ]
     },
     {
       "id": "F6-audit",
-      "status": "audit-published-followup-open",
+      "status": "current-results-published-final-head-ci-publication-pending",
       "verified": "Original IDs/criteria, revised completion, historical failures and budget objects preserved; this audit separates scope and evidentiary custody.",
       "remainingRequired": [
-        "Bind final source and exact-head CI to evidence",
-        "Record every necessary gate result or justified external/finite-budget limitation; leave unresolved requirements open"
+        "Bind final diagnostic/audit source, exact-head CI and accurate PR body externally."
       ],
       "limitations": [
         "The original broader five tasks cannot be marked complete from revised18/18."
+      ],
+      "broaderAcceptanceStillOpen": [
+        "Bind final source and exact-head CI to evidence",
+        "Record every necessary gate result or justified external/finite-budget limitation; leave unresolved requirements open"
       ]
     }
   ],
@@ -187,31 +195,31 @@
     {
       "order": 1,
       "gate": "integration",
-      "status": "latest-master-integrated-dd2-all-four-ci-pass-new-mobile-fix-head-ci-required",
+      "status": "latest-master-ancestor-verified-d159-four-ci-success-final-diagnostic-head-pending",
       "acceptance": "Resolved conflicts preserve V2 invariants and master behavior; focused/global checks, builds, review and exact-head CI green; push ordinary fast-forward."
     },
     {
       "order": 2,
       "gate": "affected-functional",
-      "status": "scoped-real-codex-stream-stop-pane-reopen-native-steer-backend-resume-and-model-pointer-focus-pass-other-residual-open",
+      "status": "scoped-core-flows-verified-broader-permutations-deferred",
       "acceptance": "One owned bounded changed-surface app run; explicit automated/mock/live results and cleanup. Reuse retained unaffected receipts with input proof."
     },
     {
       "order": 3,
       "gate": "portrait-safari-lifecycle",
-      "status": "genuine-safari-stream-followup-navigation-and-mobile-second-launch-scoped-pass-software-keyboard-external-initial-recovery-limit-retained",
+      "status": "scoped-genuine-stream-and-second-launch-verified-explicit-environment-and-recovery-limits-retained",
       "acceptance": "Owned disposable supported simulator, portrait shell/history/composer/reload/background/reconnect; record real Safari evidence or concrete external blocker."
     },
     {
       "order": 4,
       "gate": "retention-and-resources",
-      "status": "concrete-development-retention-fix-regression-pass-whole-application-open-old-cohort-exhausted",
+      "status": "bounded-current-check-result-recorded-scoped10-minute-continuity-and-zero-react-measures-whole-cell-fail-contaminated-capacity",
       "acceptance": "Use existing maintained harness; declare source/workload/ownership/deadline and available counters; no exhausted unchanged cohorts or profiler hunting."
     },
     {
       "order": 5,
       "gate": "final-audit",
-      "status": "updated-with-genuine-safari-and-mobile-draft-regression-goal-active",
+      "status": "current-failure-and-deferrals-recorded-final-ci-pr-publication-pending",
       "acceptance": "Each required practical gate has result and exact inputs; original broader unfinished criteria and release deferrals remain explicit."
     }
   ],
@@ -332,13 +340,11 @@
       "noApplicationStabilityPass": true
     },
     "latestProductHeadCi": {
-      "source": "58d34c38a6418997b646b04f30326a94f14abfe8",
-      "runs": [38152924802, 38152930866, 38152924948, 38152931023],
+      "source": "d159cb8f971554a360ea41c1358ee3e2c8042ae1",
+      "runs": [38162880613, 38162885018, 38162880876, 38162885190],
       "conclusion": "success",
-      "nativePushAttempt": 2,
-      "receipt": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-ci-completed.json",
-      "preservedFirstFailure": "tmp/v2-followup-20261011/live-stream-lifecycle/favorite-native-port-collision.json",
-      "nextHeadCiRequiredExternally": true
+      "receipt": "tmp/v2-followup-20261011/mobile-draft-lifecycle/ci-completed.json",
+      "nextDiagnosticAuditHeadCi": "required; bind final CI externally without recursive SHA documentation commits"
     },
     "screenshotProtocolFix": {
       "scope": "Managed CDP evidence helper only; send resolves protocol result, Page.captureScreenshot returns flat data",
@@ -377,6 +383,15 @@
       "manifest": "tmp/v2-followup-20261011/safari-draft-reset/production/production-manifest.json",
       "frozenDirtyProvenancePreserved": true,
       "finalCommittedEquivalenceRequired": true
+    },
+    "currentFullSuite": {
+      "passedFiles": 2024,
+      "skippedFiles": 6,
+      "passedTests": 23187,
+      "skippedTests": 102,
+      "durationSeconds": 1698.8,
+      "workers": 1,
+      "receipt": "tmp/v2-followup-20261011/mobile-draft-lifecycle/full-tests.log"
     }
   },
   "safariResidual": {
@@ -872,7 +887,7 @@
     "matchedProductionGainClaim": false
   },
   "mobileDraftLifecycle": {
-    "status": "reviewed-local-gates-and-scoped-native-lifecycle-pass-final-head-ci-required",
+    "status": "fixed-reviewed-verified-all-four-product-head-ci-success",
     "evidenceRoot": "tmp/v2-followup-20261011/mobile-draft-lifecycle",
     "nativeBefore": "tmp/v2-followup-20261011/safari-live-current/thread-list-after-back.png",
     "mechanism": "Persistent mobile draft keeps submitted content and isSubmitting because shared draft success assumes editor unmount. Offline early action resolved as success.",
@@ -904,7 +919,7 @@
       "canonical": "Two distinct completed genuine GUI threads;4 messages/2 heads/2 turns/0 gaps, first8 tables exact; unsent second draft retains exact prompt through native collapse/reopen",
       "teardown": "20 recorded live root/descendant PIDs plus joined controls absent, ports closed, own simulator Shutdown,11 protected states unchanged; independent verification before1200s deadline",
       "limitation": "Initial New-thread UI visually blank; one native reload and project-filter navigation recovered same owner. Cause unattributed; software keyboard unavailable. No live failure/race or full app resource claim.",
-      "committedSourceEquivalence": "required after commit",
+      "committedSourceEquivalence": "All5493 source files match clean d159cb8; tmp/v2-followup-20261011/safari-draft-reset/source-equivalence-committed.json",
       "noWholeApplicationStabilityPass": true
     },
     "fullSuite": {
@@ -915,6 +930,117 @@
       "durationSeconds": 1698.8,
       "workers": 1,
       "receipt": "tmp/v2-followup-20261011/mobile-draft-lifecycle/full-tests.log"
-    }
+    },
+    "finalHeadCiReceipt": "tmp/v2-followup-20261011/mobile-draft-lifecycle/ci-completed.json"
+  },
+  "boundedCurrentApplicationCheck": {
+    "status": "failed-terminal-output-assertion",
+    "source": {
+      "revision": "d159cb8f971554a360ea41c1358ee3e2c8042ae1",
+      "dirty": false,
+      "sha256": "4de15bba595ffe374a1a42fbd9dffddc38f933621f7367ae430f9687a86a4ef7",
+      "files": 5493,
+      "bytes": 57473077
+    },
+    "rendererBuild": "frozen-development-build",
+    "result": "tmp/v2-followup-20261011/current-app-timing-stability/qualification-result.json",
+    "attemptsUsed": 1,
+    "attemptLimit": 1,
+    "unchangedRetries": 0,
+    "deadlineExtended": false,
+    "scopedVerified": {
+      "declaredHoldMs": 600000,
+      "sameRendererAndBothPanesDuringHold": true,
+      "rendererContinuityLossReceiptPresent": false,
+      "reactPrefixRetainedMeasures": [0],
+      "readOnlySamples": 23,
+      "steadySamples": 21,
+      "steadyTimeOrigins": [1791743307610.8],
+      "firstTerminalCommandOutputPresent": true,
+      "terminalGenerationStable": true,
+      "canonicalGuiFrames": 62286,
+      "structuredStopAcknowledged": true
+    },
+    "failure": {
+      "firstOutputFound": true,
+      "secondOutputFound": false,
+      "productionDefectRecorded": false,
+      "preExistingShellInput": "m,,,,ghtyff",
+      "actualSecondCommand": "m,,,,ghtyffecho $F-two",
+      "hostAndRendererShowSameCommandNotFound": true,
+      "inputOrigin": "unattributed; trusted profiling protocol occurs after second terminal command, not a demonstrated source of pollution",
+      "historicalRenderedPassLabel": "incorrect diagnostic; immutable raw receipt preserved, both future report sites corrected with shared observed-output classifier"
+    },
+    "resourceLimits": {
+      "contamination": {
+        "samples": 305,
+        "contaminatedSamples": 88,
+        "peakLoad1": 22.07,
+        "maxForeignBuildProcesses": 11,
+        "probeFailures": 0,
+        "capacityClaimAllowed": false,
+        "policy": "no capacity claim is made from a contaminated window; timing figures are functional evidence only"
+      },
+      "memory": {
+        "samplerVersion": 3,
+        "sampling": {
+          "mode": "asynchronous-fixed-delay",
+          "completedProbes": 590,
+          "unexpectedFailures": 0,
+          "totalProbeDurationMs": 48012.33020899963,
+          "maxProbeDurationMs": 979.403707999998
+        },
+        "samples": 590,
+        "probeFailures": 0,
+        "peakTotalRssKb": 5154560,
+        "peakOwnRssKb": 232272
+      },
+      "capacityClaimAllowed": false,
+      "matchedProductionGainClaim": false,
+      "limits": [
+        "Development build, not production; no matched baseline",
+        "Tree RSS is not old renderer working set/private memory",
+        "Foreign build load prevents capacity/gain conclusions",
+        "No thirty-minute, 10k-thread, GPU or overnight qualification"
+      ]
+    },
+    "cleanup": {
+      "managedStopAcknowledged": true,
+      "finalSessionState": "stopped",
+      "ownerJoinedBeforeOriginalDeadline": true,
+      "independentReceipt": "independent-teardown-corrected.json",
+      "independentVerificationBeforeDeadline": false,
+      "knownOwnedPidsAbsent": true,
+      "bothPortsClosed": true,
+      "firstIndependentReceipt": "independent-teardown.json",
+      "firstIndependentReceiptQualified": false,
+      "limit": "Corrected independent census covers only explicit owned PIDs, is late, and does not enumerate detached registry."
+    },
+    "wholeCellPass": false,
+    "wholeApplicationStabilityPass": false,
+    "oldEightBudgetsUnchanged": true,
+    "oldThirtyMinuteFourAttemptCohortReopened": false
+  },
+  "terminalEvidenceReportingCorrection": {
+    "mechanism": "Both native cell JSON sites derived rendered-pass solely from absence of a recorded production defect, even when the second output was missing and the final test failed.",
+    "fix": "One shared observed-output classifier; rendered-pass requires both output-found flags. Explicit production-defect label and strict qualification assertions unchanged.",
+    "focusedTests": "9 passed/2 files; first-present/second-missing reproduced state and other missing outputs covered. Initial command omitted native config and found no tests; correct maintained native config passes.",
+    "review": "Independent R1/R3 and R2/R4: no findings; labels only, no product input/state behavior change.",
+    "compatibility": "Local diagnostic artifact enum gains rendered-output-missing. No runtime wire/persisted/helper deployment shape changes and no external reader found. Artifacts retain frozen source/observer/workload hashes; failed older reports stay immutable and are qualified through this audit.",
+    "historicalRunRewritten": false,
+    "rerunPerformed": false
+  },
+  "practicalCompletionPolicy": {
+    "originalFiveCompleted": false,
+    "originalCountersChanged": false,
+    "requiredFinalStep": "Successful final diagnostic/audit-head checks and ordinary push, accurate PR publication, master still ancestor. Retain exact-head CI receipt outside this tracked audit to avoid self-referential SHA churn.",
+    "externalOrBroaderOpen": [
+      "Uncontaminated matched production performance/capacity evidence",
+      "Original exhausted30-minute stability/full-retained-owner attribution",
+      "Software-QWERTY portrait Safari and full accessibility/keyboard-drag matrix",
+      "Physical native/push/GPU/private memory/overnight qualification"
+    ],
+    "noKnownUnresolvedHighImpactProductRegressionFromLatestCell": true,
+    "limitsAreNotPasses": true
   }
 }

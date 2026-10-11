@@ -26,6 +26,7 @@ import {
   type ManagedAppSession,
 } from "./helpers/managedAppSession.ts";
 import { createManagedHostHandle } from "./helpers/managedHostHandle.ts";
+import { terminalRenderingVerdict } from "./helpers/terminalRenderingVerdict.ts";
 import { acquireDeviceCredential, allocateLoopbackPort } from "./helpers/profileClientFactory.ts";
 import {
   buildPaneSetupScript,
@@ -1404,8 +1405,11 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
               terminalFirstDelivery?.keyboardJourneyPassed === true &&
               terminalSecondDelivery?.keyboardJourneyPassed === true,
           },
-          verdict:
-            terminalProductionDefect === null ? "rendered-pass" : "production-defect-reported",
+          verdict: terminalRenderingVerdict({
+            firstOutputFound: terminalWaitFirst?.found === true,
+            secondOutputFound: terminalWaitSecond?.found === true,
+            productionDefectRecorded: terminalProductionDefect !== null,
+          }),
           bindBefore: terminalShellBind ?? null,
           probeAfter: terminalShellProbeAfter,
           ptyContinuity,
@@ -2115,10 +2119,11 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
                       terminalFirstDelivery?.keyboardJourneyPassed === true &&
                       terminalSecondDelivery?.keyboardJourneyPassed === true,
                   },
-                  verdict:
-                    terminalProductionDefect === null
-                      ? "rendered-pass"
-                      : "production-defect-reported",
+                  verdict: terminalRenderingVerdict({
+                    firstOutputFound: terminalWaitFirst?.found === true,
+                    secondOutputFound: terminalWaitSecond?.found === true,
+                    productionDefectRecorded: terminalProductionDefect !== null,
+                  }),
                   domText: terminalDomText ?? null,
                   surface: terminalSurfaceEvidence ?? null,
                 }
