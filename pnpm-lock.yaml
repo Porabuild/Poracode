@@ -149,7 +149,7 @@ pnpmfileChecksum: sha256-BIchYFv0KpVI2Fu9YSi3hK+ZN/ZSz3O0ksJFvqhaUHI=
 
 patchedDependencies:
   '@agentclientprotocol/sdk@1.4.0': dc32812b6b1bb267bd22c3db2d5d8a8ba12f3af5596c0f2ae8b7ac12541a2251
-  '@legendapp/list@3.3.3': 9b785bcf7b9c1cd3205b2271c1faabdb5661d4bab3f925a2e7f42796f4cd4df0
+  '@legendapp/list@3.3.3': 8503fe7c68a60cbf0599d33990c52378553841c2a5ca2078778ca5e531f56fc0
   monaco-editor@0.56.0: 5ac238870e484111454e9bf2b489b0594d60c28aeb6778152e47b7b052456fd4
 
 importers:
@@ -200,7 +200,7 @@ importers:
         version: 4.2.0(@types/node@26.4.1)
       '@legendapp/list':
         specifier: 3.3.3
-        version: 3.3.3(patch_hash=9b785bcf7b9c1cd3205b2271c1faabdb5661d4bab3f925a2e7f42796f4cd4df0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 3.3.3(patch_hash=8503fe7c68a60cbf0599d33990c52378553841c2a5ca2078778ca5e531f56fc0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@lingui/core':
         specifier: 6.6.0
         version: 6.6.0(@babel/core@7.29.7(supports-color@10.2.2))(@babel/types@7.29.8)
@@ -7827,7 +7827,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@legendapp/list@3.3.3(patch_hash=9b785bcf7b9c1cd3205b2271c1faabdb5661d4bab3f925a2e7f42796f4cd4df0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@legendapp/list@3.3.3(patch_hash=8503fe7c68a60cbf0599d33990c52378553841c2a5ca2078778ca5e531f56fc0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       react: 19.2.8
       use-sync-external-store: 1.6.0(react@19.2.8)

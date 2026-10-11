@@ -22,10 +22,16 @@ and instructions remain in their original database. API/IPC formats are unchange
 # Versioned State & Protocols
 
 The LegendList 3.3.3 web patch requires a registered callback before closing
-the shared paging-edge gate. A callback-free edge can no longer suppress the
+the shared paging-edge gate. Web paging also recognizes movement beyond a
+coalesced layout adjustment, using the scroller's existing axis-aware,
+list-relative DOM maximum to exclude clamped programmatic movement. That
+maximum is exposed only on the internal same-bundle scroller ref; public
+LegendList and Poracode protocols are unchanged. A callback-free edge can no longer suppress the
 opposite edge after a direct scroll jump. CJS and ESM implementations match;
 the pinned patch hash changes in all three lockfile copies. Actual-component
-regressions cover both directions and repeated stationary edge notifications.
+regressions cover both directions, sequential prepends and repeated stationary
+edge notifications; actual dependency-function checks cover coalesced and
+settled user events, clamped corrections, and protected scrolling states.
 Persisted measurements, canonical history and protocol shapes are unchanged;
 rebuilt renderer asset hashes and the normal PWA build identity retire old code.
 
