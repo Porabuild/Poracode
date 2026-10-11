@@ -73,7 +73,7 @@ function parseLegacyTransport(value: unknown): RemoteServerRecord["transport"] {
 
 async function hydrateServers(
   servers: RemoteServerRecord[],
-  retainFailedPlaintext = false,
+  retainFailedPlaintext: (server: RemoteServerRecord) => boolean = () => false,
 ): Promise<{
   live: RemoteServerRecord[];
   persisted: RemoteServerRecord[];
@@ -91,7 +91,8 @@ async function hydrateServers(
         migrationPending ||= !stored;
         return {
           live: server,
-          persisted: stored || !retainFailedPlaintext ? { ...server, accessToken: "" } : server,
+          persisted:
+            stored || !retainFailedPlaintext(server) ? { ...server, accessToken: "" } : server,
         };
       }
       let accessToken = await getDesktopToken(connectionKey);
@@ -207,7 +208,7 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
         }
       }
       if (!stored) return null;
-      const hydrated = await hydrateServers(stored.state.servers, true);
+      const hydrated = await hydrateServers(stored.state.servers, () => true);
       if (hydrated.migrated || (persistedRaw === null && !hydrated.migrationPending)) {
         localStorage.setItem(
           name,
@@ -227,7 +228,19 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
       const captured = JSON.parse(JSON.stringify(value)) as StorageValue<S>;
       return enqueueWrite(async () => {
         const previous = parseStoredValue<S>(localStorage.getItem(name));
-        const hydrated = await hydrateServers(captured.state.servers);
+        // Zustand saves immediately after a version migration. Keep only a
+        // token already durable on this same connection until encryption lands;
+        // new/replacement tokens must never fall back to plaintext persistence.
+        const previousTokens = new Map(
+          previous?.state.servers.map((server) => [
+            remoteConnectionKey(server),
+            server.accessToken,
+          ]),
+        );
+        const hydrated = await hydrateServers(
+          captured.state.servers,
+          (server) => previousTokens.get(remoteConnectionKey(server)) === server.accessToken,
+        );
         localStorage.setItem(
           name,
           JSON.stringify({

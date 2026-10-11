@@ -1,9 +1,11 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { StorageValue } from "zustand/middleware";
+import { createStore } from "zustand/vanilla";
+import { persist, type StorageValue } from "zustand/middleware";
 import type { RemoteServerRecord } from "./types";
 
 import { createSecureRemoteServersStorage } from "./secureStorage";
+import * as tokenVault from "./tokenVault";
 import {
   __resetTokenVaultForTest,
   deleteDesktopToken,
@@ -102,6 +104,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await Promise.all([
     deleteDesktopToken("web-1"),
     deleteDesktopToken("legacy-1"),
@@ -287,5 +290,81 @@ describe("secure remote-server persistence", () => {
       __resetTokenVaultForTest();
       vi.restoreAllMocks();
     }
+  });
+  it("keeps a released pairing through automatic version migration and retries after a cold hydration", async () => {
+    const indexedDb = globalThis.indexedDB;
+    vi.stubGlobal("indexedDB", undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    localStorage.setItem("servers", JSON.stringify(value(server("legacy-1", "legacy-secret"))));
+    const hydrate = async () => {
+      const store = createStore(
+        persist<PersistedState>(() => ({ servers: [], marker: "" }), {
+          name: "servers",
+          version: 2,
+          storage: createSecureRemoteServersStorage<PersistedState>(),
+          migrate: (state) => state as PersistedState,
+          skipHydration: true,
+        }),
+      );
+      await store.persist.rehydrate();
+      return store.getState();
+    };
+
+    expect((await hydrate()).servers[0]?.accessToken).toBe("legacy-secret");
+    expect(JSON.parse(localStorage.getItem("servers")!).version).toBe(2);
+    expect(localStorage.getItem("servers")).toContain("legacy-secret");
+    __resetTokenVaultForTest();
+    expect((await hydrate()).servers[0]?.accessToken).toBe("legacy-secret");
+
+    vi.stubGlobal("indexedDB", indexedDb);
+    __resetTokenVaultForTest();
+    expect((await hydrate()).servers[0]?.accessToken).toBe("legacy-secret");
+    expect(localStorage.getItem("servers")).not.toContain("legacy-secret");
+    __resetTokenVaultForTest();
+    expect((await hydrate()).servers[0]?.accessToken).toBe("legacy-secret");
+  });
+
+  it("retains only an identical existing token when a vault write fails", async () => {
+    vi.stubGlobal("indexedDB", undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    localStorage.setItem("servers", JSON.stringify(value(server("legacy-1", "legacy-secret"))));
+    await storage.setItem("servers", stateValue([server("legacy-1", "legacy-secret")]));
+    expect(localStorage.getItem("servers")).toContain("legacy-secret");
+
+    await storage.setItem("servers", stateValue([server("legacy-1", "replacement-secret")]));
+    expect(localStorage.getItem("servers")).not.toContain("replacement-secret");
+    expect(localStorage.getItem("servers")).not.toContain("legacy-secret");
+
+    localStorage.setItem("servers", JSON.stringify(value(server("legacy-1", "legacy-secret"))));
+    await storage.setItem("servers", stateValue([server("web-1", "legacy-secret")]));
+    expect(localStorage.getItem("servers")).not.toContain("legacy-secret");
+    await storage.setItem("servers", stateValue([]));
+    expect(JSON.parse(localStorage.getItem("servers")!).state.servers).toEqual([]);
+  });
+
+  it("keeps a failed legacy migration alongside a successfully encrypted pairing", async () => {
+    const writeToken = tokenVault.setDesktopToken;
+    vi.spyOn(tokenVault, "setDesktopToken").mockImplementation((key, token) =>
+      key === "legacy-1" ? Promise.resolve(false) : writeToken(key, token),
+    );
+    localStorage.setItem(
+      "servers",
+      JSON.stringify(
+        stateValue([server("legacy-1", "retry-secret"), server("web-1", "saved-secret")]),
+      ),
+    );
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    const hydrated = await storage.getItem("servers");
+    await storage.setItem("servers", hydrated!);
+    expect(localStorage.getItem("servers")).toContain("retry-secret");
+    expect(localStorage.getItem("servers")).not.toContain("saved-secret");
+
+    vi.restoreAllMocks();
+    __resetTokenVaultForTest();
+    expect((await storage.getItem("servers"))?.state.servers.map((row) => row.accessToken)).toEqual(
+      ["retry-secret", "saved-secret"],
+    );
+    expect(localStorage.getItem("servers")).not.toContain("retry-secret");
   });
 });
