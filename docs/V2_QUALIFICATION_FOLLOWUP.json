@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T10:00:54.972996+00:00",
+  "updatedAt": "2026-10-11T10:27:46.557607+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
@@ -26,12 +26,14 @@
   "masterIntegration": {
     "v2Before": "fa9510c4de1bd45a8b014e2d2dd52c4439422d87",
     "master": "14ad0c3dd902f0be7b54e16bd52e2e0cf06e59eb",
-    "status": "resolved-local-checks-pass-app-smoke-and-ci-pending",
+    "status": "merged-and-pushed",
     "conflictsResolved": 6,
     "decision": "Use final master PR832 after its earlier local V2 cherry-pick/revert; retain V2 context-size, fast-mode and provider normalization.",
     "backup": "backup/v2-before-master-20261011-fa9510",
     "v2MergedIntoMaster": false,
-    "reviewFix": "Keep per-invocation child progress through same-open-step recovery relinks; weak tool keys permit retirement, ordinary row IDs no longer duplicate mapper replay fences."
+    "reviewFix": "Keep per-invocation child progress through same-open-step recovery relinks; weak tool keys permit retirement, ordinary row IDs no longer duplicate mapper replay fences.",
+    "mergeHead": "7000c97755532f264229864dd079c7edcbf042a1",
+    "ci": "all-four-core-native-push-pr-success"
   },
   "audit": [
     {
@@ -159,19 +161,19 @@
     {
       "order": 1,
       "gate": "integration",
-      "status": "in-progress",
+      "status": "source-integration-pass-final-audit-ci-pending",
       "acceptance": "Resolved conflicts preserve V2 invariants and master behavior; focused/global checks, builds, review and exact-head CI green; push ordinary fast-forward."
     },
     {
       "order": 2,
       "gate": "affected-functional",
-      "status": "pending",
+      "status": "affected-development-mock-pass-production-residual-open",
       "acceptance": "One owned bounded changed-surface app run; explicit automated/mock/live results and cleanup. Reuse retained unaffected receipts with input proof."
     },
     {
       "order": 3,
       "gate": "portrait-safari-lifecycle",
-      "status": "pending-preflight",
+      "status": "unqualified-first-owned-safari-attempt",
       "acceptance": "Owned disposable supported simulator, portrait shell/history/composer/reload/background/reconnect; record real Safari evidence or concrete external blocker."
     },
     {
@@ -227,7 +229,42 @@
     "desktopBuild": "pass",
     "webBuild": "pass",
     "i18n": "0missing-all12catalogs",
-    "exactFinalHeadCi": "pending",
-    "independentReview": "R1-R4 reviewed; two progress/retention findings fixed and re-reviewed without remaining actionable findings."
+    "exactFinalHeadCi": {
+      "source": "7000c97755532f264229864dd079c7edcbf042a1",
+      "runs": [38130607601, 38130611570, 38130607822, 38130611700],
+      "conclusion": "success",
+      "finalAuditDocumentationCi": "required-after-this-audit-update"
+    },
+    "independentReview": "R1-R4 reviewed; two progress/retention findings fixed and re-reviewed without remaining actionable findings.",
+    "affectedDevelopmentSmoke": {
+      "status": "pass",
+      "runtimeConsoleErrors": 0,
+      "report": "/Users/svecherenko/.poracode-smoke/automated-1791712801255-49195/artifacts/smoke-report.json",
+      "frozenWorkingTreeInputsEqualMergeHead": true,
+      "sourceEquivalence": "tmp/v2-followup-20261011/affected-smoke-source-equivalence.json",
+      "externalProviderPass": false
+    },
+    "productionBuild": {
+      "source": "7000c97755532f264229864dd079c7edcbf042a1",
+      "sourceSha256": "e0b7ce67af42af6b657ea512059bd1e0854fbae7d08db6c25f159c031e6d4b89",
+      "artifactSha256": "416ab1232cb86ba563bb1880e723c209f8ffbdb56b1f9d577a50031cf9e92b51",
+      "manifest": "tmp/v2-followup-20261011/production-merged/production-manifest.json",
+      "allProductionFlowsQualified": false
+    }
+  },
+  "safariResidual": {
+    "status": "unqualified",
+    "attemptsUsed": 1,
+    "attemptLimit": 1,
+    "furtherUnchangedLaunchesAllowed": false,
+    "result": "tmp/v2-followup-20261011/safari-reader/qualification-result.json",
+    "materialFixtureIssues": [
+      "Relative deep-route asset URLs",
+      "Unsupported stop --json control invocation"
+    ],
+    "canonicalTablesUnchanged": 10,
+    "artifactUnchanged": true,
+    "ownedProcessesAndSimulatorStopped": true,
+    "fullSafariPass": false
   }
 }
