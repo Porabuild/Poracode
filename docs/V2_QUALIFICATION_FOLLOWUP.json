@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-11T11:24:24.672485+00:00",
+  "updatedAt": "2026-10-11T11:36:27.067187+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Audit and close necessary practical qualification gaps; integrate latest master without claiming original broader performance/release qualification is complete.",
@@ -179,7 +179,7 @@
     {
       "order": 4,
       "gate": "retention-and-resources",
-      "status": "maintained-correction-launched-pre-workload-driver-failure-fixed",
+      "status": "driver-validation-failed-setup-order-fixed-runtime-open",
       "acceptance": "Use existing maintained harness; declare source/workload/ownership/deadline and available counters; no exhausted unchanged cohorts or profiler hunting."
     },
     {
@@ -352,6 +352,30 @@
     "counterLimitations": [
       "No physical disk I/O/private RAM/hardware GPU",
       "Development stand-ins do not establish matched production gains"
-    ]
+    ],
+    "driverValidation": {
+      "source": "25983e4c62bb7b28580c6a5c80c5740139191994",
+      "status": "failed-before-steady-workload",
+      "declaration": "tmp/v2-followup-20261011/sustained-driver-validation-declaration.json",
+      "provenance": "tmp/v2-followup-20261011/sustained-driver-validation/sustained-20261011T112552Z-2b9d/provenance.json",
+      "actualSetup": [
+        "Versioned client calls admitted",
+        "Seeded fixture and visible panes",
+        "Eight real PTY producers verified",
+        "Four instrumented clients ready"
+      ],
+      "failure": "Structured start refused while managed loopback registration was inactive after enabling remote access replaced private server",
+      "managedTeardown": "acknowledged; stopped; recorded owner/app PIDs absent and debug ports closed",
+      "fullSustainedPass": false,
+      "materialSetupFix": "Move existing remote enable/host setup before required diagnostics reload. Seed procedures remain local-shell; new document discovers final server before actors. No new wait, retry, state or deadline.",
+      "focusedSetupTests": 60,
+      "focusedControllerIntakeTests": 9,
+      "typecheck": "pass",
+      "touchedLintFormat": "pass",
+      "targetedIndependentReview": "Two reviewers: no findings",
+      "runtimeAfterSetupFix": "required-unverified",
+      "cumulativeMaintainedDeclarationsIncludingHistorical": 3,
+      "furtherUnchangedLaunchesAllowed": false
+    }
   }
 }

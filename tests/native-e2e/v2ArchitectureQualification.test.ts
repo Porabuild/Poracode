@@ -441,6 +441,13 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
     }
     mark("cdpReady");
 
+    // Enabling remote access replaces the private loopback server. Do it before
+    // the required diagnostics reload, so that document boots against the final
+    // server instead of retiring its data plane after producers have started.
+    const hostHandle = await createManagedHostHandle({ cdp, session });
+    managedHandle = hostHandle;
+    mark("remoteAccessReady");
+
     try {
       fixture = await seedQualificationFixture({
         cdp,
@@ -575,8 +582,6 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
     }
     mark("producersStarted");
 
-    const hostHandle = await createManagedHostHandle({ cdp, session });
-    managedHandle = hostHandle;
     const credential = await acquireDeviceCredential(hostHandle, "v2q-profile");
     accessToken = credential.accessToken;
     for (let index = 0; index < spec.clients; index += 1) {
