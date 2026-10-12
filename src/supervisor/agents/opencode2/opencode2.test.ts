@@ -368,7 +368,7 @@ describe("detectOpenCode2TerminalStatus", () => {
 
 describe("createOpenCode2Adapter", () => {
   it.each(["posix", "windows", "wsl"] as const)(
-    "installs the published 2.0.26 CLI after self-update fails on %s",
+    "updates the managed CLI within the supported major on %s",
     (envKind) => {
       expect(
         resolveSharedUpdateCommand({
@@ -380,9 +380,11 @@ describe("createOpenCode2Adapter", () => {
       ).toMatchObject({
         strategy: "installer",
         args: expect.arrayContaining([
-          envKind === "windows"
-            ? 'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.26'
-            : 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.26',
+          expect.stringContaining(
+            envKind === "windows"
+              ? 'npm install --ignore-scripts --include=optional --prefix "$env:USERPROFILE/.opencode2" "@opencode/cli@^2.0.26"'
+              : 'npm install --ignore-scripts --include=optional --prefix "$HOME/.opencode2" "@opencode/cli@^2.0.26"',
+          ),
         ]),
       });
     },

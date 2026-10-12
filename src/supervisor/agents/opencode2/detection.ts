@@ -371,7 +371,9 @@ function probeOpenCode2Detection(
   return pending;
 }
 
-// Keep installer and protocol validation aligned with the pinned HTTP client.
+// Keep installs inside the supported protocol major. Run only the package-owned
+// setup explicitly: npm can succeed while its lifecycle policy leaves a stub.
+// Verify the launcher so an incomplete install never reports update success.
 export const openCode2DetectionSpec: DetectionSpec = {
   kind: "opencode2",
   label: "OpenCode 2",
@@ -396,7 +398,7 @@ export const openCode2DetectionSpec: DetectionSpec = {
         binary: "sh",
         args: [
           "-c",
-          `npm install --prefix "$HOME/.opencode2" @opencode/cli@${OPENCODE2_MIN_VERSION}`,
+          `npm install --ignore-scripts --include=optional --prefix "$HOME/.opencode2" "@opencode/cli@^${OPENCODE2_MIN_VERSION}" && npm --prefix "$HOME/.opencode2/node_modules/@opencode/cli" run postinstall && "$HOME/.opencode2/node_modules/@opencode/cli/bin/opencode.exe" --version`,
         ],
       },
       windows: {
@@ -404,7 +406,7 @@ export const openCode2DetectionSpec: DetectionSpec = {
         args: [
           "-NoProfile",
           "-Command",
-          `npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@${OPENCODE2_MIN_VERSION}`,
+          `$ErrorActionPreference = "Stop"; npm install --ignore-scripts --include=optional --prefix "$env:USERPROFILE/.opencode2" "@opencode/cli@^${OPENCODE2_MIN_VERSION}"; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; npm --prefix "$env:USERPROFILE/.opencode2/node_modules/@opencode/cli" run postinstall; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & "$env:USERPROFILE/.opencode2/node_modules/@opencode/cli/bin/opencode.exe" --version; exit $LASTEXITCODE`,
         ],
       },
     },

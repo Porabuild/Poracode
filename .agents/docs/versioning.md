@@ -3426,3 +3426,14 @@ pre-upgrade catalogs on native and WSL targets. Prior-version cache regressions
 cover both readers. Credential journal format 1, provider configuration, thread
 selections, canonical history and wire/native/helper versions stay compatible;
 this changes only derived discovery results.
+
+### Verified provider package installation
+
+OpenCode 2 install/update commands explicitly run its package-owned setup after
+an npm install with dependency scripts disabled, then verify the executable.
+The requested release range is >=2.0.26 <3.0.0, matching the existing accepted
+protocol major. Supervisor status cache 57 and renderer persisted copy 53 discard
+55/51 and 56/52 snapshots containing the old install commands; prior-generation regression
+fixtures cover both copies. Settings, sessions, IPC/remote protocols and deployed
+helpers retain their existing formats and versions. Existing broken installations
+can be repaired through the updated Install action without changing global npm policy.

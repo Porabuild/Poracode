@@ -278,9 +278,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 52,
-      // v52 mirrors supervisor STATUS_CACHE_VERSION=56: discard model catalogs
-      // that still advertised disconnected configured providers.
+      version: 53,
+      // v53 mirrors supervisor STATUS_CACHE_VERSION=57: discard installer commands
+      // that could report success with an unusable package launcher.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {
