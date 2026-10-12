@@ -1638,6 +1638,8 @@ describe("ThreadComposerSection", () => {
       );
       await waitFor(() => expect(saveClipboardImage).toHaveBeenCalled());
 
+      expect(screen.getByAltText("Image 1.png")).toHaveAttribute("src", "blob:app/pasted-1");
+
       rerender(composerElement({ thread: secondGuiThread, saveClipboardImage }));
       await act(async () => {
         resolveSave?.("C:\\attachments\\thread-gui-idle\\image-1.png");
@@ -1645,7 +1647,8 @@ describe("ThreadComposerSection", () => {
         await Promise.resolve();
       });
 
-      expect(createObjectURL).not.toHaveBeenCalled();
+      expect(createObjectURL).toHaveBeenCalledOnce();
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
       expect(screen.queryByAltText("Image 1.png")).toBeNull();
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");

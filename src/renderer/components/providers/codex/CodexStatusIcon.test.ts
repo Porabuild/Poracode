@@ -20,13 +20,13 @@ describe("getStatusTone", () => {
     ).toBe("active");
   });
 
-  it("treats launching threads as inactive until initialization completes", () => {
+  it("keeps startup and worktree preparation visibly working", () => {
     expect(
       getStatusTone({
         done: false,
         status: "launching",
       }),
-    ).toBe("inactive");
+    ).toBe("working");
   });
 
   it("treats running threads as working", () => {

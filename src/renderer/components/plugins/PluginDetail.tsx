@@ -5,6 +5,7 @@ import { Button, ToggleSwitch } from "@/renderer/components/common";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { runRendererAction, useRendererActionStore } from "@/renderer/state/rendererActionStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type {
   BuiltInMcpServerDisabled,
@@ -83,6 +84,8 @@ export function PluginDetail(props: {
   });
   const closeSettings = usePanelStore((panel) => panel.closeSettings);
   const oauth = usePluginOauth(plugin);
+  const tryActionKey = `plugin:try:${plugin.name}`;
+  const trying = useRendererActionStore((actionState) => !!actionState.pending[tryActionKey]);
   const describeDiagnostic = useLocalizedPluginDiagnostic();
   // Warnings are tolerated by the loader; errors mean something was dropped.
   const problems = plugin.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
@@ -154,8 +157,9 @@ export function PluginDetail(props: {
                 <Button
                   size="sm"
                   variant="tertiary"
-                  isDisabled={!canTryNow}
-                  onPress={() => void tryNow()}
+                  isDisabled={!canTryNow || trying}
+                  isPending={trying}
+                  onPress={() => void runRendererAction(tryActionKey, tryNow)}
                 >
                   <Sparkles className="size-4" />
                   <Trans>Try now</Trans>
@@ -216,9 +220,10 @@ export function PluginDetail(props: {
       {examplePrompt && coreSkill ? (
         <Button
           variant="tertiary"
-          isDisabled={!canTryNow}
+          isDisabled={!canTryNow || trying}
+          isPending={trying}
           className="mt-6 flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-surface-secondary !px-4 !py-3 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
-          onPress={() => void tryNow()}
+          onPress={() => void runRendererAction(tryActionKey, tryNow)}
         >
           <span className="shrink-0 text-muted">
             <PluginIcon pluginId={plugin.name} className="size-4" />
@@ -307,6 +312,8 @@ export function PluginDetail(props: {
                       {oauth.isRemoteServer(server.id) ? (
                         <ConnectControl
                           state={oauth.stateFor(server.id)}
+                          isPending={oauth.isPending(server.id)}
+                          isDisabled={oauth.isBusy}
                           ariaLabelledBy={`${labelId} ${badgeId}`}
                           onConnect={() => void oauth.connect(server.id)}
                           onDisconnect={() => void oauth.disconnect(server.id)}
@@ -436,6 +443,8 @@ function ConnectControl(props: {
   ariaLabelledBy: string;
   onConnect: () => void;
   onDisconnect: () => void;
+  isPending: boolean;
+  isDisabled: boolean;
 }) {
   const connected = props.state === "connected";
   const connecting = props.state === "connecting";
@@ -444,7 +453,8 @@ function ConnectControl(props: {
       size="sm"
       variant="tertiary"
       aria-labelledby={props.ariaLabelledBy}
-      isPending={connecting}
+      isPending={props.isPending}
+      isDisabled={props.isDisabled}
       onPress={connected ? props.onDisconnect : props.onConnect}
     >
       {connected ? <span className="size-1.5 rounded-full bg-success" aria-hidden="true" /> : null}

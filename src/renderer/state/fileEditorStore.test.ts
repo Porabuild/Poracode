@@ -38,6 +38,80 @@ describe("fileEditorStore path remapping", () => {
     });
   });
 
+  it.each([false, true])(
+    "tracks a save across rename and retains newer edits (refused=%s)",
+    async (refused) => {
+      const originalBridge = window.poracode;
+      let accept!: (value: { modifiedAtMs: number }) => void;
+      let reject!: (error: Error) => void;
+      const write = vi.fn<PoracodeBridge["writeProjectFile"]>(
+        () =>
+          new Promise((resolve, fail) => {
+            accept = resolve;
+            reject = fail;
+          }),
+      );
+      Object.defineProperty(window, "poracode", {
+        configurable: true,
+        writable: true,
+        value: { writeProjectFile: write },
+      });
+      try {
+        useFileEditorStore.getState().setRootContext({
+          projectId: "p",
+          projectName: "Project",
+          rootLabel: "Project",
+          projectLocation: { kind: "posix", path: "/repo" },
+        });
+        useFileEditorStore.setState({
+          tabs: ["a.txt"],
+          activePath: "a.txt",
+          buffers: {
+            "a.txt": {
+              ...makeBuffer("a.txt"),
+              content: "first",
+              savedContent: "original",
+              isDirty: true,
+            },
+          },
+        });
+        const saving = useFileEditorStore.getState().saveFile("a.txt");
+        const result = saving.catch((error: unknown) => error);
+        expect(useFileEditorStore.getState().buffers["a.txt"]?.saveId).toBeDefined();
+        await useFileEditorStore.getState().saveFile("a.txt");
+        expect(write).toHaveBeenCalledOnce();
+        useFileEditorStore.getState().renamePath("a.txt", "b.txt");
+        useFileEditorStore.getState().updateBuffer("b.txt", "second");
+        if (refused) reject(new Error("refused"));
+        else accept({ modifiedAtMs: 2 });
+        expect(await result).toEqual(refused ? new Error("refused") : undefined);
+        const buffer = useFileEditorStore.getState().buffers["b.txt"];
+        expect(buffer).toMatchObject({
+          content: "second",
+          isDirty: true,
+          modifiedAtMs: refused ? 1 : 2,
+          savedContent: refused ? "original" : "first",
+        });
+        expect(buffer?.saveId).toBeUndefined();
+        write.mockResolvedValue({ modifiedAtMs: 3 });
+        await useFileEditorStore.getState().saveFile("b.txt");
+        expect(write).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            path: "b.txt",
+            content: "second",
+            baseModifiedAtMs: refused ? 1 : 2,
+          }),
+        );
+      } finally {
+        Object.defineProperty(window, "poracode", {
+          configurable: true,
+          writable: true,
+          value: originalBridge,
+        });
+      }
+    },
+  );
+
   it("renames nested open buffers when a folder path changes", () => {
     useFileEditorStore.setState({
       rootContext: null,

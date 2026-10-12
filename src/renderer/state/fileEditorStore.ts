@@ -96,6 +96,8 @@ export interface FileEditorBuffer {
   hasBom: boolean;
   isDirty: boolean;
   isLoading: boolean;
+  /** Transient save lease; preserves dirty edits made during the write. */
+  saveId?: symbol;
   /** Ephemeral identity retained when a pending read is moved to another path. */
   loadId?: symbol;
   gitDiff?: FileEditorGitDiffContext;
@@ -614,6 +616,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       !buffer ||
       buffer.status !== "ready" ||
       buffer.isLoading ||
+      buffer.saveId ||
       !buffer.isDirty
     ) {
       return;
@@ -621,44 +624,69 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
 
     const savedContent = buffer.content;
     const isRemoteContext = isRemoteFileEditorContext(rootContext);
-    const result = await writeFileForContext(rootContext, path, savedContent, buffer.modifiedAtMs);
-    if (get().rootContext !== rootContext) return;
-    const acknowledgedBuffer = get().buffers[path];
-    // A close/reopen or another completed operation may have installed a newer
-    // baseline. Typed edits may differ, but this save only owns its old baseline.
-    if (
-      !acknowledgedBuffer ||
-      acknowledgedBuffer.status !== "ready" ||
-      acknowledgedBuffer.modifiedAtMs !== buffer.modifiedAtMs ||
-      acknowledgedBuffer.savedContent !== buffer.savedContent
-    ) {
-      return;
-    }
+    const saveId = Symbol(path);
+    set((state) => ({ buffers: { ...state.buffers, [path]: { ...buffer, saveId } } }));
+    try {
+      const result = await writeFileForContext(
+        rootContext,
+        path,
+        savedContent,
+        buffer.modifiedAtMs,
+      );
+      if (get().rootContext !== rootContext) return;
+      const acknowledgedEntry = Object.entries(get().buffers).find(
+        ([, entry]) => entry.saveId === saveId,
+      );
+      const acknowledgedPath = acknowledgedEntry?.[0];
+      const acknowledgedBuffer = acknowledgedEntry?.[1];
+      // A close/reopen or another completed operation may have installed a newer
+      // baseline. Typed edits may differ, but this save only owns its old baseline.
+      if (
+        !acknowledgedPath ||
+        !acknowledgedBuffer ||
+        acknowledgedBuffer.status !== "ready" ||
+        acknowledgedBuffer.modifiedAtMs !== buffer.modifiedAtMs ||
+        acknowledgedBuffer.savedContent !== buffer.savedContent
+      ) {
+        return;
+      }
 
-    if (!isRemoteContext) {
-      recentlySavedAt.set(path, Date.now());
-    }
+      if (!isRemoteContext) {
+        recentlySavedAt.set(acknowledgedPath, Date.now());
+      }
 
-    set((state) => {
-      const current = state.buffers[path];
-      if (!current || current.status !== "ready") return {};
-      return {
-        buffers: {
-          ...state.buffers,
-          [path]: {
-            ...current,
-            modifiedAtMs: result.modifiedAtMs,
-            // The server acknowledged the submitted text, not edits made
-            // while the request was pending. Keep those newer edits dirty.
-            savedContent,
-            isDirty: current.content !== savedContent,
+      set((state) => {
+        const current = state.buffers[acknowledgedPath];
+        if (!current || current.status !== "ready") return {};
+        return {
+          buffers: {
+            ...state.buffers,
+            [acknowledgedPath]: {
+              ...current,
+              modifiedAtMs: result.modifiedAtMs,
+              // The server acknowledged the submitted text, not edits made
+              // while the request was pending. Keep those newer edits dirty.
+              savedContent,
+              isDirty: current.content !== savedContent,
+            },
           },
-        },
-      };
-    });
+        };
+      });
 
-    if (!isRemoteContext) {
-      void maybeStageResolvedConflict(rootContext, path, savedContent);
+      if (!isRemoteContext) {
+        void maybeStageResolvedConflict(rootContext, acknowledgedPath, savedContent);
+      }
+    } finally {
+      set((state) => {
+        if (state.rootContext !== rootContext) return {};
+        const savedEntry = Object.entries(state.buffers).find(
+          ([, entry]) => entry.saveId === saveId,
+        );
+        if (!savedEntry) return {};
+        const [savedPath, current] = savedEntry;
+        const { saveId: _finished, ...ready } = current;
+        return { buffers: { ...state.buffers, [savedPath]: ready } };
+      });
     }
   },
   closeTab: (path) =>

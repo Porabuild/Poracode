@@ -7,6 +7,7 @@ export function ForceDeleteBranchDialog(props: {
   errorMessage: string;
   onClose: () => void;
   onForceDelete: () => void;
+  isPending?: boolean;
 }) {
   const { t } = useLingui();
   return (
@@ -29,6 +30,7 @@ export function ForceDeleteBranchDialog(props: {
       cancelLabel={t`Keep Branch`}
       confirmLabel={t`Force Delete`}
       onConfirm={props.onForceDelete}
+      isPending={props.isPending ?? false}
       onClose={props.onClose}
     />
   );

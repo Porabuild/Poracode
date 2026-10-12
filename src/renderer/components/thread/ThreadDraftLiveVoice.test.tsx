@@ -375,7 +375,9 @@ describe("draft live voice ownership", () => {
 
     permission.resolve(stream);
     await waitFor(() => expect(track.stop).toHaveBeenCalledOnce());
-    act(() => currentComposerProps().submitControl!.props.onStart());
+    expect(currentComposerProps().submitControl).toBeUndefined();
+    act(() => currentComposerProps().onSubmit());
+    expect(onStart).not.toHaveBeenCalled();
     expect(getUserMedia).toHaveBeenCalledOnce();
 
     save.resolve("C:\\voice-project\\saved-image.png");

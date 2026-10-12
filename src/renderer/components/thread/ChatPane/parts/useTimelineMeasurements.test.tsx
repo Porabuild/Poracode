@@ -181,13 +181,13 @@ describe("timeline measurement lifecycle", () => {
     });
   });
 
-  it("does not resave a catalog-removed owner whose runtime items remain resident", () => {
+  it("retires confirmed catalog removal and does not resave its measurements", () => {
     const f = fixture(500);
     f.snapshot();
     expect(readTimelineMeasurements("t", "500:14px")).toHaveLength(1);
     act(() => removeRootCatalogThreads(["t"]));
     expect(useAppStore.getState().threads.some((thread) => thread.id === "t")).toBe(false);
-    expect(useAppStore.getState().runtimeItemsByIdByThread.t?.stable).toBeDefined();
+    expect(useAppStore.getState().runtimeItemsByIdByThread.t).toBeUndefined();
     expect(readTimelineMeasurements("t", "500:14px")).toEqual([]);
 
     f.readSizes.mockClear();

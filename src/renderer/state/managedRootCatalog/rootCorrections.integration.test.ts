@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { DEFAULT_TERMINAL_SIZE, type Project } from "@/shared/contracts";
 import { RemoteDesktopClient } from "@/shared/remote/client";
+import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { dbUpsertProject } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -9,6 +10,7 @@ import { resetDesktopLoopbackIntakeForTest } from "@/renderer/clientRuntime";
 import {
   resyncManagedRootCatalogOrder,
   __resetManagedRootCatalogRuntimeForTest,
+  refreshManagedRootCatalogSoon,
 } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import {
   applyRootCatalogProjectRows,
@@ -32,6 +34,8 @@ import {
 } from "@/renderer/state/chatRuntimePersister";
 import { renameThread } from "@/renderer/actions/threadActions";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
+import { presentProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
+import { pendingProjectRemovalRows } from "@/renderer/state/projectRemovalIntents";
 import { applyForwardedRemoteThreadCommand } from "@/renderer/actions/remoteThreadCommandApplication";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
@@ -89,11 +93,64 @@ beforeEach(async () => {
   await setupManagedRootFixture();
 });
 
+it("checks hidden project membership and keeps confirmed absence final after a lost command reply", async () => {
+  const server = await activate();
+  const project = useAppStore.getState().projects.find((row) => row.id === "p-1")!;
+  let reject!: (error: Error) => void;
+  useAppStore.setState({ draftContents: { "p-1": { segments: [], attachments: [] } } });
+  const removal = presentProjectRemoval(
+    project,
+    () =>
+      new Promise<void>((_resolve, refuse) => {
+        reject = refuse;
+      }),
+  );
+  const refused = removal.catch((error: unknown) => error);
+  const external = await externalClientFor(server);
+  await external.projectCommand(
+    { kind: "remove", projectId: "p-1" },
+    { commandId: crypto.randomUUID() },
+  );
+  refreshManagedRootCatalogSoon();
+  await vi.waitFor(
+    () => expect(pendingProjectRemovalRows().some((row) => row.id === "p-1")).toBe(false),
+    { timeout: 15_000 },
+  );
+  expect(useAppStore.getState().draftContents["p-1"]).toBeUndefined();
+  reject(new Error("lost reply"));
+  expect(await refused).toBeInstanceOf(Error);
+  expect(useAppStore.getState().projects.some((row) => row.id === "p-1")).toBe(false);
+  expect(useAppStore.getState().threads.some((row) => row.projectId === "p-1")).toBe(false);
+}, 30_000);
+
 afterEach(async () => {
   await teardownManagedRootFixture();
 });
 
 describe("F1 forwarded-command composition (production callback)", () => {
+  it("keeps the latest local title while an older command is forwarded", async () => {
+    await activate();
+    const activation = readManagedLoopbackActivation()!;
+    let accept!: () => void;
+    const command = vi
+      .spyOn(activation.client, "sendThreadCommand")
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            accept = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    renameThread("t-1", "First title");
+    renameThread("t-1", "Second title");
+    expect(threadRow("t-1")?.title).toBe("Second title");
+    applyForwardedRemoteThreadCommand({ kind: "rename", threadId: "t-1", title: "First title" });
+    expect(threadRow("t-1")?.title).toBe("Second title");
+    accept();
+    await vi.waitFor(() => expect(command).toHaveBeenCalledTimes(2));
+    command.mockRestore();
+  });
+
   it("applies a host-forwarded rename locally without echoing a command back", async () => {
     await activate({
       dispatchThreadCommand: async (command) => {

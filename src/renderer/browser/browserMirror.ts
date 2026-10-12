@@ -58,7 +58,7 @@ export const useBrowserMirrorStore = create<BrowserMirrorStore>()((set) => ({
   setPaused: (paused) => set({ paused }),
   reset: () => {
     set({ frame: null, status: null, watching: false, paused: false });
-    useBrowserPanelStore.getState().setState({ tabs: [], activeTabId: null });
+    useBrowserPanelStore.getState().resetOwner();
   },
 }));
 

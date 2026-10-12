@@ -282,7 +282,7 @@ function DeferredBrowserHost() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
   const extracted = useBrowserPanelStore((s) => s.extracted);
-  const hasTabs = useBrowserPanelStore((s) => s.tabs.length > 0);
+  const hasTabs = useBrowserPanelStore((s) => s.residentTabs.length > 0);
   const automationActive = useBrowserPanelStore((s) => s.automationActive);
   const enabled = useEverEnabled(
     !extracted && (browserPanelOpen || browserOverlayOpen || (hasTabs && automationActive)),

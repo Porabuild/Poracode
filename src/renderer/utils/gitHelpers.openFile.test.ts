@@ -12,6 +12,7 @@ const { editor, layout } = vi.hoisted(() => ({
   },
 }));
 vi.mock("@/renderer/state/fileEditorStore", () => ({
+  resolvePathForFileOpen: (_context: unknown, path: string) => path,
   useFileEditorStore: { getState: () => editor },
 }));
 

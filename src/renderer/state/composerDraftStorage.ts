@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { promptSegmentSchema } from "@/shared/contracts";
-import { storableAttachment } from "@/renderer/components/composer/useAttachments";
+import { storableAttachments } from "@/renderer/components/composer/useAttachments";
 import type { DraftContent } from "./slices/types";
 
 // New client-local boundary. Earlier versions kept drafts only in memory;
@@ -92,7 +92,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     save(kind: DraftKind, id: string, content: DraftContent) {
       pending.set(key(kind, id), {
         segments: content.segments,
-        attachments: content.attachments.map(storableAttachment),
+        attachments: storableAttachments(content.attachments),
       });
       if (timer !== undefined) return;
       // Bound the amount of uncheckpointed typing without serializing on each keypress.

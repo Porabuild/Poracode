@@ -1,4 +1,6 @@
 import { Check, FolderOpen, GitFork, Trash2 } from "lucide-react";
+import { Spinner } from "@heroui/react";
+import { useGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
 import { useLingui } from "@lingui/react/macro";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
@@ -48,6 +50,10 @@ export function WorktreeGroupHeader({
   projectTag?: React.ReactNode;
 }) {
   const { t } = useLingui();
+  const gitPending = useGitReviewActionStore((state) => {
+    const action = state.panels[props.worktreePath];
+    return !!(action?.isMerging || action?.isPullingFromSource);
+  });
   const compactLayout = useCompactLayout();
   const hiddenPanelButtonClass =
     "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
@@ -60,6 +66,7 @@ export function WorktreeGroupHeader({
       className={`min-w-0 flex-1 truncate font-medium ${props.isDone ? "opacity-50 line-through" : "text-foreground/80"}`}
     >
       {props.worktreeBranch}
+      {gitPending ? <Spinner size="sm" className="ms-1 inline-flex" /> : null}
     </span>
   );
 

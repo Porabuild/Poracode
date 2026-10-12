@@ -59,6 +59,7 @@ import {
 import { useThreadMentionItems } from "@/renderer/components/composer/useThreadMentionItems";
 import {
   storableAttachment,
+  storableAttachments,
   useAttachments,
   type SaveClipboardImage,
 } from "@/renderer/components/composer/useAttachments";
@@ -858,7 +859,12 @@ export function ThreadDraftComposerArea(props: {
   }
 
   function canPrepareDraftVoice() {
-    if (submittedRef.current || draftVoice.hasPendingOperations()) return false;
+    if (
+      submittedRef.current ||
+      draftVoice.hasPendingOperations() ||
+      attachments.hasPendingUploads()
+    )
+      return false;
     const segments = mentionRef.current?.serializeSegments() ?? [];
     const hasMeaningfulMentionContent =
       segments.some((segment) => segment.kind !== "text") || flattenSegments(segments).length > 0;
@@ -881,6 +887,7 @@ export function ThreadDraftComposerArea(props: {
     fallbackPrompt = "",
     voiceThreadId?: string,
   ) {
+    if (attachments.hasPendingUploads()) return;
     if (!voiceThreadId) cancelDraftVoice();
     if (hostUpdateRestarting) return;
     if (experimentMode) {
@@ -1178,7 +1185,7 @@ export function ThreadDraftComposerArea(props: {
     if (submittedRef.current) return;
     const content = {
       segments: latestSegmentsRef.current,
-      attachments: attachmentsRef.current.map(storableAttachment),
+      attachments: storableAttachments(attachmentsRef.current),
     };
     if (isDraftContentNonEmpty(content)) saveDraftContent(props.project.id, content);
     else clearDraftContent(props.project.id);
@@ -1219,7 +1226,7 @@ export function ThreadDraftComposerArea(props: {
       // this composer's live session and are revoked when it unmounts.
       const content = {
         segments: latestSegmentsRef.current,
-        attachments: attachmentsRef.current.map(storableAttachment),
+        attachments: storableAttachments(attachmentsRef.current),
       };
       if (isDraftContentNonEmpty(content)) {
         mountedDraftActionsRef.current.saveDraftContent(pid, content);
@@ -1434,6 +1441,7 @@ export function ThreadDraftComposerArea(props: {
           agentUpdating ||
           hostUpdateRestarting ||
           isSubmitting ||
+          attachments.isUploading ||
           (!experimentMode && !props.config.model) ||
           !(hasContent || attachments.attachments.length > 0) ||
           (experimentMode && experimentCandidates.length < 2)

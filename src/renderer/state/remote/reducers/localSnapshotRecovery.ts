@@ -48,10 +48,17 @@ export function createLocalSnapshotRecovery(deps: {
     const generation = rendererTransportGeneration;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const before = { ...latestRendererSequenceByThread.get(threadId) };
-      // The DB contains transcript rows, not authoritative open requests.
-      useAppStore.getState().clearThreadRuntimeEvents(threadId, { keepOpenRequests: true });
-      clearRuntimeItemStoreSelectorCacheForThread(threadId);
-      const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId);
+      // Keep the reader visible during I/O. Reset and install in the same
+      // synchronous continuation, after the authoritative read succeeds.
+      const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId, {
+        beforeInstall: () => {
+          if (rendererTransportGeneration !== generation) return false;
+          // The DB contains transcript rows, not authoritative open requests.
+          useAppStore.getState().clearThreadRuntimeEvents(threadId, { keepOpenRequests: true });
+          clearRuntimeItemStoreSelectorCacheForThread(threadId);
+          return true;
+        },
+      });
       if (!recovered) return false;
       if (rendererTransportGeneration !== generation) return false;
       const after = latestRendererSequenceByThread.get(threadId) ?? before;

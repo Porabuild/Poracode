@@ -52,9 +52,13 @@ const RUNTIME_PAGE_SCAN_SIZE = 500;
 const RUNTIME_TIMELINE_PAGE_SIZE = 40;
 const MAX_CACHED_THREAD_RUNTIME_ITEMS = 5_000;
 const hydratedThreadRuntimeIds = new Set<string>();
+interface RuntimeHydrationRequest {
+  readonly cancelled: boolean;
+  readonly beforeInstall?: () => boolean;
+}
 const pendingThreadRuntimeHydrations = new Map<
   string,
-  { cancelled: boolean; readonly promise: Promise<boolean> }
+  { cancelled: boolean; readonly promise: Promise<boolean>; readonly beforeInstall?: () => boolean }
 >();
 const pendingOlderRuntimePages = new Map<
   string,
@@ -353,7 +357,10 @@ function releaseRuntimeWindowPagingIfIdle(threadId: string): void {
  * `ChatPane` mount so reopening a thread shows past messages even after an
  * app restart.
  */
-export async function hydrateThreadRuntimeItems(threadId: string): Promise<void> {
+export async function hydrateThreadRuntimeItems(
+  threadId: string,
+  options?: { readonly beforeInstall?: () => boolean },
+): Promise<void> {
   if (hydratedThreadRuntimeIds.has(threadId)) return;
   const pending = pendingThreadRuntimeHydrations.get(threadId);
   if (pending && !pending.cancelled) {
@@ -367,7 +374,11 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
   const isEmptyBefore =
     (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) === 0;
   if (isEmptyBefore) useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
-  const request = { cancelled: false, promise: Promise.resolve(false) };
+  const request = {
+    cancelled: false,
+    promise: Promise.resolve(false),
+    ...options,
+  };
   const hydration = hydrateThreadRuntimeItemsFromDb(threadId, request);
   request.promise = hydration;
   pendingThreadRuntimeHydrations.set(threadId, request);
@@ -379,7 +390,7 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
       useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
-    } else if (isEmptyBefore) {
+    } else {
       useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
     }
     // A successful item read can install rows even when another hydration read
@@ -394,7 +405,7 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
 
 async function hydrateThreadRuntimeItemsFromDb(
   threadId: string,
-  request: { readonly cancelled: boolean },
+  request: RuntimeHydrationRequest,
 ): Promise<boolean> {
   // The managed desktop's own threads read their transcript through the SAME
   // bounded HTTP contract remote threads use (items + completed turns +
@@ -451,6 +462,17 @@ async function hydrateThreadRuntimeItemsFromDb(
   // A reset superseded this read while it was in flight: install nothing and
   // claim no cursor — the replacement read owns both.
   if (request.cancelled) return false;
+
+  if (request.beforeInstall) {
+    if (
+      itemsResult.status === "rejected" ||
+      turnsResult.status === "rejected" ||
+      contextResult.status === "rejected" ||
+      latestGoalResult.status === "rejected" ||
+      !request.beforeInstall()
+    )
+      return false;
+  }
 
   if (itemsResult.status === "fulfilled") {
     runtimeHistoryBoundary(threadId).cursor = itemsResult.value.nextCursor;
@@ -578,7 +600,7 @@ function installHydratedRuntimeItems(
  */
 async function hydrateManagedRootThreadRuntimeItems(
   threadId: string,
-  request: { readonly cancelled: boolean },
+  request: RuntimeHydrationRequest,
 ): Promise<boolean> {
   let page: Awaited<ReturnType<typeof readManagedRootHistoryPage>>;
   try {
@@ -592,6 +614,7 @@ async function hydrateManagedRootThreadRuntimeItems(
     // the outcome).
     if (request.cancelled) return false;
     if (isManagedRootThreadAbsentError(error)) {
+      if (request.beforeInstall && !request.beforeInstall()) return false;
       // An unpersisted or authoritatively removed row has no transcript to
       // lose. A later pass/pin fills the empty transcript when it is created.
       runtimeHistoryBoundary(threadId).cursor = null;
@@ -608,6 +631,7 @@ async function hydrateManagedRootThreadRuntimeItems(
   }
 
   if (request.cancelled) return false;
+  if (request.beforeInstall && !request.beforeInstall()) return false;
   if (page.runtimeItems.length > 0) {
     installHydratedRuntimeItems(threadId, page.runtimeItems, page.runtimeNextCursor ?? null);
   }
@@ -694,9 +718,12 @@ export function invalidateThreadRuntimeHydration(threadId: string): void {
   olderThreadHistoryInvalidation?.(threadId);
 }
 
-export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<boolean> {
+export async function rehydrateThreadRuntimeItemsAfterReset(
+  threadId: string,
+  options?: { readonly beforeInstall?: () => boolean },
+): Promise<boolean> {
   invalidateThreadRuntimeHydration(threadId);
-  await hydrateThreadRuntimeItems(threadId);
+  await hydrateThreadRuntimeItems(threadId, options);
   return useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed";
 }
 

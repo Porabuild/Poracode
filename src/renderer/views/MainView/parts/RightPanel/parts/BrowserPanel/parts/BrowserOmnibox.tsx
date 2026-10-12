@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { Globe, History, Search } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
+import { runBrowserNavigation } from "@/renderer/actions/browserActions";
 import { stripScheme } from "@/shared/url";
 
 const LOCALHOST_PATTERN =
@@ -194,9 +195,9 @@ export function BrowserOmnibox(props: {
   function navigate(value: string) {
     const url = value || normalizeUrl(urlInput);
     if (!url || !activeTabId) return;
-    readBridge()
-      .browserNavigate({ tabId: activeTabId, url })
-      .catch(() => {});
+    runBrowserNavigation(activeTabId, () =>
+      readBridge().browserNavigate({ tabId: activeTabId, url }),
+    );
     clearSuggest();
     onPreviewChange(null);
     inputRef.current?.blur();

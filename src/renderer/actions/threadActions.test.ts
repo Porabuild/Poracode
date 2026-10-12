@@ -5,6 +5,10 @@ import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { isDraftPaneId } from "@/shared/paneId";
 import { normalizeStoredThreadStatus } from "@/renderer/state/slices/helpers";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  forgetPendingCatalogEdit,
+  projectPendingCatalogEdit,
+} from "@/renderer/state/pendingCatalogEdits";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -13,6 +17,7 @@ import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   archiveThread,
+  acknowledgeThread,
   deleteThread,
   deleteThreadsAndOwnedWorktrees,
   requestDeleteThread,
@@ -69,6 +74,8 @@ vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
 
 describe("threadActions", () => {
   beforeEach(() => {
+    for (const thread of useAppStore.getState().threads)
+      forgetPendingCatalogEdit("thread", thread.id);
     vi.clearAllMocks();
     setThreadRuntimeReopenEnabled(true);
     localStorage.clear();
@@ -600,7 +607,7 @@ describe("threadActions", () => {
     expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
   });
 
-  it("applies a remote sidebar mutation only after the host accepts it", async () => {
+  it("paints a remote sidebar mutation while the host accepts it", async () => {
     let resolveCommand: () => void = () => undefined;
     sendThreadCommand.mockImplementation(
       () =>
@@ -616,7 +623,7 @@ describe("threadActions", () => {
 
     archiveThread(thread.id);
 
-    expect(useAppStore.getState().threads[0]?.archived).toBe(false);
+    expect(useAppStore.getState().threads[0]?.archived).toBe(true);
     expect(sendThreadCommand).toHaveBeenCalledWith("remote-server", {
       kind: "archive",
       threadId: "remote-thread",
@@ -625,6 +632,75 @@ describe("threadActions", () => {
     resolveCommand();
     await waitFor(() => expect(useAppStore.getState().threads[0]?.archived).toBe(true));
     expect(useAppStore.getState().threads[0]?.archivedAt).toEqual(expect.any(String));
+  });
+
+  it("never overlays an acknowledged old completion on the next running turn", async () => {
+    let accept!: () => void;
+    sendThreadCommand.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const thread = makeThread({
+      status: "finished",
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+    });
+    useAppStore.setState({ threads: [thread] });
+    acknowledgeThread(thread.id);
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    accept();
+    await Promise.resolve();
+    const running = { ...thread, status: "working" as const };
+    expect(projectPendingCatalogEdit("thread", running).status).toBe("working");
+  });
+
+  it("hides a deleted thread immediately, retaining its row and restoring the pane on refusal", async () => {
+    let reject!: (error: Error) => void;
+    sendThreadCommand.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, refuse) => {
+          reject = refuse;
+        }),
+    );
+    const thread = makeThread({ remoteServerId: "remote-server", remoteId: "remote-thread" });
+    const view = { kind: "thread" as const, panes: [thread.id] as [string] };
+    useAppStore.setState({ threads: [thread], view });
+    deleteThread(thread.id);
+    expect(useAppStore.getState().threads[0]?.archived).toBe(true);
+    expect(useAppStore.getState().view.kind).toBe("home");
+    reject(new Error("refused"));
+    await waitFor(() => expect(toast.danger).toHaveBeenCalledWith("refused"));
+    expect(useAppStore.getState().threads).toEqual([thread]);
+    expect(useAppStore.getState().view).toEqual(view);
+  });
+
+  it("retires the last done worktree's terminal tabs only after acceptance", async () => {
+    let accept!: () => void;
+    sendThreadCommand.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const thread = makeThread({
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+      worktreePath: "/repo/wt",
+    });
+    useAppStore.setState({ threads: [thread] });
+    const tab = useDevTerminalStore
+      .getState()
+      .addTab(thread.projectId, "Project", thread.worktreePath);
+    toggleMarkThreadDone(thread.id);
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
+    expect(useDevTerminalStore.getState().tabs.some((entry) => entry.id === tab.id)).toBe(true);
+    accept();
+    await waitFor(() =>
+      expect(useDevTerminalStore.getState().tabs.some((entry) => entry.id === tab.id)).toBe(false),
+    );
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: tab.id });
   });
 
   it("tags a local thread with worktree metadata in the store", async () => {

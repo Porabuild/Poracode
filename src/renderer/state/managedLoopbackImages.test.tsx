@@ -37,6 +37,29 @@ beforeEach(setupManagedImageFixture);
 afterEach(teardownManagedImageFixture);
 
 describe("managed loopback image custody", () => {
+  it("keeps an uploaded preview after composer ownership ends and retires it on reconnect", async () => {
+    const activation = createImageActivation();
+    publishImageActivation(activation);
+    installManagedImageRuntime();
+    const current = readManagedLoopbackImageSession()!;
+    await current.admitUploadedImage("/tmp/upload.png", {
+      bytes: new Uint8Array([137, 80, 78, 71]),
+      contentType: "image/png",
+    });
+    expect(current.readiness.resolvePath("/tmp/upload.png")).toBe("blob:managed-image-1");
+    expect(activation.client.fetchTicketedImageBytes).not.toHaveBeenCalled();
+    publishImageActivation(createImageActivation());
+    expect(revokeObjectUrl).toHaveBeenCalledExactlyOnceWith("blob:managed-image-1");
+    await current.admitUploadedImage("/tmp/stale-upload.png", {
+      bytes: new Uint8Array([1]),
+      contentType: "image/png",
+    });
+    expect(readManagedLoopbackImageSession()!.readiness.resolvePath("/tmp/stale-upload.png")).toBe(
+      "",
+    );
+    expect(createObjectUrl).toHaveBeenCalledOnce();
+  });
+
   it("installs an already-live activation once with pure, stable snapshots and keyed deduplication", async () => {
     const activation = createImageActivation();
     publishImageActivation(activation);

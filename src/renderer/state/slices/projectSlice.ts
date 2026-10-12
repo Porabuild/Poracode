@@ -60,7 +60,7 @@ export interface ProjectSlice {
     workspaceId?: string,
   ) => Project;
   ensureHomeProject: (location: ProjectLocation) => Project;
-  deleteProject: (projectId: string) => void;
+  deleteProject: (projectId: string, options?: { alreadyHidden: boolean }) => void;
   updateProjectDraftConfig: (projectId: string, draftConfig: ProjectDraftConfig) => void;
   updateProjectScripts: (projectId: string, scripts: ProjectScripts) => void;
   updateProjectSearchSettings: (
@@ -174,11 +174,11 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
 
     return ensured!;
   },
-  deleteProject: (projectId) =>
+  deleteProject: (projectId, options) =>
     set((state) => {
       const nextProjects = state.projects.filter((project) => project.id !== projectId);
 
-      if (nextProjects.length === state.projects.length) {
+      if (nextProjects.length === state.projects.length && !options?.alreadyHidden) {
         return {};
       }
 

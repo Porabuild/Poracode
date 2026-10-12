@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Tooltip } from "@heroui/react";
+import { Skeleton, Tooltip } from "@heroui/react";
 import { Monitor, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -135,7 +135,11 @@ function AttachmentImage(props: {
     usesHostPath ? readiness : undefined,
     attachmentImageUrl(attachment, imageUrlForPath),
   );
-  return <img className={className} src={url} alt={alt} decoding="async" draggable={false} />;
+  return url ? (
+    <img className={className} src={url} alt={alt} decoding="async" draggable={false} />
+  ) : (
+    <Skeleton className={className} role="img" aria-label={alt} />
+  );
 }
 
 function AttachmentChip(props: {

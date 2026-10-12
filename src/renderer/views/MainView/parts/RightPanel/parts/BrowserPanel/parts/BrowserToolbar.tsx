@@ -19,7 +19,13 @@ import {
 import { useShallow } from "zustand/shallow";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { readBridge } from "@/renderer/bridge";
-import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
+import {
+  createBrowserTab,
+  runBrowserNavigation,
+  editBrowserPresentation,
+} from "@/renderer/actions/browserActions";
+import { runRendererAction, useRendererActionStore } from "@/renderer/state/rendererActionStore";
+import { useBrowserPanelStore, browserActionKey } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import type { BrowserHistoryEntryInfo } from "@/shared/ipc";
@@ -58,21 +64,33 @@ export function BrowserToolbar(props: {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const disabled = !activeTab;
+  const toolbarPending = useRendererActionStore((state) => !!state.pending["browser:toolbar"]);
+  const runToolbarAction = (write: () => Promise<unknown>) => {
+    void runRendererAction("browser:toolbar", write).catch(() => {});
+  };
+  const ownerRevision = useBrowserPanelStore((state) => state.ownerRevision);
+  const navigating = useRendererActionStore(
+    (state) => !!state.pending[browserActionKey(`browser:navigate:${activeTabId}`, ownerRevision)],
+  );
   const bookmarked = !!activeTab && bookmarks.some((b) => b.url === activeTab.url);
 
   const onToggleBookmark = () => {
     if (!activeTab) return;
     const bridge = readBridge();
     if (bookmarked) {
-      bridge.browserRemoveBookmark({ url: activeTab.url }).catch(() => {});
+      editBrowserPresentation({ kind: "bookmark", url: activeTab.url, bookmark: null }, () =>
+        bridge.browserRemoveBookmark({ url: activeTab.url }),
+      );
     } else {
-      bridge
-        .browserAddBookmark({
-          url: activeTab.url,
-          title: activeTab.title || activeTab.url,
-          ...(activeTab.faviconUrl ? { faviconUrl: activeTab.faviconUrl } : {}),
-        })
-        .catch(() => {});
+      const bookmark = {
+        createdAt: Date.now(),
+        url: activeTab.url,
+        title: activeTab.title || activeTab.url,
+        ...(activeTab.faviconUrl ? { faviconUrl: activeTab.faviconUrl } : {}),
+      };
+      editBrowserPresentation({ kind: "bookmark", url: activeTab.url, bookmark }, () =>
+        bridge.browserAddBookmark(bookmark),
+      );
     }
   };
   const pickerButtonClass = `${toolbarButtonClass} ${
@@ -101,7 +119,7 @@ export function BrowserToolbar(props: {
   const onMenuAction = (key: Key) => {
     const bridge = readBridge();
     if (key === "newTab") {
-      bridge.browserCreateTab({ url: NEW_TAB_HOME, activate: true }).catch(() => {});
+      createBrowserTab(NEW_TAB_HOME);
       return;
     }
     if (key === "settings") {
@@ -118,25 +136,29 @@ export function BrowserToolbar(props: {
       return;
     }
     if (key === "bookmarkBar") {
-      bridge.browserSetBookmarkBarVisible({ visible: !bookmarkBarVisible }).catch(() => {});
+      editBrowserPresentation({ kind: "bookmark-bar", visible: !bookmarkBarVisible }, () =>
+        bridge.browserSetBookmarkBarVisible({ visible: !bookmarkBarVisible }),
+      );
       return;
     }
     if (!activeTabId) return;
     if (key === "screenshot") {
-      bridge.browserCopyScreenshot({ tabId: activeTabId }).catch(() => {});
+      runToolbarAction(() => bridge.browserCopyScreenshot({ tabId: activeTabId }));
     } else if (key === "hardReload") {
-      bridge.browserHardReload({ tabId: activeTabId }).catch(() => {});
+      runBrowserNavigation(activeTabId, () => bridge.browserHardReload({ tabId: activeTabId }));
     } else if (key === "copyUrl") {
-      navigator.clipboard.writeText(activeTab?.url ?? "").catch(() => {});
+      runToolbarAction(() => navigator.clipboard.writeText(activeTab?.url ?? ""));
     } else if (key === "clearHistory") {
-      bridge.browserClearHistory({ tabId: activeTabId }).catch(() => {});
+      runToolbarAction(() => bridge.browserClearHistory({ tabId: activeTabId }));
     } else if (key === "clearCookies") {
-      bridge.browserClearCookies({ tabId: activeTabId }).catch(() => {});
+      runToolbarAction(() => bridge.browserClearCookies({ tabId: activeTabId }));
     } else if (key === "clearCache") {
-      bridge.browserClearCache({ tabId: activeTabId }).catch(() => {});
+      runToolbarAction(() => bridge.browserClearCache({ tabId: activeTabId }));
     } else if (String(key).startsWith("http")) {
       // A history/bookmark entry from a submenu — open it in the active tab.
-      bridge.browserNavigate({ tabId: activeTabId, url: String(key) }).catch(() => {});
+      runBrowserNavigation(activeTabId, () =>
+        bridge.browserNavigate({ tabId: activeTabId, url: String(key) }),
+      );
     }
   };
 
@@ -198,9 +220,9 @@ export function BrowserToolbar(props: {
         disabled={disabled || !activeTab?.canGoBack}
         onClick={() => {
           if (activeTabId)
-            void readBridge()
-              .browserBack({ tabId: activeTabId })
-              .catch(() => {});
+            runBrowserNavigation(activeTabId, () =>
+              readBridge().browserBack({ tabId: activeTabId }),
+            );
         }}
       >
         <ArrowLeft className="size-3.5" />
@@ -212,9 +234,9 @@ export function BrowserToolbar(props: {
         disabled={disabled || !activeTab?.canGoForward}
         onClick={() => {
           if (activeTabId)
-            void readBridge()
-              .browserForward({ tabId: activeTabId })
-              .catch(() => {});
+            runBrowserNavigation(activeTabId, () =>
+              readBridge().browserForward({ tabId: activeTabId }),
+            );
         }}
       >
         <ArrowRight className="size-3.5" />
@@ -226,12 +248,14 @@ export function BrowserToolbar(props: {
         disabled={disabled}
         onClick={() => {
           if (activeTabId)
-            void readBridge()
-              .browserReload({ tabId: activeTabId })
-              .catch(() => {});
+            runBrowserNavigation(activeTabId, () =>
+              readBridge().browserReload({ tabId: activeTabId }),
+            );
         }}
       >
-        <RotateCw className="size-3.5" />
+        <RotateCw
+          className={`size-3.5 ${navigating || activeTab?.loading ? "animate-spin" : ""}`}
+        />
       </button>
       {compact ? null : (
         <BrowserOmnibox
@@ -246,10 +270,12 @@ export function BrowserToolbar(props: {
         className={`${toolbarButtonClass} ${bookmarked ? "text-accent hover:text-accent" : ""}`}
         title={bookmarked ? t`Remove bookmark` : t`Bookmark this page`}
         aria-label={bookmarked ? t`Remove bookmark` : t`Bookmark this page`}
-        disabled={disabled}
+        disabled={disabled || toolbarPending}
         onClick={onToggleBookmark}
       >
-        <Star className={`size-3.5 ${bookmarked ? "fill-current" : ""}`} />
+        <Star
+          className={`size-3.5 ${bookmarked ? "fill-current" : ""} ${toolbarPending ? "animate-pulse" : ""}`}
+        />
       </button>
       {compact ? null : props.hasPendingPick && props.pendingPickAnchor ? (
         <>
@@ -340,7 +366,8 @@ export function BrowserToolbar(props: {
           size="sm"
           variant="ghost"
           className={toolbarDropdownButtonClass}
-          isDisabled={disabled}
+          isDisabled={disabled || toolbarPending}
+          isPending={toolbarPending}
         >
           <MoreHorizontal className="size-3.5" />
         </Button>

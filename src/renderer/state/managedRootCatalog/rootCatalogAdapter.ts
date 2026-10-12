@@ -41,6 +41,7 @@ import {
   subscribeManagedParentAuthority,
 } from "@/renderer/state/remoteServers/managedLoopbackOwner";
 import { useAppStore } from "@/renderer/state/appStore";
+import { pendingProjectRemovalRows } from "../projectRemovalIntents";
 import {
   applyRootCatalogOrder,
   applyRootCatalogProjectOrder,
@@ -187,7 +188,9 @@ function configureController(): void {
       runtimeThreads: (connectionKey) =>
         connectionKey === MANAGED_ROOT_CATALOG_KEY ? readRootCatalogThreads() : undefined,
       runtimeProjects: (connectionKey) =>
-        connectionKey === MANAGED_ROOT_CATALOG_KEY ? readRootCatalogProjects() : undefined,
+        connectionKey === MANAGED_ROOT_CATALOG_KEY
+          ? [...readRootCatalogProjects(), ...pendingProjectRemovalRows().filter(isManagedRootRow)]
+          : undefined,
       runtimeStatus: (connectionKey) =>
         connectionKey === MANAGED_ROOT_CATALOG_KEY ? rootRuntimeStatus() : undefined,
       commitThreadRows: (connectionKey, rows, preserveThreadIds) => {

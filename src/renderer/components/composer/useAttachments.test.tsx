@@ -2,7 +2,12 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { storableAttachment, useAttachments, type SaveClipboardImage } from "./useAttachments";
+import {
+  storableAttachment,
+  storableAttachments,
+  useAttachments,
+  type SaveClipboardImage,
+} from "./useAttachments";
 
 describe("useAttachments", () => {
   // jsdom does not implement object URLs.
@@ -183,7 +188,58 @@ describe("useAttachments", () => {
     });
 
     expect(result.current.attachments).toEqual([]);
-    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
+  });
+
+  it("paints a paste before reading or uploading bytes, without submitting or saving an unresolved path", async () => {
+    let resolveBytes!: (bytes: ArrayBuffer) => void;
+    let resolveSave!: (path: string) => void;
+    const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+    file.arrayBuffer = () =>
+      new Promise((resolve) => {
+        resolveBytes = resolve;
+      });
+    const saveImage = vi.fn<SaveClipboardImage>(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const { result } = renderHook(() => useAttachments({ saveClipboardImage: saveImage }));
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.addClipboardImage(file, "draft-1");
+      expect(result.current.hasPendingUploads()).toBe(true);
+    });
+    expect(result.current.attachments[0]?.previewUrl).toBe("blob:app/pasted-1");
+    expect(result.current.isUploading).toBe(true);
+    expect(result.current.toSegments()).toEqual([]);
+    expect(storableAttachments(result.current.attachments)).toEqual([]);
+    expect(saveImage).not.toHaveBeenCalled();
+    await act(async () => {
+      resolveBytes(new Uint8Array([1]).buffer);
+    });
+    expect(result.current.isUploading).toBe(true);
+    await act(async () => {
+      resolveSave("/host/image.png");
+      await pending;
+    });
+    expect(result.current.attachments[0]?.previewUrl).toBe("blob:app/pasted-1");
+    expect(result.current.hasPendingUploads()).toBe(false);
+    expect(result.current.toSegments()[0]?.kind).toBe("attachment");
+  });
+
+  it("removes a failed upload and releases its immediate preview", async () => {
+    const failure = new Error("upload refused");
+    const saveImage = vi.fn<SaveClipboardImage>(() => Promise.reject(failure));
+    const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+    const { result } = renderHook(() => useAttachments({ saveClipboardImage: saveImage }));
+    await act(async () => {
+      await expect(result.current.addClipboardImage(file, "draft-1")).rejects.toBe(failure);
+    });
+    expect(result.current.attachments).toEqual([]);
+    expect(revokeObjectURL).toHaveBeenCalledOnce();
   });
 
   it("revokes outstanding pasted-image object URLs on unmount", async () => {

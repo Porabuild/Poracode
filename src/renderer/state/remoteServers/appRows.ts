@@ -1,6 +1,8 @@
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "../appStore";
+import { visibleCatalogProjects, confirmAbsentProjectRemovals } from "../projectRemovalIntents";
+import { finalizeProjectRemoval } from "../projectRemovalPresentation";
 import { useRemoteServersStore } from "../remoteServersStore";
 import {
   preservePendingThreadConfig,
@@ -8,6 +10,7 @@ import {
   type PendingThreadConfig,
 } from "../pendingThreadConfig";
 import { carryVolatileSessionConfigOptions } from "../volatileSessionConfigOptions";
+import { projectPendingCatalogEdit, forgetPendingCatalogEdit } from "../pendingCatalogEdits";
 import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../remoteProjection";
 import { refreshGitProject } from "../gitRefresh";
 import { useGitStore } from "../gitStore";
@@ -188,6 +191,13 @@ export function syncRemoteAppRows(
   } = {},
 ): void {
   const partial = options.partial === true;
+  if (allProjects && !partial) {
+    const absent = confirmAbsentProjectRemovals(
+      desktopId,
+      new Set(allProjects.map((project) => projectRemoteProject(desktopId, project).id)),
+    );
+    for (const projectId of absent) finalizeProjectRemoval(projectId);
+  }
   const remoteState = useRemoteServersStore.getState();
   const excluded = remoteState.excludedProjectIds[desktopId];
   const syncOptions = { includeHomeScope: isChatSidebarSurface() };
@@ -214,24 +224,28 @@ export function syncRemoteAppRows(
       )
     : null;
   const counterpartWorkspace = localWorkspaceByName(useAppStore.getState().projects);
-  const projectedProjects = projects?.map((project) => {
-    const projected = projectRemoteProject(desktopId, project);
-    const current = currentProjects?.get(project.id);
-    const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
-    const name = remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name;
-    const workspaceOverride = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
-    const workspaceId =
-      workspaceOverride !== undefined
-        ? (workspaceOverride ?? undefined)
-        : (counterpartWorkspace.get(name) ??
-          (current?.workspaceId !== remoteWorkspaceId ? current?.workspaceId : undefined));
-    return {
-      ...projectWithoutWorkspace,
-      name,
-      ...(workspaceId ? { workspaceId } : {}),
-      ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
-    };
-  });
+  const projectedProjects = projects
+    ? visibleCatalogProjects(
+        projects.map((project) => {
+          const projected = projectRemoteProject(desktopId, project);
+          const current = currentProjects?.get(project.id);
+          const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
+          const name = remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name;
+          const workspaceOverride = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
+          const workspaceId =
+            workspaceOverride !== undefined
+              ? (workspaceOverride ?? undefined)
+              : (counterpartWorkspace.get(name) ??
+                (current?.workspaceId !== remoteWorkspaceId ? current?.workspaceId : undefined));
+          return projectPendingCatalogEdit("project", {
+            ...projectWithoutWorkspace,
+            name,
+            ...(workspaceId ? { workspaceId } : {}),
+            ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
+          });
+        }),
+      )
+    : undefined;
   const appState = useAppStore.getState();
   const residentMirrorRows = new Map(
     threads
@@ -249,13 +263,17 @@ export function syncRemoteAppRows(
     // A projected row is host-durable state: when it omits the volatile
     // inventory the resident mirror's live value is re-attached instead of
     // erased — same owner/session only, per `carryVolatileSessionConfigOptions`.
-    return projectThreadIdentityPreserving(desktopId, thread, residentMirrorRows.get(appRowId));
+    return projectPendingCatalogEdit(
+      "thread",
+      projectThreadIdentityPreserving(desktopId, thread, residentMirrorRows.get(appRowId)),
+    );
   });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
   if (projectedProjects && !partial) {
     const projectedProjectIds = new Set(projectedProjects.map((project) => project.id));
     for (const project of useAppStore.getState().projects) {
       if (project.remoteServerId === desktopId && !projectedProjectIds.has(project.id)) {
+        forgetPendingCatalogEdit("project", project.id);
         useAppStore.getState().deleteProject(project.id);
       }
     }
@@ -268,6 +286,7 @@ export function syncRemoteAppRows(
         appState.provisioningWorktreeThreadIds[thread.id] !== true
       ) {
         useAppStore.getState().deleteThread(thread.id);
+        forgetPendingCatalogEdit("thread", thread.id);
       }
     }
   }

@@ -2,15 +2,21 @@ import type { Project, Thread } from "@/shared/contracts";
 import type { AppView } from "@/shared/contracts/appView";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  visibleCatalogProjects,
+  confirmProjectRemoval,
+  pendingProjectRemovalRows,
+} from "@/renderer/state/projectRemovalIntents";
+import { finalizeProjectRemoval } from "../projectRemovalPresentation";
 import { applyProjectStateSnapshot } from "@/renderer/state/projectStateSync";
 import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
 import { reuseRemoteRows } from "@/renderer/state/remoteServers/rowReuse";
 import { removePaneFromView } from "@/renderer/state/slices/helpers";
-import { forgetTimelineMeasurements } from "@/renderer/state/timelineMeasurementCache";
-import { forgetThreadGalleryCache } from "@/renderer/state/threadGalleryCache";
 import { dropPendingManagedRootLaunch } from "./rootCatalogStore";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
+import { carryActiveTurnTiming } from "../activeTurnTiming";
+import { projectPendingCatalogEdit, forgetPendingCatalogEdit } from "../pendingCatalogEdits";
 
 /**
  * Root catalog rows are the desktop's OWN entities: unprojected ids, no
@@ -110,7 +116,10 @@ export function applyRootCatalogThreadRows(
     const incomingById = new Map<string, Thread>();
     for (const row of rows) {
       if (preserveThreadIds.has(row.id)) continue;
-      incomingById.set(row.id, normalizeRootCatalogThread(row));
+      incomingById.set(
+        row.id,
+        projectPendingCatalogEdit("thread", normalizeRootCatalogThread(row)),
+      );
     }
     let changed = false;
     const existingIds = new Set<string>();
@@ -126,7 +135,7 @@ export function applyRootCatalogThreadRows(
       if (!existing.archived && incoming.archived) archivedNow.add(existing.id);
       changed = true;
       return preservePendingThreadConfig(
-        carryVolatileSessionConfigOptions(existing, incoming),
+        carryVolatileSessionConfigOptions(existing, carryActiveTurnTiming(existing, incoming)),
         state.pendingThreadConfigByThreadId[existing.id],
       );
     });
@@ -169,8 +178,14 @@ function closePanesForArchivedRootRows(threadIds: ReadonlySet<string>): void {
 
 export function applyRootCatalogProjectRows(rows: readonly Project[]): void {
   if (rows.length === 0) return;
+  rows = visibleCatalogProjects(rows);
   useAppStore.setState((state) => {
-    const incomingById = new Map(rows.map((row) => [row.id, normalizeRootCatalogProject(row)]));
+    const incomingById = new Map(
+      rows.map((row) => [
+        row.id,
+        projectPendingCatalogEdit("project", normalizeRootCatalogProject(row)),
+      ]),
+    );
     let changed = false;
     const existingIds = new Set<string>();
     const next = state.projects.map((existing) => {
@@ -207,33 +222,17 @@ export function applyRootCatalogProjectRows(rows: readonly Project[]): void {
  */
 export function removeRootCatalogThreads(threadIds: readonly string[]): void {
   if (threadIds.length === 0) return;
-  const removed = new Set(threadIds);
-  useAppStore.setState((state) => {
-    const retiredGalleryIds = new Set(removed);
-    const threads = state.threads.filter((thread) => {
-      if (!isManagedRootRow(thread)) retiredGalleryIds.delete(thread.id);
-      const keep = !isManagedRootRow(thread) || !removed.has(thread.id);
-      if (!keep) forgetTimelineMeasurements(thread.id);
-      return keep;
-    });
-    // Accepted repeat removal also retires an unread entry after its row is gone.
-    for (const threadId of retiredGalleryIds) forgetThreadGalleryCache(threadId);
-    if (threads.length === state.threads.length) return state;
-    return {
-      threads,
-      pendingThreadConfigByThreadId: retainPendingThreadConfigs(
-        state.pendingThreadConfigByThreadId,
-        threads,
-      ),
-    };
-  });
-  const view = useAppStore.getState().view;
+  const removed = new Set<string>();
+  for (const threadId of threadIds) {
+    const row = useAppStore.getState().threads.find((thread) => thread.id === threadId);
+    if (row && !isManagedRootRow(row)) continue;
+    removed.add(threadId);
+    forgetPendingCatalogEdit("thread", threadId);
+    useAppStore.getState().deleteThread(threadId);
+  }
   for (const threadId of removed) {
     dropPendingManagedRootLaunch(threadId);
     clearThreadHistoryNotice(threadId);
-    if (view.kind === "thread" && view.panes.includes(threadId)) {
-      useAppStore.getState().closePane(threadId);
-    }
   }
 }
 
@@ -243,6 +242,11 @@ export function removeRootCatalogProjects(projectIds: readonly string[]): void {
   // host does not own it until its canonical row is persisted (host
   // prerequisite), so a membership answer saying "absent" is expected.
   const removed = new Set(projectIds.filter((projectId) => !isHomeProjectId(projectId)));
+  for (const project of pendingProjectRemovalRows()) {
+    if (isManagedRootRow(project) && removed.has(project.id)) finalizeProjectRemoval(project.id);
+  }
+  for (const projectId of removed) confirmProjectRemoval(projectId);
+  for (const projectId of removed) forgetPendingCatalogEdit("project", projectId);
   if (removed.size === 0) return;
   const currentProjects = useAppStore.getState().projects;
   const projects = currentProjects.filter(

@@ -53,6 +53,7 @@ import { useThreadMentionItems } from "../composer/useThreadMentionItems";
 import {
   attachmentsFromPaths,
   storableAttachment,
+  storableAttachments,
   useAttachments,
   type SaveClipboardImage,
 } from "../composer/useAttachments";
@@ -629,7 +630,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   });
   const isCliThread = usesTerminalPresentation;
   const canSubmit =
-    (canSubmitServerInput || canSubmitTerminalInput) && !isSubmitting && !authRequired;
+    (canSubmitServerInput || canSubmitTerminalInput) &&
+    !isSubmitting &&
+    !authRequired &&
+    !attachments.isUploading;
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
   const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
   const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
@@ -714,6 +718,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }
 
   function submitPrompt(segments: PromptSegment[], behavior: FollowUpBehavior = followUpBehavior) {
+    if (attachments.hasPendingUploads()) return;
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
       thread,
@@ -890,7 +895,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     if (restoredThreadIdRef.current !== thread.id || submittedRef.current) return;
     const content = {
       segments: latestSegmentsRef.current,
-      attachments: attachmentsRef.current.map(storableAttachment),
+      attachments: storableAttachments(attachmentsRef.current),
     };
     if (isDraftContentNonEmpty(content)) saveThreadDraftContent(thread.id, content);
     else clearThreadDraftContent(thread.id);

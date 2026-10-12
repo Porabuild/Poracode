@@ -50,6 +50,50 @@ function cacheHarness(
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("RemoteEnvironmentImageCache lifecycle", () => {
+  it("hands successful upload bytes to transcript readers without fetching them back", async () => {
+    const { cache, fetches, revoked } = cacheHarness({ maxEntries: 1 });
+    const key = environmentLocalImageKey("/tmp/upload.png");
+    const listener = vi.fn<() => void>();
+    const unsubscribe = cache.subscribeImageKey(key, listener);
+    await cache.admitUploadedLocalImage("/tmp/upload.png", {
+      bytes: new Uint8Array([1, 2, 3]),
+      contentType: "image/png",
+    });
+    expect(cache.localImageUrl("/tmp/upload.png")).toBe("blob:1");
+    expect(fetches).toEqual([]);
+    expect(listener).toHaveBeenCalledOnce();
+    await cache.admitUploadedLocalImage("/tmp/next.png", {
+      bytes: new Uint8Array([4]),
+      contentType: "image/png",
+    });
+    expect(cache.resolutionForImageKey(key).url).toBe("");
+    expect(revoked).toEqual(["blob:1"]);
+    unsubscribe();
+    cache.dispose();
+    expect(revoked).toEqual(["blob:1", "blob:2"]);
+  });
+
+  it("bounds upload admission and rejects retired caches", async () => {
+    const { cache, created } = cacheHarness({ maxBytes: 2, maxConcurrentFetches: 1 });
+    await cache.admitUploadedLocalImage("/tmp/large.png", {
+      bytes: new Uint8Array(3),
+      contentType: "image/png",
+    });
+    expect(created).toEqual([]);
+    cache.localImageResolution("/tmp/pending.png");
+    await cache.admitUploadedLocalImage("/tmp/upload.png", {
+      bytes: new Uint8Array(1),
+      contentType: "image/png",
+    });
+    expect(created).toEqual([]);
+    cache.dispose();
+    await cache.admitUploadedLocalImage("/tmp/retired.png", {
+      bytes: new Uint8Array(1),
+      contentType: "image/png",
+    });
+    expect(created).toEqual([]);
+  });
+
   it("keeps getSnapshot identity stable and never starts work from a pure read", async () => {
     const harness = cacheHarness();
     const key = environmentLocalImageKey("/tmp/a.png");

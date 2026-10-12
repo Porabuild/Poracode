@@ -57,7 +57,7 @@ export function BrowserHost() {
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
   const extracted = useBrowserPanelStore((s) => s.extracted);
-  const hasTabs = useBrowserPanelStore((s) => s.tabs.length > 0);
+  const hasTabs = useBrowserPanelStore((s) => s.residentTabs.length > 0);
   const automationActive = useBrowserPanelStore((s) => s.automationActive);
   const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
 

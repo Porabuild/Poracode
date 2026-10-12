@@ -25,7 +25,7 @@ export function getStatusTone(
     return "attention";
   }
 
-  if (thread.status === "working") {
+  if (thread.status === "launching" || thread.status === "working") {
     return "working";
   }
 
