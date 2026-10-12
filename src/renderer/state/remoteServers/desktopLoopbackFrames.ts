@@ -1,5 +1,6 @@
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { rememberHistoryContentOmissions } from "../historyDelivery";
 
 /**
  * Private frame vocabulary of the desktop-internal loopback socket
@@ -25,6 +26,7 @@ export type DesktopLoopbackFrame =
       readonly event: SupervisorEvent;
       readonly seq?: number;
       readonly space: EventSequenceSpace;
+      readonly omittedRuntimeThreadIds?: readonly string[];
     }
   | { readonly kind: "terminal"; readonly frame: Record<string, unknown> }
   | { readonly kind: "pong"; readonly id: string | undefined }
@@ -70,12 +72,21 @@ export function validateDesktopLoopbackFrame(value: unknown): DesktopLoopbackFra
         : type === "desktop-event"
           ? "ipc"
           : "loopback";
+    if (
+      frame.omittedRuntimeThreadIds !== undefined &&
+      (!Array.isArray(frame.omittedRuntimeThreadIds) ||
+        frame.omittedRuntimeThreadIds.some((id) => typeof id !== "string" || id.length === 0))
+    )
+      return { kind: "invalid" };
     const seq = frame.seq as number | undefined;
     return {
       kind: "event",
       event: event as SupervisorEvent,
       space,
       ...(seq !== undefined ? { seq } : {}),
+      ...(frame.omittedRuntimeThreadIds !== undefined
+        ? { omittedRuntimeThreadIds: frame.omittedRuntimeThreadIds as string[] }
+        : {}),
     };
   }
   if (typeof type === "string" && TERMINAL_FRAME_TYPES.has(type)) {
@@ -121,6 +132,8 @@ export function routeDesktopLoopbackFrame(
 ): void {
   switch (frame.kind) {
     case "event":
+      if (frame.omittedRuntimeThreadIds)
+        rememberHistoryContentOmissions(frame.event, frame.omittedRuntimeThreadIds);
       ports.dispatch(frame.event, frame.seq, frame.space);
       return;
     case "terminal":

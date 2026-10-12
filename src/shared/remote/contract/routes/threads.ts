@@ -32,8 +32,40 @@ import {
 } from "../routeSchemas";
 import { checkpointRevertResultSchema } from "../../../contracts";
 import type { RemoteHttpRouteContract } from "../types";
+import { historyItemDetailSchema, historyItemDetailQuerySchema } from "../../historyPresentation";
+import { historyResumeQuerySchema, historyResumeResponseSchema } from "../../historyResume";
 
 export const threadRoutes: readonly RemoteHttpRouteContract[] = [
+  defineRoute({
+    id: "thread-history-changes",
+    method: "GET",
+    path: "/api/threads/{threadId}/history/changes",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    queryParameters: [
+      "reads",
+      "notices",
+      "cursor",
+      "afterSeq",
+      "projection",
+      "maxBytes",
+      "maxDecodeBytes",
+    ],
+    request: { bodyKind: "empty", querySchema: historyResumeQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: historyResumeResponseSchema },
+  }),
+  defineRoute({
+    id: "thread-history-item",
+    method: "GET",
+    path: "/api/threads/{threadId}/history/items/{itemId}",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    queryParameters: ["notices", "maxBytes", "maxDecodeBytes"],
+    request: { bodyKind: "empty", querySchema: historyItemDetailQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: historyItemDetailSchema },
+  }),
   defineRoute({
     id: "thread-list",
     method: "GET",
@@ -74,6 +106,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     scopes: ["session:read"],
     audit: noAudit("read"),
     queryParameters: [
+      "projection",
       "reads",
       "notices",
       "beforePosition",
@@ -97,6 +130,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     scopes: ["session:read"],
     audit: noAudit("read"),
     queryParameters: [
+      "projection",
       "reads",
       "notices",
       "runtimePage",

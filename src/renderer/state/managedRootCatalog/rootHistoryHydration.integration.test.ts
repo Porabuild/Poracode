@@ -36,12 +36,12 @@ it("keeps the loaded reader visible while a discontinuous interest refresh is pe
   await vi.waitFor(() => expect(threadRow(threadId)).toBeDefined(), { timeout: 15_000 });
   await hydrateThreadRuntimeItems(threadId);
   const client = readManagedLoopbackActivation()!.client;
-  const originalRead = client.boundedThreadHistory.bind(client);
+  const originalRead = client.resumeThreadHistory.bind(client);
   let releaseRead = () => {};
   const held = new Promise<void>((resolve) => {
     releaseRead = resolve;
   });
-  const read = vi.spyOn(client, "boundedThreadHistory").mockImplementation(async (...args) => {
+  const read = vi.spyOn(client, "resumeThreadHistory").mockImplementation(async (...args) => {
     const result = await originalRead(...args);
     await held;
     return result;
@@ -164,7 +164,7 @@ it("restores completed background output and turn history after live coverage wa
   const threadId = "t-background-reply";
   seedThread(threadId);
   seedRuntimeItems(threadId, 2);
-  await activate();
+  const server = await activate();
   await vi.waitFor(() => expect(threadRow(threadId)).toBeDefined(), { timeout: 15_000 });
   await hydrateThreadRuntimeItems(threadId);
 
@@ -181,6 +181,24 @@ it("restores completed background output and turn history after live coverage wa
        VALUES (?, 0, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:05.000Z', 'background-reply')`,
     )
     .run(threadId);
+
+  // The host publishes canonical events even without this renderer's interest.
+  server.publishSupervisorEvent({
+    type: "thread-runtime-events",
+    threadId,
+    events: [
+      { type: "item.started", threadId, itemId: "background-reply", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId,
+        itemId: "background-reply",
+        stream: "assistant_text",
+        delta: "Finished while hidden",
+        replace: true,
+      },
+      { type: "item.completed", threadId, itemId: "background-reply" },
+    ],
+  });
 
   let reducer: SupervisorEventReducer;
   const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });

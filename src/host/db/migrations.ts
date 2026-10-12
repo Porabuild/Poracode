@@ -64,6 +64,13 @@ function createRuntimeItemParentIndex(sqlite: SqliteDatabase): void {
   );
 }
 
+function createRuntimeGoalIndex(sqlite: SqliteDatabase): void {
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_goal " +
+      "ON thread_runtime_items (thread_id, position) WHERE type = 'goal'",
+  );
+}
+
 function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string): void {
   const rows = sqlite
     .prepare(`SELECT rowid AS rowid, ${column} AS json FROM ${table} WHERE ${column} IS NOT NULL`)
@@ -908,6 +915,13 @@ export const DATABASE_MIGRATIONS = [
     rollback: "forward-only",
     migrate: () => {},
   },
+  {
+    version: 58,
+    name: "runtime latest goal index",
+    // Index-only: canonical rows and all older reader/writer semantics remain valid.
+    rollback: "rollback-compatible",
+    migrate: createRuntimeGoalIndex,
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1067,6 +1081,10 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
       addColumnIfMissing(sqlite, table, column, definition);
     }
     createRuntimeItemParentIndex(sqlite);
+    const schema = sqlite
+      .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+      .get() as { value: string } | undefined;
+    if (Number(schema?.value) >= 58) createRuntimeGoalIndex(sqlite);
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );

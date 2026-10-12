@@ -1,4 +1,16 @@
 import { useAppStore } from "@/renderer/state/appStore";
+import { historyContentOmissions } from "@/renderer/state/historyDelivery";
+import { noteHistoryDeliveryGap } from "@/renderer/state/historyResumeRegistry";
+import {
+  noteAppliedHistoryBatches,
+  noteImmediatelyAppliedHistoryBatches,
+  hasHistoryTranscriptCoverage,
+  appliedHistoryTranscriptSequence,
+} from "@/renderer/state/historyResumeApplied";
+import {
+  isRuntimeHistoryReadHeld,
+  subscribeRuntimeHistoryReadCompletion,
+} from "@/renderer/state/runtimeHistoryReadBarrier";
 import {
   boundVisibleThreadRuntimeWindows,
   evictOversizedInactiveThreadRuntimeItems,
@@ -110,6 +122,7 @@ export interface SupervisorEventDispatchOptions {
 }
 
 export interface RuntimeBatchDispatchOptions {
+  readonly omittedRuntimeThreadIds?: ReadonlySet<string>;
   readonly rendererSequence?: number;
   readonly sequenceSpace?: EventSequenceSpace;
   readonly deliverRuntimeEventsImmediately?: boolean;
@@ -225,11 +238,13 @@ export function createSupervisorEventReducer(
   const queue = new RuntimeEventQueue(config.queueLimits ?? {});
   const runtimeRecoveryInFlight = new Set<string>();
   const runtimeRecoveryInvalidated = new Set<string>();
+  const pendingContentOmissions = new Map<string, number>();
   let runtimeFlushHandle: number | null = null;
   let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
   let runtimeDrainContinuationHandle: ReturnType<typeof setTimeout> | null = null;
   let runtimeDrainContinuationFlush: (() => void) | null = null;
   let removeSchedulingListeners: (() => void) | null = null;
+  let removeReadBarrierListener: (() => void) | null = null;
 
   const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
   /** A3 cooperative flush budget, measured per drained slice. The value is an
@@ -263,7 +278,7 @@ export function createSupervisorEventReducer(
       const store = useAppStore.getState();
       const threadMetadata = store.threads;
       const { batches, hasMore } = queue.drainBudgeted(
-        shouldFlush,
+        (threadId) => !isRuntimeHistoryReadHeld(threadId) && shouldFlush(threadId),
         budgeted ? RUNTIME_FLUSH_BUDGET_MS : Number.POSITIVE_INFINITY,
       );
       stats.drainedThreads = batches.length;
@@ -274,6 +289,7 @@ export function createSupervisorEventReducer(
         };
         if (config.wrapApply) config.wrapApply(applyBatches, stats);
         else applyBatches();
+        noteAppliedHistoryBatches(batches, threadMetadata);
         evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
         boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
         config.afterApply?.(batches, {
@@ -300,6 +316,7 @@ export function createSupervisorEventReducer(
     let hasForeground = false;
     let hasBackground = false;
     for (const threadId of queue.threadIds()) {
+      if (isRuntimeHistoryReadHeld(threadId)) continue;
       if (isForegroundRuntimeThread(threadId)) hasForeground = true;
       else hasBackground = true;
       if (hasForeground && hasBackground) break;
@@ -332,6 +349,7 @@ export function createSupervisorEventReducer(
     for (const threadId of threadIds) {
       runtimeRecoveryInFlight.delete(threadId);
       runtimeRecoveryInvalidated.delete(threadId);
+      recoverOmittedContent(threadId);
     }
     schedulePendingRuntimeEvents();
   };
@@ -392,15 +410,36 @@ export function createSupervisorEventReducer(
     batches: readonly RuntimeBatchInput[],
     options?: RuntimeBatchDispatchOptions,
   ): void => {
+    installReadBarrierListener();
+    for (const threadId of options?.omittedRuntimeThreadIds ?? []) {
+      noteHistoryDeliveryGap(threadId);
+      if (
+        options?.rendererSequence !== undefined &&
+        (runtimeRecoveryInFlight.has(threadId) ||
+          hasHistoryTranscriptCoverage(threadId, useAppStore.getState().threads))
+      ) {
+        pendingContentOmissions.set(
+          threadId,
+          Math.max(pendingContentOmissions.get(threadId) ?? 0, options.rendererSequence),
+        );
+        recoverOmittedContent(threadId);
+      }
+    }
     if (batches.length === 0) return;
     if (options?.deliverRuntimeEventsImmediately) {
       // Ordered authoritative replay (recovery): apply directly without
       // re-entering the bounded queue.
-      useAppStore
-        .getState()
-        .applyRuntimeEventBatches(
-          batches.map((batch) => ({ threadId: batch.threadId, events: [...batch.events] })),
-        );
+      const store = useAppStore.getState();
+      store.applyRuntimeEventBatches(
+        batches.map((batch) => ({ threadId: batch.threadId, events: [...batch.events] })),
+      );
+      noteImmediatelyAppliedHistoryBatches(
+        batches,
+        store.threads,
+        options.rendererSequence,
+        options.sequenceSpace ?? "ipc",
+        options.omittedRuntimeThreadIds,
+      );
       evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
       boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
       return;
@@ -418,6 +457,7 @@ export function createSupervisorEventReducer(
         requests.length > 0 ? batch.events.filter((event) => !isRequest(event)) : batch.events,
         options?.rendererSequence,
         options?.sequenceSpace ?? "ipc",
+        !options?.omittedRuntimeThreadIds?.has(batch.threadId),
       );
       if (!result.overflowed) continue;
       if (runtimeRecoveryInFlight.has(batch.threadId)) {
@@ -496,6 +536,9 @@ export function createSupervisorEventReducer(
 
     if (RUNTIME_ENVELOPE_TYPES.has(event.type)) {
       enqueueRuntimeBatches(runtimeBatchesFromSupervisorEvent(event), {
+        ...(historyContentOmissions(event)
+          ? { omittedRuntimeThreadIds: historyContentOmissions(event)! }
+          : {}),
         ...(rendererSequence !== undefined ? { rendererSequence } : {}),
         ...(options?.sequenceSpace !== undefined ? { sequenceSpace: options.sequenceSpace } : {}),
       });
@@ -577,6 +620,7 @@ export function createSupervisorEventReducer(
   };
 
   const installScheduling = (): (() => void) => {
+    installReadBarrierListener();
     if (removeSchedulingListeners) return removeSchedulingListeners;
     const unsubscribe = useAppStore.subscribe((state) => state.view, schedulePendingRuntimeEvents);
     document.addEventListener("visibilitychange", schedulePendingRuntimeEvents);
@@ -588,6 +632,8 @@ export function createSupervisorEventReducer(
   };
 
   const clear = (): void => {
+    removeReadBarrierListener?.();
+    removeReadBarrierListener = null;
     if (runtimeFlushHandle !== null) {
       cancelAnimationFrame(runtimeFlushHandle);
       runtimeFlushHandle = null;
@@ -606,6 +652,7 @@ export function createSupervisorEventReducer(
     queue.clear();
     runtimeRecoveryInFlight.clear();
     runtimeRecoveryInvalidated.clear();
+    pendingContentOmissions.clear();
   };
 
   const invalidateInFlightRecoveries = (): void => {
@@ -614,6 +661,27 @@ export function createSupervisorEventReducer(
       runtimeRecoveryInvalidated.add(threadId);
       store.setRuntimeHydrationStatus(threadId, "failed");
     }
+  };
+
+  const installReadBarrierListener = (): void => {
+    removeReadBarrierListener ??= subscribeRuntimeHistoryReadCompletion((threadId, sequence) => {
+      if (sequence !== undefined) queue.discardThroughSequence(threadId, sequence, "loopback");
+      recoverOmittedContent(threadId);
+      schedulePendingRuntimeEvents();
+    });
+  };
+
+  const recoverOmittedContent = (threadId: string): void => {
+    const sequence = pendingContentOmissions.get(threadId);
+    if (sequence === undefined || runtimeRecoveryInFlight.has(threadId)) return;
+    const threads = useAppStore.getState().threads;
+    const prefix = appliedHistoryTranscriptSequence(threadId, threads);
+    if (prefix === undefined) return;
+    if (prefix >= sequence) {
+      pendingContentOmissions.delete(threadId);
+      return;
+    }
+    if (hasHistoryTranscriptCoverage(threadId, threads)) recoverRuntimeHistory(threadId);
   };
 
   return {

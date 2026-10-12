@@ -20,6 +20,7 @@ import { currentRemoteServerGeneration } from "../eventSocketRegistry";
  */
 
 export interface BoundedHistoryTail {
+  readonly compactDetails?: boolean;
   /**
    * Which live data plane authored this tail: a paired/attached remote server
    * (`desktopId` + the remote-store client) or the desktop's own managed
@@ -101,6 +102,7 @@ export function recordBoundedHistoryTail(input: {
     // Continuation custody needs the reads echo, not a retained transcript.
     proof: { reads: input.page.reads },
     snapshotSeq: input.page.snapshotSeq,
+    ...(input.page.historyProjection ? { compactDetails: true } : {}),
   });
   evictOldestTails();
 }
@@ -126,6 +128,7 @@ export function recordManagedRootBoundedHistoryTail(input: {
     cursor: input.page.completedTurnsNextCursor,
     proof: { reads: input.page.reads },
     snapshotSeq: input.page.snapshotSeq,
+    ...(input.page.historyProjection ? { compactDetails: true } : {}),
   });
   evictOldestTails();
 }
@@ -213,6 +216,7 @@ export async function invokeBoundedRuntimeItemsPage(
   const tail = readBoundedHistoryTail(remoteThreadId(desktopId, payload.threadId));
   if (!tail) return undefined;
   const result = await client.boundedThreadHistoryItems({
+    ...(tail.compactDetails ? { compactDetails: true } : {}),
     threadId: payload.threadId,
     beforePosition: payload.beforePosition,
     after: tail.proof,
@@ -248,6 +252,7 @@ export async function invokeManagedRootRuntimeItemsPage(payload: {
   readonly limit: number;
   readonly beforePosition?: number | undefined;
   readonly targetTimelineEntryCount?: number | undefined;
+  readonly signal?: AbortSignal;
 }): Promise<{ readonly items: unknown; readonly nextCursor: number | null } | undefined> {
   if (payload.beforePosition === undefined) return undefined;
   const managed = managedRootHistoryClient();
@@ -255,6 +260,7 @@ export async function invokeManagedRootRuntimeItemsPage(payload: {
   const tail = readBoundedHistoryTail(payload.threadId);
   if (!tail || tail.connectionKind !== "managed-root") return undefined;
   const result = await managed.client.boundedThreadHistoryItems({
+    ...(tail.compactDetails ? { compactDetails: true } : {}),
     threadId: payload.threadId,
     beforePosition: payload.beforePosition,
     after: tail.proof,
@@ -265,7 +271,9 @@ export async function invokeManagedRootRuntimeItemsPage(payload: {
     noticesCapable: true,
     maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
     maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
+    ...(payload.signal ? { signal: payload.signal } : {}),
   });
+  payload.signal?.throwIfAborted();
   if (readManagedRootTailFor(payload.threadId, tail) === undefined) return undefined;
   if (result.negotiation !== "bounded") return undefined;
   recordThreadHistoryNoticeRead(payload.threadId, managed.authority, result.page.runtimeNotice);

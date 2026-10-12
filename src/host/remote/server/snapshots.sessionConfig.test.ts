@@ -1,3 +1,8 @@
+import { ThreadHistoryReplay } from "@/host/remote/server/threadHistoryReplay";
+import {
+  seedThreadLiveReadState,
+  ThreadLiveReadState,
+} from "@/host/remote/server/threadLiveReadState";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfigOptions, Thread, ThreadRuntimeSnapshot } from "@/shared/contracts";
 import type { RuntimeFenceToken } from "@/host/db/runtimePersistenceTypes";
@@ -93,6 +98,8 @@ function context(
     },
     seq: 7,
     backgroundTasksByThread: new Map(),
+    threadLiveReadState: new ThreadLiveReadState(),
+    threadHistoryReplay: new ThreadHistoryReplay(),
     sessionConfigInventory: inventory,
   } as unknown as RemoteServerContext;
 }
@@ -156,7 +163,7 @@ describe("session-config pull enrichment", () => {
     expect(inventory.entryFor("deleted-thread")).toBeDefined();
   });
 
-  it("seeds the inventory from the opened-thread snapshot and serves it on the same response", async () => {
+  it("seeds the inventory independently of history and serves cached controls", async () => {
     const inventory = new SessionConfigInventory();
     const callSupervisor = vi.fn<RemoteServerContext["options"]["callSupervisor"]>(
       async (method) => {
@@ -169,11 +176,14 @@ describe("session-config pull enrichment", () => {
         return null as never;
       },
     );
-    const snapshot = await buildThreadSnapshot(context(inventory, callSupervisor), "thread-1");
+    const ctx = context(inventory, callSupervisor);
+    await seedThreadLiveReadState(ctx, () => {});
+    callSupervisor.mockClear();
+    const snapshot = await buildThreadSnapshot(ctx, "thread-1");
+    expect(callSupervisor).not.toHaveBeenCalled();
     expect(snapshot.thread.sessionConfigOptions).toEqual(controls);
     // The no-arg pull seeds every live session, not just the opened one.
     expect(inventory.entryFor("other-live-thread")).toBeDefined();
-    expect(callSupervisor).toHaveBeenCalledWith("getThreadSnapshots", {});
   });
 
   it("prefers an event that landed while the seed was in flight", async () => {
@@ -195,7 +205,8 @@ describe("session-config pull enrichment", () => {
         return null as never;
       },
     );
-    const snapshotPromise = buildThreadSnapshot(context(inventory, callSupervisor), "thread-1");
+    const ctx = context(inventory, callSupervisor);
+    const seed = seedThreadLiveReadState(ctx, () => {});
     // Wait until the builder captured its seed token, then race the event in.
     await seedStarted;
     inventory.observeThreadState({
@@ -204,7 +215,8 @@ describe("session-config pull enrichment", () => {
       sessionConfigOptions: null,
     });
     releaseSeed();
-    const snapshot = await snapshotPromise;
+    await seed;
+    const snapshot = await buildThreadSnapshot(ctx, "thread-1");
     // The late seed (empty supervisor answer) must not clobber the retirement.
     expect(snapshot.thread.sessionConfigOptions).toBeNull();
   });
@@ -266,7 +278,8 @@ describe("session-config pull enrichment", () => {
           return null as never;
         },
       );
-      const pending = buildThreadSnapshot(context(inventory, callSupervisor), "thread-1");
+      const ctx = context(inventory, callSupervisor);
+      const seed = seedThreadLiveReadState(ctx, () => {});
       await seedStarted;
       // Let all other reads settle while this final read is deliberately held.
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -274,7 +287,8 @@ describe("session-config pull enrichment", () => {
         mutation === "switch" ? dbRow({ agentKind: "replacement" }) : null,
       );
       releaseSeed();
-      const outcome = await pending.then(
+      await seed;
+      const outcome = await buildThreadSnapshot(ctx, "thread-1").then(
         (snapshot) => ({
           kind: "row",
           owner: snapshot.thread.agentKind,

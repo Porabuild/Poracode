@@ -1,4 +1,3 @@
-import { threadFollowUpQueueStateSchema, type BackgroundTask } from "@/shared/contracts";
 import {
   CATALOG_READS_CAPABILITY,
   HISTORY_ITEMS_DEFAULT_LIMIT,
@@ -8,15 +7,15 @@ import {
   encodeCompletedTurnCursor,
   historyTurnPageSchema,
 } from "@/shared/remote/historyReadContract";
-import type { RemoteRuntimeHistoryNotice, RemoteThreadSnapshot } from "@/shared/remote";
-import { dbReadCompletedTurnPhase1, dbReadCompletedTurnPhase2 } from "@/host/db/completedTurnPages";
+import type { RemoteRuntimeHistoryNotice } from "@/shared/remote";
 import {
-  dbMeasureHistoryStreamHeadEscaped,
-  dbReadThreadHistoryPagePhase1,
-  dbReadThreadHistoryPhase2,
-  type HistoryPageRowMeta,
-} from "@/host/db/historyReads";
+  HISTORY_DETAILS_PROJECTION,
+  type HistoryRuntimeItem,
+} from "@/shared/remote/historyPresentation";
+import { dbReadCompletedTurnPhase1, dbReadCompletedTurnPhase2 } from "@/host/db/completedTurnPages";
+import { dbReadThreadHistoryPagePhase1, type HistoryPageRowMeta } from "@/host/db/historyReads";
 import { dbGetThread } from "@/host/db/projectsThreads";
+import { runtimeHistoryRevision } from "@/host/db/runtimeHistoryRevision";
 import {
   dbGetThreadContextUsage,
   dbReadLatestThreadGoalItem,
@@ -36,8 +35,7 @@ import {
   historyItemTooLarge,
   maxFittingCount,
   packCompletedTurnsWithinSoftTarget,
-  packHistoryItemsWithinSoftTarget,
-  refuseOversizedHistoryBound,
+  refuseOversizedCompletedTurn,
   trimHistoryPrefixToCaps,
   type HistoryTrimResult,
 } from "./historyReadBudget";
@@ -49,6 +47,7 @@ import {
 import type { HistoryReadNegotiation } from "./historyReadNegotiation";
 import { boundedRuntimeItemsPageSchema, boundedThreadSnapshotSchema } from "./historyReadSchemas";
 import { projectRuntimeItemsImageRefs } from "./imageRefProjection";
+import { readProjectedHistoryWindow } from "./historyWindow";
 import { readRuntimeHistoryNoticeForRead } from "./runtimeHistoryNoticeGate";
 import { withStableUpdatedAt } from "./stableUpdatedAt";
 
@@ -88,6 +87,11 @@ export async function buildBoundedThreadSnapshot(
   // exactly the published canonical domain at or below `snapshotSeq`.
   const fenceToken = beginRuntimeFence(threadId);
   const snapshotSeq = ctx.seq;
+  const runtimeResumeCursor = ctx.threadHistoryReplay.cursor(
+    threadId,
+    snapshotSeq,
+    runtimeHistoryRevision(threadId),
+  );
   await flushHistoryFenceOrThrow(threadId, fenceToken);
 
   const caps = negotiation.caps;
@@ -98,7 +102,7 @@ export async function buildBoundedThreadSnapshot(
 
   let fenced: {
     readonly keptMeta: readonly HistoryPageRowMeta[];
-    readonly materializedDesc: readonly PersistedRuntimeItem[];
+    readonly projectedDesc: readonly HistoryRuntimeItem[];
     readonly itemsOmitted: boolean;
     readonly newestCandidatePosition: number | undefined;
     readonly turnsMeta: ReturnType<typeof dbReadCompletedTurnPhase2>;
@@ -110,53 +114,23 @@ export async function buildBoundedThreadSnapshot(
   try {
     fenced = readRuntimeFence(fenceToken, () => {
       const phase1 = dbReadThreadHistoryPagePhase1(threadId, {
+        ...(negotiation.compactDetails ? { compactDetails: true } : {}),
         limit: HISTORY_ITEMS_DEFAULT_LIMIT,
         targetTimelineEntryCount,
       });
-      const packed = packHistoryItemsWithinSoftTarget(phase1.rows, itemsSoft);
-      const first = packed.packed[0];
-      if (first) {
-        refuseOversizedHistoryBound(
-          "runtime_item",
-          {
-            id: first.itemId,
-            boundWireBytes: first.boundWireBytes,
-            boundStreamWireBytes: first.boundStreamWireBytes,
-            lowerBoundWireBytes: first.lowerBoundWireBytes,
-            lowerBoundDecodeBytes: first.lowerBoundDecodeBytes,
-            streamsElided: first.streamsElided,
-          },
-          caps,
-          () => dbMeasureHistoryStreamHeadEscaped(threadId, first.itemId),
-        );
-      }
-      const materializedDesc = dbReadThreadHistoryPhase2(
+      const { keptMeta, projectedDesc } = readProjectedHistoryWindow(
         threadId,
-        packed.packed.map((row) => row.itemId),
+        phase1.rows,
+        itemsSoft,
+        caps,
+        negotiation.compactDetails,
       );
-      const materializedIds = new Set(materializedDesc.map((item) => item.id));
-      const keptMeta = packed.packed.filter((row) => materializedIds.has(row.itemId));
 
       const turnsPhase1 = dbReadCompletedTurnPhase1(threadId, {
         limit: negotiation.completedTurnsLimit,
       });
       const turnsPack = packCompletedTurnsWithinSoftTarget(turnsPhase1.rows, turnsSoft);
-      const firstTurn = turnsPack.packed[0];
-      if (firstTurn) {
-        refuseOversizedHistoryBound(
-          "turn",
-          {
-            id: String(firstTurn.idx),
-            boundWireBytes: firstTurn.boundWireBytes,
-            boundStreamWireBytes: firstTurn.boundWireBytes,
-            lowerBoundWireBytes: firstTurn.lowerBoundWireBytes,
-            lowerBoundDecodeBytes: firstTurn.lowerBoundDecodeBytes,
-            streamsElided: false,
-          },
-          caps,
-          () => ({ wireBytes: 0, decodeBytes: 0 }),
-        );
-      }
+      refuseOversizedCompletedTurn(turnsPack.packed[0], caps);
       const turnsMeta = dbReadCompletedTurnPhase2(
         threadId,
         turnsPack.packed.map((turn) => turn.idx),
@@ -165,7 +139,7 @@ export async function buildBoundedThreadSnapshot(
       const contextUsage = dbGetThreadContextUsage(threadId);
       return {
         keptMeta,
-        materializedDesc,
+        projectedDesc,
         itemsOmitted: keptMeta.length < phase1.rows.length || phase1.moreBeyondWindow,
         newestCandidatePosition: phase1.rows[0]?.position,
         turnsMeta,
@@ -183,50 +157,22 @@ export async function buildBoundedThreadSnapshot(
     throw mapHistoryPersistenceRefusal(error);
   }
 
-  // Async supervisor reads come after the cursor. A queue/task/state event that
-  // lands while they are suspended is > cursor and arrives through WS replay;
-  // applying those events is idempotent.
-  let terminalScrollback: string | undefined;
-  let terminalSize: RemoteThreadSnapshot["terminalSize"];
-  const followUpQueuePromise = Promise.resolve()
-    .then(() =>
-      readsTerminal ? null : ctx.options.callSupervisor("getThreadFollowUpQueue", { threadId }),
-    )
-    .then((queue) => {
-      const parsed = threadFollowUpQueueStateSchema.nullable().safeParse(queue);
-      return parsed.success ? parsed.data : undefined;
-    })
-    .catch(() => undefined);
-  let backgroundTasks: BackgroundTask[] = [];
-  try {
-    const [scrollback, size, tasks] = await Promise.all([
-      readsTerminal && !options.omitScrollback
-        ? ctx.options.callSupervisor("readTerminalScrollback", { threadId })
-        : undefined,
-      readsTerminal ? ctx.options.callSupervisor("readTerminalSize", { threadId }) : undefined,
-      ctx.options.callSupervisor("readThreadBackgroundTasks", { threadId }),
-    ]);
-    terminalScrollback = options.omitScrollback
-      ? undefined
-      : scrollback || dbGetThreadTerminalScrollback(threadId);
-    terminalSize = size ?? undefined;
-    backgroundTasks = Array.isArray(tasks) ? tasks : [];
-  } catch {
-    terminalScrollback = options.omitScrollback
-      ? undefined
-      : dbGetThreadTerminalScrollback(threadId) || undefined;
-    terminalSize = undefined;
-    backgroundTasks = [];
-  }
-  backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? backgroundTasks)];
+  // Stored history and latest host-projected controls are independent of
+  // supervisor/agent readiness. Live terminal contents arrive through the
+  // separately subscribed terminal watch; a cold snapshot uses its durable tail.
+  const terminalScrollback =
+    readsTerminal && !options.omitScrollback
+      ? dbGetThreadTerminalScrollback(threadId) || undefined
+      : undefined;
+  const backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? [])];
+  const followUpQueue = readsTerminal ? null : ctx.threadLiveReadState.queueFor(threadId);
 
   const thread = dbGetThread(threadId);
   if (!thread) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
-  const followUpQueue = await followUpQueuePromise;
 
-  const projectedDesc = projectRuntimeItemsImageRefs(threadId, fenced.materializedDesc);
+  const projectedDesc = fenced.projectedDesc;
   const goalInPage =
     fenced.goal !== null && projectedDesc.some((item) => item.id === fenced.goal!.id);
   const projectedGoal =
@@ -262,8 +208,10 @@ export async function buildBoundedThreadSnapshot(
       boundedThreadSnapshotSchema.parse(
         withStableUpdatedAt(`thread:${threadId}`, {
           snapshotSeq,
-          thread,
+          runtimeResumeCursor,
+          thread: ctx.sessionConfigInventory.enrichThreadRow(thread),
           reads: CATALOG_READS_CAPABILITY,
+          ...(negotiation.compactDetails ? { historyProjection: HISTORY_DETAILS_PROJECTION } : {}),
           runtimeItems: projectedGoal
             ? [projectedGoal, ...pageItemsAsc.slice(itemCountAvailable - itemCount)]
             : pageItemsAsc.slice(itemCountAvailable - itemCount),
@@ -273,7 +221,6 @@ export async function buildBoundedThreadSnapshot(
           contextUsage: fenced.contextUsage,
           backgroundTasks,
           ...(terminalScrollback ? { terminalScrollback } : {}),
-          ...(terminalSize ? { terminalSize } : {}),
           ...(followUpQueue !== undefined ? { followUpQueue } : {}),
           ...(fenced.runtimeNotice ? { runtimeNotice: fenced.runtimeNotice } : {}),
         }),
@@ -333,6 +280,7 @@ export async function buildBoundedThreadHistoryItems(
   input: BoundedHistoryItemsInput,
   caps: CatalogEffectiveCaps,
   runtimeNotice?: RemoteRuntimeHistoryNotice,
+  compactDetails = false,
 ): Promise<string> {
   if (!dbGetThread(input.threadId)) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
@@ -344,35 +292,21 @@ export async function buildBoundedThreadHistoryItems(
   try {
     trimmed = readRuntimeFence(fenceToken, () => {
       const phase1 = dbReadThreadHistoryPagePhase1(input.threadId, {
+        ...(compactDetails ? { compactDetails: true } : {}),
         limit: input.limit,
         ...(input.beforePosition !== undefined ? { beforePosition: input.beforePosition } : {}),
         ...(input.targetTimelineEntryCount !== undefined
           ? { targetTimelineEntryCount: input.targetTimelineEntryCount }
           : {}),
       });
-      const packed = packHistoryItemsWithinSoftTarget(phase1.rows, soft);
-      const first = packed.packed[0];
-      if (first)
-        refuseOversizedHistoryBound(
-          "runtime_item",
-          {
-            id: first.itemId,
-            boundWireBytes: first.boundWireBytes,
-            boundStreamWireBytes: first.boundStreamWireBytes,
-            lowerBoundWireBytes: first.lowerBoundWireBytes,
-            lowerBoundDecodeBytes: first.lowerBoundDecodeBytes,
-            streamsElided: first.streamsElided,
-          },
-          caps,
-          () => dbMeasureHistoryStreamHeadEscaped(input.threadId, first.itemId),
-        );
-      const materializedDesc = dbReadThreadHistoryPhase2(
+      const { keptMeta, projectedDesc } = readProjectedHistoryWindow(
         input.threadId,
-        packed.packed.map((row) => row.itemId),
+        phase1.rows,
+        soft,
+        caps,
+        compactDetails,
       );
-      const materializedIds = new Set(materializedDesc.map((item) => item.id));
-      const keptMeta = packed.packed.filter((row) => materializedIds.has(row.itemId));
-      const pageItemsAsc = projectRuntimeItemsImageRefs(input.threadId, materializedDesc).reverse();
+      const pageItemsAsc = [...projectedDesc].reverse();
       const omitted = keptMeta.length < phase1.rows.length || phase1.moreBeyondWindow;
       const nextCursor = (count: number): number | null => {
         if (!omitted && count >= pageItemsAsc.length) return null;
@@ -384,6 +318,7 @@ export async function buildBoundedThreadHistoryItems(
         `${JSON.stringify(
           boundedRuntimeItemsPageSchema.parse({
             reads: CATALOG_READS_CAPABILITY,
+            ...(compactDetails ? { historyProjection: HISTORY_DETAILS_PROJECTION } : {}),
             items: pageItemsAsc.slice(pageItemsAsc.length - count),
             nextCursor: nextCursor(count),
             ...(runtimeNotice ? { runtimeNotice } : {}),
@@ -425,22 +360,7 @@ export function buildBoundedCompletedTurnPage(input: {
     ...(input.cursorIdx !== undefined ? { beforeIdx: input.cursorIdx } : {}),
   });
   const pack = packCompletedTurnsWithinSoftTarget(phase1.rows, soft);
-  const first = pack.packed[0];
-  if (first) {
-    refuseOversizedHistoryBound(
-      "turn",
-      {
-        id: String(first.idx),
-        boundWireBytes: first.boundWireBytes,
-        boundStreamWireBytes: first.boundWireBytes,
-        lowerBoundWireBytes: first.lowerBoundWireBytes,
-        lowerBoundDecodeBytes: first.lowerBoundDecodeBytes,
-        streamsElided: false,
-      },
-      input.caps,
-      () => ({ wireBytes: 0, decodeBytes: 0 }),
-    );
-  }
+  refuseOversizedCompletedTurn(pack.packed[0], input.caps);
   const materialized = dbReadCompletedTurnPhase2(
     input.threadId,
     pack.packed.map((turn) => turn.idx),

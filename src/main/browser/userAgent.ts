@@ -9,9 +9,8 @@
 // stock Chrome, but that backfires: Google rejects a *bare* `Chrome/...` UA
 // coming from an embedded browser as a spoofed/unsupported browser, while it
 // accepts a Chromium UA that honestly identifies the host app. Keeping the app
-// token is precisely what lets Google sign-in complete inside the in-app browser
-// (verified against the live flow; this is also why Codex / T3 Code embedded
-// browsers, which keep their app token and only drop Electron, are accepted).
+// token is precisely what lets Google sign-in complete inside the in-app browser,
+// as verified against the live sign-in flow.
 const ELECTRON_PRODUCT_RE = /\sElectron\/[^\s]+/g;
 
 export function buildBrowserUserAgent(defaultUserAgent: string): string {

@@ -39,8 +39,7 @@ const { bridge } = vi.hoisted(() => ({
     appendUsageEvents: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   },
 }));
-const { hasHydratedThreadRuntimeItems, hydrateThreadRuntimeItems } = vi.hoisted(() => ({
-  hasHydratedThreadRuntimeItems: vi.fn<(threadId: string) => boolean>().mockReturnValue(false),
+const { hydrateThreadRuntimeItems } = vi.hoisted(() => ({
   hydrateThreadRuntimeItems: vi.fn<(threadId: string) => Promise<void>>().mockResolvedValue(),
 }));
 const { deleteWorktreeGroup } = vi.hoisted(() => ({
@@ -67,7 +66,6 @@ vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>();
   return {
     ...actual,
-    hasHydratedThreadRuntimeItems,
     hydrateThreadRuntimeItems,
   };
 });
@@ -79,7 +77,6 @@ describe("threadActions", () => {
     vi.clearAllMocks();
     setThreadRuntimeReopenEnabled(true);
     localStorage.clear();
-    hasHydratedThreadRuntimeItems.mockReturnValue(false);
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
     deleteWorktreeGroup.mockReset();
     refreshServer.mockReset().mockResolvedValue(undefined);
@@ -223,29 +220,15 @@ describe("threadActions", () => {
     });
   });
 
-  it("hydrates a persisted GUI thread before opening the pane", async () => {
-    let resolveHydration: () => void = () => undefined;
-    const hydration = new Promise<void>((resolve) => {
-      resolveHydration = resolve;
-    });
-    hydrateThreadRuntimeItems.mockReturnValueOnce(hydration);
+  it("opens a persisted GUI pane without waiting for or prefetching history", async () => {
     const thread = makeThread({ presentationMode: "gui", status: "idle" });
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));
-
     openThread(thread.id);
-
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id);
-    expect(useAppStore.getState().view).toEqual({ kind: "home" });
-
-    resolveHydration();
-    await hydration;
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(useAppStore.getState().view).toEqual({
-      kind: "thread",
-      panes: [thread.id],
-    });
+    expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+    await waitFor(() =>
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] }),
+    );
+    expect(hydrateThreadRuntimeItems).not.toHaveBeenCalled();
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
   });
 
@@ -283,12 +266,7 @@ describe("threadActions", () => {
     });
   });
 
-  it("does not let an older GUI hydration override a newer thread open", async () => {
-    let resolveFirstHydration: () => void = () => undefined;
-    const firstHydration = new Promise<void>((resolve) => {
-      resolveFirstHydration = resolve;
-    });
-    hydrateThreadRuntimeItems.mockReturnValueOnce(firstHydration);
+  it("does not let an older GUI open override a newer thread open", async () => {
     const firstThread = makeThread({
       id: "thread-gui",
       presentationMode: "gui",
@@ -309,17 +287,13 @@ describe("threadActions", () => {
       });
     });
 
-    resolveFirstHydration();
-    await firstHydration;
-    await Promise.resolve();
-
     expect(useAppStore.getState().view).toEqual({
       kind: "thread",
       panes: [secondThread.id],
     });
   });
 
-  it("hydrates GUI siblings before opening a grouped thread layout", async () => {
+  it("opens grouped GUI panes without prefetching their histories", async () => {
     const firstThread = makeThread({
       id: "thread-group-a",
       groupId: "group-1",
@@ -334,8 +308,7 @@ describe("threadActions", () => {
 
     openThread(firstThread.id);
 
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(firstThread.id);
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(secondThread.id);
+    expect(hydrateThreadRuntimeItems).not.toHaveBeenCalled();
     expect(useAppStore.getState().view).toEqual({ kind: "home" });
 
     await waitFor(() => {
@@ -368,8 +341,7 @@ describe("threadActions", () => {
         panes: [firstThread.id],
       });
     });
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(1);
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(firstThread.id);
+    expect(hydrateThreadRuntimeItems).not.toHaveBeenCalled();
   });
 
   it("queues terminal reconnects as launching when reopening", () => {

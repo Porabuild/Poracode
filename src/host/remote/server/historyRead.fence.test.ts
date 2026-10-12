@@ -1,3 +1,6 @@
+import { ThreadHistoryReplay } from "@/host/remote/server/threadHistoryReplay";
+import { SessionConfigInventory } from "./sessionConfigInventory";
+import { ThreadLiveReadState } from "@/host/remote/server/threadLiveReadState";
 import { describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { CATALOG_READS_CAPABILITY } from "@/shared/remote/historyReadContract";
@@ -26,6 +29,8 @@ const fence = vi.hoisted(() => ({
   phase2AfterPhase1: false,
   outcome: null as null | Record<string, unknown>,
 }));
+
+vi.mock("@/host/db/runtimeHistoryRevision", () => ({ runtimeHistoryRevision: () => 0 }));
 
 vi.mock("@/host/db/runtimePersistenceRuntime", () => ({
   beginRuntimeFence: vi.fn<(threadId: string) => RuntimeFenceToken>((threadId) => {
@@ -94,6 +99,7 @@ vi.mock("@/host/db/historyReads", () => ({
           state: "completed",
           parentItemId: null,
           kind: "item",
+          packingWireBytes: 100,
           boundWireBytes: 4096,
           boundStreamWireBytes: 4096,
           lowerBoundWireBytes: 128,
@@ -147,6 +153,9 @@ function context(): RemoteServerContext {
       },
     },
     backgroundTasksByThread: new Map(),
+    sessionConfigInventory: new SessionConfigInventory(),
+    threadLiveReadState: new ThreadLiveReadState(),
+    threadHistoryReplay: new ThreadHistoryReplay(),
     get seq() {
       fence.seqRead += 1;
       return 7;

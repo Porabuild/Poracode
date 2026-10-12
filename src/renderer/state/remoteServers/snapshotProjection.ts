@@ -23,6 +23,8 @@ import {
 import { hostSupportsRuntimeHistoryNotices } from "@/renderer/state/remote/historyNoticeCapability";
 import { recordAuthoritativeHistoryInstall } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
+import { beginHistorySnapshotRead } from "@/renderer/state/historyResumeRegistry";
+import { remoteHistoryResumeAuthority } from "@/renderer/state/historyResumeApplied";
 import { finalizeProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
 import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
 import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
@@ -511,6 +513,10 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       // store so the desktop ChatPane renders it (coexists with local threads).
       // A failed history fetch (server asleep/unreachable) must not reject.
       let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
+      const resumeRead = beginHistorySnapshotRead(
+        viewThreadId,
+        remoteHistoryResumeAuthority(desktopId),
+      );
       let boundedHistoryPage: RemoteBoundedThreadHistoryPage | undefined;
       const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(
         remoteThreadId(desktopId, threadId),
@@ -525,6 +531,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         // thread, so the gate is the capability, not optimism.
         const noticesCapable = hostSupportsRuntimeHistoryNotices(server);
         const historyOptions = {
+          compactDetails: true,
           ...(omitScrollback ? { omitScrollback: true as const } : {}),
           ...(options?.signal ? { signal: options.signal } : {}),
           ...(noticesCapable ? { noticesCapable: true as const } : {}),
@@ -544,6 +551,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           result.page.runtimeNotice,
         );
       } catch (error) {
+        resumeRead.cancel();
         // Drop this thread's hydration interest even when superseded: a
         // refresh that cleared the open slice invalidates the request seq,
         // and leaving the hydrating thread registered would leak a dead
@@ -586,6 +594,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       }
       const currentServer = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
       if (!currentServer || !isHistoryConnectionCurrent()) {
+        resumeRead.cancel();
         return false;
       }
       const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
@@ -613,8 +622,9 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           : {}),
       });
       if (applied.installedAuthoritativeHistory) {
+        resumeRead.finish(snapshot.runtimeResumeCursor, snapshot.snapshotSeq);
         recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);
-      }
+      } else resumeRead.cancel();
       addRemoteServerThreadItemInterest(desktopId, threadId);
       bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq);
       // WS3-A: the agent-statuses fetch omitted slash-command catalogs, so

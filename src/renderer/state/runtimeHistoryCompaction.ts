@@ -18,7 +18,7 @@ export function compactRuntimeItemsForHydration(
       idx += 1;
       continue;
     }
-    if (!isToolGroupItem(item) || item.state !== "completed") {
+    if (!isToolGroupItem(item) || item.state !== "completed" || item.detailsDeferred) {
       compacted.push(item);
       idx += 1;
       continue;
@@ -27,7 +27,7 @@ export function compactRuntimeItemsForHydration(
     idx += 1;
     while (idx < items.length) {
       const next = items[idx]!;
-      if (!isToolGroupItem(next) || next.state !== "completed") break;
+      if (!isToolGroupItem(next) || next.state !== "completed" || next.detailsDeferred) break;
       run.push(next);
       idx += 1;
     }
