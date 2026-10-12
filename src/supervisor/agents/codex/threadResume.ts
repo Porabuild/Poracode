@@ -21,14 +21,33 @@ export async function resumeCodexThread(
   host: CodexThreadResumeHost,
   params: ResumeParams,
 ): Promise<ResumeResponse> {
+  return requestWithoutTurns(
+    (next) => host.request("thread/resume", next, CODEX_THREAD_RESUME_TIMEOUT_MS),
+    params,
+  );
+}
+
+/** Fork only the provider context; Poracode already holds the UI transcript. */
+export async function forkCodexThread(
+  host: {
+    request(
+      method: "thread/fork",
+      params: CodexClientRequestMap["thread/fork"]["params"],
+    ): Promise<CodexClientRequestMap["thread/fork"]["result"]>;
+  },
+  params: CodexClientRequestMap["thread/fork"]["params"],
+): Promise<CodexClientRequestMap["thread/fork"]["result"]> {
+  return requestWithoutTurns((next) => host.request("thread/fork", next), params);
+}
+
+async function requestWithoutTurns<P extends { excludeTurns?: boolean }, R>(
+  request: (params: P) => Promise<R>,
+  params: P,
+): Promise<R> {
   try {
     // Poracode already persists the transcript and reads live status separately.
     // Omitting turns avoids reconstructing and transferring the entire history.
-    return await host.request(
-      "thread/resume",
-      { ...params, excludeTurns: true },
-      CODEX_THREAD_RESUME_TIMEOUT_MS,
-    );
+    return await request({ ...params, excludeTurns: true });
   } catch (error) {
     if (
       !(error instanceof CodexRpcResponseError) ||
@@ -39,7 +58,8 @@ export async function resumeCodexThread(
     }
     // Older servers may reject the optional field. Preserve their resume path,
     // but never retry timeouts or replace the existing provider conversation.
-    const { excludeTurns: _excludeTurns, ...legacyParams } = params;
-    return host.request("thread/resume", legacyParams, CODEX_THREAD_RESUME_TIMEOUT_MS);
+    const legacyParams = { ...params };
+    delete legacyParams.excludeTurns;
+    return request(legacyParams);
   }
 }

@@ -1,4 +1,5 @@
 import type { RuntimeEvent } from "@/shared/contracts";
+import { noteRuntimeHistoryMutation } from "./runtimeHistoryRevision";
 import {
   admittedRuntimePayloadBatch,
   stripRuntimeEventPayloadOrigin,
@@ -83,6 +84,7 @@ function notifyHealthListeners(notify: (listener: RuntimePersistenceHealthListen
 }
 
 export const runtimePersistenceController = new RuntimePersistenceController({
+  onAuthoritativeHistoryChanged: noteRuntimeHistoryMutation,
   write: (threadId, events) => applyThreadRuntimeEventsNow(threadId, events),
   atomicBatchWriter: applyRuntimeEventBatchesNow,
   onSignal: (signal) => notifyHealthListeners((listener) => listener.onSignal?.(signal)),

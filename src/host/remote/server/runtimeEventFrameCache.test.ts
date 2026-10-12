@@ -66,6 +66,7 @@ describe("runtime event frame reuse", () => {
         seq: 7,
         space: "loopback",
         event: filterEventForItemInterests(event, new Set()),
+        omittedRuntimeThreadIds: ["thread"],
       });
       expect(empty.data).not.toContain("hidden");
     },

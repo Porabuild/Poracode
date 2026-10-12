@@ -10,6 +10,7 @@ import type {
   ThreadContextUsage,
 } from "@/shared/contracts";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
+import type { HistoryRuntimeItem } from "@/shared/remote/historyPresentation";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
@@ -39,6 +40,8 @@ export interface CompletedTurnRecord {
 
 /** Per-thread record of canonical chat items, derived from RuntimeEvent streams. */
 export interface RuntimeChatItem {
+  /** Presentation-only marker; full stored bodies are loaded on expansion. */
+  detailsDeferred?: true;
   id: string;
   type: CanonicalItemType;
   /** "started" / "updated" land on items that haven't ended yet; "completed" → final. */
@@ -75,13 +78,18 @@ export interface RuntimeChatItem {
   observedLive?: boolean;
 }
 
-export function toRuntimeChatItem(item: PersistedRuntimeItem): RuntimeChatItem {
+export function toRuntimeChatItem(
+  item: PersistedRuntimeItem | HistoryRuntimeItem,
+): RuntimeChatItem {
   return retainHydratedItemStreams({
     id: item.id,
     type: item.type as RuntimeChatItem["type"],
     state: item.state,
     payload: item.payload,
     streams: item.streams as RuntimeChatItem["streams"],
+    ...("detailsDeferred" in item && item.detailsDeferred
+      ? { detailsDeferred: true as const }
+      : {}),
     ...(item.parentItemId ? { parentItemId: item.parentItemId } : {}),
   });
 }

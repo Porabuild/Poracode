@@ -142,10 +142,10 @@ export function ChatPane(props: ChatPaneProps) {
   // find controller and the shared scroll controls.
   const { setScrollContainer, scrollRef, scrollEl, scrollFadeStyle } =
     useScrollFade<HTMLDivElement>({ contentRef });
-  const [initialScrollSettledThreadId, setInitialScrollSettledThreadId] = useState<string | null>(
-    null,
-  );
-  const isInitialScrollSettled = initialScrollSettledThreadId === threadId;
+  const [initialScrollSettlement, setInitialScrollSettlement] = useState<{
+    threadId: string;
+    hasVisibleHistory: boolean;
+  } | null>(null);
 
   const scrollControlsRef = useRef<ChatScrollControlsHandle>(null);
   const [readerFollow] = useState(createChatReaderFollowSignal);
@@ -153,6 +153,15 @@ export function ChatPane(props: ChatPaneProps) {
   const timelineEntries = useAppStore(
     useShallow((s) => selectVisibleThreadTimelineEntries(s, threadId, hiddenRuntimeItemId)),
   );
+  // Settling the empty loading placeholder does not settle the first history
+  // rows. A later initial response must be measured and pinned before reveal.
+  const isInitialScrollSettled =
+    initialScrollSettlement?.threadId === threadId &&
+    (timelineEntries.length === 0 || initialScrollSettlement.hasVisibleHistory);
+  // Wait for the initial rows to be measured and pinned before interpreting
+  // the temporary start offset as a request for older history. Hidden-only
+  // pages still need to advance until a visible parent arrives.
+  const canLoadOlderHistory = isInitialScrollSettled || timelineEntries.length === 0;
   const project = useAppStore((s) => s.projects.find((p) => p.id === projectId));
   const branch = resolveWorktreeBranch(projectId, worktreePath ?? "", worktreeBranch);
   const isHomeScope = isHomeProjectId(projectId);
@@ -574,7 +583,9 @@ export function ChatPane(props: ChatPaneProps) {
                   scrollControlsRef.current?.markUserScrollIntent();
                 }
               }}
-              onStartReached={() => loadOlderThreadRuntimeItems(threadId)}
+              {...(canLoadOlderHistory
+                ? { onStartReached: () => loadOlderThreadRuntimeItems(threadId) }
+                : {})}
               registerScrollToIndex={registerScrollToIndex}
               suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
               canRevertCheckpoints={!isLive && !isHomeScope}
@@ -600,7 +611,10 @@ export function ChatPane(props: ChatPaneProps) {
               initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
               virtualScrollToBottomRef={virtualScrollToBottomRef}
               onInitialScrollSettled={() => {
-                setInitialScrollSettledThreadId(threadId);
+                setInitialScrollSettlement({
+                  threadId,
+                  hasVisibleHistory: timelineEntries.length > 0,
+                });
                 props.onInitialScrollSettled?.();
               }}
             />

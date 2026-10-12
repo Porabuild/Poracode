@@ -203,6 +203,8 @@ export interface RemoteBoundedProjectPageOptions extends RemoteBoundedReadByteBu
 }
 
 export interface RemoteBoundedThreadHistoryOptions extends RemoteBoundedReadByteBudget {
+  /** Requires the host's advertised historyDetails v1 capability. */
+  readonly compactDetails?: boolean;
   readonly completedTurnsLimit?: number;
   readonly targetTimelineEntryCount?: number;
   readonly omitScrollback?: boolean;
@@ -212,6 +214,7 @@ export interface RemoteBoundedThreadHistoryOptions extends RemoteBoundedReadByte
 }
 
 export type RemoteBoundedHistoryItemsInput = RemoteBoundedReadByteBudget & {
+  readonly compactDetails?: boolean;
   readonly threadId: string;
   readonly limit?: number;
   readonly targetTimelineEntryCount?: number;

@@ -28,10 +28,6 @@ import {
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import {
-  hasHydratedThreadRuntimeItems,
-  hydrateThreadRuntimeItems,
-} from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { shouldConfirmThreadDelete } from "@/renderer/state/threadDeletePreference";
@@ -265,7 +261,6 @@ export function openThread(
   }
   const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
   const requestId = ++openThreadRequestId;
-  const threadIdsToHydrate = getGuiThreadIdsToHydrateBeforeOpen(threadId, standalone);
 
   // Phase 1 (urgent): flip the optimistic active-thread id in its own cheap
   // commit so the sidebar row highlights immediately. This does not touch
@@ -315,16 +310,9 @@ export function openThread(
     }
   };
 
-  if (threadIdsToHydrate.length > 0) {
-    // Hydration already yields (awaited), so the highlight paints during the
-    // SQLite fetch — no extra frame needed before the swap.
-    void Promise.all(threadIdsToHydrate.map((id) => hydrateThreadRuntimeItems(id))).then(
-      applyOpen,
-      applyOpen,
-    );
-    return;
-  }
-
+  // The mounted pane owns history hydration after its live-interest lease is
+  // ready. Preloading here delays navigation and makes that lease perform a
+  // second baseline recovery because the preload had no live coverage.
   // Defer the heavy pane swap one frame so the urgent highlight commit paints
   // first. requestAnimationFrame alone is not enough: Chromium parks rAF
   // entirely for occluded windows, which would stall the open until the window
@@ -381,28 +369,6 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
   const delta = direction === "next" ? 1 : -1;
   const nextId = orderedIds[(index + delta + orderedIds.length) % orderedIds.length];
   if (nextId && nextId !== current.id) openThread(nextId);
-}
-
-function getGuiThreadIdsToHydrateBeforeOpen(threadId: string, standalone = false): string[] {
-  const state = useAppStore.getState();
-  const clickedThread = state.threads.find((thread) => thread.id === threadId);
-  if (!clickedThread) return [];
-
-  let candidates = [clickedThread];
-  if (!standalone && clickedThread.groupId) {
-    const groupThreads = state.threads.filter(
-      (thread) => thread.groupId === clickedThread.groupId && !thread.done && !thread.archived,
-    );
-    if (groupThreads.length >= 2) {
-      candidates = groupThreads;
-    }
-  }
-
-  return candidates
-    .filter(
-      (thread) => thread.presentationMode === "gui" && !hasHydratedThreadRuntimeItems(thread.id),
-    )
-    .map((thread) => thread.id);
 }
 
 export function reopenStoredThread(threadId: string): void {

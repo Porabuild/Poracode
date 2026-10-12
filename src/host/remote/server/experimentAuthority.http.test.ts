@@ -310,6 +310,7 @@ describe.skipIf(!sqliteAvailable)("experiment authority over real HTTP", () => {
     servers.push(server);
     info = await server.start();
     operatorToken = await exchangePairingUrl(info.pairingUrl, ["session:read", "session:operate"]);
+    callSupervisor.mockClear();
   });
 
   afterEach(async () => {

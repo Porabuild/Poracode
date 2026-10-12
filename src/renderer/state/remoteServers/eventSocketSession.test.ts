@@ -92,6 +92,7 @@ const remoteState = vi.hoisted(() => ({
 }));
 
 vi.mock("@/renderer/state/remote", () => remoteState);
+vi.mock("@/renderer/state/remote/sync", () => remoteState);
 vi.mock("@/renderer/state/remote/resetThreadProjection", () => ({
   resetRemoteThreadProjection: remoteState.resetRemoteThreadProjection,
 }));

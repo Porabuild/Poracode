@@ -1,3 +1,5 @@
+import { noteHistoryDeliveryGap } from "./historyResumeRegistry";
+
 export type RendererEventInterestKind = "terminal" | "runtime";
 
 /**
@@ -206,7 +208,15 @@ export function subscribeRendererEventInterests(
  * unaware of the wire's capacity.
  */
 export function noteRendererEventInterestWireCoverage(threadIds: readonly string[] | null): void {
-  wireCoveredRuntimeIds = threadIds === null ? null : new Set(threadIds);
+  const next = threadIds === null ? null : new Set(threadIds);
+  for (const threadId of wireCoveredRuntimeIds ?? []) {
+    if (!next?.has(threadId)) noteHistoryDeliveryGap(threadId);
+  }
+  wireCoveredRuntimeIds = next;
+}
+
+export function isRendererRuntimeInterestWireCovered(threadId: string): boolean {
+  return wireCoveredRuntimeIds?.has(threadId) === true;
 }
 
 function isContinuouslyCovered(kind: RendererEventInterestKind, threadId: string): boolean {
@@ -216,7 +226,7 @@ function isContinuouslyCovered(kind: RendererEventInterestKind, threadId: string
     // gap/resync semantics.
     return true;
   }
-  return wireCoveredRuntimeIds?.has(threadId) === true;
+  return isRendererRuntimeInterestWireCovered(threadId);
 }
 
 /**

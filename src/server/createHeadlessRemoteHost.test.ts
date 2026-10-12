@@ -795,7 +795,7 @@ describe("createHeadlessRemoteHost", () => {
 
     await host.start();
 
-    expect(h.supervisorCall).not.toHaveBeenCalled();
+    expect(h.supervisorCall).toHaveBeenCalledExactlyOnceWith("getThreadSnapshots", {});
     await host.dispose();
   });
 

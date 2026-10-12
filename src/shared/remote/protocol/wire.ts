@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { sensitiveAgentSettingKeys } from "../../agentSecrets";
 import { CATALOG_READS_CAPABILITY } from "../catalogReadContract";
-import { persistedRuntimeItemSchema } from "../../ipc/schemas";
+import { HISTORY_DETAILS_PROJECTION, historyRuntimeItemSchema } from "../historyPresentation";
 import { gitStateInterestSchema } from "../../gitState";
 import { sharedSettingsSchema } from "../../settings";
 import { EVENT_SEQUENCE_SPACES } from "../../eventSequenceSpace";
@@ -28,7 +28,8 @@ export const remoteRuntimeItemsPageRequestSchema = z.object({
 export type RemoteRuntimeItemsPageRequest = z.infer<typeof remoteRuntimeItemsPageRequestSchema>;
 
 export const remoteRuntimeItemsPageSchema = z.object({
-  items: z.array(persistedRuntimeItemSchema),
+  items: z.array(historyRuntimeItemSchema),
+  historyProjection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
   nextCursor: z.number().int().nonnegative().nullable(),
   /**
    * B4 bounded-reads echo (`reads=bounded-v1`). Absent on legacy hosts and on
@@ -371,6 +372,8 @@ export const remoteWebSocketServerMessageSchema = z.discriminatedUnion("type", [
     seq: z.number().int().positive(),
     space: z.enum(EVENT_SEQUENCE_SPACES).optional(),
     event: z.unknown(),
+    /** Canonical bulk omitted for this connection; controls cannot acknowledge it. */
+    omittedRuntimeThreadIds: z.array(z.string().min(1)).optional(),
   }),
   z.object({
     type: z.literal("resync-required"),

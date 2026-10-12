@@ -75,6 +75,7 @@ import {
 import { deriveToolDisplay } from "./toolDisplay";
 import { deriveWebSearchDisplay } from "./webSearchDisplay";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
+import { useHistoryItemDetails, HistoryItemDetailPlaceholder } from "./useHistoryItemDetails";
 
 interface ToolCallGroupProps {
   threadId: string;
@@ -420,10 +421,12 @@ function GroupRowInline({ item }: { item: RuntimeChatItem }) {
   return <ToolCallInline item={item} />;
 }
 
-function ToolCallInline({ item }: { item: RuntimeChatItem }) {
+function ToolCallInline({ item: source }: { item: RuntimeChatItem }) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
+  const details = useHistoryItemDetails(source, isExpanded);
+  const item = details.item;
   useToolCallRowOpenSignal(isExpanded);
   const row = getInlineRow(item, isExpanded, t);
   const isRunning = item.state !== "completed";
@@ -435,7 +438,7 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
   if (!row) return null;
   const Icon = row.Icon;
 
-  if (!row.hasDetails) {
+  if (!row.hasDetails && !source.detailsDeferred) {
     return (
       <div className="flex min-h-[18px] w-fit max-w-full min-w-0 items-center gap-1.5 py-0.5 text-[length:var(--lc-chat-font-size-command)] leading-tight">
         <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
@@ -472,7 +475,9 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
       </Disclosure.Heading>
       <Disclosure.Content>
         <Disclosure.Body className="pb-1 pl-4 pt-1">
-          {fetchTarget ? (
+          {details.pending ? (
+            <HistoryItemDetailPlaceholder failed={details.failed} retry={details.retry} />
+          ) : fetchTarget ? (
             fetched.content !== undefined ? (
               <CommandOutputViewport
                 text={fetched.content}

@@ -1,3 +1,5 @@
+import { ThreadHistoryReplay } from "@/host/remote/server/threadHistoryReplay";
+import { ThreadLiveReadState } from "@/host/remote/server/threadLiveReadState";
 import { mkdtempSync, rmSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -39,6 +41,9 @@ import {
   parseHistoryReadNegotiation,
 } from "./historyRead";
 import { buildThreadRuntimeItemsPage, buildThreadSnapshot } from "./snapshots";
+import { handleHistoryItemDetails } from "./historyItemDetails";
+import { runThreadRuntimeMutation } from "@/host/db/runtimePersistenceRuntime";
+import { runtimeHistoryRevision } from "@/host/db/runtimeHistoryRevision";
 
 function turn(index: number, anchor: string | null = `item-${index}`): PersistedCompletedTurn {
   const hour = String(Math.floor(index / 60)).padStart(2, "0");
@@ -72,6 +77,8 @@ function context(): RemoteServerContext {
       },
     },
     backgroundTasksByThread: new Map(),
+    threadLiveReadState: new ThreadLiveReadState(),
+    threadHistoryReplay: new ThreadHistoryReplay(),
     sessionConfigInventory: new SessionConfigInventory(),
     seq: 42,
   } as unknown as RemoteServerContext;
@@ -123,7 +130,11 @@ function fakeResponse(): ServerResponse & FakeResponse {
   return res as unknown as ServerResponse & FakeResponse;
 }
 
-async function invoke(handler: (call: never) => Promise<void>, url: string): Promise<FakeResponse> {
+async function invoke(
+  handler: (call: never) => Promise<void>,
+  url: string,
+  params: Record<string, string> = { threadId: "thread-1" },
+): Promise<FakeResponse> {
   const res = fakeResponse();
   const req = Readable.from([]) as unknown as IncomingMessage;
   (req as unknown as { headers: Record<string, string> }).headers = {};
@@ -136,7 +147,7 @@ async function invoke(handler: (call: never) => Promise<void>, url: string): Pro
     bearerToken: null,
     session: null,
     readClass: "normal",
-    params: { threadId: "thread-1" },
+    params,
   } as never);
   return res;
 }
@@ -208,6 +219,59 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
     expect(() =>
       parseHistoryReadNegotiation(new URL("http://host/api/threads/thread-1/history?reads=nope")),
     ).toThrowError(expect.objectContaining({ code: "invalid_reads_capability" }) as Error);
+  });
+
+  it("refuses an oversized stored command detail before fetching its body", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "command_execution", payload: { command: "stored" } }),
+    ]);
+    getSqlite()
+      .prepare("UPDATE thread_runtime_items SET streams = ? WHERE thread_id = ?")
+      .run(
+        JSON.stringify({ command_output: "q".repeat(CATALOG_HOST_WIRE_MAX_BYTES + 1000) }),
+        "thread-1",
+      );
+    const sql = await captureSqlAsync(async () => {
+      const response = await invoke(
+        handleHistoryItemDetails as unknown as (call: never) => Promise<void>,
+        "http://host/api/threads/thread-1/history/items/item-000?notices=v1",
+        { threadId: "thread-1", itemId: "item-000" },
+      );
+      expect(response.statusCode).toBe(422);
+      expect(historyItemTooLargeBodySchema.parse(JSON.parse(response.body)).readItem).toMatchObject(
+        { id: "item-000", resource: "runtime_item" },
+      );
+    });
+    expect(
+      sql.some((statement) => /SELECT item_id, type, state, payload, streams/u.test(statement)),
+    ).toBe(false);
+  });
+
+  it("checks the detail envelope against the negotiated client caps", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      item(0, { type: "command_execution", streams: { command_output: "Stored".repeat(1000) } }),
+    ]);
+    const response = await invoke(
+      handleHistoryItemDetails as unknown as (call: never) => Promise<void>,
+      "http://host/api/threads/thread-1/history/items/item-000?notices=v1&maxBytes=1024",
+      { threadId: "thread-1", itemId: "item-000" },
+    );
+    expect(response.statusCode).toBe(422);
+    expect(
+      historyItemTooLargeBodySchema.parse(JSON.parse(response.body)).readItem.measurement,
+    ).toBe("serialized-exact");
+  });
+
+  it("preserves the async mutation identity through the public persistence facade", async () => {
+    let callbackRan = false;
+    const before = runtimeHistoryRevision("thread-1");
+    await expect(
+      runThreadRuntimeMutation("thread-1", "reset", (async () => {
+        callbackRan = true;
+      }) as unknown as () => void),
+    ).rejects.toThrow(/synchronous/);
+    expect(callbackRan).toBe(false);
+    expect(runtimeHistoryRevision("thread-1")).toBe(before);
   });
 
   it("returns the newest completed-turn tail with an exact ct1. cursor", async () => {
@@ -341,15 +405,17 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
       items: { id: string }[];
       nextCursor: number | null;
     };
-    // The run is never split across pages: page 2 carries all five rows.
+    // Exact projected packing keeps all five group rows together and fills
+    // the remaining space with the older message.
     expect(secondParsed.items.map((entry) => entry.id)).toEqual([
+      "item-000",
       "group-0",
       "group-1",
       "group-2",
       "group-3",
       "group-4",
     ]);
-    expect(secondParsed.nextCursor).not.toBeNull();
+    expect(secondParsed.nextCursor).toBeNull();
   });
 
   it("refuses a host-cap-breaking stream before its payload is fetched", async () => {

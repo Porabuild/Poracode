@@ -1,4 +1,4 @@
-import { RemoteClientExperimentsApi } from "./clientApiExperiments";
+import { RemoteClientHistoryApi } from "./clientApiHistory";
 
 export {
   REMOTE_COMMAND_OUTCOME_UNCERTAIN_CODE,
@@ -51,4 +51,4 @@ export type {
   RemoteCertFingerprintProbe,
 } from "./clientTypes";
 
-export class RemoteDesktopClient extends RemoteClientExperimentsApi {}
+export class RemoteDesktopClient extends RemoteClientHistoryApi {}

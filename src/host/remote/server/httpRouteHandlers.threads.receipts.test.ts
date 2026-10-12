@@ -98,6 +98,7 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
     servers.push(server);
     info = await server.start();
     token = await exchangePairingUrl(info.pairingUrl);
+    callSupervisor.mockClear();
   });
 
   afterEach(async () => {

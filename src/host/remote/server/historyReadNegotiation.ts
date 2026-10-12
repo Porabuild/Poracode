@@ -6,6 +6,7 @@ import {
   HISTORY_ITEMS_MAX_LIMIT,
 } from "@/shared/remote/historyReadContract";
 import { remoteTimelineEntryCountSchema } from "@/shared/remote";
+import { HISTORY_DETAILS_PROJECTION } from "@/shared/remote/historyPresentation";
 import { RemoteHttpError } from "../auth";
 import { resolveCatalogEffectiveCaps, type CatalogEffectiveCaps } from "./catalogPageBudget";
 import { parseRuntimeHistoryNoticesDeclaration } from "./runtimeHistoryNoticeGate";
@@ -22,6 +23,7 @@ import { parseRuntimeHistoryNoticesDeclaration } from "./runtimeHistoryNoticeGat
  */
 
 export interface HistoryReadNegotiation {
+  readonly compactDetails?: boolean;
   readonly declared: boolean;
   /** The request declared `notices=v1` (can render the durable notice). */
   readonly noticesDeclared: boolean;
@@ -61,6 +63,11 @@ export function parseHistoryReadNegotiation(url: URL): HistoryReadNegotiation {
   const params = url.searchParams;
   const noticesDeclared = parseRuntimeHistoryNoticesDeclaration(url);
   const reads = params.get("reads");
+  const projection = params.get("projection");
+  if (projection !== null && projection !== HISTORY_DETAILS_PROJECTION)
+    throw invalid("Unsupported history projection.", "invalid_history_projection");
+  if (projection !== null && reads !== CATALOG_READS_CAPABILITY)
+    throw invalid("Compact history requires bounded reads.", "invalid_history_projection");
   if (reads === null) {
     return {
       declared: false,
@@ -89,6 +96,7 @@ export function parseHistoryReadNegotiation(url: URL): HistoryReadNegotiation {
   );
   return {
     declared: true,
+    ...(projection ? { compactDetails: true } : {}),
     noticesDeclared,
     caps: resolveCatalogEffectiveCaps({
       ...(maxBytes !== undefined ? { maxBytes } : {}),

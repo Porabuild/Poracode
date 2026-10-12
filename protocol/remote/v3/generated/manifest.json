@@ -799,10 +799,43 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-history-item",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/history/items/{itemId}",
+      "queryParameters": [
+        "notices",
+        "maxBytes",
+        "maxDecodeBytes"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "thread-history-changes",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/history/changes",
+      "queryParameters": [
+        "reads",
+        "notices",
+        "cursor",
+        "afterSeq",
+        "projection",
+        "maxBytes",
+        "maxDecodeBytes"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "thread-history-items",
       "method": "GET",
       "path": "/api/threads/{threadId}/history/items",
       "queryParameters": [
+        "projection",
         "reads",
         "notices",
         "beforePosition",
@@ -821,6 +854,7 @@
       "method": "GET",
       "path": "/api/threads/{threadId}/history",
       "queryParameters": [
+        "projection",
         "reads",
         "notices",
         "runtimePage",

@@ -48,7 +48,7 @@ describe("live prepared database write admission", () => {
     expect(() => assertWrite(root)).not.toThrow();
   });
 
-  it.each(["", "057", "57.0", " 57 ", "invalid", "58"])(
+  it.each(["", "058", "58.0", " 58 ", "invalid", "59"])(
     "refuses the stored schema marker %j without repairing it",
     (value) => {
       const { database, assertWrite } = prepared();

@@ -5,7 +5,24 @@ import {
   type ApplyThreadSnapshotResult,
 } from "@/renderer/state/remote";
 import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
-import { projectRemoteThreadSnapshot, remoteThreadId } from "@/renderer/state/remoteProjection";
+import {
+  projectRemoteThreadSnapshot,
+  projectRemoteThread,
+  projectRemoteThreadEvent,
+  remoteThreadId,
+} from "@/renderer/state/remoteProjection";
+import {
+  beginHistorySnapshotRead,
+  readHistoryResume,
+} from "@/renderer/state/historyResumeRegistry";
+import { remoteHistoryResumeAuthority } from "@/renderer/state/historyResumeApplied";
+import { installHistoryResume } from "@/renderer/state/historyResumeInstall";
+import {
+  canResumeQueuedRuntimeHistory,
+  discardPendingRuntimeEventsThroughSequence,
+} from "@/renderer/state/remote/sync";
+import { useAppStore } from "@/renderer/state/appStore";
+import type { RuntimeEvent } from "@/shared/contracts";
 import { recordAuthoritativeHistoryInstall } from "@/renderer/state/remote/truncateRecovery";
 import {
   bumpRemoteServerSnapshotSeq,
@@ -14,7 +31,10 @@ import {
   remoteThreadAppliedSeq,
   supervisorEventThreadIds,
 } from "./eventSocketRegistry";
-import { forgetBoundedHistoryThread } from "./catalog/boundedHistoryRegistry";
+import {
+  recordBoundedHistoryTail,
+  forgetBoundedHistoryThread,
+} from "./catalog/boundedHistoryRegistry";
 import { remoteConnectionKey } from "./types";
 import type { EventSocketConnectionContext } from "./eventSocketContext";
 
@@ -51,7 +71,7 @@ async function replayRecoveryQueue(ctx: EventSocketConnectionContext): Promise<v
           ? queued.event
           : null;
     if (replay !== null) {
-      ctx.dispatchForwardEvent(replay, queued.seq, true);
+      ctx.dispatchForwardEvent(replay, queued.seq, true, queued.omittedRuntimeThreadIds);
       // Replay is the moment a recovery-queued frame is finally APPLIED:
       // only here may the resume cursor pass its seq.
       bumpRemoteServerSnapshotSeq(connectionKey, queued.seq);
@@ -87,6 +107,7 @@ export function resyncOpenThread(
   recovery.baselineSeqByThread = new Map<string, number>();
   const promise = (async (): Promise<boolean> => {
     let restored = true;
+    const snapshotReads: ReturnType<typeof beginHistorySnapshotRead>[] = [];
     try {
       // Fetch all interested threads concurrently (N−1 RTTs saved on
       // server-restart resync), then apply in the original order so
@@ -94,18 +115,48 @@ export function resyncOpenThread(
       const omitScrollback = hasRemoteServerCursorSyncV2(connectionKey);
       const fetched = await Promise.all(
         [...threadIds].map(async (threadId) => {
+          const viewId = remoteThreadId(connectionKey, threadId);
+          const authority = remoteHistoryResumeAuthority(connectionKey);
+          const captured = readHistoryResume(viewId, authority);
+          const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(viewId);
+          const resumeRead = beginHistorySnapshotRead(viewId, authority);
+          snapshotReads.push(resumeRead);
           try {
+            if (
+              captured &&
+              canResumeQueuedRuntimeHistory(viewId) &&
+              useAppStore.getState().runtimeItemIdsByThread[viewId] !== undefined
+            ) {
+              const response = await client.resumeThreadHistory(threadId, captured.cursor, {
+                afterSeq: captured.appliedSeq,
+              });
+              if (response.kind === "events") {
+                resumeRead.cancel();
+                return {
+                  threadId,
+                  followUpQueueSnapshotGuard,
+                  resume: { captured, response, authority },
+                  resumeRead,
+                };
+              }
+              return {
+                threadId,
+                followUpQueueSnapshotGuard,
+                history: { negotiation: "bounded", page: response.snapshot } as const,
+                resumeRead,
+              };
+            }
             return {
               threadId,
-              followUpQueueSnapshotGuard: captureThreadFollowUpQueueSnapshot(
-                remoteThreadId(connectionKey, threadId),
-              ),
-              history: await client.boundedThreadHistory(
-                threadId,
-                ...(omitScrollback ? [{ omitScrollback: true }] : []),
-              ),
+              followUpQueueSnapshotGuard,
+              resumeRead,
+              history: await client.boundedThreadHistory(threadId, {
+                compactDetails: true,
+                ...(omitScrollback ? { omitScrollback: true } : {}),
+              }),
             };
           } catch {
+            resumeRead.cancel();
             return null;
           }
         }),
@@ -115,12 +166,51 @@ export function resyncOpenThread(
           restored = false;
           continue;
         }
-        const { threadId, history, followUpQueueSnapshotGuard } = result;
-        const nextSnapshot = history.page;
+        const { threadId, followUpQueueSnapshotGuard } = result;
         if (!isCurrent() || entry.socket !== socket) {
+          result.resumeRead.cancel();
           restored = false;
           break;
         }
+        if (result.resume) {
+          const viewId = remoteThreadId(connectionKey, threadId);
+          const { captured, response, authority } = result.resume;
+          if (
+            !canResumeQueuedRuntimeHistory(viewId) ||
+            !installHistoryResume({
+              threadId: viewId,
+              authority,
+              noticeAuthority: connectionKey,
+              captured,
+              ...(remoteThreadAppliedSeq(connectionKey, threadId) !== undefined
+                ? { lastSeenEventSeq: remoteThreadAppliedSeq(connectionKey, threadId)! }
+                : {}),
+              response: {
+                ...response,
+                thread: projectRemoteThread(connectionKey, response.thread),
+              },
+              discardThrough: (seq) => discardPendingRuntimeEventsThroughSequence(viewId, seq),
+              followUpQueueSnapshotGuard,
+              projectEvents: (events) =>
+                (
+                  projectRemoteThreadEvent(connectionKey, {
+                    type: "thread-runtime-events",
+                    threadId,
+                    events,
+                  }) as { events: RuntimeEvent[] }
+                ).events,
+            })
+          ) {
+            restored = false;
+            continue;
+          }
+          recovery.baselineSeqByThread.set(threadId, response.snapshotSeq);
+          recordAuthoritativeHistoryInstall(connectionKey, threadId, response.snapshotSeq);
+          bumpRemoteServerSnapshotSeq(connectionKey, response.snapshotSeq);
+          continue;
+        }
+        const history = result.history!;
+        const nextSnapshot = history.page;
         const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
           projectRemoteThreadSnapshot(connectionKey, nextSnapshot),
           {
@@ -140,13 +230,17 @@ export function resyncOpenThread(
           },
         );
         if (applied.installedAuthoritativeHistory) {
+          result.resumeRead.finish(nextSnapshot.runtimeResumeCursor, nextSnapshot.snapshotSeq);
           recovery.baselineSeqByThread.set(threadId, nextSnapshot.snapshotSeq);
           recordAuthoritativeHistoryInstall(connectionKey, threadId, nextSnapshot.snapshotSeq);
           // The baseline may postdate a truncation that renumbered completed
           // turns while this client was disconnected; any recorded `ct1.`
           // continuation proof is stale and must not append to the rebuild.
-          forgetBoundedHistoryThread(connectionKey, threadId);
+          if (history.negotiation === "bounded")
+            recordBoundedHistoryTail({ desktopId: connectionKey, threadId, page: history.page });
+          else forgetBoundedHistoryThread(connectionKey, threadId);
         } else {
+          result.resumeRead.cancel();
           restored = false;
         }
         bumpRemoteServerSnapshotSeq(connectionKey, nextSnapshot.snapshotSeq);
@@ -168,6 +262,8 @@ export function resyncOpenThread(
       }
     } catch {
       restored = false;
+    } finally {
+      for (const read of snapshotReads) read.cancel();
     }
     return restored;
   })();

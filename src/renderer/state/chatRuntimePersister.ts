@@ -1,4 +1,5 @@
 import type { PersistedRuntimeItem } from "@/shared/ipc";
+import type { RemoteBoundedThreadHistoryPage } from "@/shared/remote/client";
 import { captureRendererException } from "../diagnostics/sentry";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "../components/thread/ChatPane/chatPaneSelectors";
 import { readBridge } from "../bridge";
@@ -13,7 +14,10 @@ import {
   recordThreadHistoryNoticeRead,
 } from "./remote/historyNoticeStore";
 import { useAppStore } from "./appStore";
+import { beginManagedRootHistoryPreview } from "./managedRootCatalog/rootHistoryPreview";
+import { beginHistorySnapshotRead, forgetHistoryResume } from "./historyResumeRegistry";
 import {
+  managedRootHistoryActivation,
   isManagedRootHistoryThread,
   isManagedRootThreadAbsentError,
   loadManagedRootRuntimeItemsPage,
@@ -52,26 +56,34 @@ const RUNTIME_PAGE_SCAN_SIZE = 500;
 const RUNTIME_TIMELINE_PAGE_SIZE = 40;
 const MAX_CACHED_THREAD_RUNTIME_ITEMS = 5_000;
 const hydratedThreadRuntimeIds = new Set<string>();
-interface RuntimeHydrationRequest {
-  readonly cancelled: boolean;
+interface RuntimeHydrationOptions {
   readonly beforeInstall?: () => boolean;
+  readonly historyPage?: RemoteBoundedThreadHistoryPage;
+}
+interface RuntimeHydrationRequest {
+  readonly controller: AbortController;
+  /** An authoritative reducer recovery owns the read beyond any pane lease. */
+  readonly beforeInstall?: () => boolean;
+  readonly historyPage?: RemoteBoundedThreadHistoryPage;
 }
 const pendingThreadRuntimeHydrations = new Map<
   string,
-  { cancelled: boolean; readonly promise: Promise<boolean>; readonly beforeInstall?: () => boolean }
+  RuntimeHydrationRequest & { readonly promise: Promise<boolean> }
 >();
 const pendingOlderRuntimePages = new Map<
   string,
-  { cancelled: boolean; readonly promise: Promise<boolean> }
+  { readonly controller: AbortController; readonly promise: Promise<boolean> }
 >();
 const pendingControlAlignments = new Map<
   string,
-  { generation: object; promise: Promise<boolean> }
+  { generation: object; controller: AbortController; promise: Promise<boolean> }
 >();
 const retainedThreadRuntimeCounts = new Map<string, number>();
 const inactiveThreadRuntimeLru = new Set<string>();
 export function forgetThreadRuntimeWindow(threadId: string): void {
+  forgetHistoryResume(threadId);
   cancelPendingOlderRuntimePage(threadId);
+  cancelPendingControlAlignment(threadId);
   forgetWindowLedger(threadId);
 }
 
@@ -193,6 +205,16 @@ export function releaseThreadRuntimeItems(threadId: string): void {
     return;
   }
   retainedThreadRuntimeCounts.delete(threadId);
+  // A reducer recovery must replace the retained snapshot before its queued
+  // deltas resume, even if all panes close during the read. Its beforeInstall
+  // callback owns that replacement; ordinary pane hydration has no such owner.
+  if (!pendingThreadRuntimeHydrations.get(threadId)?.beforeInstall) {
+    cancelPendingThreadRuntimeHydration(threadId);
+    if (useAppStore.getState().runtimeHydrationStatus[threadId] === "pending")
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
+  }
+  cancelPendingOlderRuntimePage(threadId);
+  cancelPendingControlAlignment(threadId);
   inactiveThreadRuntimeLru.delete(threadId);
   inactiveThreadRuntimeLru.add(threadId);
   evictOversizedInactiveThreadRuntimeItems([threadId]);
@@ -213,9 +235,9 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
   const cursor = runtimeWindowPageCursor(threadId);
   if (cursor === undefined || cursor === null) return false;
   const pending = pendingOlderRuntimePages.get(threadId);
-  if (pending && !pending.cancelled) return pending.promise;
+  if (pending && !pending.controller.signal.aborted) return pending.promise;
 
-  const request = { cancelled: false, promise: Promise.resolve(false) };
+  const request = { controller: new AbortController(), promise: Promise.resolve(false) };
   const boundary = runtimeHistoryBoundary(threadId);
   const generation = boundary.generation;
   const initialIds = useAppStore.getState().runtimeItemIdsByThread[threadId];
@@ -224,11 +246,11 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
   // that removal synchronously, so a later append cannot mask invalidation.
   const unsubscribe = useAppStore.subscribe((state) => {
     if (initialTail && !state.runtimeItemsByIdByThread[threadId]?.[initialTail]) {
-      request.cancelled = true;
+      request.controller.abort();
     }
   });
   const isCurrent = () =>
-    !request.cancelled &&
+    !request.controller.signal.aborted &&
     hydratedThreadRuntimeIds.has(threadId) &&
     isRuntimeHistoryBoundaryCurrent(threadId, boundary, generation);
   setRuntimeWindowPaging(threadId, true);
@@ -236,7 +258,7 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
     while (isCurrent()) {
       const result = await readRuntimeWindowPage(
         threadId,
-        (position) => readOlderRuntimePage(threadId, position),
+        (position) => readOlderRuntimePage(threadId, position, request.controller.signal),
         isCurrent,
         isBrowserClientRuntime()
           ? (page, beforePosition, boundaryItemId) => {
@@ -290,6 +312,7 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
     }
     return false;
   })().catch((error: unknown) => {
+    if (request.controller.signal.aborted) return false;
     console.warn("[chat] failed to load older runtime items for thread %s", threadId, error);
     captureRendererException(error, { featureArea: "runtime-persistence" });
     return false;
@@ -307,16 +330,23 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
   }
 }
 
-function readOlderRuntimePage(threadId: string, beforePosition: number) {
+async function readOlderRuntimePage(
+  threadId: string,
+  beforePosition: number,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
   const input = {
     threadId,
     beforePosition,
     limit: RUNTIME_PAGE_SCAN_SIZE,
     targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
   };
-  return isManagedRootHistoryThread(threadId)
-    ? loadManagedRootRuntimeItemsPage(input)
-    : readBridge().dbGetThreadRuntimeItemsPage(input);
+  if (isManagedRootHistoryThread(threadId))
+    return loadManagedRootRuntimeItemsPage({ ...input, ...(signal ? { signal } : {}) });
+  const page = await readBridge().dbGetThreadRuntimeItemsPage(input);
+  signal?.throwIfAborted();
+  return page;
 }
 
 /** Resolve only unfamiliar snapshot controls; ordinary streaming never calls I/O. */
@@ -324,12 +354,19 @@ export async function alignThreadRuntimeHistoryControl(threadId: string): Promis
   const boundary = runtimeHistoryBoundary(threadId);
   if (!boundary.unlocatedControl) return true;
   const pending = pendingControlAlignments.get(threadId);
-  if (pending?.generation === boundary.generation) return pending.promise;
-  const request = { generation: boundary.generation, promise: Promise.resolve(false) };
+  if (pending?.generation === boundary.generation && !pending.controller.signal.aborted)
+    return pending.promise;
+  pending?.controller.abort();
+  const request = {
+    generation: boundary.generation,
+    controller: new AbortController(),
+    promise: Promise.resolve(false),
+  };
   setRuntimeWindowPaging(threadId, true);
   request.promise = alignRuntimeHistoryControl(threadId, (cursor) =>
-    readOlderRuntimePage(threadId, cursor),
+    readOlderRuntimePage(threadId, cursor, request.controller.signal),
   ).catch((error: unknown) => {
+    if (request.controller.signal.aborted) return false;
     console.warn("[chat] failed to locate runtime control for thread %s", threadId, error);
     captureRendererException(error, { featureArea: "runtime-persistence" });
     return false;
@@ -347,7 +384,7 @@ export async function alignThreadRuntimeHistoryControl(threadId: string): Promis
 
 function releaseRuntimeWindowPagingIfIdle(threadId: string): void {
   const older = pendingOlderRuntimePages.get(threadId);
-  if ((!older || older.cancelled) && !pendingControlAlignments.has(threadId)) {
+  if ((!older || older.controller.signal.aborted) && !pendingControlAlignments.has(threadId)) {
     setRuntimeWindowPaging(threadId, false);
   }
 }
@@ -359,13 +396,20 @@ function releaseRuntimeWindowPagingIfIdle(threadId: string): void {
  */
 export async function hydrateThreadRuntimeItems(
   threadId: string,
-  options?: { readonly beforeInstall?: () => boolean },
+  options?: RuntimeHydrationOptions,
 ): Promise<void> {
-  if (hydratedThreadRuntimeIds.has(threadId)) return;
+  await ensureThreadRuntimeItemsHydrated(threadId, options);
+}
+
+async function ensureThreadRuntimeItemsHydrated(
+  threadId: string,
+  options?: RuntimeHydrationOptions,
+): Promise<boolean> {
+  if (hydratedThreadRuntimeIds.has(threadId)) return true;
   const pending = pendingThreadRuntimeHydrations.get(threadId);
-  if (pending && !pending.cancelled) {
-    await pending.promise;
-    return;
+  if (pending && !pending.controller.signal.aborted) {
+    const completed = await pending.promise;
+    return completed && !pending.controller.signal.aborted;
   }
 
   // Surface loading/error for the pane's first read so an opening thread does
@@ -375,7 +419,7 @@ export async function hydrateThreadRuntimeItems(
     (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) === 0;
   if (isEmptyBefore) useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
   const request = {
-    cancelled: false,
+    controller: new AbortController(),
     promise: Promise.resolve(false),
     ...options,
   };
@@ -386,7 +430,7 @@ export async function hydrateThreadRuntimeItems(
     const completed = await hydration;
     // A reset superseded this read mid-flight: it owns neither the hydration
     // marker nor the visible status — the replacement read owns both.
-    if (request.cancelled) return;
+    if (request.controller.signal.aborted) return false;
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
       useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
@@ -396,6 +440,7 @@ export async function hydrateThreadRuntimeItems(
     // A successful item read can install rows even when another hydration read
     // fails. They still need admission if the last reader left during I/O.
     evictOversizedInactiveThreadRuntimeItems([threadId]);
+    return completed;
   } finally {
     if (pendingThreadRuntimeHydrations.get(threadId) === request) {
       pendingThreadRuntimeHydrations.delete(threadId);
@@ -424,7 +469,7 @@ async function hydrateThreadRuntimeItemsFromDb(
         initialState.threads.find((thread) => thread.id === threadId),
       )
     : null;
-  if (request.cancelled) return false;
+  if (request.controller.signal.aborted) return false;
   // An authoritative snapshot installed while IndexedDB was pending owns its
   // cursor and payload, including an intentionally empty replacement.
   if (hydratedThreadRuntimeIds.has(threadId)) return true;
@@ -461,7 +506,7 @@ async function hydrateThreadRuntimeItemsFromDb(
       ]);
   // A reset superseded this read while it was in flight: install nothing and
   // claim no cursor — the replacement read owns both.
-  if (request.cancelled) return false;
+  if (request.controller.signal.aborted) return false;
 
   if (request.beforeInstall) {
     if (
@@ -602,17 +647,27 @@ async function hydrateManagedRootThreadRuntimeItems(
   threadId: string,
   request: RuntimeHydrationRequest,
 ): Promise<boolean> {
+  // Start HTTP before the optional cache read. Neither IndexedDB nor agent
+  // connection readiness can delay the authoritative history request.
+  const historyRead = readManagedRootHistoryPage(threadId, {
+    signal: request.controller.signal,
+    ...(request.historyPage ? { page: request.historyPage } : {}),
+  });
+  const resumeRead = beginHistorySnapshotRead(threadId, managedRootHistoryActivation()!.authority);
+  const preview = beginManagedRootHistoryPreview(threadId, request.controller.signal);
   let page: Awaited<ReturnType<typeof readManagedRootHistoryPage>>;
   try {
     // The bounded history response already carries the latest goal, including
     // goals before the tail window. A separate DB read would duplicate work
     // and dispatch a host-owned operation to the supervisor.
-    page = await readManagedRootHistoryPage(threadId);
+    page = await historyRead;
   } catch (error) {
+    resumeRead.cancel();
+    preview.cancel();
     // A reset superseded this read mid-flight: install nothing, seed no
     // cursor, and surface no failure of its own (the replacement read owns
     // the outcome).
-    if (request.cancelled) return false;
+    if (request.controller.signal.aborted) return false;
     if (isManagedRootThreadAbsentError(error)) {
       if (request.beforeInstall && !request.beforeInstall()) return false;
       // An unpersisted or authoritatively removed row has no transcript to
@@ -630,26 +685,39 @@ async function hydrateManagedRootThreadRuntimeItems(
     return false;
   }
 
-  if (request.cancelled) return false;
-  if (request.beforeInstall && !request.beforeInstall()) return false;
-  if (page.runtimeItems.length > 0) {
-    installHydratedRuntimeItems(threadId, page.runtimeItems, page.runtimeNextCursor ?? null);
+  try {
+    preview.retire();
+    if (request.controller.signal.aborted || (request.beforeInstall && !request.beforeInstall())) {
+      preview.cancel();
+      resumeRead.cancel();
+      return false;
+    }
+    if (page.runtimeItems.length > 0) {
+      installHydratedRuntimeItems(threadId, page.runtimeItems, page.runtimeNextCursor ?? null);
+    }
+    runtimeHistoryBoundary(threadId).cursor = page.runtimeNextCursor ?? null;
+    const records = toCompletedTurnRecords(page.completedTurns).slice(
+      -MAX_CACHED_COMPLETED_TURN_RECORDS,
+    );
+    if (page.completedTurnsNextCursor === null) {
+      // A complete tail replaces the level, so reverted turns can be dropped.
+      useAppStore.getState().replaceThreadCompletedTurns(threadId, records);
+    } else {
+      // A tail with older history merges losslessly with already-loaded pages.
+      useAppStore.getState().hydrateThreadCompletedTurns(threadId, records);
+    }
+    if (page.contextUsage) {
+      useAppStore.getState().hydrateThreadContextUsage(threadId, page.contextUsage);
+    }
+    preview.cacheAccepted(page.runtimeItems);
+    resumeRead.finish(page.runtimeResumeCursor, page.snapshotSeq);
+    preview.complete(page.snapshotSeq);
+    return true;
+  } finally {
+    // Failed admission must not strand queued live frames behind a cold read.
+    preview.cancel();
+    resumeRead.cancel();
   }
-  runtimeHistoryBoundary(threadId).cursor = page.runtimeNextCursor ?? null;
-  const records = toCompletedTurnRecords(page.completedTurns).slice(
-    -MAX_CACHED_COMPLETED_TURN_RECORDS,
-  );
-  if (page.completedTurnsNextCursor === null) {
-    // A complete tail replaces the level, so reverted turns can be dropped.
-    useAppStore.getState().replaceThreadCompletedTurns(threadId, records);
-  } else {
-    // A tail with older history merges losslessly with already-loaded pages.
-    useAppStore.getState().hydrateThreadCompletedTurns(threadId, records);
-  }
-  if (page.contextUsage) {
-    useAppStore.getState().hydrateThreadContextUsage(threadId, page.contextUsage);
-  }
-  return true;
 }
 
 /**
@@ -686,6 +754,9 @@ function evictThreadRuntimeItems(threadId: string): void {
   inactiveThreadRuntimeLru.delete(threadId);
   hydratedThreadRuntimeIds.delete(threadId);
 
+  // Evicting the cached window does not retire its reducer recovery owner.
+  if (!pendingThreadRuntimeHydrations.get(threadId)?.beforeInstall)
+    cancelPendingThreadRuntimeHydration(threadId);
   cancelPendingOlderRuntimePage(threadId);
   // The transcript is gone: its non-item older-history continuation must not
   // survive to feed a future hydration with pre-eviction cursors.
@@ -720,24 +791,30 @@ export function invalidateThreadRuntimeHydration(threadId: string): void {
 
 export async function rehydrateThreadRuntimeItemsAfterReset(
   threadId: string,
-  options?: { readonly beforeInstall?: () => boolean },
+  options?: RuntimeHydrationOptions,
 ): Promise<boolean> {
   invalidateThreadRuntimeHydration(threadId);
-  await hydrateThreadRuntimeItems(threadId, options);
-  return useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed";
+  return ensureThreadRuntimeItemsHydrated(threadId, options);
 }
 
 function cancelPendingOlderRuntimePage(threadId: string): void {
   const pending = pendingOlderRuntimePages.get(threadId);
   if (pending) {
-    pending.cancelled = true;
+    pending.controller.abort();
     setRuntimeWindowPaging(threadId, false);
   }
 }
 
 function cancelPendingThreadRuntimeHydration(threadId: string): void {
-  const pending = pendingThreadRuntimeHydrations.get(threadId);
-  if (pending) pending.cancelled = true;
+  pendingThreadRuntimeHydrations.get(threadId)?.controller.abort();
+}
+
+function cancelPendingControlAlignment(threadId: string): void {
+  const pending = pendingControlAlignments.get(threadId);
+  if (!pending) return;
+  pending.controller.abort();
+  if (pendingControlAlignments.get(threadId) === pending) pendingControlAlignments.delete(threadId);
+  releaseRuntimeWindowPagingIfIdle(threadId);
 }
 
 export function evictOversizedInactiveThreadRuntimeItems(threadIds: readonly string[]): void {

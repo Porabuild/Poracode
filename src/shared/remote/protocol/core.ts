@@ -350,6 +350,10 @@ export const remoteExperimentsCapabilitySchema = z.object({
 export type RemoteExperimentsCapability = z.infer<typeof remoteExperimentsCapabilitySchema>;
 
 export const remoteEnvironmentCapabilitiesSchema = z.object({
+  /** Compact history rows with stored item details loaded on demand. */
+  historyDetails: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
+  /** Independent bounded replay cursors for one thread's canonical history. */
+  threadHistoryResume: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Provider-only conversation snapshots in per-turn client context. */
   conversationSnapshots: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),

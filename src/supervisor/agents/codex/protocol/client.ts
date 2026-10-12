@@ -25,6 +25,8 @@ import type {
   ThreadGoalSetResponse,
   ThreadReadParams,
   ThreadReadResponse,
+  ThreadTurnsListParams,
+  ThreadTurnsListResponse,
   ThreadResumeParams,
   ThreadResumeResponse,
   ThreadRollbackParams,
@@ -101,6 +103,7 @@ export interface CodexClientRequestMap {
   "thread/start": { params: ThreadStartParams; result: ThreadStartResponse };
   "thread/resume": { params: ThreadResumeParams; result: ThreadResumeResponse };
   "thread/read": { params: ThreadReadParams; result: ThreadReadResponse };
+  "thread/turns/list": { params: ThreadTurnsListParams; result: ThreadTurnsListResponse };
   "thread/fork": { params: ThreadForkParams; result: ThreadForkResponse };
   "thread/unsubscribe": { params: ThreadUnsubscribeParams; result: ThreadUnsubscribeResponse };
   "thread/rollback": { params: ThreadRollbackParams; result: ThreadRollbackResponse };

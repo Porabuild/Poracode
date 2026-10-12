@@ -209,6 +209,21 @@ describe("SessionConfigInventory", () => {
     store.applySeed(token, [runtimeSnapshot({ threadId: row.id, sessionConfigOptions: null })]);
     expect(store.enrichThreadRow(row).sessionConfigOptions).toEqual(controls);
   });
+  it("seeds quiet threads while preserving another thread's newer controls", () => {
+    const store = new SessionConfigInventory();
+    const token = store.beginSeed();
+    store.observeThreadState({
+      threadId: "thread-b",
+      agentKind: "acp-agent",
+      sessionConfigOptions: null,
+    });
+    store.applySeed(token, [
+      runtimeSnapshot({ threadId: "thread-a", sessionConfigOptions: controls }),
+      runtimeSnapshot({ threadId: "thread-b", sessionConfigOptions: controls }),
+    ]);
+    expect(store.entryFor("thread-a")?.options).toEqual(controls);
+    expect(store.entryFor("thread-b")?.options).toBeNull();
+  });
 
   it("rejects a seed issued before a retirement", () => {
     const store = new SessionConfigInventory();

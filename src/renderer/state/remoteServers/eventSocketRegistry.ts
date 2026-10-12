@@ -3,6 +3,8 @@ import {
   RemoteSocketReconnectPolicy,
 } from "@/shared/remote/socketPolicy";
 import type { OpenRemoteThread, RemoteSocketLike } from "./types";
+import { noteHistoryDeliveryGap } from "../historyResumeRegistry";
+import { remoteThreadId } from "../remoteProjection";
 
 /**
  * Process-local state for the desktop-as-client event sockets (one per paired
@@ -178,10 +180,17 @@ export function rememberRemoteServerThreadItemInterests(
   desktopId: string,
   threadIds: readonly string[],
 ): void {
+  const selected = new Set(threadIds);
+  for (const previous of remoteServerThreadItemInterests.get(desktopId) ?? []) {
+    if (!selected.has(previous)) noteHistoryDeliveryGap(remoteThreadId(desktopId, previous));
+  }
   remoteServerThreadItemInterests.set(desktopId, threadIds);
 }
 
 export function forgetRemoteServerThreadItemInterests(desktopId: string): void {
+  for (const threadId of remoteServerThreadItemInterests.get(desktopId) ?? []) {
+    noteHistoryDeliveryGap(remoteThreadId(desktopId, threadId));
+  }
   remoteServerThreadItemInterests.delete(desktopId);
 }
 
@@ -191,7 +200,7 @@ export function setRemoteServerThreadItemInterests(
   forceSend = false,
 ): void {
   const existing = remoteServerThreadItemInterests.get(desktopId);
-  remoteServerThreadItemInterests.set(desktopId, threadIds);
+  rememberRemoteServerThreadItemInterests(desktopId, threadIds);
   if (!forceSend && sameRemoteServerThreadItemInterests(existing, threadIds)) return;
   const socket = remoteServerEventSockets.get(desktopId)?.socket;
   if (!socket?.send) return;

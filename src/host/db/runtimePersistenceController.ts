@@ -101,6 +101,8 @@ export interface RuntimePersistenceControllerOptions {
   /** Metadata-only queue changes; callbacks must not reenter queue mutations. */
   onCapacityChange?(change: RuntimeQueueCapacityChange): void;
   onThreadAccessAvailable?(threadId: string): void;
+  /** Metadata observer after a checked, applied truncate/rebase/delete/acknowledgement. */
+  onAuthoritativeHistoryChanged?(threadId: string): void;
   onRefusal?(
     reason: RuntimeRefusalReason,
     scope: RuntimeRefusalScope,
@@ -754,6 +756,7 @@ export class RuntimePersistenceController {
       if (result.outcome === "applied") {
         const discarded = this.queue.discard(threadId);
         this.admission.clearContaminationForRebase(threadId, discarded);
+        this.options.onAuthoritativeHistoryChanged?.(threadId);
       }
       return result;
     });
@@ -840,7 +843,9 @@ export class RuntimePersistenceController {
     }
     // truncate on a clean thread: commit the accepted prefix, then apply.
     await this.fenceControl.flushPrefix(threadId);
-    return requireSynchronousMutationResult(operation());
+    const value = requireSynchronousMutationResult(operation());
+    this.options.onAuthoritativeHistoryChanged?.(threadId);
+    return value;
   }
 
   /**
@@ -867,7 +872,9 @@ export class RuntimePersistenceController {
       return value;
     }
     this.fenceControl.commitPrefixSync(threadId);
-    return requireSynchronousMutationResult(operation());
+    const value = requireSynchronousMutationResult(operation());
+    this.options.onAuthoritativeHistoryChanged?.(threadId);
+    return value;
   }
 
   private supersedePendingPrefix(threadId: string): void {
@@ -877,11 +884,13 @@ export class RuntimePersistenceController {
     // transaction; the in-memory pending obligation and resolution cache go
     // with the supersede so no stale evidence survives the repair.
     this.durableGap.forgetThread(threadId);
+    this.options.onAuthoritativeHistoryChanged?.(threadId);
   }
 
   /** Drop a thread's buffered writes; only for deletion or an applied rebase. */
   discard(threadId: string): void {
     this.queue.discard(threadId);
+    this.options.onAuthoritativeHistoryChanged?.(threadId);
   }
 
   /**

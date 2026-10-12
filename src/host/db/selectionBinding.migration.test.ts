@@ -52,12 +52,15 @@ it("advances the actual historical schema-56 prefix without backfilling selectio
   runDatabaseMigrations(db, 56);
 
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "57",
+    value: "58",
   });
   expect(db.prepare("SELECT * FROM threads ORDER BY id").all()).toStrictEqual(beforeThreads);
   expect(db.prepare("SELECT * FROM projects ORDER BY id").all()).toStrictEqual(beforeProjects);
   expect(
-    db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all(),
+    db
+      .prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name")
+      .all()
+      .filter((row) => (row as { name: string }).name !== "idx_runtime_items_thread_goal"),
   ).toStrictEqual(beforeSchema);
   expect(describeMigrationRollbackPolicy().find((entry) => entry.version === 57)).toMatchObject({
     rollback: "forward-only",

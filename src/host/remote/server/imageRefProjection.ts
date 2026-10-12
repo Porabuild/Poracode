@@ -1,6 +1,7 @@
 import {
   classifyInlineImageCandidate,
   collectInlineImageLocationsDeep,
+  INLINE_IMAGE_REF_MIN_BYTES,
   type InlineImageClassification,
   type InlineImagePath,
 } from "@/shared/inlineImagePayload";
@@ -26,7 +27,6 @@ import { getCachedImagePreview, imagePreviewKey, scheduleImagePreview } from "./
  * catch the payloads that actually matter (measured: real images run 0.1-12 MB)
  * while leaving favicon-scale art alone.
  */
-const MIN_REF_BYTES = 8 * 1024;
 
 function setAtPath(root: unknown, path: InlineImagePath, value: unknown): unknown {
   if (path.length === 0) return value;
@@ -75,7 +75,7 @@ export function projectPayloadImageRefs(
   let omittedBytes = 0;
   for (const location of locations) {
     const bytes = Buffer.byteLength(location.value, "utf8");
-    if (bytes < MIN_REF_BYTES) continue;
+    if (bytes < INLINE_IMAGE_REF_MIN_BYTES) continue;
     const dimensions = readImageDimensions(location.value, location.classification);
     // A blurred stand-in for the reserved slot. Only ever read from cache here —
     // generation is queued so a multi-megabyte decode never blocks this response.

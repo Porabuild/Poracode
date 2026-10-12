@@ -4,6 +4,7 @@ import {
   type HistoryItemTooLargeBody,
 } from "@/shared/remote/historyReadContract";
 import type { HistoryStreamHeadEscapedSizes, HistoryTimelineKind } from "@/host/db/historyReads";
+import type { CompletedTurnRowMeta } from "@/host/db/completedTurnPages";
 import { RemoteHttpError } from "../auth";
 import {
   catalogLowerBoundProvesOversized,
@@ -41,6 +42,27 @@ export class HistoryItemTooLargeError extends Error {
     );
     this.name = "HistoryItemTooLargeError";
   }
+}
+
+/** The newest turn is soft-exempt, but still needs the same hard-cap proof. */
+export function refuseOversizedCompletedTurn(
+  first: CompletedTurnRowMeta | undefined,
+  caps: CatalogEffectiveCaps,
+): void {
+  if (!first) return;
+  refuseOversizedHistoryBound(
+    "turn",
+    {
+      id: String(first.idx),
+      boundWireBytes: first.boundWireBytes,
+      boundStreamWireBytes: first.boundWireBytes,
+      lowerBoundWireBytes: first.lowerBoundWireBytes,
+      lowerBoundDecodeBytes: first.lowerBoundDecodeBytes,
+      streamsElided: false,
+    },
+    caps,
+    () => ({ wireBytes: 0, decodeBytes: 0 }),
+  );
 }
 
 function buildHistoryItemTooLargeBody(input: {
@@ -149,67 +171,6 @@ export function refuseOversizedHistoryBound(
   }
   if (!catalogLowerBoundProvesOversized(lower, HISTORY_HOST_CAPS)) return;
   throw historyItemTooLarge(resource, row.id, upper, caps, "serialized-upper-bound", lower);
-}
-
-/**
- * Soft packing that never cuts inside a timeline group run. Consecutive
- * `group` rows are one display entry, so they are packed as one unit: the pack
- * stops before the unit that would exceed the soft target, and the first unit
- * is soft-exempt exactly like the page-of-one rule. Whether the first unit can
- * be included whole is decided against the HOST hard caps by the conservative
- * bound (a packing estimate); the exact refusal decision is
- * {@link refuseOversizedHistoryBound}'s. When the first unit's estimate cannot
- * fit the host caps, only its newest row is packed so the pre-fetch refusal can
- * name the exact row.
- */
-export function packHistoryItemsWithinSoftTarget<T extends HistoryTimelineRowMeta>(
-  rows: readonly T[],
-  softPackWireBytes: number,
-): { readonly packed: readonly T[]; readonly hasMore: boolean } {
-  const packed: T[] = [];
-  let accumulated = 0;
-  let index = 0;
-  while (index < rows.length) {
-    let unitEnd = index;
-    let unitBound = 0;
-    if (rows[index]!.kind === "group") {
-      while (unitEnd < rows.length && rows[unitEnd]!.kind === "group") {
-        unitBound += rows[unitEnd]!.boundWireBytes;
-        unitEnd += 1;
-      }
-    } else {
-      unitBound = rows[index]!.boundWireBytes;
-      unitEnd = index + 1;
-    }
-
-    if (packed.length === 0) {
-      if (
-        unitBound <= CATALOG_HOST_WIRE_MAX_BYTES &&
-        unitBound * 2 <= CATALOG_HOST_DECODE_MAX_BYTES
-      ) {
-        packed.push(...rows.slice(index, unitEnd));
-        accumulated += unitBound;
-        index = unitEnd;
-        continue;
-      }
-      // The newest unit's estimate cannot fit the host caps; pack its newest
-      // row only so the phase-1 pre-fetch refusal can name the exact row.
-      packed.push(rows[index]!);
-      return { packed, hasMore: packed.length < rows.length };
-    }
-
-    if (accumulated + unitBound > softPackWireBytes) break;
-    packed.push(...rows.slice(index, unitEnd));
-    accumulated += unitBound;
-    index = unitEnd;
-  }
-  return { packed, hasMore: packed.length < rows.length };
-}
-
-export interface HistoryTimelineRowMeta {
-  readonly itemId: string;
-  readonly kind: HistoryTimelineKind;
-  readonly boundWireBytes: number;
 }
 
 export function packCompletedTurnsWithinSoftTarget<T extends { readonly boundWireBytes: number }>(

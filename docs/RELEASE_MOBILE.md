@@ -59,7 +59,7 @@ retaining API 34 as the maintained install floor.
 `protocol/remote/v3/generated/manifest.json` is the canonical cross-client
 inventory, generated from the contract registry
 (`src/shared/remote/contract/`). It currently declares protocol version 13 with
-95 HTTP routes, 130 supervisor procedures, 9 client WebSocket messages, 11
+97 HTTP routes, 130 supervisor procedures, 9 client WebSocket messages, 11
 server WebSocket messages (including the admission-gated desktop-event
 stream), and 16 replayable event types. (The `remote/v3` path
 names the contract family; the protocol version inside the manifest is
@@ -134,7 +134,7 @@ SwiftUI/Compose editor/transport and usage-view adoption is planned, not
 established by regenerated codecs. Real playback/renewal and compact/native
 codec proof remains a serialized manual gate.
 
-The bundle contains roots for all 95 routes, 130 procedures, and 20 WebSocket
+The bundle contains roots for all 97 routes, 130 procedures, and 20 WebSocket
 message types, and embeds each route's registry scopes in its
 `RemoteRouteDescriptor`. The native parity ledger
 (`protocol/remote/v3/native-parity.json`, format version 2) records two
