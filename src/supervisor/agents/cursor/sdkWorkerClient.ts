@@ -28,6 +28,7 @@ import {
   type CursorSdkWorkerProbeResult,
   type CursorSdkWorkerStartInput,
   type CursorSdkWorkerStartResult,
+  type CursorSdkWorkerSteerResult,
   type CursorSdkWorkerWireMessage,
 } from "./sdkWorkerProtocol";
 import type { CursorSdkPinHint } from "./sdkLoaderSupport";
@@ -123,7 +124,7 @@ export class CursorSdkWorkerStartupError extends Error {
 interface PendingRequest {
   resolve(value: unknown): void;
   reject(error: Error): void;
-  timeout: ReturnType<typeof setTimeout>;
+  timeout: ReturnType<typeof setTimeout> | undefined;
 }
 
 interface SpawnedWorker {
@@ -217,6 +218,13 @@ export class CursorSdkWorkerClient {
 
   async start(input: CursorSdkWorkerStartInput): Promise<CursorSdkWorkerStartResult> {
     return this.request<CursorSdkWorkerStartResult>("start", input, this.startTimeoutMs);
+  }
+
+  async steer(runId: string, text: string): Promise<CursorSdkWorkerSteerResult> {
+    // The SDK stays pending through provisional confirm_steering while tools
+    // or background subagents run. Only its final ACK transfers ownership;
+    // transport failure/disposal rejects this request with all other pending RPCs.
+    return this.request<CursorSdkWorkerSteerResult>("steer", { runId, text }, 0);
   }
 
   async cancel(runId?: string): Promise<{ cancelled: boolean }> {
@@ -347,19 +355,22 @@ export class CursorSdkWorkerClient {
     }
     const id = randomUUID();
     return new Promise<Result>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        const error = new Error(cursorSdkWorkerTimeoutMessage(method, timeoutMs));
-        if (FATAL_REQUEST_TIMEOUT_METHODS.has(method)) {
-          // Mutating SDK calls may still resolve after the caller's deadline.
-          // A fatal teardown prevents a late invisible agent/run or concurrent
-          // mutation of provider state after the host has already moved on.
-          this.fail(error);
-          return;
-        }
-        this.pending.delete(id);
-        reject(error);
-      }, timeoutMs);
-      timeout.unref?.();
+      const timeout =
+        timeoutMs > 0
+          ? setTimeout(() => {
+              const error = new Error(cursorSdkWorkerTimeoutMessage(method, timeoutMs));
+              if (FATAL_REQUEST_TIMEOUT_METHODS.has(method)) {
+                // Mutating SDK calls may still resolve after the caller's deadline.
+                // A fatal teardown prevents a late invisible agent/run or concurrent
+                // mutation of provider state after the host has already moved on.
+                this.fail(error);
+                return;
+              }
+              this.pending.delete(id);
+              reject(error);
+            }, timeoutMs)
+          : undefined;
+      timeout?.unref?.();
       this.pending.set(id, {
         resolve: (value) => resolve(value as Result),
         reject,

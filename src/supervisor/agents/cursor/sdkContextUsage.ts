@@ -5,7 +5,7 @@
  * context-window occupancy the Cursor app shows (used/max plus the
  * system-prompt/tools/rules/skills/MCP/subagents/conversation breakdown) lives
  * in the SDK's private local store: `~/.cursor/projects/<ref>/sdk-agent-store/
- * <md5(ref)>/` with one SQLite DB per agent holding protobuf checkpoint blobs
+ * <sha256(ref)>/` with one SQLite DB per agent holding protobuf checkpoint blobs
  * (`agent.v1.ConversationState.token_details`, observed in SDK 1.0.2x).
  *
  * This reader mirrors that layout read-only. Every step is guarded — a
@@ -44,7 +44,9 @@ export function cursorSdkStateRoot(cwd: string, homeDir: string = homedir()): st
     .replace(/[^a-zA-Z0-9]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
-  const digest = createHash("md5").update(cwd).digest("hex");
+  // 1.0.35 migrates the former MD5 directory to this FIPS-safe digest. Live
+  // sessions prefer the SDK-provided root instead of predicting its layout.
+  const digest = createHash("sha256").update(cwd).digest("hex");
   return join(homeDir, ".cursor", "projects", sanitized, "sdk-agent-store", digest);
 }
 
