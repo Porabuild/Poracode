@@ -42,7 +42,11 @@ const updater = vi.hoisted(() => ({
   autoDownload: false,
   autoInstallOnAppQuit: true,
 }));
-vi.mock("electron-updater", () => ({ autoUpdater: updater }));
+vi.mock("electron-updater", async () => {
+  const { CancellationToken } =
+    await vi.importActual<typeof import("electron-updater")>("electron-updater");
+  return { autoUpdater: updater, CancellationToken };
+});
 
 import { PREVIOUS_CLIENT_HOST_HOP_VERSION } from "@/shared/clientHostHop";
 import { IPC_EVENT_CHANNELS, IPC_PROCEDURE_MAP_VERSION, IPC_WINDOW_CHANNELS } from "@/shared/ipc";

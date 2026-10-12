@@ -23,6 +23,7 @@ const TRANSIENT_NETWORK_CODES = new Set([
   "ECONNREFUSED",
   "ETIMEDOUT",
 ]);
+const TRANSIENT_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 const DISK_ERROR_CODES = new Set(["ENOSPC", "EACCES", "EPERM", "EROFS"]);
 const UPDATE_MANIFEST_PATTERN = /(?:latest|nightly)(?:-[a-z0-9]+)?\.ya?ml/i;
 const INTEGRITY_PATTERN =
@@ -90,6 +91,10 @@ export function classifyUpdateFailure(
     return { kind: "transient-network", retryable: true };
   }
   if (hasTimeoutName(error)) {
+    return { kind: "transient-network", retryable: true };
+  }
+  const status = errorStatus(error);
+  if (status !== null && TRANSIENT_HTTP_STATUSES.has(status)) {
     return { kind: "transient-network", retryable: true };
   }
   if (isManifest404(error, operation)) {
