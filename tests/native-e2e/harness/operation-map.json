@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 13,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:bb993453596de2a7ff8b92428e9169ab70a1df3a8136cc95f5f9020abbfaace2",
-  "keyCount": 277,
+  "manifestHash": "sha256:7bc9776d5bc3443f6e2e9d36c683fd0935e04b1f25cdeffa44c112a681c674d7",
+  "keyCount": 279,
   "counts": {
-    "route": 95,
+    "route": 97,
     "procedure": 130,
     "ws-client": 9,
     "ws-server": 11,
@@ -925,6 +925,14 @@
     "route:thread-history": {
       "kind": "route",
       "id": "thread-history"
+    },
+    "route:thread-history-changes": {
+      "kind": "route",
+      "id": "thread-history-changes"
+    },
+    "route:thread-history-item": {
+      "kind": "route",
+      "id": "thread-history-item"
     },
     "route:thread-history-items": {
       "kind": "route",

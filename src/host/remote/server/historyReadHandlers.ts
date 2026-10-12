@@ -38,7 +38,7 @@ import { buildThreadRuntimeItemsPage, buildThreadSnapshot } from "./snapshots";
  * `reads=bounded-v1`.
  */
 
-async function writeBoundedHistoryResponse(
+export async function writeBoundedHistoryResponse(
   call: HttpRouteCall,
   build: () => string | Promise<string>,
 ): Promise<void> {
@@ -163,6 +163,7 @@ export async function handleBoundedThreadHistoryItems(call: HttpRouteCall): Prom
       },
       negotiation.caps,
       runtimeNotice,
+      negotiation.compactDetails,
     ),
   );
 }

@@ -1,5 +1,9 @@
 import type Database from "better-sqlite3";
 import {
+  collectInlineImageLocationsDeep,
+  INLINE_IMAGE_REF_MIN_BYTES,
+} from "@/shared/inlineImagePayload";
+import {
   CATALOG_JSON_BOUND_FACTOR,
   CATALOG_ROW_ENVELOPE_BYTES,
   escapedUnitsLowerBound,
@@ -25,7 +29,10 @@ import {
   type RuntimeTimelineItemRow,
   type RuntimeTimelineKind,
 } from "./runtimeTimelineReads";
-import type { PersistedRuntimeItem } from "./runtimeItems";
+import {
+  hasDeferredHistoryStreams,
+  type HistoryRuntimeItem,
+} from "@/shared/remote/historyPresentation";
 import {
   readRuntimePayloadProjectionInputs,
   type RuntimePayloadProjectionInput,
@@ -76,6 +83,9 @@ export interface HistoryPageRowMeta {
   readonly kind: HistoryTimelineKind;
   /** Conservative serialized wire bound including the per-row envelope. */
   readonly boundWireBytes: number;
+  /** Soft packing estimate after image projection. Never an oversized proof;
+   * materialization remains bounded by boundWireBytes and responses are measured exactly. */
+  readonly packingWireBytes: number;
   /**
    * Conservative wire bound of the stream component alone (head + appended
    * tail). Used only for packing; a stream row is refused before its payload
@@ -106,6 +116,8 @@ export interface HistoryPageRowMeta {
 }
 
 export interface DbHistoryPagePhase1Query {
+  /** Presentation reads may omit completed command streams before size probes. */
+  readonly compactDetails?: boolean;
   readonly beforePosition?: number;
   /** Raw-row window size; mirrors the legacy reader's `limit` (1–500). */
   readonly limit: number;
@@ -157,6 +169,17 @@ const HISTORY_VERBATIM_LOWER_WIRE =
 const HISTORY_VERBATIM_LOWER_CODE_POINTS =
   "(length(json_quote(item_id)) + length(json_quote(type)))";
 
+function historyMetadataColumns(compactDetails: boolean): string {
+  return `item_id, position, type, state, parent_item_id,
+    length(CAST(COALESCE(payload, '') AS BLOB)) AS payload_bytes,
+    ${compactDetails ? "CASE WHEN type = 'command_execution' AND state = 'completed' THEN 0 ELSE length(CAST(COALESCE(streams, '') AS BLOB)) END" : "length(CAST(COALESCE(streams, '') AS BLOB))"} AS streams_bytes,
+    ${HISTORY_VERBATIM_LOWER_WIRE} AS base_lower_wire,
+    ${HISTORY_VERBATIM_LOWER_CODE_POINTS} AS base_lower_cps,
+    (SELECT COUNT(*) FROM thread_runtime_item_stream_state s
+      WHERE s.thread_id = thread_runtime_items.thread_id AND s.item_id = thread_runtime_items.item_id
+        AND s.elided_chars > 0) AS elided_streams`;
+}
+
 /**
  * Classification probes and size bounds for one phase-1 window. Holds the
  * thread's parent-id set (metadata only) and lazily probes payload/streams for
@@ -176,6 +199,7 @@ class HistoryTimelineClassifier {
   constructor(
     private readonly sqlite: InstanceType<typeof Database>,
     private readonly threadId: string,
+    private readonly compactDetails = false,
   ) {
     this.childParentIds = new Set(
       (
@@ -188,6 +212,24 @@ class HistoryTimelineClassifier {
     );
   }
 
+  metadata(row: HistoryMetadataSqlRow): HistoryPageRowMeta {
+    const lower = this.lowerBoundSizes(row);
+    return {
+      itemId: row.item_id,
+      position: row.position,
+      type: row.type,
+      state: row.state,
+      parentItemId: row.parent_item_id,
+      kind: this.classify(row),
+      boundWireBytes: this.boundWireBytes(row),
+      packingWireBytes: this.packingWireBytes(row),
+      boundStreamWireBytes: this.boundStreamWireBytes(row),
+      lowerBoundWireBytes: lower.wireBytes,
+      lowerBoundDecodeBytes: lower.decodeBytes,
+      streamsElided: this.streamsElided(row),
+    };
+  }
+
   /** Loads size bounds and narrow classification probes for a fresh batch. */
   ensure(rows: readonly HistoryMetadataSqlRow[]): void {
     if (rows.length === 0) return;
@@ -195,8 +237,11 @@ class HistoryTimelineClassifier {
     for (const [id, input] of readRuntimePayloadProjectionInputs(this.sqlite, this.threadId, fresh))
       this.projectionInputs.set(id, input);
     for (const row of fresh) this.projectionProbed.add(row.item_id);
-    this.ensureHeadBytes(rows);
-    this.ensureTailBytes(rows);
+    const streamedRows = this.compactDetails
+      ? rows.filter((row) => !hasDeferredHistoryStreams(row.type, row.state))
+      : rows;
+    this.ensureHeadBytes(streamedRows);
+    this.ensureTailBytes(streamedRows);
     this.ensurePayloadProbes(rows);
     this.ensureReasoningProbes(rows);
   }
@@ -306,6 +351,8 @@ class HistoryTimelineClassifier {
   }
 
   boundWireBytes(row: HistoryMetadataSqlRow): number {
+    const seedBytes =
+      this.compactDetails && hasDeferredHistoryStreams(row.type, row.state) ? 0 : row.streams_bytes;
     const tailStoredBytes = this.tailSizeById.get(row.item_id)?.storedBytes ?? 0;
     const head = this.headSizeById.get(row.item_id);
     const headStoredBytes = (head?.metadataKeyBytes ?? 0) + (head?.blockBytes ?? 0);
@@ -321,17 +368,44 @@ class HistoryTimelineClassifier {
       // This is an UPPER packing reserve, never an oversized lower-bound proof.
       (this.projectionInputs.get(row.item_id)?.spec.maxWireExpansionBytes ?? 0) +
       CATALOG_JSON_BOUND_FACTOR *
-        (row.payload_bytes + row.streams_bytes + headStoredBytes + tailStoredBytes)
+        (row.payload_bytes + seedBytes + headStoredBytes + tailStoredBytes)
     );
   }
 
   boundStreamWireBytes(row: HistoryMetadataSqlRow): number {
+    const seedBytes =
+      this.compactDetails && hasDeferredHistoryStreams(row.type, row.state) ? 0 : row.streams_bytes;
     const tailStoredBytes = this.tailSizeById.get(row.item_id)?.storedBytes ?? 0;
     const head = this.headSizeById.get(row.item_id);
     const headStoredBytes = (head?.metadataKeyBytes ?? 0) + (head?.blockBytes ?? 0);
     return (
       CATALOG_ROW_ENVELOPE_BYTES +
-      CATALOG_JSON_BOUND_FACTOR * (row.streams_bytes + headStoredBytes + tailStoredBytes)
+      CATALOG_JSON_BOUND_FACTOR * (seedBytes + headStoredBytes + tailStoredBytes)
+    );
+  }
+
+  packingWireBytes(row: HistoryMetadataSqlRow): number {
+    const seedBytes =
+      this.compactDetails && hasDeferredHistoryStreams(row.type, row.state) ? 0 : row.streams_bytes;
+    const head = this.headSizeById.get(row.item_id);
+    let payloadBytes = row.payload_bytes;
+    // Named-tool payloads are already probed for timeline classification. Use
+    // that same payload to account for images as references before packing,
+    // without materializing any additional candidate payloads.
+    for (const image of collectInlineImageLocationsDeep(this.payloadById.get(row.item_id))) {
+      const bytes = Buffer.byteLength(image.value, "utf8");
+      if (bytes < INLINE_IMAGE_REF_MIN_BYTES) continue;
+      const refEstimate = 512 + Buffer.byteLength(JSON.stringify(image.path), "utf8");
+      payloadBytes += refEstimate - bytes;
+    }
+    return (
+      CATALOG_ROW_ENVELOPE_BYTES +
+      (this.projectionInputs.get(row.item_id)?.spec.maxWireExpansionBytes ?? 0) +
+      Math.max(0, payloadBytes) +
+      seedBytes +
+      (head?.metadataKeyBytes ?? 0) +
+      (head?.blockBytes ?? 0) +
+      (this.tailSizeById.get(row.item_id)?.storedBytes ?? 0)
     );
   }
 
@@ -403,6 +477,25 @@ function assertPhase1Query(query: DbHistoryPagePhase1Query): void {
   }
 }
 
+/** One keyed scalar-bounds read for detail admission, never an entire timeline scan. */
+export function dbReadThreadHistoryItemMetadata(
+  threadId: string,
+  itemId: string,
+): HistoryPageRowMeta | null {
+  const sqlite = getSqlite();
+  return readRuntimeSnapshot(sqlite, () => {
+    const row = sqlite
+      .prepare(
+        `SELECT ${historyMetadataColumns(false)} FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?`,
+      )
+      .get(threadId, itemId) as HistoryMetadataSqlRow | undefined;
+    if (!row) return null;
+    const classifier = new HistoryTimelineClassifier(sqlite, threadId);
+    classifier.ensure([row]);
+    return classifier.metadata(row);
+  });
+}
+
 /**
  * Phase 1 for one history page. Returns the legacy candidate selection as
  * metadata rows (newest first) with classification and conservative wire
@@ -423,32 +516,16 @@ function readHistoryPhase1InSnapshot(
   threadId: string,
   query: DbHistoryPagePhase1Query,
 ): DbHistoryPagePhase1 {
-  const classifier = new HistoryTimelineClassifier(sqlite, threadId);
+  const classifier = new HistoryTimelineClassifier(sqlite, threadId, query.compactDetails);
   const readTailRows = sqlite.prepare(
-    `SELECT item_id, position, type, state, parent_item_id,
-            length(CAST(COALESCE(payload, '') AS BLOB)) AS payload_bytes,
-            length(CAST(COALESCE(streams, '') AS BLOB)) AS streams_bytes,
-            ${HISTORY_VERBATIM_LOWER_WIRE} AS base_lower_wire,
-            ${HISTORY_VERBATIM_LOWER_CODE_POINTS} AS base_lower_cps,
-            (SELECT COUNT(*) FROM thread_runtime_item_stream_state s
-              WHERE s.thread_id = thread_runtime_items.thread_id
-                AND s.item_id = thread_runtime_items.item_id
-                AND s.elided_chars > 0) AS elided_streams
+    `SELECT ${historyMetadataColumns(query.compactDetails === true)}
      FROM thread_runtime_items
      WHERE thread_id = ?
      ORDER BY position DESC
      LIMIT ?`,
   );
   const readOlderRows = sqlite.prepare(
-    `SELECT item_id, position, type, state, parent_item_id,
-            length(CAST(COALESCE(payload, '') AS BLOB)) AS payload_bytes,
-            length(CAST(COALESCE(streams, '') AS BLOB)) AS streams_bytes,
-            ${HISTORY_VERBATIM_LOWER_WIRE} AS base_lower_wire,
-            ${HISTORY_VERBATIM_LOWER_CODE_POINTS} AS base_lower_cps,
-            (SELECT COUNT(*) FROM thread_runtime_item_stream_state s
-              WHERE s.thread_id = thread_runtime_items.thread_id
-                AND s.item_id = thread_runtime_items.item_id
-                AND s.elided_chars > 0) AS elided_streams
+    `SELECT ${historyMetadataColumns(query.compactDetails === true)}
      FROM thread_runtime_items
      WHERE thread_id = ? AND position < ?
      ORDER BY position DESC
@@ -476,22 +553,7 @@ function readHistoryPhase1InSnapshot(
   });
 
   return {
-    rows: selection.rows.map((row) => {
-      const lower = classifier.lowerBoundSizes(row);
-      return {
-        itemId: row.item_id,
-        position: row.position,
-        type: row.type,
-        state: row.state,
-        parentItemId: row.parent_item_id,
-        kind: classifier.classify(row),
-        boundWireBytes: classifier.boundWireBytes(row),
-        boundStreamWireBytes: classifier.boundStreamWireBytes(row),
-        lowerBoundWireBytes: lower.wireBytes,
-        lowerBoundDecodeBytes: lower.decodeBytes,
-        streamsElided: classifier.streamsElided(row),
-      };
-    }),
+    rows: selection.rows.map((row) => classifier.metadata(row)),
     moreBeyondWindow: selection.hasMore,
   };
 }
@@ -505,15 +567,26 @@ function readHistoryPhase1InSnapshot(
 export function dbReadThreadHistoryPhase2(
   threadId: string,
   itemIds: readonly string[],
-): PersistedRuntimeItem[] {
+  options: { readonly compactDetails?: boolean } = {},
+): HistoryRuntimeItem[] {
   if (itemIds.length === 0) return [];
   const sqlite = getSqlite();
   return readRuntimeSnapshot(sqlite, () => {
-    const byId = new Map<string, HistoryMaterializedSqlRow>();
+    const byId = new Map<string, HistoryMaterializedSqlRow & { details_deferred?: number }>();
     for (const chunk of chunkValues(itemIds, HISTORY_ITEM_FETCH_BATCH)) {
       const rows = sqlite
         .prepare(
-          `SELECT item_id, type, state, payload, streams, parent_item_id
+          `SELECT item_id, type, state, payload, ${
+            options.compactDetails
+              ? `CASE WHEN type = 'command_execution' AND state = 'completed' THEN NULL ELSE streams END AS streams,
+            CASE WHEN type = 'command_execution' AND state = 'completed' AND (
+              COALESCE(streams, '{}') NOT IN ('{}','null') OR
+              EXISTS(SELECT 1 FROM thread_runtime_item_stream_heads h WHERE h.thread_id = thread_runtime_items.thread_id AND h.item_id = thread_runtime_items.item_id AND h.head_chars > 0) OR
+              EXISTS(SELECT 1 FROM thread_runtime_item_stream_chunks c WHERE c.thread_id = thread_runtime_items.thread_id AND c.item_id = thread_runtime_items.item_id AND c.chars > 0)
+            ) THEN 1 ELSE 0 END AS details_deferred,`
+              : "streams,"
+          }
+            parent_item_id
          FROM thread_runtime_items
          WHERE thread_id = ? AND item_id IN (${placeholders(chunk.length)})`,
         )
@@ -524,7 +597,19 @@ export function dbReadThreadHistoryPhase2(
       const row = byId.get(itemId);
       return row ? [row] : [];
     });
-    return mapRuntimeItemRows(sqlite, threadId, ordered);
+    if (!options.compactDetails) return mapRuntimeItemRows(sqlite, threadId, ordered);
+    const deferred = ordered.filter((row) => hasDeferredHistoryStreams(row.type, row.state));
+    const ordinary = ordered.filter((row) => !hasDeferredHistoryStreams(row.type, row.state));
+    const items = new Map(
+      [
+        ...mapRuntimeItemRows(sqlite, threadId, ordinary),
+        ...mapRuntimeItemRows(sqlite, threadId, deferred, { includeStreams: false }),
+      ].map((item) => [item.id, item]),
+    );
+    return ordered.map((row) => ({
+      ...items.get(row.item_id)!,
+      ...(row.details_deferred ? { detailsDeferred: true as const } : {}),
+    }));
   });
 }
 

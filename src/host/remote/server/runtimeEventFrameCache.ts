@@ -1,6 +1,7 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { RemoteBroadcastEvent } from "./context";
 import type { CappedBroadcastEvent } from "./eventSizeGuard";
+import { runtimeContentOmissionMetadata } from "./itemInterestFilter";
 
 type RuntimeBroadcastEvent = Extract<
   RemoteBroadcastEvent,
@@ -125,8 +126,9 @@ function projectionKey(
  * All retained wrappers (including the full frame) plus ASCII keys share the
  * byte/count caps. A miss beyond either cap still serializes and sends normally.
  * Full frames always reuse capBroadcastEvent's JSON and UTF-8 measurement,
- * even when too large to cache. Nothing survives the publication, and wire
- * bytes/semantics are unchanged, so no cache/schema/protocol version is needed.
+ * even when too large to cache. Scoped frames include the optional history
+ * resume omission metadata, which is included in their byte charge. The cache
+ * itself is process-local and nothing survives the publication.
  */
 export function createRuntimeEventFrameCache(
   capped: Extract<CappedBroadcastEvent, { kind: "sendable" }>,
@@ -152,7 +154,13 @@ export function createRuntimeEventFrameCache(
       const data =
         key === "full"
           ? `${prefix}${capped.json}}`
-          : JSON.stringify({ type: "event", seq, space: "loopback", event: scoped });
+          : JSON.stringify({
+              type: "event",
+              seq,
+              space: "loopback",
+              event: scoped,
+              ...runtimeContentOmissionMetadata(original, scoped),
+            });
       const frame = {
         data,
         byteLength: key === "full" ? fullByteLength : Buffer.byteLength(data, "utf8"),

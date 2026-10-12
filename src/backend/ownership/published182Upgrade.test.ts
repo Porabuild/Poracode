@@ -36,7 +36,7 @@ afterEach(() => {
   if (root) rmSync(root, { recursive: true, force: true });
 });
 
-it("promotes the actual released schema42 and preserves history through schema57 and a second launch", async () => {
+it("promotes the actual released schema42 and preserves history through schema58 and a second launch", async () => {
   // Fixture created by the unmodified v1.8.2 initializer/runtime writers, not
   // by relabelling the current schema. Frozen-source hashes are in expected.json.
   root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-released182-")));
@@ -85,7 +85,7 @@ it("promotes the actual released schema42 and preserves history through schema57
     const db = initDatabase(promoted.dbPath);
     vi.restoreAllMocks();
     expect(db.prepare("SELECT value FROM app_state WHERE key='schema_version'").get()).toEqual({
-      value: "57",
+      value: "58",
     });
     expect(db.pragma("integrity_check")).toEqual([{ integrity_check: "ok" }]);
     expect(db.pragma("foreign_key_check")).toEqual([]);

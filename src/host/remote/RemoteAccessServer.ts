@@ -46,6 +46,8 @@ import {
 } from "./server/principalAdmission";
 import { LegacyBulkReadAdmission } from "./server/legacyBulkReadAdmission";
 import { SessionConfigInventory } from "./server/sessionConfigInventory";
+import { ThreadLiveReadState, seedThreadLiveReadState } from "./server/threadLiveReadState";
+import { ThreadHistoryReplay } from "./server/threadHistoryReplay";
 import {
   type IngressRequestClassification,
   type IngressWorkClass,
@@ -225,6 +227,8 @@ export class RemoteAccessServer {
   private readonly desktopReplayingClients = new Set<WebSocket>();
   private readonly backgroundTasksByThread = new Map<string, readonly BackgroundTask[]>();
   private readonly sessionConfigInventory = new SessionConfigInventory();
+  private readonly threadLiveReadState = new ThreadLiveReadState();
+  private readonly threadHistoryReplay = new ThreadHistoryReplay();
   private readonly context: RemoteServerContext;
   private readonly maxConcurrentIngressWork: number;
   private readonly maxConcurrentIngressWorkPerSource: number;
@@ -402,6 +406,8 @@ export class RemoteAccessServer {
       eventBuffer: this.eventBuffer,
       backgroundTasksByThread: this.backgroundTasksByThread,
       sessionConfigInventory: this.sessionConfigInventory,
+      threadLiveReadState: this.threadLiveReadState,
+      threadHistoryReplay: this.threadHistoryReplay,
       get seq() {
         return server.seq;
       },
@@ -492,6 +498,9 @@ export class RemoteAccessServer {
     if (this.info) return Promise.resolve(this.info);
     if (this.starting) return this.starting;
     const starting = startListening(this.asHost());
+    void seedThreadLiveReadState(this.context, (event) => this.publishSupervisorEvent(event)).catch(
+      () => undefined,
+    );
     this.starting = starting;
     void starting.catch(() => {
       if (!this.stopping && this.starting === starting) this.starting = undefined;
@@ -618,6 +627,8 @@ export class RemoteAccessServer {
   clearBackgroundTaskLevels(): void {
     this.backgroundTasksByThread.clear();
     this.sessionConfigInventory.clear();
+    this.threadLiveReadState.clear();
+    this.threadHistoryReplay.clear();
   }
 
   /**

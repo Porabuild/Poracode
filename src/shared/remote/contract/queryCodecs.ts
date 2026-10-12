@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CATALOG_READS_CAPABILITY } from "../catalogReadContract";
+import { HISTORY_DETAILS_PROJECTION } from "../historyPresentation";
 import { REMOTE_RUNTIME_HISTORY_NOTICES_DECLARATION } from "../protocol/runtimeHistoryNotice";
 
 /**
@@ -134,6 +135,7 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   "schedule-runs-read": [param("id", "string", false)],
   "pr-watch-read": [param("projectId", "string", false), param("prNumber", "int", false)],
   "thread-history": [
+    param("projection", "string", true),
     param("reads", "string", true),
     param("notices", "string", true),
     param("runtimePage", "string", true),
@@ -143,7 +145,22 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
     param("maxBytes", "int", true),
     param("maxDecodeBytes", "int", true),
   ],
+  "thread-history-item": [
+    param("notices", "string", false),
+    param("maxBytes", "int", true),
+    param("maxDecodeBytes", "int", true),
+  ],
+  "thread-history-changes": [
+    param("reads", "string", false),
+    param("notices", "string", false),
+    param("cursor", "string", false),
+    param("afterSeq", "int", true),
+    param("projection", "string", true),
+    param("maxBytes", "int", true),
+    param("maxDecodeBytes", "int", true),
+  ],
   "thread-history-items": [
+    param("projection", "string", true),
     param("reads", "string", true),
     param("notices", "string", true),
     param("beforePosition", "int", true),
@@ -279,6 +296,7 @@ const decodedCatalogByteCapSchema = z.number().int().min(1);
 const decodedNoticesDeclarationSchema = z.literal(REMOTE_RUNTIME_HISTORY_NOTICES_DECLARATION);
 
 export const decodedThreadHistoryQuerySchema = z.object({
+  projection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
   reads: decodedReadsCapabilitySchema.optional(),
   notices: decodedNoticesDeclarationSchema.optional(),
   runtimePage: z.literal("1").optional(),
@@ -292,6 +310,7 @@ export const decodedThreadHistoryQuerySchema = z.object({
 });
 
 export const decodedThreadHistoryItemsQuerySchema = z.object({
+  projection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
   reads: decodedReadsCapabilitySchema.optional(),
   notices: decodedNoticesDeclarationSchema.optional(),
   beforePosition: z.number().int().nonnegative().optional(),

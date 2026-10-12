@@ -1,3 +1,5 @@
+import { ThreadHistoryReplay } from "@/host/remote/server/threadHistoryReplay";
+import { ThreadLiveReadState } from "@/host/remote/server/threadLiveReadState";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import type { RuntimeEvent } from "@/shared/contracts";
@@ -57,6 +59,8 @@ function fixture(count: number, options: Partial<RemoteAccessServerOptions> = {}
     eventBuffer: [],
     supervisorEventListeners: new Set(),
     backgroundTasksByThread: new Map(),
+    threadLiveReadState: new ThreadLiveReadState(),
+    threadHistoryReplay: new ThreadHistoryReplay(),
     sessionConfigInventory: new SessionConfigInventory(),
     clients: new Map(
       sockets.map((socket, index) => [socket.ws, { sessionId: `principal-${index}` }]),

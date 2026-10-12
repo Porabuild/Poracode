@@ -334,6 +334,7 @@ export async function readManagedRootThreadExistence(
       threadId,
       {
         completedTurnsLimit: 1,
+        compactDetails: true,
         omitScrollback: true,
         maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
         maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,

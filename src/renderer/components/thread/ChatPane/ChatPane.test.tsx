@@ -351,19 +351,74 @@ describe("ChatPane", () => {
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
-  it("loads the next persisted page when LegendList reaches the start", async () => {
+  it("waits for the initial history layout before paging at the start", async () => {
     const thread = makeThread();
     seedAssistantMessage(thread.id, "Latest answer");
     loadOlderThreadRuntimeItems.mockResolvedValueOnce(true);
+    const onInitialScrollSettled = vi.fn<() => void>();
 
-    const { container } = renderChatPane(thread);
-    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
-
+    const { container } = renderChatPane(thread, { onInitialScrollSettled });
     const scrollElement = getScrollElement(container);
+    installScrollMetrics(scrollElement, {
+      scrollHeight: 1_200,
+      clientHeight: 600,
+      scrollTop: 0,
+    });
+    fireEvent.scroll(scrollElement, { target: { scrollTop: 0 } });
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    expect(loadOlderThreadRuntimeItems).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(onInitialScrollSettled).toHaveBeenCalled());
+    expect(loadOlderThreadRuntimeItems).not.toHaveBeenCalled();
     fireEvent.scroll(scrollElement, { target: { scrollTop: 0 } });
 
     await waitFor(() => expect(loadOlderThreadRuntimeItems).toHaveBeenCalledTimes(1));
     expect(loadOlderThreadRuntimeItems).toHaveBeenLastCalledWith(thread.id);
+  });
+
+  it("fills a short initial page after its rows have been measured", async () => {
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Short answer");
+    loadOlderThreadRuntimeItems.mockResolvedValueOnce(false);
+    const onInitialScrollSettled = vi.fn<() => void>();
+
+    const { container } = renderChatPane(thread, { onInitialScrollSettled });
+    const scrollElement = getScrollElement(container);
+    installScrollMetrics(scrollElement, {
+      scrollHeight: 600,
+      clientHeight: 600,
+      scrollTop: 0,
+    });
+    expect(loadOlderThreadRuntimeItems).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(onInitialScrollSettled).toHaveBeenCalled());
+    await waitFor(() => expect(loadOlderThreadRuntimeItems).toHaveBeenCalledOnce());
+    expect(loadOlderThreadRuntimeItems).toHaveBeenLastCalledWith(thread.id);
+  });
+
+  it("settles the first history rows even if the loading placeholder settled earlier", async () => {
+    const thread = makeThread();
+    const onInitialScrollSettled = vi.fn<() => void>();
+    const { container } = renderChatPane(thread, { onInitialScrollSettled });
+    const scrollElement = getScrollElement(container);
+    installScrollMetrics(scrollElement, {
+      scrollHeight: 1_200,
+      clientHeight: 600,
+      scrollTop: 0,
+    });
+    await waitFor(() => expect(onInitialScrollSettled).toHaveBeenCalledOnce());
+
+    act(() => seedAssistantMessage(thread.id, "Late initial history"));
+    fireEvent.scroll(scrollElement, { target: { scrollTop: 0 } });
+    expect(loadOlderThreadRuntimeItems).not.toHaveBeenCalled();
+    expect(getContentElement(scrollElement)).toHaveClass("opacity-0");
+
+    await waitFor(() => expect(onInitialScrollSettled).toHaveBeenCalledTimes(2));
+    expect(getContentElement(scrollElement)).not.toHaveClass("opacity-0");
+    expect(loadOlderThreadRuntimeItems).not.toHaveBeenCalled();
+
+    fireEvent.scroll(scrollElement, { target: { scrollTop: 0 } });
+    await waitFor(() => expect(loadOlderThreadRuntimeItems).toHaveBeenCalledOnce());
   });
 
   it("resolves a bare filename chip through the project index before opening it", async () => {

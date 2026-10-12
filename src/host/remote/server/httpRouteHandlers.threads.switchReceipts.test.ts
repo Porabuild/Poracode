@@ -110,6 +110,7 @@ describe.skipIf(!sqliteAvailable).each(["/api/threads/start", "/api/git/call"])(
       } satisfies RemoteAccessServerOptions);
       info = await server.start();
       token = await exchangePairingUrl(info.pairingUrl);
+      callSupervisor.mockClear();
     });
 
     afterEach(async () => {

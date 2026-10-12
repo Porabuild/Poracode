@@ -2,7 +2,7 @@ import type { WebSocket } from "ws";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { Project, RuntimeEvent } from "@/shared/contracts";
 import { remoteProjectCommandResultSchema } from "@/shared/remote";
-import { dbGetProjects } from "@/host/db";
+import { dbGetProjects, dbGetThread } from "@/host/db";
 import { persistSupervisorEvent } from "./server/runtimePersistence";
 import { projectGitStatePatchForInterests } from "./server/gitStateProjection";
 import { filterEventForItemInterests } from "./server/itemInterestFilter";
@@ -280,6 +280,8 @@ function publishAppliedSupervisorEventNow(
   }
   updateBackgroundTasks(host, event);
   updateSessionConfigInventory(host, event);
+  host.threadLiveReadState.observe(event);
+  if (event.type === "thread-reset") host.threadHistoryReplay.invalidate(event.threadId);
 
   // Terminal output is high-volume and ephemeral: keep it off the replayable
   // event stream (replaying PTY bytes would garble the screen) and only send
@@ -320,6 +322,12 @@ function publishAppliedSupervisorEventNow(
     maxBroadcastEventBytes(
       host.options.maxWebSocketOutboundBufferBytes ?? DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES,
     ),
+  );
+  host.threadHistoryReplay.observe(
+    capped.kind === "sendable" ? capped.event : event,
+    seq,
+    capped.kind === "sendable" && capped.omittedBytes === 0,
+    capped.bytes,
   );
   if (capped.kind === "undeliverable") {
     // Nothing about this event can ride the socket. `seq` has still advanced,
@@ -465,6 +473,8 @@ function updateSessionConfigInventory(
   event: RemoteBroadcastEvent,
 ): void {
   if (event.type === "thread-state") {
+    const thread = dbGetThread(event.threadId);
+    if (!thread || (event.agentKind !== undefined && event.agentKind !== thread.agentKind)) return;
     host.sessionConfigInventory.observeThreadState({
       threadId: event.threadId,
       ...(event.agentKind !== undefined ? { agentKind: event.agentKind } : {}),

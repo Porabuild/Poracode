@@ -17,7 +17,8 @@ import {
   threadFollowUpQueueStateSchema,
   threadSchema,
 } from "../../contracts";
-import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../../ipc/schemas";
+import { persistedCompletedTurnSchema } from "../../ipc/schemas";
+import { HISTORY_DETAILS_PROJECTION, historyRuntimeItemSchema } from "../historyPresentation";
 import { gitStateSnapshotSchema } from "../../gitState";
 import { userNotificationSchema } from "../../threadNotification";
 import {
@@ -617,9 +618,12 @@ export const remoteAgentSlashCommandsSchema = z.object({
 export type RemoteAgentSlashCommands = z.infer<typeof remoteAgentSlashCommandsSchema>;
 
 export const remoteThreadSnapshotSchema = z.object({
+  /** Process-epoch and thread-bound cursor for independent transcript recovery. */
+  runtimeResumeCursor: z.string().min(1).optional(),
+  historyProjection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
   snapshotSeq: z.number().int().nonnegative(),
   thread: threadSchema,
-  runtimeItems: z.array(persistedRuntimeItemSchema),
+  runtimeItems: z.array(historyRuntimeItemSchema),
   /** Cursor for older runtime items when the server returned a tail page. */
   runtimeNextCursor: z.number().int().nonnegative().nullable().optional(),
   completedTurns: z.array(persistedCompletedTurnSchema),

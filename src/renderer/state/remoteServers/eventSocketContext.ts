@@ -14,7 +14,12 @@ export interface EventSocketRecoveryState {
   /** Queued recovery frames carry the measured size of the RAW wire frame
    * (UTF-16 upper bound), so recovery accounting never re-serializes an event
    * just to size it. */
-  queuedEvents: Array<{ readonly seq: number; readonly event: unknown; readonly bytes: number }>;
+  queuedEvents: Array<{
+    readonly seq: number;
+    readonly event: unknown;
+    readonly bytes: number;
+    readonly omittedRuntimeThreadIds?: readonly string[];
+  }>;
   queuedBytes: number;
   overflowed: boolean;
   baselineSeqByThread: Map<string, number>;
@@ -80,6 +85,11 @@ export interface EventSocketConnectionContext {
     promise: Promise<boolean> | null;
     socket: RemoteSocketLike | null;
   };
-  dispatchForwardEvent: (forward: unknown, sequence: number, recoveryReplay?: boolean) => void;
+  dispatchForwardEvent: (
+    forward: unknown,
+    sequence: number,
+    recoveryReplay?: boolean,
+    omittedRuntimeThreadIds?: readonly string[],
+  ) => void;
   recoverInterestedThreads: (beforeReplay?: () => void) => Promise<boolean>;
 }

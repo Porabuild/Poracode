@@ -75,6 +75,7 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
     servers.push(server);
     info = await server.start();
     token = await exchangePairingUrl(info.pairingUrl);
+    callSupervisor.mockClear();
   });
 
   afterEach(async () => {

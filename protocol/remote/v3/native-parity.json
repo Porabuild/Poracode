@@ -3275,6 +3275,60 @@
           }
         },
         "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+      },
+      {
+        "id": "thread-history-item",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        }
+      },
+      {
+        "id": "thread-history-changes",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": ["src/shared/remote/contract/routes/threads.ts"]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        }
       }
     ],
     "procedures": [

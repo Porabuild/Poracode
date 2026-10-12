@@ -1,3 +1,5 @@
+import { historyContentOmissions } from "../historyDelivery";
+import { noteHistoryDeliveryGap } from "../historyResumeRegistry";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStatePatch } from "@/shared/gitState";
@@ -134,6 +136,8 @@ export function applyThreadSnapshot(
   snapshot: RemoteThreadSnapshot,
   options: {
     readonly fromServer: boolean;
+    /** A cursor-covered replay updates metadata while retaining its resident window. */
+    readonly preserveRuntimeHistory?: boolean;
     readonly lastSeenEventSeq?: number | undefined;
     readonly committedPrefix?: CommittedHistoryPrefix;
     /** Guard captured immediately before this thread's history request. */
@@ -156,7 +160,7 @@ export function applyThreadSnapshot(
   // A delta can already be in the JS event queue when the foreground recovery
   // snapshot resolves. Apply it before comparing/replacing the transcript so
   // the decision observes every event received up to this point.
-  supervisorReducer.flushSync(threadId);
+  if (!options.preserveRuntimeHistory) supervisorReducer.flushSync(threadId);
   if (proof) {
     if (!proof.isCurrent()) return { installedAuthoritativeHistory: false };
     options = {
@@ -171,7 +175,8 @@ export function applyThreadSnapshot(
   // and offline caching). A flush can synchronously advance the applied seq.
   // Only the additive missing-older-history splice is safe for stale reads.
   const snapshotStale = snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
-  if (isBrowserClientRuntime() && !snapshotStale) void cacheBrowserThreadSnapshot(snapshot);
+  if (isBrowserClientRuntime() && !snapshotStale && !options.preserveRuntimeHistory)
+    void cacheBrowserThreadSnapshot(snapshot);
   const state = useAppStore.getState();
   syncThreadMetadataFromSnapshot(snapshot, options);
 
@@ -190,6 +195,7 @@ export function applyThreadSnapshot(
   // shorter history as an authoritative truncate over the live tail).
   const threadActive = isThreadTurnActive(snapshot.thread.status);
   const shouldReplaceItems =
+    !options.preserveRuntimeHistory &&
     !snapshotStale &&
     ((threadActive &&
       options.fromServer &&
@@ -251,7 +257,7 @@ export function applyThreadSnapshot(
     if (!threadActive) {
       state.reconcileStaleSubAgents(threadId);
     }
-  } else if (options.fromServer) {
+  } else if (options.fromServer && !options.preserveRuntimeHistory) {
     if (!snapshotStale) mergeTerminalDelegatedAgentItems(threadId, snapshotItems);
     mergeMissedOlderSnapshotItems(threadId, snapshotItems);
     if (!snapshotStale && !hasHydratedThreadRuntimeItems(threadId)) {
@@ -319,7 +325,8 @@ export function applyThreadSnapshot(
     }));
   }
 
-  syncRuntimeRequestsFromSnapshot(snapshot, options.lastSeenEventSeq);
+  if (!options.preserveRuntimeHistory)
+    syncRuntimeRequestsFromSnapshot(snapshot, options.lastSeenEventSeq);
   return { installedAuthoritativeHistory: shouldReplaceItems };
 }
 
@@ -481,6 +488,7 @@ function syncRuntimeRequestsFromSnapshot(
  * terminal feed listeners) or were filtered out before dispatch.
  */
 export interface RemoteDispatchHooks {
+  readonly runtimeSequence?: number;
   /**
    * Called when the final-consumer runtime queue drops a thread's incomplete
    * delta batch. The host should install an authoritative snapshot before the
@@ -567,6 +575,16 @@ export function clearPendingRuntimeEvents(): void {
   supervisorReducer.clear();
 }
 
+export function canResumeQueuedRuntimeHistory(threadId: string): boolean {
+  return !supervisorReducer.arbitration.hasUnsequenced(threadId);
+}
+export function discardPendingRuntimeEventsThroughSequence(
+  threadId: string,
+  sequence: number,
+): void {
+  supervisorReducer.arbitration.discardThroughSequence(threadId, sequence, "loopback");
+}
+
 function asSupervisorEvent(value: unknown): SupervisorEvent | null {
   if (!value || typeof value !== "object") return null;
   if (typeof (value as { type?: unknown }).type !== "string") return null;
@@ -576,6 +594,10 @@ function asSupervisorEvent(value: unknown): SupervisorEvent | null {
 export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
   currentDispatchHooks = hooks ?? null;
   try {
+    const omissions =
+      value && typeof value === "object" ? historyContentOmissions(value) : undefined;
+    for (const threadId of omissions ?? []) noteHistoryDeliveryGap(threadId);
+    const deliveryOptions = omissions ? { omittedRuntimeThreadIds: omissions } : {};
     const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
     if (runtimeBatches.length > 0) {
       for (const batch of runtimeBatches) {
@@ -586,10 +608,19 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
       if (hooks?.deliverRuntimeEventsImmediately) {
         supervisorReducer.enqueueRuntimeBatches(runtimeBatches, {
           deliverRuntimeEventsImmediately: true,
+          ...deliveryOptions,
+          ...(hooks.runtimeSequence !== undefined
+            ? { rendererSequence: hooks.runtimeSequence, sequenceSpace: "loopback" }
+            : {}),
         });
         return;
       }
-      supervisorReducer.enqueueRuntimeBatches(runtimeBatches);
+      supervisorReducer.enqueueRuntimeBatches(runtimeBatches, {
+        ...deliveryOptions,
+        ...(hooks?.runtimeSequence !== undefined
+          ? { rendererSequence: hooks.runtimeSequence, sequenceSpace: "loopback" as const }
+          : {}),
+      });
       supervisorReducer.installScheduling();
       return;
     }

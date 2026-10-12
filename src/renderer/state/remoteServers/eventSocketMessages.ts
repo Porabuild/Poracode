@@ -1,3 +1,4 @@
+import { rememberHistoryContentOmissions } from "../historyDelivery";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { handleBrowserServerMessage } from "@/renderer/browser/browserMirror";
 import { releaseRemoteTerminal, remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
@@ -91,7 +92,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     void (async () => {
       let history: Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>;
       try {
-        history = await client.boundedThreadHistory(targetRemoteThreadId);
+        history = await client.boundedThreadHistory(targetRemoteThreadId, { compactDetails: true });
       } catch {
         finishTruncateReload(lease, null);
         return;
@@ -161,11 +162,23 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     }
   };
 
-  ctx.dispatchForwardEvent = (forward, sequence, recoveryReplay = false): void => {
+  ctx.dispatchForwardEvent = (
+    forward,
+    sequence,
+    recoveryReplay = false,
+    omittedRuntimeThreadIds,
+  ): void => {
     for (const threadId of supervisorEventThreadIds(forward)) {
       recordRemoteThreadAppliedSeq(connectionKey, threadId, sequence);
     }
-    dispatchRemoteSupervisorEvent(projectRemoteThreadEvent(connectionKey, forward), {
+    const projected = projectRemoteThreadEvent(connectionKey, forward);
+    if (projected && typeof projected === "object" && omittedRuntimeThreadIds)
+      rememberHistoryContentOmissions(
+        projected,
+        omittedRuntimeThreadIds.map((id) => remoteThreadId(connectionKey, id)),
+      );
+    dispatchRemoteSupervisorEvent(projected, {
+      runtimeSequence: sequence,
       onGitSummaries: (summaries) => syncRemoteGitSummaries(connectionKey, summaries),
       onGitState: (patch) => syncRemoteGitStatePatch(connectionKey, patch),
       onRuntimeQueueOverflow: (_threadIds, resume) => ctx.recoverInterestedThreads(resume),
@@ -201,6 +214,11 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           return;
         }
         if (message.type === "event") {
+          if (message.omittedRuntimeThreadIds && message.event && typeof message.event === "object")
+            rememberHistoryContentOmissions(
+              message.event,
+              message.omittedRuntimeThreadIds.map((id) => remoteThreadId(connectionKey, id)),
+            );
           // Expected-seq gap detection (V5 2.1): the server delivers one
           // frame per seq to every connected client, so a jump over the
           // next expected seq means a frame was lost in transit or dropped
@@ -350,6 +368,9 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
                   seq: message.seq,
                   event: recoveryEvent,
                   bytes: eventBytes,
+                  ...(message.omittedRuntimeThreadIds
+                    ? { omittedRuntimeThreadIds: message.omittedRuntimeThreadIds }
+                    : {}),
                 });
                 recovery.queuedBytes += eventBytes;
               }
@@ -371,14 +392,21 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
               ) {
                 recovery.overflowed = true;
               } else {
-                recovery.queuedEvents.push({ seq: message.seq, event: forward, bytes: eventBytes });
+                recovery.queuedEvents.push({
+                  seq: message.seq,
+                  event: forward,
+                  bytes: eventBytes,
+                  ...(message.omittedRuntimeThreadIds
+                    ? { omittedRuntimeThreadIds: message.omittedRuntimeThreadIds }
+                    : {}),
+                });
                 recovery.queuedBytes += eventBytes;
               }
               forward = null;
             }
           }
           if (forward !== null) {
-            ctx.dispatchForwardEvent(forward, message.seq);
+            ctx.dispatchForwardEvent(forward, message.seq, false, message.omittedRuntimeThreadIds);
           } else if (
             message.event &&
             typeof message.event === "object" &&

@@ -71,6 +71,7 @@ describe("post-await media validation over real HTTP", () => {
       async () => ({ status: "binary" }) as never,
     );
     const { owner } = await host(callSupervisor);
+    callSupervisor.mockClear();
     const source = await owner.createMediaSource(file());
     expect(callSupervisor).toHaveBeenCalledTimes(1);
     callSupervisor.mockClear();

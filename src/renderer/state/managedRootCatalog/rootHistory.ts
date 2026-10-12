@@ -79,17 +79,27 @@ function assertSameActivation(activation: ManagedLoopbackActivationSnapshot): vo
  */
 export async function readManagedRootHistoryPage(
   threadId: string,
+  options: { readonly signal?: AbortSignal; readonly page?: RemoteBoundedThreadHistoryPage } = {},
 ): Promise<RemoteBoundedThreadHistoryPage> {
   const activation = requireActivation();
-  const result = await activation.client.boundedThreadHistory(threadId, {
-    noticesCapable: true,
-    maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-    maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
-  });
+  const result = options.page
+    ? ({ negotiation: "bounded", page: options.page } as const)
+    : await activation.client.boundedThreadHistory(threadId, {
+        compactDetails: true,
+        noticesCapable: true,
+        maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
+        maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
+        ...(options.signal ? { signal: options.signal } : {}),
+      });
+  // A buffered response can resolve despite transport cancellation. Fence its
+  // continuation and notice writes before changing the authoritative tail.
+  options.signal?.throwIfAborted();
   assertSameActivation(activation);
   if (result.negotiation !== "bounded") {
     throw new Error(i18n._(msg`This server does not support the bounded history read.`));
   }
+  if (result.page.thread.id !== threadId)
+    throw new Error("History response has a different thread identity.");
   recordManagedRootBoundedHistoryTail({ threadId, page: result.page });
   recordThreadHistoryNoticeRead(threadId, activation.authority, result.page.runtimeNotice);
   return result.page;
@@ -105,6 +115,7 @@ export async function loadManagedRootRuntimeItemsPage(input: {
   readonly beforePosition: number;
   readonly limit: number;
   readonly targetTimelineEntryCount?: number | undefined;
+  readonly signal?: AbortSignal;
 }): Promise<
   { readonly items: PersistedRuntimeItem[]; readonly nextCursor: number | null } | undefined
 > {

@@ -71,7 +71,8 @@ import {
 import { CodexSubAgentRouter } from "./subAgentRouting";
 import { isCodexCompactCommand, runCodexCompactCommand } from "./compactCommand";
 import { CodexContextWindowReload } from "./contextWindowReload";
-import { resumeCodexThread } from "./threadResume";
+import { forkCodexThread, resumeCodexThread } from "./threadResume";
+import { readCodexTurnSummaries } from "./threadTurnSummaries";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
@@ -1123,19 +1124,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   /** Pure revert planning: validates the request and reads provider state. */
   private async planRevertTarget(numTurns: number): Promise<CodexRevertTarget> {
     const threadId = await this.waitForRemoteThreadId();
-    const readResult = await this.rpc.request("thread/read", {
-      threadId,
-      includeTurns: true,
-    });
-    const turns = readResult.thread?.turns;
-    if (!Array.isArray(turns)) {
-      return {
-        variant: "rollback",
-        sourceThreadId: threadId,
-        numTurns,
-        reason: "thread/read omitted turn history",
-      };
-    }
+    const turns = await readCodexTurnSummaries(this.rpc, threadId, { count: numTurns + 1 });
     if (turns.length <= numTurns) {
       return {
         variant: "rollback",
@@ -1144,7 +1133,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         reason: "thread/fork has no retained turn",
       };
     }
-    const retainedTurn = turns.at(turns.length - numTurns - 1);
+    const retainedTurn = turns[numTurns];
     if (!retainedTurn || typeof retainedTurn.id !== "string") {
       return {
         variant: "rollback",
@@ -1224,7 +1213,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     });
     this.forkNotificationBuffer = [];
     try {
-      forkResult = await this.rpc.request("thread/fork", {
+      forkResult = await forkCodexThread(this.rpc, {
         ...threadOverrides,
         threadId,
         lastTurnId,
@@ -1310,14 +1299,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         activeTurnIds.add(this.activeTurnId);
       }
       if (this.currentThreadStatus.type === "active") {
-        const result = await this.rpc
-          .request(
-            "thread/read",
-            { threadId: remoteThreadId, includeTurns: true },
-            requestTimeout(),
-          )
-          .catch(() => undefined);
-        for (const turn of result?.thread?.turns ?? []) {
+        const turns = await readCodexTurnSummaries(this.rpc, remoteThreadId, {
+          // Active work is at the recent end. Never scan historical turns
+          // before stopping; fresh thread status below still fences release.
+          count: 100,
+          maxPages: 1,
+          timeout: requestTimeout,
+          isCurrent: () => this.rpc.ownsThread(remoteThreadId),
+        }).catch(() => []);
+        for (const turn of turns) {
           if (turn.status === "inProgress") {
             activeTurnIds.add(turn.id);
           }
@@ -1342,18 +1332,14 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         while (this.rpc.ownsThread(remoteThreadId)) {
           const result = await this.rpc.request(
             "thread/read",
-            { threadId: remoteThreadId, includeTurns: true },
+            { threadId: remoteThreadId, includeTurns: false },
             requestTimeout(),
           );
           if (!this.rpc.ownsThread(remoteThreadId)) break;
-          if (!result.thread?.status || !Array.isArray(result.thread.turns)) {
+          if (!result.thread?.status) {
             throw new Error("Codex did not return thread shutdown status.");
           }
-          if (
-            result.thread.status.type !== "active" &&
-            result.thread.turns.every((turn) => turn.status !== "inProgress")
-          )
-            break;
+          if (result.thread.status.type !== "active") break;
           // Completion can race an interrupt and make its turn id stale. A
           // confirmed idle thread is safe; a failed interrupt on live work is not.
           if (interruptFailure) throw interruptFailure;

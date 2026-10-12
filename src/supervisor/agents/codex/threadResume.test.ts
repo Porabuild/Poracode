@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CodexAppServerRpc } from "./appServerRpc";
 import type { CodexStdioTransportListener } from "./stdioTransport";
 import { setupCodexStructuredSession } from "./structuredSessionTestHarness";
-import { resumeCodexThread } from "./threadResume";
+import { forkCodexThread, resumeCodexThread } from "./threadResume";
 
 function rpcHarness() {
   let listener: CodexStdioTransportListener;
@@ -28,6 +28,29 @@ function rpcHarness() {
 }
 
 afterEach(() => vi.useRealTimers());
+
+it("forks without history and preserves the absolute anchor on older optional-field rejection", async () => {
+  const h = rpcHarness();
+  const pending = forkCodexThread(h.rpc, { threadId: "saved-thread", lastTurnId: "retained-turn" });
+  expect(h.writes[0]).toMatchObject({
+    method: "thread/fork",
+    params: {
+      threadId: "saved-thread",
+      lastTurnId: "retained-turn",
+      excludeTurns: true,
+    },
+  });
+  h.reply({ id: "poracode-0", error: { code: -32602, message: "Unknown field `excludeTurns`" } });
+  await vi.waitFor(() => expect(h.writes).toHaveLength(2));
+  expect(h.writes[1]).toMatchObject({
+    method: "thread/fork",
+    params: { threadId: "saved-thread", lastTurnId: "retained-turn" },
+  });
+  expect(h.writes[1]?.params).not.toHaveProperty("excludeTurns");
+  h.reply({ id: "poracode-1", result: { thread: { id: "forked-thread", turns: [] } } });
+  await expect(pending).resolves.toMatchObject({ thread: { id: "forked-thread" } });
+  h.rpc.dispose(new Error("test cleanup"));
+});
 
 describe("Codex metadata-only resume", () => {
   it("accepts a slow resume after the previous 30s limit without fetching turns", async () => {

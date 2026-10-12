@@ -124,6 +124,7 @@ describe.skipIf(!sqliteAvailable)("remote13 writer-generation admission", () => 
     info = await server.start();
     token = await exchangePairingUrl(info.pairingUrl);
     auditBaseline = auditEvents.length;
+    callSupervisor.mockClear();
   });
 
   afterEach(async () => {

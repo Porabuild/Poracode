@@ -1,3 +1,5 @@
+import { ThreadHistoryReplay } from "@/host/remote/server/threadHistoryReplay";
+import { ThreadLiveReadState } from "@/host/remote/server/threadLiveReadState";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -120,6 +122,8 @@ function historyContext(admission: LegacyBulkReadAdmission): RemoteServerContext
     seq: 7,
     legacyBulkReadAdmission: admission,
     backgroundTasksByThread: new Map(),
+    threadLiveReadState: new ThreadLiveReadState(),
+    threadHistoryReplay: new ThreadHistoryReplay(),
     sessionConfigInventory: new SessionConfigInventory(),
   } as unknown as RemoteServerContext;
 }
