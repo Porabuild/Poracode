@@ -5188,6 +5188,10 @@ msgstr "Поиск агентов…"
 msgid "Discovering coding agents…"
 msgstr "Поиск агентов для кодирования…"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Discovery complete"
+msgstr "Поиск завершён"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Dismiss"
@@ -5257,6 +5261,7 @@ msgstr "готово"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -11773,6 +11778,7 @@ msgid "Refresh {0} authentication"
 msgstr "Обновить аутентификацию {0}"
 
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
 msgstr "Обновить {label}"
 

@@ -5188,6 +5188,10 @@ msgstr "에이전트 검색 중…"
 msgid "Discovering coding agents…"
 msgstr "코딩 에이전트 검색 중…"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Discovery complete"
+msgstr "검색 완료"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Dismiss"
@@ -5257,6 +5261,7 @@ msgstr "완료"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -11773,6 +11778,7 @@ msgid "Refresh {0} authentication"
 msgstr "{0} 인증 새로 고침"
 
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
 msgstr "{label} 새로고침"
 

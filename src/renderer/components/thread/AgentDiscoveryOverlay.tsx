@@ -17,7 +17,18 @@ export function AgentDiscoveryOverlay() {
   const setHidden = useAgentStatusesStore((s) => s.setDiscoveryHidden);
   if (!active) return null;
   if (!hidden)
-    return <AgentDiscoveryScreen onHide={() => setHidden(true)} onCancel={cancelAgentDiscovery} />;
+    return (
+      <AgentDiscoveryScreen
+        onHide={() => {
+          // A running scan hides into the background pill; a finished scan
+          // dismisses outright (its rows live only for this session).
+          const state = useAgentStatusesStore.getState();
+          if (state.discoveryScanning) state.setDiscoveryHidden(true);
+          else state.resetDiscoveredAgents();
+        }}
+        onCancel={cancelAgentDiscovery}
+      />
+    );
   return createPortal(
     <div
       className="agent-discovery-indicator fixed bottom-5 right-5 z-[60]"

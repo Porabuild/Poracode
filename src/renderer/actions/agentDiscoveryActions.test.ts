@@ -1,13 +1,22 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { agentStatusSchema, type AgentStatusesResponse } from "@/shared/contracts";
+import {
+  agentStatusSchema,
+  type AgentStatusesResponse,
+  type RefreshAgentScope,
+} from "@/shared/contracts";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 
 const bridge = vi.hoisted(() => ({
-  refreshAgentStatuses: vi.fn<(distros: string[]) => Promise<AgentStatusesResponse>>(),
+  refreshAgentStatuses:
+    vi.fn<(distros: string[], scope?: RefreshAgentScope) => Promise<AgentStatusesResponse>>(),
   cancelAgentDiscovery: vi.fn<() => Promise<AgentStatusesResponse>>(),
 }));
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
-import { cancelAgentDiscovery, refreshAgentDiscovery } from "./agentDiscoveryActions";
+import {
+  cancelAgentDiscovery,
+  refreshAgentDiscovery,
+  refreshDiscoveredAgent,
+} from "./agentDiscoveryActions";
 const empty = { windows: [], wsl: [], fromCache: false };
 function deferred() {
   let resolve!: (response: AgentStatusesResponse) => void;
@@ -24,6 +33,7 @@ beforeEach(() => {
     windowsLoaded: false,
     wslLoaded: false,
     inFirstLaunchDiscovery: false,
+    discoveryScanning: false,
     discoveryScope: undefined,
     discoveredAgents: [],
     discoveryHidden: false,
@@ -36,7 +46,7 @@ afterEach(() => {
 });
 
 describe("app-owned agent discovery", () => {
-  it("hides without cancelling and accepts the result while the artwork is hidden", async () => {
+  it("hides without cancelling and keeps the finished scan's rows open behind the pill", async () => {
     const scan = deferred();
     bridge.refreshAgentStatuses.mockReturnValue(scan.promise);
     refreshAgentDiscovery(["Ubuntu"]);
@@ -48,7 +58,9 @@ describe("app-owned agent discovery", () => {
     expect(useAgentStatusesStore.getState().windowsLoaded).toBe(true);
     expect(useAgentStatusesStore.getState().discoveryHidden).toBe(true);
     await vi.advanceTimersByTimeAsync(1000);
-    expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
+    // Completion ends the scan phase but no longer dismisses the session.
+    expect(useAgentStatusesStore.getState().discoveryScanning).toBe(false);
+    expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(true);
   });
   it("cancels the supervisor scan and ignores its late refresh result", async () => {
     const scan = deferred();
@@ -104,5 +116,51 @@ describe("app-owned agent discovery", () => {
     cancellation.resolve(empty);
     await vi.advanceTimersByTimeAsync(0);
     expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(true);
+  });
+
+  it("re-probes one discovered agent scoped to its own kind and environment", async () => {
+    bridge.refreshAgentStatuses.mockResolvedValue(empty);
+    const wslStatus = agentStatusSchema.parse({
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {},
+      envKind: "wsl",
+      envDistro: "Ubuntu",
+    });
+    await refreshDiscoveredAgent(wslStatus);
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith([], {
+      agentKinds: ["codex"],
+      envs: [{ kind: "wsl", distro: "Ubuntu" }],
+    });
+    // The session is untouched — refreshed data arrives via streamed events.
+    expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
+
+    bridge.refreshAgentStatuses.mockClear();
+    const nativeStatus = agentStatusSchema.parse({
+      kind: "claude",
+      label: "Claude Code",
+      installed: true,
+      authState: "missing",
+      capabilities: {},
+    });
+    await refreshDiscoveredAgent(nativeStatus);
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith([], {
+      agentKinds: ["claude"],
+      envs: [{ kind: "native" }],
+    });
+  });
+
+  it("swallows a failed per-row refresh (the row simply stays as it was)", async () => {
+    bridge.refreshAgentStatuses.mockRejectedValue(new Error("supervisor gone"));
+    const status = agentStatusSchema.parse({
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {},
+    });
+    await expect(refreshDiscoveredAgent(status)).resolves.toBeUndefined();
   });
 });

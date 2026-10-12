@@ -5187,6 +5187,10 @@ msgstr "エージェントを検出中…"
 msgid "Discovering coding agents…"
 msgstr "コーディング エージェントを発見中…"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Discovery complete"
+msgstr "発見が完了しました"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Dismiss"
@@ -5256,6 +5260,7 @@ msgstr "完了しました"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -11771,6 +11776,7 @@ msgid "Refresh {0} authentication"
 msgstr "{0}認証を更新します"
 
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
 msgstr "{label} を更新する"
 

@@ -4,6 +4,14 @@
    the only keyframes owned here are the row entry and the status heartbeat.
    Motion stays on transform/opacity; the entry glow is a one-shot. */
 
+/* Chrome-free top strip: keeps the frameless window draggable (and content
+   clear of the macOS traffic lights) without a visible title bar. */
+.agent-discovery-dragstrip {
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
+
 /* One ring fired per newly found agent (keyed in the component, so it
    replays). Reuses the pair-ripple travel but runs once and dies invisible. */
 .agent-discovery-radar__arrival {

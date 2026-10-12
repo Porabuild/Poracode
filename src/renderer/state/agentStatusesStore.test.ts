@@ -37,6 +37,7 @@ function reset() {
     windowsLoaded: false,
     wslLoaded: false,
     inFirstLaunchDiscovery: false,
+    discoveryScanning: false,
     discoveryScope: undefined,
     discoveredAgents: [],
   });
@@ -861,12 +862,13 @@ describe("setAgentStatuses", () => {
     );
   });
 
-  it("flips windowsLoaded to true on first apply, ending first-launch discovery", () => {
-    useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true });
+  it("flips windowsLoaded to true on first apply, completing the scan but keeping results open", () => {
+    useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true, discoveryScanning: true });
     useAgentStatusesStore.getState().setAgentStatuses([]);
     const state = useAgentStatusesStore.getState();
     expect(state.windowsLoaded).toBe(true);
-    expect(state.inFirstLaunchDiscovery).toBe(false);
+    expect(state.discoveryScanning).toBe(false);
+    expect(state.inFirstLaunchDiscovery).toBe(true);
     expect(state.discoveryScope).toBeUndefined();
   });
 });
@@ -882,9 +884,10 @@ describe("setWslAgentStatuses", () => {
     expect(state.wslLoaded).toBe(true);
   });
 
-  it("ends WSL discovery when WSL statuses arrive", () => {
+  it("completes a WSL scan when WSL statuses arrive, keeping results open", () => {
     useAgentStatusesStore.setState({
       inFirstLaunchDiscovery: true,
+      discoveryScanning: true,
       discoveryScope: { kind: "wsl", distro: "Ubuntu" },
       wslLoaded: false,
     });
@@ -893,8 +896,9 @@ describe("setWslAgentStatuses", () => {
       .setWslAgentStatuses([makeStatus({ envKind: "wsl", envDistro: "Ubuntu" })]);
     const state = useAgentStatusesStore.getState();
     expect(state.wslLoaded).toBe(true);
-    expect(state.inFirstLaunchDiscovery).toBe(false);
-    expect(state.discoveryScope).toBeUndefined();
+    expect(state.discoveryScanning).toBe(false);
+    expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScope).toEqual({ kind: "wsl", distro: "Ubuntu" });
   });
 
   it("preserves reference when re-applying identical statuses", () => {
@@ -909,7 +913,7 @@ describe("setWslAgentStatuses", () => {
 
 describe("hydrateFromCache", () => {
   it("populates both lists, marks both scopes loaded, and ends discovery", () => {
-    useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true });
+    useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true, discoveryScanning: true });
     useAgentStatusesStore.getState().hydrateFromCache({
       windows: [makeStatus({ kind: "claude" })],
       wsl: [makeStatus({ kind: "gemini", envKind: "wsl", envDistro: "Ubuntu" })],
@@ -920,6 +924,7 @@ describe("hydrateFromCache", () => {
     expect(state.windowsLoaded).toBe(true);
     expect(state.wslLoaded).toBe(true);
     expect(state.inFirstLaunchDiscovery).toBe(false);
+    expect(state.discoveryScanning).toBe(false);
     expect(state.discoveryScope).toBeUndefined();
   });
 });
@@ -932,6 +937,7 @@ describe("beginFirstLaunchDiscovery", () => {
     useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
     const state = useAgentStatusesStore.getState();
     expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScanning).toBe(true);
     expect(state.discoveryScope).toEqual({ kind: "native" });
     expect(state.discoveredAgents).toEqual([]);
   });
@@ -940,6 +946,7 @@ describe("beginFirstLaunchDiscovery", () => {
     useAgentStatusesStore.setState({ windowsLoaded: true });
     useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
     expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
+    expect(useAgentStatusesStore.getState().discoveryScanning).toBe(false);
   });
 
   it("can start WSL discovery after native statuses loaded", () => {
@@ -947,6 +954,7 @@ describe("beginFirstLaunchDiscovery", () => {
     useAgentStatusesStore.getState().beginFirstLaunchDiscovery({ kind: "wsl", distro: "Ubuntu" });
     const state = useAgentStatusesStore.getState();
     expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScanning).toBe(true);
     expect(state.discoveryScope).toEqual({ kind: "wsl", distro: "Ubuntu" });
     expect(state.wslLoaded).toBe(false);
   });
@@ -958,6 +966,7 @@ describe("beginFirstLaunchDiscovery", () => {
       .beginFirstLaunchDiscovery({ kind: "all", wslDistros: ["Ubuntu"] });
     const state = useAgentStatusesStore.getState();
     expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScanning).toBe(true);
     expect(state.discoveryScope).toEqual({ kind: "all", wslDistros: ["Ubuntu"] });
   });
 });
@@ -975,6 +984,17 @@ describe("pushDiscoveredAgent", () => {
     useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "claude" }));
     useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "claude" }));
     expect(useAgentStatusesStore.getState().discoveredAgents).toHaveLength(1);
+  });
+
+  it("replaces an already-listed row in place when a fresher status streams in", () => {
+    useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
+    useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "claude" }));
+    useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "gemini" }));
+    const fresher = makeStatus({ kind: "claude", authState: "missing" });
+    useAgentStatusesStore.getState().pushDiscoveredAgent(fresher);
+    const discovered = useAgentStatusesStore.getState().discoveredAgents;
+    expect(discovered.map((status) => status.kind)).toEqual(["claude", "gemini"]);
+    expect(discovered[0]).toBe(fresher);
   });
 
   it("ignores WSL agents during native discovery", () => {
@@ -1025,6 +1045,7 @@ describe("resetDiscoveredAgents", () => {
     const state = useAgentStatusesStore.getState();
     expect(state.discoveredAgents).toEqual([]);
     expect(state.inFirstLaunchDiscovery).toBe(false);
+    expect(state.discoveryScanning).toBe(false);
     expect(state.discoveryScope).toBeUndefined();
   });
 
@@ -1071,6 +1092,18 @@ describe("mergeAgentStatus", () => {
       .getState()
       .mergeAgentStatus(makeStatus({ kind: "gemini", envKind: "wsl", envDistro: "Debian" }));
     expect(useAgentStatusesStore.getState().wslAgentStatuses).toHaveLength(2);
+  });
+
+  it("updates a listed discovery row without appending unlisted ones", () => {
+    const listed = makeStatus({ kind: "claude", authState: "missing" });
+    useAgentStatusesStore.setState({ discoveredAgents: [listed] });
+    useAgentStatusesStore
+      .getState()
+      .mergeAgentStatus(makeStatus({ kind: "claude", authState: "authenticated" }));
+    useAgentStatusesStore.getState().mergeAgentStatus(makeStatus({ kind: "gemini" }));
+    const discovered = useAgentStatusesStore.getState().discoveredAgents;
+    expect(discovered).toHaveLength(1);
+    expect(discovered[0]?.authState).toBe("authenticated");
   });
 });
 

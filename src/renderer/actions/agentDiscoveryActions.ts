@@ -1,6 +1,8 @@
 import type { AgentStatus } from "@/shared/contracts";
+import { agentEnvForStatus } from "@/shared/machines";
 import { readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
 
 // The scan belongs to the app, so leaving Settings cannot discard its result.
 // A cancelled run must not hydrate over a newer refresh.
@@ -32,10 +34,27 @@ export function refreshAgentDiscovery(wslDistros: string[]): void {
       setTimeout(() => {
         if (run === current) {
           baseline = undefined;
-          useAgentStatusesStore.getState().resetDiscoveredAgents();
+          // The scan is over but its rows stay open — refreshed one by one or
+          // dismissed with Done; nothing here auto-hides the overlay.
+          useAgentStatusesStore.setState({ discoveryScanning: false });
         }
       }, 1000);
     });
+}
+
+/**
+ * Re-probe one discovered agent in its own environment (the row's refresh
+ * button). The scan session is untouched; the refreshed status streams back
+ * as `agent-detected` / `agent-status-updated` events and updates the row.
+ */
+export async function refreshDiscoveredAgent(status: AgentStatus): Promise<void> {
+  await readBridge()
+    .refreshAgentStatuses(currentWslDistros(), {
+      agentKinds: [status.kind],
+      envs: [agentEnvForStatus(status)],
+    })
+    .then(() => undefined)
+    .catch(() => undefined);
 }
 
 export function cancelAgentDiscovery(): void {
