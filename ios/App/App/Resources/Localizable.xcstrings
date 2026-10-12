@@ -37893,7 +37893,7 @@
             "value": "Kích thước ngữ cảnh mới áp dụng từ tin nhắn tiếp theo của bạn. Phiên tác nhân sẽ được tải lại trước khi gửi tin nhắn đó; cuộc trò chuyện vẫn được giữ nguyên."
           }
         },
-        "zh-CN": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "新的上下文大小将从你的下一条消息开始生效。发送该消息前会重新加载智能体会话；对话内容会保留。"
@@ -37976,7 +37976,7 @@
             "value": "Mọi tác nhân phụ vẫn đang chạy khi phiên được tải lại sẽ bị dừng."
           }
         },
-        "zh-CN": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "会话重新加载时仍在运行的所有子代理都将停止。"
