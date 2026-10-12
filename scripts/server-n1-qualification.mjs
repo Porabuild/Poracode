@@ -335,16 +335,18 @@ async function runN1QualificationInner(options, evidence) {
     evidence.n1Install.dataRoot = dataRoot;
 
     // 5. Seed real payloads through the N-1 HTTP surface.
-    const accessToken = await pairAndAuthenticate(
+    const { token: accessToken, protocolVersion } = await pairAndAuthenticate(
       runCli,
       n1Entry,
       serverEnv(profile, null),
       httpBase,
       fetchImpl,
+      n1Doctor,
     );
     const add = await jsonRequest(fetchImpl, `${httpBase}/api/projects/command`, {
       method: "POST",
       token: accessToken,
+      protocolVersion,
       body: { kind: "add-existing", path: project, name: "n1-qualify" },
     });
     if (add.status !== 200 && add.status !== 201) {
@@ -355,6 +357,7 @@ async function runN1QualificationInner(options, evidence) {
     const start = await jsonRequest(fetchImpl, `${httpBase}/api/terminal/start`, {
       method: "POST",
       token: accessToken,
+      protocolVersion,
       body: {
         shellId: SHELL_ID,
         projectLocation: makeProjectLocation(project),
@@ -369,6 +372,7 @@ async function runN1QualificationInner(options, evidence) {
     const ticket = await jsonRequest(fetchImpl, `${httpBase}/api/auth/websocket-ticket`, {
       method: "POST",
       token: accessToken,
+      protocolVersion,
     });
     if (ticket.status !== 200 || typeof ticket.body?.ticket !== "string") {
       throw new Error(`websocket-ticket failed (${ticket.status})`);
@@ -390,6 +394,7 @@ async function runN1QualificationInner(options, evidence) {
             {
               method: "POST",
               token: accessToken,
+              protocolVersion,
               body: { data: "sh -c 'echo n1q-$((84+2))-turn'\n" },
             },
           );
@@ -406,6 +411,7 @@ async function runN1QualificationInner(options, evidence) {
     const goal = await jsonRequest(fetchImpl, `${httpBase}/api/threads/${SHELL_ID}/goal`, {
       method: "POST",
       token: accessToken,
+      protocolVersion,
       body: { action: "edit", objective: `${GOAL_MARKER} keep this thread on track` },
     });
     evidence.seeded = {
@@ -528,12 +534,13 @@ async function runN1QualificationInner(options, evidence) {
       );
     }
 
-    const candidateToken = await pairAndAuthenticate(
+    const { token: candidateToken } = await pairAndAuthenticate(
       runCli,
       candidateEntry,
       serverEnv(profile, null),
       httpBase,
       fetchImpl,
+      candidateDoctor,
     );
     const projects = await listRoute(
       fetchImpl,
@@ -748,7 +755,7 @@ async function main() {
   const outDir = options.outDir ?? workRoot;
   mkdirSync(outDir, { recursive: true });
   const resultPath = join(outDir, "n1-qualification-result.json");
-  writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
+  writeFileSync(resultPath, `${redactSecrets(JSON.stringify(result, null, 2))}\n`);
   process.stdout.write(
     `${JSON.stringify({
       ok: result.ok,

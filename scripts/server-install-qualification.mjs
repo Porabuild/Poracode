@@ -24,11 +24,27 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
+import {
+  jsonRequest as requestJson,
+  readQualificationProtocolVersion,
+} from "./qualification-http.mjs";
+import { redactSecrets } from "./server-n1-qualification/redaction.mjs";
 import { installServerPrefix } from "./install-server-prefix.mjs";
 import { readServerArtifactMetadata } from "./server-artifact-metadata.mjs";
 
 function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+export function assertUnchangedProjectCatalog(before, after) {
+  if (
+    before.status !== 200 ||
+    after.status !== 200 ||
+    !isDeepStrictEqual(before.body, after.body)
+  ) {
+    throw new Error("rejected writer request changed the project catalog or catalog read failed");
+  }
 }
 
 /**
@@ -182,23 +198,7 @@ function startPtyWatch({ wsUrl, shellId }) {
   };
 }
 
-async function jsonRequest(url, { method = "GET", token, body } = {}) {
-  const headers = { "content-type": "application/json" };
-  if (token) headers.authorization = `Bearer ${token}`;
-  const response = await fetch(url, {
-    method,
-    headers,
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  const text = await response.text();
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    parsed = text;
-  }
-  return { status: response.status, body: parsed };
-}
+const jsonRequest = (url, options) => requestJson(fetch, url, options);
 
 /** Environment for a spawned server/CLI step. `port === null` selects a
  * read-only one-shot command (doctor, pair) that must not touch a listener. */
@@ -226,7 +226,8 @@ function assertDoctorOk(entry, profile, label) {
 }
 
 /** Pair against the running daemon, exchange the credential, read describe. */
-async function pairAndAuthenticate(entry, profile, httpBase) {
+async function pairAndAuthenticate(entry, profile, httpBase, doctorReport) {
+  const protocolVersion = await readQualificationProtocolVersion(fetch, httpBase, doctorReport);
   const pairingRaw = execFileSync(process.execPath, [entry, "pair", "--json"], {
     encoding: "utf8",
     env: serverEnv(profile, null),
@@ -262,6 +263,7 @@ async function pairAndAuthenticate(entry, profile, httpBase) {
   }
   return {
     token: token.body.accessToken,
+    protocolVersion,
     capabilities: describeRes.body?.capabilities ?? {},
   };
 }
@@ -365,7 +367,7 @@ export function terminalTurnInput(platform = process.platform) {
 /** Send one terminal-thread turn and assert its EFFECT comes back (V6 D.1).
  * The needle only exists in the command's OUTPUT — the shell must execute the
  * arithmetic — so the echoed input can never satisfy the wait. */
-async function runOneThreadTurn({ httpBase, token, shellId, ticket }) {
+async function runOneThreadTurn({ httpBase, token, protocolVersion, shellId, ticket }) {
   const watch = startPtyWatch({
     wsUrl: `ws://127.0.0.1:${new URL(httpBase).port}/ws?ticket=${encodeURIComponent(ticket)}`,
     shellId,
@@ -378,6 +380,7 @@ async function runOneThreadTurn({ httpBase, token, shellId, ticket }) {
         const written = await jsonRequest(`${httpBase}/api/threads/${shellId}/terminal/write`, {
           method: "POST",
           token,
+          protocolVersion,
           body: { data: terminalTurnInput() },
         });
         if (written.status !== 200) {
@@ -416,7 +419,7 @@ async function runUpgradePhase({ prefix, tarball, profile, port, httpBase, expec
   }
 
   const doctorReport = assertDoctorOk(entry, profile, "upgraded-install");
-  const { capabilities } = await pairAndAuthenticate(entry, profile, httpBase);
+  const { capabilities } = await pairAndAuthenticate(entry, profile, httpBase, doctorReport);
   assertOutOfCheckoutCapabilities(doctorReport, capabilities, expectedComputerUse);
 
   const pidPath = join(prefix, "poracode-server.pid");
@@ -467,23 +470,46 @@ export async function qualifyServerInstall(options) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   const logs = [];
+  let writerAdmission;
   child.stdout.on("data", (chunk) => logs.push(chunk.toString("utf8")));
   child.stderr.on("data", (chunk) => logs.push(chunk.toString("utf8")));
   try {
     await waitForText(child.stdout, "listening at:", 60_000);
-    const envRes = await fetch(`${httpBase}/.well-known/poracode/environment`);
-    if (!envRes.ok) throw new Error(`environment ${envRes.status}`);
-
-    const { token, capabilities } = await pairAndAuthenticate(entry, profile, httpBase);
+    const { token, protocolVersion, capabilities } = await pairAndAuthenticate(
+      entry,
+      profile,
+      httpBase,
+      doctorReport,
+    );
     assertOutOfCheckoutCapabilities(
       doctorReport,
       capabilities,
       options.expectedComputerUse ?? true,
     );
 
+    // Qualify fail-closed writer admission before sending the valid mutation.
+    // A rejected generation is never silently rewritten and retried by the client.
+    const beforeRefusal = await jsonRequest(`${httpBase}/api/projects?reads=bounded-v1`, { token });
+    const refused = await jsonRequest(`${httpBase}/api/projects/command`, {
+      method: "POST",
+      token,
+      protocolVersion: protocolVersion - 1,
+      body: { kind: "add-existing", path: project, name: "qualify" },
+    });
+    if (refused.status !== 409 || refused.body?.error?.code !== "protocol_version_mismatch") {
+      throw new Error(
+        `old writer was not refused: ${refused.status}: ${redactSecrets(JSON.stringify(refused.body))}`,
+      );
+    }
+
+    const afterRefusal = await jsonRequest(`${httpBase}/api/projects?reads=bounded-v1`, { token });
+    assertUnchangedProjectCatalog(beforeRefusal, afterRefusal);
+    writerAdmission = { protocolVersion, refusedStatus: refused.status, noEffect: true };
+
     const add = await jsonRequest(`${httpBase}/api/projects/command`, {
       method: "POST",
       token,
+      protocolVersion,
       body: { kind: "add-existing", path: project, name: "qualify" },
     });
     if (add.status !== 200 && add.status !== 201) {
@@ -494,6 +520,7 @@ export async function qualifyServerInstall(options) {
     const start = await jsonRequest(`${httpBase}/api/terminal/start`, {
       method: "POST",
       token,
+      protocolVersion,
       body: {
         shellId,
         projectLocation: {
@@ -509,11 +536,18 @@ export async function qualifyServerInstall(options) {
     const ticket = await jsonRequest(`${httpBase}/api/auth/websocket-ticket`, {
       method: "POST",
       token,
+      protocolVersion,
     });
     if (ticket.status !== 200 || typeof ticket.body?.ticket !== "string") {
       throw new Error(`websocket-ticket ${ticket.status}: ${JSON.stringify(ticket.body)}`);
     }
-    await runOneThreadTurn({ httpBase, token, shellId, ticket: ticket.body.ticket });
+    await runOneThreadTurn({
+      httpBase,
+      token,
+      protocolVersion,
+      shellId,
+      ticket: ticket.body.ticket,
+    });
   } finally {
     await stopChild(child, { entry, profile });
   }
@@ -538,6 +572,7 @@ export async function qualifyServerInstall(options) {
     prefix,
     doctor: doctorReport,
     ownerPhase: "stopped",
+    writerAdmission,
     upgrade,
     artifactVersion: artifactMetadata?.version ?? null,
     webClient: artifactMetadata?.webClient ?? null,
@@ -572,6 +607,7 @@ async function main() {
     `${JSON.stringify({
       ok: true,
       ownerPhase: result.ownerPhase,
+      writerAdmission: result.writerAdmission,
       upgrade: result.upgrade?.ok === true,
       artifactVersion: result.artifactVersion,
       webClientPresent: result.webClient?.present === true,
@@ -591,7 +627,7 @@ const invokedDirectly =
 if (invokedDirectly) {
   main().catch((error) => {
     process.stderr.write(
-      `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+      `${redactSecrets(error instanceof Error ? (error.stack ?? error.message) : String(error))}\n`,
     );
     process.exit(1);
   });
