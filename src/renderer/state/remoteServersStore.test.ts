@@ -30,7 +30,7 @@ import {
   rememberRefreshToken,
   rememberRefreshTokenForSubject,
 } from "./remoteServers/refreshTokens";
-import { installRemoteProjectWorkspaceSync } from "./remoteServers/appRows";
+import { installRemoteProjectWorkspaceSync, syncRemoteAppRows } from "./remoteServers/appRows";
 import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
 import { mainProcessFetch } from "./remoteServers/mainProcessFetch";
 import { resetRemoteHttpBridgeClientForTest } from "./remoteServers/remoteHttpBridgeClient";
@@ -43,6 +43,8 @@ import type {
 } from "./remoteServers/types";
 import { useAgentStatusesStore } from "./agentStatusesStore";
 import { useAppStore } from "./appStore";
+import { useSharedSettings } from "./sharedSettingsStore";
+import { useWorkspaceStore } from "./workspaceStore";
 import { useGitStore } from "./gitStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "./slices/threadSlice";
 import { onRemoteTerminalExited, watchRemoteTerminal } from "./remoteTerminalFeed";
@@ -504,6 +506,36 @@ async function pairIsolated(socketFactory: RemoteSocketFactory): Promise<void> {
   await useRemoteServersStore.getState().pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
   // Closes the pair-time event socket; opening a thread restarts it afterward.
   useRemoteServersStore.getState().setSocketFactory(socketFactory);
+}
+
+const clientWorkspaces = [
+  {
+    id: "client-work",
+    name: "Work",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    icon: "briefcase" as const,
+  },
+  {
+    id: "client-side",
+    name: "Side Hustle",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    icon: "rocket" as const,
+  },
+];
+
+/** Point this browser at a client-owned workspace list for one test. */
+function installClientWorkspaces(
+  workspaces: typeof clientWorkspaces | readonly [],
+  activeWorkspaceId: string | null,
+): () => void {
+  const previousWorkspaces = useSharedSettings.getState().workspaces ?? [];
+  const previousActive = useWorkspaceStore.getState().activeWorkspaceId;
+  useSharedSettings.setState({ workspaces: [...workspaces] });
+  useWorkspaceStore.setState({ activeWorkspaceId });
+  return () => {
+    useSharedSettings.setState({ workspaces: previousWorkspaces });
+    useWorkspaceStore.setState({ activeWorkspaceId: previousActive });
+  };
 }
 
 describe("useRemoteServersStore", () => {
@@ -1738,6 +1770,140 @@ describe("useRemoteServersStore", () => {
     expect(
       useAppStore.getState().projects.find((project) => project.id === projectedId)?.name,
     ).toBe("Local Project");
+  });
+
+  it("files browser projects into the client workspace and ignores server workspace ids", async () => {
+    const restoreWorkspaces = installClientWorkspaces(clientWorkspaces, "client-work");
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    const remoteWorkspaceProject = { ...proj, workspaceId: "server-work" };
+    const snapshotProjects = [remoteWorkspaceProject];
+    const projectCommand = vi.fn<() => Promise<{ projects: unknown[] }>>(async () => ({
+      projects: snapshotProjects,
+    })) as unknown as RemoteDesktopClient["projectCommand"];
+    try {
+      useRemoteServersStore
+        .getState()
+        .setClientFactory(factoryFor(makeClient({ snapshotProjects, projectCommand })));
+      await useRemoteServersStore
+        .getState()
+        .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+      const projectedId = remoteProjectId("d1", "p1");
+      const mirroredWorkspace = () =>
+        useAppStore.getState().projects.find((project) => project.id === projectedId)?.workspaceId;
+      expect(mirroredWorkspace()).toBe("client-work");
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("client-work");
+      expect(projectCommand).not.toHaveBeenCalled();
+
+      // The filing is pinned, so a later local project edit does not treat the
+      // mirror as unfiled and clear it.
+      useAppStore.setState((state) => ({
+        projects: state.projects.map((project) => ({ ...project })),
+      }));
+      expect(mirroredWorkspace()).toBe("client-work");
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("client-work");
+
+      snapshotProjects.push({ ...proj2, workspaceId: "server-side" });
+      useWorkspaceStore.setState({ activeWorkspaceId: "client-side" });
+      useAppStore.setState((state) => ({
+        projects: state.projects.filter((project) => !project.remoteServerId),
+      }));
+      useRemoteServersStore.setState({ runtime: {} });
+      await useRemoteServersStore.getState().refreshServer("d1");
+
+      expect(mirroredWorkspace()).toBe("client-work");
+      const secondId = remoteProjectId("d1", "p2");
+      expect(
+        useAppStore.getState().projects.find((project) => project.id === secondId)?.workspaceId,
+      ).toBe("client-side");
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1).toEqual({
+        p1: "client-work",
+        p2: "client-side",
+      });
+      expect(projectCommand).not.toHaveBeenCalled();
+
+      useAppStore.getState().setProjectWorkspace(projectedId, undefined);
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBeNull();
+      useAppStore.setState((state) => ({
+        projects: state.projects.filter((project) => !project.remoteServerId),
+      }));
+      useRemoteServersStore.setState({ runtime: {} });
+      await useRemoteServersStore.getState().refreshServer("d1");
+
+      expect(mirroredWorkspace()).toBeUndefined();
+      expect(
+        useAppStore.getState().projects.find((project) => project.id === secondId)?.workspaceId,
+      ).toBe("client-side");
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBeNull();
+      expect(projectCommand).not.toHaveBeenCalled();
+    } finally {
+      restoreWorkspaces();
+    }
+  });
+
+  it("leaves a browser project unfiled when the client has no workspace", async () => {
+    const restoreWorkspaces = installClientWorkspaces([], null);
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    const projectCommand = vi.fn<() => Promise<{ projects: unknown[] }>>(async () => ({
+      projects: [],
+    })) as unknown as RemoteDesktopClient["projectCommand"];
+    try {
+      useRemoteServersStore.getState().setClientFactory(
+        factoryFor(
+          makeClient({
+            snapshotProjects: [{ ...proj, workspaceId: "server-work" }],
+            projectCommand,
+          }),
+        ),
+      );
+      await useRemoteServersStore
+        .getState()
+        .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+      expect(
+        useAppStore
+          .getState()
+          .projects.find((project) => project.id === remoteProjectId("d1", "p1"))?.workspaceId,
+      ).toBeUndefined();
+      expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBeUndefined();
+      expect(projectCommand).not.toHaveBeenCalled();
+    } finally {
+      restoreWorkspaces();
+    }
+  });
+
+  it("keeps a server thread workspace id on the desktop mirror", () => {
+    resetClientRuntimeForTest();
+    syncRemoteAppRows("d1", [proj], [{ ...remoteThread, workspaceId: "server-thread" }]);
+
+    expect(
+      useAppStore.getState().threads.find((thread) => thread.id === remoteThreadId("d1", "rt-1"))
+        ?.workspaceId,
+    ).toBe("server-thread");
+  });
+
+  it("drops a server thread workspace id on the browser and keeps a local filing", () => {
+    const restoreWorkspaces = installClientWorkspaces(clientWorkspaces, "client-work");
+    installBrowserClientRuntime({} as PoracodeBridge);
+    window.poracode = {} as PoracodeBridge;
+    const serverThread = { ...remoteThread, workspaceId: "server-thread" };
+    syncRemoteAppRows("d1", [proj], [serverThread]);
+
+    const projectedId = remoteThreadId("d1", "rt-1");
+    const mirroredWorkspace = () =>
+      useAppStore.getState().threads.find((thread) => thread.id === projectedId)?.workspaceId;
+    expect(mirroredWorkspace()).toBeUndefined();
+
+    useAppStore.getState().setThreadWorkspace(projectedId, "client-work");
+    syncRemoteAppRows("d1", [proj], [{ ...serverThread, title: "Renamed" }]);
+    expect(mirroredWorkspace()).toBe("client-work");
+
+    useAppStore.getState().setThreadWorkspace(projectedId, undefined);
+    syncRemoteAppRows("d1", [proj], [{ ...serverThread, title: "Renamed again" }]);
+    expect(mirroredWorkspace()).toBeUndefined();
+    restoreWorkspaces();
   });
 
   it("declares the bounded project-command result mode only for capable paired connections", async () => {

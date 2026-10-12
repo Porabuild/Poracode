@@ -47,6 +47,7 @@ import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import { snapshotOlderThanAppliedSeq } from "./snapshotSeqArbitration";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
+import { projectBrowserThreadWorkspace } from "../remoteServers/workspaceFilings";
 import {
   createSupervisorEventReducer,
   type SupervisorEventSideEffects,
@@ -382,7 +383,10 @@ function syncThreadMetadataFromSnapshot(
       return preservePendingThreadConfig(
         carryVolatileSessionConfigOptions(
           thread,
-          carryActiveTurnTiming(thread, projectPendingCatalogEdit("thread", replacement)),
+          carryActiveTurnTiming(
+            thread,
+            projectBrowserThreadWorkspace(projectPendingCatalogEdit("thread", replacement), thread),
+          ),
         ),
         current.pendingThreadConfigByThreadId[thread.id],
       );

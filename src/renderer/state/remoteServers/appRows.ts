@@ -16,6 +16,9 @@ import { refreshGitProject } from "../gitRefresh";
 import { useGitStore } from "../gitStore";
 import { filterSyncedRemoteProjects } from "./projectSync";
 import { isChatSidebarSurface } from "@/renderer/clientSurface";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
+import { pinRemoteProjectWorkspaces, projectBrowserThreadWorkspace } from "./workspaceFilings";
 
 let remoteProjectRowsSyncDepth = 0;
 
@@ -134,6 +137,30 @@ function withoutWorkspace(project: Project): Project {
 }
 
 /**
+ * Workspace shown for a mirrored project.
+ *
+ * Electron keeps a local filing so another machine's workspace ids never
+ * enter this device's list. A browser client does the same, and an unpinned
+ * project lands in the browser's active workspace instead of staying visible
+ * in every one. That default is pinned by the caller. An explicit unfile
+ * (`null` pin) stays unfiled and does not fall through to the active workspace.
+ */
+function mirroredProjectWorkspaceId(input: {
+  workspaceOverride: string | null | undefined;
+  inheritedWorkspaceId: string | undefined;
+  currentWorkspaceId: string | undefined;
+  remoteWorkspaceId: string | undefined;
+}): string | undefined {
+  if (input.workspaceOverride !== undefined) return input.workspaceOverride ?? undefined;
+  const filed =
+    input.inheritedWorkspaceId ??
+    (input.currentWorkspaceId !== input.remoteWorkspaceId ? input.currentWorkspaceId : undefined);
+  if (filed) return filed;
+  if (!isBrowserClientRuntime()) return undefined;
+  return getActiveWorkspaceId() ?? undefined;
+}
+
+/**
  * Upsert mirrored rows IN PLACE: a row that already exists in the app store is
  * replaced at its current slot, rows outside the incoming page are kept where
  * they are, and only genuinely new rows append. A bounded page arrives while
@@ -224,6 +251,11 @@ export function syncRemoteAppRows(
       )
     : null;
   const counterpartWorkspace = localWorkspaceByName(useAppStore.getState().projects);
+  const clientWorkspaceFilings: {
+    desktopId: string;
+    remoteId: string;
+    workspaceId: string;
+  }[] = [];
   const projectedProjects = projects
     ? visibleCatalogProjects(
         projects.map((project) => {
@@ -232,11 +264,24 @@ export function syncRemoteAppRows(
           const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
           const name = remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name;
           const workspaceOverride = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
-          const workspaceId =
-            workspaceOverride !== undefined
-              ? (workspaceOverride ?? undefined)
-              : (counterpartWorkspace.get(name) ??
-                (current?.workspaceId !== remoteWorkspaceId ? current?.workspaceId : undefined));
+          const inheritedWorkspaceId = counterpartWorkspace.get(name);
+          const workspaceId = mirroredProjectWorkspaceId({
+            workspaceOverride,
+            inheritedWorkspaceId,
+            currentWorkspaceId: current?.workspaceId,
+            remoteWorkspaceId,
+          });
+          // Inheritance stays unpinned so a same-named local project can still
+          // move the mirror. A browser default (or a filing already on the row)
+          // is pinned, or the next local edit treats it as unfiled.
+          if (
+            isBrowserClientRuntime() &&
+            workspaceOverride === undefined &&
+            inheritedWorkspaceId === undefined &&
+            workspaceId
+          ) {
+            clientWorkspaceFilings.push({ desktopId, remoteId: project.id, workspaceId });
+          }
           return projectPendingCatalogEdit("project", {
             ...projectWithoutWorkspace,
             name,
@@ -246,6 +291,7 @@ export function syncRemoteAppRows(
         }),
       )
     : undefined;
+  pinRemoteProjectWorkspaces(clientWorkspaceFilings);
   const appState = useAppStore.getState();
   const residentMirrorRows = new Map(
     threads
@@ -263,9 +309,12 @@ export function syncRemoteAppRows(
     // A projected row is host-durable state: when it omits the volatile
     // inventory the resident mirror's live value is re-attached instead of
     // erased — same owner/session only, per `carryVolatileSessionConfigOptions`.
-    return projectPendingCatalogEdit(
-      "thread",
-      projectThreadIdentityPreserving(desktopId, thread, residentMirrorRows.get(appRowId)),
+    return projectBrowserThreadWorkspace(
+      projectPendingCatalogEdit(
+        "thread",
+        projectThreadIdentityPreserving(desktopId, thread, residentMirrorRows.get(appRowId)),
+      ),
+      residentMirrorRows.get(appRowId),
     );
   });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
@@ -499,21 +548,6 @@ export function installRemoteProjectWorkspaceSync(): () => void {
     }
     if (changes.length === 0) return;
 
-    useRemoteServersStore.setState((remoteState) => {
-      let projectWorkspaceIds = remoteState.projectWorkspaceIds;
-      for (const change of changes) {
-        const currentForServer = projectWorkspaceIds[change.desktopId] ?? {};
-        const currentWorkspaceId = currentForServer[change.remoteId];
-        const nextWorkspaceId = change.workspaceId ?? null;
-        if (currentWorkspaceId === nextWorkspaceId) continue;
-        const nextForServer = { ...currentForServer };
-        nextForServer[change.remoteId] = nextWorkspaceId;
-        projectWorkspaceIds = {
-          ...projectWorkspaceIds,
-          [change.desktopId]: nextForServer,
-        };
-      }
-      return projectWorkspaceIds === remoteState.projectWorkspaceIds ? {} : { projectWorkspaceIds };
-    });
+    pinRemoteProjectWorkspaces(changes);
   });
 }
