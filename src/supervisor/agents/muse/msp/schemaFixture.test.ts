@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { MUSE_EFFORTS } from "../detection";
 import { toMspApprovalMode } from "./argv";
+import { MSP_SCHEMA_FINGERPRINT, MSP_SCHEMA_VERSION } from "./protocol";
 
 /**
  * Pins the MSP wire contract the client speaks: the fixture is a verbatim
@@ -24,6 +25,14 @@ describe("MSP schema fixture", () => {
     const schema = loadSchemaFixture();
     expect(typeof schema.description).toBe("string");
     expect(schema.description as string).toMatch(/Muse Session Protocol \(MSP\) v1/);
+    const manifest = JSON.parse(
+      readFileSync(new URL("./fixtures/manifest.json", import.meta.url), "utf8"),
+    );
+    expect(manifest).toEqual({
+      experimental: false,
+      schemaVersion: MSP_SCHEMA_VERSION,
+      fingerprint: MSP_SCHEMA_FINGERPRINT,
+    });
   });
 
   it("declares every method the client uses", () => {

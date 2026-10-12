@@ -224,7 +224,7 @@ The **Structured Session** column reflects whether the adapter implements `creat
 | Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                                     | ACP registry probe                                                                                      | terminal / GUI server | Yes (official `antigravity-acp`) |
 | Devin        | (families from CLI models list)                                                    | per-model variants                                                                                      | terminal              | Yes (official `devin acp`)       |
 | Command Code | Live CLI catalog; Chat negotiates models through native ACP (1.74.0+)              | Per-model native ACP config options, CLI fallback for older versions                                    | terminal / GUI server | Yes (native `command-code acp`)  |
-| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries                 | probed (`none…ultra` fallback)                                                                          | terminal              | Yes (MSP over `muse serve`)      |
+| Muse Code    | Live MSP catalog (Wonder 1.0, Wonder Full 1.0, Spark); static/help fallback        | MSP per-model variants/defaults; help/static fallback                                                   | terminal              | Yes (MSP over `muse serve`)      |
 
 Antigravity is one built-in agent and one registry card with two managed runtime
 prerequisites: `agy` backs Terminal, while the official `antigravity-acp` registry

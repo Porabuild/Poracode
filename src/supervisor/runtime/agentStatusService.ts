@@ -139,7 +139,8 @@ const execFileAsync = promisify(execFile);
 // v55 publishes context-reload consequences for every composer surface.
 // v56 discards model catalogs that included disconnected configured providers.
 // v57 refreshes installer commands that explicitly finish and verify package setup.
-export const STATUS_CACHE_VERSION = 57;
+// v58 re-probes catalog-native reasoning choices and current MSP model metadata.
+export const STATUS_CACHE_VERSION = 58;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

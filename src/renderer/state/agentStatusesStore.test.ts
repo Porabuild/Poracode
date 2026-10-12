@@ -62,7 +62,7 @@ describe("persisted agent status cache", () => {
         version,
       );
 
-      expect(options.version).toBe(53);
+      expect(options.version).toBe(54);
       expect(migrated).toMatchObject({
         agentStatuses: [],
         wslAgentStatuses: [],
@@ -72,33 +72,32 @@ describe("persisted agent status cache", () => {
     },
   );
 
-  it.each([30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51])(
-    "invalidates stored v%i provider inventories during rehydration",
-    async (version) => {
-      const staleStatus = makeStatus({ kind: "example", label: "Example" });
-      localStorage.setItem(
-        "poracode-agent-statuses-v1",
-        JSON.stringify({
-          version,
-          state: {
-            agentStatuses: [staleStatus],
-            wslAgentStatuses: [staleStatus],
-            windowsLoaded: true,
-            wslLoaded: true,
-          },
-        }),
-      );
+  it.each([
+    30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
+  ])("invalidates stored v%i provider inventories during rehydration", async (version) => {
+    const staleStatus = makeStatus({ kind: "example", label: "Example" });
+    localStorage.setItem(
+      "poracode-agent-statuses-v1",
+      JSON.stringify({
+        version,
+        state: {
+          agentStatuses: [staleStatus],
+          wslAgentStatuses: [staleStatus],
+          windowsLoaded: true,
+          wslLoaded: true,
+        },
+      }),
+    );
 
-      await useAgentStatusesStore.persist.rehydrate();
+    await useAgentStatusesStore.persist.rehydrate();
 
-      expect(useAgentStatusesStore.getState()).toMatchObject({
-        agentStatuses: [],
-        wslAgentStatuses: [],
-        windowsLoaded: false,
-        wslLoaded: false,
-      });
-    },
-  );
+    expect(useAgentStatusesStore.getState()).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
 
   it("invalidates v30 snapshots carrying a Cursor SDK install derived from PATH", async () => {
     // Mirrors supervisor STATUS_CACHE_VERSION 34: a v30 SDK variant could report
@@ -136,7 +135,7 @@ describe("persisted agent status cache", () => {
       },
       30,
     );
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -157,7 +156,7 @@ describe("persisted agent status cache", () => {
       },
       29,
     );
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -189,7 +188,7 @@ describe("persisted agent status cache", () => {
       },
       30,
     );
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -214,7 +213,7 @@ describe("persisted agent status cache", () => {
       },
       21,
     );
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -258,7 +257,7 @@ describe("persisted agent status cache", () => {
       19,
     );
 
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -298,7 +297,7 @@ describe("persisted agent status cache", () => {
       32,
     );
 
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -318,7 +317,7 @@ describe("persisted agent status cache", () => {
       },
       34,
     );
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -333,7 +332,7 @@ describe("persisted agent status cache", () => {
     // flat composite rows and the legacy composite Fast declaration must not
     // hydrate as current.
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     const stale = makeStatus({
       kind: "example",
       label: "Example",
@@ -435,7 +434,7 @@ describe("persisted agent status cache", () => {
       33,
     );
 
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -465,7 +464,7 @@ describe("persisted agent status cache", () => {
       17,
     );
 
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -476,7 +475,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v15 statuses cached before Command Code's live-only model discovery", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     const staleCommandCode = makeStatus({
       kind: "commandcode",
       label: "Command Code",
@@ -508,7 +507,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v10 statuses whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     const staleLogin = makeStatus({
       kind: "antigravity",
       label: "Antigravity",
@@ -535,7 +534,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v14 statuses that grouped Cursor Grok under Other models", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     const staleCursor = makeStatus({
       kind: "cursor",
       label: "Cursor",
@@ -568,7 +567,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     const staleAcp = makeStatus({
       kind: "acp-generic:example",
       label: "Example ACP",
@@ -595,7 +594,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -640,7 +639,7 @@ it("invalidates v20 ACP labels in both persisted environments", async () => {
     },
     20,
   );
-  expect(options.version).toBe(53);
+  expect(options.version).toBe(54);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
@@ -1169,7 +1168,7 @@ it("invalidates v25 model catalogs in both persisted environments", async () => 
     },
     25,
   );
-  expect(options.version).toBe(53);
+  expect(options.version).toBe(54);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
@@ -1196,7 +1195,7 @@ it("refreshes model pricing metadata when model IDs and provider version stay th
 });
 
 // The newly integrated native-account discovery must invalidate both old parents.
-it.each([29, 32, 33, 44, 51, 52])(
+it.each([29, 32, 33, 44, 51, 52, 53])(
   "re-probes v%s account catalogs while preserving unrelated state",
   async (version) => {
     const options = useAgentStatusesStore.persist.getOptions();
@@ -1208,7 +1207,7 @@ it.each([29, 32, 33, 44, 51, 52])(
       wslLoaded: true,
       unrelatedPersistedField: { savedChoice: "preserved" },
     };
-    expect(options.version).toBe(53);
+    expect(options.version).toBe(54);
     expect(await options.migrate!(previous, version)).toEqual({
       ...previous,
       agentStatuses: [],

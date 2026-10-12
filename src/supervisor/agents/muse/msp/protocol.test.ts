@@ -147,4 +147,38 @@ describe("model/list transcript validation", () => {
     // Null limits stay null (caller falls back to the known 1M window).
     expect(parsed.models.every((m) => m.contextLimit === null)).toBe(true);
   });
+
+  it("retains current per-model reasoning choices and the catalog default", () => {
+    const result = parseMspModelListResult({
+      models: [
+        {
+          modelId: "muse-wonder-full-1.0",
+          displayLabel: "muse-wonder-full-1.0",
+          variants: ["minimal", "low", "medium", "high", "xhigh", "max"],
+          defaultReasoningEffort: "high",
+        },
+      ],
+    });
+    expect(result.models[0]).toMatchObject({
+      efforts: ["minimal", "low", "medium", "high", "xhigh", "max"],
+      defaultEffort: "high",
+    });
+  });
+
+  it.each([undefined, { kind: "unknown" }, ["high", null], "high"])(
+    "leaves absent, unknown or malformed reasoning choices eligible for fallback: %j",
+    (variants) => {
+      const result = parseMspModelListResult({
+        models: [{ modelId: "model", displayLabel: "Model", variants }],
+      });
+      expect(result.models[0]?.efforts).toBeUndefined();
+    },
+  );
+
+  it("preserves an explicitly empty reasoning catalog", () => {
+    const result = parseMspModelListResult({
+      models: [{ modelId: "model", displayLabel: "Model", variants: [] }],
+    });
+    expect(result.models[0]?.efforts).toEqual([]);
+  });
 });
