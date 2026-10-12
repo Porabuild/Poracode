@@ -89,7 +89,6 @@ export async function mockSideChatGate({
         title: ${JSON.stringify(bootstrap.source.title)},
         prompt: '', presentationMode: 'gui', focus: true, suppressHostCreateIntent: true,
       });
-      store.openThread(${JSON.stringify(bootstrap.source.id)});
     })()`);
     await main(`window.poracode.dbUpsertThread(${JSON.stringify(bootstrap.source)})`);
     before = await main("JSON.stringify(window.__poracodeDev.stores.app.getState().view)");
@@ -242,12 +241,13 @@ export async function mockSideChatGate({
     assert.equal((await main("window.poracode.getSideChatWindowInfo()")).id, info.id);
     assert.deepEqual(await main("window.poracode.getSideChatThreadIds()"), []);
     await screenshot(client, join(outDir, "mock-side-chat-reattached.png"));
-    await main(`(() => {
+    await main(`(async () => {
       const app = window.__poracodeDev.stores.app;
       const row = app.getState().createThread({ threadId: 'side-chat-smoke-child',
         projectId: ${JSON.stringify(fixture.project.id)}, agentKind: 'codex', config: { model: 'smoke-model-alt' },
         title: 'Disposable smoke child', prompt: '', presentationMode: 'gui', focus: false, suppressHostCreateIntent: true,
         parentThreadId: ${JSON.stringify(bootstrap.source.id)} });
+      await window.poracode.dbUpsertThread(row);
       return window.poracode.bindSideChatThread({ id: ${JSON.stringify(retainedId)}, threadId: row.id, thread: row, prompt: '' });
     })()`);
     assert.equal(
