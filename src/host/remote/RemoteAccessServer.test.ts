@@ -93,6 +93,12 @@ import { RemotePortForwardGateway } from "./RemotePortForwardGateway";
 import { RELAY_LOOPBACK_HOP_HEADER } from "./server/security";
 import { relayLoopbackHopSecret } from "./server/relayHopSecret";
 
+// This HTTP fixture has no SQLite owner; revision admission uses real DB fixtures elsewhere.
+vi.mock("@/host/db/runtimeHistoryRevision", () => ({
+  noteRuntimeHistoryMutation: vi.fn<() => void>(),
+  runtimeHistoryRevision: vi.fn<() => number>(() => 0),
+}));
+
 vi.mock("@/host/db", () => {
   // Backs dbGetState/dbSetState with a real in-memory map so the profile
   // module's identity round-trip (write then read back) behaves like SQLite.
@@ -2300,6 +2306,7 @@ describe("RemoteAccessServer", () => {
       seq: 2,
       // The V6 event envelope names its delivery space on every frame.
       space: "loopback",
+      omittedRuntimeThreadIds: ["thread-B"],
       event: { type: "thread-runtime-events", threadId: "thread-B", events: [] },
     });
     expect(await replay.next()).toMatchObject({

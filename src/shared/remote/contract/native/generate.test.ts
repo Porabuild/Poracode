@@ -321,7 +321,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(429);
+        expect(adapters).toHaveLength(435);
         expect(
           adapters
             .map((adapter) => adapter.id)

@@ -105,6 +105,8 @@ describe.skipIf(!sqliteAvailable)("startThread procedure receipt wiring", () => 
     servers.push(server);
     info = await server.start();
     token = await exchangePairingUrl(info.pairingUrl);
+    // Receipt assertions count procedure effects after the independent startup seed.
+    callSupervisor.mockClear();
   });
 
   afterEach(async () => {

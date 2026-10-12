@@ -128,6 +128,7 @@ describe.skipIf(!sqliteAvailable)("thread route host-resource-admission refusals
     } satisfies RemoteAccessServerOptions);
     info = await server.start();
     token = await exchangePairingUrl(info.pairingUrl);
+    callSupervisor.mockClear();
   });
 
   afterEach(async () => {
