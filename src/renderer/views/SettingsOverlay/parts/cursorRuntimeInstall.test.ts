@@ -88,11 +88,11 @@ describe("Cursor runtime installation", () => {
 
   it("installs the public SDK in the global package root discovered by the worker", () => {
     expect(cursorRuntimeInstallCommand("sdk", posixProject)).toContain(
-      "npm install -g '@cursor/sdk@^1.0.24'",
+      "npm install -g '@cursor/sdk@^1.0.37'",
     );
     const both = cursorRuntimeInstallCommand("both", posixProject);
     expect(both).toContain("https://cursor.com/install");
-    expect(both).toContain("@cursor/sdk@^1.0.24");
+    expect(both).toContain("@cursor/sdk@^1.0.37");
   });
 
   it("reports independent ACP and SDK versions", () => {
@@ -127,11 +127,11 @@ describe("Cursor runtime installation", () => {
 
     expect(canUpdateCursorSdk(npmStatus)).toBe(true);
     expect(cursorSdkUpdateCommand(npmStatus, posixProject)).toContain(
-      "npm install -g '@cursor/sdk@^1.0.24'",
+      "npm install -g '@cursor/sdk@^1.0.37'",
     );
     expect(canUpdateCursorSdk(pnpmStatus)).toBe(true);
     expect(cursorSdkUpdateCommand(pnpmStatus, posixProject)).toContain(
-      "pnpm add -g '@cursor/sdk@^1.0.24'",
+      "pnpm add -g '@cursor/sdk@^1.0.37'",
     );
     expect(canUpdateCursorSdk(projectStatus)).toBe(false);
     expect(cursorSdkUpdateCommand(projectStatus, posixProject)).toBeUndefined();
@@ -146,7 +146,7 @@ describe("Cursor runtime installation", () => {
       const globalStatus = status(true, true, { installationSource });
       expect(canUpdateCursorSdk(globalStatus)).toBe(true);
       expect(cursorSdkUpdateCommand(globalStatus, posixProject)).toContain(
-        "npm install -g '@cursor/sdk@^1.0.24'",
+        "npm install -g '@cursor/sdk@^1.0.37'",
       );
     }
 

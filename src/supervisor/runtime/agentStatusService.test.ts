@@ -200,17 +200,17 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledTimes(2);
   });
 
-  it("invalidates the previous model catalog cache generation", () => {
+  it.each([35, 51])("invalidates the previous model catalog cache generation v%i", (version) => {
     const { service, statusCachePath } = makeService(vi.fn<AgentAdapter["detectInstall"]>());
     writeFileSync(
       statusCachePath,
       JSON.stringify({
-        version: 35,
+        version,
         windows: [makeStatus()],
         wsl: [],
       }),
     );
-    expect(STATUS_CACHE_VERSION).toBe(51);
+    expect(STATUS_CACHE_VERSION).toBe(52);
     expect(service.getCachedCapabilities("codex")).toBeUndefined();
   });
 

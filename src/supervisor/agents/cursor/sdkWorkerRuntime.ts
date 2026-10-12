@@ -1,6 +1,9 @@
 import { isAbsolute, relative, sep } from "node:path";
-import { pathToFileURL } from "node:url";
+import { realpath } from "node:fs/promises";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadCursorSdk, type CursorSdkModule } from "./sdkLoader";
+import { CursorSdkMaxModeCompatibility } from "./sdkMaxMode";
+import { cursorSdkParamFamily } from "./sdkModels";
 import { asWorkerRecord, WorkerDiagnosticError } from "./sdkWorkerDiagnostics";
 import type {
   CursorSdkWorkerAgentMessage,
@@ -10,6 +13,7 @@ import type {
   CursorSdkWorkerModelSelection,
   CursorSdkWorkerProbeResult,
   CursorSdkWorkerSendOptions,
+  CursorSdkWorkerSteerResult,
   CursorSdkWorkerUserMessage,
 } from "./sdkWorkerProtocol";
 
@@ -34,6 +38,7 @@ export interface RuntimeRun {
   stream(): AsyncGenerator<unknown, void>;
   wait(): Promise<unknown>;
   cancel(): Promise<void>;
+  steer?(text: string): Promise<CursorSdkWorkerSteerResult>;
 }
 
 interface RuntimeAgentApi {
@@ -62,6 +67,7 @@ interface RuntimeCursorApi {
 export interface RuntimeSdkModule extends CursorSdkModule {
   Agent: RuntimeAgentApi & CursorSdkModule["Agent"];
   Cursor: RuntimeCursorApi & CursorSdkModule["Cursor"];
+  getDefaultSdkStateRoot?: (workspaceRef: string) => string;
 }
 
 /**
@@ -70,6 +76,7 @@ export interface RuntimeSdkModule extends CursorSdkModule {
  * accidentally cross package roots.
  */
 export class CursorSdkWorkerRuntime {
+  private readonly maxMode = new CursorSdkMaxModeCompatibility();
   private loadedSdk: RuntimeSdkModule | undefined;
   private discoveryKey: string | undefined;
   private sdkMetadata:
@@ -82,6 +89,32 @@ export class CursorSdkWorkerRuntime {
 
   get metadata(): Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source" | "packageRoot"> {
     return this.sdkMetadata ?? { sdkVersion: "unknown", source: "explicit-entry" };
+  }
+
+  setModelCatalog(models: readonly CursorSdkWorkerModel[]): void {
+    this.maxMode.setCatalog(models);
+  }
+
+  async prepareModelSelection(
+    model: CursorSdkWorkerModelSelection | undefined,
+    apiKey?: string,
+  ): Promise<void> {
+    if (
+      this.maxMode.hasCatalog ||
+      !model?.params?.some(({ id }) => cursorSdkParamFamily(id) === "context")
+    )
+      return;
+    const loaded = this.loadedSdk;
+    if (!loaded) throw new Error("The Cursor SDK has not been loaded.");
+    this.setModelCatalog(await loaded.Cursor.models.list(apiKey ? { apiKey } : undefined));
+  }
+
+  private async importModule(specifier: string): Promise<unknown> {
+    // Node resolves symlinks before invoking load hooks (including macOS /var
+    // and package-manager links). Scope the hook to that same package path.
+    const canonicalSpecifier = pathToFileURL(await realpath(fileURLToPath(specifier))).href;
+    this.maxMode.registerForImport(canonicalSpecifier);
+    return import(canonicalSpecifier);
   }
 
   async load(
@@ -104,16 +137,19 @@ export class CursorSdkWorkerRuntime {
     if (discovery.entryPath) {
       validateExplicitEntry(discovery);
       anchorProcessArgvAtSdk(discovery.entryPath);
-      imported = await import(pathToFileURL(discovery.entryPath).href);
+      imported = await this.importModule(pathToFileURL(discovery.entryPath).href);
     } else {
-      const result = await loadCursorSdk({
-        ...(discovery.configuredPath ? { configuredPath: discovery.configuredPath } : {}),
-        ...(discovery.pinnedRoot ? { pinnedRoot: discovery.pinnedRoot } : {}),
-        projectCwd,
-        ...(apiKey ? { apiKey } : {}),
-        env: process.env,
-        environment: { kind: "native" },
-      });
+      const result = await loadCursorSdk(
+        {
+          ...(discovery.configuredPath ? { configuredPath: discovery.configuredPath } : {}),
+          ...(discovery.pinnedRoot ? { pinnedRoot: discovery.pinnedRoot } : {}),
+          projectCwd,
+          ...(apiKey ? { apiKey } : {}),
+          env: process.env,
+          environment: { kind: "native" },
+        },
+        { importModule: (specifier) => this.importModule(specifier) },
+      );
       if (!result.ok) {
         throw new WorkerDiagnosticError(result.diagnostic.code, result.diagnostic.message);
       }

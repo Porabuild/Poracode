@@ -361,6 +361,36 @@ describe("spawnCursorSdkWorker", () => {
     await client.dispose();
   });
 
+  it("keeps deferred steering alive beyond the generic RPC deadline", async () => {
+    const fixture = makeDelayedMethodFixture("steer", 150);
+    const client = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(fixture.directory),
+      workerPath: fixture.path,
+      requestTimeoutMs: 40,
+    });
+    const errors: Error[] = [];
+    client.onTransportError((error) => errors.push(error));
+    await expect(client.steer("run", "wait through confirm_steering")).resolves.toBe(
+      "complete_delivered",
+    );
+    expect(errors).toEqual([]);
+    await client.dispose();
+  });
+
+  it("rejects an outstanding steering acknowledgement on disposal", async () => {
+    const fixture = makeDelayedMethodFixture("steer", 2_000);
+    const client = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(fixture.directory),
+      workerPath: fixture.path,
+      requestTimeoutMs: 40,
+    });
+    const acknowledgement = client.steer("run", "pending").catch((error: unknown) => error);
+    await client.dispose();
+    await expect(acknowledgement).resolves.toMatchObject({
+      message: "Cursor SDK worker terminated.",
+    });
+  });
+
   it("gives start a longer budget than other requests by default", async () => {
     // Run creation waits on backend provisioning, which is far more variable
     // than the other worker RPCs: a 1.5s ack must succeed for `start` while
@@ -548,7 +578,7 @@ input.on("line", (line) => {
 }
 
 function makeDelayedMethodFixture(
-  method: "initialize" | "start" | "reload",
+  method: "initialize" | "start" | "reload" | "steer",
   delayMs: number,
 ): {
   directory: string;
@@ -571,7 +601,7 @@ input.on("line", (line) => {
     ? { agentId: "agent-fixture", model: { id: "fixture" } }
     : request.method === "start"
       ? { runId: "late-run" }
-      : {};
+      : request.method === "steer" ? "complete_delivered" : {};
   const respond = () => process.stdout.write(
     JSON.stringify({ type: "response", id: request.id, ok: true, result }) + "\\n"
   );

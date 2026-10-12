@@ -6,6 +6,10 @@ import type {
 import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
 /**
+ * Version 4 requires local Max Mode compatibility, native steering, and the
+ * SDK-provided state root after its FIPS-safe store migration. Pre-upgrade
+ * staged workers cannot honor long-context selections or the new operations.
+ *
  * Version 3 requires the worker's detached-cancellation handling: a staged
  * pre-fix helper can otherwise terminate a parent and all its subagents on
  * an SDK transport abort. Message shapes remain compatible with version 2.
@@ -19,7 +23,7 @@ import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSuppor
  * gets it re-staged from current source (the SSH runtime bundle re-installs
  * whenever the built worker bytes change).
  */
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 3;
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 4;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;
@@ -150,6 +154,8 @@ export interface CursorSdkWorkerInitializeInput {
 export interface CursorSdkWorkerInitializeResult {
   agentId: string;
   model?: CursorSdkWorkerModelSelection;
+  /** SDK-owned location; changed from MD5 to SHA-256 in 1.0.35. */
+  stateRoot?: string;
   /** Fresh create found the deterministic local agent and resumed it instead. */
   recoveredExisting?: boolean;
 }
@@ -162,6 +168,8 @@ export interface CursorSdkWorkerStartInput {
 export interface CursorSdkWorkerStartResult {
   runId: string;
 }
+
+export type CursorSdkWorkerSteerResult = "complete_delivered" | "revert_to_followup";
 
 export interface CursorSdkWorkerAgentMessage {
   type: "user" | "assistant";
@@ -232,6 +240,7 @@ export interface CursorSdkWorkerModelsListParams {
 export type CursorSdkWorkerMethod =
   | "initialize"
   | "start"
+  | "steer"
   | "cancel"
   | "reload"
   | "messages.list"
@@ -241,6 +250,7 @@ export type CursorSdkWorkerMethod =
 export type CursorSdkWorkerRequest =
   | CursorSdkWorkerRequestFor<"initialize", CursorSdkWorkerInitializeParams>
   | CursorSdkWorkerRequestFor<"start", CursorSdkWorkerStartInput>
+  | CursorSdkWorkerRequestFor<"steer", { runId: string; text: string }>
   | CursorSdkWorkerRequestFor<"cancel", { runId?: string }>
   | CursorSdkWorkerRequestFor<"reload", Record<string, never>>
   | CursorSdkWorkerRequestFor<"messages.list", { limit?: number; offset?: number }>

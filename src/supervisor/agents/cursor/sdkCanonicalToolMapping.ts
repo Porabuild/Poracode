@@ -108,6 +108,7 @@ export function mapCursorSdkNestedTaskUpdate(
   parentCallId: string,
   update: CursorSdkNestedTaskUpdate,
 ): RuntimeEvent[] {
+  if (update.type === "tool-requests-listed") return [];
   const events: RuntimeEvent[] = [];
   const parent = ensureParentTaskItem(state, parentCallId, events);
   if (!parent) return events;

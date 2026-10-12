@@ -13,6 +13,8 @@
  */
 
 import type { RuntimeEvent } from "@/shared/contracts";
+import { buildPromptContentBlocks } from "@/shared/promptContent";
+import type { CursorSdkSteerInput } from "./sdkSteering";
 import { newItemId } from "../contextUsage";
 import type { CursorSdkMapperState } from "./sdkCanonicalMappingState";
 import {
@@ -68,6 +70,27 @@ export function startCursorSdkTurn(
   state.usageSequence = 0;
   state.emittedErrors.clear();
   events.push({ type: "turn.started", threadId: state.threadId, turnId });
+  return events;
+}
+
+/** Split text at the new user input without closing foreground/background
+ * tools. SDK steering owns the same run, so tool and usage state must survive. */
+export function appendCursorSdkSteerMessage(
+  state: CursorSdkMapperState,
+  input: CursorSdkSteerInput,
+): RuntimeEvent[] {
+  const events = closeTopLevelTextForStep(state);
+  const itemId = input.options.userMessageItemId;
+  events.push(
+    {
+      type: "item.started",
+      threadId: state.threadId,
+      itemId,
+      itemType: "user_message",
+      payload: { content: buildPromptContentBlocks(input.prompt, input.segments) },
+    },
+    { type: "item.completed", threadId: state.threadId, itemId },
+  );
   return events;
 }
 
@@ -130,6 +153,8 @@ export function mapCursorSdkMessage(
       events.push(...mapUsage(state, message.usage, "normalized"));
       return events;
     }
+    default:
+      return [];
   }
 }
 
@@ -177,6 +202,12 @@ export function mapCursorSdkInteractionUpdate(
       return completeSummaryItem(state);
     case "shell-output-delta":
       return mapCursorSdkShellOutputDelta(state, update.event);
+    case "tool-requests-listed":
+      // This marks the end of enumeration, while the tools are still running.
+      return [];
+    default:
+      // New informational SDK updates must not break the remaining stream.
+      return [];
   }
 }
 

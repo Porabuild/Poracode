@@ -133,7 +133,8 @@ const execFileAsync = promisify(execFile);
 // re-probe; renderer persisted copy advances independently to v45.
 // v50 discovers Command Code's native ACP Chat surface and session MCP support.
 // v51 completes native effort catalogs, including models beyond the ACP sweep.
-export const STATUS_CACHE_VERSION = 51;
+// v52 refreshes structured-runtime readiness after the minimum SDK and worker capabilities advance.
+export const STATUS_CACHE_VERSION = 52;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
