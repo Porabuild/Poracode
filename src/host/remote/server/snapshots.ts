@@ -1,3 +1,5 @@
+import { HISTORY_DETAILS_VERSION } from "@/shared/remote/historyPresentation";
+import { THREAD_HISTORY_RESUME_VERSION } from "@/shared/remote/historyResume";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_CATALOG_MUTATIONS_VERSION,
@@ -30,11 +32,7 @@ import {
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
 import { TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS } from "./terminalCursorSync";
-import {
-  threadFollowUpQueueStateSchema,
-  type BackgroundTask,
-  type Thread,
-} from "@/shared/contracts";
+import { type Thread } from "@/shared/contracts";
 import {
   beginRuntimeFence,
   dbGetProjects,
@@ -135,6 +133,8 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       wsBaseUrl: info.wsBaseUrl,
     },
     capabilities: {
+      historyDetails: { versions: [HISTORY_DETAILS_VERSION] },
+      threadHistoryResume: { versions: [THREAD_HISTORY_RESUME_VERSION] },
       ...(ctx.options.environmentManagement && ctx.environmentProxy
         ? { sshEnvironments: { versions: [REMOTE_SSH_ENVIRONMENTS_VERSION] } }
         : {}),
@@ -429,72 +429,16 @@ export async function buildThreadSnapshot(
       ? [latestGoal, ...runtimeItems]
       : runtimeItems;
 
-  // Async supervisor reads come after the cursor. A queue/task/state event that
-  // lands while they are suspended is > cursor and arrives through WS replay;
-  // applying those events is idempotent, so the snapshot can never silently
-  // miss an update it does not carry.
-  let terminalScrollback: string | undefined;
-  let terminalSize: RemoteThreadSnapshot["terminalSize"] | undefined;
-  // Keep this call independent from the terminal reads below. A host with an
-  // older supervisor can still serve the existing thread history even when it
-  // cannot provide the additive queued-follow-up snapshot field.
-  const followUpQueuePromise = Promise.resolve()
-    .then(() =>
-      readsTerminal ? null : ctx.options.callSupervisor("getThreadFollowUpQueue", { threadId }),
-    )
-    .then((queue) => {
-      const parsed = threadFollowUpQueueStateSchema.nullable().safeParse(queue);
-      return parsed.success ? parsed.data : undefined;
-    })
-    .catch(() => undefined);
-  // Seed the volatile session-control inventory from the supervisor's internal
-  // runtime snapshot (no remote RPC serves it): a server that started after a
-  // session went live has seen no `thread-state` events, so without the seed
-  // its pulls would serve rows with the key absent until the next event. The
-  // token is captured before the await; the store rejects the seed if any
-  // inventory event lands while it is in flight. A failed or old-host call
-  // keeps the event-projected (or absent) state — never a resurrected stale
-  // value.
-  const inventorySeedToken = ctx.sessionConfigInventory.beginSeed();
-  const inventorySeedPromise = Promise.resolve()
-    .then(() => ctx.options.callSupervisor("getThreadSnapshots", {}))
-    .then((snapshots) => {
-      ctx.sessionConfigInventory.applySeed(inventorySeedToken, snapshots);
-    })
-    .catch(() => undefined);
-  let backgroundTasks: BackgroundTask[] = [];
-  try {
-    const [scrollback, size, tasks] = await Promise.all([
-      readsTerminal && !options.omitScrollback
-        ? ctx.options.callSupervisor("readTerminalScrollback", { threadId })
-        : undefined,
-      readsTerminal ? ctx.options.callSupervisor("readTerminalSize", { threadId }) : undefined,
-      ctx.options.callSupervisor("readThreadBackgroundTasks", { threadId }),
-    ]);
-    terminalScrollback = options.omitScrollback
-      ? undefined
-      : scrollback || dbGetThreadTerminalScrollback(threadId);
-    terminalSize = size ?? undefined;
-    backgroundTasks = Array.isArray(tasks) ? tasks : [];
-  } catch {
-    terminalScrollback = options.omitScrollback
-      ? undefined
-      : dbGetThreadTerminalScrollback(threadId) || undefined;
-    terminalSize = undefined;
-    backgroundTasks = [];
-  }
-  backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? backgroundTasks)];
+  // Stored history and latest host-projected controls are independent of
+  // supervisor/agent readiness. Live terminal contents arrive through the
+  // separately subscribed terminal watch; a cold snapshot uses its durable tail.
+  const terminalScrollback =
+    readsTerminal && !options.omitScrollback
+      ? dbGetThreadTerminalScrollback(threadId) || undefined
+      : undefined;
+  const backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? [])];
+  const followUpQueue = readsTerminal ? null : ctx.threadLiveReadState.queueFor(threadId);
 
-  // The supervisor reads above cross an async boundary. Runtime and
-  // thread-state events can persist while they are in flight, so re-read the
-  // row before returning; otherwise a completed transcript can be returned
-  // with an older `working` status and the client will conservatively treat
-  // the history as non-authoritative. A state newer than the cursor is
-  // re-delivered by replay, so this cannot disagree silently.
-  const followUpQueue = await followUpQueuePromise;
-  await inventorySeedPromise;
-  // Read after ALL async continuations: a provider switch or deletion during
-  // the inventory seed must not return the previously read owner/row.
   const thread = dbGetThread(threadId);
   if (!thread) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
@@ -512,7 +456,6 @@ export async function buildThreadSnapshot(
       contextUsage,
       backgroundTasks,
       ...(terminalScrollback ? { terminalScrollback } : {}),
-      ...(terminalSize ? { terminalSize } : {}),
       ...(followUpQueue !== undefined ? { followUpQueue } : {}),
       ...(runtimeNotice !== undefined ? { runtimeNotice } : {}),
     }),

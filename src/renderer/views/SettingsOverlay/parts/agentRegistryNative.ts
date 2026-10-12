@@ -22,6 +22,7 @@ import {
 } from "@/renderer/components/providers/codex/profileSettings";
 import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorProviderSettings } from "../../../components/providers/settings/CursorProviderSettings";
+import { OPENCODE2_INSTALL_COMMANDS } from "@/renderer/components/providers/opencode2/installCommands";
 import { OpenCode2ProviderSettings } from "../../../components/providers/settings/OpenCode2ProviderSettings";
 import { OpenCodeProviderSettings } from "../../../components/providers/settings/OpenCodeProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
@@ -266,9 +267,9 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     docsUrl: "https://opencode.ai/v2/docs",
     installCommand: (project) =>
       nativeInstallCommand(project, {
-        mac: 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.26',
-        posix: 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.26',
-        windows: 'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.26',
+        mac: OPENCODE2_INSTALL_COMMANDS.posix,
+        posix: OPENCODE2_INSTALL_COMMANDS.posix,
+        windows: OPENCODE2_INSTALL_COMMANDS.windows,
       }),
     settingsPanel: OpenCode2ProviderSettings,
     ownsAuthUi: true,

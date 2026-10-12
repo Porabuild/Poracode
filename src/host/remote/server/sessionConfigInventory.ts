@@ -30,22 +30,23 @@ export interface SessionConfigInventoryEntry {
  *
  * Same retention shape as `backgroundTasksByThread`: latest-event-wins, cleared
  * on exit/reset/shutdown, never persisted. The extra machinery over a plain
- * map is the {@link SessionConfigInventory.epoch} seed guard: the opened-thread
- * snapshot seeds this store from the supervisor's internal
- * `getThreadSnapshots` (never a remote RPC), and a seed that completes after
- * any newer inventory mutation must not overwrite it.
+ * map is the {@link SessionConfigInventory.epoch} seed guard: listener startup
+ * asynchronously seeds this store from the supervisor's internal
+ * `getThreadSnapshots` (never a remote RPC), and newer events or retirements fence their own threads out of that seed.
  */
 export class SessionConfigInventory {
   private readonly entries = new Map<string, SessionConfigInventoryEntry>();
 
-  /**
-   * Monotonic mutation clock over the inventory domain (inventory events,
-   * retirements, prunes, seed applications). A seed token captured before an
-   * await no longer matches after ANY mutation, so a late seed can never
-   * overwrite a newer event, provider switch, or exit. One scalar — no
-   * per-thread tombstones are retained.
-   */
+  /** Monotonic seed identity. Clear invalidates the in-flight seed. */
   private epoch = 0;
+  // One startup seed at a time. Track only mutations during that read, so
+  // unrelated live sessions cannot discard another thread's initial controls.
+  private pendingSeed: { token: number; changed: Set<string> } | null = null;
+
+  private touch(threadId: string): void {
+    this.epoch++;
+    this.pendingSeed?.changed.add(threadId);
+  }
 
   /** Latest entry for a thread, for read-side helpers and tests. */
   entryFor(threadId: string): SessionConfigInventoryEntry | undefined {
@@ -65,7 +66,7 @@ export class SessionConfigInventory {
     readonly sessionConfigOptions?: SessionConfigOptions | null;
   }): void {
     if (input.sessionConfigOptions === undefined) return;
-    this.epoch++;
+    this.touch(input.threadId);
     this.entries.set(input.threadId, {
       agentKind: input.agentKind ?? this.entries.get(input.threadId)?.agentKind,
       options: input.sessionConfigOptions,
@@ -78,7 +79,7 @@ export class SessionConfigInventory {
    * the exit cannot resurrect the departed session's inventory.
    */
   retireThread(threadId: string): void {
-    this.epoch++;
+    this.touch(threadId);
     this.entries.delete(threadId);
   }
 
@@ -90,14 +91,12 @@ export class SessionConfigInventory {
    */
   retainThreads(knownThreadIds: ReadonlySet<string>): void {
     if (this.entries.size === 0) return;
-    let removed = false;
     for (const threadId of this.entries.keys()) {
       if (!knownThreadIds.has(threadId)) {
+        this.touch(threadId);
         this.entries.delete(threadId);
-        removed = true;
       }
     }
-    if (removed) this.epoch++;
   }
 
   /**
@@ -105,22 +104,22 @@ export class SessionConfigInventory {
    * supervisor `getThreadSnapshots` read whose await boundary the seed spans.
    */
   beginSeed(): number {
-    return this.epoch;
+    const token = ++this.epoch;
+    this.pendingSeed = { token, changed: new Set() };
+    return token;
   }
 
-  /**
-   * Applies a completed `getThreadSnapshots` pull unless anything mutated the
-   * inventory since {@link beginSeed} — a newer event, an exit, a prune, or
-   * another seed application all reject it. Snapshots without the field (older
-   * supervisor, or a session that never negotiated) store nothing. Consumes
-   * the token even on success so a duplicate or out-of-order apply of the same
-   * pull generation cannot rewrite entries.
-   */
-  applySeed(token: number, snapshots: readonly ThreadRuntimeSnapshot[]): void {
-    if (token !== this.epoch) return;
+  /** Apply the latest startup pull only to threads untouched during its read.
+   * Retirements, owner changes and pruning fence their own entries; unrelated
+   * events do not discard quiet sessions. Applying consumes the seed token. */
+  applySeed(token: number, snapshots: readonly ThreadRuntimeSnapshot[]): boolean {
+    const seed = this.pendingSeed;
+    if (seed?.token !== token) return false;
+    this.pendingSeed = null;
     if (Array.isArray(snapshots)) {
       for (const snapshot of snapshots) {
-        if (snapshot?.sessionConfigOptions === undefined) continue;
+        if (snapshot?.sessionConfigOptions === undefined || seed.changed.has(snapshot.threadId))
+          continue;
         if (typeof snapshot.threadId !== "string" || typeof snapshot.agentKind !== "string")
           continue;
         this.entries.set(snapshot.threadId, {
@@ -130,6 +129,7 @@ export class SessionConfigInventory {
       }
     }
     this.epoch++;
+    return true;
   }
 
   /**
@@ -144,7 +144,7 @@ export class SessionConfigInventory {
     const entry = this.entries.get(thread.id);
     if (!entry) return thread;
     if (entry.agentKind !== thread.agentKind) {
-      this.epoch++;
+      this.touch(thread.id);
       this.entries.delete(thread.id);
       return thread;
     }
@@ -159,6 +159,7 @@ export class SessionConfigInventory {
    */
   clear(): void {
     this.epoch++;
+    this.pendingSeed = null;
     this.entries.clear();
   }
 }

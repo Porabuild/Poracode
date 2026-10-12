@@ -3,6 +3,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { useAppStore } from "@/renderer/state/appStore";
 import { rehydrateThreadRuntimeItemsAfterReset } from "@/renderer/state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
+import { resumeManagedRootHistory } from "@/renderer/state/managedRootCatalog/rootHistoryResume";
 import type {
   RuntimeEventRecoveryStrategy,
   RuntimeQueueArbitration,
@@ -46,11 +47,26 @@ export function createLocalSnapshotRecovery(deps: {
    */
   async function recoverRuntimeThread(threadId: string): Promise<boolean> {
     const generation = rendererTransportGeneration;
+    let resume: Awaited<ReturnType<typeof resumeManagedRootHistory>>;
+    try {
+      const pendingResume = resumeManagedRootHistory(
+        threadId,
+        deps.getArbitration(),
+        () => rendererTransportGeneration === generation,
+        () => latestRendererSequenceByThread.get(threadId)?.loopback,
+      );
+      resume = pendingResume ? await pendingResume : null;
+    } catch {
+      return false;
+    }
+    if (resume?.kind === "stale") return false;
+    if (resume?.kind === "applied") return resume.applied;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const before = { ...latestRendererSequenceByThread.get(threadId) };
       // Keep the reader visible during I/O. Reset and install in the same
       // synchronous continuation, after the authoritative read succeeds.
       const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId, {
+        ...(attempt === 0 && resume?.kind === "snapshot" ? { historyPage: resume.snapshot } : {}),
         beforeInstall: () => {
           if (rendererTransportGeneration !== generation) return false;
           // The DB contains transcript rows, not authoritative open requests.

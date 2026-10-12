@@ -194,9 +194,8 @@ export function composeDevinDetectedCapabilities(
   // decoded catalog pair with its effort/Fast coordinates (see
   // modelFamilySelections.ts). Attached through a spread — the optional
   // `modelFamilies` capability field joins the shared schema independently.
-  const familySelections = families?.length
-    ? { modelFamilies: devinTerminalFamilySelections(families) }
-    : {};
+  const terminalSelections = families?.length ? devinTerminalFamilySelections(families) : [];
+  const familySelections = families?.length ? { modelFamilies: terminalSelections } : {};
   return {
     ...(catalog ? catalogBaseProjection : projection),
     ...(catalog ?? {}),
@@ -207,6 +206,7 @@ export function composeDevinDetectedCapabilities(
       // ACP modes map it for real where the CLI argv has no counterpart.
       { ...projection, approvalPolicies: mergeDevinApprovalPolicies(probe?.approvalPolicies) },
       families ?? [],
+      terminalSelections,
     ) ?? {}),
   };
 }

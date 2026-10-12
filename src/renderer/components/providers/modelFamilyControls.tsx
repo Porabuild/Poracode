@@ -18,6 +18,7 @@ import {
  */
 export function modelFamilySelectorControls(
   input: ComposerControlsInput,
+  agentKind: string,
   presentation: ModelFamilyControlPresentation = {},
 ): ComposerControl[] {
   const { capabilities, config } = input;
@@ -40,6 +41,7 @@ export function modelFamilySelectorControls(
   };
   return family.selectors.map((selector) => ({
     kind: "family-selector",
+    agentKind,
     id: selector.id,
     label: presentation.selectorLabel?.(selector.id) ?? sharedMessage(selector.labelKey),
     icon: presentation.selectorIcon?.(selector.id) ?? (

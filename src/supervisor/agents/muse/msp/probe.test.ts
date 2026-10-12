@@ -204,6 +204,31 @@ describe("probeMuseModelCatalog", () => {
     ).toHaveLength(3);
   });
 
+  it("retains per-model effort metadata from the current host", async () => {
+    const { spawnHost } = spawnHostFor({
+      ...LIVE_CATALOG,
+      models: [
+        {
+          ...LIVE_CATALOG.models[0],
+          modelId: "muse-wonder-1.0",
+          displayLabel: "muse-wonder-1.0",
+          variants: ["low", "high", "max"],
+          defaultReasoningEffort: "high",
+        },
+      ],
+    });
+    const result = await probeMuseModelCatalog(location, {
+      executablePath: "/usr/bin/muse",
+      settleMs: 0,
+      spawnHost: spawnHost as never,
+    });
+    expect(result?.models[0]).toMatchObject({
+      id: "muse-wonder-1.0",
+      efforts: ["low", "high", "max"],
+      defaultEffort: "high",
+    });
+  });
+
   it("returns empty catalogs (caller decides the fallback)", async () => {
     const { spawnHost } = spawnHostFor({
       models: [],

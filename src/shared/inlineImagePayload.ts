@@ -1,3 +1,6 @@
+/** Smaller images cost less to send inline than to resolve through a reference. */
+export const INLINE_IMAGE_REF_MIN_BYTES = 8 * 1024;
+
 const BASE64_IMAGE_SIGNATURES: ReadonlyArray<readonly [string, string]> = [
   ["iVBORw0KGgo", "image/png"],
   ["/9j/", "image/jpeg"],

@@ -2,6 +2,7 @@ import { act, cleanup, render } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getSqlite } from "@/host/db/connection";
+import { HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES } from "@/shared/remote/historyReadContract";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   hydrateThreadRuntimeItems,
@@ -50,7 +51,9 @@ it.each([false, true])(
       offset + 1,
       "assistant_message",
       "{}",
-      JSON.stringify({ assistant_text: "x".repeat(336026) }),
+      // Exceed the actual serialized soft budget so each hidden child really
+      // occupies its own page, independently of conservative fetch estimates.
+      JSON.stringify({ assistant_text: "x".repeat(HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES) }),
       "parent",
     );
     insert.run(

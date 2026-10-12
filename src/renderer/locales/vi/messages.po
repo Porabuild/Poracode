@@ -1549,6 +1549,10 @@ msgstr "Một tiến trình Poracode khác đang cập nhật thông tin xác th
 msgid "Answer every question to submit"
 msgstr "Trả lời tất cả câu hỏi để gửi"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer this question to continue"
+msgstr "Trả lời câu hỏi này để tiếp tục"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
@@ -3833,6 +3837,7 @@ msgid "Context windows"
 msgstr "Cửa sổ ngữ cảnh"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
 msgstr "Tiếp tục"
 
@@ -4058,7 +4063,8 @@ msgstr "Không thể tải mức sử dụng. Hãy kiểm tra kết nối và qu
 msgid "Could not read file."
 msgstr "Không thể đọc tập tin."
 
-#: src/renderer/components/thread/SideChat/sideChatActions.ts
+#: src/renderer/components/thread/SideChat/sideChatTurnContext.ts
+#: src/renderer/components/thread/SideChat/useSideChatThreadRestore.ts
 msgid "Could not read the thread context for side chat. Try again."
 msgstr "Không thể đọc ngữ cảnh luồng cho cuộc trò chuyện phụ. Hãy thử lại."
 
@@ -4578,11 +4584,11 @@ msgstr "Bản tóm tắt hằng ngày"
 msgid "Dark"
 msgstr "Tối"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
 msgstr "Ngày"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date and time"
 msgstr "Ngày và giờ"
 
@@ -4751,6 +4757,10 @@ msgstr "Xóa lịch?"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete scheduled task?"
 #~ msgstr "Xóa tác vụ đã lên lịch?"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Delete side chat"
+msgstr "Xóa trò chuyện bên lề"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Delete skill"
@@ -5473,7 +5483,7 @@ msgstr "Mức nỗ lực cho {modelName}"
 msgid "Electron"
 msgstr "Electron"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Email address"
 msgstr "Địa chỉ email"
 
@@ -5641,7 +5651,7 @@ msgstr "Nhập tên dự án hợp lệ."
 #~ msgid "Enter a valid SSH target and port."
 #~ msgstr "Nhập đích SSH và cổng hợp lệ."
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "Nhập giá trị hợp lệ."
 
@@ -6861,6 +6871,10 @@ msgstr "Ẩn bảng điều khiển"
 msgid "Hide runtime debug panel"
 msgstr "Ẩn bảng gỡ lỗi thời gian chạy"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Hide side chat"
+msgstr "Ẩn trò chuyện bên lề"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -7936,6 +7950,7 @@ msgid "Loading workflow runs"
 msgstr "Đang tải các lần chạy quy trình"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -8291,17 +8306,17 @@ msgid "Maximize browser"
 msgstr "Tối đa hóa trình duyệt"
 
 #. placeholder {0}: property.maxLength
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum characters: {0}"
 msgstr "Số ký tự tối đa: {0}"
 
 #. placeholder {0}: property.maxItems
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum selections: {0}"
 msgstr "Số lựa chọn tối đa: {0}"
 
 #. placeholder {0}: property.maximum
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum: {0}"
 msgstr "Tối đa: {0}"
 
@@ -8586,17 +8601,17 @@ msgid "Minimize to panel"
 msgstr "Thu nhỏ vào bảng điều khiển"
 
 #. placeholder {0}: property.minLength
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum characters: {0}"
 msgstr "Số ký tự tối thiểu: {0}"
 
 #. placeholder {0}: property.minItems
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum selections: {0}"
 msgstr "Số lựa chọn tối thiểu: {0}"
 
 #. placeholder {0}: property.minimum
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum: {0}"
 msgstr "Tối thiểu: {0}"
 
@@ -8674,7 +8689,7 @@ msgstr "Mức dùng mô hình"
 #~ msgstr "mô hình: {0}"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
@@ -9485,7 +9500,6 @@ msgstr "Không tìm thấy micrô."
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Không có mô hình nào khả dụng cho {agent}. Hãy kiểm tra tác tử trong Cài đặt."
 
-#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -12389,7 +12403,9 @@ msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -13693,6 +13709,7 @@ msgstr "Hiển thị cạnh tên dự án."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/SideChat/SideChatBubble.tsx
 msgid "Side chat"
 msgstr "Trò chuyện phụ"
 
@@ -16689,7 +16706,7 @@ msgid "Upgrade owner"
 msgstr "Nâng cấp chủ sở hữu"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
 msgstr "URL"
 

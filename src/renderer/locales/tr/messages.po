@@ -1549,6 +1549,10 @@ msgstr "Başka bir Poracode işlemi bu kimlik bilgilerini güncelliyor. Bekleyip
 msgid "Answer every question to submit"
 msgstr "Göndermek için tüm soruları yanıtlayın"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer this question to continue"
+msgstr "Devam etmek için bu soruyu yanıtlayın"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
@@ -3833,6 +3837,7 @@ msgid "Context windows"
 msgstr "Bağlam pencereleri"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
 msgstr "Devam et"
 
@@ -4058,7 +4063,8 @@ msgstr "Kullanım yüklenemedi. Ana makine bağlantısını ve izinlerini kontro
 msgid "Could not read file."
 msgstr "Dosya okunamadı."
 
-#: src/renderer/components/thread/SideChat/sideChatActions.ts
+#: src/renderer/components/thread/SideChat/sideChatTurnContext.ts
+#: src/renderer/components/thread/SideChat/useSideChatThreadRestore.ts
 msgid "Could not read the thread context for side chat. Try again."
 msgstr "Yan sohbet için konuşma bağlamı okunamadı. Tekrar deneyin."
 
@@ -4578,11 +4584,11 @@ msgstr "Günlük özet"
 msgid "Dark"
 msgstr "Karanlık"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
 msgstr "Tarih"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date and time"
 msgstr "Tarih ve saat"
 
@@ -4751,6 +4757,10 @@ msgstr "Zamanlama silinsin mi?"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete scheduled task?"
 #~ msgstr "Zamanlanmış görev silinsin mi?"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Delete side chat"
+msgstr "Yan sohbeti sil"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Delete skill"
@@ -5473,7 +5483,7 @@ msgstr "{modelName} için efor düzeyleri"
 msgid "Electron"
 msgstr "Electron"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Email address"
 msgstr "E-posta adresi"
 
@@ -5641,7 +5651,7 @@ msgstr "Geçerli bir proje adı girin."
 #~ msgid "Enter a valid SSH target and port."
 #~ msgstr "Geçerli bir SSH hedefi ve bağlantı noktası girin."
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "Geçerli bir değer girin."
 
@@ -6861,6 +6871,10 @@ msgstr "Paneli gizle"
 msgid "Hide runtime debug panel"
 msgstr "Çalışma zamanı hata ayıklama panelini gizle"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Hide side chat"
+msgstr "Yan sohbeti gizle"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -7936,6 +7950,7 @@ msgid "Loading workflow runs"
 msgstr "İş akışı çalıştırmaları yükleniyor"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -8291,17 +8306,17 @@ msgid "Maximize browser"
 msgstr "Tarayıcıyı büyüt"
 
 #. placeholder {0}: property.maxLength
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum characters: {0}"
 msgstr "En fazla karakter sayısı: {0}"
 
 #. placeholder {0}: property.maxItems
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum selections: {0}"
 msgstr "En fazla seçim sayısı: {0}"
 
 #. placeholder {0}: property.maximum
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum: {0}"
 msgstr "En fazla: {0}"
 
@@ -8586,17 +8601,17 @@ msgid "Minimize to panel"
 msgstr "Panele küçült"
 
 #. placeholder {0}: property.minLength
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum characters: {0}"
 msgstr "En az karakter sayısı: {0}"
 
 #. placeholder {0}: property.minItems
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum selections: {0}"
 msgstr "En az seçim sayısı: {0}"
 
 #. placeholder {0}: property.minimum
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum: {0}"
 msgstr "En az: {0}"
 
@@ -8674,7 +8689,7 @@ msgstr "Model kullanımı"
 #~ msgstr "model: {0}"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
@@ -9485,7 +9500,6 @@ msgstr "Mikrofon bulunamadı."
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} için kullanılabilir model yok. Ayarlar'da ajanı kontrol edin."
 
-#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -12389,7 +12403,9 @@ msgstr "Kuyruktaki takip mesajlarını sürdür"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -13693,6 +13709,7 @@ msgstr "Proje adının yanında gösterilir."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/SideChat/SideChatBubble.tsx
 msgid "Side chat"
 msgstr "Yan sohbet"
 
@@ -16689,7 +16706,7 @@ msgid "Upgrade owner"
 msgstr "Sahibi yükselt"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
 msgstr "URL"
 

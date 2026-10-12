@@ -95,7 +95,10 @@ export function ProjectAuxiliaryPanel(props: {
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
   const filesPanelContext = usePanelStore((s) => s.filesPanelContext);
   const subAgentPanelContext = usePanelStore((s) => s.subAgentPanelContext);
-  const sideChatEntry = useSideChatPanelStore((s) => s.entry);
+  const currentThreadId = useFocusedThreadId();
+  const sideChatEntry = useSideChatPanelStore((s) =>
+    s.entry?.source.id === currentThreadId ? s.entry : null,
+  );
   const sideChatPanelOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
   const rightPanelSplit = usePanelStore((s) => s.rightPanelSplit);
@@ -134,7 +137,6 @@ export function ProjectAuxiliaryPanel(props: {
   const terminalProjectId = useDevTerminalStore((s) => s.activeProjectId);
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
   const terminalProject = projects.find((project) => project.id === terminalProjectId);
-  const currentThreadId = useFocusedThreadId();
   const currentThread = useAppStore((state) =>
     currentThreadId ? state.threads.find((thread) => thread.id === currentThreadId) : undefined,
   );

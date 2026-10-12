@@ -399,6 +399,7 @@ it("places family selectors immediately after the model control in the toolbar a
     option: { id: string; label: string },
   ): ComposerControl => ({
     kind: "family-selector",
+    agentKind: "example",
     id,
     label,
     icon: null,

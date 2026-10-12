@@ -58,7 +58,7 @@ const capabilities: AgentCapability = {
   ],
 };
 registerComposerControls(kind, (input) =>
-  modelFamilySelectorControls(input, {
+  modelFamilySelectorControls(input, "example", {
     selectorLabel: (id) => (id === "lead" ? "Main" : "Sidekick"),
   }),
 );

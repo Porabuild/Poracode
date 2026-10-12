@@ -10,6 +10,8 @@ export interface MuseProbedCatalogModel {
   label: string;
   contextLimit: number | null;
   isDefault: boolean;
+  efforts?: string[];
+  defaultEffort?: string;
 }
 
 export interface MuseProbedCatalog {
@@ -54,6 +56,8 @@ function parseMuseCatalog(result: Record<string, unknown>): MuseProbedCatalog {
       label: model.displayLabel,
       contextLimit: model.contextLimit,
       isDefault: model.isDefault,
+      ...(model.efforts ? { efforts: model.efforts } : {}),
+      ...(model.defaultEffort ? { defaultEffort: model.defaultEffort } : {}),
     })),
     source: parsed.source,
     providerId: parsed.providerId,
@@ -106,8 +110,9 @@ async function readSettledMuseCatalog(
 /**
  * Ask a throwaway `muse serve --no-session-log` host for its `model/list`
  * catalog: the only installed-binary source for the models the host will
- * accept in `session/setModel`. Unauthenticated hosts answer with an empty
- * `bundledCatalog`; failures (spawn error, timeout, abort) resolve to
+ * accept in `session/setModel`. This is a host snapshot, which can come from
+ * its persisted catalog without a network refresh. Unauthenticated hosts may
+ * answer with bundled rows; failures (spawn error, timeout, abort) resolve to
  * `undefined` so detection falls back to the static list. Never touches
  * auth and writes nothing to disk (ephemeral host).
  */

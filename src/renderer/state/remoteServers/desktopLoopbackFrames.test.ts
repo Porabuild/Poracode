@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { historyContentOmissions } from "../historyDelivery";
 import {
   parseDesktopLoopbackFrame,
   routeDesktopLoopbackFrame,
@@ -7,6 +8,25 @@ import {
 } from "./desktopLoopbackFrames";
 
 describe("private desktop loopback frame vocabulary (A3)", () => {
+  it("keeps omitted-content proof across worker frame validation and dispatch", () => {
+    const frame = validateDesktopLoopbackFrame({
+      type: "event",
+      seq: 2,
+      event: { type: "thread-runtime-events", threadId: "thread", events: [] },
+      omittedRuntimeThreadIds: ["thread"],
+    });
+    const dispatch = vi.fn<DesktopLoopbackFramePorts["dispatch"]>();
+    routeDesktopLoopbackFrame(structuredClone(frame), { dispatch, requestRebuild() {} });
+    expect(historyContentOmissions(dispatch.mock.calls[0]![0])?.has("thread")).toBe(true);
+    expect(
+      validateDesktopLoopbackFrame({
+        type: "event",
+        seq: 2,
+        event: { type: "noop" },
+        omittedRuntimeThreadIds: [12],
+      }),
+    ).toEqual({ kind: "invalid" });
+  });
   it("validates an already parsed value for the worker path", () => {
     expect(
       validateDesktopLoopbackFrame({

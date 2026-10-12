@@ -800,7 +800,9 @@ describe("buildModelPickerControls family controls", () => {
   }
 
   it("does not add a registration-only carrier to ordinary models", () => {
-    registerComposerControls("ordinary-pair-test", modelFamilySelectorControls);
+    registerComposerControls("ordinary-pair-test", (input) =>
+      modelFamilySelectorControls(input, "ordinary-pair-test"),
+    );
     const config = { model: "solo", effort: "high", fast: false };
     const { controls } = pickerInput(config);
     const merged = appendProviderComposerControls(controls, {
@@ -814,7 +816,9 @@ describe("buildModelPickerControls family controls", () => {
   });
 
   it("appends family selectors beside the kept common effort control and preserves context callbacks", () => {
-    registerComposerControls("paired-test", modelFamilySelectorControls);
+    registerComposerControls("paired-test", (input) =>
+      modelFamilySelectorControls(input, "paired-test"),
+    );
     const config = { model: "f-alpha-x-low", effort: "", fast: false };
     const { controls, onConfigPatch } = pickerInput(config);
     const context = controls.find((control) => control.kind === "effort-context")!;
@@ -870,7 +874,9 @@ describe("buildModelPickerControls family controls", () => {
   });
 
   it("resolves the composer Fast toggle of a config-bound pair to the fast carrier patch", () => {
-    registerComposerControls("paired-config-fast-test", modelFamilySelectorControls);
+    registerComposerControls("paired-config-fast-test", (input) =>
+      modelFamilySelectorControls(input, "paired-config-fast-test"),
+    );
     const configBound = {
       ...familyDescriptor,
       bindings: { effort: "config" as const, fast: "config" as const },
@@ -1577,7 +1583,9 @@ describe("buildControls selection binding events", () => {
   });
 
   it("routes a registered family selector edit through the same seam", () => {
-    registerComposerControls("binding-seam-pair", modelFamilySelectorControls);
+    registerComposerControls("binding-seam-pair", (input) =>
+      modelFamilySelectorControls(input, "binding-seam-pair"),
+    );
     const onConfigChange = vi.fn<(config: Thread["config"]) => void>();
     const controls = buildControls(
       bindingThread("binding-seam-pair", { model: "pair-alpha-x", effort: "", fast: false }),

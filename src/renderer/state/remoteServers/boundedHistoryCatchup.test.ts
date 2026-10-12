@@ -191,7 +191,7 @@ describe.each(["ordinary", "unicode"] as const)("%s bounded history callers", (k
     expect(liveItem().streams.assistant_text === `${canonicalText(kind)} newer`).toBe(true);
     expect(remoteServerSnapshotSeq(connection)).toBe(111);
     expect(h.legacyRead).not.toHaveBeenCalled();
-    expect(h.boundedRead).toHaveBeenCalledWith(thread.id);
+    expect(h.boundedRead).toHaveBeenCalledWith(thread.id, { compactDetails: true });
   });
 });
 

@@ -137,10 +137,12 @@ const execFileAsync = promisify(execFile);
 // v53 refreshes restricted working-window choices while retaining native model defaults.
 // v54 refreshes editable working-window catalogs from provider settings.
 // v55 publishes context-reload consequences for every composer surface.
-// v56 derives Devin Chat Fast availability from the catalog for accepted ids
-// (Fusion pairs included) and reorders permissions least → most permissive
-// with Ask off the Terminal surface, invalidating stale Devin inventories.
-export const STATUS_CACHE_VERSION = 56;
+// v56 discards model catalogs that included disconnected configured providers.
+// v57 refreshes installer commands that explicitly finish and verify package setup.
+// v58 re-probes catalog-native reasoning choices and current MSP model metadata.
+// v59 derives accepted-model Fast availability (including composite pairs)
+// and orders permissions least to most permissive, preserving v58 catalogs.
+export const STATUS_CACHE_VERSION = 59;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

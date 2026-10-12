@@ -52,6 +52,24 @@ interface PendingEntry {
   readonly sequence?: number;
   readonly space: EventSequenceSpace;
   readonly bytes: number;
+  readonly transcriptComplete: boolean;
+}
+
+const drainedSequences = new WeakMap<
+  RuntimeEventQueueBatch,
+  Partial<Record<EventSequenceSpace, number>> | null
+>();
+const partialFrames = new WeakSet<RuntimeEventQueueBatch>();
+const transcriptCoverage = new WeakMap<RuntimeEventQueueBatch, boolean>();
+export function runtimeBatchTranscriptComplete(batch: RuntimeEventQueueBatch): boolean {
+  return transcriptCoverage.get(batch) ?? true;
+}
+export function runtimeBatchHasPartialFrame(batch: RuntimeEventQueueBatch): boolean {
+  return partialFrames.has(batch);
+}
+/** Only fully drained frames may advance a replay cursor. null denotes unsequenced input. */
+export function runtimeBatchAppliedSequences(batch: RuntimeEventQueueBatch) {
+  return drainedSequences.get(batch);
 }
 
 interface PendingThreadEvents {
@@ -82,9 +100,12 @@ export class RuntimeEventQueue {
     events: readonly RuntimeEvent[],
     sequence?: number,
     space: EventSequenceSpace = "ipc",
+    transcriptComplete = true,
   ): RuntimeEventQueueEnqueueResult {
     if (events.length === 0) return { accepted: true, overflowed: false, blocked: false };
-    const stamped = events.map((event) => stampQueuedEvent(event, sequence, space));
+    const stamped = events.map((event) =>
+      stampQueuedEvent(event, sequence, space, transcriptComplete),
+    );
     const bytes = stamped.reduce((total, entry) => total + entry.bytes, 0);
     const existing = this.pending.get(threadId);
     const nextThreadBytes = (existing?.bytes ?? 0) + bytes;
@@ -151,7 +172,38 @@ export class RuntimeEventQueue {
       pending.bytes -= takenBytes;
       this.queuedEvents -= taken.length;
       this.queuedBytes -= takenBytes;
-      batches.push({ threadId, events: taken.map((entry) => entry.event) });
+      const batch = { threadId, events: taken.map((entry) => entry.event) };
+      transcriptCoverage.set(
+        batch,
+        taken.every((entry) => entry.transcriptComplete),
+      );
+      const sequences: Partial<Record<EventSequenceSpace, number>> = {};
+      const remainingSequences = new Set(
+        pending.events
+          .filter((entry) => entry.sequence !== undefined)
+          .map((entry) => `${entry.space}:${entry.sequence}`),
+      );
+      if (
+        taken.some(
+          (entry) =>
+            entry.sequence !== undefined &&
+            remainingSequences.has(`${entry.space}:${entry.sequence}`),
+        )
+      )
+        partialFrames.add(batch);
+      for (const entry of taken) {
+        if (
+          entry.sequence === undefined ||
+          remainingSequences.has(`${entry.space}:${entry.sequence}`)
+        )
+          continue;
+        sequences[entry.space] = Math.max(sequences[entry.space] ?? 0, entry.sequence);
+      }
+      drainedSequences.set(
+        batch,
+        taken.some((entry) => entry.sequence === undefined) ? null : sequences,
+      );
+      batches.push(batch);
       if (pending.events.length === 0) {
         this.pending.delete(threadId);
         continue;
@@ -250,9 +302,12 @@ function stampQueuedEvent(
   event: RuntimeEvent,
   sequence: number | undefined,
   space: EventSequenceSpace,
+  transcriptComplete: boolean,
 ): PendingEntry {
   // Size is measured exactly once, at admission. The removal/arbitration paths
   // reuse it instead of re-serializing the event.
   const bytes = textEncoder.encode(JSON.stringify(event)).byteLength;
-  return sequence !== undefined ? { event, sequence, space, bytes } : { event, space, bytes };
+  return sequence !== undefined
+    ? { event, sequence, space, bytes, transcriptComplete }
+    : { event, space, bytes, transcriptComplete };
 }

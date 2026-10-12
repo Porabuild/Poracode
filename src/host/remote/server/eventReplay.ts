@@ -1,5 +1,6 @@
 import { WebSocket } from "ws";
 import type { RemoteServerContext } from "./context";
+import { runtimeContentOmissionMetadata } from "./itemInterestFilter";
 
 /** One bounded-history replay pump (deep-review consolidation): walks a
  * seq-contiguous buffer one frame at a time with backpressured raw sends,
@@ -143,7 +144,13 @@ export function replayEvents(ctx: ReplayContext, socket: WebSocket, lastSeenSeq:
       const data =
         scoped === entry.event
           ? `{"type":"event","seq":${entry.seq},"space":"loopback","event":${entry.json}}`
-          : JSON.stringify({ type: "event", seq: entry.seq, space: "loopback", event: scoped });
+          : JSON.stringify({
+              type: "event",
+              seq: entry.seq,
+              space: "loopback",
+              event: scoped,
+              ...runtimeContentOmissionMetadata(entry.event, scoped),
+            });
       return { kind: "frame", data };
     },
   });

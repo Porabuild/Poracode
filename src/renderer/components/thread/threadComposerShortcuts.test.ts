@@ -289,6 +289,7 @@ it("keeps effort and Fast shortcuts on the ordinary carriers beside family selec
   // effort carrier.
   const selector: ComposerControl = {
     kind: "family-selector",
+    agentKind: "example",
     id: "lead",
     label: "Main",
     icon: null,

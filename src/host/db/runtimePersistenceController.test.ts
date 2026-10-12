@@ -212,6 +212,30 @@ describe("RuntimePersistenceController state machine", () => {
 });
 
 describe("RuntimePersistenceController mutation contract", () => {
+  it("notifies history observers only after an authoritative mutation applies", async () => {
+    const changed = vi.fn<(threadId: string) => void>();
+    const controller = new RuntimePersistenceController({
+      write: () => undefined,
+      onAuthoritativeHistoryChanged: changed,
+      flushIntervalMs: 60_000,
+    });
+    for (const kind of ["reset", "replace", "truncate", "delete"] as const) {
+      await controller.runThreadMutation("t1", kind, () => undefined);
+    }
+    expect(changed.mock.calls).toEqual(Array.from({ length: 4 }, () => ["t1"]));
+    await expect(
+      controller.runThreadMutation("t1", "reset", () => {
+        throw new Error("Failed mutation");
+      }),
+    ).rejects.toThrow("Failed mutation");
+    await expect(
+      controller.runThreadMutation("t1", "reset", (async () => undefined) as unknown as () => void),
+    ).rejects.toThrow(/synchronous/);
+    expect(changed).toHaveBeenCalledTimes(4);
+    controller.discard("t1");
+    expect(changed).toHaveBeenCalledTimes(5);
+  });
+
   it("refuses an async mutation result instead of superseding admitted events", async () => {
     const controller = new RuntimePersistenceController({
       write: () => undefined,

@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ModelFamilySelectorMenu } from "./ModelFamilySelectorMenu";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 const options = [
   { id: "a", label: "Alpha", hint: "Low" },
@@ -15,6 +16,7 @@ function renderMenu(
     isDisabled?: boolean;
     onChange?: (value: string) => void;
     onOpenChange?: (open: boolean) => void;
+    options?: typeof options;
   } = {},
 ) {
   const {
@@ -25,9 +27,10 @@ function renderMenu(
   } = props;
   render(
     <ModelFamilySelectorMenu
+      agentKind="example"
       label="Main"
       icon={<span data-testid="selector-icon" />}
-      options={options}
+      options={props.options ?? options}
       value={value}
       onChange={onChange}
       {...(isDisabled !== undefined ? { isDisabled } : {})}
@@ -84,7 +87,7 @@ describe("ModelFamilySelectorMenu", () => {
   it("opens with the search focused, names the selector, and filters by label and hint", async () => {
     renderMenu();
     const search = await openDesktopMenu();
-    expect(document.querySelector(".poracode-model-menu-header")).toHaveTextContent("Main");
+    expect(screen.getByRole("listbox", { name: "Main" })).toBeInTheDocument();
     expect(document.querySelector(".m-sheet-head")).not.toBeInTheDocument();
     expect(screen.getAllByRole("option")).toHaveLength(3);
     fireEvent.change(search, { target: { value: "gam" } });
@@ -158,15 +161,62 @@ describe("ModelFamilySelectorMenu", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("offers only native choices and never changes model favorites or recents", async () => {
+    const before = useSharedSettings.getState();
+    const favoriteModels = [
+      { agentKind: "example", modelId: "outside", presentationMode: "gui" as const },
+    ];
+    const recentModels = [
+      { agentKind: "example", modelId: "another-outside", presentationMode: "gui" as const },
+    ];
+    useSharedSettings.setState({ favoriteModels, recentModels, hiddenModels: { example: ["a"] } });
+    try {
+      const { onChange } = renderMenu({ value: "unknown-member" });
+      const search = await openDesktopMenu();
+      expect(screen.getAllByRole("option")).toHaveLength(options.length);
+      expect(screen.queryByRole("button", { name: /favorite/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("option", { name: /Alpha/ })).toBeInTheDocument();
+      fireEvent.keyDown(search, { key: "Enter" });
+      await waitFor(() => expect(onChange).toHaveBeenCalledExactlyOnceWith("a"));
+      expect(useSharedSettings.getState().favoriteModels).toEqual(favoriteModels);
+      expect(useSharedSettings.getState().recentModels).toEqual(recentModels);
+    } finally {
+      useSharedSettings.setState({
+        favoriteModels: before.favoriteModels,
+        recentModels: before.recentModels,
+        hiddenModels: before.hiddenModels,
+      });
+    }
+  });
+
+  it("scrolls the selected last row into view when a mobile picker reopens", async () => {
+    (window as unknown as { poracode?: unknown }).poracode = { appVersion: "remote" };
+    const longOptions = Array.from({ length: 12 }, (_, index) => ({
+      id: `option-${index}`,
+      label: `Option ${index}`,
+    }));
+    renderMenu({ value: "option-11", options: longOptions });
+    for (let opening = 0; opening < 2; opening += 1) {
+      mouseClick(await screen.findByRole("button", { name: "Main" }));
+      const list = await screen.findByRole("listbox", { name: "Main" });
+      await waitFor(() => expect(list.scrollTop).toBeGreaterThan(0));
+      const selected = screen.getByRole("option", { name: "Option 11" });
+      expect(selected).toHaveAttribute("aria-selected", "true");
+      expect(list.scrollTop).toBeLessThanOrEqual(11 * 44);
+      expect(list.scrollTop + Number.parseFloat(list.style.height)).toBeGreaterThanOrEqual(12 * 44);
+      fireEvent.keyDown(list, { key: "ArrowDown" });
+      expect(list.scrollTop).toBeGreaterThan(0);
+      fireEvent.keyDown(await screen.findByPlaceholderText("Search models..."), { key: "Escape" });
+      await waitFor(() => expect(list).not.toBeInTheDocument());
+    }
+  });
+
   it("opens the labeled sheet on mobile without autofocusing search", async () => {
     (window as unknown as { poracode?: unknown }).poracode = { appVersion: "remote" };
     const { onChange } = renderMenu();
     mouseClick(screen.getByRole("button", { name: "Main" }));
     expect(document.querySelector(".m-sheet-head")).toHaveTextContent("Main");
-    // No `m-sheet--model-picker`: that variant drops the safe-area bottom
-    // padding because the picker's virtual list owns the clearance; this
-    // plain list keeps the base sheet's padding instead.
-    expect(document.querySelector(".m-sheet")).not.toHaveClass("m-sheet--model-picker");
+    expect(document.querySelector(".m-sheet")).toHaveClass("m-sheet--model-picker");
     const search = await screen.findByPlaceholderText("Search models...");
     expect(search).not.toHaveFocus();
     act(() => search.focus());

@@ -28,10 +28,6 @@ import {
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import {
-  hasHydratedThreadRuntimeItems,
-  hydrateThreadRuntimeItems,
-} from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { shouldConfirmThreadDelete } from "@/renderer/state/threadDeletePreference";
@@ -45,7 +41,10 @@ import { useContinueInProviderStore } from "@/renderer/state/continueInProviderS
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
-import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import {
+  auxiliaryThreadIds,
+  useAuxiliaryThreadWindows,
+} from "@/renderer/state/auxiliaryThreadWindows";
 import { closePanelsForUnloadedThread } from "./panelActions";
 import { getCurrentProjectId } from "./currentProject";
 import { switchWorkspaceForProject } from "./workspaceActions";
@@ -74,6 +73,7 @@ function dispatchRemoteThreadMutation(
   command: (remoteThreadId: string) => RemoteThreadCommand,
   apply: () => void,
   onConfirmed?: () => void,
+  onRejected?: (error: unknown) => void,
 ): boolean {
   const owner = remoteOwner(thread);
   const rootOwner = managedRootOwner(thread);
@@ -120,6 +120,7 @@ function dispatchRemoteThreadMutation(
     })
     .catch((error) => {
       toast.danger(friendlyError(error));
+      onRejected?.(error);
       if (rootOwner) refreshManagedRootCatalogSoon();
     })
     .finally(release);
@@ -265,7 +266,6 @@ export function openThread(
   }
   const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
   const requestId = ++openThreadRequestId;
-  const threadIdsToHydrate = getGuiThreadIdsToHydrateBeforeOpen(threadId, standalone);
 
   // Phase 1 (urgent): flip the optimistic active-thread id in its own cheap
   // commit so the sidebar row highlights immediately. This does not touch
@@ -315,16 +315,9 @@ export function openThread(
     }
   };
 
-  if (threadIdsToHydrate.length > 0) {
-    // Hydration already yields (awaited), so the highlight paints during the
-    // SQLite fetch — no extra frame needed before the swap.
-    void Promise.all(threadIdsToHydrate.map((id) => hydrateThreadRuntimeItems(id))).then(
-      applyOpen,
-      applyOpen,
-    );
-    return;
-  }
-
+  // The mounted pane owns history hydration after its live-interest lease is
+  // ready. Preloading here delays navigation and makes that lease perform a
+  // second baseline recovery because the preload had no live coverage.
   // Defer the heavy pane swap one frame so the urgent highlight commit paints
   // first. requestAnimationFrame alone is not enough: Chromium parks rAF
   // entirely for occluded windows, which would stall the open until the window
@@ -357,8 +350,10 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
   const store = useAppStore.getState();
   const knownWorkspaceIds = getKnownWorkspaceIds();
   const activeWorkspaceId = getActiveWorkspaceId();
+  const auxiliaryIds = useAuxiliaryThreadWindows.getState().hiddenThreadIds;
   const projectThreads = store.threads.filter(
     (thread) =>
+      !auxiliaryIds.has(thread.id) &&
       thread.projectId === current.projectId &&
       !thread.archived &&
       // Home threads filed under other workspaces are hidden from the sidebar,
@@ -381,28 +376,6 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
   const delta = direction === "next" ? 1 : -1;
   const nextId = orderedIds[(index + delta + orderedIds.length) % orderedIds.length];
   if (nextId && nextId !== current.id) openThread(nextId);
-}
-
-function getGuiThreadIdsToHydrateBeforeOpen(threadId: string, standalone = false): string[] {
-  const state = useAppStore.getState();
-  const clickedThread = state.threads.find((thread) => thread.id === threadId);
-  if (!clickedThread) return [];
-
-  let candidates = [clickedThread];
-  if (!standalone && clickedThread.groupId) {
-    const groupThreads = state.threads.filter(
-      (thread) => thread.groupId === clickedThread.groupId && !thread.done && !thread.archived,
-    );
-    if (groupThreads.length >= 2) {
-      candidates = groupThreads;
-    }
-  }
-
-  return candidates
-    .filter(
-      (thread) => thread.presentationMode === "gui" && !hasHydratedThreadRuntimeItems(thread.id),
-    )
-    .map((thread) => thread.id);
 }
 
 export function reopenStoredThread(threadId: string): void {
@@ -724,11 +697,16 @@ export function acknowledgeThread(threadId: string): void {
   apply();
 }
 
-function deleteThreadOnly(threadId: string): void {
+function deleteThreadOnly(
+  threadId: string,
+  record?: Thread,
+  completion?: { resolve: () => void; reject: (error: unknown) => void },
+): void {
   const store = useAppStore.getState();
-  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  const thread = store.threads.find((candidate) => candidate.id === threadId) ?? record;
   if (store.provisioningWorktreeThreadIds[threadId] === true) {
     store.deleteThread(threadId);
+    completion?.resolve();
     return;
   }
   const rootOwner = thread ? managedRootOwner(thread) : undefined;
@@ -738,6 +716,10 @@ function deleteThreadOnly(threadId: string): void {
     // success so a refused or ambiguous delete can still replay the exact
     // original launch operation.
     if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
+    void readBridge()
+      .closeSideChatPanel?.(threadId)
+      .catch((error: unknown) => toast.danger(friendlyError(error)));
+    completion?.resolve();
   };
   if (
     thread &&
@@ -746,6 +728,7 @@ function deleteThreadOnly(threadId: string): void {
       (remoteThreadId) => ({ kind: "delete", threadId: remoteThreadId }),
       () => useAppStore.getState().archiveThread(threadId),
       confirmRemoteDelete,
+      completion?.reject,
     )
   )
     return;
@@ -755,8 +738,18 @@ function deleteThreadOnly(threadId: string): void {
   if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
   store.deleteThread(threadId);
   void readBridge()
+    .closeSideChatPanel?.(threadId)
+    .catch((error: unknown) => toast.danger(friendlyError(error)));
+  void readBridge()
     .closeThread({ threadId })
     .catch(() => undefined);
+  if (completion)
+    void readBridge().dbDeleteThread(threadId).then(completion.resolve, completion.reject);
+}
+
+/** Dispose a retained auxiliary row even when it is outside the loaded catalog page. */
+export function deleteThreadRecord(thread: Thread): Promise<void> {
+  return new Promise((resolve, reject) => deleteThreadOnly(thread.id, thread, { resolve, reject }));
 }
 
 /** True when `threadId` is the only thread still using `worktreePath`. */

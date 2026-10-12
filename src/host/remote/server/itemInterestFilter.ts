@@ -4,6 +4,37 @@ import {
 } from "@/shared/liveEventInterests";
 import type { RemoteBroadcastEvent } from "./context";
 
+/** Outer-envelope proof survives scoped empty frames, decoding and recovery queues. */
+export function runtimeContentOmissionMetadata(
+  original: RemoteBroadcastEvent,
+  scoped: RemoteBroadcastEvent,
+): { omittedRuntimeThreadIds?: string[] } {
+  const counts = (event: RemoteBroadcastEvent) => {
+    const batches =
+      event.type === "thread-runtime-event"
+        ? [{ threadId: event.threadId, events: [event.event] }]
+        : event.type === "thread-runtime-events"
+          ? [event]
+          : event.type === "thread-runtime-events-multi"
+            ? event.batches
+            : [];
+    const result = new Map<string, number>();
+    for (const batch of batches)
+      result.set(
+        batch.threadId,
+        (result.get(batch.threadId) ?? 0) + batch.events.filter(isBulkRuntimeContentEvent).length,
+      );
+    return result;
+  };
+  if (original === scoped) return {};
+  const before = counts(original),
+    after = counts(scoped);
+  const omittedRuntimeThreadIds = [...before]
+    .filter(([threadId, count]) => count > (after.get(threadId) ?? 0))
+    .map(([threadId]) => threadId);
+  return omittedRuntimeThreadIds.length > 0 ? { omittedRuntimeThreadIds } : {};
+}
+
 /**
  * Withholds live transcript *content* for threads a connection is not watching.
  *

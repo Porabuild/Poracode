@@ -121,6 +121,7 @@ export type ComposerControl =
     }
   | {
       kind: "family-selector";
+      agentKind: string;
       /** Selector identity inside the owning family relation. */
       id: string;
       /** Localized selector name shown under the current option display. */
@@ -546,6 +547,7 @@ export function ThreadComposer(props: {
       return (
         <ModelFamilySelectorMenu
           key={`family-selector-${control.id}`}
+          agentKind={control.agentKind}
           label={control.label}
           icon={control.icon}
           options={control.options}

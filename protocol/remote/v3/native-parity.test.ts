@@ -58,7 +58,7 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 95,
+  httpRoutes: 97,
   procedures: 130,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
@@ -261,6 +261,15 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
+  ...Object.fromEntries(
+    ["thread-history-item", "thread-history-changes"].map((id) => [
+      id,
+      [
+        { platform: "ios" as Platform, token: `"${id}"` },
+        { platform: "android" as Platform, token: `"${id}"` },
+      ],
+    ]),
+  ),
   // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
   ...Object.fromEntries(
     ["getProviderUsage", "refreshProviderUsage"].map((token) => [

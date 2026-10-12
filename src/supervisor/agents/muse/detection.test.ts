@@ -23,7 +23,6 @@ vi.mock("./msp/probe", async () => {
 });
 
 import {
-  buildMuseCatalogCapabilities,
   buildMuseProbedCapabilities,
   humanizeMuseModelLabel,
   MUSE_DEFAULT_MODEL_ID,
@@ -276,6 +275,8 @@ describe("museDefaultCapabilities", () => {
       "muse-spark-1.2",
       "muse-spark-1.2-contributor",
       "muse-spark-1.1",
+      "muse-wonder-1.0",
+      "muse-wonder-full-1.0",
     ]);
   });
 
@@ -434,6 +435,17 @@ describe("parseMuseHelpEfforts", () => {
 });
 
 describe("parseMuseHelpModelIds", () => {
+  it("discovers new model families and their contributor variants", () => {
+    expect(
+      parseMuseHelpModelIds(
+        "--model muse-wonder-1.1 or muse-wonder-full-1.1-contributor; muse-image-1.0",
+      ),
+    ).toEqual(["muse-wonder-1.1", "muse-wonder-full-1.1-contributor"]);
+    expect(museDefaultCapabilities.models.map((model) => model.id)).toContain("muse-wonder-1.0");
+    expect(museDefaultCapabilities.models.map((model) => model.id)).toContain(
+      "muse-wonder-full-1.0",
+    );
+  });
   it("collects muse-spark ids deduped in order of appearance", () => {
     expect(
       parseMuseHelpModelIds("try muse-spark-1.4 or muse-spark-1.4-contributor, not muse-spark-1.4"),
@@ -522,94 +534,6 @@ describe("buildMuseProbedCapabilities", () => {
       "minimal",
       "none",
     ]);
-  });
-});
-
-describe("buildMuseCatalogCapabilities", () => {
-  const base = [
-    { id: "muse-spark-1.3", label: "Muse Spark 1.3" },
-    { id: "muse-spark-1.1", label: "Muse Spark 1.1" },
-  ];
-  const efforts = ["low", "medium", "high"];
-
-  it("returns the accepted live subset and ignores only an empty catalog", () => {
-    expect(
-      buildMuseCatalogCapabilities(
-        base,
-        {
-          models: [
-            {
-              id: "muse-spark-1.3",
-              label: "muse-spark-1.3",
-              contextLimit: null,
-              isDefault: false,
-            },
-          ],
-          source: "providerCatalog",
-          providerId: "meta",
-          profileId: null,
-        },
-        efforts,
-      )?.models,
-    ).toEqual([{ id: "muse-spark-1.3", label: "Muse Spark 1.3" }]);
-    expect(
-      buildMuseCatalogCapabilities(
-        base,
-        { models: [], source: "bundledCatalog", providerId: "meta", profileId: "tbh" },
-        efforts,
-      ),
-    ).toBeNull();
-  });
-
-  it("uses catalog ids with catalog labels and limits on the given ladder", () => {
-    const probed = buildMuseCatalogCapabilities(
-      base,
-      {
-        models: [
-          {
-            id: "muse-spark-1.9",
-            label: "Muse Spark 1.9",
-            contextLimit: 2_000_000,
-            isDefault: true,
-          },
-          { id: "", label: "blank", contextLimit: null, isDefault: false },
-        ],
-        source: "providerCatalog",
-        providerId: "meta",
-        profileId: null,
-      },
-      efforts,
-    );
-    expect(probed?.models.map((m) => m.id)).toEqual(["muse-spark-1.9"]);
-    expect(probed?.modelEfforts["muse-spark-1.9"]).toEqual(efforts);
-    expect(probed?.modelContextSizes?.["muse-spark-1.9"]).toEqual(["2M"]);
-    expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toBeUndefined();
-  });
-
-  it("humanizes blank catalog labels and prefers catalog limits for known ids", () => {
-    const probed = buildMuseCatalogCapabilities(
-      base,
-      {
-        models: [
-          {
-            id: "muse-spark-1.3",
-            label: "Muse Spark 1.3",
-            contextLimit: 2_000_000,
-            isDefault: false,
-          },
-          { id: "muse-spark-1.9-contributor", label: "", contextLimit: null, isDefault: false },
-        ],
-        source: "providerCatalog",
-        providerId: "meta",
-        profileId: null,
-      },
-      efforts,
-    );
-    expect(probed?.models.at(-1)).toEqual({
-      id: "muse-spark-1.9-contributor",
-      label: "Muse Spark 1.9 Contributor",
-    });
-    expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["2M"]);
   });
 });
 

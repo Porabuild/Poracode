@@ -1548,6 +1548,10 @@ msgstr "別の Poracode プロセスがこの認証情報を更新していま�
 msgid "Answer every question to submit"
 msgstr "送信するにはすべての質問に回答してください"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer this question to continue"
+msgstr "続行するには、この質問に回答してください"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
@@ -3832,6 +3836,7 @@ msgid "Context windows"
 msgstr "コンテキストウィンドウ"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
 msgstr "続ける"
 
@@ -4057,7 +4062,8 @@ msgstr "使用量を読み込めませんでした。ホストの接続と権限
 msgid "Could not read file."
 msgstr "ファイルを読み取れませんでした。"
 
-#: src/renderer/components/thread/SideChat/sideChatActions.ts
+#: src/renderer/components/thread/SideChat/sideChatTurnContext.ts
+#: src/renderer/components/thread/SideChat/useSideChatThreadRestore.ts
 msgid "Could not read the thread context for side chat. Try again."
 msgstr "サイドチャット用のスレッドコンテキストを読み取れませんでした。もう一度お試しください。"
 
@@ -4577,11 +4583,11 @@ msgstr "デイリーブリーフ"
 msgid "Dark"
 msgstr "ダーク"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
 msgstr "日付"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date and time"
 msgstr "日付と時刻"
 
@@ -4750,6 +4756,10 @@ msgstr "スケジュールを削除しますか？"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete scheduled task?"
 #~ msgstr "スケジュールタスクを削除しますか？"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Delete side chat"
+msgstr "サイドチャットを削除"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Delete skill"
@@ -5472,7 +5482,7 @@ msgstr "{modelName} の推論レベル"
 msgid "Electron"
 msgstr "Electron"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Email address"
 msgstr "メールアドレス"
 
@@ -5640,7 +5650,7 @@ msgstr "有効なプロジェクト名を入力してください。"
 #~ msgid "Enter a valid SSH target and port."
 #~ msgstr "有効な SSH 接続先とポートを入力してください。"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "有効な値を入力してください。"
 
@@ -6860,6 +6870,10 @@ msgstr "パネルを非表示にする"
 msgid "Hide runtime debug panel"
 msgstr "ランタイムデバッグパネルを非表示にする"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Hide side chat"
+msgstr "サイドチャットを非表示"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -7935,6 +7949,7 @@ msgid "Loading workflow runs"
 msgstr "ワークフロー実行を読み込み中"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -8290,17 +8305,17 @@ msgid "Maximize browser"
 msgstr "ブラウザを最大化する"
 
 #. placeholder {0}: property.maxLength
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum characters: {0}"
 msgstr "最大文字数: {0}"
 
 #. placeholder {0}: property.maxItems
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum selections: {0}"
 msgstr "最大選択数: {0}"
 
 #. placeholder {0}: property.maximum
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum: {0}"
 msgstr "最大値: {0}"
 
@@ -8584,17 +8599,17 @@ msgid "Minimize to panel"
 msgstr "パネルに最小化する"
 
 #. placeholder {0}: property.minLength
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum characters: {0}"
 msgstr "最小文字数: {0}"
 
 #. placeholder {0}: property.minItems
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum selections: {0}"
 msgstr "最小選択数: {0}"
 
 #. placeholder {0}: property.minimum
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum: {0}"
 msgstr "最小値: {0}"
 
@@ -8672,7 +8687,7 @@ msgstr "モデルの使用状況"
 #~ msgstr "モデル: {0}"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
@@ -9483,7 +9498,6 @@ msgstr "マイクが見つかりません。"
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} で利用できるモデルがありません。設定でエージェントを確認してください。"
 
-#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -12387,7 +12401,9 @@ msgstr "キューに入ったフォローアップを再開"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -13691,6 +13707,7 @@ msgstr "プロジェクト名の横に表示されます。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/SideChat/SideChatBubble.tsx
 msgid "Side chat"
 msgstr "サイドチャット"
 
@@ -16687,7 +16704,7 @@ msgid "Upgrade owner"
 msgstr "所有者をアップグレード"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
 msgstr "URL"
 

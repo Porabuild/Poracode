@@ -13,7 +13,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => ({ openSideChatPanel: mocks.open }) }));
 vi.mock("./sideChatContext", () => ({ readSideChatContext: mocks.context }));
 vi.mock("./sideChatPanelStore", () => ({
-  useSideChatPanelStore: { getState: () => ({ entry: mocks.entry }) },
+  useSideChatPanelStore: {
+    getState: () => ({
+      entry: mocks.entry,
+      detachedIds: new Set(),
+      entries: mocks.entry ? { [mocks.entry.source.id]: mocks.entry } : {},
+    }),
+  },
 }));
 vi.mock("@/renderer/state/panelStore", () => ({
   usePanelStore: { getState: () => ({ setRightPanelTab: mocks.reopen }) },
@@ -127,18 +133,18 @@ describe("hidden context host compatibility", () => {
     mocks.environment.mockResolvedValue({
       capabilities: { conversationSnapshots: { versions: [1] } },
     });
-    let resolveContext!: (value: null) => void;
-    mocks.context.mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveContext = resolve;
+    let resolveOpen!: () => void;
+    mocks.open.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveOpen = resolve;
       }),
     );
     const first = openSideChat("parent", "first");
     await new Promise((resolve) => setTimeout(resolve, 0));
     await expect(openSideChat("parent", "next")).resolves.toBe(false);
-    resolveContext(null);
+    resolveOpen();
     await expect(first).resolves.toBe(true);
     expect(mocks.open).toHaveBeenCalledTimes(1);
-    expect(mocks.context).toHaveBeenCalledWith(expect.anything(), 50_000);
+    expect(mocks.context).not.toHaveBeenCalled();
   });
 });

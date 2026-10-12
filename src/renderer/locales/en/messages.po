@@ -1554,6 +1554,10 @@ msgstr "Another Poracode process is updating these credentials. Wait and try aga
 msgid "Answer every question to submit"
 msgstr "Answer every question to submit"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer this question to continue"
+msgstr "Answer this question to continue"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
@@ -3842,6 +3846,7 @@ msgid "Context windows"
 msgstr "Context windows"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
 msgstr "Continue"
 
@@ -4067,7 +4072,8 @@ msgstr "Could not load usage. Check the host connection and permissions, then tr
 msgid "Could not read file."
 msgstr "Could not read file."
 
-#: src/renderer/components/thread/SideChat/sideChatActions.ts
+#: src/renderer/components/thread/SideChat/sideChatTurnContext.ts
+#: src/renderer/components/thread/SideChat/useSideChatThreadRestore.ts
 msgid "Could not read the thread context for side chat. Try again."
 msgstr "Could not read the thread context for side chat. Try again."
 
@@ -4587,11 +4593,11 @@ msgstr "Daily brief"
 msgid "Dark"
 msgstr "Dark"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date"
 msgstr "Date"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Date and time"
 msgstr "Date and time"
 
@@ -4760,6 +4766,10 @@ msgstr "Delete schedule?"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete scheduled task?"
 #~ msgstr "Delete scheduled task?"
+
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Delete side chat"
+msgstr "Delete side chat"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Delete skill"
@@ -5482,7 +5492,7 @@ msgstr "Effort levels for {modelName}"
 msgid "Electron"
 msgstr "Electron"
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Email address"
 msgstr "Email address"
 
@@ -5650,7 +5660,7 @@ msgstr "Enter a valid project name."
 #~ msgid "Enter a valid SSH target and port."
 #~ msgstr "Enter a valid SSH target and port."
 
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Enter a valid value."
 msgstr "Enter a valid value."
 
@@ -6870,6 +6880,10 @@ msgstr "Hide panel"
 msgid "Hide runtime debug panel"
 msgstr "Hide runtime debug panel"
 
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
+msgid "Hide side chat"
+msgstr "Hide side chat"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -7945,6 +7959,7 @@ msgid "Loading workflow runs"
 msgstr "Loading workflow runs"
 
 #: src/renderer/app.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -8300,17 +8315,17 @@ msgid "Maximize browser"
 msgstr "Maximize browser"
 
 #. placeholder {0}: property.maxLength
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum characters: {0}"
 msgstr "Maximum characters: {0}"
 
 #. placeholder {0}: property.maxItems
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum selections: {0}"
 msgstr "Maximum selections: {0}"
 
 #. placeholder {0}: property.maximum
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum: {0}"
 msgstr "Maximum: {0}"
 
@@ -8595,17 +8610,17 @@ msgid "Minimize to panel"
 msgstr "Minimize to panel"
 
 #. placeholder {0}: property.minLength
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum characters: {0}"
 msgstr "Minimum characters: {0}"
 
 #. placeholder {0}: property.minItems
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum selections: {0}"
 msgstr "Minimum selections: {0}"
 
 #. placeholder {0}: property.minimum
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Minimum: {0}"
 msgstr "Minimum: {0}"
 
@@ -8683,7 +8698,7 @@ msgstr "Model usage"
 #~ msgstr "model: {0}"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
@@ -9494,7 +9509,6 @@ msgstr "No microphone found."
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "No model is available for {agent}. Check the agent in Settings."
 
-#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -12398,7 +12412,9 @@ msgstr "Resume queued follow-ups"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
+#: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -13702,6 +13718,7 @@ msgstr "Shown next to the project name."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
+#: src/renderer/components/thread/SideChat/SideChatBubble.tsx
 msgid "Side chat"
 msgstr "Side chat"
 
@@ -16702,7 +16719,7 @@ msgid "Upgrade owner"
 msgstr "Upgrade owner"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "URL"
 msgstr "URL"
 

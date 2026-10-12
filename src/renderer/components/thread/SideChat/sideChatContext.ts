@@ -62,7 +62,7 @@ export async function readSideChatContext(
   const read = async (client: RemoteDesktopClient): Promise<ExtractContextResult | null> => {
     const signal = AbortSignal.timeout(15_000);
     const header =
-      "Snapshot of the parent conversation, oldest turn first. This is background for a separate side question. Bounded tool output is included; omissions are marked.\n\n";
+      "Current snapshot of the parent conversation, oldest turn first. This replaces earlier parent snapshots and is background for the current side question. Bounded tool output is included; omissions are marked.\n\n";
     const budget = Math.max(0, maxChars - header.length - MAX_ROW_CHARS - GAP.length);
     const recent: { id: string; text: string }[] = [];
     let used = 0;

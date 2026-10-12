@@ -65,8 +65,9 @@ describe("database migration registry", () => {
       [55, "thread workspace grant custody"],
       [56, "thread workspace owner fencing"],
       [57, "model selection intent writer boundary"],
+      [58, "runtime latest goal index"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(57);
+    expect(LATEST_SCHEMA_VERSION).toBe(58);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -104,9 +105,9 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 57,
-      name: "model selection intent writer boundary",
-      rollback: "forward-only",
+      version: 58,
+      name: "runtime latest goal index",
+      rollback: "rollback-compatible",
     });
     // Migrations below the floor keep their reviewed defaults.
     expect(() =>

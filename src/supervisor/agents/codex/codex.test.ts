@@ -1074,7 +1074,7 @@ describe("CodexStructuredSession", () => {
       },
       {
         method: "thread/read",
-        params: { threadId: "provider-thread", includeTurns: true },
+        params: { threadId: "provider-thread", includeTurns: false },
         timeoutMs: 2_000,
       },
       {
@@ -1147,18 +1147,19 @@ describe("CodexStructuredSession", () => {
       ownsThread: () => true,
       request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
-        if (method === "thread/read") {
+        if (method === "thread/read")
+          return Promise.resolve({ thread: { status: { type: "idle" }, turns: [] } });
+        if (method === "thread/turns/list") {
           if (requests.some((request) => request.method === "turn/interrupt")) {
             return Promise.resolve({ thread: { status: { type: "idle" }, turns: [] } });
           }
           return Promise.resolve({
-            thread: {
-              turns: [
-                { id: "turn-complete", status: "completed" },
-                { id: "turn-live-1", status: "inProgress" },
-                { id: "turn-live-2", status: "inProgress" },
-              ],
-            },
+            data: [
+              { id: "turn-complete", status: "completed" },
+              { id: "turn-live-1", status: "inProgress" },
+              { id: "turn-live-2", status: "inProgress" },
+            ],
+            nextCursor: null,
           });
         }
         return Promise.resolve({});
@@ -1170,8 +1171,14 @@ describe("CodexStructuredSession", () => {
 
     expect(requests).toEqual([
       {
-        method: "thread/read",
-        params: { threadId: "provider-thread", includeTurns: true },
+        method: "thread/turns/list",
+        params: {
+          threadId: "provider-thread",
+          cursor: null,
+          limit: 100,
+          sortDirection: "desc",
+          itemsView: "notLoaded",
+        },
         timeoutMs: 2_000,
       },
       {
@@ -1186,7 +1193,7 @@ describe("CodexStructuredSession", () => {
       },
       {
         method: "thread/read",
-        params: { threadId: "provider-thread", includeTurns: true },
+        params: { threadId: "provider-thread", includeTurns: false },
         timeoutMs: 2_000,
       },
       {
@@ -1211,7 +1218,7 @@ describe("CodexStructuredSession", () => {
       ownsThread: () => ownsThread,
       request: (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
-        if (method === "thread/read") {
+        if (method === "thread/turns/list") {
           return new Promise((resolve) => {
             resolveRead = resolve;
           });
@@ -1223,13 +1230,13 @@ describe("CodexStructuredSession", () => {
 
     const dispose = structuredSession.dispose();
     await vi.waitFor(() =>
-      expect(requests.map((request) => request.method)).toEqual(["thread/read"]),
+      expect(requests.map((request) => request.method)).toEqual(["thread/turns/list"]),
     );
     ownsThread = false;
-    resolveRead({ thread: { turns: [{ id: "replacement-turn", status: "inProgress" }] } });
+    resolveRead({ data: [{ id: "replacement-turn", status: "inProgress" }], nextCursor: null });
     await dispose;
 
-    expect(requests.map((request) => request.method)).toEqual(["thread/read"]);
+    expect(requests.map((request) => request.method)).toEqual(["thread/turns/list"]);
   });
 
   it("keeps a replacement session subscribed when a superseded session disposes", async () => {
@@ -1465,11 +1472,10 @@ describe("CodexStructuredSession", () => {
       claimThread: () => {},
       request: (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
-        if (method === "thread/read" && params.includeTurns === true) {
+        if (method === "thread/turns/list") {
           return Promise.resolve({
-            thread: {
-              turns: ["turn-1", "turn-2", "turn-3", "turn-4"].map((id) => ({ id })),
-            },
+            data: ["turn-4", "turn-3", "turn-2", "turn-1"].map((id) => ({ id })),
+            nextCursor: null,
           });
         }
         if (method === "thread/fork") {
@@ -1509,15 +1515,19 @@ describe("CodexStructuredSession", () => {
 
     expect(requests).toEqual([
       {
-        method: "thread/read",
+        method: "thread/turns/list",
         params: {
           threadId: "provider-thread",
-          includeTurns: true,
+          cursor: null,
+          limit: 3,
+          sortDirection: "desc",
+          itemsView: "notLoaded",
         },
       },
       {
         method: "thread/fork",
         params: {
+          excludeTurns: true,
           model: "gpt-5.6-terra",
           approvalPolicy: "on-request",
           approvalsReviewer: "user",
@@ -1573,11 +1583,10 @@ describe("CodexStructuredSession", () => {
       claimThread: () => {},
       request: async (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
-        if (method === "thread/read" && params.includeTurns === true) {
+        if (method === "thread/turns/list") {
           return Promise.resolve({
-            thread: {
-              turns: ["turn-1", "turn-2", "turn-3", "turn-4"].map((id) => ({ id })),
-            },
+            data: ["turn-4", "turn-3", "turn-2", "turn-1"].map((id) => ({ id })),
+            nextCursor: null,
           });
         }
         return Promise.resolve({ thread: { status: { type: "idle" } } });
@@ -1593,13 +1602,16 @@ describe("CodexStructuredSession", () => {
         numTurns: 2,
       },
     });
-    // Pure planning: exactly one thread/read — no fork, no unsubscribe.
+    // Pure planning: exactly one bounded turn page — no fork, no unsubscribe.
     expect(requests).toEqual([
       {
-        method: "thread/read",
+        method: "thread/turns/list",
         params: {
           threadId: "provider-thread",
-          includeTurns: true,
+          cursor: null,
+          limit: 3,
+          sortDirection: "desc",
+          itemsView: "notLoaded",
         },
       },
     ]);
@@ -1663,11 +1675,10 @@ describe("CodexStructuredSession", () => {
       claimThread: () => {},
       request: (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
-        if (method === "thread/read" && params.includeTurns === true) {
+        if (method === "thread/turns/list") {
           return Promise.resolve({
-            thread: {
-              turns: ["turn-1", "turn-2", "turn-3"].map((id) => ({ id })),
-            },
+            data: ["turn-3", "turn-2", "turn-1"].map((id) => ({ id })),
+            nextCursor: null,
           });
         }
         if (method === "thread/fork") {
@@ -1730,8 +1741,8 @@ describe("CodexStructuredSession", () => {
       claimThread: () => {},
       request: async (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
-        if (method === "thread/read" && params.includeTurns === true) {
-          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        if (method === "thread/turns/list") {
+          return { data: [{ id: "turn-2" }, { id: "turn-1" }], nextCursor: null };
         }
         if (method === "thread/fork") {
           throw new CodexRpcResponseError("Method not found", -32601);
@@ -1743,7 +1754,7 @@ describe("CodexStructuredSession", () => {
     const history = await structuredSession.rollbackThread(1);
 
     expect(requests.map((request) => request.method)).toEqual([
-      "thread/read",
+      "thread/turns/list",
       "thread/fork",
       "thread/rollback",
       "thread/read",
@@ -1766,8 +1777,8 @@ describe("CodexStructuredSession", () => {
       claimThread: () => {},
       request: async (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
-        if (method === "thread/read") {
-          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        if (method === "thread/turns/list") {
+          return { data: [{ id: "turn-2" }, { id: "turn-1" }], nextCursor: null };
         }
         if (method === "thread/fork") {
           throw new CodexRpcResponseError("Invalid params: lastTurnId is in progress", -32602);
@@ -1780,7 +1791,7 @@ describe("CodexStructuredSession", () => {
       "Invalid params: lastTurnId is in progress",
     );
 
-    expect(requests.map((request) => request.method)).toEqual(["thread/read", "thread/fork"]);
+    expect(requests.map((request) => request.method)).toEqual(["thread/turns/list", "thread/fork"]);
   });
 
   it("clears buffered notifications when thread/fork fails", async () => {
@@ -1793,8 +1804,8 @@ describe("CodexStructuredSession", () => {
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
       request: async (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
-        if (method === "thread/read") {
-          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        if (method === "thread/turns/list") {
+          return { data: [{ id: "turn-2" }, { id: "turn-1" }], nextCursor: null };
         }
         dispatchNotification(structuredSession, {
           jsonrpc: "2.0",
@@ -1828,8 +1839,8 @@ describe("CodexStructuredSession", () => {
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
       request: async (method: string, params: Record<string, unknown>) => {
         requests.push({ method, params });
-        if (method === "thread/read" && params.includeTurns === true) {
-          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        if (method === "thread/turns/list") {
+          return { data: [{ id: "turn-2" }, { id: "turn-1" }], nextCursor: null };
         }
         return { thread: { status: { type: "idle" } } };
       },
@@ -1838,7 +1849,7 @@ describe("CodexStructuredSession", () => {
     const history = await structuredSession.rollbackThread(2);
 
     expect(requests.map((request) => request.method)).toEqual([
-      "thread/read",
+      "thread/turns/list",
       "thread/rollback",
       "thread/read",
     ]);

@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   open: vi.fn<(...args: unknown[]) => Promise<boolean>>(),
   submit: vi.fn<() => void>(),
   steer: vi.fn<() => void>(),
-  queue: vi.fn<() => void>(),
+  queue: vi.fn<(...args: unknown[]) => void>(),
   deny: vi.fn<() => void>(),
   clearDraft: vi.fn<() => void>(),
   saveDraft: vi.fn<(...args: unknown[]) => void>(),
@@ -27,6 +27,7 @@ vi.mock("@/renderer/state/appStore", () => ({
     getState: () => ({
       clearThreadDraftContent: mocks.clearDraft,
       saveThreadDraftContent: mocks.saveDraft,
+      requestChatScrollToBottom: vi.fn<() => void>(),
     }),
   },
 }));
@@ -58,7 +59,13 @@ function context(): ComposerSubmitContext {
       clearAll: vi.fn<() => void>(),
       restore: vi.fn<() => void>(),
     } as never,
-    mentionRef: { current: { clear: vi.fn<() => void>(), focus: vi.fn<() => void>() } as never },
+    mentionRef: {
+      current: {
+        clear: vi.fn<() => void>(),
+        focus: vi.fn<() => void>(),
+        restoreFromSegments: vi.fn<() => void>(),
+      } as never,
+    },
     terminalPaneRef: { current: null },
     latestSegmentsRef: { current: [] },
     submittedRef: { current: false },
@@ -150,5 +157,42 @@ describe("side questions leave the parent runtime untouched", () => {
     await settled();
     expect(ctx.mentionRef.current!.clear).not.toHaveBeenCalled();
     expect(ctx.attachments.clearAll).not.toHaveBeenCalled();
+  });
+});
+
+describe("per-message side conversation context", () => {
+  it("keeps a fresh hidden snapshot with each queued message", async () => {
+    const ctx = context();
+    ctx.activeRuntimeRequest = undefined;
+    ctx.captureClientContext = vi.fn<() => Promise<import("@/shared/contracts").TurnClientContext>>(
+      async () => ({
+        conversationSnapshot: { text: "new parent answer" },
+      }),
+    );
+    submitComposerPrompt([{ kind: "text", content: "follow-up question" }], ctx);
+    await settled();
+    expect(mocks.queue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "follow-up question",
+        clientContext: { conversationSnapshot: { text: "new parent answer" } },
+      }),
+    );
+    expect(mocks.queue.mock.calls[0]?.[0]).not.toHaveProperty("contextSummary");
+  });
+  it("retains the draft and does not send when required context rejects", async () => {
+    const ctx = context();
+    ctx.followUpBehavior = "steer";
+    ctx.captureClientContext = async () => {
+      throw new Error("latest context unavailable");
+    };
+    submitComposerPrompt([{ kind: "text", content: "follow-up question" }], ctx);
+    await settled();
+    expect(mocks.queue).not.toHaveBeenCalled();
+    expect(mocks.submit).not.toHaveBeenCalled();
+    expect(mocks.deny).not.toHaveBeenCalled();
+    expect(mocks.saveDraft).toHaveBeenCalledWith(
+      "parent",
+      expect.objectContaining({ segments: [{ kind: "text", content: "follow-up question" }] }),
+    );
   });
 });

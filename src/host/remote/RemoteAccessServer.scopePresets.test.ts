@@ -204,7 +204,7 @@ const EXPECTED_MUTATING_ROUTE_COUNT = 56;
 // catalog-membership, thread-turns) + B1 thread-runtime-gap + the experiment
 // state read, plus file-media mint/release/renew (owned read grants only), all
 // session:read and non-mutating.
-const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 29;
+const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 31;
 
 /** The split must be an exact, disjoint partition of the bearer registry:
  * the partition itself is derived, so a route can only ever land in one

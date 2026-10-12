@@ -1,3 +1,5 @@
+import { ThreadHistoryReplay } from "@/host/remote/server/threadHistoryReplay";
+import { ThreadLiveReadState } from "@/host/remote/server/threadLiveReadState";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import type { RuntimeFenceToken } from "@/host/db/runtimePersistenceTypes";
@@ -90,32 +92,32 @@ function context() {
       options: { callSupervisor },
       seq: 7,
       backgroundTasksByThread: new Map(),
+      threadLiveReadState: new ThreadLiveReadState(),
+      threadHistoryReplay: new ThreadHistoryReplay(),
       sessionConfigInventory: new SessionConfigInventory(),
     } as unknown as RemoteServerContext,
   };
 }
 
 describe("GUI snapshot supervisor reads", () => {
-  it("reads structured background work and follow-up queues for a GUI chat", async () => {
+  it("returns GUI history without any supervisor reads or terminal scrollback", async () => {
     const { ctx, callSupervisor } = context();
+    callSupervisor.mockImplementation(() => new Promise(() => {}));
     const snapshot = await buildThreadSnapshot(ctx, thread.id);
-    expect(callSupervisor.mock.calls.map(([method]) => method)).toEqual([
-      "readThreadBackgroundTasks",
-      "getThreadFollowUpQueue",
-      "getThreadSnapshots",
-    ]);
-    expect(snapshot.terminalScrollback).toBe("persisted history");
+    expect(callSupervisor).not.toHaveBeenCalled();
+    expect(snapshot.terminalScrollback).toBeUndefined();
     expect(snapshot.terminalSize).toBeUndefined();
     expect(snapshot.thread.presentationMode).toBe("gui");
   });
 
-  it("preserves live terminal reads for terminal presentation", async () => {
+  it("returns durable terminal history independently of the live terminal connection", async () => {
     vi.mocked(dbGetThread).mockReturnValue({ ...thread, presentationMode: "terminal" });
     const { ctx, callSupervisor } = context();
+    callSupervisor.mockImplementation(() => new Promise(() => {}));
     const snapshot = await buildThreadSnapshot(ctx, thread.id);
-    expect(callSupervisor).toHaveBeenCalledTimes(4);
-    expect(snapshot.terminalScrollback).toBe("live terminal history");
-    expect(snapshot.terminalSize).toEqual({ cols: 80, rows: 24 });
+    expect(callSupervisor).not.toHaveBeenCalled();
+    expect(snapshot.terminalScrollback).toBe("persisted history");
+    expect(snapshot.terminalSize).toBeUndefined();
   });
 
   it("captures the transcript and its cursor in one synchronous tick", async () => {
@@ -136,12 +138,14 @@ describe("GUI snapshot supervisor reads", () => {
         return seq;
       },
       backgroundTasksByThread: new Map(),
+      threadLiveReadState: new ThreadLiveReadState(),
+      threadHistoryReplay: new ThreadHistoryReplay(),
       sessionConfigInventory: new SessionConfigInventory(),
     } as unknown as RemoteServerContext;
 
     fence.pinned = [{ id: "early", type: "assistant_message", state: "updated", streams: {} }];
     const snapshotPromise = buildThreadSnapshot(ctx, thread.id);
-    // A live event publishes while the supervisor read is suspended: its
+    // A live event publishes while the persistence fence flush is suspended: its
     // sequence advances and its item commits. The held fence pinned the
     // transcript before that, so the snapshot must not carry the late item
     // (it is > cursor); replay delivers it exactly once instead.
@@ -186,17 +190,12 @@ describe("GUI snapshot supervisor reads", () => {
     });
   });
 
-  it("omits the inlined scrollback for cursor-sync clients but keeps the terminal size", async () => {
+  it("omits the inlined scrollback for cursor-sync clients", async () => {
     vi.mocked(dbGetThread).mockReturnValue({ ...thread, presentationMode: "terminal" });
     const { ctx, callSupervisor } = context();
     const snapshot = await buildThreadSnapshot(ctx, thread.id, { omitScrollback: true });
-    // WS3 #2: the watch baseline re-delivers the tail — never fetch or inline it.
-    expect(callSupervisor.mock.calls.map(([method]) => method)).toEqual([
-      "readTerminalSize",
-      "readThreadBackgroundTasks",
-      "getThreadSnapshots",
-    ]);
+    expect(callSupervisor).not.toHaveBeenCalled();
     expect(snapshot.terminalScrollback).toBeUndefined();
-    expect(snapshot.terminalSize).toEqual({ cols: 80, rows: 24 });
+    expect(snapshot.terminalSize).toBeUndefined();
   });
 });

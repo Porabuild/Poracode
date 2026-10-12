@@ -210,7 +210,9 @@ it.each([false, true])(
     if (!keepReader) release(id);
     resolvePage({ items: rows, nextCursor: null });
     await pending;
-    expect(useAppStore.getState().runtimeHydrationStatus[id]).toBe("failed");
+    expect(useAppStore.getState().runtimeHydrationStatus[id]).toBe(
+      keepReader ? "failed" : undefined,
+    );
     expect(useAppStore.getState().runtimeItemIdsByThread[id]).toEqual(
       keepReader ? rows.map((row) => row.id) : undefined,
     );

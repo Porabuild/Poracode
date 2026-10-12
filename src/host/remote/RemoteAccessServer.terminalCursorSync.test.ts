@@ -164,6 +164,9 @@ async function openTerminalWatchSocket(
 function createCursorSyncServer(
   overrides: Partial<RemoteAccessServerOptions> = {},
 ): RemoteAccessServer {
+  const callSupervisor =
+    overrides.callSupervisor ??
+    vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never);
   const server = new RemoteAccessServer({
     truncateThreadRuntime: () => {},
     appVersion: "1.0.0",
@@ -171,8 +174,10 @@ function createCursorSyncServer(
     host: "127.0.0.1",
     port: 0,
     ownsSupervisorPersistence: false,
-    callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
     ...overrides,
+    // Terminal scenarios have no structured sessions to seed at listener startup.
+    callSupervisor: (name, params) =>
+      name === "getThreadSnapshots" ? Promise.resolve([] as never) : callSupervisor(name, params),
   });
   servers.push(server);
   return server;
@@ -298,17 +303,10 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
     });
     const onEventInterestsChanged =
       vi.fn<NonNullable<RemoteAccessServerOptions["onEventInterestsChanged"]>>();
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       onEventInterestsChanged,
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
 
     // Environment advertises the capability boundary.
@@ -473,17 +471,10 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       }
       return "" as never;
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       maxWebSocketOutboundBufferBytes: 1_024,
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -527,16 +518,9 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
   });
 
   it("keeps legacy terminal watchers on the lossy congestion path", async () => {
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -582,16 +566,9 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       }
       return "" as never;
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -681,17 +658,10 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       }
       return "" as never;
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       callSupervisor,
       onEventInterestsChanged: () => barrier,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -739,16 +709,9 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       }
       return "" as never;
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -818,16 +781,9 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       transcript: "persisted\n",
       outputLength: 110,
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -882,17 +838,10 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => {
       throw new Error("snapshot must not run for unsupported version");
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       onEventInterestsChanged,
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -959,17 +908,10 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
         resolveSecond = resolve;
       });
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       onEventInterestsChanged,
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -1085,17 +1027,10 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       }
       return "" as never;
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       onEventInterestsChanged,
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -1155,16 +1090,9 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       transcript: "old-gui-scrollback",
       outputLength: 100 + "old-gui-scrollback".length,
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);
@@ -1221,17 +1149,10 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
     });
     const onEventInterestsChanged =
       vi.fn<NonNullable<RemoteAccessServerOptions["onEventInterestsChanged"]>>();
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       onEventInterestsChanged,
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
 
@@ -1343,17 +1264,10 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       if (name === "readTerminalSnapshot") return null as never;
       return "" as never;
     });
-    const server = new RemoteAccessServer({
-      truncateThreadRuntime: () => {},
-      appVersion: "1.0.0",
-      identity: { desktopId: "desktop-test", label: "Test Desktop" },
-      host: "127.0.0.1",
-      port: 0,
-      ownsSupervisorPersistence: false,
+    const server = createCursorSyncServer({
       onEventInterestsChanged,
       callSupervisor,
     });
-    servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["terminal:read", "session:read"]);
     const ticket = await issueWebSocketTicket(info, token);

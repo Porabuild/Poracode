@@ -18,6 +18,9 @@ import {
   deferred,
 } from "./sdkSession.testFixtures";
 
+// Session fixtures must not inherit the developer's installed SDK pin.
+vi.mock("./sdkInstallPin", () => ({ readCursorSdkInstallPin: () => undefined }));
+
 describe("CursorSdkSession", () => {
   it("spawns the isolated worker and creates a fresh durable local agent", async () => {
     const { session, worker, spawnWorker } = await createSession();

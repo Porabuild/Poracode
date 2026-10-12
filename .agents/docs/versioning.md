@@ -2,7 +2,7 @@ Devin Chat Fast availability now derives from the catalog for accepted model
 ids — Fusion pairs included — verified against the live 122/122 accepted-menu
 sweep, and permission lists order least → most permissive with Ask no longer
 offered on the Terminal surface. Supervisor agent-status cache advances from
-55 to 56 and its renderer persisted copy from 51 to 52, invalidating stale
+58 to 59 and its renderer persisted copy from 54 to 55, invalidating stale
 Devin inventories; no thread config, settings, wire or protocol shape
 changes.
 
@@ -22,6 +22,12 @@ MD5-to-SHA256 checkpoint migration; context usage follows its exported state
 root, with a SHA256 fallback. Poracode SQLite, settings, canonical history,
 remote/native contracts and CLI/ACP catalogs retain their existing versions;
 no persisted thread or public wire shape changes.
+
+## Bounded history presentation and restart preview (2026-10-12)
+
+Protocol 13 gains additive `historyDetails` v1 and `threadHistoryResume` v1 capabilities. `projection=details-v1` is explicit: undeclared clients retain complete command streams. Completed command streams remain in canonical SQLite storage; the new authenticated item-detail route reads them under the existing persistence fence and negotiated byte limits. Snapshot cursors bind the server epoch, thread, replay generation and process-local durable-mutation revision. The optional `omittedRuntimeThreadIds` event-envelope field records server scoping and survives worker decoding, delayed queues and direct recovery replay. It is part of `threadHistoryResume` v1, with generated native parsers kept compatible. Separate transcript and control watermarks freeze bulk coverage across an interest gap; already delivered turn controls are not replayed over newer live state. A partial append frame or bulk applied before recovery requires a fresh baseline. A truncate, replacement, reset, retention gap or server restart requires a normal bounded snapshot. No database schema, canonical IPC or helper version changes are required.
+
+The renderer's recent-tail cache has its own IndexedDB database, `poracode-recent-history-v1`, record version 1. It never upgrades or imports expanded offline-history records. Only accepted initial tails are written, capped at 500 rows and 1 MiB each, 20 records / 8 MiB total. Verified host identity owns cache keys; previews own exact row objects, never hydration or continuation proofs. Cold reads hold bulk live events until the authoritative baseline is installed, then discard covered frames and apply newer ones; live requests remain independent. Unknown versions, malformed identities and oversized records are ignored. Detail bodies and older pages are excluded. Regression tests cover pre-upgrade/invalid cache records, pruning, delayed authoritative replacement, live updates, replay isolation and original stored command output. Native bindings are regenerated; existing native callers omit the opt-in projection and retain compatible complete history. Native adoption is recorded as planned in the parity ledger.
 
 Command Code native ACP support (CLI 1.74.0+, verified on 1.79.2) advances the
 supervisor agent-status cache from 49 to 51 and the renderer persisted copy from
@@ -696,6 +702,40 @@ enforcing `allowed_origins` against the Electron-as-Node launcher.
 Chrome sidebar bootstrap protocol 2 (protocol 1 in 0.2.0) includes an additive `helloAck` reporting the host sidebar version and connection authentication. The new worker waits for this acknowledgement before requesting credentials; an older host without it yields a localized upgrade hint rather than an endless generic connection error. Existing relay workers ignore the unsolicited acknowledgement, and old or unknown sidebar versions receive no credentials. Native host protocol and generated artifact version remain 1. A current host with a temporarily unavailable native helper stays distinguishable from an old host; bounded retries (sidebar or host request, at most every 10 s, never for a secret that already failed) redial the port the native host knows (this one first) with a fresh in-memory token. Worker/host constant mirrors, legacy and mismatched acknowledgements, delayed helper availability, retry bounds and token non-persistence are covered by regressions. Store release preflight verifies that the manifest public key produces the configured store identity before any tag is pushed.
 
 ## Required check for every change
+
+Schema 58 adds the partial `idx_runtime_items_thread_goal` index for latest-goal
+reads. Canonical rows and older writer/reader semantics remain valid, so the
+migration is rollback-compatible. The append-only migration registry remains
+the database version authority for desktop, headless and SSH owners. A frozen
+schema-57 upgrade regression verifies unchanged rows and indexed goal misses.
+
+History windows now pack projected image sizes and exact serialized items,
+while retaining conservative materialization bounds, whole-group boundaries,
+canonical fences and the existing negotiated wire/decode refusals. Existing
+image references, cursor semantics and wire shapes remain valid; no public
+remote or client-host protocol bump is needed. Volatile queue/task/control
+levels come from host event projections and independent startup seeds, guarded
+per field/thread against newer events, retirement and owner replacement. No
+stored cache or manifest shape changes; runtime build hashes identify the fix.
+
+Renderer history reads now own cancellation through the existing HTTP
+`AbortSignal` option. Reset cancels outstanding reads; cache eviction and
+last-reader release cancel pane-owned reads. Authoritative reducer recovery
+retains its read until it can replace the stale snapshot and arbitrate queued events.
+Buffered responses check cancellation before committing continuation or notice
+metadata, and recovery reports the read's own outcome instead of inferring
+success from a cleared loading status. IPC and remote wire shapes, persisted
+history and cache formats are unchanged, so this same-bundle lifecycle fix
+needs no version bump. Late response, shared-reader, canceled-page retry and
+recovery-close/reopen regressions cover the boundary.
+
+Codex metadata reads omit full turns; revert planning and retirement use the
+pinned 0.155.1 `thread/turns/list` metadata pages. Resume/fork omit response turns.
+Only pre-pagination servers rejecting the new method can use legacy full-read
+hydration, and only an explicit unknown `excludeTurns` parameter retries its
+omission. Canonical Poracode history and provider revert anchors remain valid;
+no persistence or public wire version changes. Current-page, cursor, ownership,
+legacy-method and optional-parameter regressions qualify the provider boundary.
 
 Bounded older-history pages apply the same existing image-reference projection as the history tail and snapshots. Canonical image bytes, item order, continuation positions, refusal budgets and authenticated resolution remain unchanged. This repairs response composition without adding fields or changing the established image-reference contract; persisted schemas and protocol versions remain valid. Serialized response hashes and build identities identify the corrected output. The regression checks tail/page parity, bounded response size, preserved canonical bytes and image resolution.
 
@@ -3422,3 +3462,63 @@ the same settings writer. Its entry and document shapes, mirrored remote
 settings and versions remain unchanged; no migration or invalidation is needed.
 Regression coverage reads the prior saved shape, removes the requested entries,
 and confirms other presentations and selection-usage history remain intact.
+
+### Disconnected configured provider model catalogs
+
+OpenCode 2 catalog discovery now excludes credential-backed providers with no
+remaining connection, even when configuration keeps the upstream provider enabled.
+Environment connections, configured authentication, credential-free runtimes and
+native cloud credential chains remain available. Supervisor agent-status cache
+advances from 55 to 56 and its renderer persisted copy from 51 to 52, invalidating
+pre-upgrade catalogs on native and WSL targets. Prior-version cache regressions
+cover both readers. Credential journal format 1, provider configuration, thread
+selections, canonical history and wire/native/helper versions stay compatible;
+this changes only derived discovery results.
+
+### Device-local side-chat ownership (format 1)
+
+`side-chat-ownership.json` in the managed host root or standalone attach device
+profile stores version-1 parent attachments, draft selections, and pending
+disposal records. Missing pre-upgrade files start empty; unknown versions are
+refused without overwrite. Older bootstrap shapes without draft selections remain
+valid. Atomic, serialized writes are awaited before a bound thread can launch.
+Detached conversations restore as attached panels; automatic submission is disabled.
+Parent transcript snapshots are excluded from this ledger and are captured afresh
+for every side-chat message. Disposal ownership survives until the owning host
+confirms deletion, so refusal or restart cannot expose these rows in the sidebar.
+The new ownership acknowledgement and parent-scoped close arguments are desktop
+same-build window IPC; SQLite thread schema, remote/native protocols, runtime
+history and provider/helper versions remain unchanged.
+
+### Verified provider package installation
+
+OpenCode 2 install/update commands explicitly run its package-owned setup after
+an npm install with dependency scripts disabled, then verify the executable.
+The requested release range is >=2.0.26 <3.0.0, matching the existing accepted
+protocol major. Supervisor status cache 57 and renderer persisted copy 53 discard
+55/51 and 56/52 snapshots containing the old install commands; prior-generation regression
+fixtures cover both copies. Settings, sessions, IPC/remote protocols and deployed
+helpers retain their existing formats and versions. Existing broken installations
+can be repaired through the updated Install action without changing global npm policy.
+
+## Muse Code 1.4.6 catalogs and reasoning choices
+
+The provider pins the stable MSP schema exported by 1.4.6-R6000.1 (schema
+version 1, fingerprint `sha256:eae467ab60cb9a5d5af4de616830f065e59375c987fd59269c8cc33ed2a1137f`).
+The additive-open decoder retains older hosts: absent/unknown reasoning
+variants use the help ladder, while explicit arrays (including empty arrays)
+and valid per-model defaults are authoritative. Current Wonder and Wonder Full
+model IDs arrive through the native catalog; the fallback catalog and help
+parser also cover the new family. Live catalogs retain account/provider routing
+and remain authoritative over that fallback.
+
+Supervisor agent-status cache advances from 57 to 58 and its renderer persisted
+copy from 53 to 54, invalidating pre-upgrade model/effort inventories on native
+and WSL targets. Prior-generation regressions cover both readers. The new
+projection uses existing capability fields. Thread configs, session IDs,
+canonical history, settings, IPC/remote/native contracts and deployed helpers
+remain compatible; no migration or protocol bump is needed. Muse owns its
+separate model-catalog cache: MSP `model/list` may return that saved snapshot
+without fetching again, so a settled `providerCatalog` is not proof of network
+freshness. A normal standalone Muse startup refreshed the observed October 8
+Spark-only cache to the October 12 Wonder catalog during live verification.

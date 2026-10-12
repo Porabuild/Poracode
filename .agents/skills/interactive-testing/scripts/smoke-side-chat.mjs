@@ -17,6 +17,7 @@ export async function mockSideChatGate({
   const side = (expression) => evaluate(sideClient, expression, true);
   const originalView = await main("window.__poracodeDev.stores.app.getState().view");
   let before;
+  let originalStatuses;
   const bootstrap = {
     source: {
       id: "side-chat-smoke-parent",
@@ -65,6 +66,19 @@ export async function mockSideChatGate({
     assert.equal(header.titleTop, header.toolbarBottom);
   }
   try {
+    originalStatuses = await main("window.__poracodeDev.stores.agentStatuses.getState()");
+    await main(`(() => {
+      const capabilities = {
+        models: [{ id: 'smoke-model', label: 'Smoke Model' }, { id: 'smoke-model-alt', label: 'Smoke Model Alternate' }],
+        efforts: [], modelEfforts: {}, modes: ['agent'], approvalPolicies: [], sandboxModes: [],
+        supportsResume: true, supportsDirectInput: true, liveInputMode: 'server',
+        presentationMode: 'gui', presentationModes: ['gui'],
+      };
+      window.__poracodeDev.stores.agentStatuses.getState().hydrateFromCache({ windows: [
+        { kind: 'codex', label: 'Smoke Agent', installed: true, authState: 'authenticated', capabilities },
+        { kind: 'smoke-gui', label: 'Other Smoke Agent', installed: true, authState: 'authenticated', capabilities },
+      ], wsl: [] });
+    })()`);
     await main(`(() => {
       const store = window.__poracodeDev.stores.app.getState();
       store.createThread({
@@ -73,10 +87,10 @@ export async function mockSideChatGate({
         agentKind: ${JSON.stringify(bootstrap.source.agentKind)},
         config: ${JSON.stringify(bootstrap.source.config)},
         title: ${JSON.stringify(bootstrap.source.title)},
-        prompt: '', presentationMode: 'gui', focus: true,
+        prompt: '', presentationMode: 'gui', focus: true, suppressHostCreateIntent: true,
       });
-      store.openThread(${JSON.stringify(bootstrap.source.id)});
     })()`);
+    await main(`window.poracode.dbUpsertThread(${JSON.stringify(bootstrap.source)})`);
     before = await main("JSON.stringify(window.__poracodeDev.stores.app.getState().view)");
     await main(`window.poracode.openSideChatPanel(${JSON.stringify(bootstrap)})`);
     await waitForValue(
@@ -97,6 +111,48 @@ export async function mockSideChatGate({
       false,
     );
     await assertHeader(main, "[data-active-tab=sideChat]");
+    assert.equal(
+      await main(
+        "Boolean(document.querySelector('[data-side-chat-surface=panel] button[aria-label=\"Select model\"]'))",
+      ),
+      true,
+    );
+    assert.equal(
+      await main(
+        "Boolean(document.querySelector('.poracode-thread-composer-section button[aria-label=\"Side chat\"]'))",
+      ),
+      true,
+    );
+    const composerSpacing = await main(`(() => {
+      const shell = document.querySelector('[data-side-chat-surface=panel] .poracode-composer-shell');
+      const parent = shell.closest('.px-3.pb-2');
+      return { padding: getComputedStyle(parent).padding, draft: shell.classList.contains('poracode-composer-shell--draft') };
+    })()`);
+    assert.equal(composerSpacing.padding, "0px 12px 8px");
+    assert.equal(composerSpacing.draft, false);
+    await main(
+      "document.querySelector('[data-side-chat-surface=panel] button[aria-label=\"Select model\"]').click()",
+    );
+    await waitForValue(
+      () =>
+        main(`(() => {
+      const row = [...document.querySelectorAll('[role=menuitem], [role=option]')].find(node => node.textContent.includes('Smoke Model Alternate'));
+      if (!row) return false;
+      row.click();
+      return true;
+    })()`),
+      Boolean,
+      "side chat model selection",
+    );
+    await waitForValue(
+      () =>
+        main(
+          "document.querySelector('[data-active-tab=sideChat]')?.textContent.includes('Smoke Model Alternate')",
+        ),
+      Boolean,
+      "selected side model in panel header",
+    );
+    await main("document.querySelector('[data-side-chat-surface=panel] textarea').focus()");
     await client.send("Input.insertText", { text: "Unsent side question" });
     await screenshot(client, join(outDir, "mock-side-chat-panel.png"));
     await main("document.querySelector('button[title=\"Hide panel\"]').click()");
@@ -150,9 +206,16 @@ export async function mockSideChatGate({
       "detached side chat preserved unsent draft",
     );
     await assertHeader(side, "[data-side-chat-surface=window] .poracode-overlay-header");
+    assert.equal(
+      await main(
+        "Boolean(document.querySelector('.poracode-thread-composer-section button[aria-label=\"Side chat\"]'))",
+      ),
+      true,
+    );
     const info = await side("window.poracode.getSideChatWindowInfo()");
     assert.equal(info.source.id, bootstrap.source.id);
     assert.equal(info.autoStart, false);
+    assert.equal(info.selection.config.model, "smoke-model-alt");
     assert.match(info.context.summary, /smoke-side-42/);
     assert.equal(await main("window.poracode.getSideChatWindowInfo()"), null);
     assert.equal(
@@ -178,13 +241,62 @@ export async function mockSideChatGate({
     assert.equal((await main("window.poracode.getSideChatWindowInfo()")).id, info.id);
     assert.deepEqual(await main("window.poracode.getSideChatThreadIds()"), []);
     await screenshot(client, join(outDir, "mock-side-chat-reattached.png"));
+    await main(`(async () => {
+      const app = window.__poracodeDev.stores.app;
+      const row = app.getState().createThread({ threadId: 'side-chat-smoke-child',
+        projectId: ${JSON.stringify(fixture.project.id)}, agentKind: 'codex', config: { model: 'smoke-model-alt' },
+        title: 'Disposable smoke child', prompt: '', presentationMode: 'gui', focus: false, suppressHostCreateIntent: true,
+        parentThreadId: ${JSON.stringify(bootstrap.source.id)} });
+      await window.poracode.dbUpsertThread(row);
+      return window.poracode.bindSideChatThread({ id: ${JSON.stringify(retainedId)}, threadId: row.id, thread: row, prompt: '' });
+    })()`);
+    assert.equal(
+      await main(
+        "document.querySelector('.poracode-main-sidebar')?.textContent.includes('Disposable smoke child')",
+      ),
+      false,
+    );
     await main(
-      "document.querySelector('[data-side-chat-surface=panel] button[aria-label=\"Close side chat\"]').click()",
+      "document.querySelector('[data-side-chat-surface=panel] button[aria-label=\"Delete side chat\"]').click()",
     );
     await waitForValue(
       () => main("window.poracode.getSideChatWindowInfo()"),
       (value) => value === null,
       "side chat panel closed",
+    );
+    await waitForValue(
+      () =>
+        main(
+          "window.poracode.getSideChatThreadIds().then(ids => ids.includes('side-chat-smoke-child'))",
+        ),
+      (value) => value === false,
+      "disposed child no longer owned for launch",
+    );
+    await waitForValue(
+      () =>
+        main(
+          "window.__poracodeDev.stores.app.getState().threads.some(thread => thread.id === 'side-chat-smoke-child' && !thread.archived)",
+        ),
+      (value) => value === false,
+      "trash disposes child catalog row",
+    );
+    await waitForValue(
+      () =>
+        main(`(async () => {
+        const { loopback } = await window.__poracodeDev.loadHostDiagnostics();
+        const activation = loopback.readManagedLoopbackActivation();
+        if (!activation) throw new Error('Side chat fixture requires the managed host');
+        const membership = await activation.client.boundedCatalogMembership({ threadIds: ['side-chat-smoke-child'] });
+        return membership.existingThreadIds.includes('side-chat-smoke-child');
+      })()`),
+      (value) => value === false,
+      "trash confirms child deletion at its owning host",
+    );
+    assert.equal(
+      await main(
+        "Boolean(document.querySelector('.poracode-thread-composer-section button[aria-label=\"Side chat\"]'))",
+      ),
+      false,
     );
     assert.equal(
       await main("JSON.stringify(window.__poracodeDev.stores.app.getState().view)"),
@@ -196,6 +308,10 @@ export async function mockSideChatGate({
       await side("window.close()").catch(() => undefined);
       sideClient.close();
     }
+    if (originalStatuses)
+      await main(
+        `window.__poracodeDev.stores.agentStatuses.setState(${JSON.stringify(originalStatuses)})`,
+      );
     await main(`(() => {
       window.__poracodeDev.stores.app.setState({view: ${JSON.stringify(originalView)}});
       window.__poracodeDev.stores.app.getState().deleteThread(${JSON.stringify(bootstrap.source.id)});

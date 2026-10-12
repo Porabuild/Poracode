@@ -108,7 +108,7 @@ per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
 version is 13. The inventory describes:
 
-- 95 HTTP routes;
+- 97 HTTP routes;
 - 130 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
@@ -136,7 +136,7 @@ mint/stream/release/renew routes add file-scoped reads without weakening this
 writer admission or changing persisted credentials. Their grants remain bounded
 and revocable; native media editor adoption is still planned. Generated artifacts
 combine this policy with the seven media routes and authenticated usage
-read/refresh procedures (95 routes, 130 procedures).
+read/refresh procedures (97 routes, 130 procedures).
 
 Protocol 12 combines the two parent branches' additions: daily usage broadcasts
 and authoritative `content.delta.replace` semantics. An omitted or false flag

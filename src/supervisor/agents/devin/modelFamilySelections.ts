@@ -406,7 +406,7 @@ export function devinGuiFamilySelections(
  */
 export function devinFastCapableFamilyMembers(
   guiSelections: readonly ModelFamilySelection[],
-  families: readonly DevinModelFamily[],
+  terminalSelections: readonly ModelFamilySelection[],
 ): string[] {
   const fastTupleKey = (label: string, member: ModelFamilySelection["members"][number]) =>
     JSON.stringify([
@@ -415,7 +415,7 @@ export function devinFastCapableFamilyMembers(
       member.selections[DEVIN_FAMILY_SIDEKICK_SELECTOR_ID],
     ]);
   const fastTuples = new Set<string>();
-  for (const selection of devinTerminalFamilySelections(families)) {
+  for (const selection of terminalSelections) {
     for (const member of selection.members) {
       if (member.fast === true) fastTuples.add(fastTupleKey(selection.label, member));
     }

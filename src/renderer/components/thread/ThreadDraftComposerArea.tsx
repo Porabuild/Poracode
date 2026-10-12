@@ -662,7 +662,7 @@ export function ThreadDraftComposerArea(props: {
     // in worktree") intact rather than rebuilding it into a brand-new branch.
     if (branchSelection?.worktreePath) return;
     // Worktree + changes must fork from the local checkout so uncommitted
-    // files can be copied. Plain worktree uses the origin ref (T3-style).
+    // files can be copied. Plain worktree uses the origin ref.
     const localBase = props.gitBranch;
     const originBase = defaultWorktreeBase ? resolveOriginBase(defaultWorktreeBase) : localBase;
     const baseBranch = mode === "new-with-changes" ? localBase : originBase;

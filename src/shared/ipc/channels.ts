@@ -40,6 +40,7 @@ export const IPC_WINDOW_CHANNELS = {
   sideChatInfo: createChannel("sideChatInfo"),
   sideChatBindThread: createChannel("sideChatBindThread"),
   sideChatThreadIds: createChannel("sideChatThreadIds"),
+  sideChatReleased: createChannel("sideChatReleased"),
   clientProcedureInvoke: createChannel("clientProcedureInvoke"),
   /** Off-main remote HTTP bridge admission (window-scoped native channel). */
   remoteHttpBridgeOpen: createChannel("remoteHttpBridgeOpen"),

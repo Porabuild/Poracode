@@ -57,6 +57,8 @@ export interface ProviderModelRow {
   presentationMode?: ThreadPresentationMode;
   modelId: string;
   label: string;
+  /** Exact-choice detail, including effort when the option itself encodes it. */
+  optionHint?: string;
   /** Tail hint shown to the right of the model label. */
   subProviderLabel?: string;
   /** Fixed context-window hint (e.g. "200K") when the model has no Context picker. */

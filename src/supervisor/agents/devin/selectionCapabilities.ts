@@ -1,11 +1,15 @@
-import type { AgentCapability } from "@/shared/contracts";
+import type { AgentCapability, ModelFamilySelection } from "@/shared/contracts";
 import type { CapabilitiesProbeResult } from "../base";
 import {
   DEVIN_CLOUD_DEFAULT_MODEL_ID,
   isDevinFastCapableFamily,
   type DevinModelFamily,
 } from "./models";
-import { devinFastCapableFamilyMembers, devinGuiFamilySelections } from "./modelFamilySelections";
+import {
+  devinFastCapableFamilyMembers,
+  devinGuiFamilySelections,
+  devinTerminalFamilySelections,
+} from "./modelFamilySelections";
 import { devinDefaultHiddenModels } from "./modelVisibility";
 
 /**
@@ -113,6 +117,7 @@ export function devinNegotiatedGuiSelectionCapabilities(
   base: AgentCapability,
   projection: CapabilitiesProbeResult,
   families: readonly DevinModelFamily[],
+  terminalSelections?: readonly ModelFamilySelection[],
 ): Pick<AgentCapability, "presentationCapabilities"> | undefined {
   const negotiated = projection.models ?? [];
   if (negotiated.length === 0) return undefined;
@@ -130,7 +135,10 @@ export function devinNegotiatedGuiSelectionCapabilities(
   const fastCapable = new Set([
     ...(projection.fastModels ?? []),
     ...devinFastCapableAcceptedVariants(negotiated, families),
-    ...devinFastCapableFamilyMembers(guiFamilies, families),
+    ...devinFastCapableFamilyMembers(
+      guiFamilies,
+      terminalSelections ?? devinTerminalFamilySelections(families),
+    ),
   ]);
   const hiddenModels = new Set(devinDefaultHiddenModels(families));
   const gui: DevinGuiSelectionOverride = {

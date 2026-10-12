@@ -86,7 +86,7 @@ function builderInput(
 type SelectorControl = Extract<ComposerControl, { kind: "family-selector" }>;
 
 function pairControls(input: ComposerControlsInput): SelectorControl[] {
-  const controls = modelFamilySelectorControls(input);
+  const controls = modelFamilySelectorControls(input, "example");
   expect(controls).toHaveLength(2);
   for (const control of controls)
     if (control.kind !== "family-selector") throw new Error("Expected selector controls");
@@ -104,9 +104,11 @@ describe("modelFamilySelectorControls", () => {
     ]);
     expect(controls.every((control) => control.label.length > 0)).toBe(true);
     const outside = familyCapability({ effort: "config", fast: "config" });
-    expect(modelFamilySelectorControls(builderInput(outside, { model: "solo" }))).toEqual([]);
+    expect(
+      modelFamilySelectorControls(builderInput(outside, { model: "solo" }), "example"),
+    ).toEqual([]);
     const { modelFamilies: _families, ...plain } = outside;
-    expect(modelFamilySelectorControls(builderInput(plain, {}))).toEqual([]);
+    expect(modelFamilySelectorControls(builderInput(plain, {}), "example")).toEqual([]);
   });
 
   it("prevents edits while configuration is disabled", () => {
@@ -184,12 +186,12 @@ describe("modelFamilySelectorControls", () => {
 
   it("lets the provider opt into only its selected workflow and present its own labels and icons", () => {
     const input = builderInput(familyCapability({ effort: "config", fast: "config" }), {});
-    expect(modelFamilySelectorControls(input, { accepts: () => false })).toEqual([]);
+    expect(modelFamilySelectorControls(input, "example", { accepts: () => false })).toEqual([]);
     const icon = <span data-testid="selector-icon" />;
     const controls = pairControls(
       builderInput(familyCapability({ effort: "config", fast: "config" }), {}),
     );
-    const presented = modelFamilySelectorControls(input, {
+    const presented = modelFamilySelectorControls(input, "example", {
       selectorLabel: (id) => (id === "lead" ? "Main" : undefined),
       selectorIcon: () => icon,
     }) as SelectorControl[];
@@ -207,7 +209,7 @@ it("presents a component's decoded effort as the option hint while the edit keep
     effort: "high",
     fast: true,
   });
-  const controls = modelFamilySelectorControls(input, {
+  const controls = modelFamilySelectorControls(input, "example", {
     option: (selectorId, option) =>
       selectorId === "sidekick"
         ? { model: { id: "support", label: "Support" }, effort: option.id === "x" ? "low" : "high" }
@@ -238,11 +240,16 @@ it.each(["invalid", "overlap"])(
       ];
     const presentation = { accepts: (candidate: { label: string }) => candidate.label === "Pair" };
     expect(
-      modelFamilySelectorControls(builderInput(capabilities, { model: "solo" }), presentation),
+      modelFamilySelectorControls(
+        builderInput(capabilities, { model: "solo" }),
+        "example",
+        presentation,
+      ),
     ).toEqual([]);
     expect(
       modelFamilySelectorControls(
         builderInput(capabilities, { model: "pair-alpha-x" }),
+        "example",
         presentation,
       ),
     ).toEqual([]);
