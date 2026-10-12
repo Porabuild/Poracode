@@ -1,11 +1,7 @@
 import { createHash } from "node:crypto";
-import { execFile } from "node:child_process";
 import { homedir, userInfo } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
-const KEYCHAIN_TIMEOUT_MS = 5_000;
+import { readMacKeychainPassword, writeMacKeychainPassword } from "../../runtime/macKeychain";
 const CREDENTIAL_SUFFIX = "-credentials";
 const ACCOUNT_RE = /^[a-zA-Z0-9._-]+$/;
 
@@ -67,17 +63,8 @@ export async function readClaudeCredentialsFromMacKeychainEntry(
   if (process.platform !== "darwin") return undefined;
   const account = claudeKeychainAccount();
   for (const service of claudeKeychainServiceNames(env)) {
-    try {
-      const { stdout } = await execFileAsync(
-        "security",
-        ["find-generic-password", "-a", account, "-w", "-s", service],
-        { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
-      );
-      const trimmed = stdout.trim();
-      if (trimmed) return { service, content: trimmed };
-    } catch {
-      // Try the next candidate. Missing/locked keychains degrade to auth-missing.
-    }
+    const content = await readMacKeychainPassword({ service, account });
+    if (content) return { service, content };
   }
   return undefined;
 }
@@ -85,18 +72,7 @@ export async function readClaudeCredentialsFromMacKeychainEntry(
 export async function readClaudeCredentialsFromMacKeychainService(
   service: string,
 ): Promise<string | undefined> {
-  if (process.platform !== "darwin") return undefined;
-  try {
-    const { stdout } = await execFileAsync(
-      "security",
-      ["find-generic-password", "-a", claudeKeychainAccount(), "-w", "-s", service],
-      { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
-    );
-    const trimmed = stdout.trim();
-    return trimmed || undefined;
-  } catch {
-    return undefined;
-  }
+  return readMacKeychainPassword({ service, account: claudeKeychainAccount() });
 }
 
 export async function readClaudeCredentialsFromMacKeychain(
@@ -109,10 +85,5 @@ export async function writeClaudeCredentialsToMacKeychain(
   service: string,
   content: string,
 ): Promise<void> {
-  if (process.platform !== "darwin") return;
-  await execFileAsync(
-    "security",
-    ["add-generic-password", "-U", "-a", claudeKeychainAccount(), "-s", service, "-w", content],
-    { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
-  );
+  await writeMacKeychainPassword({ service, account: claudeKeychainAccount() }, content);
 }

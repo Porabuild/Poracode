@@ -44,6 +44,25 @@ and instructions remain in their original database. API/IPC formats are unchange
 
 # Versioned State & Protocols
 
+macOS usage credential readers share the stable OS-signed `/usr/bin/security`
+identity so completed "Always Allow" grants remain valid across Poracode updates.
+Authorization waits and per-item denial suppression are process-local. Existing
+`force: true` refreshes permit one item-scoped retry after refusal, with an async
+request scope that never authorizes a background poll; no new
+persisted permission or credential format is introduced. Keychain service/account
+names, CLI auth files, the encrypted provider-secret store and usage-cache version
+10 remain compatible. The existing `acp-credentials-v1` grant keeps the identical
+keychain-path/creation/modification fingerprint algorithm, with a pre-upgrade
+fingerprint fixture and encrypted restart regressions. No cache, schema, wire or
+deployed-helper version bump is needed; rebuilt supervisor content hashes identify
+the corrected readers. Password updates retain `add-generic-password -U` without
+access-control flags, preserving the item's ACL.
+Supervisor shutdown also joins the existing child-process lifetime primitive for
+every pending Keychain client, blocks further spawns and preserves cached usage
+when cancellation interrupts collection. This custody is process-local; the
+existing shutdown result, version-10 cache bytes and IPC/wire contracts remain
+compatible. Retirement and pre-upgrade cache-preservation regressions cover it.
+
 Codex command and file-change completion normalize native `declined` to the
 existing canonical `error` status while retaining `item.completed`. Existing
 output and exit-code fields, legacy status omission, SQLite schemas, wire/IPC

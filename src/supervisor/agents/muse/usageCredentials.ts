@@ -1,9 +1,8 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";
 import type { OAuthToken } from "@poracode/agents-usage";
-import { nativeMuseAuthPath } from "../agents/muse/paths";
-import { readMuseAuthFromWsl } from "./wslCredentials";
+import { readMacKeychainPassword } from "../../runtime/macKeychain";
+import { readMuseAuthFromWsl } from "../../runtime/wslCredentials";
+import { nativeMuseAuthPath } from "./paths";
 
 /**
  * Muse Code credential resolution for usage collection.
@@ -25,8 +24,6 @@ import { readMuseAuthFromWsl } from "./wslCredentials";
 interface MuseAuthProviders {
   providers?: Record<string, { access_token?: unknown; mechanism?: unknown }>;
 }
-
-const execFileAsync = promisify(execFile);
 
 /** Keychain JSON belongs to Muse; never persist or log the returned credential. */
 export function parseMuseKeychainToken(content: string): OAuthToken | undefined {
@@ -67,12 +64,11 @@ export async function resolveMuseToken(): Promise<OAuthToken | undefined> {
     // An explicit inline credential owns account selection, even when invalid.
     if (meta?.access_token != null) return undefined;
     if (process.platform === "darwin" && meta?.mechanism === "oauth") {
-      const { stdout } = await execFileAsync(
-        "/usr/bin/security",
-        ["find-generic-password", "-s", "ai.meta.dev.credentials", "-a", "meta", "-w"],
-        { timeout: 5_000, encoding: "utf8", maxBuffer: 64 * 1024 },
-      );
-      return parseMuseKeychainToken(stdout);
+      const keychainContent = await readMacKeychainPassword({
+        service: "ai.meta.dev.credentials",
+        account: "meta",
+      });
+      return keychainContent ? parseMuseKeychainToken(keychainContent) : undefined;
     }
   } catch {
     // fall through to the WSL fallback

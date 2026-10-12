@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockExecFileCommand } from "../../runtime/macKeychain.testFixtures";
 import {
   ANTIGRAVITY_GOOGLE_TOKEN_URI,
   parseAntigravityAcpCredentials,
   readAntigravityAcpCredsFromMacKeychain,
   readAntigravityAcpKeychainFingerprint,
-  resetAntigravityAcpCredentialStateForTests,
   resolveAntigravityAcpCredentials,
 } from "./antigravityAcpCredentials";
+import { resetMacKeychainStateForTests } from "../../runtime/macKeychain";
 
 type ExecFileCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
@@ -22,12 +23,14 @@ const { execFileMock } = vi.hoisted(() => {
   // of resolving `{ stdout, stderr }` via the custom-promisify symbol.
   Object.defineProperty(fn, Symbol.for("nodejs.util.promisify.custom"), {
     value: (file: string, args: string[], options: object) =>
-      new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-        fn(file, args, options, (error, stdout, stderr) => {
-          if (error) reject(error);
-          else resolve({ stdout, stderr });
-        });
-      }),
+      mockExecFileCommand(
+        new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+          fn(file, args, options, (error, stdout, stderr) => {
+            if (error) reject(error);
+            else resolve({ stdout, stderr });
+          });
+        }),
+      ),
     configurable: true,
   });
   return { execFileMock: fn };
@@ -158,7 +161,7 @@ describe("readAntigravityAcpCredsFromMacKeychain", () => {
   };
 
   beforeEach(() => {
-    resetAntigravityAcpCredentialStateForTests();
+    resetMacKeychainStateForTests();
     execFileMock.mockReset();
     usePlatform("darwin");
   });
@@ -174,39 +177,6 @@ describe("readAntigravityAcpCredsFromMacKeychain", () => {
     mockSecurity((callback) => callback(null, `${VALID}\n`, ""));
     await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBe(VALID);
     expect(execFileMock).toHaveBeenCalledOnce();
-  });
-
-  it("keeps retrying when the item is missing — that failure never showed a dialog", async () => {
-    let calls = 0;
-    mockSecurity((callback) => {
-      calls += 1;
-      callback(securityError("The specified item could not be found", 44), "", "");
-    });
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    expect(calls).toBe(2);
-  });
-
-  it.each([
-    securityError("User canceled", 128),
-    securityError("Authorization denied", 51),
-    Object.assign(new Error("Command timed out"), { killed: true, signal: "SIGTERM" }),
-  ])("suppresses later prompts for the launch after $message", async (error) => {
-    vi.useFakeTimers();
-    let calls = 0;
-    mockSecurity((callback) => {
-      calls += 1;
-      callback(error, "", "");
-    });
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    // The old one-minute backoff allowed every normal refresh to prompt again.
-    await vi.advanceTimersByTimeAsync(24 * 60 * 60_000);
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    expect(calls).toBe(1);
-
-    resetAntigravityAcpCredentialStateForTests();
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    expect(calls).toBe(2);
   });
 
   it("shares a pending authorization across overlapping refreshes", async () => {

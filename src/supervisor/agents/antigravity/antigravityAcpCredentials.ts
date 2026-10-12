@@ -1,13 +1,8 @@
-import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
-import { coalesceByKey } from "@/shared/coalesce";
+import { readMacKeychainPassword, readMacKeychainFingerprint } from "../../runtime/macKeychain";
 import { readAntigravityAcpCredsFromWsl } from "../../runtime/wslCredentials";
-
-const execFileAsync = promisify(execFile);
 
 export const ANTIGRAVITY_GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token";
 
@@ -20,22 +15,10 @@ export const ANTIGRAVITY_GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token
 export const ANTIGRAVITY_ACP_KEYCHAIN_SERVICE = "gemini";
 export const ANTIGRAVITY_ACP_KEYCHAIN_ACCOUNT = "antigravity-acp";
 
-/**
- * Long enough for a human to answer the macOS authorization dialog this read
- * can raise: the item's ACL only trusts the creating app, so the first read
- * asks for the login keychain password. Aborting early is worse than waiting —
- * a killed `security` client never completes the exchange, the "Always Allow"
- * grant is never committed, and every later read prompts again.
- */
-const KEYCHAIN_TIMEOUT_MS = 120_000;
-
-/**
- * A denied, canceled, or timed-out authorization must not be retried by the
- * refresh loop. Suppress further attempts for this process; credential cache
- * invalidation must not reset the user's decision.
- */
-let keychainAuthorizationSuppressed = false;
-const keychainReads = new Map<string, Promise<string | undefined>>();
+const keychainItem = {
+  service: ANTIGRAVITY_ACP_KEYCHAIN_SERVICE,
+  account: ANTIGRAVITY_ACP_KEYCHAIN_ACCOUNT,
+};
 
 export interface AntigravityAcpCredentials {
   clientId: string;
@@ -91,39 +74,9 @@ export interface AntigravityAcpCredentialDeps {
   readWsl(): Promise<string | undefined>;
 }
 
-/**
- * `security` exits 44 when the item does not exist — the one failure that
- * never involved an authorization dialog.
- */
-function isSecurityItemMissing(error: unknown): boolean {
-  return (error as { code?: unknown } | null)?.code === 44;
-}
-
 /** Read the ACP token blob from the macOS keychain; undefined when absent/locked. */
 export async function readAntigravityAcpCredsFromMacKeychain(): Promise<string | undefined> {
-  if (process.platform !== "darwin") return undefined;
-  if (keychainAuthorizationSuppressed) return undefined;
-  return coalesceByKey(keychainReads, ANTIGRAVITY_ACP_KEYCHAIN_ACCOUNT, async () => {
-    try {
-      const { stdout } = await execFileAsync(
-        "/usr/bin/security",
-        [
-          "find-generic-password",
-          "-a",
-          ANTIGRAVITY_ACP_KEYCHAIN_ACCOUNT,
-          "-w",
-          "-s",
-          ANTIGRAVITY_ACP_KEYCHAIN_SERVICE,
-        ],
-        { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
-      );
-      return stdout.trim() || undefined;
-    } catch (error) {
-      if (!isSecurityItemMissing(error)) keychainAuthorizationSuppressed = true;
-      // Missing item or locked keychain: fall through to the file-based sources.
-      return undefined;
-    }
-  });
+  return readMacKeychainPassword(keychainItem);
 }
 
 /**
@@ -132,30 +85,7 @@ export async function readAntigravityAcpCredsFromMacKeychain(): Promise<string |
  * the keychain path distinguishes matching items in different keychains.
  */
 export async function readAntigravityAcpKeychainFingerprint(): Promise<string | undefined> {
-  if (process.platform !== "darwin" || keychainAuthorizationSuppressed) return undefined;
-  return coalesceByKey(keychainReads, "metadata", async () => {
-    try {
-      const { stdout } = await execFileAsync(
-        "/usr/bin/security",
-        [
-          "find-generic-password",
-          "-a",
-          ANTIGRAVITY_ACP_KEYCHAIN_ACCOUNT,
-          "-s",
-          ANTIGRAVITY_ACP_KEYCHAIN_SERVICE,
-        ],
-        { timeout: 5_000, encoding: "utf8" },
-      );
-      const identity = stdout.match(/^keychain: .+$/m)?.[0];
-      const created = stdout.match(/^\s*"cdat"<timedate>=.+$/m)?.[0].trim();
-      const modified = stdout.match(/^\s*"mdat"<timedate>=.+$/m)?.[0].trim();
-      if (!identity || !created || !modified) return undefined;
-      return createHash("sha256").update([identity, created, modified].join("\n")).digest("hex");
-    } catch {
-      // Without a source identity the grant remains process-local.
-      return undefined;
-    }
-  });
+  return readMacKeychainFingerprint(keychainItem);
 }
 
 const defaultDeps: AntigravityAcpCredentialDeps = {
@@ -202,10 +132,4 @@ export async function resolveAntigravityAcpCredentials(
     if (parsed) return parsed;
   }
   return undefined;
-}
-
-/** Clear process-local credential state between deterministic tests. */
-export function resetAntigravityAcpCredentialStateForTests(): void {
-  keychainReads.clear();
-  keychainAuthorizationSuppressed = false;
 }
