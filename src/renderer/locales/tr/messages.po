@@ -320,8 +320,8 @@ msgstr "{0}, v{1} sürümüne güncellenmek üzere sırada"
 
 #. placeholder {0}: column.label
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "{0} reasoning"
-msgstr "{0} akıl yürütmesi"
+#~ msgid "{0} reasoning"
+#~ msgstr "{0} akıl yürütmesi"
 
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
@@ -1622,8 +1622,8 @@ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot lis
 msgstr "Bu profilin yapılandırma görünümüne (devin.org_id) uygulanır. Poracode bir girişin ait olduğu kuruluşları listeleyemez; Devin id'yi başlangıçta doğrular ve yetkisiz kuruluş görünür şekilde başarısız olur."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "Applies to both models"
-msgstr "Her iki modele uygulanır"
+#~ msgid "Applies to both models"
+#~ msgstr "Her iki modele uygulanır"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -8076,7 +8076,7 @@ msgstr "Makine"
 msgid "macOS"
 msgstr "macOS"
 
-#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+#: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "Ana model"
 
@@ -8653,8 +8653,8 @@ msgstr "Model etiketi"
 #~ msgstr "Model sırası"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
-msgid "Model pairing"
-msgstr "Model çifti"
+#~ msgid "Model pairing"
+#~ msgstr "Model çifti"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9485,7 +9485,7 @@ msgstr "Mikrofon bulunamadı."
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} için kullanılabilir model yok. Ayarlar'da ajanı kontrol edin."
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -11665,7 +11665,6 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "Hazır. Yeni eşleştirme kodlarında Tailscale HTTPS URL'sini duyurmak için bunu açın."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
-#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "Akıl yürütme"
 
@@ -13076,8 +13075,7 @@ msgstr "MCP sunucularında ara..."
 msgid "Search models"
 msgstr "Modelleri ara"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "Modelleri ara..."

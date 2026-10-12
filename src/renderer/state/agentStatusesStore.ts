@@ -278,9 +278,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 51,
-      // v51 mirrors supervisor STATUS_CACHE_VERSION=55: refresh working-window
-      // catalogs and context-reload consequences before rendering composer controls.
+      version: 52,
+      // v52 mirrors supervisor STATUS_CACHE_VERSION=56: Devin Chat Fast
+      // availability derives from the catalog for accepted ids (Fusion pairs
+      // included), and permission lists order least → most permissive with
+      // Ask off the Terminal surface — stale Devin inventories re-probe.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

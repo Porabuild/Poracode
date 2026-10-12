@@ -2843,23 +2843,24 @@ describe("ThreadDraftView model family drafts", () => {
       | undefined;
   }
 
-  function pairedSelectorControl() {
-    return composerControls().find(
-      (control) => control.kind === "effort-context" && control.familySelection !== undefined,
-    ) as
+  function pairedSelectorControls() {
+    return composerControls().filter((control) => control.kind === "family-selector") as Array<{
+      id: string;
+      value: string;
+      options: ReadonlyArray<{ id: string }>;
+      onChange: (value: string) => void;
+    }>;
+  }
+
+  function pairedSelectorControl(selectorId: string) {
+    return pairedSelectorControls().find((control) => control.id === selectorId);
+  }
+
+  function effortContextControl() {
+    return composerControls().find((control) => control.kind === "effort-context") as
       | {
           effortValue?: string;
           onEffortChange: (value: string) => void;
-          familySelection: {
-            columns: Array<{
-              id: string;
-              models: {
-                options: ReadonlyArray<{ id: string }>;
-                value: string;
-                onChange: (value: string) => void;
-              };
-            }>;
-          };
         }
       | undefined;
   }
@@ -3131,32 +3132,26 @@ describe("ThreadDraftView model family drafts", () => {
     });
     renderFamilyDraft();
     await waitFor(() => expect(persistedDraft()?.model).toBe("pair-alpha-x"));
-    // The draft picker renders the projected family row plus exactly one
-    // paired effort-context control carrying the two conditional selector
-    // columns from the GUI override; the ordinary effort carrier stays beside
-    // it as the shortcut/cycle target.
-    await waitFor(() => expect(pairedSelectorControl()).toBeDefined());
-    expect(
-      composerControls().filter(
-        (control) => control.kind === "effort-context" && control.familySelection !== undefined,
-      ),
-    ).toHaveLength(1);
-    const paired = pairedSelectorControl();
-    expect(paired?.effortValue).toBe("high");
-    const columns = paired?.familySelection.columns ?? [];
-    expect(columns).toHaveLength(2);
-    const [lead, sidekick] = columns;
-    expect(lead?.id).toBe("lead");
-    expect(sidekick?.id).toBe("sidekick");
-    // The columns carry the exact selected pair (alpha, x).
-    expect(lead?.models.value).toBe("alpha");
-    expect(sidekick?.models.value).toBe("x");
-    expect(sidekick?.models.options.map((option) => option.id)).toEqual(["x", "y"]);
+    // The draft picker renders the projected family row plus one selector
+    // menu per conditional selector from the GUI override; the ordinary
+    // effort carrier stays beside them as the shortcut/cycle target.
+    await waitFor(() => expect(pairedSelectorControls()).toHaveLength(2));
+    expect(composerControls().filter((control) => control.kind === "effort-context")).toHaveLength(
+      1,
+    );
+    expect(effortContextControl()?.effortValue).toBe("high");
+    const selectors = pairedSelectorControls();
+    expect(selectors.map((control) => control.id)).toEqual(["lead", "sidekick"]);
+    const [lead, sidekick] = selectors;
+    // The selectors carry the exact selected pair (alpha, x).
+    expect(lead?.value).toBe("alpha");
+    expect(sidekick?.value).toBe("x");
+    expect(sidekick?.options.map((option) => option.id)).toEqual(["x", "y"]);
     // The reduced accepted inventory restricts the reachable coordinates: the
     // beta pairs are the absent self-pair analog and never appear, so a Lead
     // edit outside the offered ladder is a guarded no-op.
-    expect(lead?.models.options.map((option) => option.id)).toEqual(["alpha"]);
-    act(() => lead?.models.onChange("beta"));
+    expect(lead?.options.map((option) => option.id)).toEqual(["alpha"]);
+    act(() => lead?.onChange("beta"));
     expect(persistedDraft()).toMatchObject({
       model: "pair-alpha-x",
       effort: "high",
@@ -3177,25 +3172,26 @@ describe("ThreadDraftView model family drafts", () => {
     });
 
     // The explicit model pick of the sibling pair keeps the independent
-    // effort/Fast carriers untouched.
+    // effort carrier; the stale `fast: true` is cleared at the edit boundary —
+    // this surface has no usable Fast on the pair, so carrying it forward
+    // would hide the toggle while the launch still billed Fast.
     act(() => providerModel.onChange({ agentKind: "devin", model: "pair-alpha-y" }));
     await waitFor(() => expect(persistedDraft()?.model).toBe("pair-alpha-y"));
-    expect(persistedDraft()).toMatchObject({ effort: "high", fast: true });
+    expect(persistedDraft()).toMatchObject({ effort: "high", fast: false });
 
-    // The paired Sidekick column callback resolves the exact sibling-pair UID
-    // the same way, and the paired effort ladder edits only the effort
-    // carrier. This surface has no Fast toggle at all, yet the true carrier
-    // survives every edit untouched.
-    const sidekickAfter = pairedSelectorControl()?.familySelection.columns[1];
-    expect(sidekickAfter?.models.value).toBe("y");
-    act(() => sidekickAfter?.models.onChange("x"));
+    // The Sidekick selector callback resolves the exact sibling-pair UID the
+    // same way, and the ordinary effort control edits only the effort
+    // carrier. This surface has no Fast toggle at all.
+    const sidekickAfter = pairedSelectorControl("sidekick");
+    expect(sidekickAfter?.value).toBe("y");
+    act(() => sidekickAfter?.onChange("x"));
     await waitFor(() => expect(persistedDraft()?.model).toBe("pair-alpha-x"));
-    act(() => pairedSelectorControl()?.onEffortChange("low"));
+    act(() => effortContextControl()?.onEffortChange("low"));
     await waitFor(() => expect(persistedDraft()?.effort).toBe("low"));
     expect(persistedDraft()).toMatchObject({
       model: "pair-alpha-x",
       effort: "low",
-      fast: true,
+      fast: false,
     });
     expect(fastToggle()).toBeUndefined();
     toastDanger.mockRestore();
@@ -3217,13 +3213,10 @@ describe("ThreadDraftView model family drafts", () => {
     });
     const view = renderFamilyDraft();
     await waitFor(() => {
-      const paired = pairedSelectorControl();
-      expect(paired?.familySelection.columns).toHaveLength(2);
+      expect(pairedSelectorControls()).toHaveLength(2);
     });
-    // The paired control carries the exact current pair (alpha, x).
-    expect(
-      pairedSelectorControl()?.familySelection.columns.map((column) => column.models.value),
-    ).toEqual(["alpha", "x"]);
+    // The selector controls carry the exact current pair (alpha, x).
+    expect(pairedSelectorControls().map((control) => control.value)).toEqual(["alpha", "x"]);
     const plan = composerControls().find(
       (control) =>
         control.kind === "toggle" && (control.label === "Work" || control.label === "Plan"),
@@ -3257,9 +3250,7 @@ describe("ThreadDraftView model family drafts", () => {
     // The capability refresh (Fast becomes available) neither flips the
     // retained Fast-off carrier nor disturbs the exact pair.
     expect(fastToggle()?.isSelected).toBe(false);
-    expect(
-      pairedSelectorControl()?.familySelection.columns.map((column) => column.models.value),
-    ).toEqual(["alpha", "x"]);
+    expect(pairedSelectorControls().map((control) => control.value)).toEqual(["alpha", "x"]);
     expect(persistedDraft()).toMatchObject({ model: "pair-alpha-x", effort: "low", fast: false });
     // The ordinary composer Fast toggle is the only Fast carrier writer here:
     // an explicit flip lands on the config for the same pair, and flipping

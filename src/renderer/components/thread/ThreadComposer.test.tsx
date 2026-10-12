@@ -384,7 +384,7 @@ describe("ThreadComposer", () => {
   });
 });
 
-it("places pairing immediately after the model control in the toolbar and every geometry probe", () => {
+it("places family selectors immediately after the model control in the toolbar and every geometry probe", () => {
   const model: ComposerControl = {
     kind: "provider-model",
     providers: [],
@@ -392,55 +392,46 @@ it("places pairing immediately after the model control in the toolbar and every 
     currentModel: "Pair",
     onChange: vi.fn<() => void>(),
   };
-  const paired: ComposerControl = {
-    kind: "effort-context",
-    efforts: [],
-    contextSizes: [],
+  const selector = (
+    id: string,
+    label: string,
+    value: string,
+    option: { id: string; label: string },
+  ): ComposerControl => ({
+    kind: "family-selector",
+    id,
+    label,
+    icon: null,
+    options: [option],
+    value,
+    onChange: vi.fn<() => void>(),
     hideLabelOnWrap: true,
     tier: 4,
-    familySelection: {
-      effortScope: "primary",
-      columns: [
-        {
-          id: "first",
-          label: "Main",
-          models: {
-            options: [{ id: "a", label: "Alpha" }],
-            value: "a",
-            onChange: vi.fn<() => void>(),
-          },
-        },
-        {
-          id: "second",
-          label: "Sidekick",
-          models: {
-            options: [{ id: "b", label: "Beta" }],
-            value: "b",
-            onChange: vi.fn<() => void>(),
-          },
-        },
-      ],
-    },
-  };
-  const { container } = renderComposer([model, ...composerControls(), paired]);
+  });
+  const lead = selector("lead", "Main", "a", { id: "a", label: "Alpha" });
+  const sidekick = selector("sidekick", "Sidekick", "b", { id: "b", label: "Beta" });
+  const { container } = renderComposer([model, ...composerControls(), lead, sidekick]);
   const buttons = within(composerToolbar(container))
     .getAllByRole("button")
     .filter((element) => element.tagName === "BUTTON");
   const modelIndex = buttons.indexOf(screen.getByRole("button", { name: "Select model" }));
-  expect(buttons[modelIndex + 1]).toBe(screen.getByRole("button", { name: "Model pairing" }));
-  expect(buttons[modelIndex + 1]).toHaveTextContent("Alpha + Beta");
-  expect(screen.queryByRole("button", { name: "Effort and context" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Fast" })).not.toBeInTheDocument();
+  expect(buttons[modelIndex + 1]).toBe(screen.getByRole("button", { name: "Main" }));
+  expect(buttons[modelIndex + 1]).toHaveTextContent("Alpha");
+  expect(buttons[modelIndex + 2]).toBe(screen.getByRole("button", { name: "Sidekick" }));
+  expect(buttons[modelIndex + 2]).toHaveTextContent("Beta");
   const probes = [...container.querySelectorAll(".probe-wrap-container")];
   expect(probes).toHaveLength(6);
   for (const [level, probe] of probes.entries()) {
     const controls = [
       ...probe.querySelectorAll(".poracode-composer-menu, .poracode-composer-toggle"),
     ];
-    expect(controls).toHaveLength(4);
+    expect(controls).toHaveLength(5);
     expect(controls[0]).toHaveTextContent("Pair");
-    expect(controls[1]!.textContent).toBe(level < 4 ? "Alpha + Beta" : "");
+    // Selector probes render both trigger lines — the option display over the
+    // selector label — so the measured width matches the real trigger.
+    expect(controls[1]!.textContent).toBe(level < 4 ? "AlphaMain" : "");
     expect(controls[1]).not.toHaveAttribute("style");
+    expect(controls[2]!.textContent).toBe(level < 4 ? "BetaSidekick" : "");
   }
 });
 
@@ -461,7 +452,8 @@ it("keeps ordinary controls in order without adding a pairing or duplicate effor
     },
     { kind: "toggle", label: "Fast", isSelected: false, onChange: vi.fn<() => void>() },
   ]);
-  expect(screen.queryByRole("button", { name: "Model pairing" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Main" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Sidekick" })).not.toBeInTheDocument();
   expect(screen.getAllByRole("button", { name: "Select model" })).toHaveLength(1);
   expect(screen.getAllByRole("button", { name: "Effort and context" })).toHaveLength(1);
   expect(screen.getAllByRole("button", { name: "Fast" })).toHaveLength(1);

@@ -9,6 +9,7 @@ import {
   buildProviderModelMenuProviders,
   expandAgentToVisibilityProviders,
   patchConfigForModelChange,
+  resolveModelSelectionEdit,
 } from "./buildModelPickerControls";
 
 import { registerComposerControls } from "../providers/providerComposer";
@@ -809,12 +810,10 @@ describe("buildModelPickerControls family controls", () => {
       onConfigChange: vi.fn<() => void>(),
     });
     expect(merged).toEqual(controls);
-    expect(
-      merged.some((control) => control.kind === "effort-context" && control.familySelection),
-    ).toBe(false);
+    expect(merged.some((control) => control.kind === "family-selector")).toBe(false);
   });
 
-  it("keeps the ordinary Fast toggle beside the paired control and preserves context callbacks", () => {
+  it("appends family selectors beside the kept common effort control and preserves context callbacks", () => {
     registerComposerControls("paired-test", modelFamilySelectorControls);
     const config = { model: "f-alpha-x-low", effort: "", fast: false };
     const { controls, onConfigPatch } = pickerInput(config);
@@ -836,25 +835,28 @@ describe("buildModelPickerControls family controls", () => {
       config,
       onConfigChange,
     });
-    // The paired control absorbs only the effort carrier; Fast stays a
-    // separate composer toggle and the family selection carries no fast data.
+    // The family selector menus append after the common controls — the common
+    // Reasoning/context control is kept for family members instead of being
+    // merged away, and Fast stays the ordinary composer toggle.
     expect(merged.map((control) => control.kind)).toEqual([
       "provider-model",
-      "toggle",
       "effort-context",
+      "toggle",
+      "family-selector",
+      "family-selector",
     ]);
-    const paired = merged[2]!;
-    if (paired.kind !== "effort-context") throw new Error("Expected paired control");
-    expect(paired.familySelection?.columns).toHaveLength(2);
-    expect(paired.familySelection).not.toHaveProperty("fast");
-    expect(paired.contextValue).toBe("small");
-    expect(paired.confirmContextChange).toBe(true);
-    expect(paired.contextSizeReloadStopsSubagents).toBe(true);
-    paired.onContextChange?.("large");
+    const effort = merged[1]!;
+    if (effort.kind !== "effort-context") throw new Error("Expected effort control");
+    expect(effort.contextValue).toBe("small");
+    expect(effort.confirmContextChange).toBe(true);
+    expect(effort.contextSizeReloadStopsSubagents).toBe(true);
+    effort.onContextChange?.("large");
     expect(onContextChange).toHaveBeenCalledWith("large");
+    const selectors = merged.filter((control) => control.kind === "family-selector");
+    expect(selectors.map((control) => control.id)).toEqual(["lead", "sidekick"]);
     // The retained toggle still resolves the model-bound fast edit into the
     // exact Fast sibling member.
-    const fast = merged[1]!;
+    const fast = merged[2]!;
     if (fast.kind !== "toggle" || fast.label !== "Fast") throw new Error("Expected Fast toggle");
     fast.onChange!(true);
     expect(onConfigPatch).toHaveBeenLastCalledWith(
@@ -900,9 +902,7 @@ describe("buildModelPickerControls family controls", () => {
     const fast = merged.find((control) => control.kind === "toggle" && control.label === "Fast") as
       | { isSelected: boolean; onChange: (selected: boolean) => void }
       | undefined;
-    expect(
-      merged.filter((control) => control.kind === "effort-context" && control.familySelection),
-    ).toHaveLength(1);
+    expect(merged.filter((control) => control.kind === "family-selector")).toHaveLength(2);
     expect(
       merged.filter((control) => control.kind === "toggle" && control.label === "Fast"),
     ).toHaveLength(1);
@@ -910,6 +910,77 @@ describe("buildModelPickerControls family controls", () => {
     expect(fast!.isSelected).toBe(false);
     fast!.onChange(true);
     expect(onConfigPatch).toHaveBeenLastCalledWith({ fast: true }, { kind: "family-resolved" });
+  });
+
+  it("clears a stale config-bound Fast carrier when a member edit lands on a pair without usable Fast", () => {
+    // A config-bound relation where only part of the ladder carries a usable
+    // Fast select: `pair-a-x`/`pair-a-y` do, `pair-b-x` does not.
+    const configBoundDescriptor = {
+      model: "pair-a-x",
+      label: "Fusion",
+      bindings: { effort: "config" as const, fast: "config" as const },
+      selectors: [
+        {
+          id: "lead",
+          labelKey: "modelSelection.lead",
+          options: [
+            { id: "a", label: "Alpha" },
+            { id: "b", label: "Beta" },
+          ],
+        },
+        {
+          id: "sidekick",
+          labelKey: "modelSelection.sidekick",
+          options: [
+            { id: "x", label: "X" },
+            { id: "y", label: "Y" },
+          ],
+        },
+      ],
+      members: [
+        { model: "pair-a-x", selections: { lead: "a", sidekick: "x" } },
+        { model: "pair-a-y", selections: { lead: "a", sidekick: "y" } },
+        { model: "pair-b-x", selections: { lead: "b", sidekick: "x" } },
+      ],
+    };
+    const configBoundCapabilities = {
+      ...familyCapabilities,
+      models: [
+        { id: "pair-a-x", label: "Fusion (Alpha + X)" },
+        { id: "pair-a-y", label: "Fusion (Alpha + Y)" },
+        { id: "pair-b-x", label: "Fusion (Beta + X)" },
+      ],
+      fastModels: ["pair-a-x", "pair-a-y"],
+      modelFamilies: [configBoundDescriptor],
+    } as unknown as AgentCapability;
+    const edit = (config: { model: string; fast?: boolean }, selectorId: string, value: string) =>
+      resolveModelSelectionEdit(configBoundCapabilities, config, {
+        kind: "selector",
+        selectorId,
+        value,
+      });
+    // A stale `fast: true` must not survive onto a pair that has no usable
+    // Fast select — the toggle would disappear while the launch still bills.
+    expect(edit({ model: "pair-a-x", fast: true }, "lead", "b")).toEqual({
+      model: "pair-b-x",
+      fast: false,
+    });
+    // Landing on a Fast-capable member leaves the carrier for the toggle.
+    expect(edit({ model: "pair-a-x", fast: true }, "sidekick", "y")).toEqual({
+      model: "pair-a-y",
+    });
+    // No retained Fast, nothing to clear.
+    expect(edit({ model: "pair-b-x", fast: false }, "lead", "a")).toEqual({ model: "pair-a-x" });
+    expect(edit({ model: "pair-b-x" }, "lead", "a")).toEqual({ model: "pair-a-x" });
+    // A model-bound member patch already carries its inert `fast: false`
+    // seed — the boundary must not touch it.
+    expect(
+      resolveModelSelectionEdit(
+        familyCapabilities,
+        { model: "f-alpha-x-low", effort: "", fast: false },
+        { kind: "selector", selectorId: "lead", value: "beta" },
+      ),
+    ).toEqual({ model: "f-beta-x-low", effort: "", fast: false });
   });
 
   it("derives Effort and Fast display from the member tuple while the saved carriers stay inert", () => {
@@ -1514,12 +1585,11 @@ describe("buildControls selection binding events", () => {
       undefined,
       onConfigChange,
     );
-    const paired = controls.find(
-      (control) => control.kind === "effort-context" && control.familySelection,
+    const selector = controls.find(
+      (control) => control.kind === "family-selector" && control.id === "lead",
     )!;
-    if (paired.kind !== "effort-context" || !paired.familySelection)
-      throw new Error("Expected paired control");
-    paired.familySelection.columns[0]!.models.onChange("beta");
+    if (selector.kind !== "family-selector") throw new Error("Expected family selector control");
+    selector.onChange("beta");
     expect(onConfigChange).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         model: "pair-beta-x",
@@ -1577,6 +1647,9 @@ describe("buildControls family model picks", () => {
         ],
       },
     ],
+    // Every member carries a usable Fast select, so a stored Fast carrier
+    // stays valid across member picks.
+    fastModels: ["pair-alpha-x", "pair-alpha-y"],
   };
   const pairCapabilities = {
     models: [

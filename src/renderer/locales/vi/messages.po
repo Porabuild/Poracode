@@ -320,8 +320,8 @@ msgstr "{0} đang chờ cập nhật lên v{1}"
 
 #. placeholder {0}: column.label
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "{0} reasoning"
-msgstr "Suy luận của {0}"
+#~ msgid "{0} reasoning"
+#~ msgstr "Suy luận của {0}"
 
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
@@ -1622,8 +1622,8 @@ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot lis
 msgstr "Áp dụng cho chế độ xem cấu hình của hồ sơ này (devin.org_id). Poracode không thể liệt kê các tổ chức mà một đăng nhập thuộc về; Devin xác thực id khi khởi động và tổ chức chưa được ủy quyền sẽ thất bại rõ ràng."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "Applies to both models"
-msgstr "Áp dụng cho cả hai mô hình"
+#~ msgid "Applies to both models"
+#~ msgstr "Áp dụng cho cả hai mô hình"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -8076,7 +8076,7 @@ msgstr "Máy"
 msgid "macOS"
 msgstr "macOS"
 
-#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+#: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "Mô hình chính"
 
@@ -8653,8 +8653,8 @@ msgstr "Nhãn mô hình"
 #~ msgstr "Thứ tự mô hình"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
-msgid "Model pairing"
-msgstr "Cặp mô hình"
+#~ msgid "Model pairing"
+#~ msgstr "Cặp mô hình"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9485,7 +9485,7 @@ msgstr "Không tìm thấy micrô."
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Không có mô hình nào khả dụng cho {agent}. Hãy kiểm tra tác tử trong Cài đặt."
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -11665,7 +11665,6 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "Sẵn sàng. Bật tùy chọn này để quảng bá URL HTTPS của Tailscale trong các mã ghép đôi mới."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
-#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "Suy luận"
 
@@ -13076,8 +13075,7 @@ msgstr "Tìm kiếm máy chủ MCP..."
 msgid "Search models"
 msgstr "Tìm kiếm mô hình"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "Tìm kiếm mô hình..."

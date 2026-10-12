@@ -129,6 +129,61 @@ describe("devinNegotiatedGuiSelectionCapabilities", () => {
     expect(gui.models.length).toBeGreaterThan(0);
   });
 
+  it("never marks a composite member Fast on a mixed family's regular Fast sibling", () => {
+    // A family that mixes a regular Fast ladder with a composite pair: the
+    // pair's tuple has no Fast catalog member, so only the relation rule —
+    // never the family's Fast strength alone — may mark it.
+    const pairId = "fusion-x-high-sidekick-y-high";
+    const mixedCatalog = [
+      ...catalog,
+      {
+        id: "brand",
+        label: "Brand",
+        variants: [
+          { id: "brand-high", effort: "high", thinking: false, fast: false, context: "default" },
+          {
+            id: "brand-high-fast",
+            effort: "high",
+            thinking: false,
+            fast: true,
+            context: "default",
+          },
+          {
+            id: pairId,
+            composite: "X High + Y High",
+            effort: "",
+            thinking: false,
+            fast: false,
+            context: "default",
+          },
+        ],
+      },
+    ];
+    const withMixed: AcpProbeResult = {
+      ...negotiated,
+      models: [
+        ...negotiated.models!,
+        { id: "brand-high", label: "Brand High" },
+        { id: "brand-high-fast", label: "Brand High Fast" },
+        { id: pairId, label: "Fusion (X High + Y High)" },
+      ],
+    };
+    const gui = capabilitiesForPresentation(
+      {
+        ...devinDefaultCapabilities,
+        ...devinNegotiatedGuiSelectionCapabilities(
+          devinDefaultCapabilities,
+          withMixed,
+          mixedCatalog,
+        )!,
+      },
+      "gui",
+    );
+    expect(gui.fastModels).toContain("brand-high");
+    expect(gui.fastModels).toContain("brand-high-fast");
+    expect(gui.fastModels).not.toContain(pairId);
+  });
+
   it("returns undefined without a negotiated menu so the catalog fills the GUI", () => {
     expect(
       devinNegotiatedGuiSelectionCapabilities(devinDefaultCapabilities, {}, catalog),

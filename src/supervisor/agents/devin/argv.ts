@@ -16,11 +16,16 @@ const DEVIN_CLI_PERMISSION_MODES = ["normal", "accept-edits", "smart", "bypass"]
  */
 export { resolveDevinAcpMode } from "./acp/sessionModes";
 
+/** Whether a policy id is a permission mode the installed CLI parser honors. */
+export function isDevinCliPermissionMode(policy: string): boolean {
+  return (DEVIN_CLI_PERMISSION_MODES as readonly string[]).includes(policy);
+}
+
 /** Terminal `--permission-mode` value for a stored Poracode approval policy. */
 export function devinCliPermissionMode(approvalPolicy: string | undefined): string {
   if (!approvalPolicy) return "smart";
   const policy = approvalPolicy === "bypassPermissions" ? "bypass" : approvalPolicy;
-  return (DEVIN_CLI_PERMISSION_MODES as readonly string[]).includes(policy) ? policy : "smart";
+  return isDevinCliPermissionMode(policy) ? policy : "smart";
 }
 
 /** CLI permission modes accepted by the installed parser (aliases included). */

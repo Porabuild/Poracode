@@ -295,6 +295,19 @@ export function resolveModelSelectionEdit(
     toast.danger(i18n._(msg`That combination isn’t available`));
     return null;
   }
+  // Mirrors `patchConfigForModelChange`: a member change that leaves Fast
+  // config-bound must not carry a stale `fast: true` onto a member without a
+  // usable Fast select — the toggle disappears while the launch would still
+  // request it and fail. Model-bound members already carry their inert `fast: false`
+  // seed in the patch, so only an untouched config-bound carrier reaches this.
+  if (
+    patch.model !== undefined &&
+    patch.fast === undefined &&
+    config?.fast === true &&
+    !supportsUsableFastMode(capabilities, patch.model)
+  ) {
+    return { ...patch, fast: false } as ModelPickerConfigPatch;
+  }
   // The shared helper only ever produces concrete model/effort/fast fields —
   // never an explicit `undefined` — so its `Partial<ThreadConfig>` narrows to
   // the picker patch shape.
@@ -471,47 +484,10 @@ export function appendProviderComposerControls(
     ...(options.presentationMode ? { presentationMode: options.presentationMode } : {}),
   }).map(applyDefaultControlTiers);
 
-  // A provider-owned paired control takes the ordinary effort carrier into its
-  // one menu. Fast stays a separate composer control — its family-aware
-  // resolver, availability, and shortcut are the ordinary toggle's own, so
-  // pairing never duplicates it inside the panel. Context/thinking and their
-  // confirmation callbacks remain intact; providers without a paired control
-  // keep their existing toolbar.
-  const paired = providerControls.find(
-    (control) => control.kind === "effort-context" && control.familySelection,
-  );
-  if (paired?.kind !== "effort-context" || !paired.familySelection)
-    return [...controls, ...providerControls];
-  const commonEffort = controls.find((control) => control.kind === "effort-context");
-  const combined: ComposerControl = {
-    ...commonEffort,
-    ...paired,
-    ...(commonEffort?.kind === "effort-context"
-      ? {
-          contextSizes: commonEffort.contextSizes,
-          ...(commonEffort.contextValue !== undefined
-            ? { contextValue: commonEffort.contextValue }
-            : {}),
-          ...(commonEffort.onContextChange
-            ? { onContextChange: commonEffort.onContextChange }
-            : {}),
-          ...(commonEffort.confirmContextChange ? { confirmContextChange: true } : {}),
-          ...(commonEffort.contextSizeReloadStopsSubagents
-            ? { contextSizeReloadStopsSubagents: true }
-            : {}),
-          ...(commonEffort.thinkingSupported
-            ? { thinkingSupported: true, thinkingValue: commonEffort.thinkingValue ?? false }
-            : {}),
-          ...(commonEffort.onThinkingChange
-            ? { onThinkingChange: commonEffort.onThinkingChange }
-            : {}),
-        }
-      : {}),
-  };
-  return [
-    ...controls.filter((control) => control !== commonEffort),
-    ...providerControls.map((control) => (control === paired ? combined : control)),
-  ];
+  // Provider controls append after the common picker controls: the family
+  // selector menus edit only their own coordinate, so the common Reasoning/
+  // context control stays for family members instead of being merged away.
+  return [...controls, ...providerControls];
 }
 
 function normalizeCursorComposerConfig(

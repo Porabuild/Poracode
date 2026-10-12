@@ -9,13 +9,16 @@ import {
   useState,
 } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
 import { Accessibility } from "@dnd-kit/dom";
 import { reorderModelPickerRefs } from "@/shared/modelPickerOrder";
 import { ModelMenuRow, SortableFavoriteModelRow } from "./parts/ModelMenuRow";
+import { ModelMenuSearchInput } from "./parts/ModelMenuSearchInput";
+import { MODEL_MENU_ROW_HEIGHT, MODEL_MENU_ROW_HEIGHT_MOBILE } from "./parts/modelMenuRowMetrics";
+import { useMenuSearchAutofocus } from "./parts/useMenuSearchAutofocus";
 import { splitModelLabel } from "./parts/splitModelLabel";
 import { useFavoriteModelDragAccessibility } from "./parts/useFavoriteModelDragAccessibility";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -44,11 +47,6 @@ export type { ProviderModelSelection, ProviderModelSelectionIntent } from "./par
 
 export type { ProviderModelMenuProvider };
 
-const MODEL_MENU_ROW_HEIGHT = 28;
-/** Model rows grow to a finger-friendly target in the compact drawer; headers
- * stay compact. Threaded through the virtualizer so the JS row math and the
- * rendered row height never disagree (a mismatch desyncs the scroll spacers). */
-const MODEL_MENU_ROW_HEIGHT_MOBILE = 44;
 const MODEL_MENU_EXPANDED_MOBILE_CHROME_HEIGHT = 180;
 const MODEL_MENU_PROVIDER_HEADER_BOTTOM_GAP = 4;
 const MODEL_MENU_MAX_HEIGHT = 288;
@@ -374,14 +372,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     }
   }
 
-  const wasMenuOpenRef = useRef(false);
-  useEffect(() => {
-    const opened = isOpen && !wasMenuOpenRef.current;
-    wasMenuOpenRef.current = isOpen;
-    // On mobile, auto-focusing search would pop the keyboard over the drawer;
-    // let the user tap the field if they want to filter.
-    if (opened && !mobile) setTimeout(() => searchRef.current?.focus(), 50);
-  }, [isOpen, mobile]);
+  useMenuSearchAutofocus(isOpen, mobile, searchRef);
 
   // An external `openSignal` bump opens the menu, tracked as a render snapshot
   // with the previous effect's re-run semantics.
@@ -577,45 +568,38 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
 
   const renderContent = ({ expanded }: { readonly expanded: boolean }) => (
     <>
-      <div className="poracode-model-menu-search flex items-center gap-2 border-b border-border px-3 py-2">
-        <Search className="size-3.5 shrink-0 text-muted" />
-        <input
-          ref={searchRef}
-          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
-          placeholder={t`Search models...`}
-          role="combobox"
-          aria-autocomplete="list"
-          aria-controls={`${listboxDomIdPrefix}-listbox`}
-          aria-expanded={isOpen}
-          aria-activedescendant={
-            activeModelItemId && items.length > 0
-              ? `${listboxDomIdPrefix}-${activeModelItemId}`
-              : undefined
+      <ModelMenuSearchInput
+        inputRef={searchRef}
+        listboxId={`${listboxDomIdPrefix}-listbox`}
+        expanded={isOpen}
+        activeDescendantId={
+          activeModelItemId && items.length > 0
+            ? `${listboxDomIdPrefix}-${activeModelItemId}`
+            : undefined
+        }
+        value={search}
+        onChange={setSearch}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Escape") {
+            handleOpenChange(false);
+            return;
           }
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Escape") {
-              handleOpenChange(false);
-              return;
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (search !== deferredSearch) {
+              selectModelItem(buildItemsForSearch(search).find((item) => item.type === "model"));
+            } else if (items.length > 0) {
+              windowedListRef.current?.selectActive();
             }
-            if (e.key === "Enter") {
-              e.preventDefault();
-              if (search !== deferredSearch) {
-                selectModelItem(buildItemsForSearch(search).find((item) => item.type === "model"));
-              } else if (items.length > 0) {
-                windowedListRef.current?.selectActive();
-              }
-              return;
-            }
-            if (items.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-              e.preventDefault();
-              windowedListRef.current?.moveActive(e.key === "ArrowDown" ? 1 : -1);
-            }
-          }}
-        />
-      </div>
+            return;
+          }
+          if (items.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+            e.preventDefault();
+            windowedListRef.current?.moveActive(e.key === "ArrowDown" ? 1 : -1);
+          }
+        }}
+      />
       {items.length === 0 ? (
         <div className="px-3 py-3 text-center text-sm text-muted">
           <Trans>No models found</Trans>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
@@ -65,12 +65,10 @@ registerComposerControls(kind, (input) =>
 
 function Harness({
   initialModel = "solo",
-  effortSignal = 0,
   disabled = false,
   onPatch,
 }: {
   initialModel?: string;
-  effortSignal?: number;
   disabled?: boolean;
   onPatch?: (patch: Partial<ThreadConfig>) => void;
 }) {
@@ -100,13 +98,7 @@ function Harness({
   return (
     <ThreadComposer
       toolbarOnly
-      controls={controls.map((control) =>
-        control.kind === "effort-context"
-          ? { ...control, openSignal: effortSignal }
-          : control.kind === "provider-model"
-            ? { ...control, openSignal: 0 }
-            : control,
-      )}
+      controls={controls}
       prompt=""
       placeholder="Prompt"
       submitDisabled
@@ -126,6 +118,15 @@ function enter(element: Element) {
   fireEvent.keyDown(element, { key: "Enter", code: "Enter" });
   fireEvent.keyUp(element, { key: "Enter", code: "Enter" });
 }
+/** Full pointer gesture on the document in the browser's event order, so the
+ * overlay's interact-outside machinery sees a real outside press. */
+function pressOutside() {
+  fireEvent.pointerDown(document.body, { button: 0, pointerId: 1, pointerType: "mouse" });
+  fireEvent.mouseDown(document.body, { button: 0 });
+  fireEvent.pointerUp(document.body, { button: 0, pointerId: 1, pointerType: "mouse" });
+  fireEvent.mouseUp(document.body, { button: 0 });
+  fireEvent.click(document.body, { button: 0 });
+}
 
 beforeEach(() => {
   delete (window as unknown as { poracode?: unknown }).poracode;
@@ -135,13 +136,14 @@ afterEach(() => {
   delete (window as unknown as { poracode?: unknown }).poracode;
 });
 
-describe("adjacent model pairing with real overlays", () => {
+describe("adjacent family selector menus with real overlays", () => {
   it.each(["mouse", "keyboard"])(
-    "closes the global menu through %s and independently edits the pair before returning to an ordinary model",
+    "closes the global menu through %s, edits Main to a sibling pair, and restores ordinary controls",
     async (input) => {
       const onPatch = vi.fn<(patch: Partial<ThreadConfig>) => void>();
       render(<Harness onPatch={onPatch} />);
-      expect(screen.queryByRole("button", { name: "Model pairing" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Main" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Sidekick" })).not.toBeInTheDocument();
       const trigger = screen.getByRole("button", { name: "Select model" });
       if (input === "mouse") mouseClick(trigger);
       else {
@@ -149,108 +151,90 @@ describe("adjacent model pairing with real overlays", () => {
         enter(trigger);
       }
       const search = await screen.findByPlaceholderText("Search models...");
-      expect(screen.queryByRole("combobox", { name: "Main" })).not.toBeInTheDocument();
       expect(document.querySelector(".m-sheet-head")).not.toBeInTheDocument();
       act(() => search.focus());
       fireEvent.change(search, { target: { value: "Pair" } });
+      // The relation offers one collapsed family row; picking it lands on the
+      // family's current member.
       if (input === "mouse") mouseClick(await screen.findByRole("option", { name: /Pair/ }));
       else {
         await screen.findByRole("option", { name: /Pair/ });
         enter(search);
       }
       await waitFor(() => expect(search).not.toBeInTheDocument());
-      const pairing = await screen.findByRole("button", { name: "Model pairing" });
-      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-      // Fast rides on the composer itself while pairing is closed.
-      expect(await screen.findByRole("button", { name: "Fast" })).toBeInTheDocument();
-      if (input === "mouse") mouseClick(pairing);
+      // The pair's selectors show as their own composer menus; the ordinary
+      // Fast toggle and the common Reasoning control sit beside them, once.
+      const main = await screen.findByRole("button", { name: "Main" });
+      expect(screen.getByRole("button", { name: "Sidekick" })).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Fast" })).toHaveLength(1);
+      expect(screen.getAllByRole("button", { name: "Effort and context" })).toHaveLength(1);
+      if (input === "mouse") mouseClick(main);
       else {
-        act(() => pairing.focus());
-        enter(pairing);
+        act(() => main.focus());
+        enter(main);
       }
-      const primary = await screen.findByRole("combobox", { name: "Main" });
-      expect(screen.queryByRole("button", { name: "Effort and context" })).not.toBeInTheDocument();
-      // While pairing is open the composer sits under the overlay's
-      // aria-hidden scope, so the retained toggle is queried with `hidden` —
-      // it stays mounted, exactly once, outside the pairing dialog.
+      const mainSearch = await screen.findByPlaceholderText("Search models...");
+      // While the selector menu is open the composer sits under the overlay's
+      // aria-hidden scope, so the retained controls are queried with `hidden`.
       expect(screen.getAllByRole("button", { name: "Fast", hidden: true })).toHaveLength(1);
-      expect(screen.getByRole("button", { name: /Main reasoning/ })).toHaveTextContent("High");
-      act(() => primary.focus());
-      fireEvent.change(primary, { target: { value: "Bet" } });
-      expect(await screen.findByRole("option", { name: "Beta" })).toBeInTheDocument();
+      act(() => mainSearch.focus());
+      fireEvent.change(mainSearch, { target: { value: "Bet" } });
       expect(screen.queryByRole("option", { name: "Alpha" })).not.toBeInTheDocument();
-      if (input === "mouse") mouseClick(screen.getByRole("option", { name: "Beta" }));
+      if (input === "mouse") mouseClick(await screen.findByRole("option", { name: "Beta" }));
       else {
-        fireEvent.keyDown(primary, { key: "ArrowDown" });
-        enter(primary);
+        await screen.findByRole("option", { name: "Beta" });
+        fireEvent.keyDown(mainSearch, { key: "ArrowDown" });
+        enter(mainSearch);
       }
-      await waitFor(() => expect(primary).toHaveValue("Beta"));
-      expect(primary).toHaveFocus();
-      expect(onPatch).toHaveBeenLastCalledWith({ model: "pair-b-x" });
-      expect(screen.getByRole("combobox", { name: "Sidekick" })).toBeInTheDocument();
-      // Fast is never duplicated inside the pairing dialog, and the
-      // config-bound relation resolves the composer toggle's edit to the
-      // `{ fast }` carrier patch.
-      const pairingDialog = primary.closest<HTMLElement>('[role="dialog"]')!;
-      expect(
-        within(pairingDialog).queryByRole("button", { name: "Fast", hidden: true }),
-      ).not.toBeInTheDocument();
-      const fastToggle = screen.getByRole("button", { name: "Fast", hidden: true });
-      expect(fastToggle.closest('[role="dialog"]')).toBeNull();
-      mouseClick(fastToggle);
-      expect(onPatch).toHaveBeenLastCalledWith({ fast: true });
-      // Escape closes only the nested dropdown, retaining the outer picker.
-      fireEvent.keyDown(primary, { key: "ArrowDown" });
-      expect(await screen.findByRole("option", { name: "Beta" })).toBeInTheDocument();
-      fireEvent.keyDown(primary, { key: "Escape" });
-      expect(screen.getByRole("combobox", { name: "Main" })).toBeInTheDocument();
-      fireEvent.keyDown(primary.closest('[role="dialog"]')!, { key: "Escape" });
-      await waitFor(() => expect(primary).not.toBeInTheDocument());
+      await waitFor(() => expect(mainSearch).not.toBeInTheDocument());
+      await waitFor(() => expect(onPatch).toHaveBeenLastCalledWith({ model: "pair-b-x" }));
+      // The selector's second menu is untouched by the Main edit, and Fast is
+      // never duplicated inside the selector popover.
+      expect(screen.getByRole("button", { name: "Sidekick" })).toHaveTextContent("Support");
+      if (input === "mouse") mouseClick(main);
+      else {
+        act(() => main.focus());
+        enter(main);
+      }
+      const reopened = await screen.findByPlaceholderText("Search models...");
+      act(() => reopened.focus());
+      // An outside press after the search field took focus closes the popover
+      // — the focus-containing dialog must not trap the dismissal.
+      pressOutside();
+      await waitFor(() => expect(reopened).not.toBeInTheDocument());
       mouseClick(trigger);
       const ordinarySearch = await screen.findByPlaceholderText("Search models...");
-      expect(screen.queryByRole("combobox", { name: "Main" })).not.toBeInTheDocument();
       act(() => ordinarySearch.focus());
       fireEvent.change(ordinarySearch, { target: { value: "Solo" } });
       await screen.findByRole("option", { name: /Solo/ });
       enter(ordinarySearch);
       await waitFor(() =>
-        expect(screen.queryByRole("combobox", { name: "Main" })).not.toBeInTheDocument(),
+        expect(screen.queryByRole("button", { name: "Main" })).not.toBeInTheDocument(),
       );
+      expect(screen.queryByRole("button", { name: "Sidekick" })).not.toBeInTheDocument();
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
       await waitFor(() => expect(trigger).toHaveTextContent("Solo"));
-      expect(screen.queryByRole("button", { name: "Model pairing" })).not.toBeInTheDocument();
       expect(screen.getAllByRole("button", { name: "Effort and context" })).toHaveLength(1);
       // The ordinary model exposes no Fast control (it is not a fast model),
-      // and no family toggle survives the return.
+      // and no selector survives the return.
       expect(screen.queryByRole("button", { name: "Fast" })).not.toBeInTheDocument();
     },
   );
 
-  it("opens only the paired settings from the existing effort signal and respects disabled state", async () => {
-    const { rerender } = render(<Harness initialModel="pair-a-x" />);
-    expect(screen.queryByRole("combobox", { name: "Main" })).not.toBeInTheDocument();
-    rerender(<Harness initialModel="pair-a-x" effortSignal={1} />);
-    expect(await screen.findByRole("combobox", { name: "Main" })).toBeInTheDocument();
-    rerender(<Harness initialModel="pair-a-x" effortSignal={1} disabled />);
-    expect(screen.getByRole("combobox", { name: "Main" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Main reasoning/ })).toBeDisabled();
-    // The disabled Fast control is the composer toggle, not a panel field; the
-    // open pairing overlay aria-hides the composer, hence `hidden`.
-    const fastToggle = await screen.findByRole("button", { name: "Fast", hidden: true });
-    expect(fastToggle.closest('[role="dialog"]')).toBeNull();
-    expect(fastToggle).toBeDisabled();
+  it("disables both selector menus and the Fast toggle while configuration is disabled", async () => {
+    render(<Harness initialModel="pair-a-x" disabled />);
+    expect(screen.getByRole("button", { name: "Main" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sidekick" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Fast" })).toBeDisabled();
   });
 
-  it("shows the same compact fields in the mobile sheet", async () => {
+  it("shows the selector name as the sheet heading in the mobile drawer", async () => {
     (window as unknown as { poracode?: unknown }).poracode = { appVersion: "remote" };
     render(<Harness initialModel="pair-a-x" />);
-    mouseClick(screen.getByRole("button", { name: "Model pairing" }));
-    expect(await screen.findByRole("combobox", { name: "Main" })).toBeInTheDocument();
-    expect(document.querySelector(".m-sheet-head")).toHaveTextContent("Model pairing");
-    const primarySection = screen.getByRole("region", { name: "Main" });
-    const secondarySection = screen.getByRole("region", { name: "Sidekick" });
-    expect(primarySection.parentElement).toBe(secondarySection.parentElement);
-    expect(primarySection.parentElement).toHaveClass("grid-cols-2", "items-stretch");
-    expect(within(primarySection).getByRole("combobox")).not.toHaveFocus();
+    mouseClick(screen.getByRole("button", { name: "Main" }));
+    expect(document.querySelector(".m-sheet-head")).toHaveTextContent("Main");
+    const search = await screen.findByPlaceholderText("Search models...");
+    expect(search).not.toHaveFocus();
+    expect(await screen.findByRole("option", { name: "Alpha" })).toBeInTheDocument();
   });
 });

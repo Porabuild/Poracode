@@ -320,8 +320,8 @@ msgstr "{0} 已排队等待更新到 v{1}"
 
 #. placeholder {0}: column.label
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "{0} reasoning"
-msgstr "{0}的推理"
+#~ msgid "{0} reasoning"
+#~ msgstr "{0}的推理"
 
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
@@ -1622,8 +1622,8 @@ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot lis
 msgstr "应用于此配置文件的配置视图（devin.org_id）。Poracode 无法列出一个登录所属的组织；Devin 会在启动时校验该 id，未授权的组织会显式失败。"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "Applies to both models"
-msgstr "适用于两个模型"
+#~ msgid "Applies to both models"
+#~ msgstr "适用于两个模型"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -8076,7 +8076,7 @@ msgstr "设备"
 msgid "macOS"
 msgstr "macOS"
 
-#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+#: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "主模型"
 
@@ -8652,8 +8652,8 @@ msgstr "模型标签"
 #~ msgstr "模型排序"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
-msgid "Model pairing"
-msgstr "模型组合"
+#~ msgid "Model pairing"
+#~ msgstr "模型组合"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9484,7 +9484,7 @@ msgstr "找不到麦克风。"
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} 没有可用的模型。请在设置中检查该代理。"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -11664,7 +11664,6 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "就绪。打开后，新的配对码会公布 Tailscale HTTPS URL。"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
-#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "推理"
 
@@ -13075,8 +13074,7 @@ msgstr "搜索 MCP 服务器..."
 msgid "Search models"
 msgstr "搜索模型"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "搜索模型..."

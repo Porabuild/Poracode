@@ -389,6 +389,46 @@ export function devinGuiFamilySelections(
   return selections;
 }
 
+/**
+ * Accepted GUI Fusion members whose pair carries a native Fast choice.
+ *
+ * The GUI relation encodes no Fast coordinate (`bindings.fast: "config"` — the
+ * independent native `speed` select owns it), so a pair's Fast AVAILABILITY is
+ * derived from the Terminal relation over the same catalog instead: a GUI
+ * member is Fast-capable when the (relation label, lead, sidekick) tuple it
+ * names has at least one catalog member with `fast === true` — the catalog
+ * offers a Fast spelling of exactly that pair. Verified against the live
+ * `devin acp` 3000.11.3 accepted-menu sweep (fixtures/contracts/
+ * gui-speed-select.json): all 62/62 accepted Fusion rows agree with the
+ * observed `speed` select — every tuple the catalog offers a Fast pair for
+ * exposed the select, and the nine without one (e.g. Claude Fable 5.1 Medium
+ * + SWE-2 Medium) name tuples with no Fast catalog pair.
+ */
+export function devinFastCapableFamilyMembers(
+  guiSelections: readonly ModelFamilySelection[],
+  families: readonly DevinModelFamily[],
+): string[] {
+  const fastTupleKey = (label: string, member: ModelFamilySelection["members"][number]) =>
+    JSON.stringify([
+      label,
+      member.selections[DEVIN_FAMILY_LEAD_SELECTOR_ID],
+      member.selections[DEVIN_FAMILY_SIDEKICK_SELECTOR_ID],
+    ]);
+  const fastTuples = new Set<string>();
+  for (const selection of devinTerminalFamilySelections(families)) {
+    for (const member of selection.members) {
+      if (member.fast === true) fastTuples.add(fastTupleKey(selection.label, member));
+    }
+  }
+  const models: string[] = [];
+  for (const selection of guiSelections) {
+    for (const member of selection.members) {
+      if (fastTuples.has(fastTupleKey(selection.label, member))) models.push(member.model);
+    }
+  }
+  return models;
+}
+
 /** Decode one accepted row: catalog UID mapping first, accepted label second. */
 function decodeAcceptedPair(
   row: { id: string; label: string },

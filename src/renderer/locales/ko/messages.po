@@ -320,8 +320,8 @@ msgstr "{0}: v{1}(으)로 업데이트 대기 중"
 
 #. placeholder {0}: column.label
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "{0} reasoning"
-msgstr "{0} 추론"
+#~ msgid "{0} reasoning"
+#~ msgstr "{0} 추론"
 
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
@@ -1622,8 +1622,8 @@ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot lis
 msgstr "이 프로필의 설정 뷰(devin.org_id)에 적용됩니다. Poracode는 로그인이 속한 조직을 나열할 수 없으며, Devin이 시작 시 ID를 검증하여 권한 없는 조직은 눈에 띄게 실패합니다."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "Applies to both models"
-msgstr "두 모델 모두에 적용"
+#~ msgid "Applies to both models"
+#~ msgstr "두 모델 모두에 적용"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -8076,7 +8076,7 @@ msgstr "기기"
 msgid "macOS"
 msgstr "macOS"
 
-#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+#: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "주 모델"
 
@@ -8653,8 +8653,8 @@ msgstr "모델 레이블"
 #~ msgstr "모델 순서"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
-msgid "Model pairing"
-msgstr "모델 조합"
+#~ msgid "Model pairing"
+#~ msgstr "모델 조합"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9485,7 +9485,7 @@ msgstr "마이크를 찾을 수 없습니다."
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent}에 사용할 수 있는 모델이 없습니다. 설정에서 에이전트를 확인하세요."
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -11665,7 +11665,6 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "준비됨. 이 옵션을 켜면 새 페어링 코드에 Tailscale HTTPS URL이 광고됩니다."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
-#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "추론"
 
@@ -13076,8 +13075,7 @@ msgstr "MCP 서버 검색..."
 msgid "Search models"
 msgstr "모델 검색"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "모델 검색..."

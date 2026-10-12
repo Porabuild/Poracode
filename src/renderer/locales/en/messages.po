@@ -320,8 +320,8 @@ msgstr "{0} queued for update to v{1}"
 
 #. placeholder {0}: column.label
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "{0} reasoning"
-msgstr "{0} reasoning"
+#~ msgid "{0} reasoning"
+#~ msgstr "{0} reasoning"
 
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
@@ -1627,8 +1627,8 @@ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot lis
 msgstr "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "Applies to both models"
-msgstr "Applies to both models"
+#~ msgid "Applies to both models"
+#~ msgstr "Applies to both models"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -8085,7 +8085,7 @@ msgstr "Machine"
 msgid "macOS"
 msgstr "macOS"
 
-#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+#: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "Main"
 
@@ -8662,8 +8662,8 @@ msgstr "Model label"
 #~ msgstr "Model order"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
-msgid "Model pairing"
-msgstr "Model pairing"
+#~ msgid "Model pairing"
+#~ msgstr "Model pairing"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -9494,7 +9494,7 @@ msgstr "No microphone found."
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "No model is available for {agent}. Check the agent in Settings."
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -11674,7 +11674,6 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing codes."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
-#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "Reasoning"
 
@@ -13085,8 +13084,7 @@ msgstr "Search MCP servers..."
 msgid "Search models"
 msgstr "Search models"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "Search models..."

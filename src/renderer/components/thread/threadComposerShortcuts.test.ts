@@ -264,16 +264,17 @@ describe("handleComposerControlShortcut", () => {
 });
 // @vitest-environment node
 
-it("keeps effort and Fast shortcuts on the ordinary carriers beside a paired control", () => {
+it("keeps effort and Fast shortcuts on the ordinary carriers beside family selector controls", () => {
   const onFastChange = vi.fn<(value: boolean) => void>();
   const onEffortChange = vi.fn<(value: string) => void>();
+  const onSelectorChange = vi.fn<(value: string) => void>();
   const fastToggle: ComposerControl = {
     kind: "toggle",
     label: "Fast",
     isSelected: false,
     onChange: onFastChange,
   };
-  const paired: ComposerControl = {
+  const effort: ComposerControl = {
     kind: "effort-context",
     efforts: [
       { id: "low", label: "Low" },
@@ -282,16 +283,34 @@ it("keeps effort and Fast shortcuts on the ordinary carriers beside a paired con
     effortValue: "low",
     onEffortChange,
     contextSizes: [],
-    familySelection: { columns: [], effortScope: "shared" },
   };
-  const input = { controls: [paired, fastToggle], onOpenModelPicker: vi.fn<() => void>() };
+  // Selector menus own their coordinates only: they are never a menu-cycle
+  // or permission-cycle candidate, and cycle-effort stays on the common
+  // effort carrier.
+  const selector: ComposerControl = {
+    kind: "family-selector",
+    id: "lead",
+    label: "Main",
+    icon: null,
+    options: [
+      { id: "a", label: "Alpha" },
+      { id: "b", label: "Beta" },
+    ],
+    value: "a",
+    onChange: onSelectorChange,
+  };
+  const input = {
+    controls: [selector, effort, fastToggle],
+    onOpenModelPicker: vi.fn<() => void>(),
+  };
   expect(dispatch(shortcutEvent("t"), input)).toBe(true);
   expect(onEffortChange).toHaveBeenCalledWith("high");
+  expect(onSelectorChange).not.toHaveBeenCalled();
   expect(dispatch(shortcutEvent("f", { shiftKey: true }), input)).toBe(true);
   expect(onFastChange).toHaveBeenCalledExactlyOnceWith(true);
   fastToggle.disabledReason = "Unavailable";
   expect(dispatch(shortcutEvent("f", { shiftKey: true }), input)).toBe(false);
   expect(onFastChange).toHaveBeenCalledTimes(1);
-  paired.isDisabled = true;
+  effort.isDisabled = true;
   expect(dispatch(shortcutEvent("t"), input)).toBe(false);
 });

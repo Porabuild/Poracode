@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from "vitest";
-import { familyMenuColumn } from "./modelFamilyControlOptions";
+import { describe, expect, it } from "vitest";
+import { familySelectorMenuOptions } from "./modelFamilyControlOptions";
 
 const options = [
   { id: "opaque-a", label: "Alpha Low" },
@@ -13,56 +13,37 @@ const coordinates: Record<string, { model: { id: string; label: string }; effort
   "opaque-c": { model: { id: "beta", label: "Beta" }, effort: "high" },
 };
 
-describe("familyMenuColumn", () => {
-  it("resolves component effort and model edits to existing exact option IDs", () => {
-    const onChange = vi.fn<(value: string) => void>();
-    const column = familyMenuColumn({
-      id: "secondary",
-      label: "Secondary",
+describe("familySelectorMenuOptions", () => {
+  it("keeps exact option ids while presenting decoded model labels with effort hints", () => {
+    const rows = familySelectorMenuOptions({
+      selectorId: "secondary",
       options,
-      value: "opaque-a",
       decode: (_id, option) => coordinates[option.id],
-      onChange,
     });
-    expect(column.models.options).toEqual([
-      { id: "alpha", label: "Alpha" },
-      { id: "beta", label: "Beta" },
+    expect(rows).toEqual([
+      { id: "opaque-a", label: "Alpha", hint: "Low" },
+      { id: "opaque-b", label: "Alpha", hint: "High" },
+      { id: "opaque-c", label: "Beta", hint: "High" },
     ]);
-    expect(column.effort?.value).toBe("low");
-    column.effort?.onChange("high");
-    expect(onChange).toHaveBeenLastCalledWith("opaque-b");
-    column.models.onChange("beta");
-    expect(onChange).toHaveBeenLastCalledWith("opaque-c");
-    onChange.mockClear();
-    column.effort?.onChange("ultra");
-    column.models.onChange("absent");
-    expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("retains every raw choice when interpretation would collapse distinct native options", () => {
-    const column = familyMenuColumn({
-      id: "one",
-      label: "One",
+  it("retains every raw label when interpretation would collapse distinct native options", () => {
+    const rows = familySelectorMenuOptions({
+      selectorId: "one",
       options,
-      value: "opaque-b",
       decode: () => ({ model: { id: "same", label: "Same" }, effort: "high" }),
-      onChange: vi.fn<(value: string) => void>(),
     });
-    expect(column.models.options).toEqual(options);
-    expect(column.models.value).toBe("opaque-b");
-    expect(column.effort).toBeUndefined();
+    expect(rows).toEqual(options.map((option) => ({ id: option.id, label: option.label })));
   });
 
   it("keeps undecoded labels and missing options readable without parsing them", () => {
-    const column = familyMenuColumn({
-      id: "one",
-      label: "One",
+    const rows = familySelectorMenuOptions({ selectorId: "one", options });
+    expect(rows).toEqual(options.map((option) => ({ id: option.id, label: option.label })));
+    const decoded = familySelectorMenuOptions({
+      selectorId: "one",
       options,
-      value: "retired",
-      onChange: vi.fn<(value: string) => void>(),
+      decode: () => undefined,
     });
-    expect(column.models.value).toBe("retired");
-    expect(column.models.options).toEqual(options);
-    expect(column.effort).toBeUndefined();
+    expect(decoded).toEqual(rows);
   });
 });
