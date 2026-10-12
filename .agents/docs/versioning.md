@@ -3414,3 +3414,15 @@ the same settings writer. Its entry and document shapes, mirrored remote
 settings and versions remain unchanged; no migration or invalidation is needed.
 Regression coverage reads the prior saved shape, removes the requested entries,
 and confirms other presentations and selection-usage history remain intact.
+
+### Disconnected configured provider model catalogs
+
+OpenCode 2 catalog discovery now excludes credential-backed providers with no
+remaining connection, even when configuration keeps the upstream provider enabled.
+Environment connections, configured authentication, credential-free runtimes and
+native cloud credential chains remain available. Supervisor agent-status cache
+advances from 55 to 56 and its renderer persisted copy from 51 to 52, invalidating
+pre-upgrade catalogs on native and WSL targets. Prior-version cache regressions
+cover both readers. Credential journal format 1, provider configuration, thread
+selections, canonical history and wire/native/helper versions stay compatible;
+this changes only derived discovery results.

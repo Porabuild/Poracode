@@ -278,9 +278,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 51,
-      // v51 mirrors supervisor STATUS_CACHE_VERSION=55: refresh working-window
-      // catalogs and context-reload consequences before rendering composer controls.
+      version: 52,
+      // v52 mirrors supervisor STATUS_CACHE_VERSION=56: discard model catalogs
+      // that still advertised disconnected configured providers.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

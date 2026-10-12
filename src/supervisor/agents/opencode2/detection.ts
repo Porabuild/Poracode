@@ -1,4 +1,5 @@
 import { awaitOpenCode2Activation } from "./readiness";
+import { availableOpenCode2Catalog } from "./catalogAvailability";
 import { OPENCODE2_MIN_VERSION, parseOpenCode2Version, supportsOpenCode2Version } from "./binary";
 import { quotePosixShellArg, quotePowerShellLiteral } from "../base/shellBasics";
 import { homedir } from "node:os";
@@ -252,37 +253,46 @@ export async function probeOpenCode2Inventory(
           "OpenCode 2 catalog probe timed out",
         );
 
+      const available = availableOpenCode2Catalog(models.data, providers.data, integrations.data);
+
       return {
         commands: [
           ...mapOpenCode2Commands(commands.data),
           ...mapOpenCode2Skills(skills.data, directory),
           ...mapOpenCode2Agents(agents.data),
         ],
-        models: models.data
-          .filter((model) => model.enabled)
-          .map((model) => {
-            const id = `${model.providerID}/${model.id}`;
-            const name = model.name.trim();
-            const contextLimit = model.limit.context;
-            return {
-              id,
-              label: name.length > 0 ? name : id,
-              variants: model.variants.map((variant) => variant.id),
-              ...(Number.isFinite(contextLimit) && contextLimit > 0
-                ? { contextLimit: Math.trunc(contextLimit) }
-                : {}),
-            };
-          }),
-        providers: providers.data.map((provider) => ({ id: provider.id, name: provider.name })),
+        models: available.models.map((model) => {
+          const id = `${model.providerID}/${model.id}`;
+          const name = model.name.trim();
+          const contextLimit = model.limit.context;
+          return {
+            id,
+            label: name.length > 0 ? name : id,
+            variants: model.variants.map((variant) => variant.id),
+            ...(Number.isFinite(contextLimit) && contextLimit > 0
+              ? { contextLimit: Math.trunc(contextLimit) }
+              : {}),
+          };
+        }),
+        providers: available.providers.map((provider) => ({
+          id: provider.id,
+          name: provider.name,
+        })),
         integrations: readOpenCode2Integrations(integrations.data),
         agents: agents.data.map((agent) => ({
           id: agent.id,
           mode: agent.mode,
           hidden: agent.hidden,
         })),
-        defaultModel: defaultModel.data
-          ? { providerID: defaultModel.data.providerID, id: defaultModel.data.id }
-          : undefined,
+        defaultModel:
+          defaultModel.data &&
+          available.models.some(
+            (model) =>
+              model.providerID === defaultModel.data?.providerID &&
+              model.id === defaultModel.data?.id,
+          )
+            ? { providerID: defaultModel.data.providerID, id: defaultModel.data.id }
+            : undefined,
       } satisfies OpenCode2Inventory;
     })();
 
