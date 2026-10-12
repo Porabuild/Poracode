@@ -544,15 +544,53 @@ describe("StructuredElicitationForm", () => {
       },
     });
 
-    const input = screen.getByRole("combobox", { name: "Color" });
+    const input = screen.getByRole("textbox", { name: "Color" });
     expect(input.tagName).toBe("INPUT");
-    expect(input.tagName).not.toBe("SELECT");
+    expect(screen.getAllByRole("option")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /Color$/u })).toBeNull();
     fireEvent.change(input, { target: { value: "Q17_OTHER" } });
     fireEvent.click(screen.getByRole("button", { name: /^(Continue|Submit)$/ }));
 
     expect(onSubmit).toHaveBeenCalledWith(
       { action: "accept", content: { q0: "Q17_OTHER" } },
+      "answered",
+    );
+  });
+
+  it("uses numbered rows and arrow keys when choices also allow a custom answer", () => {
+    const details = questionFormDetails();
+    const { onSubmit } = renderForm({
+      acpElicitation: {
+        ...details.acpElicitation,
+        requestedSchema: {
+          ...details.acpElicitation.requestedSchema,
+          properties: {
+            ...details.acpElicitation.requestedSchema.properties,
+            q0: { ...details.acpElicitation.requestedSchema.properties.q0, allowCustom: true },
+          },
+        },
+      },
+    });
+    const first = screen.getByRole("option", { name: /Paste a token/ });
+    first.focus();
+    fireEvent.keyDown(first, { key: "ArrowUp" });
+    const second = screen.getByRole("option", { name: /Log in via browser/ });
+    expect(document.activeElement).toBe(second);
+    fireEvent.keyDown(second, { key: "2" });
+    expect(screen.getByRole("tab", { name: /Checks/ }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(screen.getByRole("tab", { name: /Auth/ }));
+    expect(screen.getByRole("textbox", { name: "Auth" }).getAttribute("value")).toBe(
+      "Log in via browser",
+    );
+    const custom = screen.getByRole("textbox", { name: "Auth" });
+    fireEvent.change(custom, { target: { value: "custom 12" } });
+    fireEvent.keyDown(custom, { key: "1" });
+    expect(screen.getByRole("textbox", { name: "Auth" })).toBe(custom);
+    fireEvent.keyDown(custom, { key: "Enter" });
+    fireEvent.click(screen.getByLabelText("Run tests"));
+    fireEvent.keyDown(screen.getByLabelText("Run tests"), { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(
+      { action: "accept", content: { q0: "custom 12", q1: ["Tests"] } },
       "answered",
     );
   });

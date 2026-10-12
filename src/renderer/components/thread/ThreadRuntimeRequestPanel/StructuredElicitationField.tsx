@@ -63,6 +63,21 @@ export function StructuredElicitationField(props: {
   ]
     .filter(Boolean)
     .join(" · ");
+  const textInput = (
+    <Input
+      aria-label={label}
+      aria-invalid={invalid}
+      aria-describedby={errorId}
+      {...(property.placeholder !== undefined ? { placeholder: property.placeholder } : {})}
+      minLength={property.minLength}
+      maxLength={property.maxLength}
+      type="text"
+      disabled={isDisabled}
+      value={String(formValues[key] ?? "")}
+      onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
+      className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
+    />
+  );
   return (
     <div
       data-question-step
@@ -173,62 +188,43 @@ export function StructuredElicitationField(props: {
             />
           ) : null}
         </div>
-      ) : enumOpts.length > 0 && !property.allowCustom ? (
-        <div
-          role="listbox"
-          aria-label={label}
-          aria-describedby={errorId}
-          aria-invalid={invalid}
-          className="space-y-0.5"
-        >
-          {enumOpts.map((option, index) => (
-            <QuestionOptionRow
-              key={option.id}
-              index={index}
-              option={{ optionId: option.id, label: option.label }}
-              isDisabled={isDisabled}
-              selected={formValues[key] === option.id}
-              onClick={() => {
-                setFormValues((cur) => ({
-                  ...cur,
-                  [key]: !isRequired && cur[key] === option.id ? "" : option.id,
-                }));
-                onSingleChoice(!isRequired && formValues[key] === option.id ? "" : option.id);
-              }}
-              onKeyDown={(event) => {
-                if (isDisabled || !isQuestionStepEnter(event)) return;
-                event.preventDefault();
-                event.stopPropagation();
-                setFormValues((cur) => ({ ...cur, [key]: option.id }));
-                onSingleChoice(option.id, true);
-              }}
-            />
-          ))}
-        </div>
-      ) : (
+      ) : enumOpts.length > 0 ? (
         <>
-          <datalist id={`${formId}-${key}`}>
-            {enumOpts.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </datalist>
-          <Input
-            {...(enumOpts.length > 0 ? { list: `${formId}-${key}` } : {})}
+          <div
+            role="listbox"
             aria-label={label}
-            aria-invalid={invalid}
             aria-describedby={errorId}
-            {...(property.placeholder !== undefined ? { placeholder: property.placeholder } : {})}
-            minLength={property.minLength}
-            maxLength={property.maxLength}
-            type="text"
-            disabled={isDisabled}
-            value={String(formValues[key] ?? "")}
-            onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
-            className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
-          />
+            aria-invalid={invalid}
+            className="space-y-0.5"
+          >
+            {enumOpts.map((option, index) => (
+              <QuestionOptionRow
+                key={option.id}
+                index={index}
+                option={{ optionId: option.id, label: option.label }}
+                isDisabled={isDisabled}
+                selected={formValues[key] === option.id}
+                onClick={() => {
+                  setFormValues((cur) => ({
+                    ...cur,
+                    [key]: !isRequired && cur[key] === option.id ? "" : option.id,
+                  }));
+                  onSingleChoice(!isRequired && formValues[key] === option.id ? "" : option.id);
+                }}
+                onKeyDown={(event) => {
+                  if (isDisabled || !isQuestionStepEnter(event)) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setFormValues((cur) => ({ ...cur, [key]: option.id }));
+                  onSingleChoice(option.id, true);
+                }}
+              />
+            ))}
+          </div>
+          {property.allowCustom ? textInput : null}
         </>
+      ) : (
+        textInput
       )}
     </div>
   );
