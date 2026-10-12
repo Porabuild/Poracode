@@ -15,7 +15,7 @@ import {
   cleanupDoneThread,
 } from "./threadActions";
 import { forgetRemovedWorktreeGroup } from "./worktreeActions";
-import { primeWorktreeGitState } from "./worktreeLaunchActions";
+import { primeWorktreeGitState, showHostWorktreeSetupTerminal } from "./worktreeLaunchActions";
 import { applyRemoteThreadStartCommand } from "./remoteStartCommandActions";
 import { applyRemoteSetGroupCommand } from "./remoteGroupCommandActions";
 
@@ -47,6 +47,7 @@ export function applyForwardedRemoteThreadCommand(command: RemoteThreadCommand):
         .projects.find((entry) => entry.id === command.projectId);
       if (!project) return;
       void primeWorktreeGitState(project, command.worktreePath);
+      void showHostWorktreeSetupTerminal(project, command.worktreePath);
       return;
     }
     if (command.kind === "start") {

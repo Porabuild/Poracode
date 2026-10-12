@@ -5,6 +5,7 @@ import {
 import { isBrowserClientRuntime, resetClientRuntimeForTest } from "./clientRuntime";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
+import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
 import type { RemoteServerRecord, RemoteSocketLike } from "./state/remoteServers/types";
 import { remoteThreadId } from "./state/remoteProjection";
 import { Fragment, type ReactNode } from "react";
@@ -213,6 +214,25 @@ const {
       ),
       onBackendSupervisorReset: vi.fn<() => () => void>(() => () => undefined),
       startShell: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      readTerminalSnapshot: vi
+        .fn<
+          () => Promise<{
+            generation: string;
+            fromCursor: number;
+            toCursor: number;
+            data: string;
+            processState: "running" | "exited";
+            terminalSize: null;
+          } | null>
+        >()
+        .mockResolvedValue({
+          generation: "gen",
+          fromCursor: 0,
+          toCursor: 0,
+          data: "",
+          processState: "running",
+          terminalSize: null,
+        }),
       gitWatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitWatchWorktrees: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitUnwatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -1185,7 +1205,7 @@ describe("App", () => {
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("mirrors a host-prepared worktree into desktop git state without rerunning setup", () => {
+  it("mirrors a host-prepared worktree into desktop git state without rerunning setup", async () => {
     const project = {
       id: "project-1",
       name: "Repo",
@@ -1217,6 +1237,17 @@ describe("App", () => {
       projectId: project.id,
       worktreePaths: ["C:\\worktrees\\mobile-fix"],
     });
+    await waitFor(() => {
+      expect(useDevTerminalStore.getState().tabs).toContainEqual(
+        expect.objectContaining({
+          id: worktreeScriptShellId("project-1", "C:\\worktrees\\mobile-fix", true),
+          title: "setup",
+          worktreePath: "C:\\worktrees\\mobile-fix",
+          projectId: "project-1",
+        }),
+      );
+    });
+    expect(bridge.startShell).not.toHaveBeenCalled();
   });
 
   it("does not run setup when the PWA reuses an existing worktree", () => {

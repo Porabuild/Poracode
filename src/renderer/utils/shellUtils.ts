@@ -38,6 +38,14 @@ export function wasShellStartedEagerly(shellId: string): boolean {
 }
 
 /**
+ * Marks a shell the host already started so the terminal surface attaches to
+ * it instead of calling `startShell` again (which would kill the live PTY).
+ */
+export function adoptExternalShell(shellId: string): void {
+  eagerlyStartedShells.add(shellId);
+}
+
+/**
  * Forgets every start mark for a shell (eager and deferred) and detaches its
  * routed session. The panel's tab-close paths and `closeThreads` call this so
  * a closed shell can never suppress a future spawn.
@@ -200,7 +208,7 @@ export function buildScriptWithExitOnSuccess(
 }
 
 /**
- * Writes a script into a shell once it produces output. Re-arms on
+ * Writes a script into a shell once its prompt is ready. Re-arms on
  * `thread-reset` so the command lands in the surviving PTY when the shell
  * respawns (e.g. the terminal panel's viewport-sized respawn replacing an
  * eagerly started shell); detaches once the shell exits.
@@ -254,6 +262,8 @@ export function appendExitOnSuccess(
  * surviving PTY when the shell respawns (e.g. a panel-driven, viewport-sized
  * respawn).
  *
+ * The command is held until the interactive shell reaches a prompt, so it is
+ * not written into the terminal-query handshake that login shells emit first.
  * `onExit` fires once the shell's PTY exits — success, or a manual `exit`.
  * `onCommandComplete` additionally fires when the script finishes, including
  * failures that deliberately leave the shell open for inspection. Returns a

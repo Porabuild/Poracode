@@ -13420,6 +13420,10 @@ msgstr "Cài đặt"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "Cài đặt chưa khả dụng nên không thể lưu các thay đổi của bạn. Vui lòng thử lại."
 
+#: src/renderer/actions/worktreeLaunchActions.ts
+msgid "setup"
+msgstr "thiết lập"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
 msgstr "Tập lệnh thiết lập"

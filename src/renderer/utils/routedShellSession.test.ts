@@ -113,3 +113,44 @@ describe("remote shell snapshot readiness", () => {
     expect(unsubscribe).toHaveBeenCalledOnce();
   });
 });
+
+describe("local shell prompt readiness", () => {
+  function attach() {
+    createRoutedShellSession({
+      shellId: "shell:history",
+      data: "echo ready\r",
+    });
+  }
+
+  it("holds a device-attribute query until the fallback, then writes", () => {
+    attach();
+    feed.listener?.onOutput?.("\u001B[0c");
+    vi.advanceTimersByTime(250);
+    expect(writeTerminal).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(12_000);
+    expect(writeTerminal).toHaveBeenCalledExactlyOnceWith({
+      threadId: "shell:history",
+      data: "echo ready\r",
+    });
+  });
+
+  it("writes shortly after a plain prompt that follows a device query", () => {
+    attach();
+    feed.listener?.onOutput?.("\u001B[0c");
+    feed.listener?.onOutput?.("$ ");
+    vi.advanceTimersByTime(250);
+    expect(writeTerminal).toHaveBeenCalledExactlyOnceWith({
+      threadId: "shell:history",
+      data: "echo ready\r",
+    });
+  });
+
+  it("writes immediately when the shell marks the prompt ready", () => {
+    attach();
+    feed.listener?.onOutput?.("\u001B]133;B\u0007");
+    expect(writeTerminal).toHaveBeenCalledExactlyOnceWith({
+      threadId: "shell:history",
+      data: "echo ready\r",
+    });
+  });
+});

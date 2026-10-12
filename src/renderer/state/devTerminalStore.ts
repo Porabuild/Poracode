@@ -63,6 +63,13 @@ interface DevTerminalActions {
     worktreePath?: string,
     runActionId?: string,
   ) => DevTerminalTab;
+  /** Track a shell id the host already started. Returns the existing tab when present. */
+  ensureTrackedShellTab: (
+    id: string,
+    projectId: string,
+    title: string,
+    worktreePath: string,
+  ) => DevTerminalTab;
   removeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   /**
@@ -176,6 +183,20 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       ...(worktreePath ? { worktreePath } : {}),
       ...(runActionId ? { runActionId } : {}),
       title: projectName,
+      createdAt: new Date().toISOString(),
+    };
+    set((state) => ({ tabs: [...state.tabs, tab] }));
+    return tab;
+  },
+
+  ensureTrackedShellTab: (id, projectId, title, worktreePath) => {
+    const existing = get().tabs.find((tab) => tab.id === id);
+    if (existing) return existing;
+    const tab: DevTerminalTab = {
+      id,
+      projectId,
+      worktreePath,
+      title,
       createdAt: new Date().toISOString(),
     };
     set((state) => ({ tabs: [...state.tabs, tab] }));

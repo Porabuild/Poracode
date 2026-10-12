@@ -13420,6 +13420,10 @@ msgstr "설정"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "설정을 아직 사용할 수 없어 변경 사항을 저장하지 못했습니다. 다시 시도해 주세요."
 
+#: src/renderer/actions/worktreeLaunchActions.ts
+msgid "setup"
+msgstr "설정"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
 msgstr "설정 스크립트"

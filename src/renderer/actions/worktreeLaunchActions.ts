@@ -1,6 +1,9 @@
+import { msg } from "@lingui/core/macro";
 import type { Project } from "@/shared/contracts";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
+import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { removeTerminalTab } from "@/renderer/actions/terminalTabActions";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { getProjectActiveWorktreePaths } from "@/renderer/state/gitRefresh";
@@ -8,6 +11,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
+  adoptExternalShell,
   normalizeShellScript,
   startShellWithToast,
   writeScriptToShellThenExitOnSuccess,
@@ -72,10 +76,51 @@ export function cancelQueuedWorktreeSetup(project: Project, worktreePath: string
   cancelPendingWorktreeSetup(worktreeSetupKey(project, worktreePath));
 }
 
+function setupTabTitle(): string {
+  return i18n._(msg`setup`);
+}
+
+/**
+ * Shows the setup shell the host already started for a new worktree.
+ * The tab id matches {@link worktreeScriptShellId} so PTY bytes land in this
+ * pane, and the shell is marked external so the surface does not spawn a
+ * second PTY. A successful script exits the shell, which closes the tab.
+ */
+export async function showHostWorktreeSetupTerminal(
+  project: Project,
+  worktreePath: string,
+): Promise<void> {
+  const setupScript = project.scripts?.setupScript;
+  if (!setupScript || !normalizeShellScript(setupScript)) return;
+  const shellId = worktreeScriptShellId(
+    project.id,
+    worktreePath,
+    project.location.kind === "windows",
+  );
+  // Adopting a shell that never started leaves an empty tab the panel is
+  // forbidden to spawn. A missing snapshot means start failed.
+  let running = false;
+  try {
+    const snapshot = await readBridge().readTerminalSnapshot({ threadId: shellId });
+    running = snapshot?.processState === "running";
+  } catch {
+    return;
+  }
+  if (!running) return;
+  adoptExternalShell(shellId);
+  const store = useDevTerminalStore.getState();
+  const tab = store.ensureTrackedShellTab(shellId, project.id, setupTabTitle(), worktreePath);
+  if (useSharedSettings.getState().autoShowTerminalPanel || store.isOpen) {
+    store.openWorktreePanel(project.id, worktreePath);
+  }
+  store.setActiveTab(tab.id);
+}
+
 function worktreeSetupKey(project: Project, worktreePath: string): string {
-  const normalizedPath = worktreePath.replace(/\\/gu, "/").replace(/\/+$/u, "");
-  const comparablePath =
-    project.location.kind === "windows" ? normalizedPath.toLowerCase() : normalizedPath;
+  const comparablePath = normalizeWorktreePathForComparison(
+    worktreePath,
+    project.location.kind === "windows",
+  );
   return `${project.id}:${comparablePath}`;
 }
 
@@ -87,21 +132,11 @@ function startWorktreeSetupScript(
 ): Promise<void> {
   const wtLocation = buildWorktreeLocation(project.location, worktreePath);
   const store = useDevTerminalStore.getState();
-  const tab = store.addTab(project.id, "setup", worktreePath);
+  const tab = store.addTab(project.id, setupTabTitle(), worktreePath);
   const openTerminalPanel = options.openTerminalPanel !== false;
   const autoShow = openTerminalPanel && useSharedSettings.getState().autoShowTerminalPanel;
-  const panelAlreadyOpen = store.isOpen;
   if (autoShow) store.openWorktreePanel(project.id, worktreePath);
   if (openTerminalPanel) store.setActiveTab(tab.id);
-
-  // Visible tabs mount an XTerm surface that starts the PTY. Start it eagerly
-  // only when no surface will mount, avoiding a second setup process.
-  if (!openTerminalPanel || (!autoShow && !panelAlreadyOpen)) {
-    void startShellWithToast(
-      { shellId: tab.id, projectLocation: wtLocation, worktreePath },
-      "setup shell",
-    );
-  }
 
   // Successful setup exits and removes its tab; failures stay open for inspection.
   return new Promise<void>((resolve) => {
@@ -122,6 +157,20 @@ function startWorktreeSetupScript(
       finish,
       project.remoteServerId,
     );
+    // Always start the PTY here. A visible surface used to own the spawn, but a
+    // short pane never reaches the resize threshold, so the tab stayed empty
+    // and never exited. The eager mark makes that surface attach instead of
+    // starting a second process. The command itself waits for the shell prompt.
+    // A rejected start disposes the session without an exit event; unblock the
+    // queue or every later worktree setup waits forever.
+    void startShellWithToast(
+      { shellId: tab.id, projectLocation: wtLocation, worktreePath },
+      "setup shell",
+    ).then((started) => {
+      if (started) return;
+      detach();
+      finish();
+    });
     const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
       if (state.tabs === prev.tabs) return;
       if (state.tabs.some((item) => item.id === tab.id)) return;

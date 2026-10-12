@@ -60,6 +60,11 @@ function lastWrite(): string {
   return bridge.writeTerminal.mock.calls.at(-1)?.[0].data ?? "";
 }
 
+/** Ordinary prompt text is ready only after a quiet period. */
+function settlePrompt(): void {
+  vi.advanceTimersByTime(250);
+}
+
 function unwrapBashScript(script: string): string {
   const prefix = "command bash -c ";
   expect(script.startsWith(prefix)).toBe(true);
@@ -209,6 +214,7 @@ describe("eager shell start registry", () => {
 
 describe("writeScriptToShell", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     supervisorHandlers.length = 0;
     bridge.writeTerminal.mockReset().mockResolvedValue(undefined);
     bridge.onSupervisorEvent.mockReset().mockImplementation((handler) => {
@@ -218,6 +224,9 @@ describe("writeScriptToShell", () => {
         if (index >= 0) supervisorHandlers.splice(index, 1);
       };
     });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("writes the normalized command on first output", () => {
@@ -230,6 +239,7 @@ describe("writeScriptToShell", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
     emit({
       type: "thread-output",
       threadId: "shell:1",
@@ -252,6 +262,7 @@ describe("writeScriptToShell", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
 
     // The terminal panel's viewport-sized respawn replaces the PTY the
@@ -264,6 +275,7 @@ describe("writeScriptToShell", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
 
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(2);
     expect(lastWrite()).toBe("npm run dev\r");
@@ -305,6 +317,7 @@ describe("writeScriptToShell", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
 
     expect(bridge.writeTerminal).toHaveBeenCalledOnce();
     expect(lastWrite()).toBe("npm run second\r");
@@ -327,6 +340,7 @@ describe("writeScriptToShell", () => {
 
 describe("writeScriptToShellThenExitOnSuccess", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     supervisorHandlers.length = 0;
     bridge.writeTerminal.mockReset().mockResolvedValue(undefined);
     bridge.onSupervisorEvent.mockReset().mockImplementation((handler) => {
@@ -336,6 +350,9 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
         if (index >= 0) supervisorHandlers.splice(index, 1);
       };
     });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("writes the normalized chain with a posix exit tail on first output", () => {
@@ -348,6 +365,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
 
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
     expect(lastWrite()).toBe("npm install && npm run setup && exit\r");
@@ -363,6 +381,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 4,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
 
     expect(lastWrite()).toBe("npm ci; if ($?) { exit }\r");
   });
@@ -382,6 +401,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 4,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
 
     expect(lastWrite()).toBe("npm install; if ($?) { npm run setup; if ($?) { exit } }\r");
   });
@@ -396,6 +416,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 5,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
 
     expect(lastWrite()).toBe("npm ci && exit\r");
   });
@@ -410,6 +431,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
     emit({
       type: "thread-output",
       threadId: "shell:1",
@@ -431,6 +453,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
 
     // A viewport-sized respawn replaces the PTY; the command must land again.
@@ -442,6 +465,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
 
     expect(bridge.writeTerminal).toHaveBeenCalledTimes(2);
     expect(lastWrite()).toBe("echo hi && exit\r");
@@ -482,6 +506,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
     const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
     expect(token).toBeTruthy();
     expect(lastWrite()).toMatch(/^command bash -c /u);
@@ -528,6 +553,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 2,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
 
     expect(unwrapBashScript(lastWrite())).toContain('printf "it\'s ready"');
   });
@@ -550,6 +576,7 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
       outputLength: 4,
       terminalInstanceId: "gen-test",
     });
+    settlePrompt();
     const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
     const marker = `\u001B]777;poracode-shell-complete=${token}:0\u0007`;
     emit({
