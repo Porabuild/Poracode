@@ -4,9 +4,9 @@
  * through environment variables (never interpolated into shell source), so
  * Windows paths with backslashes and spaces are safe on every runner shell.
  *
- *   native-target   env QUALIFIED_DIR, TARGET [, GITHUB_ENV]
- *     Verifies the downloaded leg advertises TARGET and that its tarball hash
- *     matches; appends TARBALL and META to $GITHUB_ENV.
+ *   native-target   env QUALIFIED_DIR, TARGET [, RELEASE_VERSION, GITHUB_ENV]
+ *     Verifies the downloaded leg's version pin, advertised TARGET and tarball
+ *     hash; appends TARBALL and META to $GITHUB_ENV.
  *   aggregate-leg   env METADATA_FILE, OUT_DIR [, RELEASE_VERSION]
  *     Verifies one leg (version pin, tarball present, hash) and copies its
  *     tarball, checksum and metadata into OUT_DIR; prints the copied
@@ -32,11 +32,20 @@ function readMetadata(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
+function assertReleaseVersion(metadata, env) {
+  if (env.RELEASE_VERSION && metadata.version !== env.RELEASE_VERSION) {
+    throw new Error(
+      `${metadata.tarball.name} carries version ${metadata.version}, expected ${env.RELEASE_VERSION}`,
+    );
+  }
+}
+
 export function verifyNativeTarget(env = process.env) {
   const qualifiedDir = requireEnv(env, "QUALIFIED_DIR");
   const target = requireEnv(env, "TARGET");
   const meta = join(qualifiedDir, "server-artifact.json");
   const metadata = readMetadata(meta);
+  assertReleaseVersion(metadata, env);
   if (!Array.isArray(metadata.targets) || !metadata.targets.includes(target)) {
     throw new Error(`${target} is not advertised by the build leg`);
   }
@@ -54,9 +63,7 @@ export function copyAggregateLeg(env = process.env) {
   const outDir = requireEnv(env, "OUT_DIR");
   const metadata = readMetadata(metadataFile);
   const { name, sha256 } = metadata.tarball;
-  if (env.RELEASE_VERSION && metadata.version !== env.RELEASE_VERSION) {
-    throw new Error(`${name} carries version ${metadata.version}, expected ${env.RELEASE_VERSION}`);
-  }
+  assertReleaseVersion(metadata, env);
   const legDir = dirname(metadataFile);
   const tarball = join(legDir, name);
   if (!existsSync(tarball)) throw new Error(`leg is missing ${name}`);
