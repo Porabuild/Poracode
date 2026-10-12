@@ -1,4 +1,4 @@
-import { createRequire } from "node:module";
+import { CancellationToken } from "electron-updater";
 
 /**
  * How long the first byte (or first `download-progress`) may take. Blockmap
@@ -80,12 +80,7 @@ export function createDownloadStallWatch(options?: {
 }
 
 export function createUpdaterCancellationToken(): UpdaterCancelToken {
-  const requireFromHere = createRequire(import.meta.url);
-  const requireFromUpdater = createRequire(requireFromHere.resolve("electron-updater"));
-  const runtime = requireFromUpdater("builder-util-runtime") as {
-    CancellationToken: new () => UpdaterCancelToken;
-  };
-  return new runtime.CancellationToken();
+  return new CancellationToken();
 }
 
 /**

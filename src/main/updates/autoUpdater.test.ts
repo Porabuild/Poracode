@@ -26,9 +26,11 @@ const autoUpdaterMock = vi.hoisted(() => {
   };
 });
 
-vi.mock("electron-updater", () => ({
-  autoUpdater: autoUpdaterMock,
-}));
+vi.mock("electron-updater", async () => {
+  const { CancellationToken } =
+    await vi.importActual<typeof import("electron-updater")>("electron-updater");
+  return { autoUpdater: autoUpdaterMock, CancellationToken };
+});
 
 import { createAutoUpdaterController } from "./autoUpdater";
 
@@ -197,13 +199,48 @@ describe("createAutoUpdaterController", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
-  it("logs one bounded warning without capturing exhausted transient retries as errors", async () => {
+  it.each([502, 503, 504])(
+    "recovers from HTTP %i and downloads the nightly",
+    async (statusCode) => {
+      const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
+      const sendStatus = vi.fn<(status: UpdateStatus) => void>();
+      const controller = createAutoUpdaterController(sendStatus, "nightly", false, reportError);
+      controller.initialize();
+      const transient = Object.assign(new Error("Release feed request failed."), { statusCode });
+      const version = "2.0.0-nightly.202610121055";
+      autoUpdaterMock.checkForUpdates
+        .mockImplementationOnce(async () => {
+          autoUpdaterMock.emit("error", transient);
+          throw transient;
+        })
+        .mockImplementationOnce(async () => {
+          autoUpdaterMock.emit("update-available", { version });
+        });
+      autoUpdaterMock.downloadUpdate.mockImplementationOnce(async () => {
+        autoUpdaterMock.emit("update-downloaded", { version });
+      });
+
+      const checking = controller.checkForUpdate();
+      await vi.advanceTimersByTimeAsync(500);
+      await checking;
+
+      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(2);
+      expect(autoUpdaterMock.downloadUpdate).toHaveBeenCalledOnce();
+      expect(sendStatus).toHaveBeenLastCalledWith({ type: "downloaded", version });
+      expect(sendStatus.mock.calls.some(([status]) => status.type === "error")).toBe(false);
+      expect(reportError).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["stable", Object.assign(new Error("socket closed"), { code: "EPIPE" })],
+    ["nightly", Object.assign(new Error("Release feed request failed."), { statusCode: 502 })],
+  ] as const)("logs one bounded warning for exhausted %s retries", async (channel, transient) => {
     const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const sendStatus = vi.fn<(status: UpdateStatus) => void>();
-    const controller = createAutoUpdaterController(sendStatus, "stable", false, reportError);
+    const controller = createAutoUpdaterController(sendStatus, channel, false, reportError);
     controller.initialize();
-    const transient = Object.assign(new Error("socket closed"), { code: "EPIPE" });
     autoUpdaterMock.checkForUpdates.mockImplementation(async () => {
       autoUpdaterMock.emit("error", transient);
       throw transient;
