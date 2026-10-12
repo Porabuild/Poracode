@@ -77,6 +77,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useThread } from "@/renderer/state/useThread";
 import { ComposerBubbleRow } from "./ComposerBubbleRow";
+import { SideChatBubble } from "./SideChat/SideChatBubble";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
 import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
@@ -972,6 +973,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             /* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
                measures the real buttons without adding a line box above the composer. */
             <ComposerBubbleRow threadId={thread.id}>
+              <SideChatBubble threadId={thread.id} />
               {showDockBubbles ? (
                 <ThreadDockBubbles summary={docksSummary} threadId={thread.id} />
               ) : null}

@@ -16,7 +16,7 @@ export function SideChatModelText({
 }) {
   const { i18n } = useLingui();
   const liveThread = useThread(threadId ?? entry.existingThreadId);
-  const thread = liveThread ?? entry.source;
+  const thread = liveThread ?? { ...entry.source, ...entry.selection };
   const project = useProject(thread.projectId);
   const statuses = useThreadAgentStatuses({
     remoteServerId: thread.remoteServerId,

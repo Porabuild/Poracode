@@ -41,7 +41,10 @@ import { useContinueInProviderStore } from "@/renderer/state/continueInProviderS
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
-import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import {
+  auxiliaryThreadIds,
+  useAuxiliaryThreadWindows,
+} from "@/renderer/state/auxiliaryThreadWindows";
 import { closePanelsForUnloadedThread } from "./panelActions";
 import { getCurrentProjectId } from "./currentProject";
 import { switchWorkspaceForProject } from "./workspaceActions";
@@ -70,6 +73,7 @@ function dispatchRemoteThreadMutation(
   command: (remoteThreadId: string) => RemoteThreadCommand,
   apply: () => void,
   onConfirmed?: () => void,
+  onRejected?: (error: unknown) => void,
 ): boolean {
   const owner = remoteOwner(thread);
   const rootOwner = managedRootOwner(thread);
@@ -116,6 +120,7 @@ function dispatchRemoteThreadMutation(
     })
     .catch((error) => {
       toast.danger(friendlyError(error));
+      onRejected?.(error);
       if (rootOwner) refreshManagedRootCatalogSoon();
     })
     .finally(release);
@@ -345,8 +350,10 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
   const store = useAppStore.getState();
   const knownWorkspaceIds = getKnownWorkspaceIds();
   const activeWorkspaceId = getActiveWorkspaceId();
+  const auxiliaryIds = useAuxiliaryThreadWindows.getState().hiddenThreadIds;
   const projectThreads = store.threads.filter(
     (thread) =>
+      !auxiliaryIds.has(thread.id) &&
       thread.projectId === current.projectId &&
       !thread.archived &&
       // Home threads filed under other workspaces are hidden from the sidebar,
@@ -690,11 +697,16 @@ export function acknowledgeThread(threadId: string): void {
   apply();
 }
 
-function deleteThreadOnly(threadId: string): void {
+function deleteThreadOnly(
+  threadId: string,
+  record?: Thread,
+  completion?: { resolve: () => void; reject: (error: unknown) => void },
+): void {
   const store = useAppStore.getState();
-  const thread = store.threads.find((candidate) => candidate.id === threadId);
+  const thread = store.threads.find((candidate) => candidate.id === threadId) ?? record;
   if (store.provisioningWorktreeThreadIds[threadId] === true) {
     store.deleteThread(threadId);
+    completion?.resolve();
     return;
   }
   const rootOwner = thread ? managedRootOwner(thread) : undefined;
@@ -704,6 +716,10 @@ function deleteThreadOnly(threadId: string): void {
     // success so a refused or ambiguous delete can still replay the exact
     // original launch operation.
     if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
+    void readBridge()
+      .closeSideChatPanel?.(threadId)
+      .catch((error: unknown) => toast.danger(friendlyError(error)));
+    completion?.resolve();
   };
   if (
     thread &&
@@ -712,6 +728,7 @@ function deleteThreadOnly(threadId: string): void {
       (remoteThreadId) => ({ kind: "delete", threadId: remoteThreadId }),
       () => useAppStore.getState().archiveThread(threadId),
       confirmRemoteDelete,
+      completion?.reject,
     )
   )
     return;
@@ -721,8 +738,18 @@ function deleteThreadOnly(threadId: string): void {
   if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
   store.deleteThread(threadId);
   void readBridge()
+    .closeSideChatPanel?.(threadId)
+    .catch((error: unknown) => toast.danger(friendlyError(error)));
+  void readBridge()
     .closeThread({ threadId })
     .catch(() => undefined);
+  if (completion)
+    void readBridge().dbDeleteThread(threadId).then(completion.resolve, completion.reject);
+}
+
+/** Dispose a retained auxiliary row even when it is outside the loaded catalog page. */
+export function deleteThreadRecord(thread: Thread): Promise<void> {
+  return new Promise((resolve, reject) => deleteThreadOnly(thread.id, thread, { resolve, reject }));
 }
 
 /** True when `threadId` is the only thread still using `worktreePath`. */

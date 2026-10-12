@@ -47,6 +47,9 @@ vi.mock("@/renderer/state/chatRuntimePersister", () => ({
   hydrateThreadRuntimeItems: vi.fn<() => void>(),
 }));
 vi.mock("./sideChatPanelStore", () => ({ updateSideChatPanelDraft: vi.fn<() => void>() }));
+vi.mock("./sideChatTurnContext", () => ({
+  captureSideChatTurnContext: async () => ({ conversationSnapshot: { text: "latest parent" } }),
+}));
 import { useSideChatSession } from "./useSideChatSession";
 import { useSideChatLaunchState } from "./sideChatLaunchState";
 function wrapper({ children }: { children: ReactNode }) {
@@ -143,4 +146,19 @@ it("never submits typed draft updates or restored unsent text automatically", ()
   );
   expect(mocks.launch).not.toHaveBeenCalled();
   restored.unmount();
+});
+
+it("never creates a new thread over a retained child that is outside the resident catalog", async () => {
+  const hook = renderHook(
+    () =>
+      useSideChatSession({ ...entry, existingThreadId: "saved-child", autoStart: false }, "panel"),
+    { wrapper },
+  );
+  expect(hook.result.current.threadId).toBe("saved-child");
+  await act(async () => {
+    await hook.result.current.start("follow-up");
+  });
+  expect(mocks.create).not.toHaveBeenCalled();
+  expect(mocks.launch).not.toHaveBeenCalled();
+  hook.unmount();
 });

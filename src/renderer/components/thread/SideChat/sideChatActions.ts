@@ -1,15 +1,9 @@
 import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { msg } from "@lingui/core/macro";
-import {
-  TURN_CONVERSATION_SNAPSHOT_MAX_LENGTH,
-  type PromptSegment,
-  type ThreadPresentationMode,
-} from "@/shared/contracts";
+import { type PromptSegment, type ThreadPresentationMode } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import { readBridge } from "@/renderer/bridge";
-import { handoffTranscriptBudget } from "@/renderer/actions/handoffTranscript";
 import { useAppStore } from "@/renderer/state/appStore";
-import { readSideChatContext } from "./sideChatContext";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { REMOTE_CONVERSATION_SNAPSHOTS_VERSION } from "@/shared/remote/protocol";
@@ -34,8 +28,14 @@ const opening = new Map<string, Promise<boolean>>();
 
 /** The + menu reopens a retained conversation; /btw starts a fresh one. */
 export async function showSideChat(sourceThreadId: string): Promise<boolean> {
-  const entry = useSideChatPanelStore.getState().entry;
+  const entry = useSideChatPanelStore.getState().entries[sourceThreadId];
   if (entry?.source.id === sourceThreadId && canOpenSideChat(sourceThreadId)) {
+    if (entry.id && useSideChatPanelStore.getState().detachedIds.has(entry.id)) {
+      await readBridge().openSideChatWindow?.({ ...entry, autoStart: false });
+      return true;
+    }
+    if (useSideChatPanelStore.getState().entry?.id !== entry.id)
+      await readBridge().openSideChatPanel?.({ ...entry, autoStart: false });
     usePanelStore.getState().setRightPanelTab("sideChat");
     return true;
   }
@@ -83,24 +83,10 @@ async function performOpen(
   }
   const title = i18n._(msg`Side chat: ${source.title}`);
   const snapshot = structuredClone(source);
-  let context;
-  try {
-    context = await readSideChatContext(
-      snapshot,
-      Math.min(
-        handoffTranscriptBudget(snapshot.config.contextSize),
-        TURN_CONVERSATION_SNAPSHOT_MAX_LENGTH,
-      ),
-    );
-  } catch (cause) {
-    throw new Error(i18n._(msg`Could not read the thread context for side chat. Try again.`), {
-      cause,
-    });
-  }
   await open({
     source: snapshot,
     title,
-    context,
+    context: null,
     prompt,
     autoStart: prompt.trim().length > 0,
     ...(segments ? { segments: structuredClone(segments) } : {}),

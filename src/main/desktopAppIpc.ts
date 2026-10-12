@@ -1,3 +1,4 @@
+import { join } from "node:path";
 // Managed desktop IPC registration: local handlers, quick-composer window
 // channels, tracked renderer reload, and the dev-only smoke controls. Split
 // out of `desktopAppReady` along its IPC seam (V5 plan 1.4 / H8).
@@ -76,6 +77,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   registerSideChatWindowIpc({
     getMainWindow: () => desktopApp.mainWindow,
     createWindow: createSideChatAppWindow,
+    statePath: join(requirePoracodePaths().baseDir, "side-chat-ownership.json"),
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {
     const overlay = quickComposerWindowFor(event);

@@ -1,3 +1,4 @@
+import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import { ChevronRight, Globe, House, PanelLeft, Plus, Search, Settings2 } from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
@@ -141,6 +142,7 @@ function CollapsedThreadRailButton(props: { thread: Thread; projectName?: string
 }
 
 function CollapsedThreadRail() {
+  const auxiliaryIds = useAuxiliaryThreadWindows((s) => s.hiddenThreadIds);
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const showProjectName = usePanelStore((s) => s.threadListLayout === "flat");
   const isThreadInActiveWorkspace = useWorkspaceThreadFilter();
@@ -150,6 +152,7 @@ function CollapsedThreadRail() {
     useShallow((state) =>
       state.threads.filter(
         (thread) =>
+          !auxiliaryIds.has(thread.id) &&
           thread.status !== "inactive" &&
           !thread.done &&
           !thread.archived &&

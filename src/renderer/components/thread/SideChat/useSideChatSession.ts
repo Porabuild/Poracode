@@ -1,3 +1,4 @@
+import { captureSideChatTurnContext } from "./sideChatTurnContext";
 import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { DEFAULT_TERMINAL_SIZE, type PromptSegment } from "@/shared/contracts";
@@ -26,7 +27,7 @@ import {
   useSideChatLaunchState,
 } from "./sideChatLaunchState";
 import { readBridge } from "@/renderer/bridge";
-import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
+import type { SideChatBootstrap, SideChatSelection } from "@/shared/ipc/sideChat";
 import {
   remoteOwner,
   remoteThreadId,
@@ -41,13 +42,26 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
   // Submission belongs to the opening request, never to subsequently typed drafts.
   const openingRequest = useRef(entry);
   const [prompt, setPromptState] = useState(entry.prompt);
+  const [selection, setSelectionState] = useState<SideChatSelection>(
+    entry.selection ?? {
+      agentKind: entry.source.agentKind,
+      ...(entry.source.agentInstanceId ? { agentInstanceId: entry.source.agentInstanceId } : {}),
+      config: entry.source.config,
+    },
+  );
+  const latestSelection = useRef(selection);
+  function setSelection(value: SideChatSelection) {
+    latestSelection.current = value;
+    setSelectionState(value);
+    if (surface === "panel") updateSideChatPanelDraft(entry.id, latestPrompt.current, value);
+  }
   const latestPrompt = useRef(prompt);
   function setPrompt(value: string) {
     latestPrompt.current = value;
     setPromptState(value);
-    if (surface === "panel") updateSideChatPanelDraft(entry.id, value);
+    if (surface === "panel") updateSideChatPanelDraft(entry.id, value, latestSelection.current);
   }
-  const [threadId, setThreadId] = useState<string>();
+  const [threadId, setThreadId] = useState<string | undefined>(entry.existingThreadId);
   const ownedThreadId = useRef(entry.existingThreadId);
   const [observedThreadId, setObservedThreadId] = useState(entry.existingThreadId);
   const project = useProject(entry.source.projectId);
@@ -55,7 +69,12 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
   const restoredOnce = useRef(false);
   const releaseWindow = useRef<(() => void) | undefined>(undefined);
   useEffect(() => {
-    if (!restoredThread?.sessionRef || restoredOnce.current) return;
+    if (
+      !restoredThread ||
+      (!entry.existingThreadId && !restoredThread.sessionRef) ||
+      restoredOnce.current
+    )
+      return;
     restoredOnce.current = true;
     setThreadId(restoredThread.id);
     releaseWindow.current?.();
@@ -65,7 +84,7 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
       void hydrateThreadRuntimeItems(restoredThread.id);
       reopenStoredThread(restoredThread.id);
     }
-  }, [restoredThread, surface]);
+  }, [restoredThread, surface, entry.existingThreadId]);
   const [launchError, setLaunchError] = useState<string>();
   const [uncertain, setUncertain] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -85,6 +104,7 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
           .bindSideChatThread?.({
             ...(entry.id ? { id: entry.id } : {}),
             prompt: latestPrompt.current,
+            selection: latestSelection.current,
           })
           .catch(() => undefined);
       }
@@ -98,6 +118,7 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
 
   async function start(question: string, segments?: PromptSegment[]) {
     if (
+      (entry.existingThreadId !== undefined && threadId !== undefined) ||
       inFlight.current ||
       isSideChatLaunching(ownedThreadId.current) ||
       closed.current ||
@@ -108,6 +129,20 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
     inFlight.current = true;
     setStarting(true);
     setLaunchError(undefined);
+    let clientContext;
+    try {
+      clientContext = await captureSideChatTurnContext(entry.source);
+    } catch (error) {
+      setLaunchError(friendlyError(error));
+      inFlight.current = false;
+      setStarting(false);
+      return;
+    }
+    if (closed.current) {
+      inFlight.current = false;
+      setStarting(false);
+      return;
+    }
     const owner = remoteOwner(entry.source);
     const hostThreadId =
       owner && ownedThreadId.current
@@ -116,6 +151,12 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
     const existing = ownedThreadId.current
       ? useAppStore.getState().threads.find((row) => row.id === ownedThreadId.current)
       : undefined;
+    // Reserve ownership before publishing the row, so sidebar subscribers never see it.
+    const newThreadId = owner
+      ? remoteThreadId(owner.desktopId, hostThreadId)
+      : (ownedThreadId.current ?? hostThreadId);
+    releaseWindow.current?.();
+    releaseWindow.current = retainAuxiliaryThreadId(newThreadId);
     const thread =
       existing ??
       useAppStore.getState().createThread({
@@ -127,12 +168,12 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
             }
           : ownedThreadId.current
             ? { threadId: ownedThreadId.current }
-            : {}),
+            : { threadId: newThreadId }),
         projectId: project.id,
-        agentKind: entry.source.agentKind,
-        ...(entry.source.agentInstanceId ? { agentInstanceId: entry.source.agentInstanceId } : {}),
+        agentKind: selection.agentKind,
+        ...(selection.agentInstanceId ? { agentInstanceId: selection.agentInstanceId } : {}),
         ...(entry.source.workspaceId ? { workspaceId: entry.source.workspaceId } : {}),
-        config: entry.source.config,
+        config: selection.config,
         prompt: question,
         title: entry.title,
         presentationMode: "gui",
@@ -155,10 +196,15 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
       await readBridge().bindSideChatThread?.({
         ...(entry.id ? { id: entry.id } : {}),
         threadId: thread.id,
+        thread,
         prompt: question,
+        selection,
         segments: questionSegments,
       });
-      const launch = sideChatLaunchInput(question, questionSegments, entry.context?.summary);
+      const launch = {
+        ...sideChatLaunchInput(question, questionSegments),
+        ...(clientContext ? { clientContext } : {}),
+      };
       const stillOwned = async () => {
         try {
           return (await readBridge().getSideChatThreadIds?.())?.includes(thread.id) !== false;
@@ -242,6 +288,9 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
   return {
     prompt,
     setPrompt,
+    selection,
+    setSelection,
+    project,
     threadId,
     busy,
     launchError,

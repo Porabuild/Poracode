@@ -77,8 +77,8 @@ try {
 function usage() {
   console.error(`Usage:
   node poracode-integration-smoke.mjs audit
-  node poracode-integration-smoke.mjs plan [--scope changed|full]
-  node poracode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--session <session.json>] [--port <cdp port> --appUrl <dev server url>] [--outDir <dir>] [--ack-manual gate,gate]
+  node poracode-integration-smoke.mjs plan [--scope changed|full] [--base <ref>]
+  node poracode-integration-smoke.mjs run [--scope changed|full] [--base <ref>] [--mode mock|real] [--session <session.json>] [--port <cdp port> --appUrl <dev server url>] [--outDir <dir>] [--ack-manual gate,gate]
 
 Run resolves --session / $PORACODE_DEBUG_SESSION, one active managed debug session for this repo, or a complete explicit port + URL pair. It never guesses ports.`);
 }
@@ -88,7 +88,9 @@ function trackedFiles() {
 }
 
 function changedFiles() {
-  const tracked = lines(runGit(["diff", "--name-only", "HEAD", "--", ...productionRoots]));
+  const tracked = lines(
+    runGit(["diff", "--name-only", String(args.base ?? "HEAD"), "--", ...productionRoots]),
+  );
   const untracked = lines(
     runGit(["ls-files", "--others", "--exclude-standard", "--", ...productionRoots]),
   );
