@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -103,13 +104,104 @@ describe("inventoryImportFiles excludeChromiumCaches", () => {
     const paths = scoped.entries.map((entry) => entry.path);
     expect(paths).not.toContain("userData/SingletonLock");
     expect(paths).toContain("projects/demo/userData/SingletonLock");
-    // With the skip off, the root singleton is refused like any symlink.
-    await expect(
-      inventoryImportFiles(source, {
-        skipRuntimeSingletonSymlinks: false,
-        excludeChromiumCaches: true,
-      }),
-    ).rejects.toThrow(/symbolic link/u);
+    // With the skip off, the root singleton is treated like any other
+    // symlink: this one's target is contained, so it is preserved rather
+    // than skipped (an absolute-target singleton is refused below).
+    const unskipped = await inventoryImportFiles(source, {
+      skipRuntimeSingletonSymlinks: false,
+      excludeChromiumCaches: true,
+    });
+    expect(unskipped.entries.map((entry) => entry.path)).toContain("userData/SingletonLock");
+    expect(
+      unskipped.entries.find((entry) => entry.path === "userData/SingletonLock"),
+    ).toMatchObject({ kind: "symlink", target: "poracode-1000.sock" });
+  });
+});
+
+describe("inventoryImportFiles contained relative symlinks", () => {
+  /**
+   * A managed-runtime-shaped source: the official Node archive the app
+   * extracts under `runtime/` ships bin/npm, bin/npx and bin/corepack as
+   * relative links into ../lib/node_modules (regression fixture for the
+   * 2.0.0-nightly promotion refusal).
+   */
+  function seedRuntimeSource(): string {
+    const root = scratch();
+    const source = join(root, "namespace");
+    const bin = join(source, "runtime", "node-v22.14.0-darwin-arm64", "bin");
+    const lib = join(source, "runtime", "node-v22.14.0-darwin-arm64", "lib", "node_modules");
+    mkdirSync(bin, { recursive: true });
+    mkdirSync(join(lib, "npm", "bin"), { recursive: true });
+    mkdirSync(join(lib, "corepack", "dist"), { recursive: true });
+    writeFileSync(join(bin, "node"), "node-binary");
+    writeFileSync(join(lib, "npm", "bin", "npm-cli.js"), "npm-cli");
+    writeFileSync(join(lib, "corepack", "dist", "corepack.js"), "corepack");
+    symlinkSync("../lib/node_modules/npm/bin/npm-cli.js", join(bin, "npm"));
+    symlinkSync("../lib/node_modules/npm/bin/npx-cli.js", join(bin, "npx"));
+    symlinkSync("../lib/node_modules/corepack/dist/corepack.js", join(bin, "corepack"));
+    return source;
+  }
+
+  it("preserves the managed runtime's relative links through inventory and copy", async () => {
+    const source = seedRuntimeSource();
+    const inventory = await inventoryImportFiles(source);
+    const linkEntries = inventory.entries.filter((entry) => entry.kind === "symlink");
+    expect(linkEntries.map((entry) => entry.path)).toEqual([
+      "runtime/node-v22.14.0-darwin-arm64/bin/corepack",
+      "runtime/node-v22.14.0-darwin-arm64/bin/npm",
+      "runtime/node-v22.14.0-darwin-arm64/bin/npx",
+    ]);
+    expect(linkEntries.every((entry) => entry.target!.startsWith("../lib/"))).toBe(true);
+    // Links are data shape, not file content: excluded from files/bytes.
+    expect(inventory.files).toBe(3);
+    expect(inventory.bytes).toBe("node-binarynpm-clicorepack".length);
+
+    const destination = join(scratch(), "staged");
+    await copyImportFiles(source, destination, inventory);
+    const staged = join(destination, "runtime", "node-v22.14.0-darwin-arm64", "bin");
+    // The links exist as links, resolve inside the copy, and re-inventory
+    // to the identical digest (copyImportFiles verifies this itself).
+    for (const name of ["corepack", "npm", "npx"]) {
+      expect(lstatSync(join(staged, name)).isSymbolicLink()).toBe(true);
+    }
+    expect(readFileSync(join(staged, "npm"), "utf8")).toBe("npm-cli");
+    expect(readFileSync(join(staged, "corepack"), "utf8")).toBe("corepack");
+  });
+
+  it("preserves a dangling contained link without following it", async () => {
+    const source = seedRuntimeSource();
+    symlinkSync(
+      "../lib/node_modules/missing/entry.js",
+      join(source, "runtime", "node-v22.14.0-darwin-arm64", "bin", "dangling"),
+    );
+    const inventory = await inventoryImportFiles(source);
+    expect(
+      inventory.entries.find(
+        (entry) => entry.path === "runtime/node-v22.14.0-darwin-arm64/bin/dangling",
+      ),
+    ).toMatchObject({ kind: "symlink", target: "../lib/node_modules/missing/entry.js" });
+  });
+
+  it("refuses absolute and root-escaping link targets", async () => {
+    const absolute = seedRuntimeSource();
+    symlinkSync("/etc/hosts", join(absolute, "runtime", "escape-abs"));
+    symlinkSync(
+      process.platform === "win32" ? "C:\\Windows\\explorer.exe" : "\\\\server\\share",
+      join(absolute, "runtime", "escape-win"),
+    );
+    await expect(inventoryImportFiles(absolute)).rejects.toThrow(
+      /symbolic link or special file: runtime\/escape-abs/u,
+    );
+
+    const escaping = seedRuntimeSource();
+    // Four levels up from bin climbs past the walked root: `../outside-root`.
+    symlinkSync(
+      "../../../../outside-root",
+      join(escaping, "runtime", "node-v22.14.0-darwin-arm64", "bin", "escape-up"),
+    );
+    await expect(inventoryImportFiles(escaping)).rejects.toThrow(
+      /symbolic link or special file: runtime\/node-v22\.14\.0-darwin-arm64\/bin\/escape-up/u,
+    );
   });
 });
 

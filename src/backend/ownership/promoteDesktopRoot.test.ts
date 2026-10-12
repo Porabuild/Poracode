@@ -457,4 +457,41 @@ describe("desktop data-root promotion (V5 plan 1.3)", () => {
       true,
     );
   });
+
+  it("promotes a profile whose managed Node runtime ships relative symlinks", async () => {
+    // Regression for the 2.0.0-nightly startup failure: the official Node
+    // archive extracted under runtime/ ships bin/corepack, bin/npm and
+    // bin/npx as relative links into ../lib/node_modules, and the promotion
+    // inventory refused them, so the desktop could not start at all. The
+    // links are contained in the walked root, so the promotion preserves
+    // them verbatim and the promoted runtime keeps working.
+    const root = scratch();
+    const seed = seedPlainRoot(root);
+    const runtimeBin = join(seed.namespace, "runtime", "node-v22.14.0-darwin-arm64", "bin");
+    const runtimeLib = join(
+      seed.namespace,
+      "runtime",
+      "node-v22.14.0-darwin-arm64",
+      "lib",
+      "node_modules",
+    );
+    mkdirSync(runtimeBin, { recursive: true });
+    mkdirSync(join(runtimeLib, "corepack", "dist"), { recursive: true });
+    writeFileSync(join(runtimeBin, "node"), "node-binary");
+    writeFileSync(join(runtimeLib, "corepack", "dist", "corepack.js"), "corepack");
+    symlinkSync("../lib/node_modules/corepack/dist/corepack.js", join(runtimeBin, "corepack"));
+    const paths = resolveDesktopHostRootPaths(seed.namespace);
+
+    const lease = acquireDesktopLease(seed.namespace);
+    const prepared = await ensureDesktopOwnedRoot(lease, { osSealedKey: fixtureCodec(seed) });
+    expect(prepared.baseDir).toBe(paths.dataRoot);
+    expect(threadCount(join(paths.dataRoot, "state.sqlite"))).toBe(2);
+    // The runtime survives the promotion with its links intact and resolving
+    // inside the promoted root.
+    const promotedBin = join(paths.dataRoot, "runtime", "node-v22.14.0-darwin-arm64", "bin");
+    expect(lstatSync(join(promotedBin, "corepack")).isSymbolicLink()).toBe(true);
+    expect(readFileSync(join(promotedBin, "corepack"), "utf8")).toBe("corepack");
+    // The plain root is the preserved pre-promotion copy, links untouched.
+    expect(lstatSync(join(runtimeBin, "corepack")).isSymbolicLink()).toBe(true);
+  });
 });

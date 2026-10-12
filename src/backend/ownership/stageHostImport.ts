@@ -132,8 +132,9 @@ export async function stageHostImport(
     lease.setPhase("staging-import");
     // The automatic promotion's source is a live desktop root whose Electron
     // userData holds Chromium's runtime singleton symlinks; they are process
-    // pointers, not data, so the promotion skips them (offline backups keep
-    // the strict every-symlink-refused rule).
+    // pointers, not data, so the promotion skips them. Every other symlink
+    // follows the shared rule: contained relative links (the managed
+    // `runtime/` Node archives ship them) are preserved, all others refused.
     const inventoryOptions: InventoryImportFilesOptions = {
       // Every awaited file operation probes the live lease and the caller's
       // cancellation signal; a lost owner or an abort stops the walk/copy at

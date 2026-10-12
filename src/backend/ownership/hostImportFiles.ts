@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
-import { chmod, copyFile, lstat, mkdir, open, readdir } from "node:fs/promises";
+import { chmod, copyFile, lstat, mkdir, open, readdir, readlink, symlink } from "node:fs/promises";
 import { join } from "node:path";
+import {
+  dirname as posixDirname,
+  isAbsolute as posixIsAbsolute,
+  join as posixJoin,
+  normalize as posixNormalize,
+} from "node:path/posix";
 import { HOST_CONTROL_DISCOVERY_FILE } from "@/shared/hostControlProtocol";
 import { HOST_KEY_ADOPTION_OFFER_FILE } from "./nativeSecretKey";
 import { HOST_OPERATION_JOURNAL_FILE } from "./hostOperationJournal";
@@ -23,10 +29,18 @@ const EXCLUDED_ROOT_ENTRIES = new Set([
 
 interface ImportEntry {
   readonly path: string;
-  readonly kind: "file" | "directory";
+  readonly kind: "file" | "directory" | "symlink";
   readonly bytes: number;
   readonly mode: number;
   readonly sha256: string | null;
+  /**
+   * Link target, present only on `symlink` entries. Every preserved link is
+   * relative and resolves inside the walked root (`isSymlinkTargetContained`),
+   * so recreating it in the destination can only reference paths the copy
+   * itself already owns. The key is absent on file/directory entries so their
+   * serialization — and every existing receipt digest — stays byte-identical.
+   */
+  readonly target?: string;
 }
 
 export interface ImportFileInventory {
@@ -89,9 +103,10 @@ export async function hashImportFile(
  * Chromium per-process singleton pointers found in the Electron `userData`
  * directory (`SingletonCookie` / `SingletonLock` / `SingletonSocket`). They
  * name the RUNNING process's lock/socket, so they are meaningless in a copy:
- * the automatic desktop promotion skips them instead of refusing them, and
- * the promoted profile mints fresh ones on next launch. Offline backups keep
- * refusing every symlink.
+ * the automatic desktop promotion skips them instead of preserving them, and
+ * the promoted profile mints fresh ones on next launch. Links that are not
+ * skipped follow the general rule: contained relative links are preserved,
+ * everything else refused.
  */
 const RUNTIME_SINGLETON_SYMLINK_NAMES = new Set([
   "SingletonCookie",
@@ -151,6 +166,26 @@ function shouldSkipRuntimeSingleton(relative: string, name: string): boolean {
 }
 
 /**
+ * A preserved symlink must be a POSIX-style relative link whose target
+ * resolves inside the walked root. Managed-runtime archives (the official
+ * Node.js tarballs under `runtime/`) ship exactly these: `bin/npm` and
+ * friends point at `../lib/node_modules/...`. The check is syntactic — the
+ * link is never followed — and containment is what makes preservation safe:
+ * hashing, copying and re-verifying all operate on the link itself (lstat /
+ * readlink / symlink), so a contained link can neither read nor write
+ * anything outside the tree being inventoried, and it stays valid verbatim
+ * at the same relative position in the destination. Absolute targets
+ * (either syntax) and targets that climb out of the root are refused like
+ * every other special file.
+ */
+function isSymlinkTargetContained(relativePath: string, target: string): boolean {
+  if (target === "" || target.includes("\\") || /^[a-zA-Z]:/u.test(target)) return false;
+  if (posixIsAbsolute(target)) return false;
+  const resolved = posixNormalize(posixJoin(posixDirname(relativePath), target));
+  return resolved !== ".." && !resolved.startsWith("../");
+}
+
+/**
  * SQLite uses its backup API; ephemeral owner control credentials never migrate.
  *
  * The walk is asynchronous and probes the guard before every entry, so an
@@ -188,7 +223,22 @@ export async function inventoryImportFiles(
           // stay in the inventory; only the Chromium userData root is skipped.
           continue;
         }
-        throw new Error(`Offline backup contains a symbolic link or special file: ${path}`);
+        const target = await readlink(absolute);
+        if (!isSymlinkTargetContained(path, target)) {
+          throw new Error(`Offline backup contains a symbolic link or special file: ${path}`);
+        }
+        // A contained relative link (e.g. the managed runtime's bin/npm →
+        // ../lib/node_modules/...): recorded with its target and recreated
+        // verbatim at the same relative position by copyImportFiles.
+        entries.push({
+          path,
+          kind: "symlink",
+          bytes: 0,
+          mode: metadata.mode & 0o700,
+          sha256: null,
+          target,
+        });
+        continue;
       }
       if (!metadata.isDirectory() && !metadata.isFile()) {
         throw new Error(`Offline backup contains a symbolic link or special file: ${path}`);
@@ -223,10 +273,11 @@ export async function inventoryImportFiles(
 
 interface MutableImportEntry {
   path: string;
-  kind: "file" | "directory";
+  kind: "file" | "directory" | "symlink";
   bytes: number;
   mode: number;
   sha256: string | null;
+  target?: string;
 }
 
 /**
@@ -285,6 +336,11 @@ export async function copyImportFiles(
     const target = join(destination, entry.path);
     if (entry.kind === "directory") {
       await mkdir(target, { recursive: true, mode: 0o700 });
+    } else if (entry.kind === "symlink") {
+      // Contained relative links were validated at inventory time; recreating
+      // one verbatim can only reference a path the copy itself owns. Symlink
+      // modes are not portable (POSIX fixes them at creation); no chmod.
+      await symlink(entry.target!, target);
     } else {
       await copyFile(join(source, entry.path), target);
       await chmod(target, entry.mode);

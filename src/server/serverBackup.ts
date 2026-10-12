@@ -20,10 +20,12 @@ import { canonicalHostPath, resolveHostRootPaths } from "@/backend/ownership/hos
  * The database is captured with SQLite's own backup API from a read-only
  * connection, so a live owner may keep writing while the snapshot is taken
  * (WAL readers never block the writer). Every other regular file of the data
- * root is copied through the read-only import-staging primitives, which refuse
- * symbolic links, special files and multiply-linked files. The result is a
- * directory whose receipt describes exactly what was captured; `stageHostImport`
- * can later import a backup produced here after its owner is gone.
+ * root is copied through the read-only import-staging primitives, which
+ * preserve contained relative symlinks (the managed runtime ships them) and
+ * refuse absolute or escaping links, special files and multiply-linked
+ * files. The result is a directory whose receipt describes exactly what was
+ * captured; `stageHostImport` can later import a backup produced here after
+ * its owner is gone.
  */
 
 export const SERVER_BACKUP_RECEIPT_VERSION = 1;
