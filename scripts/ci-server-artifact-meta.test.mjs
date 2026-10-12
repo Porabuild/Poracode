@@ -14,16 +14,18 @@ function leg(overrides = {}) {
   mkdirSync(legDir);
   const bytes = Buffer.from("tarball");
   const sha256 = createHash("sha256").update(bytes).digest("hex");
-  writeFileSync(join(legDir, "poracode-server-1.2.3-win32-x64.tar.gz"), bytes);
-  writeFileSync(join(legDir, "poracode-server-1.2.3-win32-x64.tar.gz.sha256"), `${sha256}\n`);
+  const version = overrides.version ?? "1.2.3";
+  const name = `poracode-server-${version}-win32-x64.tar.gz`;
+  writeFileSync(join(legDir, name), bytes);
+  writeFileSync(join(legDir, `${name}.sha256`), `${sha256}\n`);
   writeFileSync(
     join(legDir, "server-artifact.json"),
     JSON.stringify({
-      version: "1.2.3",
+      version,
       platform: "win32",
       arch: "x64",
       targets: ["win32-x64"],
-      tarball: { name: "poracode-server-1.2.3-win32-x64.tar.gz", sha256 },
+      tarball: { name, sha256 },
       ...overrides,
     }),
   );
@@ -31,6 +33,24 @@ function leg(overrides = {}) {
 }
 after(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
+});
+
+void test("native-target checks the nightly version before exporting artifact paths", () => {
+  const version = "2.0.0-nightly.202610120050";
+  const { root, legDir } = leg({ version });
+  const githubEnv = join(root, "github-env");
+  const env = { QUALIFIED_DIR: legDir, TARGET: "win32-x64", GITHUB_ENV: githubEnv };
+  assert.throws(
+    () => verifyNativeTarget({ ...env, RELEASE_VERSION: "2.0.0" }),
+    /expected 2\.0\.0/u,
+  );
+  assert.equal(existsSync(githubEnv), false);
+  assert.equal(
+    verifyNativeTarget({ ...env, RELEASE_VERSION: version }).meta,
+    join(legDir, "server-artifact.json"),
+  );
+  // Ordinary CI has no release pin and verifies the source-version artifact.
+  assert.doesNotThrow(() => verifyNativeTarget({ ...env, RELEASE_VERSION: "" }));
 });
 
 void test("native-target verifies advertisement and hash and exports TARBALL/META", () => {

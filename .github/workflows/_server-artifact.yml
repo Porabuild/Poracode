@@ -327,6 +327,12 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Set the release version
+        if: ${{ inputs.version != '' }}
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
+
       - name: Download the build leg's exact bytes
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -337,6 +343,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           QUALIFIED_DIR: ${{ runner.temp }}/qualified
+          RELEASE_VERSION: ${{ inputs.version }}
           PORACODE_EXPECT_COMPUTER_USE: ${{ matrix.computer_use }}
         run: |
           set -euo pipefail

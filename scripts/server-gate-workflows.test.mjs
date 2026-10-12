@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -12,6 +13,55 @@ import {
 } from "./server-install-qualification.mjs";
 
 const workflowUrl = (name) => new URL(`../.github/workflows/${name}`, import.meta.url);
+
+void test("native qualification pins all release manifests only for a supplied version", async (t) => {
+  const workflow = await readWorkflow("_server-artifact.yml");
+  const steps = workflow.jobs.native_qualification.steps;
+  const versionIndex = steps.findIndex((step) => step.name === "Set the release version");
+  const qualifyIndex = steps.findIndex(
+    (step) => step.name === "Install and qualify the native target from the qualified tarball",
+  );
+  assert.ok(versionIndex > steps.findIndex((step) => step.name === "Setup Node.js"));
+  assert.ok(versionIndex < qualifyIndex);
+  const versionStep = steps[versionIndex];
+  assert.deepEqual(
+    versionStep,
+    workflow.jobs.build.steps.find((step) => step.name === "Set the release version"),
+  );
+  assert.equal(versionStep.if, "${{ inputs.version != '' }}");
+  assert.equal(versionStep.env.RELEASE_VERSION, "${{ inputs.version }}");
+  assert.equal(versionStep.run, 'node scripts/set-release-version.mjs "$RELEASE_VERSION"');
+  assert.equal(steps[qualifyIndex].env.RELEASE_VERSION, "${{ inputs.version }}");
+  const manifests = [
+    "package.json",
+    "packages/poracode-cli/package.json",
+    "packages/poracode-cli/runtime-manifest.json",
+  ];
+  for (const version of ["2.0.0-nightly.202610120050", ""]) {
+    const root = await mkdtemp(join(tmpdir(), "native-release-version-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await mkdir(join(root, "scripts"));
+    await mkdir(join(root, "packages/poracode-cli"), { recursive: true });
+    await cp(
+      new URL("./set-release-version.mjs", import.meta.url),
+      join(root, "scripts/set-release-version.mjs"),
+    );
+    const original = `${JSON.stringify({ version: "2.0.0", targets: { previous: {} } })}\n`;
+    for (const path of manifests) await writeFile(join(root, path), original);
+    // The checked workflow condition controls whether the real release helper runs.
+    if (version !== "") {
+      execFileSync(process.execPath, ["scripts/set-release-version.mjs", version], { cwd: root });
+    }
+    for (const path of manifests) {
+      const contents = await readFile(join(root, path), "utf8");
+      if (version === "") assert.equal(contents, original);
+      else assert.equal(JSON.parse(contents).version, version);
+    }
+    if (version !== "") {
+      assert.deepEqual(JSON.parse(await readFile(join(root, manifests[2]), "utf8")).targets, {});
+    }
+  }
+});
 
 void test("stable publication requires exact-candidate published N-1 proof before creating a tag", async () => {
   const workflow = await readWorkflow("release.yml");
