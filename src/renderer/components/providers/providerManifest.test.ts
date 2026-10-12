@@ -157,7 +157,12 @@ describe("renderer provider manifests", () => {
         isDisabled: false,
         onConfigChange: () => {},
         presentationMode: "gui",
-      }).find((control) => "options" in control && control.iconKind === "permission");
+      }).find(
+        (control) =>
+          control.kind !== "family-selector" &&
+          "options" in control &&
+          control.iconKind === "permission",
+      );
 
     expect(permissionControl("auto_edit")).toMatchObject({ value: "auto_edit" });
     // A thread carrying the CLI's `yolo` used to render the raw id as its

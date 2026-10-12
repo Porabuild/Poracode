@@ -99,7 +99,7 @@ export function ModelMenuRow(props: ModelMenuRowProps) {
   // provider-parsed price shares the existing muted right rail.
   const { name, hint } = splitModelLabel(item.label);
   const description = formatProviderModelDescription(item.providerKind, item.tooltipDescription);
-  const mutedHint = joinModelRowHints(hint, item.contextDescription);
+  const mutedHint = item.optionHint ?? joinModelRowHints(hint, item.contextDescription);
   const rowFastEnabled = modelFastEnabled(item.providerKind, item.modelId);
   const nameLine = (
     <>

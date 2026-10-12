@@ -1,3 +1,11 @@
+Devin Chat Fast availability now derives from the catalog for accepted model
+ids — Fusion pairs included — verified against the live 122/122 accepted-menu
+sweep, and permission lists order least → most permissive with Ask no longer
+offered on the Terminal surface. Supervisor agent-status cache advances from
+58 to 59 and its renderer persisted copy from 54 to 55, invalidating stale
+Devin inventories; no thread config, settings, wire or protocol shape
+changes.
+
 Cursor local runtime support advances to SDK 1.0.37 (from 1.0.24), including
 native steering, background-subagent follow-ups, and the new tool-enumeration
 notification. The local SDK still omits RequestedModel.maxMode through 1.0.37;

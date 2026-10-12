@@ -1,7 +1,15 @@
-import type { AgentCapability } from "@/shared/contracts";
+import type { AgentCapability, ModelFamilySelection } from "@/shared/contracts";
 import type { CapabilitiesProbeResult } from "../base";
-import { DEVIN_CLOUD_DEFAULT_MODEL_ID, type DevinModelFamily } from "./models";
-import { devinGuiFamilySelections } from "./modelFamilySelections";
+import {
+  DEVIN_CLOUD_DEFAULT_MODEL_ID,
+  isDevinFastCapableFamily,
+  type DevinModelFamily,
+} from "./models";
+import {
+  devinFastCapableFamilyMembers,
+  devinGuiFamilySelections,
+  devinTerminalFamilySelections,
+} from "./modelFamilySelections";
 import { devinDefaultHiddenModels } from "./modelVisibility";
 
 /**
@@ -55,6 +63,33 @@ function devinGuiRuntimeIdentity(
 
 type CatalogIdentity = { description?: string };
 
+/**
+ * Accepted ids that are catalog variants of a family carrying a Fast choice —
+ * the root `fastModels` rule keyed by the accepted id instead of the family
+ * id, so accepted variant spellings (e.g. `gpt-5-6-sol-medium`, not the
+ * family id `gpt-5-6-sol-none`) keep their native Fast select. All-composite
+ * families stay out: a Fusion pair's Fast availability comes from the
+ * relation-aware half in {@link devinFastCapableFamilyMembers}.
+ */
+function devinFastCapableAcceptedVariants(
+  negotiated: readonly { id: string }[],
+  families: readonly DevinModelFamily[],
+): string[] {
+  const fastFamilyVariantIds = new Set<string>();
+  for (const family of families) {
+    if (family.variants.length === 0) continue;
+    if (!isDevinFastCapableFamily(family)) continue;
+    // A composite row's Fast availability comes only from the relation rule —
+    // a mixed family (regular Fast variant + composite pair) must not mark
+    // the pair on the family's strength alone.
+    for (const variant of family.variants) {
+      if (variant.composite !== undefined) continue;
+      fastFamilyVariantIds.add(variant.id);
+    }
+  }
+  return negotiated.filter((model) => fastFamilyVariantIds.has(model.id)).map((model) => model.id);
+}
+
 /** Accepted IDs receive catalog pricing without changing native controls. */
 function devinCatalogIdentityIndex(
   families: readonly DevinModelFamily[],
@@ -82,6 +117,7 @@ export function devinNegotiatedGuiSelectionCapabilities(
   base: AgentCapability,
   projection: CapabilitiesProbeResult,
   families: readonly DevinModelFamily[],
+  terminalSelections?: readonly ModelFamilySelection[],
 ): Pick<AgentCapability, "presentationCapabilities"> | undefined {
   const negotiated = projection.models ?? [];
   if (negotiated.length === 0) return undefined;
@@ -96,6 +132,14 @@ export function devinNegotiatedGuiSelectionCapabilities(
   // relation — the shared fold strips the root value so an override that
   // stayed silent would advertise no relation at all.
   const guiFamilies = devinGuiFamilySelections(negotiated, families);
+  const fastCapable = new Set([
+    ...(projection.fastModels ?? []),
+    ...devinFastCapableAcceptedVariants(negotiated, families),
+    ...devinFastCapableFamilyMembers(
+      guiFamilies,
+      terminalSelections ?? devinTerminalFamilySelections(families),
+    ),
+  ]);
   const hiddenModels = new Set(devinDefaultHiddenModels(families));
   const gui: DevinGuiSelectionOverride = {
     // The ACP effort control IS the separate thought_level select: its
@@ -127,7 +171,17 @@ export function devinNegotiatedGuiSelectionCapabilities(
     ...(projection.modelSubProvider && Object.keys(projection.modelSubProvider).length > 0
       ? { modelSubProvider: projection.modelSubProvider }
       : {}),
-    ...(projection.fastModels?.length ? { fastModels: projection.fastModels } : {}),
+    // Fast availability is declared on ACCEPTED ids, never the catalog family
+    // ids the root `fastModels` names: family ids exclude every Fusion pair
+    // and miss six accepted variant spellings (e.g. `gpt-5-6-sol-medium`).
+    // The shared ACP probe never sees Devin's per-model `speed` select, so
+    // the union is derived from the catalog — a non-composite family with a
+    // Fast variant marks its accepted variants, and a GUI relation member
+    // whose tuple has a Fast catalog pair marks the pair — verified against
+    // the live 3000.11.3 sweep (fixtures/contracts/gui-speed-select.json,
+    // 122/122 agreement). Declared even when empty: the root catalog's
+    // family-id list must never leak through the shared fold.
+    fastModels: negotiated.filter((model) => fastCapable.has(model.id)).map((model) => model.id),
     ...(projection.thinkingModels?.length ? { thinkingModels: projection.thinkingModels } : {}),
     ...(projection.contextSizes?.length ? { contextSizes: projection.contextSizes } : {}),
     ...(projection.modelContextSizes ? { modelContextSizes: projection.modelContextSizes } : {}),

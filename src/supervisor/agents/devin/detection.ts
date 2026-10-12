@@ -10,6 +10,7 @@ import {
   type DetectionSpec,
 } from "../base";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
+import { isDevinCliPermissionMode } from "./argv";
 import { devinModelCatalogKey, loadDevinModels, loadDevinModelsForKey } from "./modelCatalog";
 import { devinTerminalFamilySelections } from "./modelFamilySelections";
 import { devinModelCapabilities, type DevinModelFamily } from "./models";
@@ -79,10 +80,25 @@ export function dedupeDevinAuthMethods(
 }
 
 /**
+ * Permission surfaces order least → most permissive. Policies the session
+ * advertises outside this vocabulary rank immediately ahead of `bypass` —
+ * which always stays last — keeping their advertised relative order.
+ */
+const DEVIN_APPROVAL_POLICY_ORDER = ["ask", "normal", "accept-edits", "smart", "bypass"] as const;
+
+function devinApprovalPolicyRank(id: string): number {
+  const index = DEVIN_APPROVAL_POLICY_ORDER.indexOf(
+    id as (typeof DEVIN_APPROVAL_POLICY_ORDER)[number],
+  );
+  return index === -1 ? DEVIN_APPROVAL_POLICY_ORDER.indexOf("bypass") - 0.5 : index;
+}
+
+/**
  * Merge the session's negotiated approval policies into Devin's defaults
  * (probe entries win labels; probe-only entries — e.g. `ask` from the live
- * five-choice baseline — are appended). A policy is only offered when the
- * session actually advertised it, so the picker and the session agree.
+ * five-choice baseline — join the same inventory), stable-sorted least → most
+ * permissive. A policy is only offered when the session actually advertised
+ * it, so the picker and the session agree.
  */
 function mergeDevinApprovalPolicies(
   probePolicies: readonly { id: string; label: string }[] | undefined,
@@ -93,7 +109,9 @@ function mergeDevinApprovalPolicies(
   for (const policy of probePolicies ?? []) {
     merged.set(policy.id, policy);
   }
-  return [...merged.values()];
+  return [...merged.values()].sort(
+    (a, b) => devinApprovalPolicyRank(a.id) - devinApprovalPolicyRank(b.id),
+  );
 }
 
 /**
@@ -119,7 +137,12 @@ export function buildDevinProbeCapabilities(
     ...(probe?.slashCommands ? { slashCommands: probe.slashCommands } : {}),
     ...(probe?.authState === "missing" ? { authState: "missing" as const } : {}),
 
-    approvalPolicies: mergeDevinApprovalPolicies(probe?.approvalPolicies),
+    // The Terminal offers only what the CLI parser honors: `ask` has no
+    // `--permission-mode` counterpart (`devinCliPermissionMode("ask")` would
+    // silently launch `smart`), so it stays off this surface.
+    approvalPolicies: mergeDevinApprovalPolicies(probe?.approvalPolicies).filter((policy) =>
+      isDevinCliPermissionMode(policy.id),
+    ),
     authMethods: dedupeDevinAuthMethods([
       ...(probe?.authMethods ?? []),
       { id: "devin-terminal-login", name: "Login", type: "terminal" },
@@ -171,17 +194,19 @@ export function composeDevinDetectedCapabilities(
   // decoded catalog pair with its effort/Fast coordinates (see
   // modelFamilySelections.ts). Attached through a spread — the optional
   // `modelFamilies` capability field joins the shared schema independently.
-  const familySelections = families?.length
-    ? { modelFamilies: devinTerminalFamilySelections(families) }
-    : {};
+  const terminalSelections = families?.length ? devinTerminalFamilySelections(families) : [];
+  const familySelections = families?.length ? { modelFamilies: terminalSelections } : {};
   return {
     ...(catalog ? catalogBaseProjection : projection),
     ...(catalog ?? {}),
     ...familySelections,
     ...(devinNegotiatedGuiSelectionCapabilities(
       devinDefaultCapabilities,
-      projection,
+      // The GUI keeps the FULL negotiated policy ladder — `ask` included:
+      // ACP modes map it for real where the CLI argv has no counterpart.
+      { ...projection, approvalPolicies: mergeDevinApprovalPolicies(probe?.approvalPolicies) },
       families ?? [],
+      terminalSelections,
     ) ?? {}),
   };
 }

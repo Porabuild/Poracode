@@ -1,23 +1,24 @@
+import { SlidersHorizontal } from "lucide-react";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import { resolveModelSelectionEdit } from "@/renderer/components/thread/buildModelPickerControls";
-import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import type { ComposerControlsInput } from "./providerComposer";
 import { msg as sharedMessage } from "@/shared/messages";
+import { projectModelFamilies, modelFamilySelectorOptions } from "@/shared/modelFamilySelection";
 import {
-  modelFamilyDisplayConfig,
-  modelFamilyEfforts,
-  projectModelFamilies,
-  modelFamilySelectorOptions,
-} from "@/shared/modelFamilySelection";
-import { familyMenuColumn, type ModelFamilyControlPresentation } from "./modelFamilyControlOptions";
+  familySelectorMenuOptions,
+  type ModelFamilyControlPresentation,
+} from "./modelFamilyControlOptions";
 
 /**
- * One paired control, opted into by the provider leaf, only while an accepted
- * family member is selected. Descriptor order owns the column order. Native
- * option parsing is supplied by the leaf; shared code never parses vendor IDs.
+ * One selector control per family selector, opted into by the provider leaf,
+ * only while an accepted family member is selected. Descriptor order owns the
+ * control order. Native option parsing is supplied by the leaf; shared code
+ * never parses vendor IDs. The ordinary Reasoning/context control stays with
+ * the common picker controls — these menus only edit selector coordinates.
  */
 export function modelFamilySelectorControls(
   input: ComposerControlsInput,
+  agentKind: string,
   presentation: ModelFamilyControlPresentation = {},
 ): ComposerControl[] {
   const { capabilities, config } = input;
@@ -30,8 +31,6 @@ export function modelFamilySelectorControls(
   if (!family) return [];
   const member = family.members.find((candidate) => candidate.model === config.model);
   if (!member) return [];
-  const display = modelFamilyDisplayConfig(capabilities, config);
-  const shownEffort = display?.effort ?? config.effort;
   const edit = (change: Parameters<typeof resolveModelSelectionEdit>[2]) => {
     if (input.isDisabled) return;
     const patch = resolveModelSelectionEdit(capabilities, config, change);
@@ -40,35 +39,23 @@ export function modelFamilySelectorControls(
     // touch; an empty retain-no-op is not discarded before event reduction.
     if (patch) input.onConfigChange(patch, { kind: "family-resolved" });
   };
-  return [
-    {
-      kind: "effort-context",
-      efforts: modelFamilyEfforts(capabilities, config).map((id) => ({
-        id,
-        label: formatEffortLabel(id),
-      })),
-      ...(shownEffort !== undefined ? { effortValue: shownEffort } : {}),
-      onEffortChange: (value) => edit({ kind: "effort", value }),
-      contextSizes: [],
-      familySelection: {
-        columns: family.selectors.map((selector) =>
-          familyMenuColumn({
-            id: selector.id,
-            label: presentation.selectorLabel?.(selector.id) ?? sharedMessage(selector.labelKey),
-            options: modelFamilySelectorOptions(capabilities, config, selector.id),
-            value: member.selections[selector.id] ?? "",
-            ...(presentation.option ? { decode: presentation.option } : {}),
-            onChange: (value) => edit({ kind: "selector", selectorId: selector.id, value }),
-          }),
-        ),
-        effortScope:
-          family.bindings.effort === "model"
-            ? "primary"
-            : (presentation.configEffortScope ?? "primary"),
-      },
-      isDisabled: input.isDisabled,
-      hideLabelOnWrap: true,
-      tier: 4,
-    },
-  ];
+  return family.selectors.map((selector) => ({
+    kind: "family-selector",
+    agentKind,
+    id: selector.id,
+    label: presentation.selectorLabel?.(selector.id) ?? sharedMessage(selector.labelKey),
+    icon: presentation.selectorIcon?.(selector.id) ?? (
+      <SlidersHorizontal className="size-4 shrink-0" />
+    ),
+    options: familySelectorMenuOptions({
+      selectorId: selector.id,
+      options: modelFamilySelectorOptions(capabilities, config, selector.id),
+      ...(presentation.option ? { decode: presentation.option } : {}),
+    }),
+    value: member.selections[selector.id] ?? "",
+    onChange: (value) => edit({ kind: "selector", selectorId: selector.id, value }),
+    isDisabled: input.isDisabled,
+    hideLabelOnWrap: true,
+    tier: 4,
+  }));
 }

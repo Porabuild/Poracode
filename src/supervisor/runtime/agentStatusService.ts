@@ -140,7 +140,9 @@ const execFileAsync = promisify(execFile);
 // v56 discards model catalogs that included disconnected configured providers.
 // v57 refreshes installer commands that explicitly finish and verify package setup.
 // v58 re-probes catalog-native reasoning choices and current MSP model metadata.
-export const STATUS_CACHE_VERSION = 58;
+// v59 derives accepted-model Fast availability (including composite pairs)
+// and orders permissions least to most permissive, preserving v58 catalogs.
+export const STATUS_CACHE_VERSION = 59;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

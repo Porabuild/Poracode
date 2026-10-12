@@ -320,8 +320,8 @@ msgstr "{0}はv{1}への更新待ち"
 
 #. placeholder {0}: column.label
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "{0} reasoning"
-msgstr "{0}の推論"
+#~ msgid "{0} reasoning"
+#~ msgstr "{0}の推論"
 
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
@@ -1625,8 +1625,8 @@ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot lis
 msgstr "このプロファイルの設定ビュー（devin.org_id）に適用されます。Poracode はログインが属する組織を一覧できません。Devin が起動時に ID を検証し、未認可の組織は目に見える形で失敗します。"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "Applies to both models"
-msgstr "両方のモデルに適用"
+#~ msgid "Applies to both models"
+#~ msgstr "両方のモデルに適用"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -8090,7 +8090,7 @@ msgstr "マシン"
 msgid "macOS"
 msgstr "macOS"
 
-#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+#: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "主モデル"
 
@@ -8666,8 +8666,8 @@ msgstr "モデルラベル"
 #~ msgstr "モデルオーダー"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
-msgid "Model pairing"
-msgstr "モデルの組み合わせ"
+#~ msgid "Model pairing"
+#~ msgstr "モデルの組み合わせ"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -8687,7 +8687,7 @@ msgstr "モデルの使用状況"
 #~ msgstr "モデル: {0}"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
@@ -9498,7 +9498,6 @@ msgstr "マイクが見つかりません。"
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} で利用できるモデルがありません。設定でエージェントを確認してください。"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -11678,7 +11677,6 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "準備完了。オンにすると、新しいペアリングコードで Tailscale HTTPS URL が通知されます。"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
-#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "推論"
 
@@ -13091,8 +13089,7 @@ msgstr "MCPサーバーを検索..."
 msgid "Search models"
 msgstr "モデルを検索する"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "モデルを検索..."

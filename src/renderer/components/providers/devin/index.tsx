@@ -55,7 +55,7 @@ registerConfigNormalizer(PROVIDER_KIND, ({ config, presentationMode }) =>
 // model is one of its members.
 registerComposerControls(PROVIDER_KIND, (input) => [
   ...standardPlanApprovalControls(input),
-  ...modelFamilySelectorControls(input, devinModelFamilyPresentation),
+  ...modelFamilySelectorControls(input, PROVIDER_KIND, devinModelFamilyPresentation),
 ]);
 
 // Useful extra GUI actions (command revision and rules) use the shared add menu.

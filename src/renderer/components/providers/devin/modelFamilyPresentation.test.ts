@@ -23,6 +23,10 @@ describe("Devin family presentation", () => {
   );
 });
 
-it("declares the negotiated effort carrier as the main-model setting", () => {
-  expect(devinModelFamilyPresentation.configEffortScope).toBe("primary");
+it("names the lead selector Main and gives each selector its own icon", () => {
+  expect(devinModelFamilyPresentation.selectorLabel?.("lead")).toBe("Main");
+  expect(devinModelFamilyPresentation.selectorLabel?.("sidekick")).toBeUndefined();
+  expect(devinModelFamilyPresentation.selectorIcon?.("lead")).toBeTruthy();
+  expect(devinModelFamilyPresentation.selectorIcon?.("sidekick")).toBeTruthy();
+  expect(devinModelFamilyPresentation.selectorIcon?.("other")).toBeUndefined();
 });

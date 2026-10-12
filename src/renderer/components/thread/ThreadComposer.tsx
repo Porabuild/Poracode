@@ -6,11 +6,11 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
 import type { ButtonProps } from "@/renderer/components/common/Button";
 import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
-import { ModelFamilyMenu } from "@/renderer/components/common/ProviderModelMenu/ModelFamilyMenu";
 import {
-  modelFamilyMenuSummary,
-  type ModelFamilyMenuSelection,
-} from "@/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.types";
+  ModelFamilySelectorMenu,
+  modelFamilySelectorDisplay,
+  type ModelFamilySelectorOption,
+} from "@/renderer/components/common/ProviderModelMenu/ModelFamilySelectorMenu";
 import { OptionMenu } from "@/renderer/components/common/OptionMenu";
 import { ResponsiveMenuSurface } from "@/renderer/components/common/ResponsiveMenuSurface";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
@@ -101,8 +101,6 @@ export type ComposerControl =
     }
   | {
       kind: "effort-context";
-      /** Provider-opted-in paired selection; shares the effort shortcut contract. */
-      familySelection?: ModelFamilyMenuSelection;
       efforts: readonly LabeledOption[];
       effortValue?: string;
       onEffortChange?: (value: string) => void;
@@ -120,11 +118,30 @@ export type ComposerControl =
       hideLabelOnWrap?: boolean;
       openSignal?: number;
       tier?: number | undefined;
+    }
+  | {
+      kind: "family-selector";
+      agentKind: string;
+      /** Selector identity inside the owning family relation. */
+      id: string;
+      /** Localized selector name shown under the current option display. */
+      label: string;
+      icon: ReactNode;
+      options: readonly ModelFamilySelectorOption[];
+      value: string;
+      onChange: (value: string) => void;
+      isDisabled?: boolean;
+      hideLabelOnWrap?: boolean;
+      tier?: number | undefined;
     };
 
 export function resolveComposerControlIcon(control: ComposerControl): ReactNode | undefined {
   if (control.kind === "static") return control.icon;
-  if (control.kind === "provider-model" || control.kind === "effort-context") {
+  if (
+    control.kind === "provider-model" ||
+    control.kind === "effort-context" ||
+    control.kind === "family-selector"
+  ) {
     return undefined;
   }
   if (control.icon) return control.icon;
@@ -211,8 +228,11 @@ function resolveControlProbeLabel(control: ComposerControl, thinkingLabel: strin
     );
   }
 
+  if (control.kind === "family-selector") {
+    return modelFamilySelectorDisplay(control.options, control.value);
+  }
+
   if (control.kind === "effort-context") {
-    if (control.familySelection) return modelFamilyMenuSummary(control.familySelection);
     const effortLabel =
       control.efforts.find((option) => option.id === control.effortValue)?.label ??
       control.effortValue ??
@@ -235,7 +255,12 @@ function resolveControlProbeLabel(control: ComposerControl, thinkingLabel: strin
 }
 
 function hasProbeIcon(control: ComposerControl): boolean {
-  if (control.kind === "provider-model" || control.kind === "effort-context") return true;
+  if (
+    control.kind === "provider-model" ||
+    control.kind === "effort-context" ||
+    control.kind === "family-selector"
+  )
+    return true;
   if (control.kind === "static") return Boolean(control.icon);
   return Boolean(control.icon || control.iconKind);
 }
@@ -302,18 +327,19 @@ export function ThreadComposer(props: {
   } = props;
   const { t } = useLingui();
   // Use the same physical order for the toolbar and its geometry probes.
-  // Keep the effort carrier intact for open/cycle and Fast shortcuts.
-  const pairedControl = allControls.find(
-    (control) => control.kind === "effort-context" && control.familySelection,
+  // Family selector controls ride immediately after the model control whose
+  // pair they edit, preserving their declared order.
+  const familySelectors: ComposerControl[] = allControls.filter(
+    (control) => control.kind === "family-selector",
   );
   const modelControl = allControls.find((control) => control.kind === "provider-model");
   const controls =
-    pairedControl && modelControl
+    familySelectors.length > 0 && modelControl
       ? allControls.flatMap((control) =>
-          control === pairedControl
+          control.kind === "family-selector"
             ? []
             : control === modelControl
-              ? [control, pairedControl]
+              ? [control, ...familySelectors]
               : [control],
         )
       : allControls;
@@ -344,7 +370,10 @@ export function ThreadComposer(props: {
         return `provider-model:${control.currentAgentKind}:${control.currentModel}:${control.presentationMode ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}:${providersKey}`;
       }
       if (control.kind === "effort-context") {
-        return `effort-context:${control.familySelection ? modelFamilyMenuSummary(control.familySelection) : ""}:${control.effortValue ?? ""}:${control.contextValue ?? ""}:${control.thinkingValue ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;
+        return `effort-context:${control.effortValue ?? ""}:${control.contextValue ?? ""}:${control.thinkingValue ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;
+      }
+      if (control.kind === "family-selector") {
+        return `family-selector:${control.id}:${control.value}:${modelFamilySelectorDisplay(control.options, control.value)}:${control.hideLabelOnWrap ? "hide" : "show"}`;
       }
       if (control.kind === "toggle") {
         return `toggle:${control.label}:${control.iconOnly ? "icon" : "label"}:${control.hideLabelOnWrap ? "hide" : "show"}`;
@@ -514,22 +543,32 @@ export function ThreadComposer(props: {
       );
     }
 
+    if (control.kind === "family-selector") {
+      return (
+        <ModelFamilySelectorMenu
+          key={`family-selector-${control.id}`}
+          agentKind={control.agentKind}
+          label={control.label}
+          icon={control.icon}
+          options={control.options}
+          value={control.value}
+          onChange={control.onChange}
+          {...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {})}
+          {...(hideOnWrap || shouldHideLabel
+            ? {
+                hideLabelOnWrap: true,
+                forceHideLabel: shouldHideLabel,
+                ...(collapseTier !== undefined ? { collapseTier } : {}),
+              }
+            : {})}
+          onOpenChange={(open) => {
+            if (!open) returnFocusToInput();
+          }}
+        />
+      );
+    }
+
     if (control.kind === "effort-context") {
-      if (control.familySelection) {
-        return (
-          <ModelFamilyMenu
-            key={`effort-context-${index}`}
-            {...control}
-            familySelection={control.familySelection}
-            hideLabelOnWrap={hideOnWrap || shouldHideLabel}
-            forceHideLabel={shouldHideLabel}
-            {...(collapseTier !== undefined ? { collapseTier } : {})}
-            onOpenChange={(open) => {
-              if (!open) returnFocusToInput();
-            }}
-          />
-        );
-      }
       return (
         <EffortContextMenu
           key={`effort-context-${index}`}
@@ -709,6 +748,7 @@ export function ThreadComposer(props: {
     const iconOnly =
       control.kind !== "provider-model" &&
       control.kind !== "effort-context" &&
+      control.kind !== "family-selector" &&
       control.iconOnly === true;
     const isStatic = control.kind === "static";
     const isToggle = control.kind === "toggle";
@@ -725,7 +765,18 @@ export function ThreadComposer(props: {
       <div key={`probe-control-${index}`} className={probeClassName}>
         {hasProbeIcon(control) ? <span className="size-4 shrink-0" /> : null}
         {!iconOnly && !hideLabel ? (
-          <span className="truncate whitespace-nowrap">{label}</span>
+          control.kind === "family-selector" ? (
+            // The real trigger is two stacked lines; measure both so a short
+            // display under a longer selector label never clips the toolbar.
+            <span className="flex min-w-0 flex-col items-start justify-center gap-0.5">
+              <span className="max-w-full truncate leading-tight">{label}</span>
+              <span className="max-w-full truncate text-[10px] font-medium leading-tight text-muted/70">
+                {control.label}
+              </span>
+            </span>
+          ) : (
+            <span className="truncate whitespace-nowrap">{label}</span>
+          )
         ) : null}
         {!isStatic && !isToggle && !iconOnly && !hideLabel ? (
           <span className="size-3.5 shrink-0" />

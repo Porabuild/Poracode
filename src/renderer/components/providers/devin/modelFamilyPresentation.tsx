@@ -1,4 +1,5 @@
 import { msg } from "@lingui/core/macro";
+import { Bot, BrainCircuit } from "lucide-react";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { ModelFamilyControlPresentation } from "../modelFamilyControlOptions";
 
@@ -10,10 +11,12 @@ import type { ModelFamilyControlPresentation } from "../modelFamilyControlOption
 export const devinModelFamilyPresentation: ModelFamilyControlPresentation = {
   accepts: (family) => family.label === "Fusion",
   selectorLabel: (id) => (id === "lead" ? i18n._(msg`Main`) : undefined),
-  // The family compiler names the encoded axis lead effort. ACP exposes the
-  // same main-model control via its live thought_level ladder; a representative
-  // label's embedded effort is not the session's current level.
-  configEffortScope: "primary",
+  selectorIcon: (id) =>
+    id === "lead" ? (
+      <BrainCircuit className="size-4 shrink-0" />
+    ) : id === "sidekick" ? (
+      <Bot className="size-4 shrink-0" />
+    ) : undefined,
   option: (_selectorId, option) => {
     const match = /^(.*?) (Low|Medium|High|Extra High|Max|Ultra)(?: Thinking)?$/i.exec(
       option.label,

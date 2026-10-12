@@ -13,6 +13,7 @@ import { capabilitiesForSessionConfig } from "@/shared/sessionConfigCapabilities
 import type { AgentCapability, ModelFamilySelection } from "@/shared/contracts";
 import catalogFixture from "./fixtures/contracts/model-catalog-families.json";
 import guiAcceptedFixture from "./fixtures/contracts/gui-accepted-models.json";
+import guiSpeedFixture from "./fixtures/contracts/gui-speed-select.json";
 import { composeDevinDetectedCapabilities, devinDefaultCapabilities } from "./detection";
 import { withDevinPresentationCapabilities } from "./presentationCapabilities";
 import {
@@ -693,6 +694,80 @@ describe("detection composition attaches per-surface relations", () => {
     const bare = withDevinPresentationCapabilities(devinDefaultCapabilities);
     expect(bare.modelFamilies).toBeUndefined();
     expect(bare.presentationCapabilities?.gui?.modelFamilies).toEqual([]);
+  });
+
+  it("declares GUI Fast on the accepted ids the live speed select proves — 122/122 capture agreement", () => {
+    // fixtures/contracts/gui-speed-select.json: the live `devin acp`
+    // 3000.11.3 accepted-menu sweep recording, per accepted id, whether the
+    // session exposed the independent `speed` select.
+    const gui = composed.presentationCapabilities!.gui!;
+    const fast = new Set(gui.fastModels);
+    const speed = new Set<string>(guiSpeedFixture.speedSelectModels);
+    const captured = new Set<string>([
+      ...guiSpeedFixture.speedSelectModels,
+      ...guiSpeedFixture.noSpeedSelectModels,
+    ]);
+    // `inkling-medium` joined the accepted fixture after the capture and is
+    // the one accepted id the sweep never saw.
+    const swept = acceptedModels.filter((model) => captured.has(model.id));
+    expect(Object.fromEntries(swept.map((model) => [model.id, fast.has(model.id)]))).toEqual(
+      Object.fromEntries(swept.map((model) => [model.id, speed.has(model.id)])),
+    );
+  });
+
+  it("marks Fast by accepted id — Fusion tuples with a Fast sibling, variant spellings — never beyond the menu", () => {
+    const gui = composed.presentationCapabilities!.gui!;
+    const fast = new Set(gui.fastModels);
+    // A Fusion pair whose (lead, sidekick) tuple has no Fast catalog member
+    // keeps no toggle — the live session exposes no `speed` select for it.
+    expect(fast.has("fusion-claude-fable-5-1-medium-sidekick-swe-2-medium")).toBe(false);
+    // Its Fast-sibling tuple does.
+    expect(fast.has("fusion-claude-fable-5-1-medium-sidekick-gpt-5-6-luna-high")).toBe(true);
+    // An accepted variant that is NOT its family id still gets the toggle
+    // (family id `gpt-5-6-sol-none`; the family carries Fast variants).
+    expect(fast.has("gpt-5-6-sol-medium")).toBe(true);
+    // A family without any Fast variant stays without the control.
+    expect(fast.has("swe-2-high")).toBe(false);
+    // Fast availability never leaves the accepted menu.
+    const accepted = new Set(acceptedModels.map((model) => model.id));
+    for (const id of gui.fastModels ?? []) expect(accepted.has(id)).toBe(true);
+  });
+
+  it("orders negotiated permissions least → most permissive per surface and keeps Ask off the Terminal", () => {
+    // Probe-advertised ids arrive unordered with native labels; unknown ids
+    // rank just ahead of Bypass (which always stays last).
+    const policies = composeDevinDetectedCapabilities(
+      {
+        models: acceptedModels,
+        approvalPolicies: [
+          { id: "bypass", label: "Bypass Permissions" },
+          { id: "experimental", label: "Experimental" },
+          { id: "smart", label: "Smart" },
+          { id: "normal", label: "Normal" },
+          { id: "accept-edits", label: "Code" },
+          { id: "ask", label: "Ask" },
+        ],
+      },
+      families,
+    );
+    // The Terminal offers only what the CLI `--permission-mode` parser honors:
+    // `ask` and unknown ids are absent — selecting either would silently
+    // launch `smart`.
+    expect(policies.approvalPolicies).toEqual([
+      { id: "normal", label: "Normal" },
+      { id: "accept-edits", label: "Code" },
+      { id: "smart", label: "Smart" },
+      { id: "bypass", label: "Bypass Permissions" },
+    ]);
+    // The GUI keeps the full session ladder — Ask included — with probe labels.
+    expect(policies.presentationCapabilities?.gui?.approvalPolicies).toEqual([
+      { id: "ask", label: "Ask" },
+      { id: "normal", label: "Normal" },
+      { id: "accept-edits", label: "Code" },
+      { id: "smart", label: "Smart" },
+      { id: "experimental", label: "Experimental" },
+      { id: "bypass", label: "Bypass Permissions" },
+    ]);
   });
 
   it("recovers the native Effort/Fast controls when the live inventory arrives after a probe gap", () => {

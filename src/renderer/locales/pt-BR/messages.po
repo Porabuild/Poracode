@@ -320,8 +320,8 @@ msgstr "{0} na fila para atualizar para v{1}"
 
 #. placeholder {0}: column.label
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "{0} reasoning"
-msgstr "Raciocínio de {0}"
+#~ msgid "{0} reasoning"
+#~ msgstr "Raciocínio de {0}"
 
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
@@ -1626,8 +1626,8 @@ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot lis
 msgstr "Aplica-se à visualização de configuração deste perfil (devin.org_id). Poracode não pode listar as organizações às quais um login pertence; a Devin valida o id na inicialização e uma org não autorizada falha visivelmente."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-msgid "Applies to both models"
-msgstr "Aplica-se aos dois modelos"
+#~ msgid "Applies to both models"
+#~ msgstr "Aplica-se aos dois modelos"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -8091,7 +8091,7 @@ msgstr "Máquina"
 msgid "macOS"
 msgstr "macOS"
 
-#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+#: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "Principal"
 
@@ -8668,8 +8668,8 @@ msgstr "Rótulo do modelo"
 #~ msgstr "Ordem do modelo"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
-msgid "Model pairing"
-msgstr "Combinação de modelos"
+#~ msgid "Model pairing"
+#~ msgstr "Combinação de modelos"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -8689,7 +8689,7 @@ msgstr "Uso de modelos"
 #~ msgstr "modelo: {0}"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/WindowedProviderModelList.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
@@ -9500,7 +9500,6 @@ msgstr "Nenhum microfone encontrado."
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Nenhum modelo disponível para {agent}. Verifique o agente nas Configurações."
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
@@ -11680,7 +11679,6 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "Pronto. Ative para anunciar a URL HTTPS do Tailscale em novos códigos de pareamento."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
-#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "Raciocínio"
 
@@ -13093,8 +13091,7 @@ msgstr "Pesquisar servidores MCP..."
 msgid "Search models"
 msgstr "Pesquisar modelos"
 
-#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
-#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "Pesquisar modelos..."

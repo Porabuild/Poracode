@@ -1276,7 +1276,7 @@ it("emits a family intent for the projected family row and an exact intent for a
   expect(familyOption).toBeDefined();
   fireEvent.click(familyOption!);
   await waitFor(() => expect(screen.queryByRole("combobox")).not.toBeInTheDocument());
-  expect(screen.queryByRole("button", { name: "Model pairing" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   await waitFor(() => {
     expect(onChange).toHaveBeenCalledWith({
       agentKind: "codex",

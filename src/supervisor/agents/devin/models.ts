@@ -142,6 +142,19 @@ export function parseDevinModelCatalog(raw: string): DevinModelFamily[] {
   }));
 }
 
+/**
+ * Whether the family carries a native Fast choice through a regular variant.
+ * A family whose every variant is a composite pair (Fusion) is NOT Fast this
+ * way: the exact pair encodes the pair's own speed, and the resolver rejects
+ * a separate `fast: true` control on it — the relation-aware projection
+ * (modelFamilySelections.ts) supplies the pair's real Fast availability.
+ */
+export function isDevinFastCapableFamily(family: DevinModelFamily): boolean {
+  return (
+    family.variants.some((v) => v.fast) && !family.variants.every((v) => v.composite !== undefined)
+  );
+}
+
 export function devinModelCapabilities(
   families: DevinModelFamily[],
 ): Pick<
@@ -207,15 +220,11 @@ export function devinModelCapabilities(
     modelDefaultEfforts: Object.fromEntries(
       families.filter((f) => f.variants[0]!.effort).map((f) => [f.id, f.variants[0]!.effort]),
     ),
-    // A family whose every variant is a composite pair (Fusion) is NOT a Fast
-    // model: the exact pair encodes the pair's own speed, and the resolver
-    // rejects a separate `fast: true` control on it — declaring the family
-    // here promised what resolution refuses. The relation-aware projection
-    // (modelFamilySelections.ts) supplies the pair's real Fast availability.
-    // Families with regular Fast variants keep their declaration.
-    fastModels: families
-      .filter((f) => f.variants.some((v) => v.fast) && !f.variants.every((v) => v.composite))
-      .map((f) => f.id),
+    // Only families with a regular Fast variant declare Fast here: declaring
+    // an all-composite family promised what resolution refuses. The
+    // relation-aware projection (modelFamilySelections.ts) supplies each
+    // pair's real Fast availability instead.
+    fastModels: families.filter(isDevinFastCapableFamily).map((f) => f.id),
     thinkingModels: families.filter((f) => f.variants.some((v) => v.thinking)).map((f) => f.id),
     contextSizes: [
       { id: "default", label: "Default" },
