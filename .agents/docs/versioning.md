@@ -79,7 +79,9 @@ Context reload and subagent-stop consequences are additive optional provider
 capabilities, consumed by desktop/PWA and native composers. Prior capability
 payloads remain accepted; older clients ignore the new facts. The optional fields
 are included in regenerated remote schemas/native bindings under the current
-protocol and binding format versions. Existing confirmation preferences remain
+protocol and binding format versions. The native E2E operation map's manifest
+hash is regenerated against that inventory; its 277 operation keys are unchanged.
+Existing confirmation preferences remain
 compatible. Reload drains the predecessor query and confirms owned process-group
 termination before launching its replacement.
 
