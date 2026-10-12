@@ -7,12 +7,13 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import { OverlayHeader } from "@/renderer/components/layout/OverlayHeader";
+import { WelcomeBackdrop } from "@/renderer/components/common/WelcomeBackdrop";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import type { AgentStatus } from "@/shared/contracts";
-import { AgentDiscoveryOrbit } from "./AgentDiscoveryOrbit";
+import { AgentDiscoveryRadar } from "./AgentDiscoveryRadar";
 import "./agentDiscovery.css";
 
 function renderStatusLine(
@@ -108,97 +109,91 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
     >
       <OverlayShell open instantEnter onExited={props.onHide}>
         <OverlayHeader title={t`Discovering coding agents…`} />
-        <div className="agent-discovery-screen relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 py-8 text-center">
-          <div className="agent-discovery-screen__content relative m-auto flex w-full max-w-lg flex-col items-center">
-            <AgentDiscoveryOrbit foundCount={found.length} />
-            <h1 id={headingId} className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">
-              <Trans>Discovering coding agents…</Trans>
-            </h1>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
-              {wslDistro
-                ? t`Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
-                : scanLabels.length > 1
-                  ? t`Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds.`
-                  : t`Scanning your system for installed CLIs. This usually takes a couple of seconds.`}
-            </p>
-            {scanLabels.length > 0 ? (
-              <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs text-muted">
-                {scanLabels.map((label) => (
-                  <span key={label}>{label}</span>
-                ))}
-              </div>
-            ) : null}
-            {found.length > 0 ? (
-              <ul className="mt-8 flex w-full max-w-sm flex-col gap-2.5 text-left">
-                {found.map((status) => {
-                  const badge = foundBadge(status);
-                  const label = labels.get(status.kind);
-                  const name = label ? t(label) : status.label;
-                  const envCaption =
-                    status.envKind === "wsl" && status.envDistro
-                      ? localEnvLabel({ kind: "wsl", distro: status.envDistro })
-                      : undefined;
-                  return (
-                    <li
-                      key={`${status.kind}\u0000${status.envKind ?? ""}\u0000${status.envDistro ?? ""}`}
-                      className="agent-discovery-tile"
-                    >
-                      <div className="agent-discovery-tile__icon">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <WelcomeBackdrop className="min-h-full">
+            {/* `my-auto` centers the column while it fits and keeps the top
+                reachable once the found list overflows the window. */}
+            <div className="my-auto flex w-full max-w-md flex-col items-center text-center">
+              <AgentDiscoveryRadar foundCount={found.length} />
+              <h1 id={headingId} className="mt-6 text-2xl font-semibold tracking-tight">
+                <Trans>Discovering coding agents…</Trans>
+              </h1>
+              <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
+                {wslDistro
+                  ? t`Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
+                  : scanLabels.length > 1
+                    ? t`Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds.`
+                    : t`Scanning your system for installed CLIs. This usually takes a couple of seconds.`}
+              </p>
+              {scanLabels.length > 0 ? (
+                <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs text-muted">
+                  {scanLabels.map((label) => (
+                    <span key={label}>{label}</span>
+                  ))}
+                </div>
+              ) : null}
+              {found.length > 0 ? (
+                <ul className="mt-8 flex w-full max-w-sm flex-col gap-2 text-left">
+                  {found.map((status) => {
+                    const badge = foundBadge(status);
+                    const label = labels.get(status.kind);
+                    const name = label ? t(label) : status.label;
+                    const envCaption =
+                      status.envKind === "wsl" && status.envDistro
+                        ? localEnvLabel({ kind: "wsl", distro: status.envDistro })
+                        : undefined;
+                    return (
+                      <li
+                        key={`${status.kind}\u0000${status.envKind ?? ""}\u0000${status.envDistro ?? ""}`}
+                        className="agent-discovery-row"
+                      >
                         <ProviderIcon
                           kind={status.kind}
                           tone="active"
-                          className="size-6"
+                          className="size-6 shrink-0"
                           {...(status.icon ? { icon: status.icon } : {})}
                           fallbackLabel={name}
                         />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{name}</div>
-                        {envCaption ? (
-                          <div className="mt-0.5 truncate text-[0.6875rem] text-muted">
-                            {envCaption}
-                          </div>
-                        ) : null}
-                      </div>
-                      <span
-                        className={`agent-discovery-tile__status text-xs font-medium ${badge.toneClass}`}
-                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium leading-tight">
+                            {name}
+                          </span>
+                          {envCaption ? (
+                            <span className="mt-0.5 block truncate text-xs text-muted">
+                              {envCaption}
+                            </span>
+                          ) : null}
+                        </span>
                         <span
-                          aria-hidden="true"
-                          className="size-1.5 shrink-0 rounded-full bg-current"
-                        />
-                        {t(badge.label)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-            <div className="mt-6 flex items-center gap-2 text-xs text-muted" aria-live="polite">
-              <span className="agent-discovery-screen__activity" aria-hidden="true" />
-              {renderStatusLine(discovered.length, found.length, wslDistro)}
+                          className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="size-1.5 shrink-0 rounded-full bg-current"
+                          />
+                          {t(badge.label)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+              <div className="mt-6 flex items-center gap-2 text-xs text-muted" aria-live="polite">
+                <span className="agent-discovery-screen__activity" aria-hidden="true" />
+                {renderStatusLine(discovered.length, found.length, wslDistro)}
+              </div>
+              <div className="mt-6 flex items-center gap-2">
+                <Button size="sm" variant="secondary" onPress={props.onHide}>
+                  <EyeOff className="size-3.5" />
+                  <Trans>Hide</Trans>
+                </Button>
+                <Button size="sm" variant="tertiary" onPress={props.onCancel}>
+                  <X className="size-3.5" />
+                  <Trans>Cancel</Trans>
+                </Button>
+              </div>
             </div>
-            <div className="mt-7 flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="rounded-full px-4"
-                onPress={props.onHide}
-              >
-                <EyeOff className="size-3.5" />
-                <Trans>Hide</Trans>
-              </Button>
-              <Button
-                size="sm"
-                variant="tertiary"
-                className="rounded-full px-4"
-                onPress={props.onCancel}
-              >
-                <X className="size-3.5" />
-                <Trans>Cancel</Trans>
-              </Button>
-            </div>
-          </div>
+          </WelcomeBackdrop>
         </div>
       </OverlayShell>
     </div>,
