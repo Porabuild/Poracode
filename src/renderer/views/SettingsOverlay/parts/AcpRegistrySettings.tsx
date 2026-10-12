@@ -196,7 +196,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
   const isWindowsPlatform = isWindows();
 
   const requestStatusRefresh = (options?: { reset?: boolean; scope?: RefreshAgentScope }) => {
-    if (options?.reset !== false) {
+    if (options?.reset !== false && !useAgentStatusesStore.getState().inFirstLaunchDiscovery) {
       useAgentStatusesStore.getState().resetDiscoveredAgents();
     }
     return readBridge().refreshAgentStatuses(wslDistros, options?.scope);

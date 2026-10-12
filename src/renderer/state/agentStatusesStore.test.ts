@@ -963,7 +963,15 @@ describe("beginFirstLaunchDiscovery", () => {
 });
 
 describe("pushDiscoveredAgent", () => {
+  it("ignores streamed results after discovery has been cancelled", () => {
+    useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
+    useAgentStatusesStore.getState().resetDiscoveredAgents();
+    useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus());
+    expect(useAgentStatusesStore.getState().discoveredAgents).toEqual([]);
+  });
+
   it("appends a windows agent and dedupes by kind", () => {
+    useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
     useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "claude" }));
     useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "claude" }));
     expect(useAgentStatusesStore.getState().discoveredAgents).toHaveLength(1);

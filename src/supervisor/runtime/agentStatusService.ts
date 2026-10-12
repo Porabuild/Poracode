@@ -34,6 +34,8 @@ import {
 } from "./agentStatusPublication";
 import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 
+import { AgentDiscoveryCancelledError, runAbortableDetection } from "./agentDetectionCancellation";
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -235,12 +237,14 @@ export async function detectWslAgentStatuses(
     agentKind: string,
     distro: string,
   ) => Record<string, boolean | string> | undefined,
+  signal?: AbortSignal,
 ): Promise<AgentStatus[]> {
   const adapterList = [...adapters];
   const statuses = await Promise.all(
     distros.map(async (distro) => {
       return Promise.all(
         adapterList.map(async (adapter) => {
+          signal?.throwIfAborted();
           const settings = agentSettingsFor?.(adapter.kind, distro);
           const ctx: AgentEnvContext = {
             envKind: "wsl",
@@ -264,7 +268,14 @@ export async function detectWslAgentStatuses(
               let timeout: NodeJS.Timeout | undefined;
               const abort = new AbortController();
               const detected = await Promise.race([
-                adapter.detectInstall({ ...ctx, signal: abort.signal }),
+                runAbortableDetection(
+                  () =>
+                    adapter.detectInstall({
+                      ...ctx,
+                      signal: signal ? AbortSignal.any([signal, abort.signal]) : abort.signal,
+                    }),
+                  signal,
+                ),
                 new Promise<never>((_, reject) => {
                   timeout = setTimeout(() => {
                     abort.abort();
@@ -281,6 +292,7 @@ export async function detectWslAgentStatuses(
               });
               status = { ...detected, envKind: "wsl" as const, envDistro: distro };
             } catch (error) {
+              if (signal?.aborted) throw error;
               console.error(
                 `[supervisor] detectInstall(${adapter.kind}, wsl:${distro}) failed`,
                 error,
@@ -336,6 +348,8 @@ const WSL_DISTRO_CACHE_TTL_MS = 30_000;
 
 export class AgentStatusService {
   private readonly publication = new AgentStatusPublication();
+  private readonly fullDetectionJobs = new Map<AgentStatusPublicationTicket, AbortController>();
+  private readonly scopedDetectionJobs = new Set<{ ticket: AgentStatusPublicationTicket }>();
   private pendingDetection: Promise<DetectionResults> | undefined;
   private startupDetectionLaunched = false;
   private startupDetectionWslDistros = new Set<string>();
@@ -424,6 +438,24 @@ export class AgentStatusService {
     this.startupDetectionWslDistros.clear();
   }
 
+  /** Cancel full discovery sweeps without interrupting scoped install/login probes. */
+  cancelAgentDiscovery(): AgentStatusesResponse {
+    const cancelled = this.fullDetectionJobs.size > 0;
+    for (const [ticket, controller] of this.fullDetectionJobs) {
+      this.publication.retire(ticket);
+      controller.abort(new AgentDiscoveryCancelledError());
+    }
+    if (cancelled) {
+      this.startupDetectionLaunched = false;
+      this.startupDetectionWslDistros.clear();
+      // A queued full sweep may have superseded an in-flight install/login
+      // probe. Restore only targets no longer claimed by another request.
+      for (const job of [...this.scopedDetectionJobs].reverse())
+        job.ticket = this.publication.resumeUnclaimed(job.ticket);
+    }
+    return this.readAcceptedStatuses();
+  }
+
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     const wslDistros = [...new Set(payload.wslDistros)];
     // An explicit refresh is the signal that something changed on disk (an
@@ -470,7 +502,7 @@ export class AgentStatusService {
     if (!existing.fromCache) {
       this.startupDetectionLaunched = true;
       for (const distro of wslDistros) this.startupDetectionWslDistros.add(distro);
-      await this.queueFullDetection(wslDistros);
+      await this.queueFullDetection(wslDistros, false);
       return { ...this.readAcceptedStatuses(wslDistros), fromCache: false };
     }
 
@@ -481,37 +513,46 @@ export class AgentStatusService {
       .filter((adapter): adapter is AgentAdapter => adapter !== undefined);
 
     const targetEnvs = this.resolveScopedEnvs(scope.envs, wslDistros);
-    const ticket = this.publication.begin(
-      targetAdapters.flatMap((adapter) => targetEnvs.map((env) => this.statusTarget(adapter, env))),
-    );
-    await this.runDetectionTask(async () => {
-      const settings = this.readSettings();
-      const disabled = new Set(settings.disabledAgents);
-      const results = await Promise.allSettled(
+    const job = {
+      ticket: this.publication.begin(
         targetAdapters.flatMap((adapter) =>
-          targetEnvs.map(async (env) => {
-            const target = this.statusTarget(adapter, env);
-            if (!this.publication.owns(ticket, target)) return;
-            const status = await this.probeScopedStatus(
-              adapter,
-              env,
-              disabled,
-              machineAgentSettingsFor(settings, env, adapter.kind),
-            );
-            this.publishStatus(ticket, adapter, target, status, "agent-status-updated");
-          }),
+          targetEnvs.map((env) => this.statusTarget(adapter, env)),
         ),
-      );
-      const failures = results.filter((result) => result.status === "rejected");
-      if (failures.length)
-        throw new AggregateError(
-          failures.map((result) => result.reason),
-          "Scoped agent detection failed",
+      ),
+    };
+    this.scopedDetectionJobs.add(job);
+    try {
+      await this.runDetectionTask(async () => {
+        const settings = this.readSettings();
+        const disabled = new Set(settings.disabledAgents);
+        const results = await Promise.allSettled(
+          targetAdapters.flatMap((adapter) =>
+            targetEnvs.map(async (env) => {
+              const target = this.statusTarget(adapter, env);
+              if (!this.publication.owns(job.ticket, target)) return;
+              const status = await this.probeScopedStatus(
+                adapter,
+                env,
+                disabled,
+                machineAgentSettingsFor(settings, env, adapter.kind),
+              );
+              this.publishStatus(job.ticket, adapter, target, status, "agent-status-updated");
+            }),
+          ),
         );
-      this.completeDetection(ticket);
-      return this.readAcceptedStatuses();
-    });
-    return { ...this.readAcceptedStatuses(wslDistros), fromCache: false };
+        const failures = results.filter((result) => result.status === "rejected");
+        if (failures.length)
+          throw new AggregateError(
+            failures.map((result) => result.reason),
+            "Scoped agent detection failed",
+          );
+        this.completeDetection(job.ticket);
+        return this.readAcceptedStatuses();
+      });
+      return { ...this.readAcceptedStatuses(wslDistros), fromCache: false };
+    } finally {
+      this.scopedDetectionJobs.delete(job);
+    }
   }
 
   private resolveScopedEnvs(
@@ -540,7 +581,9 @@ export class AgentStatusService {
     env: RefreshAgentScopeEnv,
     disabled: ReadonlySet<string>,
     agentSettings: Record<string, boolean | string> | undefined,
+    signal?: AbortSignal,
   ): Promise<AgentStatus> {
+    signal?.throwIfAborted();
     if (env.kind === "wsl") {
       // Scoped and full requests share a queue. Use the same bounded,
       // abortable WSL probe so a stalled scoped target cannot hold later jobs.
@@ -572,12 +615,16 @@ export class AgentStatusService {
       ...(agentSettings ? { agentSettings } : {}),
     };
     try {
-      const detected = await adapter.detectInstall(ctx);
+      const detected = await runAbortableDetection(
+        () => adapter.detectInstall({ ...ctx, ...(signal ? { signal } : {}) }),
+        signal,
+      );
       return {
         ...detected,
         envKind: nativeEnvKind,
       };
     } catch (error) {
+      if (signal?.aborted) throw error;
       console.error(`[supervisor] detectInstall(${adapter.kind}) failed`, error);
       return {
         kind: adapter.kind,
@@ -729,6 +776,8 @@ export class AgentStatusService {
     }
     const detectionWslDistros = [...this.startupDetectionWslDistros];
     void this.queueFullDetection(detectionWslDistros).catch((error) => {
+      if (!this.fullDetectionJobs.size && String(error).includes("Agent discovery cancelled"))
+        return;
       console.error("[supervisor] background agent detection failed", error);
     });
   }
@@ -741,13 +790,30 @@ export class AgentStatusService {
     };
   }
 
-  private queueFullDetection(wslDistros: readonly string[]): Promise<DetectionResults> {
+  private queueFullDetection(
+    wslDistros: readonly string[],
+    cancellableDiscovery = true,
+  ): Promise<DetectionResults> {
     const adapters = [...this.options.adapters.values()];
     const envs = this.resolveScopedEnvs(undefined, wslDistros);
     const ticket = this.publication.begin(
       adapters.flatMap((adapter) => envs.map((env) => this.statusTarget(adapter, env))),
     );
-    return this.runDetectionTask(() => this.runDetection(wslDistros, adapters, ticket));
+    const job = { ticket };
+    const controller = new AbortController();
+    // A scoped request may need a full baseline, but its install/login owner
+    // retains that job even when the user cancels discovery.
+    if (cancellableDiscovery) this.fullDetectionJobs.set(ticket, controller);
+    else this.scopedDetectionJobs.add(job);
+    return this.runDetectionTask(() =>
+      runAbortableDetection(
+        () => this.runDetection(wslDistros, adapters, job, controller.signal),
+        controller.signal,
+      ),
+    ).finally(() => {
+      this.fullDetectionJobs.delete(ticket);
+      this.scopedDetectionJobs.delete(job);
+    });
   }
 
   private publishStatus(
@@ -793,9 +859,11 @@ export class AgentStatusService {
   private async runDetection(
     wslDistros: readonly string[],
     adapters: readonly AgentAdapter[],
-    ticket: AgentStatusPublicationTicket,
+    job: { ticket: AgentStatusPublicationTicket },
+    signal: AbortSignal,
   ): Promise<DetectionResults> {
-    if (!this.publication.isActive(ticket)) return this.readAcceptedStatuses();
+    signal.throwIfAborted();
+    if (!this.publication.isActive(job.ticket)) return this.readAcceptedStatuses();
     const settings = this.readSettings();
     const disabled = new Set(settings.disabledAgents);
 
@@ -814,28 +882,30 @@ export class AgentStatusService {
       await primeExecutablePathCache([...enabledBinaries, "gh"]);
     }
 
+    signal.throwIfAborted();
     const nativePromise = Promise.allSettled(
       adapters.map(async (adapter) => {
         const env = { kind: "native" } as const;
         const target = this.statusTarget(adapter, env);
-        if (!this.publication.owns(ticket, target)) return;
+        if (!this.publication.owns(job.ticket, target)) return;
         const status = await this.probeScopedStatus(
           adapter,
           env,
           disabled,
           machineAgentSettingsFor(settings, env, adapter.kind),
+          signal,
         );
         // Stream per adapter so the first-launch discovery screen can reveal
         // tiles in real time. The terminal `windows-agent-statuses` event
         // still fires below with the full list.
-        this.publishStatus(ticket, adapter, target, status, "agent-detected");
+        this.publishStatus(job.ticket, adapter, target, status, "agent-detected");
       }),
     ).then((results) => {
       for (const result of results) {
-        if (result.status === "rejected")
+        if (result.status === "rejected" && !signal.aborted)
           console.error("[supervisor] native detection failed", result.reason);
       }
-      this.emitDetectionList(ticket, "native");
+      this.emitDetectionList(job.ticket, "native");
     });
 
     const wslPromise = Promise.allSettled(
@@ -843,30 +913,31 @@ export class AgentStatusService {
         adapters.map(async (adapter) => {
           const env = { kind: "wsl", distro } as const;
           const target = this.statusTarget(adapter, env);
-          if (!this.publication.owns(ticket, target)) return;
+          if (!this.publication.owns(job.ticket, target)) return;
           await detectWslAgentStatuses(
             [adapter],
             [distro],
             disabled,
-            (status) => this.publishStatus(ticket, adapter, target, status, "agent-detected"),
+            (status) => this.publishStatus(job.ticket, adapter, target, status, "agent-detected"),
             (agentKind) => machineAgentSettingsFor(settings, env, agentKind),
+            signal,
           );
         }),
       ),
     )
       .then((results) => {
         for (const result of results) {
-          if (result.status === "rejected")
+          if (result.status === "rejected" && !signal.aborted)
             console.error("[supervisor] WSL detection failed", result.reason);
         }
-        this.emitDetectionList(ticket, "wsl");
+        this.emitDetectionList(job.ticket, "wsl");
       })
       .catch((error) => {
         // Ensure the renderer always gets a terminal event for WSL — otherwise
         // its loading state would hang forever on detection failure. Emit an
         // empty list and surface the error in logs.
         console.error("[supervisor] detectWslAgentStatuses failed", error);
-        this.emitDetectionList(ticket, "wsl");
+        this.emitDetectionList(job.ticket, "wsl");
       });
 
     const [nativeResult] = await Promise.allSettled([nativePromise, wslPromise]);
@@ -875,10 +946,10 @@ export class AgentStatusService {
     // always gets a terminal windows-agent-statuses event.
     if (nativeResult.status === "rejected") {
       console.error("[supervisor] native detection failed", nativeResult.reason);
-      this.emitDetectionList(ticket, "native");
+      this.emitDetectionList(job.ticket, "native");
     }
 
-    this.completeDetection(ticket);
+    this.completeDetection(job.ticket);
     return this.readAcceptedStatuses();
   }
 }

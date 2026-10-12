@@ -93,8 +93,8 @@ msgstr "{0, plural, one {# projekt} few {# projekty} many {# projektów} other {
 
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "{0, plural, one {# provider ready} other {# providers ready}}"
-msgstr "{0, plural, one {# dostawca gotowy} few {# dostawcy gotowi} many {# dostawców gotowych} other {# dostawcy gotowych}}"
+#~ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
+#~ msgstr "{0, plural, one {# dostawca gotowy} few {# dostawcy gotowi} many {# dostawców gotowych} other {# dostawcy gotowych}}"
 
 #. placeholder {0}: props.entry.skills.length
 #. placeholder {0}: props.skills.length
@@ -468,6 +468,10 @@ msgstr "{agentLead} potrzebuje Twojej odpowiedzi, aby kontynuować."
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# komentarz lub recenzja} few {# komentarze i recenzje} many {# komentarzy i recenzji} other {# komentarza i recenzji}}"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+#~ msgid "{count, plural, one {# agent found} other {# agents found}}"
+#~ msgstr "{count, plural, one {# agent znaleziony} few {# agenci znalezieni} many {# agentów znalezionych} other {# agenta znalezionego}}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -495,6 +499,11 @@ msgstr "{envOrAgentLabel} wymaga uwierzytelnienia."
 msgid "{filteredCount} / {totalCount} matches"
 msgstr "{filteredCount} / {totalCount} pasujących"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "{foundCount, plural, one {# agent found} other {# agents found}}"
+msgstr "{foundCount, plural, one {# agent znaleziony} few {# agenci znalezieni} many {# agentów znalezionych} other {# agenta znalezionego}}"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "{head}, or {tail}"
 msgstr "{head} lub {tail}"
@@ -520,8 +529,8 @@ msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}
 msgstr "{imported, plural, one {Zaimportowano # sesję.} few {Zaimportowano # sesje.} many {Zaimportowano # sesji.} other {Zaimportowano # sesji.}}"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
-msgstr "{installedCount, plural, one {# agent gotowy} few {# agenci gotowi} many {# agentów gotowych} other {# agenta gotowego}}"
+#~ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
+#~ msgstr "{installedCount, plural, one {# agent gotowy} few {# agenci gotowi} many {# agentów gotowych} other {# agenta gotowego}}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{judgeLabel} is comparing the anonymized diffs…"
@@ -2452,6 +2461,10 @@ msgstr "Nie można użyć tego wyboru modelu w tym interfejsie"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Cancel"
 msgstr "Anuluj"
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Cancel agent discovery"
+msgstr "Anuluj wykrywanie agentów"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -4890,7 +4903,6 @@ msgstr "Wykryj agentów na tym komputerze"
 #~ msgid "Detect from project files"
 #~ msgstr "Wykryj z plików projektu"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "Wykryto"
@@ -5167,6 +5179,10 @@ msgstr "Rozłączono — wyślij wiadomość, aby połączyć się ponownie"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Odkrywaj"
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Discovering agents…"
+msgstr "Wykrywanie agentów…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
@@ -6435,6 +6451,10 @@ msgstr "Naprzód"
 msgid "Forward a port"
 msgstr "Przekieruj port"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Found"
+msgstr "Znaleziony"
+
 #. placeholder {0}: importableRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
@@ -6809,6 +6829,7 @@ msgstr "Kolor hex"
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
 msgstr "Ukryte wątki, które można wznowić, są czyszczone co 5 minut i rozładowywane po upływie tego okresu bezczynności."
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
@@ -9567,8 +9588,8 @@ msgid "No providers connected yet."
 msgstr "Nie połączono jeszcze żadnych dostawców."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "No providers ready yet"
-msgstr "Nie ma jeszcze gotowych dostawców"
+#~ msgid "No providers ready yet"
+#~ msgstr "Nie ma jeszcze gotowych dostawców"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "No pull requests found."
@@ -9753,8 +9774,8 @@ msgid "Not detected on this machine yet."
 msgstr "Jeszcze nie wykryto na tym komputerze."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Not found"
-msgstr "Nie znaleziono"
+#~ msgid "Not found"
+#~ msgstr "Nie znaleziono"
 
 #: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11333,8 +11354,8 @@ msgid "provider"
 msgstr "dostawca"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Provider"
-msgstr "Dostawca"
+#~ msgid "Provider"
+#~ msgstr "Dostawca"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -13165,8 +13186,8 @@ msgid "Search…"
 msgstr "Szukaj…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Searching..."
-msgstr "Wyszukiwanie..."
+#~ msgid "Searching..."
+#~ msgstr "Wyszukiwanie..."
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
@@ -13518,6 +13539,10 @@ msgstr "Wyświetl potwierdzenie przed trwałym usunięciem wątku."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "Wyświetl bezprojektowy zakres główny dla sesji agenta na poziomie systemu operacyjnego."
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Show agent discovery"
+msgstr "Pokaż wykrywanie agentów"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -14591,7 +14616,6 @@ msgstr "Synchronizacja…"
 msgid "Syncs with Cloud"
 msgstr "Synchronizuje się z Cloud"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -17084,8 +17108,8 @@ msgid "Warming up shell environment…"
 msgstr "Rozgrzewanie środowiska powłoki…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Warming up shell environments..."
-msgstr "Rozgrzewanie środowisk powłoki..."
+#~ msgid "Warming up shell environments..."
+#~ msgstr "Rozgrzewanie środowisk powłoki..."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"

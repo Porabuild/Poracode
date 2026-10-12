@@ -3499,3 +3499,14 @@ separate model-catalog cache: MSP `model/list` may return that saved snapshot
 without fetching again, so a settled `providerCatalog` is not proof of network
 freshness. A normal standalone Muse startup refreshed the observed October 8
 Spark-only cache to the October 12 Wonder catalog during live verification.
+
+### Agent discovery cancellation and background visibility
+
+`cancelAgentDiscovery` is an additive local supervisor procedure. Older peers
+explicitly reject unknown names; no existing procedure payload or transport changes,
+so client-host hop 17 stays and its procedure-map fingerprint is updated. The new
+name is excluded from remote routing. Full scan cancellation retires its publication
+ownership and propagates an AbortSignal to native/WSL probes; scoped install/login
+refreshes retain their lifetimes. Status cache 58, renderer cache 54, database,
+remote/native schemas and deployed helpers retain their formats. Discovery visibility
+is session-only and excluded from the renderer store's persistence projection.

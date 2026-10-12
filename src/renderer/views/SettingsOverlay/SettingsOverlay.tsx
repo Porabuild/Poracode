@@ -1,10 +1,10 @@
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { AgentDiscoveryScreen } from "@/renderer/components/thread/AgentDiscoveryScreen";
+import { refreshAgentDiscovery } from "@/renderer/actions/agentDiscoveryActions";
 import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
 import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { isRemoteSession } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -280,8 +280,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     return () => cancelAnimationFrame(raf);
   }, [scrollTarget]);
 
-  const [isRefreshingAgents, setIsRefreshingAgents] = useState(false);
-  const refreshRunRef = useRef(0);
+  const isRefreshingAgents = useAgentStatusesStore((s) => s.inFirstLaunchDiscovery);
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
   const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
@@ -291,10 +290,8 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       .filter(agentStatusNeedsAuthAttention)
       .map((status) => status.kind),
   );
-  const isAgentsSectionActive = activeSection === "agents" || activeSection.startsWith("agents:");
   const isMachineScopedSection =
     activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
-  const showsAgentDiscovery = isAgentsSectionActive && isRefreshingAgents;
   // Mirrors `AgentsMachineBar`'s own render condition: the floating pill only
   // appears once a second machine exists, and only then does the scroll area
   // need to reserve room so its last rows are not covered by it.
@@ -346,40 +343,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       const firstInstalled = installedAgents[0];
       return firstInstalled ? `agents:${firstInstalled.kind}` : "agents";
     });
-    const refreshRun = refreshRunRef.current + 1;
-    refreshRunRef.current = refreshRun;
-    useAgentStatusesStore.getState().beginFirstLaunchDiscovery({ kind: "all", wslDistros });
-    setIsRefreshingAgents(true);
-    void readBridge()
-      .refreshAgentStatuses(wslDistros)
-      .then((response) => {
-        if (refreshRunRef.current !== refreshRun) {
-          return;
-        }
-        // Apply the RPC result immediately. Supervisor events can be deferred
-        // while the discovery overlay is up, and localStorage still holds the
-        // previous sweep until this write replaces it.
-        useAgentStatusesStore.getState().hydrateFromCache({
-          windows: response.windows,
-          wsl: response.wsl,
-        });
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        setTimeout(() => {
-          if (refreshRunRef.current !== refreshRun) {
-            return;
-          }
-          setIsRefreshingAgents(false);
-          useAgentStatusesStore.getState().resetDiscoveredAgents();
-        }, 1000);
-      });
-  };
-
-  const cancelRefreshAgents = () => {
-    refreshRunRef.current += 1;
-    setIsRefreshingAgents(false);
-    useAgentStatusesStore.getState().resetDiscoveredAgents();
+    refreshAgentDiscovery(wslDistros);
   };
 
   const mobileIndex = (
@@ -410,11 +374,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
         className="m-settings__body relative"
       >
         {section}
-        {showsAgentDiscovery ? (
-          <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
-            <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
-          </div>
-        ) : null}
       </div>
     ) : (
       <div className="relative flex h-full min-h-0 flex-col">
@@ -426,17 +385,11 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
           }`}
         >
           {section}
-          {showsAgentDiscovery ? (
-            <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
-              <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
-            </div>
-          ) : null}
         </div>
         {/* Floats over the scroll area rather than living in the section's
             flow, so it keeps its position and state across agent-section
-            remounts (`key={activeSection}`). Hidden while the discovery
-            overlay covers the page so it does not sit on top of it. */}
-        {isMachineScopedSection && !showsAgentDiscovery ? <AgentsMachineBar /> : null}
+            remounts (`key={activeSection}`). */}
+        {isMachineScopedSection ? <AgentsMachineBar /> : null}
       </div>
     );
 

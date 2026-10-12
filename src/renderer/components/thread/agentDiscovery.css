@@ -1,0 +1,217 @@
+/* Discovery is a full-window OverlayShell surface. Motion stays on transforms
+   and opacity; no frame timers or animated full-window blur are needed. */
+.agent-discovery-screen {
+  background:
+    radial-gradient(
+      ellipse at 50% 25%,
+      color-mix(in oklab, var(--accent) 6%, transparent),
+      transparent 65%
+    ),
+    var(--background);
+}
+.agent-discovery-orbit {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(280px, 100%);
+  height: 174px;
+}
+.agent-discovery-orbit__halo {
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(
+    ellipse,
+    color-mix(in oklab, var(--accent) 15%, transparent),
+    transparent 66%
+  );
+  animation: agent-discovery-breathe 5s ease-in-out infinite alternate;
+}
+.agent-discovery-orbit__wordmark {
+  position: relative;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--background) 85%, transparent);
+}
+.agent-discovery-orbit__plane {
+  position: absolute;
+  width: 224px;
+  height: 224px;
+  border: 1px solid color-mix(in oklab, var(--accent) 20%, transparent);
+  border-radius: 50%;
+}
+.agent-discovery-orbit__plane--one {
+  transform: rotate(-28deg) scaleY(0.52);
+}
+.agent-discovery-orbit__plane--two {
+  transform: rotate(28deg) scaleY(0.52);
+  opacity: 0.65;
+}
+.agent-discovery-orbit__plane--three {
+  width: 176px;
+  height: 176px;
+  transform: scaleY(0.68);
+  opacity: 0.45;
+}
+.agent-discovery-orbit__track {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  animation: agent-discovery-orbit 7s linear infinite;
+}
+.agent-discovery-orbit__track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 270deg,
+    transparent 60%,
+    color-mix(in oklab, var(--accent) 55%, transparent)
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), black calc(100% - 1px));
+}
+.agent-discovery-orbit__track::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px 3px color-mix(in oklab, var(--accent) 35%, transparent);
+}
+.agent-discovery-orbit__plane--two .agent-discovery-orbit__track {
+  animation-duration: 11s;
+  animation-direction: reverse;
+  animation-delay: -4s;
+}
+.agent-discovery-orbit__plane--three .agent-discovery-orbit__track {
+  animation-duration: 9s;
+  animation-delay: -6s;
+}
+.agent-discovery-orbit__arrival {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  border-radius: 50%;
+  animation: agent-discovery-arrival 900ms ease-out both;
+}
+.agent-discovery-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 18px 10px 12px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--surface) 65%, transparent);
+  animation: agent-discovery-enter 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.agent-discovery-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    color-mix(in oklab, var(--accent) 12%, transparent),
+    transparent 70%
+  );
+  animation: agent-discovery-sheen 850ms ease-out both;
+}
+.agent-discovery-tile__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+.agent-discovery-tile__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 46%;
+}
+.agent-discovery-screen__activity {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: agent-discovery-breathe 1.4s ease-in-out infinite alternate;
+}
+.agent-discovery-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--background);
+  box-shadow: 0 4px 24px color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+.agent-discovery-indicator .button {
+  border-radius: 999px;
+}
+@keyframes agent-discovery-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes agent-discovery-breathe {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes agent-discovery-arrival {
+  from {
+    opacity: 0.7;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+@keyframes agent-discovery-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes agent-discovery-sheen {
+  from {
+    transform: translateX(-100%);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-discovery-screen *,
+  .agent-discovery-screen *::before,
+  .agent-discovery-screen *::after {
+    animation: none !important;
+  }
+  .agent-discovery-orbit__arrival {
+    display: none;
+  }
+  .agent-discovery-indicator .agent-discovery-screen__activity {
+    animation: none;
+  }
+}

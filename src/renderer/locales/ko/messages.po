@@ -93,8 +93,8 @@ msgstr "{0, plural, one {#개 프로젝트} other {#개 프로젝트}}"
 
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "{0, plural, one {# provider ready} other {# providers ready}}"
-msgstr "{0, plural, one {# 공급자 준비됨} other {# 공급자 준비됨}}"
+#~ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
+#~ msgstr "{0, plural, one {# 공급자 준비됨} other {# 공급자 준비됨}}"
 
 #. placeholder {0}: props.entry.skills.length
 #. placeholder {0}: props.skills.length
@@ -468,6 +468,10 @@ msgstr "{agentLead}가 계속하려면 입력이 필요합니다."
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {댓글 또는 리뷰 #개} other {댓글 및 리뷰 #개}}"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+#~ msgid "{count, plural, one {# agent found} other {# agents found}}"
+#~ msgstr "{count, plural, one {# 에이전트 발견됨} other {# 에이전트 발견됨}}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -495,6 +499,11 @@ msgstr "{envOrAgentLabel}에는 인증이 필요합니다."
 msgid "{filteredCount} / {totalCount} matches"
 msgstr "{filteredCount}/{totalCount} 일치"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "{foundCount, plural, one {# agent found} other {# agents found}}"
+msgstr "{foundCount, plural, one {# 에이전트 발견됨} other {# 에이전트 발견됨}}"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "{head}, or {tail}"
 msgstr "{head} 또는 {tail}"
@@ -520,8 +529,8 @@ msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}
 msgstr "{imported, plural, one {세션 #개를 가져왔습니다.} other {세션 #개를 가져왔습니다.}}"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
-msgstr "{installedCount, plural, one {# 에이전트 준비됨} other {# 에이전트 준비됨}}"
+#~ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
+#~ msgstr "{installedCount, plural, one {# 에이전트 준비됨} other {# 에이전트 준비됨}}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{judgeLabel} is comparing the anonymized diffs…"
@@ -2452,6 +2461,10 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Cancel"
 msgstr "취소"
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Cancel agent discovery"
+msgstr "에이전트 검색 취소"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -4890,7 +4903,6 @@ msgstr "이 기기에서 에이전트 감지"
 #~ msgid "Detect from project files"
 #~ msgstr "프로젝트 파일에서 감지"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "감지됨"
@@ -5167,6 +5179,10 @@ msgstr "연결이 끊겼습니다 — 메시지를 보내 다시 연결하세요
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "탐색"
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Discovering agents…"
+msgstr "에이전트 검색 중…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
@@ -6435,6 +6451,10 @@ msgstr "앞으로"
 msgid "Forward a port"
 msgstr "포트 전달"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Found"
+msgstr "발견됨"
+
 #. placeholder {0}: importableRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
@@ -6809,6 +6829,7 @@ msgstr "16진수 색상"
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
 msgstr "숨겨진 재개 가능 스레드는 5분마다 청소되고 이 유휴 기간이 지나면 언로드됩니다."
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
@@ -9567,8 +9588,8 @@ msgid "No providers connected yet."
 msgstr "아직 연결된 공급자가 없습니다."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "No providers ready yet"
-msgstr "아직 준비된 공급자가 없습니다."
+#~ msgid "No providers ready yet"
+#~ msgstr "아직 준비된 공급자가 없습니다."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "No pull requests found."
@@ -9753,8 +9774,8 @@ msgid "Not detected on this machine yet."
 msgstr "이 기기에서 아직 감지되지 않았습니다."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Not found"
-msgstr "찾을 수 없음"
+#~ msgid "Not found"
+#~ msgstr "찾을 수 없음"
 
 #: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11333,8 +11354,8 @@ msgid "provider"
 msgstr "공급자"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Provider"
-msgstr "공급자"
+#~ msgid "Provider"
+#~ msgstr "공급자"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -13165,8 +13186,8 @@ msgid "Search…"
 msgstr "검색…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Searching..."
-msgstr "검색 중..."
+#~ msgid "Searching..."
+#~ msgstr "검색 중..."
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
@@ -13518,6 +13539,10 @@ msgstr "스레드를 영구적으로 삭제하기 전에 확인을 표시합니�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "OS 수준 에이전트 세션에 대해 프로젝트 없는 홈 범위를 표시합니다."
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Show agent discovery"
+msgstr "에이전트 검색 표시"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -14591,7 +14616,6 @@ msgstr "동기화 중…"
 msgid "Syncs with Cloud"
 msgstr "Cloud와 동기화"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -17084,8 +17108,8 @@ msgid "Warming up shell environment…"
 msgstr "쉘 환경 준비 중…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Warming up shell environments..."
-msgstr "쉘 환경 준비 중..."
+#~ msgid "Warming up shell environments..."
+#~ msgstr "쉘 환경 준비 중..."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"

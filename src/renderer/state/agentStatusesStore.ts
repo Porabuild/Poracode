@@ -32,6 +32,9 @@ interface AgentStatusesStore {
    * launches where the cache is loaded eagerly.
    */
   inFirstLaunchDiscovery: boolean;
+  /** Session-only visibility; hiding the artwork does not stop detection. */
+  discoveryHidden: boolean;
+  setDiscoveryHidden: (hidden: boolean) => void;
   discoveryScope: AgentDiscoveryScope | undefined;
   /** Statuses streamed from `agent-detected` events during first-launch scan. */
   discoveredAgents: AgentStatus[];
@@ -187,6 +190,8 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       windowsLoaded: false,
       wslLoaded: false,
       inFirstLaunchDiscovery: false,
+      discoveryHidden: false,
+      setDiscoveryHidden: (discoveryHidden) => set({ discoveryHidden }),
       discoveryScope: undefined,
       discoveredAgents: [],
       setAgentStatuses: (incoming) =>
@@ -210,6 +215,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           }
           return {
             inFirstLaunchDiscovery: true,
+            discoveryHidden: false,
             discoveryScope: nextScope,
             discoveredAgents: [],
             ...(nextScope.kind === "wsl" ? { wslLoaded: false } : {}),
@@ -221,11 +227,19 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           !prev.inFirstLaunchDiscovery &&
           prev.discoveryScope === undefined
             ? prev
-            : { discoveredAgents: [], inFirstLaunchDiscovery: false, discoveryScope: undefined },
+            : {
+                discoveredAgents: [],
+                inFirstLaunchDiscovery: false,
+                discoveryScope: undefined,
+                discoveryHidden: false,
+              },
         ),
       pushDiscoveredAgent: (status) =>
         set((prev) => {
-          if (!isStatusInDiscoveryScope(status, prev.discoveryScope)) {
+          if (
+            !prev.inFirstLaunchDiscovery ||
+            !isStatusInDiscoveryScope(status, prev.discoveryScope)
+          ) {
             return prev;
           }
           if (

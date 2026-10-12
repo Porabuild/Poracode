@@ -437,6 +437,10 @@ export class AgentRegistryService {
     return response;
   }
 
+  cancelAgentDiscovery(): AgentStatusesResponse {
+    return this.agentStatusService.cancelAgentDiscovery();
+  }
+
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     this.deps.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();

@@ -141,6 +141,10 @@ export const threadProcedures = {
   >("getAgentStatuses", "supervisor", getAgentStatusesPayloadSchema, (wslDistros) =>
     getAgentStatusesPayloadSchema.parse({ wslDistros: wslDistros ?? [] }),
   ),
+  cancelAgentDiscovery: defineNoArgProcedure<AgentStatusesResponse, "supervisor">(
+    "cancelAgentDiscovery",
+    "supervisor",
+  ),
   refreshAgentStatuses: defineIpcProcedure<
     [string[]?, RefreshAgentScope?],
     GetAgentStatusesPayload,
