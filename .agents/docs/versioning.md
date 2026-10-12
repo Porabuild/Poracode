@@ -3426,3 +3426,18 @@ pre-upgrade catalogs on native and WSL targets. Prior-version cache regressions
 cover both readers. Credential journal format 1, provider configuration, thread
 selections, canonical history and wire/native/helper versions stay compatible;
 this changes only derived discovery results.
+
+### Device-local side-chat ownership (format 1)
+
+`side-chat-ownership.json` in the managed host root or standalone attach device
+profile stores version-1 parent attachments, draft selections, and pending
+disposal records. Missing pre-upgrade files start empty; unknown versions are
+refused without overwrite. Older bootstrap shapes without draft selections remain
+valid. Atomic, serialized writes are awaited before a bound thread can launch.
+Detached conversations restore as attached panels; automatic submission is disabled.
+Parent transcript snapshots are excluded from this ledger and are captured afresh
+for every side-chat message. Disposal ownership survives until the owning host
+confirms deletion, so refusal or restart cannot expose these rows in the sidebar.
+The new ownership acknowledgement and parent-scoped close arguments are desktop
+same-build window IPC; SQLite thread schema, remote/native protocols, runtime
+history and provider/helper versions remain unchanged.

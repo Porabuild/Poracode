@@ -1,3 +1,4 @@
+import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useBottomDockedTabs } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
@@ -55,12 +56,14 @@ export function usePanelVisibility() {
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
-  const sideChatPanelOpen = usePanelStore((s) => s.sideChatPanelOpen);
+  const sideChatOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const bottomDocks = useBottomDockedTabs();
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const threadDocksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
   const currentThreadId = useFocusedThreadId();
+  const sideChatScoped = useSideChatPanelStore((s) => s.entry?.source.id === currentThreadId);
+  const sideChatPanelOpen = sideChatOpen && sideChatScoped;
   const bottomTerminalOpen = useBottomTerminalVisible();
   const informationalDocksPanelOpen = useThreadDocksPanelAvailable();
   const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);

@@ -224,7 +224,14 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   };
   // Capture now, before approval denial or focus waits: the context belongs
   // to the moment the user sent this message.
-  const clientContextCapture = ctx.captureClientContext?.();
+  // Observe a capture rejection immediately, even while focus/approval awaits.
+  const clientContextCapture = (async () => {
+    try {
+      return { context: await ctx.captureClientContext?.() };
+    } catch (error) {
+      return { error };
+    }
+  })();
   let clearedBeforeSendSettled = false;
   ctx.submittedRef.current = true;
   useAppStore.getState().clearThreadDraftContent(thread.id);
@@ -271,7 +278,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   // the strip above the composer is the visual confirmation; the real
   // user_message item lands when the turn drains and starts.
   const runSubmission = async () => {
-    const clientContext = await clientContextCapture;
+    const captured = await clientContextCapture;
+    if ("error" in captured) throw captured.error;
+    const clientContext = captured.context;
     if (!ctx.usesPendingSteerPath) {
       const outgoingSegments = allSegments.length > 0 ? allSegments : undefined;
       await (ctx.onSubmitInput
@@ -309,7 +318,11 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   }
 
   void focusPromise
-    .then(denyPendingApproval)
+    .then(async () => {
+      const captured = await clientContextCapture;
+      if ("error" in captured) throw captured.error;
+      return denyPendingApproval();
+    })
     .then(runSubmission)
     .then(() => {
       if (!ctx.isCurrentSession()) return;

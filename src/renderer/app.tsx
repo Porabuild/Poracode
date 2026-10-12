@@ -1,4 +1,3 @@
-import { unloadStoredThread } from "@/renderer/actions/threadActions";
 import { isChatSidebarSurface } from "./clientSurface";
 import { toast } from "@heroui/react";
 import { msg as linguiMsg } from "@lingui/core/macro";
@@ -48,7 +47,10 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
-import { setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import {
+  applyNativeSideChatOwnership,
+  installSideChatOwnershipReconciliation,
+} from "@/renderer/components/thread/SideChat/sideChatOwnershipActions";
 import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
@@ -102,17 +104,11 @@ const isBrowserExtractWindow = windowKind === "browserExtract";
 const isQuickComposerWindow = windowKind === "quickComposer";
 const isMainWindow = windowKind === "main";
 const unsubscribeSideChatWindows = readBridge().onSideChatWindowsChanged?.((event) => {
-  setAuxiliaryThreadIds(event.threadIds);
-  if (isMainWindow && event.panel !== undefined) applySideChatPanel(event.panel);
-  if (isMainWindow && event.closedThreadId) {
-    const threadId = event.closedThreadId;
-    const view = useAppStore.getState().view;
-    if (view.kind === "thread" && view.panes.includes(threadId)) return;
-    void unloadStoredThread(threadId).catch((error: unknown) =>
-      captureRendererException(error, { featureArea: "side-chat" }),
-    );
-  }
+  applyNativeSideChatOwnership(event, isMainWindow);
 });
+const uninstallSideChatReconciliation = isMainWindow
+  ? installSideChatOwnershipReconciliation()
+  : undefined;
 if (isMainWindow)
   void readBridge()
     .getSideChatWindowInfo?.()
@@ -363,6 +359,7 @@ let productAnalyticsStarted = false;
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     unsubscribeSideChatWindows?.();
+    uninstallSideChatReconciliation?.();
     for (const cleanup of [...runtimeWindowCleanups, ...mainWindowCleanups]) cleanup();
     supervisorReducer.clear();
     localSnapshotRecovery.clearSequenceTracking();

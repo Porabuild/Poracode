@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { createSideChatOwnershipStorage } from "./sideChatOwnershipStorage";
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserWindow } from "electron";
@@ -81,6 +84,71 @@ afterEach(() => {
 });
 
 describe("native side chat ownership", () => {
+  it("retains separate attached conversations per parent and disposes only the closed one", () => {
+    const first = { ...bootstrap, id: "first" };
+    const second = {
+      ...bootstrap,
+      id: "second",
+      source: { ...bootstrap.source, id: "other-parent" },
+    };
+    invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, first);
+    invoke(IPC_WINDOW_CHANNELS.sideChatBindThread, main.sender, {
+      id: "first",
+      threadId: "first-child",
+      prompt: "first question",
+    });
+    invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, second);
+    invoke(IPC_WINDOW_CHANNELS.sideChatBindThread, main.sender, {
+      id: "second",
+      threadId: "second-child",
+      prompt: "second question",
+    });
+    expect(invoke(IPC_WINDOW_CHANNELS.sideChatThreadIds, main.sender)).toEqual([
+      "first-child",
+      "second-child",
+    ]);
+    // A hidden parent's checkpoint must update that parent's conversation.
+    invoke(IPC_WINDOW_CHANNELS.sideChatBindThread, main.sender, {
+      id: "first",
+      prompt: "retained draft",
+    });
+    invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, first);
+    expect(invoke(IPC_WINDOW_CHANNELS.sideChatInfo, main.sender)).toMatchObject({
+      id: "first",
+      existingThreadId: "first-child",
+      prompt: "retained draft",
+    });
+    invoke(IPC_WINDOW_CHANNELS.sideChatPanelClose, main.sender);
+    expect(invoke(IPC_WINDOW_CHANNELS.sideChatThreadIds, main.sender)).toEqual(["second-child"]);
+    invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, second);
+    invoke(IPC_WINDOW_CHANNELS.sideChatPanelClose, main.sender);
+  });
+
+  it("preserves draft selection through native detach, reload info, and attach", () => {
+    const selection = { agentKind: "neutral-gui", config: { model: "selected", effort: "high" } };
+    invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, {
+      ...bootstrap,
+      id: "selected-draft",
+    });
+    invoke(IPC_WINDOW_CHANNELS.sideChatBindThread, main.sender, {
+      id: "selected-draft",
+      prompt: "unsent",
+      selection,
+    });
+    const panel = invoke(IPC_WINDOW_CHANNELS.sideChatInfo, main.sender);
+    invoke(IPC_WINDOW_CHANNELS.sideChatOpen, main.sender, panel);
+    expect(invoke(IPC_WINDOW_CHANNELS.sideChatInfo, child.sender)).toMatchObject({
+      selection,
+      prompt: "unsent",
+      autoStart: false,
+    });
+    invoke(IPC_WINDOW_CHANNELS.sideChatAttach, child.sender, { prompt: "unsent", selection });
+    expect(invoke(IPC_WINDOW_CHANNELS.sideChatInfo, main.sender)).toMatchObject({
+      selection,
+      prompt: "unsent",
+    });
+  });
+
   it("checkpoints an unsent draft without enabling submission on remount", () => {
     invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, {
       ...bootstrap,
@@ -208,9 +276,74 @@ describe("native side chat ownership", () => {
     child.window.emit("closed");
     expect(main.window.webContents.send).toHaveBeenLastCalledWith(
       IPC_EVENT_CHANNELS.sideChatWindowsChanged,
-      { threadIds: [], panel: null, closedThreadId: "child" },
+      {
+        threadIds: [],
+        hiddenThreadIds: [],
+        panel: null,
+        panels: [],
+        detachedIds: [],
+        disposing: [],
+        closedThreadId: "child",
+      },
     );
     expect(getSideChatWindows()).toEqual([]);
     expect(invoke(IPC_WINDOW_CHANNELS.sideChatThreadIds, main.sender)).toEqual([]);
   });
+});
+
+it("replaces detached ownership once and retains the current attachment on restart", async () => {
+  await mkdir(join(process.cwd(), "tmp"), { recursive: true });
+  const dir = await mkdtemp(join(process.cwd(), "tmp/side-chat-native-"));
+  const statePath = join(dir, "ownership.json");
+  const register = (persist: boolean) =>
+    registerSideChatWindowIpc({
+      getMainWindow: () => main.window as unknown as BrowserWindow,
+      createWindow,
+      ...(persist ? { statePath } : {}),
+    });
+  try {
+    register(true);
+    await invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, { ...bootstrap, id: "old" });
+    const oldThread = { ...bootstrap.source, id: "old-child", parentThreadId: "parent" };
+    await invoke(IPC_WINDOW_CHANNELS.sideChatBindThread, main.sender, {
+      id: "old",
+      threadId: oldThread.id,
+      thread: oldThread,
+      prompt: "old",
+    });
+    await invoke(
+      IPC_WINDOW_CHANNELS.sideChatOpen,
+      main.sender,
+      await invoke(IPC_WINDOW_CHANNELS.sideChatInfo, main.sender),
+    );
+    await invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, main.sender, { ...bootstrap, id: "new" });
+    const thread = { ...bootstrap.source, id: "new-child", parentThreadId: "parent" };
+    await invoke(IPC_WINDOW_CHANNELS.sideChatBindThread, main.sender, {
+      id: "new",
+      threadId: thread.id,
+      thread,
+      prompt: "new",
+    });
+    expect(getSideChatWindows()).toHaveLength(0);
+    const saved = await createSideChatOwnershipStorage(statePath).load();
+    expect(saved.entries.map((entry) => entry.bootstrap.id)).toEqual(["new"]);
+    expect(saved.disposing.map((entry) => entry.id)).toEqual(["old-child"]);
+    register(true); // Simulate a new native owner, using only the durable ledger.
+    expect(await invoke(IPC_WINDOW_CHANNELS.sideChatInfo, main.sender)).toMatchObject({
+      id: "new",
+      existingThreadId: "new-child",
+      autoStart: false,
+    });
+    await invoke(IPC_WINDOW_CHANNELS.sideChatPanelClose, main.sender);
+    expect(await invoke(IPC_WINDOW_CHANNELS.sideChatThreadIds, main.sender)).toEqual([]);
+    expect(
+      (await createSideChatOwnershipStorage(statePath).load()).disposing.map((entry) => entry.id),
+    ).toEqual(["old-child", "new-child"]);
+    await invoke(IPC_WINDOW_CHANNELS.sideChatReleased, main.sender, "old-child");
+    await invoke(IPC_WINDOW_CHANNELS.sideChatReleased, main.sender, "new-child");
+    expect((await createSideChatOwnershipStorage(statePath).load()).disposing).toEqual([]);
+  } finally {
+    register(false);
+    await rm(dir, { recursive: true, force: true });
+  }
 });

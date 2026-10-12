@@ -141,7 +141,10 @@ const bridge: ElectronHostBridge = {
   openSideChatWindow: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatOpen, input),
   openSideChatPanel: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatPanelOpen, input),
   attachSideChatWindow: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatAttach, input),
-  closeSideChatPanel: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatPanelClose),
+  closeSideChatPanel: (sourceThreadId) =>
+    ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatPanelClose, sourceThreadId),
+  releaseSideChatThread: (threadId) =>
+    ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatReleased, threadId),
   getSideChatWindowInfo: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatInfo),
   bindSideChatThread: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatBindThread, input),
   getSideChatThreadIds: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.sideChatThreadIds),

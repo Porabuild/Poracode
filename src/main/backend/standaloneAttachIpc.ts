@@ -78,6 +78,7 @@ function attachSenderWindow(
 export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): AutoUpdaterController {
   registerSideChatWindowIpc({
     getMainWindow: deps.getMainWindow,
+    statePath: join(deps.profileNamespace, "side-chat-ownership.json"),
     createWindow: (bootstrap) => {
       if (!deps.createSideChatWindow) throw new Error("Side chat windows are unavailable");
       return deps.createSideChatWindow(bootstrap);

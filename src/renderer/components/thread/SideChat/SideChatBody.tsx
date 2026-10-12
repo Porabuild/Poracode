@@ -1,6 +1,7 @@
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button, toast, Tooltip } from "@heroui/react";
-import { PictureInPicture2, PanelRightOpen, X } from "lucide-react";
+import { PictureInPicture2, PanelRightOpen, Trash2, X } from "lucide-react";
 import {
   AgentPanelTitleRow,
   agentPanelTitleTextClass,
@@ -20,6 +21,7 @@ import {
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
 import { SideChatThreadView } from "./SideChatThreadView";
+import { useSideChatDraftControls } from "./useSideChatDraftControls";
 import { useSideChatSession } from "./useSideChatSession";
 
 export function SideChatBody({
@@ -30,8 +32,26 @@ export function SideChatBody({
   surface?: "panel" | "window";
 }) {
   const { t } = useLingui();
-  const { prompt, setPrompt, threadId, busy, launchError, uncertain, hasProject, start } =
-    useSideChatSession(entry, surface);
+  const {
+    prompt,
+    setPrompt,
+    selection,
+    setSelection,
+    project,
+    threadId,
+    busy,
+    launchError,
+    uncertain,
+    hasProject,
+    start,
+  } = useSideChatSession(entry, surface);
+  const controls = useSideChatDraftControls(
+    entry.source,
+    project,
+    selection,
+    setSelection,
+    busy || uncertain,
+  );
   const transferLabel = surface === "panel" ? t`Detach side chat` : t`Attach side chat`;
   return (
     <div
@@ -44,7 +64,7 @@ export function SideChatBody({
           style={overlayHeaderStyle()}
         >
           {hasMacWindowChrome() ? <span className={macosTrafficLightGutterClass} /> : null}
-          <SideChatModelText entry={entry} {...(threadId ? { threadId } : {})} />
+          <SideChatModelText entry={{ ...entry, selection }} {...(threadId ? { threadId } : {})} />
         </div>
       ) : null}
       <AgentPanelTitleRow
@@ -67,10 +87,11 @@ export function SideChatBody({
                         ? readBridge().openSideChatWindow?.({
                             ...entry,
                             prompt,
+                            selection,
                             autoStart: false,
                             ...(threadId ? { existingThreadId: threadId } : {}),
                           })
-                        : readBridge().attachSideChatWindow?.({ prompt });
+                        : readBridge().attachSideChatWindow?.({ prompt, selection });
                     void action?.catch((error: unknown) => toast.danger(friendlyError(error)));
                   }}
                 >
@@ -83,15 +104,36 @@ export function SideChatBody({
               </Tooltip.Trigger>
               <Tooltip.Content>{transferLabel}</Tooltip.Content>
             </Tooltip>
+            <Tooltip>
+              <Tooltip.Trigger>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  className={`poracode-overlay-header__controls ${panelHeaderIconButtonClass} h-auto w-auto min-h-0 min-w-0`}
+                  aria-label={t`Delete side chat`}
+                  onPress={() => {
+                    if (surface === "window") window.close();
+                    else
+                      void readBridge()
+                        .closeSideChatPanel?.()
+                        .catch((error: unknown) => toast.danger(friendlyError(error)));
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Content>{t`Delete side chat`}</Tooltip.Content>
+            </Tooltip>
             <Button
               isIconOnly
               size="sm"
               variant="ghost"
               className={`poracode-overlay-header__controls ${panelHeaderIconButtonClass} h-auto w-auto min-h-0 min-w-0`}
-              aria-label={t`Close side chat`}
+              aria-label={surface === "panel" ? t`Hide side chat` : t`Close side chat`}
               onPress={() => {
                 if (surface === "window") window.close();
-                else void readBridge().closeSideChatPanel?.();
+                else usePanelStore.setState({ sideChatPanelOpen: false });
               }}
             >
               <X className="size-3.5" />
@@ -100,9 +142,9 @@ export function SideChatBody({
         }
       />
       {threadId ? (
-        <SideChatThreadView threadId={threadId} />
+        <SideChatThreadView threadId={threadId} source={entry.source} />
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col justify-end p-4">
+        <div className="flex min-h-0 flex-1 flex-col justify-end px-3 pb-2">
           {launchError ? (
             <div className="mb-2">
               <p role="alert" className="text-sm text-danger">
@@ -124,7 +166,7 @@ export function SideChatBody({
           ) : null}
           <ThreadComposer
             autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- explicitly opened desktop side composer is the expected focus target
-            variant="draft"
+            variant="active"
             prompt={prompt}
             placeholder={t`Ask a side question`}
             promptDisabled={busy || uncertain}
@@ -152,7 +194,7 @@ export function SideChatBody({
             onSubmit={() => {
               void start(prompt);
             }}
-            controls={[]}
+            controls={controls}
           />
         </div>
       )}

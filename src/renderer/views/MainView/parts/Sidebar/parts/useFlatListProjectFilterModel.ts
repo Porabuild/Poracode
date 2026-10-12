@@ -1,3 +1,4 @@
+import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import { useShallow } from "zustand/shallow";
 import { isHomeProject } from "@/shared/homeScope";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -23,6 +24,7 @@ export function useFlatListProjectFilterModel() {
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const projects = useAppStore(useShallow((state) => state.projects));
   const threads = useAppStore((state) => state.threads);
+  const auxiliaryIds = useAuxiliaryThreadWindows((s) => s.hiddenThreadIds);
   const remoteServerFor = useProjectRemoteServerLookup();
   const flatListProjectFilter = useSidebarUiStore((state) => state.flatListProjectFilter);
   const setFlatListProjectFilter = useSidebarUiStore((state) => state.setFlatListProjectFilter);
@@ -57,7 +59,10 @@ export function useFlatListProjectFilterModel() {
 
   const visibleThreads = threads.filter(
     (thread) =>
-      !thread.archived && projectsById.has(thread.projectId) && isThreadInActiveWorkspace(thread),
+      !auxiliaryIds.has(thread.id) &&
+      !thread.archived &&
+      projectsById.has(thread.projectId) &&
+      isThreadInActiveWorkspace(thread),
   );
   const threadCounts = new Map<string, number>();
   for (const thread of visibleThreads) {
