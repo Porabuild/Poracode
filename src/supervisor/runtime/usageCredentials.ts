@@ -5,12 +5,12 @@ import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredenti
 import { resolveCodexToken } from "./codexCredentials";
 import { resolveCommandCodeToken } from "./commandCodeCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
-import { resolveCursorToken } from "./cursorCredentials";
+import { resolveCursorToken } from "../agents/cursor/usageCredentials";
 import { resolveFactoryCliToken } from "./factoryCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
 import { refreshRejectedGrokToken, resolveFreshGrokToken } from "./grokTokenRefresh";
 import { resolveKimiToken } from "./kimiCredentials";
-import { resolveMuseToken } from "./museCredentials";
+import { resolveMuseToken } from "../agents/muse/usageCredentials";
 import { resolveQoderToken } from "./qoderCredentials";
 import { resolveQwenUsageToken } from "./qwenCredentials";
 import { resolveZaiToken } from "./zaiCredentials";

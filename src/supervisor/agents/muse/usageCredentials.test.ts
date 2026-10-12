@@ -2,8 +2,13 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseMuseAuth, parseMuseKeychainToken, resolveMuseToken } from "./museCredentials";
-import { setWslCredentialProjectScope } from "./wslCredentials";
+import { mockExecFileCommand } from "../../runtime/macKeychain.testFixtures";
+import { parseMuseAuth, parseMuseKeychainToken, resolveMuseToken } from "./usageCredentials";
+import { setWslCredentialProjectScope } from "../../runtime/wslCredentials";
+import {
+  resetMacKeychainStateForTests,
+  withMacKeychainAuthorizationRetry,
+} from "../../runtime/macKeychain";
 
 const keychainRead = vi.hoisted(() => vi.fn<() => Promise<{ stdout: string }>>());
 vi.mock("node:child_process", async (importOriginal) => {
@@ -11,7 +16,10 @@ vi.mock("node:child_process", async (importOriginal) => {
   const { promisify } = await import("node:util");
   return {
     ...actual,
-    execFile: Object.assign(vi.fn<() => void>(), { [promisify.custom]: keychainRead }),
+    execFile: Object.assign(vi.fn<() => void>(), {
+      [promisify.custom]: (...args: Parameters<typeof keychainRead>) =>
+        mockExecFileCommand(keychainRead(...args)),
+    }),
   };
 });
 
@@ -51,6 +59,7 @@ describe("resolveMuseToken (MUSE_AUTH_PATH override, never touches ~/.config/mus
   let clearScope: (() => void) | undefined;
 
   beforeEach(() => {
+    resetMacKeychainStateForTests();
     keychainRead.mockReset().mockRejectedValue(new Error("unavailable"));
     dir = mkdtempSync(join(tmpdir(), "muse-auth-"));
     previousAuthPath = process.env["MUSE_AUTH_PATH"];
@@ -97,8 +106,8 @@ describe("resolveMuseToken (MUSE_AUTH_PATH override, never touches ~/.config/mus
     expect(await resolveMuseToken()).toEqual({ accessToken: "dca:keychain" });
     expect(keychainRead).toHaveBeenCalledWith(
       "/usr/bin/security",
-      ["find-generic-password", "-s", "ai.meta.dev.credentials", "-a", "meta", "-w"],
-      expect.objectContaining({ timeout: 5000 }),
+      ["find-generic-password", "-a", "meta", "-w", "-s", "ai.meta.dev.credentials"],
+      expect.objectContaining({ timeout: 120_000 }),
     );
   });
 
@@ -132,6 +141,27 @@ describe("resolveMuseToken (MUSE_AUTH_PATH override, never touches ~/.config/mus
       expect(keychainRead).toHaveBeenCalledTimes(platform === "darwin" ? 1 : 0);
     },
   );
+
+  it("does not reopen authorization dialogs while usage is unsigned-in", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    process.env["MUSE_AUTH_PATH"] = join(dir, "auth.json");
+    writeFileSync(
+      process.env["MUSE_AUTH_PATH"],
+      JSON.stringify({ providers: { meta: { mechanism: "oauth", storage: "keychain" } } }),
+    );
+    keychainRead.mockRejectedValue(Object.assign(new Error("User canceled"), { code: 128 }));
+    await expect(resolveMuseToken()).resolves.toBeUndefined();
+    await expect(resolveMuseToken()).resolves.toBeUndefined();
+    expect(keychainRead).toHaveBeenCalledOnce();
+
+    // A normal macOS login still stores its replacement in Keychain. Refreshing
+    // explicitly re-enables authorization without restarting the supervisor.
+    keychainRead.mockResolvedValue({ stdout: JSON.stringify({ access_token: "dca:new-login" }) });
+    await expect(withMacKeychainAuthorizationRetry(resolveMuseToken)).resolves.toEqual({
+      accessToken: "dca:new-login",
+    });
+    expect(keychainRead).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("Muse Keychain parser", () => {
