@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="git_summary_ahead_behind">%1$d コミット先頭、%2$d コミット遅れ</string>
+    <string name="git_summary_additions_deletions">+%1$d / −%2$d</string>
+    <string name="git_summary_not_repo">リポジトリではありません</string>
+    <string name="git_summary_pull_request">プルリクエスト #%1$d</string>
+    <string name="git_summary_state_description">ブランチ %1$s、リモートより %2$d コミット先行、%3$d コミット遅れ。</string>
+    <plurals name="git_summary_project_active_threads">
+        <item quantity="other">変更のあるスレッド %1$d 件</item>
+    </plurals>
+</resources>

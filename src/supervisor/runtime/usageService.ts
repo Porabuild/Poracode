@@ -10,20 +10,9 @@ import { coalesceByKey } from "@/shared/coalesce";
 import type { ProviderUsagePayload, ProviderUsageResponse } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { defaultSharedSettings, type SharedSettings, type UsageSettings } from "@/shared/settings";
-import {
-  collectClaudeProfile,
-  readClaudeUsageProfiles,
-  shouldPreserveClaudeAuthMiss,
-  withClaudeEstimatedCost,
-  type ClaudeUsageProfile,
-} from "../agents/claude/claudeUsageProfiles";
-import { readProfileUsageCollectors } from "../agents/profileUsageRegistry";
-import {
-  collectCursorProfile,
-  readCursorSdkUsageProfile,
-  readCursorUsageProfiles,
-  type CursorUsageProfile,
-} from "../agents/cursor/cursorUsageProfiles";
+import { readUsageProfileSources } from "./usageProfileRegistry";
+import { UsageProfileCacheIdentities } from "./usageProfileCache";
+import type { UsageProfileCollector, UsageProfileSource } from "./usageProfileTypes";
 import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
 import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
@@ -42,9 +31,15 @@ import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
  * Bump when the cached snapshot source or shape changes so stale caches are
  * discarded. v3 relabeled Cursor's first-party window; v4 reselects the main
  * Cursor account when an SDK key is configured; v5 removes the desktop-app
- * credential fallback from the CLI-backed main tile.
+ * credential fallback from the CLI-backed main tile; v6 sources OpenCode Go
+ * meters from the direct API-key usage endpoint; v7 refreshes Muse snapshots
+ * through the portal JSON API after the dashboard retired its Relay endpoint;
+ * v8 prefers CLI quota and confines optional browser billing to the same account.
  */
-const USAGE_CACHE_VERSION = 5;
+// v9 scopes cached profile quota to an opaque account-source fingerprint.
+// v10 rejects snapshots that could survive account retirement during enrichment
+// and refreshes explicit zero/balance-only usage omitted by earlier collectors.
+const USAGE_CACHE_VERSION = 10;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
@@ -57,6 +52,8 @@ const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
 const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 5 * 60_000;
 
 export interface UsageServiceOptions {
+  /** Disable all collection, including explicit refreshes, for isolated QA sessions. */
+  collectionEnabled?: boolean;
   emit(event: SupervisorEvent): void;
   cachePath: string;
   /** Cache dir; backs the captured-secret store read by the credential host. */
@@ -69,11 +66,20 @@ export interface UsageServiceOptions {
   providerIds?: readonly string[];
   /** Supervisor-local collectors (opencode, antigravity); injectable in tests. */
   localCollectors?: LocalUsageCollector[];
+  /** Provider-owned profile discovery; injectable for isolated host compositions. */
+  profileSources?: (settings: SharedSettings) => readonly UsageProfileSource[];
 }
 
 interface UsageCacheFile {
   version?: number;
   snapshots?: UsageSnapshot[];
+  profileIdentities?: Record<string, string>;
+}
+
+/** Settings and discovery shared only within synchronous selection work. */
+interface UsageReadScope {
+  settings: SharedSettings;
+  collectors: Map<string, UsageProfileCollector>;
 }
 
 function hasDisplayableUsage(snapshot: UsageSnapshot): boolean {
@@ -96,6 +102,7 @@ export class UsageService {
   private readonly localCollectors: Map<string, LocalUsageCollector>;
   private readonly host: HostPort;
   private readonly snapshots = new Map<string, UsageSnapshot>();
+  private readonly profileCacheIdentities: UsageProfileCacheIdentities;
   private loadedFromCache = false;
   /** In-flight refreshes keyed by their sorted id-set, so identical concurrent refreshes coalesce. */
   private readonly refreshesInFlight = new Map<string, Promise<ProviderUsageResponse>>();
@@ -104,21 +111,20 @@ export class UsageService {
 
   constructor(private readonly options: UsageServiceOptions) {
     this.host = options.host ?? createNodeUsageHost(options.cacheDir, options.settingsPath);
+    this.profileCacheIdentities = new UsageProfileCacheIdentities(
+      (id) => this.snapshots.delete(id),
+      this.host,
+    );
     this.localCollectors = new Map(
       (options.localCollectors ?? createLocalUsageCollectors()).map((c) => [c.id, c]),
     );
     this.loadCache();
   }
 
-  private defaultProviderIds(): string[] {
+  private defaultProviderIds(collectors: ReadonlyMap<string, UsageProfileCollector>): string[] {
     const baseIds = [...(this.options.providerIds ?? DEFAULT_PROVIDER_IDS)];
     if (this.options.providerIds) return baseIds;
-    return [
-      ...baseIds,
-      ...this.claudeUsageProfiles().keys(),
-      ...this.registeredUsageProfiles().keys(),
-      ...this.cursorUsageProfiles().keys(),
-    ];
+    return [...new Set([...baseIds, ...collectors.keys()])];
   }
 
   /** Read shared settings from disk (defaults if absent). Decrypts profile keys. */
@@ -132,39 +138,60 @@ export class UsageService {
     return this.readSharedSettings().usage;
   }
 
-  private claudeUsageProfiles(): Map<string, ClaudeUsageProfile> {
-    return readClaudeUsageProfiles(this.readSharedSettings());
+  private usageProfileSources(settings = this.readSharedSettings()): readonly UsageProfileSource[] {
+    return (this.options.profileSources ?? readUsageProfileSources)(settings);
   }
 
-  private registeredUsageProfiles(): ReturnType<typeof readProfileUsageCollectors> {
-    return readProfileUsageCollectors(this.readSharedSettings());
-  }
-
-  private cursorUsageProfiles(): Map<string, CursorUsageProfile> {
-    return readCursorUsageProfiles(this.readSharedSettings());
-  }
-
-  /** A provider id this service can collect (package registry or supervisor-local). */
-  private isSupported(id: string): boolean {
-    return (
-      this.registry.has(id) ||
-      this.localCollectors.has(id) ||
-      this.claudeUsageProfiles().has(id) ||
-      this.registeredUsageProfiles().has(id) ||
-      this.cursorUsageProfiles().has(id)
+  private profileCollectors(
+    sources = this.usageProfileSources(),
+  ): Map<string, UsageProfileCollector> {
+    return new Map(
+      sources.flatMap((source) =>
+        source.collectors.map((collector) => [collector.providerId, collector] as const),
+      ),
     );
   }
 
-  /** Default providers minus the user's per-provider opt-outs, intersected with what we support. */
-  private enabledProviderIds(disabled: readonly string[]): string[] {
-    return this.defaultProviderIds().filter((id) => !disabled.includes(id) && this.isSupported(id));
+  private readScope(): UsageReadScope {
+    const settings = this.readSharedSettings();
+    return { settings, collectors: this.profileCollectors(this.usageProfileSources(settings)) };
   }
 
-  private resolveIds(payload: ProviderUsagePayload): string[] {
+  /** A provider id this service can collect (package registry or supervisor-local). */
+  private isSupported(id: string, collectors: ReadonlyMap<string, UsageProfileCollector>): boolean {
+    return this.registry.has(id) || this.localCollectors.has(id) || collectors.has(id);
+  }
+
+  /** Default providers minus the user's per-provider opt-outs, intersected with what we support. */
+  private enabledProviderIds(
+    disabled: readonly string[],
+    collectors: ReadonlyMap<string, UsageProfileCollector>,
+    candidates?: readonly string[],
+  ): string[] {
+    const baseIds = this.options.providerIds ?? DEFAULT_PROVIDER_IDS;
+    return (candidates ?? this.defaultProviderIds(collectors)).filter(
+      (id) =>
+        // A targeted read cannot authorize automatic collection outside the defaults.
+        (!candidates ||
+          baseIds.includes(id) ||
+          (!this.options.providerIds && collectors.has(id))) &&
+        !disabled.includes(id) &&
+        this.isSupported(id, collectors),
+    );
+  }
+
+  private resolveIds(payload: ProviderUsagePayload, scope?: UsageReadScope): string[] {
     if (payload.providerIds?.length) {
-      return [...new Set(payload.providerIds)].filter((id) => this.isSupported(id));
+      let collectors = scope?.collectors;
+      return [...new Set(payload.providerIds)].filter((id) => {
+        if (this.registry.has(id) || this.localCollectors.has(id)) return true;
+        // Fixed collectors need no profile discovery; otherwise discover once for this selection.
+        collectors ??= this.profileCollectors();
+        return collectors.has(id);
+      });
     }
-    return this.enabledProviderIds(this.readUsageSettings().disabledProviders);
+    const current = scope ?? this.readScope();
+    return this.enabledProviderIds(current.settings.usage.disabledProviders, current.collectors);
   }
 
   /**
@@ -186,25 +213,32 @@ export class UsageService {
     return deadline !== undefined && deadline > now;
   }
 
-  private isStale(id: string): boolean {
-    const snap = this.snapshots.get(id);
-    if (!snap) return true;
-    const now = this.host.now();
-    // Honor a server-requested backoff: a rate-limited provider is not "stale",
-    // so a cache read won't kick off a background refresh that just re-hits the
-    // throttled endpoint. A user-initiated refresh bypasses this (it goes
-    // straight to refreshProviderUsage, not through here).
-    if (this.isRateLimited(snap, now)) return false;
-    return now - snap.fetchedAt >= MIN_REFRESH_INTERVAL_MS;
+  /** Reconcile credential/profile changes without polling any quota endpoint.
+   * Publish removals immediately so paired clients stop showing another login's quota. */
+  async reconcileProfileSources(): Promise<void> {
+    if (this.options.collectionEnabled === false) return;
+    const collectors = this.profileCollectors();
+    await this.profileCacheIdentities.synchronize(collectors, [...collectors.keys()]);
+    const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
+    const snapshots = [...this.snapshots.values()];
+    this.options.emit({
+      type: "provider-usage-all",
+      snapshots: showEstimatedCost ? snapshots : snapshots.map(withoutEstimatedCost),
+    });
+    this.writeCache();
   }
 
-  /**
-   * Returns cached snapshots immediately and kicks off a background refresh when
-   * any requested provider is stale. Mirrors `getAgentStatuses`.
-   */
+  /** Return cache immediately; background collection follows the owning host's
+   * effective provider cadences, opt-outs and rate-limit backoff. */
   async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
-    const ids = this.resolveIds(payload);
-    const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
+    if (this.options.collectionEnabled === false) return { snapshots: [], fromCache: false };
+    const scope = this.readScope();
+    const ids = this.resolveIds(payload, scope);
+    await this.profileCacheIdentities.synchronize(scope.collectors, ids);
+    // Identity reads can await account/settings changes. Refresh policy and discovery
+    // after synchronization rather than retaining the earlier selection's authority.
+    const settings = this.readSharedSettings();
+    const showEstimatedCost = settings.usage.showEstimatedCost;
     const cached = ids
       .map((id) => this.snapshots.get(id))
       .filter((snap): snap is UsageSnapshot => snap !== undefined)
@@ -212,7 +246,7 @@ export class UsageService {
 
     // Refresh only the stale ids — never the whole requested set — so a single
     // stale provider doesn't drag a still-rate-limited sibling back into a 429.
-    const stale = ids.filter((id) => this.isStale(id));
+    const stale = this.dueProviderIds(settings, ids);
     if (stale.length > 0) {
       void this.refreshProviderUsage({ providerIds: stale }).catch((error) => {
         // Errors surface as per-provider error snapshots; log for diagnostics.
@@ -225,6 +259,7 @@ export class UsageService {
 
   /** Forces a live collection of the requested providers and emits the results. */
   async refreshProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
+    if (this.options.collectionEnabled === false) return { snapshots: [], fromCache: false };
     const ids = this.resolveIds(payload);
     if (ids.length === 0) {
       return { snapshots: [], fromCache: false };
@@ -247,71 +282,70 @@ export class UsageService {
   }
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
-    const claudeProfiles = this.claudeUsageProfiles();
-    const registeredProfiles = this.registeredUsageProfiles();
-    const cursorSdkProfile = readCursorSdkUsageProfile(this.readSharedSettings());
-    const cursorProfiles = this.cursorUsageProfiles();
+    const sources = this.usageProfileSources();
+    const profileCollectors = this.profileCollectors(sources);
+    await this.profileCacheIdentities.synchronize(profileCollectors, ids);
+    const expectedIdentities = new Map(ids.map((id) => [id, this.profileCacheIdentities.get(id)]));
     const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
-    const registryIds = ids.filter(
-      (id) => this.registry.has(id) && !(id === "cursor" && cursorSdkProfile),
-    );
-    const localIds = ids.filter((id) => this.localCollectors.has(id));
-    const claudeProfileIds = ids.filter((id) => claudeProfiles.has(id));
-    const registeredProfileIds = ids.filter((id) => registeredProfiles.has(id));
-    const cursorProfileIds = ids.filter((id) => cursorProfiles.has(id));
-    const collectCursorSdk = cursorSdkProfile && ids.includes("cursor");
+    const registryIds = ids.filter((id) => this.registry.has(id) && !profileCollectors.has(id));
+    const localIds = ids.filter((id) => this.localCollectors.has(id) && !profileCollectors.has(id));
+    const profileIds = ids.filter((id) => profileCollectors.has(id));
     // The registry HTTP batch and the supervisor-local collectors are independent
     // of each other, so run both groups concurrently rather than waiting out the
     // (rate-limited, slow) HTTP batch before starting the local scans.
-    const [
-      registrySnaps,
-      localSnaps,
-      claudeProfileSnaps,
-      registeredProfileSnaps,
-      cursorProfileSnaps,
-      cursorSdkSnapshot,
-    ] = await Promise.all([
+    const [registrySnaps, localSnaps, profileSnaps] = await Promise.all([
       this.registry.collectAll(registryIds, this.host),
       Promise.all(localIds.map((id) => this.collectLocal(id))),
       Promise.all(
-        claudeProfileIds.flatMap((id) => {
-          const profile = claudeProfiles.get(id);
-          return profile ? [collectClaudeProfile(profile, this.host)] : [];
+        profileIds.flatMap((id) => {
+          const collector = profileCollectors.get(id);
+          return collector ? [this.collectProfile(collector)] : [];
         }),
       ),
-      Promise.all(
-        registeredProfileIds.flatMap((id) => {
-          const profile = registeredProfiles.get(id);
-          return profile ? [profile.collect(this.host)] : [];
-        }),
-      ),
-      Promise.all(
-        cursorProfileIds.flatMap((id) => {
-          const profile = cursorProfiles.get(id);
-          return profile ? [collectCursorProfile(profile, this.host)] : [];
-        }),
-      ),
-      collectCursorSdk ? collectCursorProfile(cursorSdkProfile, this.host) : undefined,
     ]);
-    let snapshots = [
-      ...registrySnaps,
-      ...localSnaps,
-      ...claudeProfileSnaps,
-      ...registeredProfileSnaps,
-      ...cursorProfileSnaps,
-      ...(cursorSdkSnapshot ? [cursorSdkSnapshot] : []),
-    ].map((snap) => this.preserveOnTransientFailure(snap));
+    let snapshots = [...registrySnaps, ...localSnaps, ...profileSnaps].map((snap) =>
+      this.preserveOnTransientFailure(snap, sources),
+    );
     // Keep collector estimates cached so toggling their visibility needs no refresh.
     if (showEstimatedCost) {
-      snapshots = await this.withEstimatedCost(snapshots, claudeProfiles);
+      snapshots = await this.withEstimatedCost(snapshots, sources);
     }
+    const committed: UsageSnapshot[] = [];
     for (const snapshot of snapshots) {
+      if (profileCollectors.has(snapshot.providerId)) {
+        const collector = this.profileCollectors().get(snapshot.providerId);
+        // Optional enrichment can await unrelated providers. Re-read account
+        // custody after it, with no further await between admission and commit.
+        if (
+          !collector ||
+          !(await this.profileCacheIdentities.accepts(
+            snapshot.providerId,
+            collector,
+            expectedIdentities.get(snapshot.providerId),
+          ))
+        )
+          continue;
+        // The credential read can resolve alongside reconciliation. Keep the
+        // retained fingerprint and registry check synchronous with insertion.
+        if (
+          this.profileCacheIdentities.get(snapshot.providerId) !==
+            expectedIdentities.get(snapshot.providerId) ||
+          !this.profileCollectors().has(snapshot.providerId)
+        )
+          continue;
+      }
       this.snapshots.set(snapshot.providerId, snapshot);
+      committed.push(snapshot);
       this.options.emit({
         type: "provider-usage",
         snapshot: showEstimatedCost ? snapshot : withoutEstimatedCost(snapshot),
       });
     }
+    // A later account check may retire an earlier row while this loop awaits.
+    // Do not return that retired row in the batch's final response.
+    snapshots = committed.filter(
+      (snapshot) => this.snapshots.get(snapshot.providerId) === snapshot,
+    );
     const all = [...this.snapshots.values()];
     this.options.emit({
       type: "provider-usage-all",
@@ -328,14 +362,16 @@ export class UsageService {
    * On a transient failure (rate-limit / error) keep the last-known usage
    * snapshot instead of flushing the UI to empty.
    *
-   * Provider auth-miss preservation (currently Claude-only, see
-   * `shouldPreserveClaudeAuthMiss`) matches the stale-while-revalidate
+   * Provider-declared auth-miss preservation matches the stale-while-revalidate
    * behavior of comparable usage tools for auth-missing after a prior
    * successful read. First-time auth-missing still renders as not signed in.
    */
-  private preserveOnTransientFailure(snap: UsageSnapshot): UsageSnapshot {
-    const preserveClaudeAuthMiss = shouldPreserveClaudeAuthMiss(snap);
-    if (snap.status !== "rate-limited" && snap.status !== "error" && !preserveClaudeAuthMiss) {
+  private preserveOnTransientFailure(
+    snap: UsageSnapshot,
+    sources: readonly UsageProfileSource[],
+  ): UsageSnapshot {
+    const preserveAuthMiss = sources.some((source) => source.preserveAuthMiss?.(snap));
+    if (snap.status !== "rate-limited" && snap.status !== "error" && !preserveAuthMiss) {
       return snap;
     }
     const prev = this.snapshots.get(snap.providerId);
@@ -352,11 +388,11 @@ export class UsageService {
         ...(snap.rateLimitedUntil !== undefined ? { rateLimitedUntil: snap.rateLimitedUntil } : {}),
       };
     }
-    // Claude auth misses after a prior good read are treated like transient
+    // Declared auth misses after a prior good read are treated like transient
     // stale-while-revalidate failures. Keep the old fetchedAt so the footer
     // still reflects when the displayed numbers were actually obtained and the
     // next refresh cycle keeps trying to recover.
-    if (preserveClaudeAuthMiss) return prev;
+    if (preserveAuthMiss) return prev;
     // Plain transient error: keep the prior snapshot unchanged.
     return prev;
   }
@@ -373,16 +409,39 @@ export class UsageService {
     return { providerId: id, status: "error", windows: [], fetchedAt: now };
   }
 
+  private async collectProfile(collector: UsageProfileCollector): Promise<UsageSnapshot> {
+    try {
+      return { ...(await collector.collect(this.host)), providerId: collector.providerId };
+    } catch {
+      return {
+        providerId: collector.providerId,
+        status: "error",
+        windows: [],
+        fetchedAt: this.host.now(),
+      };
+    }
+  }
+
   /**
-   * Merge estimated 30-day cost + tokens (from local logs at API rates) into
-   * Claude snapshots. Best-effort and cached; never throws into the refresh.
+   * Apply provider-owned cost enrichment. Sources preserve unrelated snapshots.
    */
   private async withEstimatedCost(
     snapshots: UsageSnapshot[],
-    profiles: Map<string, ClaudeUsageProfile>,
+    sources: readonly UsageProfileSource[],
   ): Promise<UsageSnapshot[]> {
     return Promise.all(
-      snapshots.map((snapshot) => withClaudeEstimatedCost(snapshot, profiles, this.host.now())),
+      snapshots.map(async (snapshot) => {
+        let enriched = snapshot;
+        for (const source of sources) {
+          try {
+            if (source.enrichSnapshot)
+              enriched = await source.enrichSnapshot(enriched, this.host.now());
+          } catch {
+            // Optional enrichment cannot discard the authoritative quota snapshot.
+          }
+        }
+        return enriched;
+      }),
     );
   }
 
@@ -394,8 +453,8 @@ export class UsageService {
    * scheduled only after the current completes).
    */
   startAutoRefresh(): void {
-    if (this.autoRefreshTimer || this.stopped) return;
-    this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
+    if (this.options.collectionEnabled === false || this.autoRefreshTimer || this.stopped) return;
+    this.scheduleNextTick(this.nextTickDelayMs(this.readSharedSettings()));
   }
 
   stop(): void {
@@ -406,7 +465,7 @@ export class UsageService {
 
   /** Global default cadence (minutes → ms), floored at the rate-limit minimum. */
   private intervalMs(settings: UsageSettings): number {
-    return Math.max(2, settings.refreshIntervalMinutes) * 60_000;
+    return Math.max(MIN_REFRESH_INTERVAL_MS, settings.refreshIntervalMinutes * 60_000);
   }
 
   /**
@@ -414,10 +473,11 @@ export class UsageService {
    * override when present, otherwise the global default. Floored at the 2-minute
    * rate-limit minimum either way.
    */
-  private effectiveIntervalMs(settings: UsageSettings, providerId: string): number {
+  private effectiveIntervalMs(settings: UsageSettings, providerId: string): number | undefined {
     const override = settings.providerRefreshIntervals[providerId];
+    if (!settings.autoRefresh) return undefined;
     const minutes = override ?? settings.refreshIntervalMinutes;
-    return Math.max(2, minutes) * 60_000;
+    return Math.max(MIN_REFRESH_INTERVAL_MS, minutes * 60_000);
   }
 
   /**
@@ -426,15 +486,20 @@ export class UsageService {
    * from the snapshot's `fetchedAt`, so one tick can refresh a fast provider
    * while leaving a slow one untouched.
    */
-  private dueProviderIds(settings: UsageSettings): string[] {
+  private dueProviderIds(settings: SharedSettings, candidates?: readonly string[]): string[] {
+    const usage = settings.usage;
+    if (!usage.autoRefresh) return [];
+    const collectors = this.profileCollectors(this.usageProfileSources(settings));
     const now = this.host.now();
-    return this.enabledProviderIds(settings.disabledProviders).filter((id) => {
+    return this.enabledProviderIds(usage.disabledProviders, collectors, candidates).filter((id) => {
+      const interval = this.effectiveIntervalMs(usage, id);
+      if (interval === undefined) return false;
       const snap = this.snapshots.get(id);
       if (!snap) return true;
       // Skip providers inside their rate-limit backoff so the auto-refresh tick
       // doesn't re-hit a throttled endpoint before its Retry-After clears.
       if (this.isRateLimited(snap, now)) return false;
-      return now - snap.fetchedAt >= this.effectiveIntervalMs(settings, id);
+      return now - snap.fetchedAt >= interval;
     });
   }
 
@@ -444,12 +509,16 @@ export class UsageService {
    * are slower). Falls back to the global default when nothing is enabled, which
    * keeps the loop alive so re-enabling resumes without a restart.
    */
-  private nextTickDelayMs(settings: UsageSettings): number {
+  private nextTickDelayMs(settings: SharedSettings): number {
+    const usage = settings.usage;
+    if (!usage.autoRefresh) return this.intervalMs(usage);
+    const collectors = this.profileCollectors(this.usageProfileSources(settings));
     let min = Infinity;
-    for (const id of this.enabledProviderIds(settings.disabledProviders)) {
-      min = Math.min(min, this.effectiveIntervalMs(settings, id));
+    for (const id of this.enabledProviderIds(usage.disabledProviders, collectors)) {
+      const interval = this.effectiveIntervalMs(usage, id);
+      if (interval !== undefined) min = Math.min(min, interval);
     }
-    return Number.isFinite(min) ? min : this.intervalMs(settings);
+    return Number.isFinite(min) ? min : this.intervalMs(usage);
   }
 
   /**
@@ -458,9 +527,8 @@ export class UsageService {
    * driving real `setTimeout`s. Returns the ids that were refreshed.
    */
   async refreshDueProviders(): Promise<string[]> {
-    if (this.stopped) return [];
-    const settings = this.readUsageSettings();
-    if (!settings.autoRefresh) return [];
+    if (this.options.collectionEnabled === false || this.stopped) return [];
+    const settings = this.readSharedSettings();
     const ids = this.dueProviderIds(settings);
     if (ids.length === 0) return [];
     try {
@@ -484,7 +552,7 @@ export class UsageService {
     await this.refreshDueProviders();
     // Keep the loop alive even when auto-refresh is off so re-enabling (or an
     // interval change) resumes without a restart.
-    this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
+    this.scheduleNextTick(this.nextTickDelayMs(this.readSharedSettings()));
   }
 
   private loadCache(): void {
@@ -492,6 +560,7 @@ export class UsageService {
       if (!existsSync(this.options.cachePath)) return;
       const parsed = JSON.parse(readFileSync(this.options.cachePath, "utf8")) as UsageCacheFile;
       if (parsed.version !== USAGE_CACHE_VERSION || !Array.isArray(parsed.snapshots)) return;
+      this.profileCacheIdentities.load(parsed.profileIdentities);
       for (const snapshot of parsed.snapshots) {
         if (snapshot && typeof snapshot.providerId === "string") {
           this.snapshots.set(snapshot.providerId, snapshot);
@@ -510,6 +579,7 @@ export class UsageService {
         JSON.stringify({
           version: USAGE_CACHE_VERSION,
           snapshots: [...this.snapshots.values()],
+          profileIdentities: this.profileCacheIdentities.serialize(),
           savedAt: new Date().toISOString(),
         }),
         "utf8",

@@ -1,9 +1,18 @@
 {
   "manifest_version": 3,
   "name": "Poracode",
-  "version": "0.1.0",
-  "description": "Lets Poracode agents control this browser — tabs, navigation, and the DOM — over a local connection using the Chrome DevTools Protocol.",
-  "permissions": ["debugger", "tabs", "tabGroups", "storage", "alarms"],
+  "version": "0.2.2",
+  "description": "Chat with Poracode in your browser sidebar and let agents work with your tabs.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsbnvGivDsbmRmU84BJ9G7+B/DjXrB4flkOmC80AgN8TDYquyCFXgtbVQEFzSMJZSECUfei4G+r4QbCMomY6BwiQU4xACM2BVicELXTxfJJZ8PLfdbsjM65uvbUpfwbt65v8p4kDyB22qUc7IvjKGZZNh5GSTNqggFt9nzO8Wfb+WWQlapGjbBa9k5pWQ4wPMxJZAzQHvBWWQil0w1g0zQje7pngz71DFdc5WNv9NMwUj/Y4FAAoiktuJuDocLm2JXm8qEarZMux37Dnff1wLuEfFGUZVpERKolPYc1w1DhD9IfMeJfgE3CInM8YkhNNaMv2fPcOJF4FOHUetfPTJcQIDAQAB",
+  "permissions": [
+    "debugger",
+    "tabs",
+    "tabGroups",
+    "storage",
+    "alarms",
+    "sidePanel",
+    "nativeMessaging"
+  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -14,7 +23,6 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Poracode",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -22,5 +30,12 @@
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
     }
+  },
+  "minimum_chrome_version": "116",
+  "side_panel": {
+    "default_path": "client/index.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   }
 }

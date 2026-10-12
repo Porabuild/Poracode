@@ -1107,7 +1107,7 @@ describe("AcpRegistrySettings", () => {
     expect(command).toContain("irm https://x.ai/cli/install.ps1 | iex");
   });
 
-  it("runs Muse's native Windows install through the default WSL distro", async () => {
+  it("runs Muse's native Windows install through the PowerShell installer", async () => {
     bridge.platform = "win32";
     const windowsProject = makeProject({
       id: "windows-project",
@@ -1131,8 +1131,9 @@ describe("AcpRegistrySettings", () => {
     const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
       | { command: (project: Project) => string }
       | undefined;
-    expect(installInput?.command(windowsProject)).toContain("wsl.exe --exec bash -lc");
-    expect(installInput?.command(windowsProject)).toContain("https://dev.meta.ai/install.sh");
+    expect(installInput?.command(windowsProject)).toContain(
+      "irm https://dev.meta.ai/install.ps1 | iex",
+    );
   });
 
   it("keeps brew install commands mac-only", () => {

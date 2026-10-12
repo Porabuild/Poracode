@@ -120,7 +120,7 @@ describe("transformKimiAcpSessionUpdate", () => {
   });
 
   it("ignores ordinary tool calls and non-tool updates", () => {
-    const read = toolCall({ kind: "read", title: "Reading src/mobile/views/ThreadView.tsx" });
+    const read = toolCall({ kind: "read", title: "Reading src/renderer/views/MainView.tsx" });
     expect(transformKimiAcpSessionUpdate(read)).toBe(read);
     const untitled = toolCall({ kind: "other" });
     expect(transformKimiAcpSessionUpdate(untitled)).toBe(untitled);

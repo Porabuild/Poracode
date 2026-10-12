@@ -1,19 +1,60 @@
 // @vitest-environment node
 
-import { afterEach, describe, expect, it } from "vitest";
-import { remoteImageRef } from "@/shared/remote";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { remoteImageRef, type RemoteImageRefValue } from "@/shared/remote";
 import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import {
   imageViewRendersInline,
   imageViewSourceFromImageBlock,
   resolveImageViewSource,
+  resolveImageViewSources,
 } from "./imageViewSource";
 
 // A minimal valid 1x1 PNG, base64-encoded (starts with the PNG magic prefix).
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+// A real 2x1 WebP, deliberately labelled as a PNG by the tests that use it.
+const WEBP_BASE64 = "UklGRi4AAABXRUJQVlA4ICIAAABwAQCdASoCAAEAAUAmJZQCdAFAAAD+/DeBV/fU6D4r4AAA";
 
 describe("resolveImageViewSource", () => {
+  it("resolves every tool image while the transcript card keeps its first image", () => {
+    const first = `data:image/png;base64,${PNG_BASE64}`;
+    const second = `data:image/webp;base64,${WEBP_BASE64}`;
+    const payload = { images: [first, second] };
+    expect(resolveImageViewSource(payload)?.src).toBe(first);
+    expect(resolveImageViewSources(payload).map((source) => source.src)).toEqual([first, second]);
+  });
+
+  it("keeps the card's unresolved first reference without resolving later candidates", () => {
+    const first = {
+      threadId: "thread",
+      itemId: "tool",
+      path: ["images", 0],
+      mime: "image/png",
+      bytes: 10,
+    };
+    const second = { ...first, path: ["images", 1] };
+    const resolve = vi.fn<(ref: RemoteImageRefValue) => string>((ref) =>
+      ref.path[1] === 0 ? "" : "blob:second",
+    );
+    const payload = { images: [remoteImageRef(first), remoteImageRef(second)] };
+    expect(resolveImageViewSource(payload, resolve)).toBeNull();
+    expect(resolve).toHaveBeenCalledExactlyOnceWith(first);
+    resolve.mockClear();
+    expect(resolveImageViewSources(payload, resolve).map((source) => source.src)).toEqual([
+      "blob:second",
+    ]);
+    expect(resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not promote external URLs or errored tool images in plural resolution", () => {
+    expect(
+      resolveImageViewSources({ images: ["https://example.test/image.png", "file:///secret.png"] }),
+    ).toEqual([]);
+    expect(
+      resolveImageViewSources({ status: "error", images: [`data:image/png;base64,${PNG_BASE64}`] }),
+    ).toEqual([]);
+  });
   it("resolves raw base64 PNG from a string result into a data URL", () => {
     const source = resolveImageViewSource({
       name: "imageGeneration",
@@ -81,6 +122,51 @@ describe("resolveImageViewSource", () => {
     const source = resolveImageViewSource({ name: "imageGeneration", result: jpeg });
     expect(source?.mime).toBe("image/jpeg");
     expect(source?.extension).toBe("jpg");
+  });
+
+  it("repairs a URL-safe body inside a data: URL result", () => {
+    // An agent can hand over a URL-safe body under a `;base64` label. Chromium
+    // refuses to decode that combination, so the row used to paint a broken
+    // picture; the body must be repaired, not trusted.
+    const urlSafe = PNG_BASE64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const source = resolveImageViewSource({
+      name: "imageGeneration",
+      images: [`data:image/png;base64,${urlSafe}`],
+    });
+    expect(source?.src).toBe(`data:image/png;base64,${PNG_BASE64}`);
+    expect(source?.width).toBe(1);
+    expect(source?.height).toBe(1);
+  });
+
+  it("corrects a mislabelled format so the download name matches the pixels", () => {
+    const source = resolveImageViewSource({
+      name: "imageGeneration",
+      args: { prompt: "A red square" },
+      images: [`data:image/png;base64,${WEBP_BASE64}`],
+    });
+    expect(source?.mime).toBe("image/webp");
+    expect(source?.fileName).toBe("a-red-square.webp");
+  });
+
+  it("falls back to the accordion for an inline payload that is not an image", () => {
+    // Already-persisted rows can carry an empty or garbage body; showing a
+    // broken-image glyph is worse than showing the tool call. The grouping probe
+    // has to reach the same verdict or the row lands in a media slot with no
+    // picture in it.
+    for (const images of [["data:image/png;base64,"], ["data:image/png;base64,   "]]) {
+      const payload = { status: "success", images };
+      expect(resolveImageViewSource(payload)).toBeNull();
+      expect(imageViewRendersInline(payload)).toBe(false);
+    }
+  });
+
+  it("still renders a body padded with heavy whitespace", () => {
+    // The grouping probe scans for a non-whitespace body without copying the
+    // multi-MB string; a whitespace-padded payload must keep probing true.
+    const padded = `data:image/png;base64,${" ".repeat(1e5)}${PNG_BASE64}`;
+    const payload = { status: "success", images: [padded] };
+    expect(imageViewRendersInline(payload)).toBe(true);
+    expect(resolveImageViewSource(payload)?.width).toBe(1);
   });
 
   it("does NOT render agent-supplied URLs or file paths (inline-only, no outbound requests)", () => {
@@ -170,6 +256,23 @@ describe("host-minted image references", () => {
     bytes: 4096,
     width: 800,
     height: 600,
+  });
+
+  it("preserves candidate order when projection leaves a small image inline", () => {
+    const resolve = vi.fn<() => string>(() => "blob:later-image");
+    expect(
+      resolveImageViewSource(
+        { status: "success", images: [`data:image/png;base64,${PNG_BASE64}`, ref] },
+        resolve,
+      )?.src,
+    ).toBe(`data:image/png;base64,${PNG_BASE64}`);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(
+      resolveImageViewSource(
+        { status: "success", images: [ref, `data:image/png;base64,${PNG_BASE64}`] },
+        resolve,
+      )?.src,
+    ).toBe("blob:later-image");
   });
 
   afterEach(() => {

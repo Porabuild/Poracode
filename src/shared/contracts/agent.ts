@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { agentEnvSchema, type AgentEnv } from "../machines";
+import type { MessageKey } from "../messages";
+import { selectionRedundantValuesSchema } from "../selectionBinding.schemas.ts";
 import {
   agentKindSchema,
   authStateSchema,
@@ -157,6 +159,78 @@ const bypassPermissionsSchema = z.object({
   sandboxMode: z.string().optional(),
 });
 
+// ── Model family relations ─────────────────────────────────────────────────
+//
+// An optional, provider-compiled relation that lets one labeled family row
+// stand in for many exact member model UIDs with dependent selectors and
+// encoded Effort/Fast coordinates. Shared code consumes it only through
+// `shared/modelFamilySelection`; the provider adapter owns compiling its
+// native catalog into the relation. Nothing here branches on or names a
+// provider, and no callbacks travel in capabilities.
+
+export const modelFamilySelectorOptionSchema = z.object({
+  /** Opaque option id inside the selector's own namespace; never written to ThreadConfig. */
+  id: z.string().min(1),
+  /** Native model/variant display label. */
+  label: z.string().min(1),
+});
+export type ModelFamilySelectorOption = z.infer<typeof modelFamilySelectorOptionSchema>;
+
+/**
+ * Wire validation for a shared message-catalog key: any non-empty string on
+ * the wire; catalog membership is enforced at the type level here and again at
+ * projection time by `shared/modelFamilySelection` (an unknown key invalidates
+ * the descriptor). A plain `.transform()` narrowing is not usable — reachable
+ * transforms fail remote contract generation closed.
+ */
+const messageKeySchema = z.string().min(1) as unknown as z.ZodType<MessageKey>;
+
+export const modelFamilySelectorSchema = z.object({
+  /** Opaque descriptor-local selector identity; shared code never branches on its value. */
+  id: z.string().min(1),
+  /** Shared message-catalog key for the app-owned selector label. */
+  labelKey: messageKeySchema,
+  options: z.array(modelFamilySelectorOptionSchema).min(1),
+});
+export type ModelFamilySelector = z.infer<typeof modelFamilySelectorSchema>;
+
+export const modelFamilyMemberSchema = z.object({
+  /** Exact advertised native model UID; never a synthetic id. */
+  model: z.string().min(1),
+  /** Selector id → option id, covering exactly the declared selectors. */
+  selections: z.record(z.string(), z.string()),
+  /** Encoded effort coordinate; required on every member when `bindings.effort` is "model". */
+  effort: z.string().optional(),
+  /** Encoded Fast coordinate; required on every member when `bindings.fast` is "model". */
+  fast: z.boolean().optional(),
+});
+export type ModelFamilyMember = z.infer<typeof modelFamilyMemberSchema>;
+
+export const modelFamilySelectionSchema = z.object({
+  /** Real advertised member UID; the family row id and the explicit-pick default. */
+  model: z.string().min(1),
+  /** Native/branded family display label. */
+  label: z.string().min(1),
+  selectors: z.array(modelFamilySelectorSchema),
+  /** Which carrier each existing common control binds to for this family. */
+  bindings: z.object({
+    effort: z.enum(["model", "config"]),
+    fast: z.enum(["model", "config"]),
+  }),
+  /**
+   * Surface-scoped redundant-carrier declaration (`selectionBinding` contract):
+   * the stored values this relation's deliberate member edits write that the
+   * provider declares redundant for its own cold resolution. Applies to every
+   * member of THIS surface's validated relation only — a presentation override
+   * that omits it never inherits the base declaration. Empty/missing lists
+   * authorize nothing; shared code never interprets the declared ids, and the
+   * neutral projector and native mirrors preserve the field verbatim.
+   */
+  redundantValues: selectionRedundantValuesSchema.optional(),
+  members: z.array(modelFamilyMemberSchema).min(1),
+});
+export type ModelFamilySelection = z.infer<typeof modelFamilySelectionSchema>;
+
 const agentPresentationCapabilityOverrideSchema = z
   .object({
     /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
@@ -175,6 +249,12 @@ const agentPresentationCapabilityOverrideSchema = z
     modelDefaultEfforts: z.record(z.string(), z.string()).optional(),
     subProviders: z.array(labeledOptionSchema).optional(),
     modelSubProvider: z.record(z.string(), z.string()).optional(),
+    /**
+     * Surface-scoped family relations. Presentation overrides never inherit the
+     * root relation: `capabilitiesForPresentation` strips the root value, so an
+     * override must re-declare its own accepted-member relation.
+     */
+    modelFamilies: z.array(modelFamilySelectionSchema).optional(),
     contextSizes: z.array(labeledOptionSchema).optional(),
     modelContextSizes: z.record(z.string(), z.array(z.string().min(1))).optional(),
     defaultContextSize: z.string().optional(),
@@ -236,6 +316,22 @@ export function resolveComposerMcpScope(
   return scopes?.terminal ?? "none";
 }
 
+/**
+ * A provider command whose argument is the substance of a new thread (for
+ * example a goal objective). When a thread's first prompt is
+ * `/<command> <argument>`, its title derives from the argument instead of the
+ * raw command text.
+ */
+export const threadTitleCommandSchema = z.object({
+  /** Command name without the leading slash; matched case-insensitively. */
+  command: z.string().min(1),
+  /** Leading verbs that still take the content argument (`/goal edit <objective>`). */
+  argumentSubcommands: z.array(z.string().min(1)).optional(),
+  /** Whole arguments that are control verbs rather than content; those keep the typed title. */
+  controlArguments: z.array(z.string().min(1)).optional(),
+});
+export type ThreadTitleCommand = z.infer<typeof threadTitleCommandSchema>;
+
 export const agentCapabilitySchema = z.object({
   /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
   runtimeLabel: z.string().min(1).optional(),
@@ -256,6 +352,15 @@ export const agentCapabilitySchema = z.object({
   subProviders: z.array(labeledOptionSchema).optional(),
   /** Map from model id to its sub-provider id. Falls back to model-id namespace prefix when omitted. */
   modelSubProvider: z.record(z.string(), z.string()).optional(),
+  /**
+   * Optional provider-compiled model-family relations: one labeled family row
+   * standing in for exact member UIDs with dependent selectors and encoded
+   * Effort/Fast coordinates (see `modelFamilySelectionSchema`). Consumed only
+   * through `shared/modelFamilySelection`; the raw `models` inventory stays the
+   * compatible selection authority. Surface-scoped — presentation overrides
+   * must re-declare their own relation, it never leaks across surfaces.
+   */
+  modelFamilies: z.array(modelFamilySelectionSchema).optional(),
   /** Available context-window sizes (when a model exposes more than one). */
   contextSizes: z.array(labeledOptionSchema).optional(),
   /** Per-model allowed contextSize ids. */
@@ -371,6 +476,8 @@ export const agentCapabilitySchema = z.object({
    * renderer treats that catalog as authoritative even when it is empty.
    */
   reportsSkillCatalog: z.boolean().optional(),
+  /** Commands whose argument titles a thread they start (see `threadTitleCommandSchema`). */
+  threadTitleCommands: z.array(threadTitleCommandSchema).optional(),
   /**
    * Optional capability overrides for providers whose terminal and GUI runtimes
    * expose different model surfaces. Consumers merge the active presentation's

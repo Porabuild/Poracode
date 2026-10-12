@@ -1,15 +1,12 @@
-import { getProviderManifest } from "./providerManifest";
 import { antigravityWindowId } from "@poracode/agents-usage/antigravity";
+import { msg } from "@lingui/core/macro";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
-import {
-  baseAgentKind,
-  claudeProfileKind,
-  agentProfileKind,
-  cursorProfileKind,
-  parseClaudeProfileInstanceConfig,
-  type AgentInstanceConfigMap,
-} from "@/shared/contracts";
+import { baseAgentKind, agentProfileKind, type AgentInstanceConfigMap } from "@/shared/contracts";
+import { USAGE_PROFILE_SUPPORT } from "./usageProfileRegistry";
+import { i18n } from "@/renderer/i18n/i18n";
+import { getProviderManifest } from "./providerManifest";
+export { isClaudeUsageProvider } from "./claude/usageProfileSupport";
 
 /**
  * Providers the usage tracker shows in the renderer. The canonical id + label +
@@ -114,6 +111,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   zai: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
+  devin: { rings: { outer: ["daily"], inner: ["weekly"] } },
   // Kimi For Coding reads the Kimi Code CLI credential automatically; the
   // API-key paste is the fallback for users without a CLI sign-in. The 5h
   // request rate limit is the fast outer ring, the weekly membership quota the
@@ -121,10 +119,8 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   kimi: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
-  // Muse Code signs in via the in-app dev.meta.ai browser session — the
-  // dashboard is the source for its quota meters and billed spend. The CLI's
-  // device-code credential stands in for plan + account until then. The 5h
-  // window is the fast outer ring, the weekly quota the slower inner one.
+  // Muse Code reuses the CLI login; optional browser auth adds billed spend
+  // and fallback meters. The 5h window is the fast ring, weekly the slower one.
   muse: {
     supportsBrowserLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly"] },
@@ -148,71 +144,42 @@ function rendererMeta(providerId: string): Omit<UsageProvider, "id" | "label"> |
   return RENDERER_META[providerId] ?? RENDERER_META[baseAgentKind(providerId)];
 }
 
-export function isClaudeUsageProvider(providerId: string): boolean {
-  return baseAgentKind(providerId) === "claude";
-}
-
-function claudeProfileUsageProviders(
+function profileUsageProviders(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
   if (!agentInstances) return [];
   const profiles: UsageProvider[] = [];
+  const supportByDriver = new Map(
+    USAGE_PROFILE_SUPPORT.map((support) => [support.driver, support]),
+  );
   for (const instance of Object.values(agentInstances)) {
-    if (instance.enabled === false || instance.driver !== "claude") continue;
-    try {
-      parseClaudeProfileInstanceConfig(instance.config);
-    } catch {
-      continue;
-    }
-    const label = instance.displayName ?? instance.id;
-    profiles.push({
-      id: claudeProfileKind(instance.id),
-      label: `Claude ${label}`,
-      ...rendererMeta("claude"),
-    });
-  }
-  profiles.sort((a, b) => a.label.localeCompare(b.label));
-  return profiles;
-}
-
-function registeredProfileUsageProviders(
-  agentInstances: AgentInstanceConfigMap | undefined,
-): UsageProvider[] {
-  return Object.values(agentInstances ?? {})
-    .flatMap((instance) => {
-      if (instance.enabled === false) return [];
+    if (instance.enabled === false) continue;
+    const support = supportByDriver.get(instance.driver);
+    if (!support || !support.accepts(instance)) {
       try {
         const label = getProviderManifest(instance.driver)?.profileUsageLabel?.(instance);
-        return label
-          ? [
-              {
-                id: agentProfileKind(instance.driver, instance.id),
-                label,
-                ...rendererMeta(instance.driver),
-              },
-            ]
-          : [];
+        if (label) {
+          profiles.push({
+            id: agentProfileKind(instance.driver, instance.id),
+            label,
+            ...rendererMeta(instance.driver),
+          });
+        }
       } catch {
-        return [];
+        // Invalid provider-owned profile configuration is not usage eligible.
       }
-    })
-    .sort((a, b) => a.label.localeCompare(b.label));
-}
-
-function cursorProfileUsageProviders(
-  agentInstances: AgentInstanceConfigMap | undefined,
-): UsageProvider[] {
-  if (!agentInstances) return [];
-  const profiles: UsageProvider[] = [];
-  for (const instance of Object.values(agentInstances)) {
-    if (instance.enabled === false || instance.driver !== "cursor") continue;
-    const apiKey = instance.environment?.CURSOR_API_KEY?.value;
-    if (typeof apiKey !== "string" || apiKey.length === 0) continue;
-    const label = instance.displayName ?? instance.id;
+      continue;
+    }
+    const profile = instance.displayName ?? instance.id;
+    const provider = support.labelPrefix;
+    const id = support.providerId
+      ? support.providerId(instance, agentInstances)
+      : agentProfileKind(instance.driver, instance.id);
+    if (!id) continue;
     profiles.push({
-      id: cursorProfileKind(instance.id),
-      label: `Cursor ${label}`,
-      ...rendererMeta("cursor"),
+      id,
+      label: i18n._(msg`${provider} ${profile}`),
+      ...rendererMeta(instance.driver),
     });
   }
   profiles.sort((a, b) => a.label.localeCompare(b.label));
@@ -222,24 +189,38 @@ function cursorProfileUsageProviders(
 export function usageProvidersForAgentInstances(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
-  const claudeProfiles = claudeProfileUsageProviders(agentInstances);
-  const registeredProfiles = registeredProfileUsageProviders(agentInstances);
-  const cursorProfiles = cursorProfileUsageProviders(agentInstances);
-  if (
-    claudeProfiles.length === 0 &&
-    registeredProfiles.length === 0 &&
-    cursorProfiles.length === 0
-  ) {
+  const profiles = profileUsageProviders(agentInstances);
+  if (profiles.length === 0) {
     return [...STATIC_USAGE_PROVIDERS];
   }
   const out: UsageProvider[] = [];
+  const seen = new Set<string>();
   for (const provider of STATIC_USAGE_PROVIDERS) {
     out.push(provider);
-    if (provider.id === "claude") out.push(...claudeProfiles);
-    out.push(...registeredProfiles.filter((profile) => baseAgentKind(profile.id) === provider.id));
-    if (provider.id === "cursor") out.push(...cursorProfiles);
+    seen.add(provider.id);
+    for (const profile of profiles) {
+      if (baseAgentKind(profile.id) !== provider.id || seen.has(profile.id)) continue;
+      out.push(profile);
+      seen.add(profile.id);
+    }
   }
   return out;
+}
+
+/** Resolve quota ownership without falling back to a different profile account. */
+export function usageProviderIdForAgent(
+  agentKind: string,
+  instanceId: string | undefined,
+  instances: AgentInstanceConfigMap | undefined,
+): string {
+  const driver = baseAgentKind(agentKind);
+  const id = instanceId ?? (driver !== agentKind ? agentKind.slice(driver.length + 1) : undefined);
+  if (!id) return agentKind;
+  const candidate = agentProfileKind(driver, id);
+  const instance = instances?.[id];
+  const support = USAGE_PROFILE_SUPPORT.find((entry) => entry.driver === driver);
+  if (!instance || instance.driver !== driver || !support?.providerId) return candidate;
+  return support.providerId(instance, instances!) ?? candidate;
 }
 
 /** Providers that expose the browser-overlay login (cookie or device flow). */
@@ -259,6 +240,11 @@ export function supportsApiKeyLogin(providerId: string): boolean {
 /** True when the provider's plan badge can be known locally but its meters need browser auth. */
 export function needsBrowserSessionForUsage(providerId: string): boolean {
   return USAGE_PROVIDER_BY_ID.get(baseAgentKind(providerId))?.needsBrowserSessionForUsage === true;
+}
+
+/** Optional browser billing can be added even when primary usage already works. */
+export function browserSessionAddsDetails(providerId: string): boolean {
+  return USAGE_PROVIDER_BY_ID.get(baseAgentKind(providerId))?.browserSessionForDetails === true;
 }
 
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */
@@ -384,4 +370,18 @@ export function resolveDisplayedProviders(
     }
   }
   return ordered;
+}
+
+/** Pull a contextually selected provider into a separate current-provider section. */
+export function separateCurrentUsageProvider<T extends { readonly id: string }>(
+  providers: readonly T[],
+  providerId: string | null,
+): { current: T | undefined; rest: readonly T[] } {
+  if (!providerId) return { current: undefined, rest: providers };
+  const index = providers.findIndex((provider) => provider.id === providerId);
+  if (index < 0) return { current: undefined, rest: providers };
+  return {
+    current: providers[index],
+    rest: [...providers.slice(0, index), ...providers.slice(index + 1)],
+  };
 }

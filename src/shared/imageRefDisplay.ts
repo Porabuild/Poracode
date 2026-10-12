@@ -5,9 +5,9 @@ import type { RemoteImageRefValue } from "./remote/imageRef";
  *
  * Mirrors `localImageDisplay`: the remote bridge installs a resolver while a
  * desktop connection is active, mapping a reference to that desktop's
- * authenticated image endpoint. The desktop shell never installs one — its own
- * IPC payloads keep their inline image bytes, so references never appear there
- * and the renderer keeps working unchanged.
+ * authenticated image endpoint. Managed desktops also receive references over
+ * loopback, but pass their owning client's resolver and keyed readiness
+ * explicitly to chat and galleries. They never install a global resolver.
  *
  * Keeping this indirection in `shared` is what lets `imageViewSource` stay
  * synchronous (the timeline grouping path depends on that) while still producing
@@ -21,9 +21,9 @@ export function setRemoteImageRefResolver(fn: ((ref: RemoteImageRefValue) => str
 }
 
 /**
- * Absolute URL for a reference, or `null` when nothing can resolve it (desktop
- * shell, or a remote client with no active session). Callers fall back to the
- * inert tool-call accordion in that case rather than rendering a broken image.
+ * Absolute URL for a reference, or `null` when this global bridge has no active
+ * resolver. Explicit per-owner resolvers take precedence and must not fall
+ * through here when their own image is pending or their client is unavailable.
  */
 export function resolveRemoteImageRefUrl(ref: RemoteImageRefValue): string | null {
   if (!resolver) return null;

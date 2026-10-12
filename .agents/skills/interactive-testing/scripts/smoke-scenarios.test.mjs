@@ -1,0 +1,78 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { areasForFile, isProductionFile } from "./smoke-scenarios.mjs";
+
+await test("host usage changes require remote collection and isolation coverage", () => {
+  for (const file of [
+    "src/renderer/state/hostUsageStore.ts",
+    "src/renderer/components/providers/hostUsage.ts",
+    "src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx",
+  ]) {
+    const area = areasForFile(file).find((candidate) => candidate.id === "remote-provider-usage");
+    assert.ok(area);
+    assert.ok(area.manual.includes("remote-usage"));
+    assert.ok(area.automated.includes("settings"));
+  }
+});
+
+await test("backend production files are production roots mapped to areas", () => {
+  const backendFiles = [
+    "src/backend/BackendHostCore.ts",
+    "src/backend/BackendDurableServices.ts",
+    "src/backend/electronIpcBackpressure.ts",
+    "src/backend/index.ts",
+    "src/backend/legacyMigrationWorker.ts",
+  ];
+  for (const file of backendFiles) {
+    assert.ok(isProductionFile(file), `${file} must count as a production file`);
+    assert.ok(areasForFile(file).length > 0, `${file} must map to a functional area`);
+  }
+  assert.equal(isProductionFile("src/backend/BackendHostCore.test.ts"), false);
+  assert.equal(isProductionFile("src/backend/fixtures/helper.ts"), false);
+});
+
+await test("backend-only changes select baseline plus IPC runtime coverage", () => {
+  const areas = areasForFile("src/backend/BackendHostCore.ts");
+  assert.deepEqual(
+    areas.map((area) => area.id),
+    ["shared-runtime"],
+  );
+  const runtime = areas.find((area) => area.id === "shared-runtime");
+  assert.ok(runtime);
+  assert.ok(runtime.automated.includes("baseline"));
+  assert.ok(runtime.manual.includes("ipc-roundtrip"));
+});
+
+await test("delegated-agent recovery changes require the host restart gate", () => {
+  for (const file of [
+    "src/backend/delegatedAgentBootSettle.ts",
+    "src/shared/toolCallClassification.ts",
+    "src/renderer/state/remote/delegatedAgentSnapshot.ts",
+    "src/renderer/components/thread/ChatPane/parts/items/delegatedAgentResult.ts",
+  ]) {
+    assert.ok(areasForFile(file).some((area) => area.manual.includes("delegated-agent-recovery")));
+  }
+});
+
+await test("backend browser proxy changes keep their existing area gates", () => {
+  const areas = areasForFile("src/backend/BackendRemoteBrowserProxy.ts");
+  assert.ok(areas.some((area) => area.id === "shared-runtime"));
+  assert.ok(areas.some((area) => area.id === "browser" && area.automated.includes("browser")));
+});
+
+await test("host persistence and supervisor transport changes cannot disappear from smoke scope", () => {
+  for (const file of [
+    "src/host/db/runtimePayloadOrigins.ts",
+    "src/host/db/migrations.ts",
+    "src/host/supervisor/SupervisorClient.ts",
+    "src/host/remote/server/runtimePersistence.ts",
+  ]) {
+    assert.ok(isProductionFile(file), `${file} must enter changed-file and full coverage`);
+    const areas = areasForFile(file);
+    assert.ok(areas.some((area) => area.id === "shared-runtime"));
+    assert.ok(areas.some((area) => area.automated.includes("baseline")));
+    assert.ok(areas.some((area) => area.manual.includes("ipc-roundtrip")));
+  }
+  assert.equal(isProductionFile("src/host/db/runtimePayloadOrigins.test.ts"), false);
+  assert.equal(isProductionFile("src/host/fixtures/helper.ts"), false);
+});

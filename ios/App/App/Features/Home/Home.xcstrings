@@ -1,0 +1,240 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "home.compose.camera": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Kamera" } }, "en": { "stringUnit": { "state": "translated", "value": "Camera" } }, "es": { "stringUnit": { "state": "translated", "value": "Cámara" } }, "fr": { "stringUnit": { "state": "translated", "value": "Appareil photo" } }, "ja": { "stringUnit": { "state": "translated", "value": "カメラ" } }, "ko": { "stringUnit": { "state": "translated", "value": "카메라" } }, "pl": { "stringUnit": { "state": "translated", "value": "Aparat" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Câmera" } }, "ru": { "stringUnit": { "state": "translated", "value": "Камера" } }, "tr": { "stringUnit": { "state": "translated", "value": "Kamera" } }, "uk": { "stringUnit": { "state": "translated", "value": "Камера" } }, "vi": { "stringUnit": { "state": "translated", "value": "Camera" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "相机" } }
+      }
+    },
+    "home.compose.cameraUnavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Kamera nicht verfügbar" } }, "en": { "stringUnit": { "state": "translated", "value": "Camera unavailable" } }, "es": { "stringUnit": { "state": "translated", "value": "Cámara no disponible" } }, "fr": { "stringUnit": { "state": "translated", "value": "Appareil photo indisponible" } }, "ja": { "stringUnit": { "state": "translated", "value": "カメラを使用できません" } }, "ko": { "stringUnit": { "state": "translated", "value": "카메라를 사용할 수 없음" } }, "pl": { "stringUnit": { "state": "translated", "value": "Aparat niedostępny" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Câmera indisponível" } }, "ru": { "stringUnit": { "state": "translated", "value": "Камера недоступна" } }, "tr": { "stringUnit": { "state": "translated", "value": "Kamera kullanılamıyor" } }, "uk": { "stringUnit": { "state": "translated", "value": "Камера недоступна" } }, "vi": { "stringUnit": { "state": "translated", "value": "Camera không khả dụng" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "相机不可用" } }
+      }
+    },
+    "home.compose.files": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Dateien" } }, "en": { "stringUnit": { "state": "translated", "value": "Files" } }, "es": { "stringUnit": { "state": "translated", "value": "Archivos" } }, "fr": { "stringUnit": { "state": "translated", "value": "Fichiers" } }, "ja": { "stringUnit": { "state": "translated", "value": "ファイル" } }, "ko": { "stringUnit": { "state": "translated", "value": "파일" } }, "pl": { "stringUnit": { "state": "translated", "value": "Pliki" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Arquivos" } }, "ru": { "stringUnit": { "state": "translated", "value": "Файлы" } }, "tr": { "stringUnit": { "state": "translated", "value": "Dosyalar" } }, "uk": { "stringUnit": { "state": "translated", "value": "Файли" } }, "vi": { "stringUnit": { "state": "translated", "value": "Tệp" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "文件" } }
+      }
+    },
+    "home.compose.mcp.browser": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Browser" } }, "en": { "stringUnit": { "state": "translated", "value": "Browser" } }, "es": { "stringUnit": { "state": "translated", "value": "Navegador" } }, "fr": { "stringUnit": { "state": "translated", "value": "Navigateur" } }, "ja": { "stringUnit": { "state": "translated", "value": "ブラウザ" } }, "ko": { "stringUnit": { "state": "translated", "value": "브라우저" } }, "pl": { "stringUnit": { "state": "translated", "value": "Przeglądarka" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Navegador" } }, "ru": { "stringUnit": { "state": "translated", "value": "Браузер" } }, "tr": { "stringUnit": { "state": "translated", "value": "Tarayıcı" } }, "uk": { "stringUnit": { "state": "translated", "value": "Браузер" } }, "vi": { "stringUnit": { "state": "translated", "value": "Trình duyệt" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "浏览器" } }
+      }
+    },
+    "home.compose.mcp.chrome": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "en": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "es": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "fr": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "ja": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "ko": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "pl": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "ru": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "tr": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "uk": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "vi": { "stringUnit": { "state": "translated", "value": "Chrome" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "Chrome" } }
+      }
+    },
+    "home.compose.mcp.computerUse": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Computernutzung" } }, "en": { "stringUnit": { "state": "translated", "value": "Computer Use" } }, "es": { "stringUnit": { "state": "translated", "value": "Uso del ordenador" } }, "fr": { "stringUnit": { "state": "translated", "value": "Utilisation de l’ordinateur" } }, "ja": { "stringUnit": { "state": "translated", "value": "コンピュータ操作" } }, "ko": { "stringUnit": { "state": "translated", "value": "컴퓨터 사용" } }, "pl": { "stringUnit": { "state": "translated", "value": "Sterowanie komputerem" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Uso do computador" } }, "ru": { "stringUnit": { "state": "translated", "value": "Управление компьютером" } }, "tr": { "stringUnit": { "state": "translated", "value": "Bilgisayar Kullanımı" } }, "uk": { "stringUnit": { "state": "translated", "value": "Керування комп’ютером" } }, "vi": { "stringUnit": { "state": "translated", "value": "Sử dụng máy tính" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "计算机操作" } }
+      }
+    },
+    "home.compose.mcp.crossagents": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "en": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "es": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "fr": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "ja": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "ko": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "pl": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "ru": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "tr": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "uk": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "vi": { "stringUnit": { "state": "translated", "value": "Crossagents" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "Crossagents" } }
+      }
+    },
+    "home.compose.mcpServers": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "MCP-Server" } }, "en": { "stringUnit": { "state": "translated", "value": "MCP Servers" } }, "es": { "stringUnit": { "state": "translated", "value": "Servidores MCP" } }, "fr": { "stringUnit": { "state": "translated", "value": "Serveurs MCP" } }, "ja": { "stringUnit": { "state": "translated", "value": "MCP サーバー" } }, "ko": { "stringUnit": { "state": "translated", "value": "MCP 서버" } }, "pl": { "stringUnit": { "state": "translated", "value": "Serwery MCP" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Servidores MCP" } }, "ru": { "stringUnit": { "state": "translated", "value": "Серверы MCP" } }, "tr": { "stringUnit": { "state": "translated", "value": "MCP Sunucuları" } }, "uk": { "stringUnit": { "state": "translated", "value": "Сервери MCP" } }, "vi": { "stringUnit": { "state": "translated", "value": "Máy chủ MCP" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "MCP 服务器" } }
+      }
+    },
+    "home.compose.photos": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Fotos" } }, "en": { "stringUnit": { "state": "translated", "value": "Photos" } }, "es": { "stringUnit": { "state": "translated", "value": "Fotos" } }, "fr": { "stringUnit": { "state": "translated", "value": "Photos" } }, "ja": { "stringUnit": { "state": "translated", "value": "写真" } }, "ko": { "stringUnit": { "state": "translated", "value": "사진" } }, "pl": { "stringUnit": { "state": "translated", "value": "Zdjęcia" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Fotos" } }, "ru": { "stringUnit": { "state": "translated", "value": "Фото" } }, "tr": { "stringUnit": { "state": "translated", "value": "Fotoğraflar" } }, "uk": { "stringUnit": { "state": "translated", "value": "Фотографії" } }, "vi": { "stringUnit": { "state": "translated", "value": "Ảnh" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "照片" } }
+      }
+    },
+    "home.compose.screenshots": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Bildschirmfotos" } }, "en": { "stringUnit": { "state": "translated", "value": "Screenshots" } }, "es": { "stringUnit": { "state": "translated", "value": "Capturas de pantalla" } }, "fr": { "stringUnit": { "state": "translated", "value": "Captures d’écran" } }, "ja": { "stringUnit": { "state": "translated", "value": "スクリーンショット" } }, "ko": { "stringUnit": { "state": "translated", "value": "스크린샷" } }, "pl": { "stringUnit": { "state": "translated", "value": "Zrzuty ekranu" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Capturas de tela" } }, "ru": { "stringUnit": { "state": "translated", "value": "Снимки экрана" } }, "tr": { "stringUnit": { "state": "translated", "value": "Ekran Görüntüleri" } }, "uk": { "stringUnit": { "state": "translated", "value": "Знімки екрана" } }, "vi": { "stringUnit": { "state": "translated", "value": "Ảnh chụp màn hình" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "屏幕截图" } }
+      }
+    },
+    "home.compose.searchModels": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Modelle suchen" } }, "en": { "stringUnit": { "state": "translated", "value": "Search models" } }, "es": { "stringUnit": { "state": "translated", "value": "Buscar modelos" } }, "fr": { "stringUnit": { "state": "translated", "value": "Rechercher des modèles" } }, "ja": { "stringUnit": { "state": "translated", "value": "モデルを検索" } }, "ko": { "stringUnit": { "state": "translated", "value": "모델 검색" } }, "pl": { "stringUnit": { "state": "translated", "value": "Szukaj modeli" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Buscar modelos" } }, "ru": { "stringUnit": { "state": "translated", "value": "Поиск моделей" } }, "tr": { "stringUnit": { "state": "translated", "value": "Model ara" } }, "uk": { "stringUnit": { "state": "translated", "value": "Пошук моделей" } }, "vi": { "stringUnit": { "state": "translated", "value": "Tìm kiếm mô hình" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "搜索模型" } }
+      }
+    },
+    "home.compose.add": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Hinzufügen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Add" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Añadir" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Ajouter" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "追加" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "추가" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Dodaj" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Adicionar" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Добавить" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Ekle" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Додати" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Thêm" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "添加" } }
+      }
+    },
+    "home.compose.chat": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Chat" } }, "en": { "stringUnit": { "state": "translated", "value": "Chat" } }, "es": { "stringUnit": { "state": "translated", "value": "Chat" } }, "fr": { "stringUnit": { "state": "translated", "value": "Discussion" } }, "ja": { "stringUnit": { "state": "translated", "value": "チャット" } }, "ko": { "stringUnit": { "state": "translated", "value": "채팅" } }, "pl": { "stringUnit": { "state": "translated", "value": "Czat" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Chat" } }, "ru": { "stringUnit": { "state": "translated", "value": "Чат" } }, "tr": { "stringUnit": { "state": "translated", "value": "Sohbet" } }, "uk": { "stringUnit": { "state": "translated", "value": "Чат" } }, "vi": { "stringUnit": { "state": "translated", "value": "Trò chuyện" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "聊天" } }
+      }
+    },
+    "home.compose.cli": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "CLI" } }, "en": { "stringUnit": { "state": "translated", "value": "CLI" } }, "es": { "stringUnit": { "state": "translated", "value": "CLI" } }, "fr": { "stringUnit": { "state": "translated", "value": "CLI" } }, "ja": { "stringUnit": { "state": "translated", "value": "CLI" } }, "ko": { "stringUnit": { "state": "translated", "value": "CLI" } }, "pl": { "stringUnit": { "state": "translated", "value": "CLI" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "CLI" } }, "ru": { "stringUnit": { "state": "translated", "value": "CLI" } }, "tr": { "stringUnit": { "state": "translated", "value": "CLI" } }, "uk": { "stringUnit": { "state": "translated", "value": "CLI" } }, "vi": { "stringUnit": { "state": "translated", "value": "CLI" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "CLI" } }
+      }
+    },
+    "home.compose.context": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Kontext" } }, "en": { "stringUnit": { "state": "translated", "value": "Context" } }, "es": { "stringUnit": { "state": "translated", "value": "Contexto" } }, "fr": { "stringUnit": { "state": "translated", "value": "Contexte" } }, "ja": { "stringUnit": { "state": "translated", "value": "コンテキスト" } }, "ko": { "stringUnit": { "state": "translated", "value": "컨텍스트" } }, "pl": { "stringUnit": { "state": "translated", "value": "Kontekst" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Contexto" } }, "ru": { "stringUnit": { "state": "translated", "value": "Контекст" } }, "tr": { "stringUnit": { "state": "translated", "value": "Bağlam" } }, "uk": { "stringUnit": { "state": "translated", "value": "Контекст" } }, "vi": { "stringUnit": { "state": "translated", "value": "Ngữ cảnh" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "上下文" } }
+      }
+    },
+    "home.compose.effort": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Aufwand" } }, "en": { "stringUnit": { "state": "translated", "value": "Effort" } }, "es": { "stringUnit": { "state": "translated", "value": "Esfuerzo" } }, "fr": { "stringUnit": { "state": "translated", "value": "Effort" } }, "ja": { "stringUnit": { "state": "translated", "value": "推論量" } }, "ko": { "stringUnit": { "state": "translated", "value": "추론 수준" } }, "pl": { "stringUnit": { "state": "translated", "value": "Wysiłek" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Esforço" } }, "ru": { "stringUnit": { "state": "translated", "value": "Усилие" } }, "tr": { "stringUnit": { "state": "translated", "value": "Çaba" } }, "uk": { "stringUnit": { "state": "translated", "value": "Зусилля" } }, "vi": { "stringUnit": { "state": "translated", "value": "Mức suy luận" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "推理强度" } }
+      }
+    },
+    "home.compose.effort.extraHigh": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Extra hoch" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Extra High" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Extra alto" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Très élevé" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "エクストラハイ" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "매우 높음" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Bardzo wysoka" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Extra Alto" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Очень высокий" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Ekstra Yüksek" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Дуже високий" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Cực cao" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "超高" } }
+      }
+    },
+    "home.compose.fast": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Schnell" } }, "en": { "stringUnit": { "state": "translated", "value": "Fast" } }, "es": { "stringUnit": { "state": "translated", "value": "Rápido" } }, "fr": { "stringUnit": { "state": "translated", "value": "Rapide" } }, "ja": { "stringUnit": { "state": "translated", "value": "高速" } }, "ko": { "stringUnit": { "state": "translated", "value": "빠르게" } }, "pl": { "stringUnit": { "state": "translated", "value": "Szybko" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Rápido" } }, "ru": { "stringUnit": { "state": "translated", "value": "Быстро" } }, "tr": { "stringUnit": { "state": "translated", "value": "Hızlı" } }, "uk": { "stringUnit": { "state": "translated", "value": "Швидко" } }, "vi": { "stringUnit": { "state": "translated", "value": "Nhanh" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "快速" } }
+      }
+    },
+    "home.compose.mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Modus" } }, "en": { "stringUnit": { "state": "translated", "value": "Mode" } }, "es": { "stringUnit": { "state": "translated", "value": "Modo" } }, "fr": { "stringUnit": { "state": "translated", "value": "Mode" } }, "ja": { "stringUnit": { "state": "translated", "value": "モード" } }, "ko": { "stringUnit": { "state": "translated", "value": "모드" } }, "pl": { "stringUnit": { "state": "translated", "value": "Tryb" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Modo" } }, "ru": { "stringUnit": { "state": "translated", "value": "Режим" } }, "tr": { "stringUnit": { "state": "translated", "value": "Mod" } }, "uk": { "stringUnit": { "state": "translated", "value": "Режим" } }, "vi": { "stringUnit": { "state": "translated", "value": "Chế độ" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "模式" } }
+      }
+    },
+    "home.compose.permission.auto": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Automatisch" } }, "en": { "stringUnit": { "state": "translated", "value": "Auto" } }, "es": { "stringUnit": { "state": "translated", "value": "Automático" } }, "fr": { "stringUnit": { "state": "translated", "value": "Automatique" } }, "ja": { "stringUnit": { "state": "translated", "value": "自動" } }, "ko": { "stringUnit": { "state": "translated", "value": "자동" } }, "pl": { "stringUnit": { "state": "translated", "value": "Automatycznie" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Automático" } }, "ru": { "stringUnit": { "state": "translated", "value": "Авто" } }, "tr": { "stringUnit": { "state": "translated", "value": "Otomatik" } }, "uk": { "stringUnit": { "state": "translated", "value": "Авто" } }, "vi": { "stringUnit": { "state": "translated", "value": "Tự động" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "自动" } }
+      }
+    },
+    "home.compose.permission.bypass": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Umgehen" } }, "en": { "stringUnit": { "state": "translated", "value": "Bypass" } }, "es": { "stringUnit": { "state": "translated", "value": "Omitir" } }, "fr": { "stringUnit": { "state": "translated", "value": "Contourner" } }, "ja": { "stringUnit": { "state": "translated", "value": "バイパス" } }, "ko": { "stringUnit": { "state": "translated", "value": "우회" } }, "pl": { "stringUnit": { "state": "translated", "value": "Pomiń" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Ignorar" } }, "ru": { "stringUnit": { "state": "translated", "value": "Обойти" } }, "tr": { "stringUnit": { "state": "translated", "value": "Atla" } }, "uk": { "stringUnit": { "state": "translated", "value": "Обійти" } }, "vi": { "stringUnit": { "state": "translated", "value": "Bỏ qua" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "绕过" } }
+      }
+    },
+    "home.compose.permissions": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Berechtigungen" } }, "en": { "stringUnit": { "state": "translated", "value": "Permissions" } }, "es": { "stringUnit": { "state": "translated", "value": "Permisos" } }, "fr": { "stringUnit": { "state": "translated", "value": "Autorisations" } }, "ja": { "stringUnit": { "state": "translated", "value": "権限" } }, "ko": { "stringUnit": { "state": "translated", "value": "권한" } }, "pl": { "stringUnit": { "state": "translated", "value": "Uprawnienia" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Permissões" } }, "ru": { "stringUnit": { "state": "translated", "value": "Разрешения" } }, "tr": { "stringUnit": { "state": "translated", "value": "İzinler" } }, "uk": { "stringUnit": { "state": "translated", "value": "Дозволи" } }, "vi": { "stringUnit": { "state": "translated", "value": "Quyền" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "权限" } }
+      }
+    },
+    "home.compose.worktree.branch": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Branch" } }, "en": { "stringUnit": { "state": "translated", "value": "Branch" } }, "es": { "stringUnit": { "state": "translated", "value": "Rama" } }, "fr": { "stringUnit": { "state": "translated", "value": "Branche" } }, "ja": { "stringUnit": { "state": "translated", "value": "ブランチ" } }, "ko": { "stringUnit": { "state": "translated", "value": "브랜치" } }, "pl": { "stringUnit": { "state": "translated", "value": "Gałąź" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Branch" } }, "ru": { "stringUnit": { "state": "translated", "value": "Ветка" } }, "tr": { "stringUnit": { "state": "translated", "value": "Dal" } }, "uk": { "stringUnit": { "state": "translated", "value": "Гілка" } }, "vi": { "stringUnit": { "state": "translated", "value": "Nhánh" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "分支" } }
+      }
+    },
+    "home.compose.worktree.withChanges": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Worktree + Änderungen" } }, "en": { "stringUnit": { "state": "translated", "value": "Worktree + changes" } }, "es": { "stringUnit": { "state": "translated", "value": "Worktree + cambios" } }, "fr": { "stringUnit": { "state": "translated", "value": "Worktree + modifications" } }, "ja": { "stringUnit": { "state": "translated", "value": "Worktree + 変更" } }, "ko": { "stringUnit": { "state": "translated", "value": "Worktree + 변경 사항" } }, "pl": { "stringUnit": { "state": "translated", "value": "Worktree + zmiany" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Worktree + alterações" } }, "ru": { "stringUnit": { "state": "translated", "value": "Worktree + изменения" } }, "tr": { "stringUnit": { "state": "translated", "value": "Worktree + değişiklikler" } }, "uk": { "stringUnit": { "state": "translated", "value": "Worktree + зміни" } }, "vi": { "stringUnit": { "state": "translated", "value": "Worktree + thay đổi" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "Worktree + 更改" } }
+      }
+    },
+    "home.compose.worktree.worktree": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "en": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "es": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "fr": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "ja": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "ko": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "pl": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "ru": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "tr": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "uk": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "vi": { "stringUnit": { "state": "translated", "value": "Worktree" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "Worktree" } }
+      }
+    },
+    "home.compose.worktreeMode": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Worktree-Modus" } }, "en": { "stringUnit": { "state": "translated", "value": "Worktree mode" } }, "es": { "stringUnit": { "state": "translated", "value": "Modo de worktree" } }, "fr": { "stringUnit": { "state": "translated", "value": "Mode worktree" } }, "ja": { "stringUnit": { "state": "translated", "value": "Worktree モード" } }, "ko": { "stringUnit": { "state": "translated", "value": "Worktree 모드" } }, "pl": { "stringUnit": { "state": "translated", "value": "Tryb worktree" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Modo de worktree" } }, "ru": { "stringUnit": { "state": "translated", "value": "Режим worktree" } }, "tr": { "stringUnit": { "state": "translated", "value": "Worktree modu" } }, "uk": { "stringUnit": { "state": "translated", "value": "Режим worktree" } }, "vi": { "stringUnit": { "state": "translated", "value": "Chế độ worktree" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "Worktree 模式" } }
+      }
+    },
+    "home.project.onHost": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "en": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "es": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "fr": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "ja": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "ko": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "pl": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "ru": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "tr": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "uk": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "vi": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$@ — %2$@" } }
+      }
+    },
+    "home.more.connections": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Verbindungen" } }, "en": { "stringUnit": { "state": "translated", "value": "Connections" } }, "es": { "stringUnit": { "state": "translated", "value": "Conexiones" } }, "fr": { "stringUnit": { "state": "translated", "value": "Connexions" } }, "ja": { "stringUnit": { "state": "translated", "value": "接続" } }, "ko": { "stringUnit": { "state": "translated", "value": "연결" } }, "pl": { "stringUnit": { "state": "translated", "value": "Połączenia" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Conexões" } }, "ru": { "stringUnit": { "state": "translated", "value": "Подключения" } }, "tr": { "stringUnit": { "state": "translated", "value": "Bağlantılar" } }, "uk": { "stringUnit": { "state": "translated", "value": "Підключення" } }, "vi": { "stringUnit": { "state": "translated", "value": "Kết nối" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "连接" } }
+      }
+    },
+    "home.more.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Mehr" } }, "en": { "stringUnit": { "state": "translated", "value": "More" } }, "es": { "stringUnit": { "state": "translated", "value": "Más" } }, "fr": { "stringUnit": { "state": "translated", "value": "Plus" } }, "ja": { "stringUnit": { "state": "translated", "value": "その他" } }, "ko": { "stringUnit": { "state": "translated", "value": "더 보기" } }, "pl": { "stringUnit": { "state": "translated", "value": "Więcej" } }, "pt-BR": { "stringUnit": { "state": "translated", "value": "Mais" } }, "ru": { "stringUnit": { "state": "translated", "value": "Ещё" } }, "tr": { "stringUnit": { "state": "translated", "value": "Daha fazla" } }, "uk": { "stringUnit": { "state": "translated", "value": "Більше" } }, "vi": { "stringUnit": { "state": "translated", "value": "Thêm" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "更多" } }
+      }
+    },
+    "home.project.git.reviewChanges": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Änderungen überprüfen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Review Changes" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Revisar cambios" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Examiner les modifications" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "変更を確認" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "변경 사항 검토" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przejrzyj zmiany" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Revisar alterações" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Просмотреть изменения" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Değişiklikleri incele" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Переглянути зміни" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Xem lại thay đổi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "查看更改" } }
+      }
+    },
+    "home.project.git.githubActions": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "GitHub-Aktionen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "GitHub Actions" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Acciones de GitHub" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Actions GitHub" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "GitHub アクション" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "GitHub 작업" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Akcje GitHub" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Ações do GitHub" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Действия GitHub" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "GitHub Eylemleri" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Дії GitHub" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Hành động GitHub" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "GitHub 操作" } }
+      }
+    }
+  },
+  "version": "1.0"
+}

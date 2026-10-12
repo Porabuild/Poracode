@@ -9,8 +9,11 @@ import {
   mapAcpSlashCommands,
   mapAcpThoughtLevels,
   normalizeAcpModeId,
+  configOptionsDescribeModel,
   type AcpProbeResult,
 } from "./probe";
+import { projectModelConfigGroups } from "./modelConfigGroups";
+import { structuredTurnTextOptions } from "../../runtime/turnClientContext";
 import { dedupeAcpAuthMethods } from "./authMethods";
 import { resolveThoughtLevelToggleValues } from "./thoughtLevel";
 
@@ -82,6 +85,23 @@ describe("mapAcpSlashCommands", () => {
       },
     ]);
   });
+
+  it("lets the runtime keep advertised command arguments free of client context", () => {
+    const slashCommands = mapAcpSlashCommands([
+      { name: "memory", description: "Manage memory" },
+      { name: "skill:simplify", description: "Review changed code" },
+    ]);
+    const target = { structuredSession: {}, slashCommands };
+    const turnContext = "[client context] tab_id: 9";
+    // The provider receives `/memory add note` without the URL as arguments.
+    expect(structuredTurnTextOptions(target, { prompt: "/memory add note", turnContext })).toEqual(
+      {},
+    );
+    // A skill invocation is a model turn and keeps its context.
+    expect(
+      structuredTurnTextOptions(target, { prompt: "/skill:simplify src", turnContext }),
+    ).toEqual({ inlineInstructions: turnContext });
+  });
 });
 
 describe("humanizeModelId", () => {
@@ -126,6 +146,61 @@ describe("mapAcpConfigModels", () => {
         { type: "select", category: "model", options: [{ value: "" }, {}] },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("grouped model menu projection", () => {
+  // Grouped config options negotiated: the `model` select arrives with
+  // SDK-nested groups ({group, name, options[]}). Group ids/names are
+  // agent-owned content; the fixture keeps neutral ones.
+  const groupedModelOption = {
+    type: "select",
+    id: "model",
+    category: "model",
+    currentValue: "m-high",
+    options: [
+      {
+        group: "flagship",
+        name: "Flagship",
+        options: [
+          { value: "m-high", name: "High" },
+          { value: "fusion-a-plus-b", name: "Fusion (A + B)" },
+        ],
+      },
+      { value: "m-standalone", name: "Standalone" },
+      { group: "fast", name: "Fast tier", options: [{ value: "m-fast", name: "Lightning" }] },
+    ],
+  };
+
+  it("keeps the flat {id,label} projection exact when groups are present", () => {
+    expect(mapAcpConfigModels([groupedModelOption])).toEqual([
+      { id: "m-high", label: "High" },
+      { id: "fusion-a-plus-b", label: "Fusion (A + B)" },
+      { id: "m-standalone", label: "Standalone" },
+      { id: "m-fast", label: "Lightning" },
+    ]);
+  });
+
+  it("maps exactly the accepted ids to their own groups, leaving ungrouped ones out", () => {
+    const acceptedIds = new Set(mapAcpConfigModels([groupedModelOption]).map((model) => model.id));
+    const groups = projectModelConfigGroups(groupedModelOption.options);
+    expect(groups?.subProviders).toEqual([
+      { id: "flagship", label: "Flagship" },
+      { id: "fast", label: "Fast tier" },
+    ]);
+    // Membership keys are always accepted ids — never an invented one — and
+    // cover exactly the grouped values; ungrouped entries stay unmapped.
+    const membershipKeys = Object.keys(groups?.modelSubProvider ?? {});
+    for (const key of membershipKeys) expect(acceptedIds.has(key)).toBe(true);
+    expect(membershipKeys.sort()).toEqual(["fusion-a-plus-b", "m-fast", "m-high"]);
+    expect(groups?.modelSubProvider["m-high"]).toBe("flagship");
+    expect(groups?.modelSubProvider["fusion-a-plus-b"]).toBe("flagship");
+    expect(groups?.modelSubProvider["m-fast"]).toBe("fast");
+    expect(groups?.modelSubProvider["m-standalone"]).toBeUndefined();
+  });
+
+  it("projects nothing for a flat menu, keeping the unadvertised-flag result unchanged", () => {
+    expect(projectModelConfigGroups([{ value: "m-1", name: "One" }])).toBeUndefined();
   });
 });
 
@@ -517,6 +592,27 @@ describe("mapAcpThoughtLevels", () => {
         },
       ]),
     ).toEqual({ efforts: [] });
+  });
+});
+
+describe("configOptionsDescribeModel", () => {
+  const optionsFor = (modelId: string) => [
+    {
+      id: "model",
+      category: "model",
+      type: "select" as const,
+      currentValue: modelId,
+      options: [{ value: modelId, name: modelId }],
+    },
+  ];
+
+  it("accepts a snapshot whose model selector matches the requested id", () => {
+    expect(configOptionsDescribeModel(optionsFor("model-b"), "model-b")).toBe(true);
+  });
+
+  it("rejects a leftover snapshot from the previous model", () => {
+    expect(configOptionsDescribeModel(optionsFor("model-a"), "model-b")).toBe(false);
+    expect(configOptionsDescribeModel(undefined, "model-b")).toBe(false);
   });
 });
 

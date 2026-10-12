@@ -843,10 +843,12 @@ describe("shipped packages", () => {
       github: ["## Before you start", "## Reading", "## Writing", "## Reporting", "Related skills"],
       outlook: ["## Before you start", "## Triage", "## Drafting and sending", "## Report"],
       "subagent-delegation": [
-        "## Decide whether to delegate",
-        "## Workflow",
-        "## Safety and retries",
-        "## Output",
+        "## Start once",
+        "read-only research first",
+        "exact write ownership",
+        "Waits default to 480 seconds",
+        "same provider session/context",
+        "live schema on older hosts",
       ],
       terminal: ["## Find the pane", "## Read it", "## Report", "list_terminals", "read_terminal"],
     };

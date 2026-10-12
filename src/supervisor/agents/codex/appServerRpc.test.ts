@@ -462,6 +462,15 @@ describe("CodexAppServerRpc", () => {
         requestId: "approval-2",
       }),
     );
+    const writesBeforeWrongOwner = [...writes];
+    const eventsBeforeWrongOwner = [...secondEvents];
+    first.resolveServerRequest("approval-2", { optionId: "decline" });
+    expect(writes).toEqual(writesBeforeWrongOwner);
+    expect(secondEvents).toEqual(eventsBeforeWrongOwner);
+    expect(firstEvents).toEqual([]);
+
+    // The wrong channel is a no-op; the owning channel can still resolve
+    // the original request using its provider-native response translation.
     second.resolveServerRequest("approval-2", { optionId: "accept" });
     expect(writes.at(-1)).toEqual({ id: "approval-2", result: { decision: "accept" } });
   });

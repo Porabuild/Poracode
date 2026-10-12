@@ -12,6 +12,7 @@ export interface GuiSlashCommandScope {
 }
 
 export type LocalSlashCommandAction =
+  | { kind: "open-side-chat"; prompt: string }
   | { kind: "set-mode"; mode: "agent" | "plan" }
   | { kind: "open-control"; target: "model" | "effort" }
   | { kind: "toggle-fast" };

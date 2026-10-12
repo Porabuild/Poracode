@@ -1,3 +1,4 @@
+import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
 import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import type { AgentStatus, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
 
@@ -54,6 +55,8 @@ export function newScheduleDraft(agent: AgentStatus | undefined): ScheduleDraft 
 }
 
 export function taskScheduleDraft(task: ScheduledTask): ScheduleDraft {
+  // Preserve the saved id until a catalog can confirm an available replacement.
+  const config = normalizeProviderModelConfig(task.agentKind, task.config, []);
   const repeatMode =
     task.recurrence.kind === "hourly"
       ? "hourly"
@@ -71,9 +74,9 @@ export function taskScheduleDraft(task: ScheduledTask): ScheduleDraft {
     name: task.name,
     prompt: task.prompt,
     agentKind: task.agentKind,
-    model: task.config.model,
+    model: config.model,
     effort: task.config.effort ?? "",
-    fast: task.config.fast ?? false,
+    fast: config.fast ?? false,
     enabled: task.enabled,
     projectId: task.projectId ?? null,
     repeatMode,

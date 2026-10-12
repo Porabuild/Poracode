@@ -12,10 +12,17 @@ import {
 // supervisor import sites stable.
 export { configureSecretStorageKey, decryptSecret, encryptSecret, isEncryptedSecret };
 
+/** Where a sensitive value sits: an agent-settings key or an instance env var. */
+export interface SensitiveAgentSecretLocation {
+  scope: "agentSettings" | "agentInstances";
+  id: string;
+  name: string;
+}
+
 export function transformSensitiveAgentSecrets(
   settings: SharedSettings,
   baseDir: string,
-  transform: (baseDir: string, value: string) => string,
+  transform: (baseDir: string, value: string, location: SensitiveAgentSecretLocation) => string,
   onTransformError?: (input: { instanceId: string; variableName: string; error: unknown }) => void,
 ): SharedSettings {
   let changed = false;
@@ -31,7 +38,11 @@ export function transformSensitiveAgentSecrets(
       const value = values[key];
       if (typeof value !== "string") continue;
       try {
-        nextValues[key] = transform(baseDir, value);
+        nextValues[key] = transform(baseDir, value, {
+          scope: "agentSettings",
+          id: agentKind,
+          name: key,
+        });
       } catch (error) {
         if (!onTransformError) throw error;
         delete nextValues[key];
@@ -51,7 +62,14 @@ export function transformSensitiveAgentSecrets(
     for (const [name, variable] of Object.entries(instance.environment)) {
       if (variable.sensitive !== true) continue;
       try {
-        environment[name] = { ...variable, value: transform(baseDir, variable.value) };
+        environment[name] = {
+          ...variable,
+          value: transform(baseDir, variable.value, {
+            scope: "agentInstances",
+            id: instanceId,
+            name,
+          }),
+        };
       } catch (error) {
         if (!onTransformError) throw error;
         delete environment[name];

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import type { Project, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { isDraftPaneId } from "@/shared/paneId";
+import { normalizeStoredThreadStatus } from "@/renderer/state/slices/helpers";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -56,10 +58,14 @@ vi.mock("@/renderer/actions/worktreeActions", () => ({
   deleteWorktreeGroup,
 }));
 
-vi.mock("@/renderer/state/chatRuntimePersister", () => ({
-  hasHydratedThreadRuntimeItems,
-  hydrateThreadRuntimeItems,
-}));
+vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>();
+  return {
+    ...actual,
+    hasHydratedThreadRuntimeItems,
+    hydrateThreadRuntimeItems,
+  };
+});
 
 describe("threadActions", () => {
   beforeEach(() => {
@@ -81,6 +87,7 @@ describe("threadActions", () => {
       pendingActiveThreadId: null,
       pendingComposerFocusThreadId: null,
       pendingThreadLaunches: {},
+      connectingThreadIds: {},
       provisioningWorktreeThreadIds: {},
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -395,6 +402,73 @@ describe("threadActions", () => {
     expect(reopened?.attention).toBe("none");
     expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
+  });
+
+  it("does not enqueue another reconnect after a stale inactive row arrives during launch", () => {
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
+    });
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    const token = useAppStore.getState().connectingThreadIds[thread.id];
+    useAppStore.getState().consumeThreadLaunch(thread.id);
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches).toEqual({});
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toBe(token);
+  });
+
+  it("does not relaunch a non-resumable inactive GUI thread", () => {
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: false,
+    });
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches).toEqual({});
+    expect(useAppStore.getState().connectingThreadIds).toEqual({});
+    expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
+  });
+
+  it("protects an interrupted pre-session GUI row while allowing an explicit fresh draft", () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const thread = normalizeStoredThreadStatus(
+      makeThread({
+        projectId: project.id,
+        presentationMode: "gui",
+        status: "launching",
+        canResumeWithConfig: false,
+      }),
+    );
+    const history = { [thread.id]: ["original-message"] };
+    const draft = {
+      segments: [{ kind: "text" as const, content: "unsent follow up" }],
+      attachments: [],
+    };
+    useAppStore.setState({
+      threads: [thread],
+      view: { kind: "thread", panes: [thread.id] },
+      runtimeItemIdsByThread: history,
+      threadDraftContents: { [thread.id]: draft },
+    });
+    reopenStoredThread(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches).toEqual({});
+    expect(useAppStore.getState().connectingThreadIds).toEqual({});
+    expect(useAppStore.getState().threads[0]).toBe(thread);
+
+    useSharedSettings.setState({ newThreadMode: "panel" });
+    openNewThread(project.id);
+    const view = useAppStore.getState().view;
+    expect(view.kind).toBe("thread");
+    if (view.kind !== "thread") throw new Error("Expected existing thread and fresh draft");
+    expect(view.panes).toContain(thread.id);
+    expect(view.panes.some(isDraftPaneId)).toBe(true);
+    expect(useAppStore.getState().runtimeItemIdsByThread).toBe(history);
+    expect(useAppStore.getState().threadDraftContents[thread.id]).toEqual(draft);
+    expect(useAppStore.getState().threads[0]).toBe(thread);
   });
 
   it("queues the same empty-prompt reopen for inactive remote threads as local", () => {

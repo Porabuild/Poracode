@@ -144,9 +144,7 @@ export function buildCompletedPayload(
 ): unknown {
   if (itemType === "command_execution") {
     return {
-      ...(typeof source.status === "string"
-        ? { status: source.status === "failed" ? "error" : "success" }
-        : {}),
+      ...(typeof source.status === "string" ? { status: codexFinalStatus(source.status) } : {}),
       ...(typeof source.exitCode === "number" ? { exitCode: source.exitCode } : {}),
       ...(typeof source.durationMs === "number" ? { durationMs: source.durationMs } : {}),
     };

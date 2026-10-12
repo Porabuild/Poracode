@@ -5,9 +5,11 @@ import type { V2Event } from "./clientTypes";
 import {
   createOpenCode2MapperState,
   mapOpenCode2Event,
+  readOpenCode2EventSessionID,
   setOpenCode2SessionId,
 } from "./eventMapping";
 import { OpenCode2Subagents } from "./subagents";
+import { openCode2SnapshotEvents } from "./recovery";
 
 function event(type: string, data: Record<string, unknown>): V2Event {
   return { id: type, created: 1, type, data } as V2Event;
@@ -225,6 +227,93 @@ describe("OpenCode 2 native child sessions", () => {
     );
     expect(root.messages.get("message")?.tools.get("tool")?.progress.stepCount).toBe(1);
   });
+
+  it.each([undefined, 0])(
+    "keeps continuation progress when recovery relinks old tools with native count %s",
+    (nativeCount) => {
+      const { root, children } = fixture();
+      const send = (entry: V2Event) => {
+        if (readOpenCode2EventSessionID(entry) === "parent") mapOpenCode2Event(entry, root);
+        return children.map(entry);
+      };
+      const start = (id: string) =>
+        event("session.tool.input.started", {
+          sessionID: "child",
+          assistantMessageID: "child-message",
+          id,
+          name: "read",
+        });
+      send(linkEvent());
+      send(start("old-read"));
+      send(
+        event("session.tool.success", {
+          sessionID: "parent",
+          assistantMessageID: "message",
+          id: "tool",
+          content: [{ type: "text", text: "Done" }],
+          metadata: { sessionID: "child" },
+        }),
+      );
+      send(
+        event("session.tool.input.started", {
+          sessionID: "parent",
+          assistantMessageID: "message",
+          id: "next-tool",
+          name: "subagent",
+        }),
+      );
+      send(linkEvent("child", "next-tool"));
+      send(start("next-read"));
+      send(start("another-read"));
+      const nextParent = root.messages.get("message")!.tools.get("next-tool")!;
+      expect(nextParent.progress.stepCount).toBe(2);
+
+      const metadata = {
+        sessionID: "child",
+        ...(nativeCount === undefined ? {} : { stepCount: nativeCount }),
+      };
+      for (const entry of openCode2SnapshotEvents("parent", [
+        {
+          id: "message",
+          type: "assistant",
+          agent: "test",
+          model: { providerID: "test", id: "test" },
+          time: { created: 1 },
+          content: [
+            {
+              type: "tool",
+              id: "tool",
+              name: "subagent",
+              time: { created: 1 },
+              state: {
+                status: "completed",
+                input: {},
+                content: [{ type: "text", text: "Done" }],
+                metadata,
+              },
+            },
+            {
+              type: "tool",
+              id: "next-tool",
+              name: "subagent",
+              time: { created: 2 },
+              state: { status: "running", input: {}, metadata },
+            },
+          ],
+        },
+      ]))
+        send(entry);
+      for (const id of ["old-read", "next-read", "another-read"]) send(start(id));
+      expect(nextParent.progress.stepCount).toBe(2);
+      expect(send(start("fresh-read"))).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: nextParent.itemId,
+          payload: expect.objectContaining({ progress: { stepCount: 3 } }),
+        }),
+      );
+    },
+  );
 
   it("preserves parent metadata and completion when child progress arrives late", () => {
     const { root, children, parentItemId } = fixture();

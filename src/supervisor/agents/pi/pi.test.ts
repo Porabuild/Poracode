@@ -77,14 +77,16 @@ describe("Pi CLI argv", () => {
     ]);
   });
 
-  it("resumes the exact Pi session id", () => {
+  it("resumes the exact Pi session id", async () => {
     const adapter = createPiAdapter();
     expect(
-      adapter.buildResumeArgv(
-        location,
-        { model: "openai/gpt-5-mini", effort: "low" } as ThreadConfig,
-        "continue",
-        createKnownSessionRef("0198-session"),
+      (
+        await adapter.buildResumeArgv(
+          location,
+          { model: "openai/gpt-5-mini", effort: "low" } as ThreadConfig,
+          "continue",
+          createKnownSessionRef("0198-session"),
+        )
       ).args,
     ).toEqual([
       "--approve",

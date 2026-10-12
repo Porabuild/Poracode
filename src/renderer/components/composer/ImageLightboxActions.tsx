@@ -15,12 +15,16 @@ export function ImageLightboxActions({ image }: { image: LightboxImage }) {
     const fileName = image.fileName ?? metadata.fileName;
     try {
       if (action === "copy") {
-        const data = await toClipboardPngBytes({ src: image.src, mime });
+        const data = await toClipboardPngBytes({
+          src: image.src,
+          mime,
+          ...(image.readBytes ? { readBytes: image.readBytes } : {}),
+        });
         if (!(await readBridge().copyImageToClipboard({ data }))) {
           toast.danger(t`Unable to copy image.`);
         }
       } else if (action === "save") {
-        const data = await fetchImageBytes(image.src);
+        const data = image.readBytes ? await image.readBytes() : await fetchImageBytes(image.src);
         await readBridge().saveImageFile({ data, suggestedName: fileName });
       }
     } catch {

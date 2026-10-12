@@ -22,7 +22,7 @@ export function deriveSubProvider(
   capability: AgentCapability,
 ): DerivedSubProvider | undefined {
   const explicitId = capability.modelSubProvider?.[modelId];
-  if (explicitId) {
+  if (typeof explicitId === "string" && explicitId) {
     const labeled = capability.subProviders?.find((p) => p.id === explicitId);
     return { id: explicitId, label: labeled?.label ?? humanize(explicitId) };
   }

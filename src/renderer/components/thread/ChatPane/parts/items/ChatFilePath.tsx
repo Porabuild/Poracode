@@ -1,4 +1,5 @@
 import { splitPath } from "@/shared/pathUtils";
+import { StartTruncatedText } from "@/renderer/components/common/StartTruncatedText";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { toProjectRelativeDisplayPath } from "../../chatPathUtils";
 
@@ -16,9 +17,8 @@ interface ChatFilePathProps {
  * File path for chat tool-call / file-change rows, rendered as
  * `<basename> <muted …dir-tail>`.
  *
- * Truncation is **pure CSS** (`lc-truncate-start` = `direction: rtl` +
- * `text-overflow: ellipsis` on the directory), NOT JS measurement. This is
- * deliberate: these rows hug their content (`w-fit max-w-full`), and a
+ * Truncation uses the shared CSS-only `StartTruncatedText` on the directory.
+ * These rows hug their content (`w-fit max-w-full`), and a
  * width-measuring truncator (the shared `PathDisplay`) collapses inside a
  * fit-content ancestor — it deletes characters to fit its box, that shrinks the
  * hugging `<code>`/row, its ResizeObserver fires smaller, it deletes more, and
@@ -48,7 +48,9 @@ export function ChatFilePath({
       title={path}
     >
       <span className={`shrink-0 ${basenameClassName}`}>{basename}</span>
-      {dir ? <span className={`lc-truncate-start ml-1 flex-1 ${dirClassName}`}>{dir}</span> : null}
+      {dir ? (
+        <StartTruncatedText className={`ml-1 flex-1 ${dirClassName}`}>{dir}</StartTruncatedText>
+      ) : null}
     </span>
   );
 }

@@ -8,7 +8,11 @@ import providerManifest from "./manifest";
 import { planWorkToggle } from "../composerControlBuilders";
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import { registerProviderIcon } from "../ProviderIcon";
-import { registerComposerControls, registerConfigNormalizer } from "../providerComposer";
+import {
+  registerComposerConfigBehavior,
+  registerComposerControls,
+  registerConfigNormalizer,
+} from "../providerComposer";
 import { registerGuiSlashCommands } from "../providerSlashCommands";
 import {
   buildStandardGuiSlashCommands,
@@ -50,6 +54,10 @@ registerConfigNormalizer(PROVIDER_KIND, ({ config, presentationMode }) => {
   }
   return {};
 });
+
+// The context window is a thread-level override: a change on a started thread
+// is applied by cold-resuming the app-server thread before the next turn.
+registerComposerConfigBehavior(PROVIDER_KIND, { contextSizeChangeReloadsSession: true });
 
 registerGuiSlashCommands(PROVIDER_KIND, {
   buildCommands: (ctx) =>

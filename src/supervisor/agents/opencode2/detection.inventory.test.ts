@@ -4,6 +4,9 @@ import type { AcquiredOpenCode2Server } from "./client";
 
 const acquire = vi.hoisted(() => vi.fn<() => Promise<AcquiredOpenCode2Server>>());
 vi.mock("./client", () => ({
+  listOpenCode2LegacyOAuthCredentials: vi
+    .fn<typeof import("./client").listOpenCode2LegacyOAuthCredentials>()
+    .mockResolvedValue([]),
   acquireOpenCode2Server: acquire,
   resolveOpenCode2SessionDirectory: () => "/repo",
 }));

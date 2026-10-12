@@ -1,0 +1,219 @@
+name: Physical device qualification
+
+# Dispatch-only physical-device lane. Physical devices are attached to
+# self-hosted runners, so this workflow never triggers on push/pull_request,
+# is never a workflow_call building block, and feeds no required gate — it
+# produces qualification evidence on demand. The simulator/emulator contract
+# lanes stay in native-ci.yml.
+#
+# Pairing material is NEVER a workflow input, env var, or secret: both
+# journeys start the production-host harness in-repo, which mints its one-use
+# real-peer pairing credential into its 0600 run-dir secrets and hands it to
+# the device app locally (see scripts/native-e2e.mjs).
+
+on:
+  workflow_dispatch:
+    inputs:
+      ios_udid:
+        description: "Physical iPhone UDID (`xcrun devicectl list devices`). Required for the iOS job."
+        required: false
+        type: string
+        default: ""
+      device_host:
+        description: "Host the iPhone dials (runner's LAN/VPN IP). Required for the iOS job."
+        required: false
+        type: string
+        default: ""
+      android_serial:
+        description: "Physical Android serial (`adb devices`). Optional: defaults to the runner's attached device."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+# One physical device per platform: serialize qualification runs instead of
+# cancelling a mid-run device grab.
+concurrency:
+  group: physical-device-qualification
+  cancel-in-progress: false
+
+env:
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
+jobs:
+  ios_device:
+    name: iOS real-peer family journey (physical iPhone)
+    # Labels are a contract with the operator's runner registration: a
+    # self-hosted macOS host with an unlocked, trusted, code-signable iPhone
+    # attached. The journey's own timers bound individual phases in addition
+    # to this workflow deadline.
+    runs-on: [self-hosted, macOS, poracode-physical-ios]
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build test native dependencies
+        # The real-peer leg boots the production host, whose PTY sessions need
+        # node-pty (install runs with --ignore-scripts).
+        run: scripts/ci-rebuild-node-pty.sh
+
+      - name: Build the production headless host
+        # Required by the E.2 real-peer family journey: the real harness boots
+        # dist/main/server.cjs with the strict checkout-shape layout.
+        run: |
+          pnpm run codex-protocol:gen
+          pnpm run build:electron
+          pnpm run prepare:server-native
+          pnpm run prepare:package-assets
+          test -f dist/main/server.cjs
+          test -f dist/server-native/better_sqlite3.node
+          test -d resources/wsl-helpers
+
+      - name: Show Xcode toolchain
+        # Self-hosted runners manage their own Xcode; record what built the
+        # device candidate instead of pinning a hosted-image version.
+        run: xcodebuild -version
+
+      - name: Resolve the physical iOS target
+        env:
+          IOS_UDID_INPUT: ${{ inputs.ios_udid }}
+          DEVICE_HOST_INPUT: ${{ inputs.device_host }}
+        run: |
+          if [ -z "$IOS_UDID_INPUT" ]; then
+            echo "::error::The ios_udid dispatch input is required: attach the iPhone, unlock it, and pass its UDID from \`xcrun devicectl list devices\`."
+            exit 1
+          fi
+          if [ -z "$DEVICE_HOST_INPUT" ]; then
+            echo "::error::The device_host dispatch input is required: the iPhone dials the runner through this LAN/VPN address."
+            exit 1
+          fi
+          xcrun devicectl list devices
+
+      - name: Run the iOS real-peer family journey (physical device)
+        env:
+          PORACODE_NATIVE_E2E_SLOT: "1"
+          NATIVE_E2E_PEER_MODE: "real"
+          NATIVE_E2E_STARTUP_TIMEOUT_MS: "120000"
+          NATIVE_E2E_TEST_TIMEOUT_MS: "1800000"
+          # Real mode runs exactly the two families with real branches
+          # (terminal keystroke, git); steer/permission self-skip in real mode.
+          NATIVE_E2E_IOS_ONLY_TESTING: "NativeE2ETests/NativeFamilyJourneyUITests/testTerminalKeystrokeFamilyWritesToPty,NativeE2ETests/NativeFamilyJourneyUITests/testGitFamilyReachesHostFromWorkspace"
+          # Physical-device opt-ins: the CoreDevice destination (simctl is
+          # never touched), the host the device dials, and the test-only
+          # forwarder that exposes the loopback-only harness on it.
+          NATIVE_E2E_IOS_PHYSICAL_UDID: ${{ inputs.ios_udid }}
+          NATIVE_E2E_DEVICE_HOST: ${{ inputs.device_host }}
+          NATIVE_E2E_DEVICE_FORWARD: "1"
+        run: node scripts/native-e2e.mjs ios-ui
+
+      - name: Upload iOS physical-device evidence
+        # On success and failure, not on cancellation: a cancelled run's
+        # half-written run dirs say nothing about the device outcome.
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-physical-device-${{ github.run_attempt }}
+          path: .tmp/native-e2e/ios-ui-*/
+          if-no-files-found: warn
+          retention-days: 7
+
+  android_device:
+    name: Android real-peer family journey (physical device)
+    runs-on: [self-hosted, Linux, poracode-physical-android]
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build test native dependencies
+        run: scripts/ci-rebuild-node-pty.sh
+
+      - name: Build the production headless host
+        run: |
+          pnpm run codex-protocol:gen
+          pnpm run build:electron
+          pnpm run prepare:server-native
+          pnpm run prepare:package-assets
+          test -f dist/main/server.cjs
+          test -f dist/server-native/better_sqlite3.node
+          test -d resources/wsl-helpers
+
+      - name: Build Android runtime APKs
+        working-directory: android
+        run: ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon --stacktrace
+
+      - name: Resolve the physical Android serial
+        env:
+          SERIAL_INPUT: ${{ inputs.android_serial }}
+        run: |
+          if [ -n "$SERIAL_INPUT" ]; then
+            selected="$SERIAL_INPUT"
+          else
+            selected="$(adb devices | awk 'NR>1 && $2 == "device" { print $1; exit }')"
+            if [ -z "$selected" ]; then
+              echo "::error::No attached Android device reports the \`device\` state; authorize the host on the phone or pass android_serial."
+              exit 1
+            fi
+          fi
+          if [[ ! "$selected" =~ ^[A-Za-z0-9._:-]+$ ]]; then
+            echo "::error::android_serial contains characters that are not valid in an adb device serial."
+            exit 1
+          fi
+          printf 'ANDROID_SERIAL=%s\n' "$selected" >> "$GITHUB_ENV"
+
+      - name: Run the real-peer family journey on the physical device
+        # scripts/ci-android-device.sh re-verifies the serial, requires
+        # API >= 34, installs and launches the build, then hands off to the
+        # android-real journey (real harness, harness-minted pairing
+        # credential, adb reverse over USB, family class with peerMode=real).
+        env:
+          ANDROID_SERIAL: ${{ env.ANDROID_SERIAL }}
+          NATIVE_E2E_STARTUP_TIMEOUT_MS: "120000"
+          NATIVE_E2E_TEST_TIMEOUT_MS: "1800000"
+        run: bash scripts/ci-android-device.sh
+
+      - name: Upload Android physical-device evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-physical-device-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/android-device-launch.txt
+            ${{ runner.temp }}/android-device-logcat.txt
+            ${{ runner.temp }}/android-real-host.stdout
+            ${{ runner.temp }}/android-real-host.stderr
+            android/app/build/outputs/androidTest-results/**
+            android/app/build/reports/androidTests/**
+          if-no-files-found: warn
+          retention-days: 7

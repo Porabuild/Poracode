@@ -93,6 +93,25 @@ describe("useSmoothStreamedText", () => {
     expect(result.current).toBe(target);
   });
 
+  it("limits DOM updates for a long stream and flushes on completion", () => {
+    const target = `A${"x".repeat(5_000)}`;
+    const { result, rerender } = renderHook(
+      ({ text, streaming }) => useSmoothStreamedText(text, streaming, 1_000),
+      { initialProps: { text: "A", streaming: true } },
+    );
+
+    rerender({ text: target, streaming: true });
+    flushFrame(1_000);
+    const firstEmission = result.current;
+    for (let now = 1_016; now < 2_000; now += 16) flushFrame(now);
+    expect(result.current).toBe(firstEmission);
+
+    flushFrame(2_000);
+    expect(result.current.length).toBeGreaterThan(firstEmission.length);
+    rerender({ text: target, streaming: false });
+    expect(result.current).toBe(target);
+  });
+
   it("maintains smooth progressive reveal across multiple incoming streaming chunks", () => {
     let accumulated = "Hello";
     const { result, rerender } = renderHook(

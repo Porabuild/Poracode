@@ -1,4 +1,7 @@
 import type { AgentStatus, ProjectLocation, ThreadPresentationMode } from "@/shared/contracts";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas";
+import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
+import { readUtilitySelection } from "@/renderer/utils/utilitySelection";
 import {
   createUtilityTaskRegistry,
   getUtilityTaskCandidates,
@@ -33,6 +36,18 @@ export interface ConflictResolverSettings {
   effort: string;
   fast: boolean;
   presentationMode: ThreadPresentationMode;
+  /**
+   * The complete utility tuple this resolution actually read: the canonical
+   * object verbatim when present, otherwise the unstamped tuple built from
+   * the scalar siblings. The scalar fields above are the tuple's own launch
+   * view (the ThreadConfig launch keeps its scalar carriers); the tuple is
+   * the carrier of `thinking`/`contextSize` and of any recognized binding —
+   * which never transfers onto the launched thread.
+   */
+  selection: ModelSelection;
+  /** Original optional-field presence after native/WSL unset fallback. This
+   * provenance selects legacy normalization; it is not a second tuple. */
+  selectionSource: "canonical" | "legacy";
 }
 
 /** The shared-settings fields conflict-resolver resolution actually reads. */
@@ -47,11 +62,23 @@ export type ConflictResolverSettingsSource = {
   wslConflictResolverEffort: string;
   wslConflictResolverFast: boolean;
   wslConflictResolverPresentationMode: ThreadPresentationMode;
+  /** Canonical complete selections — the sole tuple when present. Declared
+   * undefined-valued so whole shared-settings states pass unconverted. */
+  conflictResolverSelection?: ModelSelection | undefined;
+  wslConflictResolverSelection?: ModelSelection | undefined;
 };
 
+/**
+ * Whether the WSL variant is left at its default: the scalar preset is unset
+ * AND no canonical WSL tuple was ever written. A present tuple is the
+ * deliberate record even when the sibling scalars still hold the unset
+ * shape.
+ */
 function isUnsetWslConflictResolver(settings: ConflictResolverSettingsSource): boolean {
   return (
-    settings.wslConflictResolverProvider === "auto" && !settings.wslConflictResolverModel.trim()
+    settings.wslConflictResolverProvider === "auto" &&
+    !settings.wslConflictResolverModel.trim() &&
+    settings.wslConflictResolverSelection === undefined
   );
 }
 
@@ -60,32 +87,39 @@ export function readConflictResolverSettingsForProject(
   locationKind: ProjectLocation["kind"],
   settings: ConflictResolverSettingsSource,
 ): ConflictResolverSettings {
-  if (locationKind !== "wsl") {
-    return {
-      provider: settings.conflictResolverProvider,
+  if (locationKind !== "wsl" || isUnsetWslConflictResolver(settings)) {
+    const selection = readUtilitySelection(settings.conflictResolverSelection, {
       model: settings.conflictResolverModel,
       effort: settings.conflictResolverEffort,
       fast: settings.conflictResolverFast,
-      presentationMode: settings.conflictResolverPresentationMode,
-    };
-  }
-
-  if (isUnsetWslConflictResolver(settings)) {
+    });
     return {
       provider: settings.conflictResolverProvider,
-      model: settings.conflictResolverModel,
-      effort: settings.conflictResolverEffort,
-      fast: settings.conflictResolverFast,
+      model: selection.model,
+      // The scalar view is the launch view: an unclaimed axis resolves as the
+      // empty scalar carrier, exactly as the legacy siblings did. The
+      // complete tuple stays intact on `selection`.
+      effort: selection.effort ?? "",
+      fast: selection.fast ?? false,
       presentationMode: settings.conflictResolverPresentationMode,
+      selection,
+      selectionSource: settings.conflictResolverSelection !== undefined ? "canonical" : "legacy",
     };
   }
 
-  return {
-    provider: settings.wslConflictResolverProvider,
+  const selection = readUtilitySelection(settings.wslConflictResolverSelection, {
     model: settings.wslConflictResolverModel,
     effort: settings.wslConflictResolverEffort,
     fast: settings.wslConflictResolverFast,
+  });
+  return {
+    provider: settings.wslConflictResolverProvider,
+    model: selection.model,
+    effort: selection.effort ?? "",
+    fast: selection.fast ?? false,
     presentationMode: settings.wslConflictResolverPresentationMode,
+    selection,
+    selectionSource: settings.wslConflictResolverSelection !== undefined ? "canonical" : "legacy",
   };
 }
 
@@ -97,16 +131,53 @@ export function readConflictResolverSettingsForProject(
 export function resolveConflictResolverLaunchConfig(
   providerSetting: string,
   agent: AgentStatus | undefined,
+  selection: ModelSelection,
+): Omit<ModelSelection, "selectionBinding">;
+export function resolveConflictResolverLaunchConfig(
+  providerSetting: string,
+  agent: AgentStatus | undefined,
   model: string,
   effort: string,
-): { model: string; effort: string } {
-  const resolved = resolveConflictResolverConfig(agent, model, effort);
+): { model: string; effort: string };
+export function resolveConflictResolverLaunchConfig(
+  providerSetting: string,
+  agent: AgentStatus | undefined,
+  modelOrSelection: string | ModelSelection,
+  effort = "",
+): Omit<ModelSelection, "selectionBinding"> {
+  if (typeof modelOrSelection !== "string") {
+    // Utility intent never transfers to the new thread, but every actual axis does.
+    const { selectionBinding: _binding, ...selection } = modelOrSelection;
+    return {
+      ...selection,
+      model:
+        selection.model === ""
+          ? resolveConflictResolverConfig(agent, "", "").model
+          : selection.model,
+    };
+  }
+  const resolved = resolveConflictResolverConfig(agent, modelOrSelection, effort);
   const explicitModel =
-    providerSetting !== "auto" && providerSetting !== "disabled" && model.trim()
-      ? model.trim()
+    providerSetting !== "auto" && providerSetting !== "disabled" && modelOrSelection.trim()
+      ? modelOrSelection.trim()
       : undefined;
-  return {
-    model: explicitModel ?? resolved.model,
-    effort: resolved.effort,
-  };
+  return { model: explicitModel ?? resolved.model, effort: resolved.effort };
+}
+
+/** Project canonical controls intact; retain historical normalization only for legacy settings. */
+export function resolveConflictResolverSettingsLaunchConfig(
+  settings: ConflictResolverSettings,
+  agent: AgentStatus,
+): Omit<ModelSelection, "selectionBinding"> {
+  if (settings.selectionSource === "canonical") {
+    return resolveConflictResolverLaunchConfig(settings.provider, agent, settings.selection);
+  }
+  const { model, effort } = resolveConflictResolverLaunchConfig(
+    settings.provider,
+    agent,
+    settings.model,
+    settings.effort,
+  );
+  const fast = resolveFastValue(agent, model, settings.fast);
+  return { model, ...(effort ? { effort } : {}), ...(fast ? { fast: true } : {}) };
 }

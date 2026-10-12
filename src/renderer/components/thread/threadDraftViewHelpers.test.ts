@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgentCapability, AgentStatus } from "@/shared/contracts";
 import {
+  launchSelectionFields,
   resolveApprovalPolicyValue,
   resolveFastValue,
   resolveProviderDraftConfig,
@@ -27,6 +28,48 @@ const capabilities = {
   liveInputMode: "direct",
   presentationMode: "gui",
   settingDefs: [],
+} as unknown as AgentCapability;
+
+const familyCaps = {
+  ...capabilities,
+  models: [
+    ...capabilities.models,
+    { id: "fusion-a-b", label: "Fusion A B" },
+    { id: "fusion-a-b-fast", label: "Fusion A B Fast" },
+  ],
+  modelFamilies: [
+    {
+      model: "fusion-a-b",
+      label: "Fusion",
+      selectors: [
+        {
+          id: "lead",
+          labelKey: "modelSelection.lead",
+          options: [{ id: "a", label: "A" }],
+        },
+        {
+          id: "sidekick",
+          labelKey: "modelSelection.sidekick",
+          options: [{ id: "b", label: "B" }],
+        },
+      ],
+      bindings: { effort: "model", fast: "model" },
+      members: [
+        {
+          model: "fusion-a-b",
+          selections: { lead: "a", sidekick: "b" },
+          effort: "low",
+          fast: false,
+        },
+        {
+          model: "fusion-a-b-fast",
+          selections: { lead: "a", sidekick: "b" },
+          effort: "low",
+          fast: true,
+        },
+      ],
+    },
+  ],
 } as unknown as AgentCapability;
 
 function agentWith(overrides?: Partial<AgentCapability>): AgentStatus {
@@ -81,6 +124,33 @@ describe("resolveProviderDraftConfig fast mode", () => {
       effort: "high",
       fast: true,
       thinking: true,
+    });
+  });
+
+  it("lifts context size from a Cursor ACP bracket model id", () => {
+    expect(
+      resolveProviderDraftConfig(
+        {
+          ...agentWith(),
+          kind: "cursor",
+          label: "Cursor",
+          capabilities: {
+            ...capabilities,
+            models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
+            modelEfforts: { "gpt-5.5": ["medium", "high"] },
+            contextSizes: [
+              { id: "272k", label: "272K" },
+              { id: "1m", label: "1M" },
+            ],
+            modelContextSizes: { "gpt-5.5": ["272k", "1m"] },
+          },
+        },
+        { model: "gpt-5.5[context=1m,reasoning=medium]" },
+      ),
+    ).toMatchObject({
+      model: "gpt-5.5",
+      effort: "medium",
+      contextSize: "1m",
     });
   });
 });
@@ -180,6 +250,45 @@ describe("resolveSavedProviderDraftConfig", () => {
       ),
     ).toMatchObject({ contextSize: "1m" });
   });
+
+  it("keeps a saved family member's own carriers instead of the preference overlay", () => {
+    // A Terminal-side draft saved a family member with inert seeds. The same
+    // UID carries an app-wide GUI preference (high + Fast) — replaying it onto
+    // the encoded axes would turn the valid draft into a rejected state.
+    const fromProjectDraft = resolveSavedProviderDraftConfig(
+      "codex",
+      { agentKind: "codex", model: "fusion-a-b", effort: "", fast: false },
+      { codex: { model: "fusion-a-b", contextSize: "400k" } },
+      { codex: { "fusion-a-b": { effort: "high", fast: true } } },
+      familyCaps,
+    );
+    expect(fromProjectDraft).toMatchObject({ model: "fusion-a-b", effort: "", fast: false });
+    // The provider preset still fills a missing context window.
+    expect(fromProjectDraft).toMatchObject({ contextSize: "400k" });
+
+    // Same rule for the provider-config branch: the saved pair plus its
+    // independent carriers stays exactly as saved.
+    expect(
+      resolveSavedProviderDraftConfig(
+        "codex",
+        undefined,
+        { codex: { model: "fusion-a-b", effort: "", fast: false } },
+        { codex: { "fusion-a-b": { effort: "high", fast: true } } },
+        familyCaps,
+      ),
+    ).toMatchObject({ model: "fusion-a-b", effort: "", fast: false });
+
+    // Without the surface capabilities the historical preference overlay is
+    // unchanged (both branches keep their previous behavior).
+    expect(
+      resolveSavedProviderDraftConfig(
+        "codex",
+        { agentKind: "codex", model: "fusion-a-b", effort: "", fast: false },
+        {},
+        { codex: { "fusion-a-b": { effort: "high", fast: true } } },
+      ),
+    ).toMatchObject({ model: "fusion-a-b", effort: "high", fast: true });
+  });
 });
 
 describe("resolveApprovalPolicyValue", () => {
@@ -211,5 +320,87 @@ describe("resolveApprovalPolicyValue", () => {
 
   it("stays empty for a provider that advertises no policies", () => {
     expect(resolveApprovalPolicyValue(agentWith(), "yolo")).toBe("");
+  });
+});
+
+describe("family draft carrier presence", () => {
+  const binding = {
+    version: 1 as const,
+    kind: "family-member" as const,
+    owner: { agentKind: "codex", presentationMode: "terminal" as const },
+    model: "fusion-a-b",
+    inertValues: { effort: "", fast: false },
+  };
+
+  it("keeps a saved family member's own empty context instead of the provider preset", () => {
+    expect(
+      resolveSavedProviderDraftConfig(
+        "codex",
+        { agentKind: "codex", model: "fusion-a-b", effort: "", fast: false, contextSize: "" },
+        { codex: { model: "fusion-a-b", contextSize: "400k" } },
+        {},
+        familyCaps,
+      ),
+    ).toMatchObject({ contextSize: "" });
+  });
+
+  it("restores a family member's empty context and recorded binding verbatim", () => {
+    const resolved = resolveProviderDraftConfig(agentWith(familyCaps), {
+      model: "fusion-a-b",
+      effort: "",
+      fast: false,
+      contextSize: "",
+      selectionBinding: binding,
+    });
+    expect(resolved).toMatchObject({ model: "fusion-a-b", effort: "", fast: false });
+    expect(resolved.contextSize).toBe("");
+    expect(resolved.selectionBinding).toEqual(binding);
+  });
+
+  it("launches a family member's exact own carriers and binding", () => {
+    expect(
+      launchSelectionFields(
+        {
+          model: "fusion-a-b",
+          effort: "",
+          contextSize: "",
+          fast: false,
+          thinking: false,
+          selectionBinding: binding,
+        },
+        familyCaps,
+      ),
+    ).toStrictEqual({
+      model: "fusion-a-b",
+      effort: "",
+      contextSize: "",
+      fast: false,
+      thinking: false,
+      selectionBinding: binding,
+    });
+    // Absence stays absence.
+    expect(launchSelectionFields({ model: "fusion-a-b", fast: false }, familyCaps)).toStrictEqual({
+      model: "fusion-a-b",
+      fast: false,
+    });
+  });
+
+  it("keeps the ordinary projection for models outside a family", () => {
+    expect(
+      launchSelectionFields(
+        {
+          model: "plain",
+          effort: "",
+          contextSize: "",
+          fast: false,
+          thinking: false,
+          selectionBinding: binding,
+        },
+        familyCaps,
+      ),
+    ).toStrictEqual({ model: "plain" });
+    expect(
+      launchSelectionFields({ model: "fast-capable", effort: "high", fast: false }, familyCaps),
+    ).toStrictEqual({ model: "fast-capable", effort: "high", fast: false });
   });
 });

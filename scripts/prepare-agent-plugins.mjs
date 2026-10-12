@@ -27,72 +27,97 @@
  * copied, so repeated dev starts avoid writes without leaving stale content.
  */
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeFileAtomic } from "../src/shared/atomicFile.ts";
+import { readBoundedRuntimeFileSync } from "../src/shared/readBoundedRuntimeFile.ts";
+import {
+  discoverAgentPluginSources,
+  resolveSharedForwardRuntime,
+} from "../src/shared/agentPluginAssetSources.ts";
+export {
+  discoverAgentPluginSources,
+  resolveSharedForwardRuntime,
+} from "../src/shared/agentPluginAssetSources.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..");
 const agentsDir = join(repoRoot, "src", "supervisor", "agents");
 const destBase = join(repoRoot, "resources", "agent-plugins");
-const PROVIDER_RUNTIME_ASSETS = ["forward.mjs", "poracode-status.mjs"];
-
-/**
- * @typedef {{ kind: string; assets: readonly string[]; srcDir: string }} AgentPluginSource
- */
-
-/**
- * Discover provider plugin sources in stable kind order.
- *
- * @param {string} sourceAgentsDir
- * @returns {AgentPluginSource[]}
- */
-export function discoverAgentPluginSources(sourceAgentsDir) {
-  return readdirSync(sourceAgentsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => ({ kind: entry.name, srcDir: join(sourceAgentsDir, entry.name, "plugin") }))
-    .filter(({ srcDir }) => existsSync(join(srcDir, "plugin.json")))
-    .map(({ kind, srcDir }) => {
-      const runtimeAssets = PROVIDER_RUNTIME_ASSETS.filter((asset) =>
-        existsSync(join(srcDir, asset)),
-      );
-      if (runtimeAssets.length !== 1) {
-        throw new Error(
-          `[prepare-agent-plugins] ${kind} must provide exactly one runtime asset ` +
-            `(${PROVIDER_RUNTIME_ASSETS.join(" or ")}): ${srcDir}`,
-        );
-      }
-      return { kind, assets: ["plugin.json", runtimeAssets[0]], srcDir };
-    })
-    .sort((a, b) => a.kind.localeCompare(b.kind));
-}
-
-/**
- * Resolve and validate the shared runtime copied beside every forwarder.
- *
- * @param {string} sourceAgentsDir
- */
-export function resolveSharedForwardRuntime(sourceAgentsDir) {
-  const runtime = {
-    src: join(sourceAgentsDir, "plugin", "forward-runtime", "poracode-hook-runtime.mjs"),
-    destRel: join("_runtime", "poracode-hook-runtime.mjs"),
-  };
-  if (!existsSync(runtime.src)) {
-    throw new Error(`[prepare-agent-plugins] missing shared runtime source: ${runtime.src}`);
-  }
-  return runtime;
-}
+const MAX_ASSET_BYTES = 8 * 1024 * 1024;
 
 /**
  * @param {{ sourceAgentsDir: string; destinationBase: string }} options
  */
 export function stageAgentPlugins({ sourceAgentsDir, destinationBase }) {
+  const inside = (parent, child) => {
+    const path = relative(resolve(parent), resolve(child));
+    return path === "" || (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path));
+  };
+  if (inside(sourceAgentsDir, destinationBase) || inside(destinationBase, sourceAgentsDir)) {
+    throw new Error("Agent plugin source and owned staging roots must not overlap.");
+  }
+  // Lexical paths do not detect a symlinked parent. Resolve the nearest existing
+  // ancestor of each root before any mkdir, copy or prune so a destination alias
+  // can never make cleanup operate on the source tree.
+  const realpathOfNearestAncestor = (path) => {
+    let current = resolve(path);
+    const missing = [];
+    while (!existsSync(current)) {
+      missing.unshift(basename(current));
+      const parent = dirname(current);
+      if (parent === current) return current;
+      current = parent;
+    }
+    return resolve(realpathSync.native(current), ...missing);
+  };
+  if (
+    inside(
+      realpathOfNearestAncestor(sourceAgentsDir),
+      realpathOfNearestAncestor(destinationBase),
+    ) ||
+    inside(realpathOfNearestAncestor(destinationBase), realpathOfNearestAncestor(sourceAgentsDir))
+  ) {
+    throw new Error("Agent plugin source and owned staging roots must not overlap physically.");
+  }
+  if (existsSync(destinationBase) && lstatSync(destinationBase).isSymbolicLink()) {
+    throw new Error("Agent plugin staging root must not be a symbolic link.");
+  }
+  const inspectStage = (directory) => {
+    for (const name of readdirSync(directory)) {
+      const path = join(directory, name);
+      const stat = lstatSync(path);
+      if (stat.isSymbolicLink())
+        throw new Error("Agent plugin staging cannot follow symbolic links.");
+      if (stat.isDirectory()) inspectStage(path);
+      else if (!stat.isFile()) throw new Error("Agent plugin staging entry is not a regular file.");
+    }
+  };
+  if (existsSync(destinationBase)) inspectStage(destinationBase);
   const plugins = discoverAgentPluginSources(sourceAgentsDir);
   const sharedRuntime = resolveSharedForwardRuntime(sourceAgentsDir);
   for (const plugin of plugins) {
     stagePlugin(plugin, destinationBase);
   }
   stageSharedRuntime(sharedRuntime, destinationBase);
+  const expected = new Set([
+    ...plugins.flatMap((plugin) => plugin.assets.map((asset) => join(plugin.kind, asset))),
+    sharedRuntime.destRel,
+  ]);
+  // This destination is app-owned build output, never an installed user plugin
+  // directory. Retained removed packages would fail the new resource declaration.
+  const prune = (directory) => {
+    for (const name of readdirSync(directory)) {
+      const path = join(directory, name);
+      const stat = lstatSync(path);
+      if (stat.isDirectory()) {
+        prune(path);
+        if (readdirSync(path).length === 0) rmSync(path, { recursive: true });
+      } else if (!expected.has(relative(destinationBase, path))) rmSync(path);
+    }
+  };
+  prune(destinationBase);
 }
 
 function stagePlugin({ kind, assets, srcDir }, destinationBase) {
@@ -117,11 +142,16 @@ function stageSharedRuntime(sharedRuntime, destinationBase) {
 }
 
 function copyIfChanged(src, dest, label) {
-  if (existsSync(dest) && readFileSync(src).equals(readFileSync(dest))) {
+  const sourceStat = lstatSync(src);
+  if (!sourceStat.isFile()) throw new Error("Agent plugin source is not a regular file.");
+  const bytes = readBoundedRuntimeFileSync(src, MAX_ASSET_BYTES);
+  if (existsSync(dest) && bytes.equals(readBoundedRuntimeFileSync(dest, MAX_ASSET_BYTES))) {
     console.log(`[prepare-agent-plugins] ${label} already current, skipping`);
     return;
   }
-  copyFileSync(src, dest);
+  // Do not reopen the source or destination through copyFile after admission.
+  // A concurrently replaced FIFO cannot make the final asset write block.
+  writeFileAtomic(dest, bytes, { mode: sourceStat.mode & 0o777 });
   console.log(`[prepare-agent-plugins] ${label} -> ${dest}`);
 }
 

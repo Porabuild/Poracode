@@ -1,5 +1,9 @@
 import type { Monaco } from "@monaco-editor/react";
-import type { editor as MonacoEditor } from "monaco-editor";
+import type {
+  editor as MonacoEditor,
+  CancellationToken,
+  languages as MonacoLanguages,
+} from "monaco-editor";
 import type { LspIpcTransport } from "./ipcTransport";
 
 type ITextModel = MonacoEditor.ITextModel;
@@ -119,205 +123,236 @@ export function registerLspProviders(
   languageIds: string[],
   rootUri: string,
 ): IDisposable[] {
-  const disposables: IDisposable[] = [];
+  let active = true;
+  const disposables: IDisposable[] = [
+    {
+      dispose: () => {
+        active = false;
+      },
+    },
+  ];
+  const live = (model: ITextModel, token: CancellationToken) =>
+    active && !transport.isDisposed() && !model.isDisposed() && !token.isCancellationRequested;
+  try {
+    // Completion
+    for (const lang of languageIds) {
+      disposables.push(
+        monaco.languages.registerCompletionItemProvider(lang, {
+          triggerCharacters: [".", "/", "<", '"', "'", "@", "#"],
+          provideCompletionItems: async (
+            model: ITextModel,
+            position: IPosition,
+            _context: MonacoLanguages.CompletionContext,
+            token: CancellationToken,
+          ) => {
+            if (!live(model, token) || !isUriInRoot(model.uri.toString(), rootUri))
+              return { suggestions: [] };
 
-  // Completion
-  for (const lang of languageIds) {
-    disposables.push(
-      monaco.languages.registerCompletionItemProvider(lang, {
-        triggerCharacters: [".", "/", "<", '"', "'", "@", "#"],
-        provideCompletionItems: async (model: ITextModel, position: IPosition) => {
-          if (!isUriInRoot(model.uri.toString(), rootUri)) return { suggestions: [] };
-
-          let result: { items?: unknown[]; isIncomplete?: boolean } | unknown[] | null;
-          try {
-            result = (await transport.sendMessage({
-              jsonrpc: "2.0",
-              id: Date.now(),
-              method: "textDocument/completion",
-              params: {
-                textDocument: { uri: model.uri.toString() },
-                position: toLspPosition(position),
-              },
-            })) as { items?: unknown[]; isIncomplete?: boolean } | unknown[] | null;
-          } catch {
-            return { suggestions: [] };
-          }
-
-          if (!result) return { suggestions: [] };
-          const items = Array.isArray(result) ? result : (result.items ?? []);
-          const word = model.getWordUntilPosition(position);
-          const fallbackRange = new monaco.Range(
-            position.lineNumber,
-            word.startColumn,
-            position.lineNumber,
-            word.endColumn,
-          );
-
-          return {
-            suggestions: (items as LspCompletionItem[]).map((item) => {
-              const textEditRange = completionTextEditRange(item.textEdit);
-              return {
-                label: item.label,
-                kind: mapCompletionKind(item.kind, monaco),
-                insertText:
-                  item.textEdit?.newText ?? item.insertText ?? completionLabelText(item.label),
-                insertTextRules:
-                  item.insertTextFormat === 2
-                    ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                    : undefined,
-                detail: item.detail,
-                documentation: documentationToMarkdown(item.documentation),
-                sortText: item.sortText,
-                filterText: item.filterText,
-                range: textEditRange ? toMonacoRange(textEditRange, monaco) : fallbackRange,
-              };
-            }),
-          };
-        },
-      }),
-    );
-
-    // Hover
-    disposables.push(
-      monaco.languages.registerHoverProvider(lang, {
-        provideHover: async (model: ITextModel, position: IPosition) => {
-          if (!isUriInRoot(model.uri.toString(), rootUri)) return null;
-
-          let result: LspHover | null;
-          try {
-            result = (await transport.sendMessage({
-              jsonrpc: "2.0",
-              id: Date.now(),
-              method: "textDocument/hover",
-              params: {
-                textDocument: { uri: model.uri.toString() },
-                position: toLspPosition(position),
-              },
-            })) as LspHover | null;
-          } catch {
-            return null;
-          }
-
-          if (!result?.contents) return null;
-
-          const contents = Array.isArray(result.contents) ? result.contents : [result.contents];
-          return {
-            contents: contents.map(hoverContentToMarkdown),
-            range: result.range ? toMonacoRange(result.range, monaco) : undefined,
-          };
-        },
-      }),
-    );
-
-    // Go to definition
-    disposables.push(
-      monaco.languages.registerDefinitionProvider(lang, {
-        provideDefinition: async (model: ITextModel, position: IPosition) => {
-          if (!isUriInRoot(model.uri.toString(), rootUri)) return null;
-
-          let result: LspDefinitionResult | null;
-          try {
-            result = (await transport.sendMessage({
-              jsonrpc: "2.0",
-              id: Date.now(),
-              method: "textDocument/definition",
-              params: {
-                textDocument: { uri: model.uri.toString() },
-                position: toLspPosition(position),
-              },
-            })) as LspDefinitionResult | null;
-          } catch {
-            return null;
-          }
-
-          if (!result) return null;
-          const locations = Array.isArray(result) ? result : [result];
-          return locations.map((loc) =>
-            isLocationLink(loc)
-              ? {
-                  uri: monaco.Uri.parse(loc.targetUri),
-                  range: toMonacoRange(loc.targetSelectionRange ?? loc.targetRange, monaco),
-                }
-              : {
-                  uri: monaco.Uri.parse(loc.uri),
-                  range: toMonacoRange(loc.range, monaco),
+            let result: { items?: unknown[]; isIncomplete?: boolean } | unknown[] | null;
+            try {
+              result = (await transport.sendMessage({
+                jsonrpc: "2.0",
+                id: Date.now(),
+                method: "textDocument/completion",
+                params: {
+                  textDocument: { uri: model.uri.toString() },
+                  position: toLspPosition(position),
                 },
-          );
-        },
-      }),
-    );
+              })) as { items?: unknown[]; isIncomplete?: boolean } | unknown[] | null;
+            } catch {
+              return { suggestions: [] };
+            }
 
-    // Signature help
-    disposables.push(
-      monaco.languages.registerSignatureHelpProvider(lang, {
-        signatureHelpTriggerCharacters: ["(", ","],
-        provideSignatureHelp: async (model: ITextModel, position: IPosition) => {
-          if (!isUriInRoot(model.uri.toString(), rootUri)) return null;
+            if (!live(model, token) || !result) return { suggestions: [] };
+            const items = Array.isArray(result) ? result : (result.items ?? []);
+            const word = model.getWordUntilPosition(position);
+            const fallbackRange = new monaco.Range(
+              position.lineNumber,
+              word.startColumn,
+              position.lineNumber,
+              word.endColumn,
+            );
 
-          let result: LspSignatureHelp | null;
-          try {
-            result = (await transport.sendMessage({
-              jsonrpc: "2.0",
-              id: Date.now(),
-              method: "textDocument/signatureHelp",
-              params: {
-                textDocument: { uri: model.uri.toString() },
-                position: toLspPosition(position),
-              },
-            })) as LspSignatureHelp | null;
-          } catch {
-            return null;
-          }
+            return {
+              suggestions: (items as LspCompletionItem[]).map((item) => {
+                const textEditRange = completionTextEditRange(item.textEdit);
+                return {
+                  label: item.label,
+                  kind: mapCompletionKind(item.kind, monaco),
+                  insertText:
+                    item.textEdit?.newText ?? item.insertText ?? completionLabelText(item.label),
+                  insertTextRules:
+                    item.insertTextFormat === 2
+                      ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                      : undefined,
+                  detail: item.detail,
+                  documentation: documentationToMarkdown(item.documentation),
+                  sortText: item.sortText,
+                  filterText: item.filterText,
+                  range: textEditRange ? toMonacoRange(textEditRange, monaco) : fallbackRange,
+                };
+              }),
+            };
+          },
+        }),
+      );
 
-          if (!result) return null;
-          return {
-            value: {
-              signatures: result.signatures.map((sig) => ({
-                label: sig.label,
-                documentation: documentationToMarkdown(sig.documentation),
-                parameters: (sig.parameters ?? []).map((p) => ({
-                  label: p.label as string | [number, number],
-                  documentation: documentationToMarkdown(p.documentation),
+      // Hover
+      disposables.push(
+        monaco.languages.registerHoverProvider(lang, {
+          provideHover: async (
+            model: ITextModel,
+            position: IPosition,
+            token: CancellationToken,
+          ) => {
+            if (!live(model, token) || !isUriInRoot(model.uri.toString(), rootUri)) return null;
+
+            let result: LspHover | null;
+            try {
+              result = (await transport.sendMessage({
+                jsonrpc: "2.0",
+                id: Date.now(),
+                method: "textDocument/hover",
+                params: {
+                  textDocument: { uri: model.uri.toString() },
+                  position: toLspPosition(position),
+                },
+              })) as LspHover | null;
+            } catch {
+              return null;
+            }
+
+            if (!result?.contents) return null;
+
+            const contents = Array.isArray(result.contents) ? result.contents : [result.contents];
+            return {
+              contents: contents.map(hoverContentToMarkdown),
+              range: result.range ? toMonacoRange(result.range, monaco) : undefined,
+            };
+          },
+        }),
+      );
+
+      // Go to definition
+      disposables.push(
+        monaco.languages.registerDefinitionProvider(lang, {
+          provideDefinition: async (
+            model: ITextModel,
+            position: IPosition,
+            token: CancellationToken,
+          ) => {
+            if (!live(model, token) || !isUriInRoot(model.uri.toString(), rootUri)) return null;
+
+            let result: LspDefinitionResult | null;
+            try {
+              result = (await transport.sendMessage({
+                jsonrpc: "2.0",
+                id: Date.now(),
+                method: "textDocument/definition",
+                params: {
+                  textDocument: { uri: model.uri.toString() },
+                  position: toLspPosition(position),
+                },
+              })) as LspDefinitionResult | null;
+            } catch {
+              return null;
+            }
+
+            if (!live(model, token) || !result) return null;
+            const locations = Array.isArray(result) ? result : [result];
+            return locations.map((loc) =>
+              isLocationLink(loc)
+                ? {
+                    uri: monaco.Uri.parse(loc.targetUri),
+                    range: toMonacoRange(loc.targetSelectionRange ?? loc.targetRange, monaco),
+                  }
+                : {
+                    uri: monaco.Uri.parse(loc.uri),
+                    range: toMonacoRange(loc.range, monaco),
+                  },
+            );
+          },
+        }),
+      );
+
+      // Signature help
+      disposables.push(
+        monaco.languages.registerSignatureHelpProvider(lang, {
+          signatureHelpTriggerCharacters: ["(", ","],
+          provideSignatureHelp: async (
+            model: ITextModel,
+            position: IPosition,
+            token: CancellationToken,
+          ) => {
+            if (!live(model, token) || !isUriInRoot(model.uri.toString(), rootUri)) return null;
+
+            let result: LspSignatureHelp | null;
+            try {
+              result = (await transport.sendMessage({
+                jsonrpc: "2.0",
+                id: Date.now(),
+                method: "textDocument/signatureHelp",
+                params: {
+                  textDocument: { uri: model.uri.toString() },
+                  position: toLspPosition(position),
+                },
+              })) as LspSignatureHelp | null;
+            } catch {
+              return null;
+            }
+
+            if (!live(model, token) || !result) return null;
+            return {
+              value: {
+                signatures: result.signatures.map((sig) => ({
+                  label: sig.label,
+                  documentation: documentationToMarkdown(sig.documentation),
+                  parameters: (sig.parameters ?? []).map((p) => ({
+                    label: p.label as string | [number, number],
+                    documentation: documentationToMarkdown(p.documentation),
+                  })),
                 })),
-              })),
-              activeSignature: result.activeSignature ?? 0,
-              activeParameter: result.activeParameter ?? 0,
-            },
-            dispose: () => {},
-          };
-        },
-      }),
-    );
-  }
-
-  // Diagnostics — listen for publishDiagnostics notifications
-  transport.onMessage((message) => {
-    const msg = message as { method?: string; params?: unknown };
-    if (msg.method === "textDocument/publishDiagnostics") {
-      const params = msg.params as LspPublishDiagnostics;
-      if (!isUriInRoot(params.uri, rootUri)) return;
-
-      const uri = monaco.Uri.parse(params.uri);
-      const model = monaco.editor.getModel(uri);
-      if (!model) return;
-
-      const markers = params.diagnostics.map((d) => ({
-        severity: mapSeverity(d.severity, monaco),
-        message: d.message,
-        startLineNumber: d.range.start.line + 1,
-        startColumn: d.range.start.character + 1,
-        endLineNumber: d.range.end.line + 1,
-        endColumn: d.range.end.character + 1,
-        source: d.source,
-        code: d.code !== undefined ? String(d.code) : undefined,
-      }));
-
-      monaco.editor.setModelMarkers(model, "lsp", markers);
+                activeSignature: result.activeSignature ?? 0,
+                activeParameter: result.activeParameter ?? 0,
+              },
+              dispose: () => {},
+            };
+          },
+        }),
+      );
     }
-  });
 
-  return disposables;
+    // Diagnostics — listen for publishDiagnostics notifications
+    transport.onMessage((message) => {
+      const msg = message as { method?: string; params?: unknown };
+      if (msg.method === "textDocument/publishDiagnostics") {
+        const params = msg.params as LspPublishDiagnostics;
+        if (!isUriInRoot(params.uri, rootUri)) return;
+
+        const uri = monaco.Uri.parse(params.uri);
+        const model = monaco.editor.getModel(uri);
+        if (!active || transport.isDisposed() || !model || model.isDisposed()) return;
+
+        const markers = params.diagnostics.map((d) => ({
+          severity: mapSeverity(d.severity, monaco),
+          message: d.message,
+          startLineNumber: d.range.start.line + 1,
+          startColumn: d.range.start.character + 1,
+          endLineNumber: d.range.end.line + 1,
+          endColumn: d.range.end.character + 1,
+          source: d.source,
+          code: d.code !== undefined ? String(d.code) : undefined,
+        }));
+
+        monaco.editor.setModelMarkers(model, "lsp", markers);
+      }
+    });
+
+    return disposables;
+  } catch (error) {
+    for (const disposable of disposables) disposable.dispose();
+    throw error;
+  }
 }
 
 // ── Minimal LSP type interfaces (only what we use) ──────────

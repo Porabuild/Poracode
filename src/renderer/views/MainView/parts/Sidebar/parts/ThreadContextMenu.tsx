@@ -20,14 +20,15 @@ import {
 import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
-import { canChangeThreadGroup } from "@/shared/threadGroups";
+import { canChangeThreadGroup, dissolveGroupMembership } from "@/shared/threadGroups";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { applyWorkspaceMenuChoice } from "@/renderer/components/workspace/workspaceMenuKeys";
 import { useWorkspaceMenuItems } from "@/renderer/components/workspace/workspaceMenuItems";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
+import type { ContextMenuItem } from "@/renderer/components/common/ContextMenu";
+import { ResponsiveContextMenu } from "@/renderer/components/common/ResponsiveContextMenu";
 import { readBridge } from "@/renderer/bridge";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useWorktreeGitItems } from "@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions";
@@ -60,6 +61,10 @@ import {
 } from "@/renderer/actions/threadActions";
 import { runProjectAction, stopProjectAction } from "@/renderer/actions/terminalActions";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
+import {
+  dispatchManagedRootThreadGroupIntents,
+  dispatchManagedRootThreadWorkspace,
+} from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 
 /**
  * Right-click menu shared by every sidebar surface that shows a thread —
@@ -144,7 +149,8 @@ export function ThreadContextMenu(props: {
   }
 
   return (
-    <ContextMenu
+    <ResponsiveContextMenu
+      label={thread.title}
       items={[
         ...(thread.worktreePath && !isExperimentCandidate
           ? [
@@ -382,9 +388,19 @@ export function ThreadContextMenu(props: {
             ),
             view: s.view.kind === "thread" ? { ...s.view, activeGroupId: groupId } : s.view,
           }));
+          // The durable effect of grouping a root row is the host command; the
+          // local paint above is display-only until the next page confirms it.
+          dispatchManagedRootThreadGroupIntents(
+            openThreads.map((other) => ({ threadId: other.id, groupId, groupName })),
+          );
         }
         if (key === "ungroup") {
+          const clearedThreadIds = dissolveGroupMembership(
+            useAppStore.getState().threads,
+            thread.id,
+          ).clearedIds;
           applyRemoteSetGroupCommand(thread.id, undefined, undefined);
+          dispatchManagedRootThreadGroupIntents(clearedThreadIds.map((threadId) => ({ threadId })));
         }
         if (key === "archive" && !isExperimentCandidate) archiveThread(thread.id);
         if (key === "rename") onRename?.();
@@ -402,12 +418,13 @@ export function ThreadContextMenu(props: {
         if (key.startsWith("stop-action:")) {
           stopProjectAction(project.id, key.slice("stop-action:".length), thread.worktreePath);
         }
-        applyWorkspaceMenuChoice(key, (workspaceId) =>
-          useAppStore.getState().setThreadWorkspace(thread.id, workspaceId),
-        );
+        applyWorkspaceMenuChoice(key, (workspaceId) => {
+          useAppStore.getState().setThreadWorkspace(thread.id, workspaceId);
+          dispatchManagedRootThreadWorkspace(thread.id, workspaceId);
+        });
       }}
     >
       {props.children}
-    </ContextMenu>
+    </ResponsiveContextMenu>
   );
 }

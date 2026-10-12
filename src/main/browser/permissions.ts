@@ -1,4 +1,6 @@
 import { shell, systemPreferences, type WebContents, type Session } from "electron";
+import { canEnumerateLocalFonts } from "./localFontPermissions";
+import { installLoopbackCertificatePin } from "../remote/loopbackCertificatePin";
 
 const ALLOWED_PERMISSIONS = new Set<string>([
   "clipboard-read",
@@ -111,7 +113,12 @@ export async function openMicrophoneSettings(): Promise<void> {
 }
 
 export function installSessionPermissions(session: Session): void {
-  session.setPermissionRequestHandler((webContents, permission, callback) => {
+  installLoopbackCertificatePin(session);
+  session.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    if (permission === "local-fonts") {
+      callback(canEnumerateLocalFonts(webContents, details));
+      return;
+    }
     if (!isPermissionAllowed(webContents, permission)) {
       callback(false);
       return;
@@ -122,8 +129,10 @@ export function installSessionPermissions(session: Session): void {
     }
     callback(true);
   });
-  session.setPermissionCheckHandler((webContents, permission) =>
-    isPermissionAllowed(webContents, permission),
+  session.setPermissionCheckHandler((webContents, permission, _origin, details) =>
+    permission === "local-fonts"
+      ? canEnumerateLocalFonts(webContents, details)
+      : isPermissionAllowed(webContents, permission),
   );
 }
 

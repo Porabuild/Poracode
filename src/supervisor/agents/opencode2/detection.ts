@@ -13,6 +13,7 @@ import { acquireOpenCode2Server, resolveOpenCode2SessionDirectory } from "./clie
 import {
   buildOpenCode2StatusFromIntegrations,
   readOpenCode2Integrations,
+  readOpenCode2LegacyProviders,
   type OpenCode2InventoryIntegration,
 } from "./credentials";
 
@@ -322,9 +323,13 @@ async function runOpenCode2DetectionProbe(
 
   try {
     const inventory = await probeOpenCode2Inventory(ctx.location, ctx.signal);
+    const legacyProviders = await readOpenCode2LegacyProviders(
+      ctx.location,
+      inventory.integrations,
+    );
     return {
       capabilities: buildOpenCode2CapabilityPartialFromInventory(inventory),
-      status: buildOpenCode2StatusFromIntegrations(inventory.integrations),
+      status: buildOpenCode2StatusFromIntegrations(inventory.integrations, legacyProviders),
     };
   } catch (cause) {
     // No CLI fallback exists for V2 — keep the default capability set so the

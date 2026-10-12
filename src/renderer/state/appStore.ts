@@ -1,7 +1,9 @@
+import { retainPendingThreadConfigs } from "./pendingThreadConfig";
 import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
 import type { Thread } from "@/shared/contracts";
 import { createDbStorage } from "./dbStorage";
+import { createAppStorePartializer } from "./appStorePersistence";
 import { createDraftSlice } from "./slices/draftSlice";
 import { normalizeStoredThreadStatus } from "./slices/helpers";
 import { createLaunchSlice } from "./slices/launchSlice";
@@ -13,6 +15,7 @@ import type { AppStoreState } from "./slices/shared";
 import { createSubAgentOverlaySlice } from "./slices/subAgentOverlaySlice";
 import { createThreadSlice } from "./slices/threadSlice";
 import { createViewSlice } from "./slices/viewSlice";
+import { stripVolatileSessionConfigOptions } from "./volatileSessionConfigOptions";
 import { dedupeProjects } from "@/shared/projectIdentity";
 import {
   currentProjectIdentityOptions,
@@ -27,6 +30,19 @@ import {
 export { makeThreadTitle } from "./slices/helpers";
 export type { AppStoreState } from "./slices/shared";
 export type { DraftContent, SavedGroupLayout } from "./slices/types";
+
+/**
+ * True while a preference still has its boot value, so applying the persisted
+ * value cannot clobber a user edit made during hydration. `openHome` writes
+ * exactly `{ kind: "home" }`; any richer view is a user decision.
+ */
+function isPristineView(view: AppStoreState["view"]): boolean {
+  return view.kind === "home" && Object.keys(view).length === 1;
+}
+
+function isPristineGroupLayouts(groupLayouts: AppStoreState["groupLayouts"]): boolean {
+  return Object.keys(groupLayouts).length === 0;
+}
 
 export const useAppStore = create<AppStoreState>()(
   subscribeWithSelector(
@@ -65,32 +81,50 @@ export const useAppStore = create<AppStoreState>()(
           const state =
             (persistedState as (Partial<AppStoreState> & { threads?: Thread[] }) | undefined) ??
             ({} as Partial<AppStoreState>);
-
-          const deduped = dedupeProjects(
-            state.projects ?? currentState.projects,
-            currentProjectIdentityOptions(),
-          );
+          // Desktop hydration is preferences-only; the host catalog may have
+          // arrived while this read was in flight. Browser clients can hydrate
+          // their persisted catalog rows.
+          const persistedCatalog = state.projects !== undefined || state.threads !== undefined;
+          const selectedProjects =
+            persistedCatalog && state.projects !== undefined
+              ? state.projects
+              : currentState.projects;
+          const deduped = dedupeProjects(selectedProjects, currentProjectIdentityOptions());
           const projects = deduped.projects;
-          const view = remapProjectView(state.view ?? currentState.view, deduped.duplicateIds);
-          const threads = remapThreadProjectIds(
-            (state.threads ?? currentState.threads).map((t) => ({
-              ...normalizeStoredThreadStatus(t),
-              ...(t.archived ? { archivedAt: t.archivedAt ?? t.updatedAt } : {}),
-              done: t.done ?? false,
-              doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
-            })),
-            deduped.duplicateIds,
-          );
+          // Persisted rows may still carry the volatile `sessionConfigOptions`
+          // inventory from before the write-side strip (same-version rows, an
+          // older host): it belongs to a session incarnation the durable row
+          // cannot vouch for, so normalize it away in memory. Only persisted
+          // rows are stripped — rows already live in the store keep their
+          // event-delivered inventory untouched.
+          const persistedThreads =
+            state.threads !== undefined
+              ? state.threads.map(stripVolatileSessionConfigOptions)
+              : undefined;
+          const selectedThreads = persistedCatalog
+            ? (persistedThreads ?? currentState.threads).map((thread) => ({
+                ...normalizeStoredThreadStatus(thread),
+                ...(thread.archived ? { archivedAt: thread.archivedAt ?? thread.updatedAt } : {}),
+                done: thread.done ?? false,
+                doneAt: thread.done ? (thread.doneAt ?? thread.updatedAt) : undefined,
+              }))
+            : currentState.threads;
+          const threads = remapThreadProjectIds(selectedThreads, deduped.duplicateIds);
+          // Preserve user edits made while persisted preferences were loading.
+          const selectedView =
+            state.view !== undefined && isPristineView(currentState.view)
+              ? state.view
+              : currentState.view;
+          const selectedGroupLayouts =
+            state.groupLayouts !== undefined && isPristineGroupLayouts(currentState.groupLayouts)
+              ? state.groupLayouts
+              : currentState.groupLayouts;
           const merged = {
             ...currentState,
-            ...state,
             projects,
-            view,
             threads,
-            groupLayouts: remapProjectGroupLayouts(
-              state.groupLayouts ?? currentState.groupLayouts,
-              deduped.duplicateIds,
-            ),
+            view: remapProjectView(selectedView, deduped.duplicateIds),
+            groupLayouts: remapProjectGroupLayouts(selectedGroupLayouts, deduped.duplicateIds),
             draftContents: remapProjectRecord(
               state.draftContents ?? currentState.draftContents,
               deduped.duplicateIds,
@@ -109,6 +143,10 @@ export const useAppStore = create<AppStoreState>()(
               state.draftContentDiscardRequests ?? currentState.draftContentDiscardRequests,
               deduped.duplicateIds,
             ),
+            pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+              currentState.pendingThreadConfigByThreadId,
+              threads,
+            ),
             lastRuntimeConfigByThreadId: Object.fromEntries(
               threads.map((thread) => [thread.id, thread.config]),
             ),
@@ -116,36 +154,7 @@ export const useAppStore = create<AppStoreState>()(
           // Keep-alive membership is ephemeral; restore it from the selected panes.
           return { ...merged, ...keepAlivePatch(merged, []) };
         },
-        partialize: (state) => {
-          const view = state.view;
-          const hasRemoteView =
-            (view.kind === "draft" &&
-              state.projects.some(
-                (project) => project.id === view.projectId && project.remoteServerId,
-              )) ||
-            (view.kind === "thread" &&
-              view.panes.some((paneId) =>
-                state.threads.some((thread) => thread.id === paneId && thread.remoteServerId),
-              ));
-          const hasPendingWorktreeView =
-            view.kind === "thread" &&
-            view.panes.some((paneId) =>
-              state.threads.some(
-                (thread) => thread.id === paneId && state.provisioningWorktreeThreadIds[thread.id],
-              ),
-            );
-          return {
-            projects: state.projects.filter((project) => !project.remoteServerId),
-            // Worktree-provisioning rows are renderer-only placeholders. If one
-            // survived a restart, `launching` would hydrate as `inactive` and
-            // reopening it would launch the agent in the base checkout.
-            threads: state.threads.filter(
-              (thread) => !thread.remoteServerId && !state.provisioningWorktreeThreadIds[thread.id],
-            ),
-            view: hasRemoteView || hasPendingWorktreeView ? { kind: "home" as const } : view,
-            groupLayouts: state.groupLayouts,
-          };
-        },
+        partialize: createAppStorePartializer(),
       },
     ),
   ),

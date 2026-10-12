@@ -1,6 +1,9 @@
 import type { ProjectLocation } from "@/shared/contracts";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
 import {
+  legacyOneShotPositionals,
   resolveAgentProjectLocation,
+  UnsupportedOneShotControlError,
   withCommandBaseSpawnEnv,
   type AgentAdapter,
   type CommandSpec,
@@ -61,10 +64,13 @@ export interface OneShotPromptAttempt {
 export interface RunOneShotPromptOptions {
   location: ProjectLocation;
   adapter: AgentAdapter;
-  model: string;
-  effort: string | undefined;
-  /** Opus-only fast-mode flag, forwarded to the adapter when set. */
-  fast?: boolean | undefined;
+  /**
+   * Canonical complete utility selection. Carries the post-override tuple
+   * (effective model + effort/fast/thinking/contextSize carriers + optional
+   * binding) unchanged through every prompt-size retry; the legacy builder
+   * positionals are derived from it exactly once, below.
+   */
+  selection: ModelSelection;
   /** Let structured runtimes expose read/search/list tools in the isolated workspace. */
   readOnlyWorkspace?: boolean | undefined;
   timeoutMs: number;
@@ -130,11 +136,14 @@ async function runOneShotPromptWithFallbackImpl(
 
   const useSdkPath = typeof runOneShot === "function";
   const executionLocation = await resolveAgentProjectLocation(
-    options.adapter,
     options.location,
     undefined,
     options.signal,
   );
+  // The legacy positional ABI is a checked projection of the one selection:
+  // derived exactly once here, before any attempt, and passed alongside the
+  // full selection on every attempt so both builder lanes always agree.
+  const positionals = legacyOneShotPositionals(options.selection);
 
   let lastError: unknown;
   for (let i = 0; i < options.attempts.length; i++) {
@@ -150,15 +159,19 @@ async function runOneShotPromptWithFallbackImpl(
       try {
         return await runOneShot.call(options.adapter, {
           location: executionLocation,
-          model: options.model,
-          effort: options.effort,
-          fast: options.fast,
+          selection: options.selection,
           readOnlyWorkspace: options.readOnlyWorkspace,
           prompt,
           signal,
         });
       } catch (err) {
         lastError = err;
+        // A deterministic unsupported-control refusal is terminal: the frozen
+        // selection would fail identically on every smaller prompt, so walking
+        // the fallback chain would only re-emit the identical unsupported
+        // tuple. Recoverable failures and explicit aborts keep their existing
+        // semantics below.
+        if (err instanceof UnsupportedOneShotControlError) throw err;
         // SDK path has no argv overflow class of errors; only fall through to
         // the next attempt if there's one available and the failure isn't an
         // explicit abort.
@@ -175,14 +188,17 @@ async function runOneShotPromptWithFallbackImpl(
     if (!buildOneShotCommand) {
       throw new Error(`${options.adapter.label} does not support ${generationLabel}`);
     }
-    const cmd = buildOneShotCommand.call(
+    const cmd = await buildOneShotCommand.call(
       options.adapter,
-      options.model,
-      options.effort,
+      positionals.model,
+      positionals.effort,
       prompt,
       executionLocation,
-      options.fast,
-      { readOnlyWorkspace: options.readOnlyWorkspace },
+      positionals.fast,
+      {
+        readOnlyWorkspace: options.readOnlyWorkspace,
+        selection: options.selection,
+      },
     );
     if (!cmd) {
       throw new Error(`${options.adapter.label} does not support ${generationLabel}`);
@@ -195,7 +211,7 @@ async function runOneShotPromptWithFallbackImpl(
     // Every Poracode-made spawn of this CLI carries the provider's base env
     // (updater/telemetry opt-outs); a command-specific `env` wins on conflict.
     const effectiveCommand = withCommandBaseSpawnEnv(baseCommand, options.adapter.baseSpawnEnv);
-    const { spec: spawnSpec, spawn } = prepareOneShot(executionLocation, effectiveCommand);
+    const { spec: spawnSpec, spawn } = await prepareOneShot(executionLocation, effectiveCommand);
 
     if (hasNextAttempt && isArgvLikelyTooLong(spawnSpec)) {
       console.warn(

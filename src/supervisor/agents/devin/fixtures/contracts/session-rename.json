@@ -1,0 +1,14 @@
+{
+  "$comment": "Sanitized live wire capture, devin acp 3000.11.3 (2026-10-07). Confirmed: request {} response, then session/update carries the new title. Session id and title replaced with fixture values.",
+  "request": { "sessionId": "fixture-session", "title": "Fixture title" },
+  "response": {},
+  "followUpNotification": {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "session_info_update",
+      "sessionId": "fixture-session",
+      "title": "Fixture title",
+      "_meta": {}
+    }
+  }
+}

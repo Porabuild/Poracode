@@ -36,11 +36,12 @@ export function useActiveBufferContent(): string | undefined {
 }
 
 /** Status of the active buffer. */
-export function useActiveBufferStatus(): ProjectFileReadStatus | null {
+export function useActiveBufferStatus(): ProjectFileReadStatus | "loading" | null {
   return useFileEditorStore((s) => {
     const path = s.activePath;
     if (!path) return null;
-    return s.buffers[path]?.status ?? null;
+    const buffer = s.buffers[path];
+    return buffer?.isLoading ? "loading" : (buffer?.status ?? null);
   });
 }
 

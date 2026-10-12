@@ -82,9 +82,9 @@ describe("installGrokPlugin (native, global hook write)", () => {
     return { baseDir, grokDir, ctx: { envKind, baseDir } };
   }
 
-  it("writes ~/.grok/hooks/poracode-status.json at install time", () => {
+  it("writes ~/.grok/hooks/poracode-status.json at install time", async () => {
     const { grokDir, ctx } = makeNativeCtx();
-    const result = installGrokPlugin(ctx, { globalGrokDirOverride: grokDir });
+    const result = await installGrokPlugin(ctx, { globalGrokDirOverride: grokDir });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const expected = join(grokDir, GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
@@ -103,7 +103,7 @@ describe("installGrokPlugin (native, global hook write)", () => {
     expect(stop?.command.endsWith(" Stop")).toBe(true);
   });
 
-  it("removes the legacy Lightcode global hook after install", () => {
+  it("removes the legacy Lightcode global hook after install", async () => {
     const { grokDir, ctx } = makeNativeCtx();
     const legacyPath = join(grokDir, GLOBAL_HOOK_DIR_NAME, "lightcode-status.json");
     mkdirSync(join(grokDir, GLOBAL_HOOK_DIR_NAME), { recursive: true });
@@ -116,31 +116,31 @@ describe("installGrokPlugin (native, global hook write)", () => {
       ),
     );
 
-    expect(installGrokPlugin(ctx, { globalGrokDirOverride: grokDir }).ok).toBe(true);
+    expect((await installGrokPlugin(ctx, { globalGrokDirOverride: grokDir })).ok).toBe(true);
     expect(existsSync(legacyPath)).toBe(false);
   });
 
   it("is idempotent — re-install with identical inputs does not bump mtime", async () => {
     const { grokDir, ctx } = makeNativeCtx();
-    const first = installGrokPlugin(ctx, { globalGrokDirOverride: grokDir });
+    const first = await installGrokPlugin(ctx, { globalGrokDirOverride: grokDir });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
     const firstMtime = statSync(first.paths.globalHookFilePath).mtimeMs;
 
     await new Promise((r) => setTimeout(r, 20));
 
-    const second = installGrokPlugin(ctx, { globalGrokDirOverride: grokDir });
+    const second = await installGrokPlugin(ctx, { globalGrokDirOverride: grokDir });
     expect(second.ok).toBe(true);
     if (!second.ok) return;
     expect(statSync(second.paths.globalHookFilePath).mtimeMs).toBe(firstMtime);
   });
 
-  it("does not touch any project-level paths", () => {
+  it("does not touch any project-level paths", async () => {
     const { grokDir, ctx } = makeNativeCtx();
     const projectDir = mkdtempSync(join(tmpdir(), "poracode-grok-proj-"));
     mkdirSync(join(projectDir, ".grok"), { recursive: true });
 
-    const result = installGrokPlugin(ctx, { globalGrokDirOverride: grokDir });
+    const result = await installGrokPlugin(ctx, { globalGrokDirOverride: grokDir });
     expect(result.ok).toBe(true);
 
     expect(existsSync(join(projectDir, ".grok", "hooks"))).toBe(false);
@@ -181,18 +181,18 @@ describe("isGrokPluginInstalled", () => {
     return { baseDir, ctx: { envKind: "posix" as const, baseDir } };
   }
 
-  it("returns installed:false when staging assets are missing", () => {
+  it("returns installed:false when staging assets are missing", async () => {
     expect(
-      isGrokPluginInstalled(stage({ forward: true, runtime: true, wrapper: true }).ctx),
+      await isGrokPluginInstalled(stage({ forward: true, runtime: true, wrapper: true }).ctx),
     ).toEqual({ installed: false });
     expect(
-      isGrokPluginInstalled(stage({ manifest: true, runtime: true, wrapper: true }).ctx),
+      await isGrokPluginInstalled(stage({ manifest: true, runtime: true, wrapper: true }).ctx),
     ).toEqual({ installed: false });
     expect(
-      isGrokPluginInstalled(stage({ manifest: true, forward: true, wrapper: true }).ctx),
+      await isGrokPluginInstalled(stage({ manifest: true, forward: true, wrapper: true }).ctx),
     ).toEqual({ installed: false });
     expect(
-      isGrokPluginInstalled(stage({ manifest: true, forward: true, runtime: true }).ctx),
+      await isGrokPluginInstalled(stage({ manifest: true, forward: true, runtime: true }).ctx),
     ).toEqual({ installed: false });
   });
 });

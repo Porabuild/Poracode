@@ -36,7 +36,11 @@ import {
 import { buildCodexTurnInput } from "./acpTurn";
 import { CodexStdioTransport } from "./stdioTransport";
 import { CodexSubAgentRouter } from "./subAgentRouting";
-import type { StructuredSessionUpdate } from "../base";
+import {
+  clearExecutablePathCache,
+  primeWslLaunchEnvironment,
+  type StructuredSessionUpdate,
+} from "../base";
 
 /** These focused fixtures bypass the private constructor; install owned helpers centrally. */
 function createSessionShell(): Record<string, unknown> {
@@ -1052,7 +1056,9 @@ describe("CodexStructuredSession", () => {
       ownsThread: () => true,
       request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
-        return Promise.resolve({});
+        return Promise.resolve(
+          method === "thread/read" ? { thread: { status: { type: "idle" }, turns: [] } } : {},
+        );
       },
       dispose: rpcDispose,
     };
@@ -1064,6 +1070,11 @@ describe("CodexStructuredSession", () => {
       {
         method: "turn/interrupt",
         params: { threadId: "provider-thread", turnId: "turn-1" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "thread/read",
+        params: { threadId: "provider-thread", includeTurns: true },
         timeoutMs: 2_000,
       },
       {
@@ -1095,7 +1106,12 @@ describe("CodexStructuredSession", () => {
       ownsThread: () => true,
       request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
-        if (method === "thread/read") return Promise.reject(new Error("read unavailable"));
+        if (method === "thread/read") {
+          if (!requests.some((request) => request.method === "turn/interrupt")) {
+            return Promise.reject(new Error("read unavailable"));
+          }
+          return Promise.resolve({ thread: { status: { type: "idle" }, turns: [] } });
+        }
         return Promise.resolve({});
       },
       dispose: () => {},
@@ -1132,6 +1148,9 @@ describe("CodexStructuredSession", () => {
       request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
         if (method === "thread/read") {
+          if (requests.some((request) => request.method === "turn/interrupt")) {
+            return Promise.resolve({ thread: { status: { type: "idle" }, turns: [] } });
+          }
           return Promise.resolve({
             thread: {
               turns: [
@@ -1163,6 +1182,11 @@ describe("CodexStructuredSession", () => {
       {
         method: "turn/interrupt",
         params: { threadId: "provider-thread", turnId: "turn-live-2" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "thread/read",
+        params: { threadId: "provider-thread", includeTurns: true },
         timeoutMs: 2_000,
       },
       {
@@ -1540,6 +1564,89 @@ describe("CodexStructuredSession", () => {
         ],
       },
     });
+  });
+
+  it("createRevertAnchor plans the absolute fork target without mutating anything", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return Promise.resolve({
+            thread: {
+              turns: ["turn-1", "turn-2", "turn-3", "turn-4"].map((id) => ({ id })),
+            },
+          });
+        }
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+    };
+
+    await expect(structuredSession.createRevertAnchor(2)).resolves.toEqual({
+      version: 1,
+      data: {
+        variant: "fork",
+        sourceThreadId: "provider-thread",
+        lastTurnId: "turn-2",
+        numTurns: 2,
+      },
+    });
+    // Pure planning: exactly one thread/read — no fork, no unsubscribe.
+    expect(requests).toEqual([
+      {
+        method: "thread/read",
+        params: {
+          threadId: "provider-thread",
+          includeTurns: true,
+        },
+      },
+    ]);
+  });
+
+  it("restoreToRevertAnchor forks directly at the journalled anchor without re-planning", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/fork") {
+          return Promise.resolve({ thread: { id: "forked-thread" } });
+        }
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+    };
+
+    const disconnect = vi.fn<() => Promise<void>>(async () => {
+      expect(requests).toEqual([]);
+    });
+    (structuredSession as unknown as { liveVoice: { disconnect: typeof disconnect } }).liveVoice = {
+      disconnect,
+    };
+    const anchor = {
+      version: 1 as const,
+      data: {
+        variant: "fork",
+        sourceThreadId: "provider-thread",
+        lastTurnId: "turn-2",
+        numTurns: 2,
+      },
+    };
+    await expect(structuredSession.restoreToRevertAnchor(anchor)).resolves.toEqual({
+      providerSessionId: "forked-thread",
+      messages: [],
+    });
+    expect(disconnect).toHaveBeenCalledOnce();
+    // No thread/read re-plan: the journalled anchor is authoritative.
+    expect(requests[0]).toEqual({
+      method: "thread/fork",
+      params: expect.objectContaining({ threadId: "provider-thread", lastTurnId: "turn-2" }),
+    });
+    expect((structuredSession as unknown as { remoteThreadId: string }).remoteThreadId).toBe(
+      "forked-thread",
+    );
   });
 
   it("starts a new usage scope epoch on fork and replays buffered tokenUsage into it", async () => {
@@ -2620,7 +2727,7 @@ describe("CodexStructuredSession", () => {
     expect(updates).toContainEqual({ status: "idle", attention: "none" });
   });
 
-  it("skips internal compaction and sleep items without synthesizing rows", () => {
+  it("renders contextCompaction as a ContextCompaction row across its internal turn", () => {
     const { onMessage, runtimeEvents } = makeNotificationSession();
 
     onMessage({
@@ -2628,19 +2735,60 @@ describe("CodexStructuredSession", () => {
       method: "item/started",
       params: {
         threadId: "provider-thread",
-        turnId: "turn-a",
+        turnId: "turn-compact",
         item: { id: "compact-1", type: "contextCompaction" },
       },
+    });
+    // The internal compaction turn settles before the item completes.
+    onMessage({
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: { threadId: "provider-thread", turn: { id: "turn-compact", status: "completed" } },
     });
     onMessage({
       jsonrpc: "2.0",
       method: "item/completed",
       params: {
         threadId: "provider-thread",
-        turnId: "turn-a",
+        turnId: "turn-compact",
         item: { id: "compact-1", type: "contextCompaction" },
       },
     });
+
+    const itemEvents = runtimeEvents.filter((event) => event.type.startsWith("item."));
+    expect(itemEvents).toHaveLength(2);
+    const [started, completed] = itemEvents;
+    expect(started).toMatchObject({
+      type: "item.started",
+      itemType: "tool_call",
+      payload: { name: "ContextCompaction", status: "running" },
+    });
+    expect(completed).toMatchObject({
+      type: "item.completed",
+      itemId: (started as Extract<RuntimeEvent, { type: "item.started" }>).itemId,
+      payload: { name: "ContextCompaction", status: "success" },
+    });
+  });
+
+  it("synthesizes one completed ContextCompaction row when the start was missed", () => {
+    const { onMessage, runtimeEvents } = makeNotificationSession();
+    onMessage({
+      jsonrpc: "2.0",
+      method: "item/completed",
+      params: {
+        threadId: "provider-thread",
+        turnId: "turn-a",
+        item: { id: "compact-2", type: "contextCompaction" },
+      },
+    });
+
+    const itemEvents = runtimeEvents.filter((event) => event.type.startsWith("item."));
+    expect(itemEvents.map((event) => event.type)).toEqual(["item.started", "item.completed"]);
+    expect(itemEvents[1]).toMatchObject({ payload: { name: "ContextCompaction" } });
+  });
+
+  it("skips internal sleep items without synthesizing rows", () => {
+    const { onMessage, runtimeEvents } = makeNotificationSession();
     onMessage({
       jsonrpc: "2.0",
       method: "item/completed",
@@ -2879,7 +3027,7 @@ describe("CodexStructuredSession", () => {
       },
     };
 
-    await (session as unknown as CodexStructuredSession).openThread(
+    const opened = (session as unknown as CodexStructuredSession).openThread(
       { model: "gpt-5.4" },
       {
         providerSessionId: "provider-thread",
@@ -2892,6 +3040,15 @@ describe("CodexStructuredSession", () => {
       onUpdate: (update) => updates.push(update),
       onRuntimeEvent: (event) => runtimeEvents.push(event),
     });
+
+    let ready = false;
+    void opened.then(() => {
+      ready = true;
+    });
+    await vi.waitFor(() =>
+      expect(requests.map((request) => request.method)).toContain("thread/read"),
+    );
+    expect(ready).toBe(false);
 
     expect(updates).toEqual([]);
 
@@ -2917,8 +3074,8 @@ describe("CodexStructuredSession", () => {
     });
 
     resolveThreadRead({ thread: { status: { type: "idle" } } });
-    await Promise.resolve();
-    await Promise.resolve();
+    await opened;
+    expect(ready).toBe(true);
 
     onMessage?.({
       jsonrpc: "2.0",
@@ -3382,6 +3539,33 @@ describe("createCodexAdapter buildAcpLogoutCommand", () => {
       : `${command?.command ?? ""} ${args.join(" ")}`;
     expect(rendered).toMatch(/codex/i);
     expect(rendered).toContain("logout");
+  });
+});
+
+describe("createCodexAdapter pluginLaunchExtras", () => {
+  it("points CODEX_HOME at the private WSL home once the home is resolved", async () => {
+    const distro = `PoracodeCodexHome${process.pid}`;
+    clearExecutablePathCache();
+    primeWslLaunchEnvironment(distro, { shellPath: "/bin/bash", home: "/home/probe" });
+
+    const extras = await createCodexAdapter().pluginLaunchExtras?.({
+      envKind: "wsl",
+      wslDistro: distro,
+    });
+
+    expect(extras?.env?.CODEX_HOME).toBe("/home/probe/.poracode/agent-plugins/codex/home");
+  });
+
+  it("never pins an empty CODEX_HOME when the WSL home cannot be resolved", async () => {
+    const distro = `PoracodeCodexCold${process.pid}`;
+    clearExecutablePathCache();
+
+    const extras = await createCodexAdapter().pluginLaunchExtras?.({
+      envKind: "wsl",
+      wslDistro: distro,
+    });
+
+    expect(extras?.env?.CODEX_HOME).toBeUndefined();
   });
 });
 

@@ -2,7 +2,9 @@ import { createRoot, type Root } from "react-dom/client";
 import "./tailwind.css";
 import "./uiAnimationActivity";
 import { readBridge } from "./bridge";
+import { hasElectronHostBridge } from "./clientRuntime";
 import { captureRendererException, initializeRendererSentry } from "./diagnostics/sentry";
+import { installReactDevelopmentTimingRetention } from "./diagnostics/reactDevelopmentTimingRetention";
 import { getAppName } from "@/shared/appName";
 import {
   createRendererCrashReport,
@@ -23,6 +25,9 @@ function logRendererBootstrap(message: string): void {
 logRendererBootstrap("main module evaluated");
 
 if (import.meta.env.DEV) {
+  const stopDevelopmentTimingRetention = installReactDevelopmentTimingRetention();
+  import.meta.hot?.dispose(stopDevelopmentTimingRetention);
+
   const warn = console.warn.bind(console);
   console.warn = (...args: unknown[]) => {
     const head = args[0];
@@ -45,6 +50,7 @@ initializeRendererSentry();
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "poracode" in window ? readBridge().platform : "unknown";
+document.documentElement.dataset.clientHost = hasElectronHostBridge() ? "electron" : "browser";
 document.documentElement.dataset.windowKind = readBridge().windowKind;
 
 // The translucent ("liquid glass") sidebar is applied by provider.tsx only once

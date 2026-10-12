@@ -67,8 +67,13 @@ export function isBlockedStatus(status: ThreadStatus): boolean {
   return status === "needs_approval" || status === "needs_reply";
 }
 
-/** All current payload fields are plain objects; copy the only nested value. */
+/**
+ * Detached copy of an accepted follow-up. The client context is part of the
+ * record: it was captured when this follow-up was submitted, so no later
+ * caller (another tab, client or edit) can rewrite it.
+ */
 export function snapshotPayload(payload: SetPendingSteerPayload): SetPendingSteerPayload {
+  const activeTab = payload.clientContext?.browserFocus?.activeTab;
   return {
     threadId: payload.threadId,
     prompt: payload.prompt,
@@ -79,6 +84,18 @@ export function snapshotPayload(payload: SetPendingSteerPayload): SetPendingStee
         : {}),
     },
     ...(payload.segments ? { segments: payload.segments.map((segment) => ({ ...segment })) } : {}),
+    ...(payload.clientContext
+      ? {
+          clientContext: {
+            ...(payload.clientContext.conversationSnapshot
+              ? { conversationSnapshot: { ...payload.clientContext.conversationSnapshot } }
+              : {}),
+            ...(payload.clientContext.browserFocus
+              ? { browserFocus: activeTab ? { activeTab: { ...activeTab } } : {} }
+              : {}),
+          },
+        }
+      : {}),
   };
 }
 

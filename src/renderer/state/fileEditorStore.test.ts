@@ -281,6 +281,61 @@ describe("fileEditorStore preview tabs", () => {
   });
 });
 
+describe("fileEditorStore toggleMarkdownPreview", () => {
+  beforeEach(() => {
+    useFileEditorStore.setState({
+      rootContext: null,
+      overlayMode: "fullscreen",
+      tabs: [],
+      activePath: null,
+      previewTab: null,
+      markdownPreviewPath: null,
+      buffers: {},
+      refreshToken: 0,
+      pendingReveal: null,
+    });
+  });
+
+  function seed(activePath: string, markdownPreviewPath: string | null = null) {
+    useFileEditorStore.setState({
+      tabs: [activePath],
+      activePath,
+      markdownPreviewPath,
+      buffers: { [activePath]: makeBuffer(activePath) },
+    });
+  }
+
+  it("turns the preview on for the active markdown file and back off", () => {
+    seed("README.md");
+
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("README.md");
+
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
+  });
+
+  it("retargets the preview when a different markdown tab toggles it on", () => {
+    seed("b.md", "a.md");
+
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("b.md");
+  });
+
+  it("is a no-op for non-markdown active files", () => {
+    seed("a.ts", "kept.md");
+
+    useFileEditorStore.getState().toggleMarkdownPreview();
+
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("kept.md");
+  });
+
+  it("is a no-op without an active file", () => {
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
+  });
+});
+
 describe("fileEditorStore cycleTab", () => {
   beforeEach(() => {
     useFileEditorStore.setState({
@@ -452,7 +507,12 @@ describe("fileEditorStore remote roots", () => {
         },
       ],
       runtime: { d1: { status: "online", projects: [], threads: [] } },
-      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
+      clientFactory: () =>
+        ({
+          callRemoteProcedure,
+          // The store pushes the rotating-token lifecycle at connect (V5 4.6).
+          setTokenLifecycle: () => undefined,
+        }) as unknown as RemoteDesktopClient,
     });
     useGitStore.setState({
       statuses: {
@@ -550,7 +610,12 @@ describe("fileEditorStore remote roots", () => {
         },
       ],
       runtime: { d1: { status: "online", projects: [], threads: [] } },
-      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
+      clientFactory: () =>
+        ({
+          callRemoteProcedure,
+          // The store pushes the rotating-token lifecycle at connect (V5 4.6).
+          setTokenLifecycle: () => undefined,
+        }) as unknown as RemoteDesktopClient,
     });
     useFileEditorStore.getState().setRootContext({
       projectId: "p1",
@@ -611,7 +676,12 @@ describe("fileEditorStore remote roots", () => {
         },
       ],
       runtime: { d1: { status: "online", projects: [], threads: [] } },
-      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
+      clientFactory: () =>
+        ({
+          callRemoteProcedure,
+          // The store pushes the rotating-token lifecycle at connect (V5 4.6).
+          setTokenLifecycle: () => undefined,
+        }) as unknown as RemoteDesktopClient,
     });
     useFileEditorStore.getState().setRootContext({
       projectId: "p1",
@@ -638,6 +708,82 @@ describe("fileEditorStore remote roots", () => {
       tabs: [],
       buffers: {},
     });
+  });
+});
+
+describe("fileEditorStore media reload and SVG preview", () => {
+  afterEach(() => useFileEditorStore.getState().clearSession());
+  it("refreshes binary/large media while keeping dirty source edits", async () => {
+    const readProjectFile = vi.fn<PoracodeBridge["readProjectFile"]>(async ({ path }) => ({
+      path,
+      status: "binary",
+      modifiedAtMs: 2,
+    }));
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: { readProjectFile },
+    });
+    const rootContext: FileEditorRootContext = {
+      projectId: "media-project",
+      projectName: "Media",
+      projectLocation: { kind: "posix", path: "/media" },
+      rootLabel: "Media",
+    };
+    useFileEditorStore.setState({
+      rootContext,
+      tabs: ["image.png", "clip.mp4", "dirty.svg"],
+      activePath: "image.png",
+      buffers: {
+        "image.png": { ...makeBuffer("image.png"), status: "binary" },
+        "clip.mp4": { ...makeBuffer("clip.mp4"), status: "too_large" },
+        "dirty.svg": { ...makeBuffer("dirty.svg"), isDirty: true },
+      },
+    });
+    await useFileEditorStore.getState().refreshOpenBuffers();
+    expect(readProjectFile).toHaveBeenCalledTimes(2);
+    expect(useFileEditorStore.getState().buffers["image.png"]?.modifiedAtMs).toBe(2);
+    expect(useFileEditorStore.getState().buffers["clip.mp4"]?.status).toBe("binary");
+    expect(useFileEditorStore.getState().buffers["dirty.svg"]?.content).toBe("dirty.svg");
+  });
+  it("preserves unchanged media buffer and map identity while refreshing an actual disk stat change", async () => {
+    const readProjectFile = vi.fn<PoracodeBridge["readProjectFile"]>(async ({ path }) => ({
+      path,
+      status: "binary",
+      modifiedAtMs: 1,
+    }));
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: { readProjectFile },
+    });
+    const buffer = { ...makeBuffer("clip.mp4"), status: "binary" as const };
+    const buffers = { "clip.mp4": buffer };
+    useFileEditorStore.setState({
+      rootContext: {
+        projectId: "media",
+        projectName: "Media",
+        projectLocation: { kind: "posix", path: "/media" },
+        rootLabel: "Media",
+      },
+      tabs: ["clip.mp4"],
+      activePath: "clip.mp4",
+      buffers,
+    });
+    await useFileEditorStore.getState().refreshOpenBuffers();
+    expect(useFileEditorStore.getState().buffers).toBe(buffers);
+    expect(useFileEditorStore.getState().buffers["clip.mp4"]).toBe(buffer);
+    readProjectFile.mockResolvedValue({ path: "clip.mp4", status: "binary", modifiedAtMs: 2 });
+    await useFileEditorStore.getState().refreshOpenBuffers();
+    expect(useFileEditorStore.getState().buffers["clip.mp4"]).not.toBe(buffer);
+    expect(useFileEditorStore.getState().buffers["clip.mp4"]?.modifiedAtMs).toBe(2);
+  });
+  it("toggles SVG source/preview through the existing shared preview command", () => {
+    useFileEditorStore.setState({ activePath: "icon.svg", markdownPreviewPath: null });
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("icon.svg");
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
   });
 });
 
@@ -696,18 +842,46 @@ describe("fileEditorStore image viewer buffers", () => {
   });
 
   it("keeps the size of an image the editor can't open", async () => {
-    mockReadProjectFile(async () => ({
+    const read = vi.fn<PoracodeBridge["readProjectFile"]>(async () => ({
       path: "logo.png",
       status: "too_large",
       modifiedAtMs: 5,
       sizeBytes: 2_000_000,
     }));
+    mockReadProjectFile(read);
 
     await useFileEditorStore.getState().openFile("logo.png");
 
     expect(useFileEditorStore.getState().buffers["logo.png"]).toMatchObject({
       status: "too_large",
       modifiedAtMs: 5,
+      sizeBytes: 2_000_000,
+    });
+    expect(await useFileEditorStore.getState().openFile("logo.png")).toMatchObject({
+      status: "too_large",
+      sizeBytes: 2_000_000,
+    });
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an external image's size through the shared file-read normalization", async () => {
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: {
+        readExternalFile: vi.fn<PoracodeBridge["readExternalFile"]>(async () => ({
+          path: "/outside/logo.png",
+          status: "too_large",
+          modifiedAtMs: 5,
+          sizeBytes: 2_000_000,
+        })),
+      },
+    });
+
+    await useFileEditorStore.getState().openFile("/outside/logo.png");
+
+    expect(useFileEditorStore.getState().buffers["/outside/logo.png"]).toMatchObject({
+      status: "too_large",
       sizeBytes: 2_000_000,
     });
   });
@@ -754,5 +928,46 @@ describe("fileEditorStore image viewer buffers", () => {
     await useFileEditorStore.getState().refreshOpenBuffers();
 
     expect(useFileEditorStore.getState().buffers["logo.png"]).toBe(buffer);
+  });
+
+  it("refreshes image size metadata even if the mtime is unchanged", async () => {
+    mockReadProjectFile(async () => ({
+      path: "logo.png",
+      status: "binary",
+      modifiedAtMs: 1,
+      sizeBytes: 12,
+    }));
+    useFileEditorStore.setState({
+      tabs: ["logo.png"],
+      buffers: { "logo.png": viewerBuffer("logo.png", 1) },
+    });
+
+    await useFileEditorStore.getState().refreshOpenBuffers();
+
+    expect(useFileEditorStore.getState().buffers["logo.png"]?.sizeBytes).toBe(12);
+  });
+
+  it("does not overwrite a reopened image buffer with a stale refresh", async () => {
+    let finishRead!: (result: Awaited<ReturnType<PoracodeBridge["readProjectFile"]>>) => void;
+    mockReadProjectFile(
+      () =>
+        new Promise((resolve) => {
+          finishRead = resolve;
+        }),
+    );
+    useFileEditorStore.setState({
+      tabs: ["logo.png"],
+      buffers: { "logo.png": viewerBuffer("logo.png", 1) },
+    });
+    const pending = useFileEditorStore.getState().refreshOpenBuffers();
+    const reopened = viewerBuffer("logo.png", 7);
+    const buffers = { "logo.png": reopened };
+    useFileEditorStore.setState({ buffers });
+    finishRead({ path: "logo.png", status: "binary", modifiedAtMs: 9, sizeBytes: 12 });
+
+    await pending;
+
+    expect(useFileEditorStore.getState().buffers).toBe(buffers);
+    expect(useFileEditorStore.getState().buffers["logo.png"]).toBe(reopened);
   });
 });

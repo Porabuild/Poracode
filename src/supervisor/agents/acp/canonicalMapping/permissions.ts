@@ -37,11 +37,16 @@ export function mapAcpPermissionRequest(
   if (questionRequest) return questionRequest;
 
   const toolCall = req.toolCall as {
+    toolCallId?: string;
     title?: string;
     kind?: string;
     rawInput?: unknown;
     content?: unknown;
   };
+  const rawInput = rawInputWithAuthoritativeMetadata(
+    toolCall.rawInput,
+    authoritativeToolArgs(state, toolCall.toolCallId),
+  );
   // Cross-provider plan review: an ExitPlanMode approval renders through the
   // unified plan-review composer, so emit the same canonical shape Claude
   // produces — "Proposed plan" summary plus `input.plan`/`input.planFilePath`
@@ -68,8 +73,7 @@ export function mapAcpPermissionRequest(
   }
 
   const command =
-    readStringField(toolCall.rawInput, "command") ??
-    extractCommandFromApprovalContent(toolCall.content);
+    readStringField(rawInput, "command") ?? extractCommandFromApprovalContent(toolCall.content);
   const requestType = classifyApprovalRequestType(toolCall.kind, toolCall.title, command);
   const title = normalizeToolText(toolCall.title);
   const kind = normalizeToolText(toolCall.kind);
@@ -79,10 +83,10 @@ export function mapAcpPermissionRequest(
       : (title ?? kind ?? "Approval requested");
   const details =
     requestType === "command_execution_approval" && command
-      ? buildCommandPermissionDetails(toolCall.rawInput, kind, title, command)
+      ? buildCommandPermissionDetails(rawInput, kind, title, command)
       : requestType === "tool_call_approval"
-        ? buildToolCallPermissionDetails(toolCall.rawInput, title, kind)
-        : toolCall.rawInput;
+        ? buildToolCallPermissionDetails(rawInput, title, kind)
+        : rawInput;
   const options = mapPermissionOptions(req);
   return {
     type: "request.opened",
@@ -95,6 +99,60 @@ export function mapAcpPermissionRequest(
       options,
     },
   };
+}
+
+const AUTHORITATIVE_METADATA_KEYS = ["command", "cwd", "path", "file_path"] as const;
+
+/** Title-derived display text, not a command the tool actually recorded. */
+const DISPLAY_PLACEHOLDER_COMMANDS = new Set([
+  "running command",
+  "shell",
+  "execute",
+  "exec",
+  "run",
+  "run command",
+  "shell exec",
+]);
+
+/**
+ * Args already retained for this same tool call. Only `args` counts: a
+ * title-derived `payload.command` (often the placeholder "Running command")
+ * is not authoritative, and another tool's state is ignored.
+ */
+function authoritativeToolArgs(
+  state: AcpMapperState,
+  toolCallId: string | undefined,
+): Record<string, unknown> | undefined {
+  if (!toolCallId) return undefined;
+  const args = state.toolCallItems.get(toolCallId)?.payload.args;
+  if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
+  return args as Record<string, unknown>;
+}
+
+/**
+ * Fill command, cwd, path, and file_path only when the request itself omitted
+ * them and this tool's retained args already have a real value. Explicit
+ * request data wins. Prompts, option labels, and titles are not consulted.
+ */
+function rawInputWithAuthoritativeMetadata(
+  rawInput: unknown,
+  args: Record<string, unknown> | undefined,
+): unknown {
+  if (!args) return rawInput;
+  const base =
+    rawInput && typeof rawInput === "object" && !Array.isArray(rawInput)
+      ? { ...(rawInput as Record<string, unknown>) }
+      : {};
+  let filled = false;
+  for (const key of AUTHORITATIVE_METADATA_KEYS) {
+    if (readStringField(base, key)) continue;
+    const value = readStringField(args, key);
+    if (!value) continue;
+    if (key === "command" && DISPLAY_PLACEHOLDER_COMMANDS.has(value.toLowerCase())) continue;
+    base[key] = value;
+    filled = true;
+  }
+  return filled ? base : rawInput;
 }
 
 function mapPermissionOptions(req: RequestPermissionRequest) {

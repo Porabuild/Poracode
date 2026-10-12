@@ -1,5 +1,6 @@
 import {
   providerUsagePayloadSchema,
+  providerUsageResponseSchema,
   usageApiKeyPayloadSchema,
   usageLoginConfirmationPayloadSchema,
   usageLoginPayloadSchema,
@@ -51,10 +52,10 @@ export const usageProcedures = {
     ProviderUsagePayload,
     ProviderUsageResponse,
     "supervisor"
-  >("getProviderUsage", "supervisor", providerUsagePayloadSchema),
+  >("getProviderUsage", "supervisor", providerUsagePayloadSchema, providerUsageResponseSchema),
   refreshProviderUsage: definePayloadProcedure<
     ProviderUsagePayload,
     ProviderUsageResponse,
     "supervisor"
-  >("refreshProviderUsage", "supervisor", providerUsagePayloadSchema),
+  >("refreshProviderUsage", "supervisor", providerUsagePayloadSchema, providerUsageResponseSchema),
 } as const;

@@ -180,7 +180,7 @@ export function FileGroup(props: {
         <AlertDialog.Backdrop isOpen={revertAllOpen} onOpenChange={setRevertAllOpen}>
           <AlertDialog.Container>
             <AlertDialog.Dialog>
-              <AlertDialog.Header>
+              <AlertDialog.Header data-direct-alert-icon="">
                 <AlertDialog.Icon status="danger" />
                 <AlertDialog.Heading>
                   <Trans>Revert all changes</Trans>

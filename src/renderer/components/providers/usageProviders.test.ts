@@ -7,6 +7,7 @@ import {
   needsBrowserSessionForUsage,
   pickUsageRings,
   resolveDisplayedProviders,
+  separateCurrentUsageProvider,
   supportsApiKeyLogin,
   supportsBrowserLogin,
   usageProvidersForAgentInstances,
@@ -42,6 +43,20 @@ const agentInstances: AgentInstanceConfigMap = {
 };
 
 describe("usageProviders", () => {
+  it("separates the current provider without mutating the saved order", () => {
+    const providers = [
+      { id: "codex", label: "Codex" },
+      { id: "gemini", label: "Gemini" },
+      { id: "claude", label: "Claude" },
+    ];
+
+    const separated = separateCurrentUsageProvider(providers, "claude");
+
+    expect(separated.current?.id).toBe("claude");
+    expect(separated.rest.map((provider) => provider.id)).toEqual(["codex", "gemini"]);
+    expect(providers.map((provider) => provider.id)).toEqual(["codex", "gemini", "claude"]);
+  });
+
   it("recognizes base Claude and Claude profile usage providers", () => {
     expect(isClaudeUsageProvider("claude")).toBe(true);
     expect(isClaudeUsageProvider("claude:work")).toBe(true);
@@ -58,8 +73,10 @@ describe("usageProviders", () => {
     expect(supportsBrowserLogin("qoder")).toBe(true);
   });
 
-  it("identifies providers whose empty local snapshot still needs browser usage auth", () => {
-    expect(needsBrowserSessionForUsage("opencode")).toBe(true);
+  it("no longer flags OpenCode as needing a browser session for usage", () => {
+    // OpenCode Go meters come from the direct /zen/go/v1/usage API-key
+    // endpoint now; the cookie session is only a fallback / Zen balance source.
+    expect(needsBrowserSessionForUsage("opencode")).toBe(false);
     expect(needsBrowserSessionForUsage("grok")).toBe(false);
   });
 

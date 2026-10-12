@@ -25,6 +25,17 @@ vi.mock("./binary", () => ({
   resolveOpenCode2Binary: mocks.resolveAgentBinaryPath,
 }));
 
+vi.mock("./credentialCompatibility", () => ({
+  synchronizeOpenCode2Credentials: vi
+    .fn<typeof import("./credentialCompatibility").synchronizeOpenCode2Credentials>()
+    .mockResolvedValue(undefined),
+  revokeOpenCode2Credential: vi
+    .fn<typeof import("./credentialCompatibility").revokeOpenCode2Credential>()
+    .mockResolvedValue(undefined),
+  clearOpenCode2CredentialCompatibility:
+    vi.fn<typeof import("./credentialCompatibility").clearOpenCode2CredentialCompatibility>(),
+}));
+
 vi.mock("./argv", () => ({
   buildOpenCode2ServerCommand: mocks.buildOpenCode2ServerCommand,
 }));

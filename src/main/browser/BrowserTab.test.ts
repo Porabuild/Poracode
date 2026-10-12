@@ -17,14 +17,14 @@ vi.mock("./cdp/cdpClient", () => ({
   },
 }));
 
-vi.mock("./cdp/dialogController", () => ({
+vi.mock("@/host/browser/cdp/dialogController", () => ({
   DialogController: class DialogController {
     enable = dialogEnable;
     dispose = vi.fn<() => void>();
   },
 }));
 
-vi.mock("./cdp/networkCapture", () => ({
+vi.mock("@/host/browser/cdp/networkCapture", () => ({
   NetworkCapture: class NetworkCapture {
     dispose = vi.fn<() => void>();
   },

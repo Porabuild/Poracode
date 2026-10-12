@@ -32,12 +32,10 @@ import type { ThreadConfig } from "@/shared/contracts";
  *   • `--no-plan` is a hard restriction — passing it disables plan tooling
  *     entirely. Poracode never sets it; plan mode is entered in the TUI
  *     (Shift+Tab or the model calling `enter_plan_mode`).
- *   • Grok ACP (`session/new`) still does not advertise `modes` / standard
- *     `configOptions`. Model + effort state ride vendor `_meta` extensions
- *     (`modelState`, `x.ai/sessionConfig`), live model switching works via
- *     the unstable `session/set_model` (the shared ACP session's fallback),
- *     and `session/set_config_option` returns method-not-found — so effort
- *     changes only apply at (re)spawn via `--reasoning-effort`.
+ *   • Since grok 1.0.40, `session/new` advertises `model` and
+ *     `reasoning_effort` config options. Fast is the sibling model id
+ *     `*-build-fast`, not a boolean option — see `fastMode.ts`.
+ *     `--reasoning-effort` still sets effort for the TUI at launch.
  */
 
 /**

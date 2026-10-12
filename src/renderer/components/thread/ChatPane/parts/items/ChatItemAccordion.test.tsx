@@ -53,4 +53,29 @@ describe("ChatItemAccordion", () => {
     expect(scrollWidth).toHaveBeenCalled();
     expect(clientWidth).toHaveBeenCalled();
   });
+
+  it("measures the shared truncated path on hover for structured titles", () => {
+    const path = ".github/workflows/ci.yml";
+    render(
+      <ChatItemAccordion
+        icon={<span>i</span>}
+        title={path}
+        titleParts={{ prefix: "Read", path }}
+        hasBody={false}
+      />,
+    );
+    // The path must sit in an LTR isolate inside the RTL truncation container,
+    // or the browser reorders leading punctuation (".github" → "github.").
+    const bidi = screen.getByText(path);
+    expect(bidi.tagName).toBe("BDI");
+    expect(bidi).toHaveAttribute("dir", "ltr");
+    const pathElement = bidi.closest("span")!;
+    const scrollWidth = vi.spyOn(pathElement, "scrollWidth", "get").mockReturnValue(400);
+    const clientWidth = vi.spyOn(pathElement, "clientWidth", "get").mockReturnValue(100);
+
+    fireEvent.pointerEnter(pathElement);
+
+    expect(scrollWidth).toHaveBeenCalled();
+    expect(clientWidth).toHaveBeenCalled();
+  });
 });

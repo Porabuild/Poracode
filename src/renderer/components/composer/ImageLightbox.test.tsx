@@ -2,7 +2,14 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { ImageLightboxHost, ImageLightboxView, openAttachmentLightbox } from "./ImageLightbox";
+import {
+  ImageLightboxHost,
+  ImageLightboxView,
+  openAttachmentLightbox,
+  openImageLightbox,
+  closeImageLightboxForSource,
+  closeImageLightbox,
+} from "./ImageLightbox";
 
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1]);
 const copyImageToClipboard = vi
@@ -135,4 +142,25 @@ describe("image preview toolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save image" }));
     await waitFor(() => expect(danger).toHaveBeenCalledWith("Unable to save image."));
   });
+});
+
+it("keeps stable editor lightbox zoom and pinned actions until the exact owning source retires", async () => {
+  const readBytes = vi.fn<() => Promise<Uint8Array<ArrayBuffer>>>().mockResolvedValue(png);
+  render(<ImageLightboxHost />);
+  act(() =>
+    openImageLightbox(
+      [{ src: "https://media.test/stable", alt: "image.png", fileName: "image.png", readBytes }],
+      0,
+    ),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+  const before = screen.getByRole("img").style.transform;
+  act(() => closeImageLightboxForSource("https://media.test/unrelated"));
+  expect(screen.getByRole("img")).toHaveAttribute("src", "https://media.test/stable");
+  expect(screen.getByRole("img").style.transform).toBe(before);
+  fireEvent.click(screen.getByRole("button", { name: "Save image" }));
+  await waitFor(() => expect(readBytes).toHaveBeenCalledOnce());
+  act(() => closeImageLightboxForSource("https://media.test/stable"));
+  expect(screen.queryByRole("img")).toBeNull();
+  act(() => closeImageLightbox());
 });

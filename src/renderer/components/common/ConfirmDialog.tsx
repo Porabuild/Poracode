@@ -33,7 +33,7 @@ export function ConfirmDialog(props: {
     <AlertDialog.Backdrop isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialog.Container>
         <AlertDialog.Dialog>
-          <AlertDialog.Header>
+          <AlertDialog.Header data-direct-alert-icon="">
             <AlertDialog.Icon status={status} />
             <AlertDialog.Heading>{title}</AlertDialog.Heading>
           </AlertDialog.Header>

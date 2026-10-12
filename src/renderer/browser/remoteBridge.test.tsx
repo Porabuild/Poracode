@@ -1,0 +1,385 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import type { PrWatch, PrWatchInput, PrWatchKey, ProjectNotes } from "@/shared/contracts";
+import { REMOTE_PROCEDURE_SPECS, pickRemoteSettings } from "@/shared/remote";
+import { defaultSharedSettings } from "@/shared/settings";
+import { applyDesktopSettings, resetDesktopSettings } from "./remoteSettingsSync";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
+import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
+import { toLocalFileUrl } from "@/shared/promptContent";
+import {
+  getRemoteBridgeImageReadiness,
+  installRemoteBridge,
+  setRemoteBridgeClient,
+  subscribeRemoteBridgeImages,
+} from "./remoteBridge";
+import { useRemoteBridgeImageReadiness } from "./useRemoteBridgeImages";
+
+describe("remote bridge", () => {
+  afterEach(() => {
+    setRemoteBridgeClient(null);
+    resetDesktopSettings();
+    vi.restoreAllMocks();
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+  });
+
+  it("performs a real usage refresh through the generic host procedure and preserves its payload", async () => {
+    const callRemoteProcedure = vi
+      .fn<RemoteDesktopClient["callRemoteProcedure"]>()
+      .mockResolvedValue({ snapshots: [], fromCache: false });
+    const providerUsage = vi.fn<RemoteDesktopClient["providerUsage"]>();
+    setRemoteBridgeClient({ callRemoteProcedure, providerUsage } as unknown as RemoteDesktopClient);
+    installRemoteBridge();
+    const payload = { providerIds: ["provider:profile"], force: true };
+    await window.poracode!.getProviderUsage(payload);
+    await window.poracode!.refreshProviderUsage(payload);
+    expect(callRemoteProcedure.mock.calls).toEqual([
+      ["getProviderUsage", payload],
+      ["refreshProviderUsage", payload],
+    ]);
+    expect(providerUsage).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "honors independent preference writes while preserving the default host sync (%s)",
+    async (writeThrough) => {
+      const initial = pickRemoteSettings(defaultSharedSettings);
+      const updateSettings = vi
+        .fn<RemoteDesktopClient["updateSettings"]>()
+        .mockResolvedValue(initial);
+      setRemoteBridgeClient({ updateSettings } as unknown as RemoteDesktopClient);
+      installRemoteBridge(writeThrough ? {} : { hostSettingsWriteThrough: false });
+      applyDesktopSettings(initial);
+      await window.poracode!.setSharedSettings({
+        ...defaultSharedSettings,
+        enabledMcpServers: { chrome: true },
+      });
+      expect(updateSettings.mock.calls).toEqual(
+        writeThrough ? [[{ enabledMcpServers: { chrome: true } }]] : [],
+      );
+    },
+  );
+
+  it("publishes a fetched attachment blob to the thumbnail and lightbox resolver", async () => {
+    const createDescriptor = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+    const revokeDescriptor = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
+    const revoke = vi.fn<(url: string) => void>();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn<(blob: Blob) => string>(() => "blob:attachment-preview"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revoke });
+    try {
+      const fetchTicketedImageBytes = vi.fn<RemoteDesktopClient["fetchTicketedImageBytes"]>(
+        async () => ({
+          bytes: new Uint8Array([137, 80, 78, 71]),
+          contentType: "image/png",
+        }),
+      );
+      setRemoteBridgeClient(
+        { fetchTicketedImageBytes } as unknown as RemoteDesktopClient,
+        "darwin",
+      );
+      const path = "/tmp/attachment.png";
+      const readiness = getRemoteBridgeImageReadiness();
+      expect(readiness?.resolvePath(path)).toBe("");
+      readiness?.requestPath(path);
+      await vi.waitFor(() => expect(readiness?.resolvePath(path)).toBe("blob:attachment-preview"));
+      expect(fetchTicketedImageBytes).toHaveBeenCalledTimes(1);
+      expect(resolveLocalImageDisplayUrl(toLocalFileUrl(path))).toBe("blob:attachment-preview");
+      const changes = vi.fn<() => void>();
+      const unsubscribe = subscribeRemoteBridgeImages(changes);
+      setRemoteBridgeClient(null);
+      expect(revoke).toHaveBeenCalledWith("blob:attachment-preview");
+      expect(changes).toHaveBeenCalledOnce();
+      unsubscribe();
+    } finally {
+      if (createDescriptor) Object.defineProperty(URL, "createObjectURL", createDescriptor);
+      else Reflect.deleteProperty(URL, "createObjectURL");
+      if (revokeDescriptor) Object.defineProperty(URL, "revokeObjectURL", revokeDescriptor);
+      else Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
+  });
+
+  it("rebinds mounted image consumers when the browser connection changes", () => {
+    const { result, unmount } = renderHook(useRemoteBridgeImageReadiness);
+    expect(result.current).toBeUndefined();
+    act(() => setRemoteBridgeClient({} as RemoteDesktopClient, "darwin"));
+    const first = result.current;
+    expect(first).toBeDefined();
+    act(() => setRemoteBridgeClient(null));
+    expect(result.current).toBeUndefined();
+    act(() => setRemoteBridgeClient({} as RemoteDesktopClient, "darwin"));
+    expect(result.current).toBeDefined();
+    expect(result.current).not.toBe(first);
+    unmount();
+  });
+
+  it("uploads browser-selected files and returns paired-desktop paths", async () => {
+    const uploadAttachment = vi.fn<() => Promise<string>>(async () => "C:\\attachments\\notes.md");
+    setRemoteBridgeClient({ uploadAttachment } as unknown as RemoteDesktopClient, "win32");
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    installRemoteBridge();
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
+      function (this: HTMLInputElement) {
+        const file = new File(["hello"], "notes.md", { type: "text/markdown" });
+        Object.defineProperty(this, "files", { configurable: true, value: [file] });
+        this.dispatchEvent(new Event("change"));
+      },
+    );
+
+    await expect(window.poracode.pickFiles({ attachmentThreadId: "thread-1" })).resolves.toEqual([
+      "C:\\attachments\\notes.md",
+    ]);
+    expect(uploadAttachment).toHaveBeenCalledWith({
+      threadId: "thread-1",
+      fileName: "notes.md",
+      data: new Uint8Array([104, 101, 108, 108, 111]),
+    });
+  });
+
+  it("leaves unavailable optional bridge metadata undefined", () => {
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    installRemoteBridge();
+
+    expect(window.poracode.homeDir).toBeUndefined();
+    expect(window.poracode.windowKind).toBe("main");
+    expect(window.poracode.onRemoteAccessPairingChanged(() => undefined)).toBeTypeOf("function");
+    expect(window.poracode.onQuickComposerSubmit(() => undefined)).toBeTypeOf("function");
+    expect(window.poracode.onQuickComposerDismissRequested(() => undefined)).toBeTypeOf("function");
+    expect(window.poracode.onQuickComposerShown(() => undefined)).toBeTypeOf("function");
+  });
+
+  it("tracks the paired desktop platform after bridge installation", () => {
+    setRemoteBridgeClient({} as RemoteDesktopClient, "darwin");
+    installRemoteBridge();
+    expect(window.poracode.platform).toBe("darwin");
+
+    setRemoteBridgeClient({} as RemoteDesktopClient, "win32");
+    expect(window.poracode.platform).toBe("win32");
+  });
+
+  it("persists browser-local keybindings without a desktop RPC", async () => {
+    installRemoteBridge();
+
+    await expect(window.poracode.getKeybindings()).resolves.toEqual({
+      path: "browser-storage://keybindings.json",
+      file: DEFAULT_KEYBINDINGS,
+    });
+    const file = {
+      version: 1 as const,
+      keybindings: [{ command: "settings.open", key: "Ctrl+Alt+," }],
+    };
+    await expect(window.poracode.setKeybindings(file)).resolves.toEqual({
+      path: "browser-storage://keybindings.json",
+      file,
+    });
+    await expect(window.poracode.getKeybindings()).resolves.toEqual({
+      path: "browser-storage://keybindings.json",
+      file,
+    });
+  });
+
+  it("defers startup schedule reads until the paired client is ready", async () => {
+    const schedules = vi.fn<RemoteDesktopClient["schedules"]>(async () => []);
+    installRemoteBridge();
+
+    const request = window.poracode.getSchedules();
+    const settled = vi.fn<() => void>();
+    void request.then(settled);
+    await Promise.resolve();
+
+    expect(settled).not.toHaveBeenCalled();
+
+    setRemoteBridgeClient({ schedules } as unknown as RemoteDesktopClient, "win32");
+
+    await expect(request).resolves.toEqual([]);
+    expect(schedules).toHaveBeenCalledOnce();
+  });
+
+  it("forwards project notes to the paired desktop", async () => {
+    const notes: ProjectNotes = {
+      projectId: "project-1",
+      doc: null,
+      todos: [],
+      updatedAt: "2026-07-23T00:00:00.000Z",
+    };
+    const projectNotes = vi.fn<(projectId: string) => Promise<ProjectNotes | null>>(
+      async () => notes,
+    );
+    const setProjectNotes = vi.fn<(next: ProjectNotes) => Promise<void>>(async () => undefined);
+    setRemoteBridgeClient(
+      { projectNotes, setProjectNotes } as unknown as RemoteDesktopClient,
+      "darwin",
+    );
+    installRemoteBridge();
+
+    await expect(window.poracode.dbGetProjectNotes("project-1")).resolves.toEqual(notes);
+    await expect(window.poracode.dbSetProjectNotes(notes)).resolves.toBeUndefined();
+    expect(projectNotes).toHaveBeenCalledWith("project-1");
+    expect(setProjectNotes).toHaveBeenCalledWith(notes);
+  });
+
+  it("forwards every shared remote procedure through the generic client route", async () => {
+    const callRemoteProcedure = vi.fn<(procedure: string, payload: unknown) => Promise<string>>(
+      async (procedure) => procedure,
+    );
+    setRemoteBridgeClient({ callRemoteProcedure } as unknown as RemoteDesktopClient, "linux");
+    installRemoteBridge();
+    const bridge = window.poracode as unknown as Record<
+      string,
+      (payload: unknown) => Promise<unknown>
+    >;
+
+    // V6 B.2 made the db* mirrors remote-routable, but the BROWSER bridge
+    // deliberately serves runtime/thread hydration from the local sync cache
+    // (the selected thread's tail arrives with its snapshot) and browser app
+    // state from createDbStorage — those overrides are asserted by their own
+    // tests, so the generic-route sweep skips them.
+    const locallyServiced = new Set(["dbGetThreadsPage", "readTerminalScrollback"]);
+    const forwarded = Object.keys(REMOTE_PROCEDURE_SPECS).filter(
+      (procedure) => !locallyServiced.has(procedure),
+    );
+    for (const procedure of forwarded) {
+      await expect(bridge[procedure]?.({ procedure })).resolves.toBe(procedure);
+    }
+    expect(callRemoteProcedure.mock.calls).toEqual(
+      forwarded.map((procedure) => [procedure, { procedure }]),
+    );
+  });
+
+  it("refuses the unbounded transcript read instead of serving empty data as success (R1)", async () => {
+    setRemoteBridgeClient({} as unknown as RemoteDesktopClient, "linux");
+    installRemoteBridge();
+    await expect(window.poracode.dbGetThreadRuntimeItems("t1")).rejects.toThrow(
+      /not available in a remote session/u,
+    );
+  });
+
+  it("forwards the bounded thread-history reads through the adapter client (R1)", async () => {
+    const latestThreadGoalItem = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
+    const threadCompletedTurns = vi.fn<(threadId: string) => Promise<unknown>>(async () => []);
+    const threadContextUsage = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
+    setRemoteBridgeClient(
+      {
+        latestThreadGoalItem,
+        threadCompletedTurns,
+        threadContextUsage,
+      } as unknown as RemoteDesktopClient,
+      "linux",
+    );
+    installRemoteBridge();
+
+    await expect(window.poracode.dbGetLatestThreadGoalItem({ threadId: "t1" })).resolves.toBeNull();
+    await expect(window.poracode.dbGetThreadCompletedTurns("t1")).resolves.toEqual([]);
+    await expect(window.poracode.dbGetThreadContextUsage("t1")).resolves.toBeNull();
+    expect(latestThreadGoalItem).toHaveBeenCalledWith("t1");
+    expect(threadCompletedTurns).toHaveBeenCalledWith("t1");
+    expect(threadContextUsage).toHaveBeenCalledWith("t1");
+  });
+
+  it("forwards PR automation to the paired desktop", async () => {
+    const watch: PrWatch = {
+      projectId: "project-1",
+      prNumber: 42,
+      headBranch: "feature/mobile",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol" },
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: null,
+    };
+    const getPrWatch = vi.fn<(input: PrWatchKey) => Promise<PrWatch | null>>(async () => watch);
+    const checkPrWatch = vi.fn<(input: PrWatchKey) => Promise<void>>(async () => undefined);
+    const upsertPrWatch = vi.fn<(input: PrWatchInput) => Promise<PrWatch>>(async () => watch);
+    const deletePrWatch = vi.fn<(input: PrWatchKey) => Promise<void>>(async () => undefined);
+    setRemoteBridgeClient(
+      { getPrWatch, checkPrWatch, upsertPrWatch, deletePrWatch } as unknown as RemoteDesktopClient,
+      "darwin",
+    );
+    installRemoteBridge();
+
+    const key = { projectId: "project-1", prNumber: 42 };
+    const input: PrWatchInput = {
+      ...key,
+      headBranch: "feature/mobile",
+      watchEnabled: true,
+      autoMerge: true,
+      agentKind: "codex",
+      config: { model: "gpt-5.6-sol" },
+    };
+    await expect(window.poracode.getPrWatch(key)).resolves.toEqual(watch);
+    await expect(window.poracode.checkPrWatch(key)).resolves.toBeUndefined();
+    await expect(window.poracode.upsertPrWatch(input)).resolves.toEqual(watch);
+    await expect(window.poracode.deletePrWatch(key)).resolves.toBeUndefined();
+    expect(getPrWatch).toHaveBeenCalledWith(key);
+    expect(checkPrWatch).toHaveBeenCalledWith(key);
+    expect(upsertPrWatch).toHaveBeenCalledWith(input);
+    expect(deletePrWatch).toHaveBeenCalledWith(key);
+  });
+
+  it("closes bridge-started shells through the shell endpoint", async () => {
+    const startShell = vi.fn<RemoteDesktopClient["startShell"]>(async () => undefined);
+    const closeShell = vi.fn<RemoteDesktopClient["closeShell"]>(async () => undefined);
+    const closeThread = vi.fn<RemoteDesktopClient["closeThread"]>(async () => undefined);
+    setRemoteBridgeClient(
+      { startShell, closeShell, closeThread } as unknown as RemoteDesktopClient,
+      "linux",
+    );
+    installRemoteBridge();
+
+    await window.poracode.startShell({
+      shellId: "shell-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+    });
+    await window.poracode.closeThread({ threadId: "shell-1" });
+    await window.poracode.closeThread({ threadId: "thread-1" });
+
+    expect(closeShell).toHaveBeenCalledWith({ threadId: "shell-1" });
+    expect(closeThread).toHaveBeenCalledWith("thread-1");
+  });
+
+  it("keeps shell ownership when a close fails so retry uses the shell endpoint", async () => {
+    const startShell = vi.fn<RemoteDesktopClient["startShell"]>(async () => undefined);
+    const closeShell = vi
+      .fn<RemoteDesktopClient["closeShell"]>()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(undefined);
+    const closeThread = vi.fn<RemoteDesktopClient["closeThread"]>(async () => undefined);
+    setRemoteBridgeClient(
+      { startShell, closeShell, closeThread } as unknown as RemoteDesktopClient,
+      "linux",
+    );
+    installRemoteBridge();
+
+    await window.poracode.startShell({
+      shellId: "shell-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+    });
+    await expect(window.poracode.closeThread({ threadId: "shell-1" })).rejects.toThrow("offline");
+    await expect(window.poracode.closeThread({ threadId: "shell-1" })).resolves.toBeUndefined();
+
+    expect(closeShell).toHaveBeenCalledTimes(2);
+    expect(closeThread).not.toHaveBeenCalled();
+  });
+});

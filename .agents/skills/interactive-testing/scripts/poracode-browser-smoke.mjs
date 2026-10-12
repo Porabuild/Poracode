@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, resolve as resolvePath } from "node:path";
+import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
+import { clickCdpElements, clickCdpLabel } from "./poracode-cdp-actions.mjs";
 import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -18,7 +19,7 @@ const connection = await resolveDebugConnection({
 });
 const port = connection.port;
 const appUrl = connection.appUrl;
-const defaultOutDir = `${homedir()}\\.poracode-smoke\\artifacts\\browser-${Date.now()}`;
+const defaultOutDir = join(homedir(), ".poracode-smoke", "artifacts", `browser-${Date.now()}`);
 const outDir = resolvePath(args.outDir ?? process.env.PORACODE_SMOKE_OUT_DIR ?? defaultOutDir);
 const waitMs = Number(args.waitMs ?? 10000);
 const commandTimeoutMs = Number(args.commandTimeoutMs ?? 8000);
@@ -47,8 +48,29 @@ try {
     "renderer body contains rendered app controls",
   );
 
+  // A prior full-suite scenario may leave a fullscreen overlay open. Return
+  // through its visible control before touching the Browser behind it.
+  const returned = await clickText("Return to app", { optional: true });
+  if (returned.ok) {
+    await waitFor(
+      async () =>
+        evaluate(`![...document.querySelectorAll('button,[role=button],a')]
+      .some((element) => element.textContent?.trim() === "Return to app")`),
+      "return to the app surface",
+    );
+  }
   step("opening Browser panel");
-  await clickButton("Open browser", { optional: true });
+  // SidebarHeader also renders an invisible sizing copy of these controls.
+  const browserControlSelector = ".poracode-sidebar-aside button:not(.invisible *)";
+  const opened = await clickLabel("Open browser", browserControlSelector, { optional: true });
+  if (
+    !opened.ok &&
+    !(await evaluate(
+      `Boolean(document.querySelector(${JSON.stringify(`${browserControlSelector}[aria-label="Hide browser"]`)}))`,
+    ))
+  ) {
+    throw new Error("Browser panel control is unavailable.");
+  }
   await wait(500);
   browserUi = await connectBrowserUiTarget();
   if (browserUi !== app) {
@@ -90,6 +112,12 @@ try {
   await screenshotForTarget(firstUrl, "smoke-browser-03-page.png");
 
   step("checking toolbar state");
+  await clickCdpElements({
+    client: browserUi,
+    evaluate: (client, expression) => evaluate(expression, {}, client),
+    elementsExpression: `[...document.querySelectorAll('input[placeholder="Search or enter address"]')]`,
+    label: "visible Browser URL input",
+  });
   const toolbar = await evaluate(
     `(() => {
       const input = document.querySelector('input[placeholder="Search or enter address"]');
@@ -148,20 +176,11 @@ try {
       await waitForSettingsOverlay();
     }
   }
-  if (settingsOpened.ok) {
-    await clickSettingsSidebarItem("Browser", { optional: true });
-    const settingsText = await waitForBrowserSettingsPage({
-      optional: true,
-    });
-    if (settingsText.ok) {
-      assert(true, "Browser settings", "Browser settings page is reachable");
-      await screenshot(app, "smoke-browser-05-settings.png");
-    } else {
-      findings.push("Settings opened, but Browser settings page was not reachable by text click.");
-    }
-  } else {
-    findings.push("Settings button was not found, so Browser settings was not exercised.");
-  }
+  if (!settingsOpened.ok) throw new Error("Settings control was not found.");
+  await clickSettingsSidebarItem("Browser");
+  await waitForBrowserSettingsPage();
+  assert(true, "Browser settings", "Browser settings page is reachable");
+  await screenshot(app, "smoke-browser-05-settings.png");
 
   const errors = [
     ...(await collectedErrors(app)),
@@ -352,62 +371,25 @@ async function rendererSnapshot() {
 }
 
 async function clickButton(label, options = {}) {
-  const clicked = await evaluate(
-    `(() => {
-      const label = ${JSON.stringify(label)};
-      const buttons = [...document.querySelectorAll("button")];
-      const button = buttons.find((candidate) => {
-        const text = candidate.getAttribute("aria-label") || candidate.title || candidate.textContent?.trim() || "";
-        return text === label;
-      });
-      if (!button) {
-        return { ok: false, available: buttons.map((candidate) => candidate.getAttribute("aria-label") || candidate.title || candidate.textContent?.trim() || "") };
-      }
-      if (button.disabled || button.getAttribute("aria-disabled") === "true") {
-        return { ok: false, disabled: true };
-      }
-      button.click();
-      return { ok: true };
-    })()`,
-  );
-  if (!clicked.ok && options.optional !== true) {
-    throw new Error(`Button "${label}" was not clickable: ${JSON.stringify(clicked)}`);
-  }
-  return clicked;
+  return clickLabel(label, "button", options);
 }
 
 async function clickText(text, options = {}) {
-  const clicked = await evaluate(
-    `(() => {
-      const text = ${JSON.stringify(text)};
-      const candidates = [...document.querySelectorAll("button,[role=button],a")];
-      const element = candidates.find((candidate) => candidate.textContent?.trim() === text || candidate.getAttribute("aria-label") === text);
-      if (!element) return { ok: false };
-      element.click();
-      return { ok: true };
-    })()`,
-  );
-  if (!clicked.ok && options.optional !== true) {
-    throw new Error(`Text "${text}" was not clickable`);
-  }
-  return clicked;
+  return clickLabel(text, "button,[role=button],a", options);
 }
 
 async function clickSettingsSidebarItem(text, options = {}) {
-  const clicked = await evaluate(
-    `(() => {
-      const text = ${JSON.stringify(text)};
-      const candidates = [...document.querySelectorAll('[role="button"]')].filter((candidate) => candidate.textContent?.trim() === text);
-      const element = candidates.find((candidate) => String(candidate.className).includes("group relative")) ?? candidates.at(-1);
-      if (!element) return { ok: false };
-      element.click();
-      return { ok: true };
-    })()`,
-  );
-  if (!clicked.ok && options.optional !== true) {
-    throw new Error(`Settings item "${text}" was not clickable`);
-  }
-  return clicked;
+  return clickLabel(text, '[data-overlay-surface] [role="button"]', options);
+}
+
+function clickLabel(label, selector, options) {
+  return clickCdpLabel({
+    client: app,
+    evaluate: (client, expression) => evaluate(expression, {}, client),
+    label,
+    selector,
+    optional: options.optional === true,
+  });
 }
 
 async function settingsOverlayVisible() {
@@ -429,22 +411,17 @@ async function waitForSettingsOverlay() {
   }, "settings overlay");
 }
 
-async function waitForBrowserSettingsPage(options = {}) {
-  try {
-    await waitFor(async () => {
-      return evaluate(
-        `(() => {
+async function waitForBrowserSettingsPage() {
+  await waitFor(async () => {
+    return evaluate(
+      `(() => {
           const openLinksControl = document.querySelector('button[aria-label="Open links in"]');
           const showOpenedLinksControl = document.querySelector('button[aria-label="Show opened links in"]');
           return openLinksControl && showOpenedLinksControl ? { ok: true } : null;
         })()`,
-      );
-    }, "Browser settings page");
-    return { ok: true };
-  } catch (error) {
-    if (options.optional === true) return { ok: false, error: error.message };
-    throw error;
-  }
+    );
+  }, "Browser settings page");
+  return { ok: true };
 }
 
 async function browserState() {
@@ -559,21 +536,32 @@ function domSummaryExpression() {
 }
 
 async function screenshot(client, filename) {
-  try {
-    const result = await send(client, "Page.captureScreenshot", {
-      format: "png",
-      fromSurface: true,
-    });
-    const path = resolvePath(outDir, filename);
-    await writeFile(path, Buffer.from(result.data, "base64"));
-    results.push({ status: "INFO", label: "Screenshot", detail: path });
-  } catch (error) {
-    findings.push(`Screenshot failed for ${filename}: ${error.message}`);
-  }
+  await waitFor(
+    async () =>
+      evaluate(
+        `!document.getAnimations().some((animation) =>
+    animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime))`,
+        {},
+        client,
+      ),
+    `settled transitions for ${filename}`,
+  );
+  await evaluate(
+    `new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+    { awaitPromise: true },
+    client,
+  );
+  const result = await send(client, "Page.captureScreenshot", {
+    format: "png",
+    fromSurface: true,
+  });
+  const path = resolvePath(outDir, filename);
+  await writeFile(path, Buffer.from(result.data, "base64"));
+  results.push({ status: "INFO", label: "Screenshot", detail: path });
 }
 
 function smokeDataUrl(title, body) {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body><main><h1>${title}</h1><p>${body}</p><button>Smoke Button</button></main></body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>body { color: #111; background: #fff; }</style></head><body><main><h1>${title}</h1><p>${body}</p><button>Smoke Button</button></main></body></html>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 

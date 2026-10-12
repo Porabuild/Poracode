@@ -1,0 +1,124 @@
+{
+  "cases": [
+    {
+      "id": "with-affected-project",
+      "response": {
+        "projects": [
+          {
+            "id": "project-windows",
+            "name": "Windows workspace",
+            "location": {
+              "kind": "windows",
+              "path": "C:\\Users\\Zoë\\Projects\\Poracode",
+              "remoteServerId": "location-host-windows"
+            },
+            "createdAt": "2026-08-12T08:00:00.000Z"
+          },
+          {
+            "id": "project-posix",
+            "remoteServerId": "desktop-posix",
+            "remoteId": "remote-project-posix",
+            "name": "東京 workspace",
+            "location": {
+              "kind": "posix",
+              "path": "/Users/zoë/Projects/東京"
+            },
+            "lastDraftConfig": {
+              "agentKind": "codex",
+              "model": "gpt-5.6-codex",
+              "effort": "high",
+              "mode": "agent",
+              "worktreeMode": true,
+              "browserMcp": true
+            },
+            "scripts": {
+              "setupScript": "pnpm install",
+              "cleanupScript": "pnpm clean",
+              "worktreeCopyPatterns": [".env.*"],
+              "actions": [
+                {
+                  "id": "test",
+                  "name": "Test",
+                  "command": "pnpm test",
+                  "icon": "check"
+                }
+              ]
+            },
+            "searchSettings": {
+              "useIgnoreFiles": true,
+              "exclude": { "dist/**": true }
+            },
+            "worktreeLocation": {
+              "mode": "global",
+              "basePath": "/Volumes/worktrees/東京"
+            },
+            "workspaceId": "workspace-1",
+            "disabled": false,
+            "createdAt": "2026-08-12T08:01:00.000Z"
+          }
+        ],
+        "project": {
+          "id": "project-posix",
+          "remoteServerId": "desktop-posix",
+          "remoteId": "remote-project-posix",
+          "name": "東京 workspace",
+          "location": {
+            "kind": "posix",
+            "path": "/Users/zoë/Projects/東京"
+          },
+          "lastDraftConfig": {
+            "agentKind": "codex",
+            "model": "gpt-5.6-codex",
+            "effort": "high",
+            "mode": "agent",
+            "worktreeMode": true,
+            "browserMcp": true
+          },
+          "scripts": {
+            "setupScript": "pnpm install",
+            "cleanupScript": "pnpm clean",
+            "worktreeCopyPatterns": [".env.*"],
+            "actions": [
+              {
+                "id": "test",
+                "name": "Test",
+                "command": "pnpm test",
+                "icon": "check"
+              }
+            ]
+          },
+          "searchSettings": {
+            "useIgnoreFiles": true,
+            "exclude": { "dist/**": true }
+          },
+          "worktreeLocation": {
+            "mode": "global",
+            "basePath": "/Volumes/worktrees/東京"
+          },
+          "workspaceId": "workspace-1",
+          "disabled": false,
+          "createdAt": "2026-08-12T08:01:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "without-affected-project",
+      "response": {
+        "projects": [
+          {
+            "id": "project-wsl",
+            "name": "WSL 项目",
+            "location": {
+              "kind": "wsl",
+              "distro": "Ubuntu-24.04",
+              "linuxPath": "/home/zoë/项目",
+              "uncPath": "\\\\wsl.localhost\\Ubuntu-24.04\\home\\zoë\\项目",
+              "remoteServerId": "location-host-wsl"
+            },
+            "createdAt": "2026-08-12T08:02:00.000Z"
+          }
+        ]
+      }
+    }
+  ]
+}

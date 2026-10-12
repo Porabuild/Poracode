@@ -1,7 +1,6 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -14,15 +13,18 @@ import {
   getNativeHookWrapperFilename,
   getNativePluginBaseDir,
   getWslPluginBaseDirs,
-  hasNativeHookWrapper,
   isWslPluginContext,
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  readPluginManifestWith,
   removeStagedPluginDir,
+  resolvePluginVerificationIo,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   writeNativeHookWrapper,
   type PluginManifest,
+  type PluginVerificationTarget,
 } from "../../plugin/installerBase";
 
 /**
@@ -57,7 +59,7 @@ export interface QoderPluginPaths {
   /** Path to the generated Qoder settings file (passed via `--settings`). */
   settingsPath: string;
   /** Plugin semver from plugin.json. */
-  version: string;
+  version?: string;
 }
 
 const callerDir =
@@ -85,16 +87,9 @@ function computeQoderPluginPaths(ctx?: AgentEnvContext): QoderPluginPaths {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "qoder");
     if (!wsl) return { pluginDir: "", settingsPath: "", version: "0.0.0" };
-    let version = "0.0.0";
-    try {
-      version = readPluginManifest(wsl.uncBase).version;
-    } catch {
-      // staged manifest missing or distro unreachable.
-    }
     return {
       pluginDir: wsl.linuxBase,
       settingsPath: `${wsl.linuxBase}/settings.json`,
-      version,
     };
   }
   const pluginDir = getNativePluginBaseDir("qoder", ctx?.baseDir);
@@ -143,10 +138,10 @@ export interface InstallQoderPluginOptions {
   resolvedNodePath?: string | undefined;
 }
 
-export function installQoderPlugin(
+export async function installQoderPlugin(
   ctx?: AgentEnvContext,
   options?: InstallQoderPluginOptions,
-): { ok: true; paths: QoderPluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<{ ok: true; paths: QoderPluginPaths; version: string } | { ok: false; reason: string }> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -196,13 +191,13 @@ export function installQoderPlugin(
   };
 }
 
-function installQoderPluginWsl(
+async function installQoderPluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
-): { ok: true; paths: QoderPluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "qoder", {
+): Promise<{ ok: true; paths: QoderPluginPaths; version: string } | { ok: false; reason: string }> {
+  const staged = await stagePluginAssetsToWsl(distro, sourceDir, "qoder", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
@@ -212,11 +207,9 @@ function installQoderPluginWsl(
   const linuxForwardPath = `${linuxPluginDir}/forward.mjs`;
   const headExpression = buildWslHookCommandHead(resolvedNodePath, linuxForwardPath);
 
-  const uncSettingsPath = toWslUncPath(distro, linuxSettingsPath);
   try {
-    mkdirSync(dirname(uncSettingsPath), { recursive: true });
     const settings = renderQoderSettings(headExpression);
-    writeFileSync(uncSettingsPath, JSON.stringify(settings, null, 2), "utf8");
+    await writeWslTextFile(distro, linuxSettingsPath, JSON.stringify(settings, null, 2));
   } catch (error) {
     return {
       ok: false,
@@ -245,34 +238,46 @@ function installQoderPluginWsl(
  * Read whether the plugin is already installed at the canonical staging path
  * for the given environment.
  */
-export function isQoderPluginInstalled(ctx?: AgentEnvContext): {
-  installed: boolean;
-  version?: string;
-} {
+export async function isQoderPluginInstalled(
+  ctx?: AgentEnvContext,
+): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "qoder");
     if (!wsl) return { installed: false };
-    return verifyQoderInstallAt(wsl.uncBase, "wsl");
+    return verifyQoderInstallAt(wsl.linuxBase, "wsl", { distro: ctx.wslDistro });
   }
   return verifyQoderInstallAt(getNativePluginBaseDir("qoder", ctx?.baseDir), "native");
 }
 
-export function uninstallQoderPlugin(ctx?: AgentEnvContext): void {
-  removeStagedPluginDir("qoder", ctx);
+export async function uninstallQoderPlugin(ctx?: AgentEnvContext): Promise<void> {
+  await removeStagedPluginDir("qoder", ctx);
 }
 
-function verifyQoderInstallAt(
+const QODER_VERIFY_ASSETS = [
+  "plugin.json",
+  "forward.mjs",
+  FORWARD_RUNTIME_FILE,
+  "settings.json",
+] as const;
+
+async function verifyQoderInstallAt(
   readableDir: string,
   target: "native" | "wsl",
-): { installed: boolean; version?: string } {
-  if (!existsSync(join(readableDir, "plugin.json"))) return { installed: false };
-  if (!existsSync(join(readableDir, "forward.mjs"))) return { installed: false };
-  if (!existsSync(join(readableDir, FORWARD_RUNTIME_FILE))) return { installed: false };
-  if (!existsSync(join(readableDir, "settings.json"))) return { installed: false };
-  if (!hasNativeHookWrapper(readableDir, target)) return { installed: false };
+  options?: PluginVerificationTarget,
+): Promise<{ installed: boolean; version?: string }> {
+  const io = resolvePluginVerificationIo(target, options);
+  for (const asset of QODER_VERIFY_ASSETS) {
+    if (!(await io.pathExists(io.joinPath(readableDir, asset)))) return { installed: false };
+  }
+  if (
+    target === "native" &&
+    !(await io.pathExists(io.joinPath(readableDir, getNativeHookWrapperFilename())))
+  ) {
+    return { installed: false };
+  }
   try {
-    const version = readPluginManifest(readableDir).version;
-    return { installed: true, version };
+    const manifest = await readPluginManifestWith(io, readableDir);
+    return { installed: true, version: manifest.version };
   } catch {
     return { installed: false };
   }

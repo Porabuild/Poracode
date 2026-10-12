@@ -30,8 +30,14 @@ describe("MSP schema fixture", () => {
     const schema = loadSchemaFixture();
     for (const method of [
       "approval/decide",
+      "goal/clear",
+      "goal/edit",
+      "goal/pause",
+      "goal/resume",
+      "goal/set",
       "initialize",
       "model/list",
+      "session/compact",
       "session/resume",
       "session/setApprovalMode",
       "session/setModel",
@@ -50,9 +56,17 @@ describe("MSP schema fixture", () => {
     expect(schema.notifications).toBeDefined();
   });
 
-  it("keeps the ReasoningEffort enum in lockstep with the static ladder", () => {
+  it("accepts every rung of the static effort ladder", () => {
+    // Subset, not equality: the static ladder is the no-probe fallback, so
+    // every entry must be servable by the pinned host — but additive host
+    // growth (1.3.0 added `max`) is adopted at runtime by the `--help` probe
+    // and must not force the static list (which pre-growth hosts also read).
     const schema = loadSchemaFixture();
-    expect(schema.$defs?.["ReasoningEffort"]?.enum).toEqual([...MUSE_EFFORTS]);
+    const ladder = schema.$defs?.["ReasoningEffort"]?.enum;
+    expect(Array.isArray(ladder)).toBe(true);
+    for (const effort of MUSE_EFFORTS) {
+      expect(ladder).toContain(effort);
+    }
   });
 
   it("covers every approval mode the argv mapper can emit", () => {

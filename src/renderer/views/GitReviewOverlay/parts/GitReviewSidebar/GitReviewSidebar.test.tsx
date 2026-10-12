@@ -2,7 +2,13 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitBranchListResult, GitStatusResult, PrData, Project } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  GitBranchListResult,
+  GitStatusResult,
+  PrData,
+  Project,
+} from "@/shared/contracts";
 
 const bridgeMock = vi.hoisted(() => ({
   gitStage: vi.fn<() => Promise<void>>(),
@@ -33,7 +39,33 @@ const toastDanger = vi.hoisted(() =>
     ) => void
   >(),
 );
-const getCommitGenCandidatesMock = vi.hoisted(() => vi.fn<() => Array<{ kind: string }>>());
+const utilityAgent = vi.hoisted(
+  () =>
+    ({
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        models: [{ id: "gpt-5.4", label: "GPT-5.4" }],
+        efforts: ["medium"],
+        modelEfforts: {},
+        defaultEffort: "medium",
+        modes: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        supportsOneShot: true,
+        liveInputMode: "terminal",
+        presentationMode: "gui",
+        presentationModes: ["gui"],
+        bypassPermissions: { approvalPolicy: "bypassPermissions" },
+        settingDefs: [],
+      },
+    }) satisfies AgentStatus,
+);
+const getCommitGenCandidatesMock = vi.hoisted(() => vi.fn<() => AgentStatus[]>());
 const dropdownMenuHandlers = vi.hoisted(() => ({
   targetBranch: null as ((keys: Set<string>) => void) | null,
 }));
@@ -183,16 +215,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => {
 });
 
 vi.mock("@/renderer/components/providers/conflictResolver", () => ({
-  getConflictResolverCandidates: () => [
-    {
-      kind: "codex",
-      capabilities: {
-        presentationMode: "gui",
-        presentationModes: ["gui"],
-        bypassPermissions: { approvalPolicy: "bypassPermissions" },
-      },
-    },
-  ],
+  getConflictResolverCandidates: () => [utilityAgent],
   readConflictResolverSettingsForProject: () => ({
     provider: "codex",
     model: "gpt-5.4",
@@ -200,7 +223,7 @@ vi.mock("@/renderer/components/providers/conflictResolver", () => ({
     fast: false,
     presentationMode: "gui",
   }),
-  resolveConflictResolverLaunchConfig: () => ({ model: "gpt-5.4", effort: "medium" }),
+  resolveConflictResolverSettingsLaunchConfig: () => ({ model: "gpt-5.4", effort: "medium" }),
 }));
 
 vi.mock("@/renderer/components/common", async (importOriginal) => {
@@ -977,6 +1000,67 @@ describe("GitReviewSidebar", () => {
     });
   });
 
+  it("uses touch-sized expandable rows and long-press actions in panel mode", () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "posix", path: "/repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [
+        {
+          path: "src/touch-row.ts",
+          status: "M",
+          staged: false,
+          insertions: 3,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 3,
+      totalDeletions: 1,
+    };
+    useGitStore.getState().setStatus(project.id, gitStatus);
+    const openFileMenu = vi.fn<(target: GitTouchFileTarget) => void>();
+
+    render(
+      <GitTouchProvider value={{ openFileMenu, openGroupMenu: () => undefined }}>
+        <GitReviewSidebar
+          project={project}
+          gitStatus={gitStatus}
+          selectedFile={null}
+          selectedStaged={false}
+          refreshKey={0}
+          onSelectFile={() => undefined}
+          onClose={() => undefined}
+          onRefresh={() => undefined}
+          mode="panel"
+          statusKey={project.id}
+        />
+      </GitTouchProvider>,
+    );
+
+    const row = screen.getByRole("button", { name: /touch-row\.ts/i });
+    expect(row).toHaveClass("min-h-[2.75rem]");
+
+    fireEvent.contextMenu(row);
+    expect(openFileMenu).toHaveBeenCalledWith({
+      path: "src/touch-row.ts",
+      staged: false,
+      status: "M",
+      insertions: 3,
+      deletions: 1,
+    });
+  });
+
   it("uses the conflict resolver launch override when provided", () => {
     const project: Project = {
       id: "project-1",
@@ -1207,7 +1291,7 @@ describe("GitReviewSidebar", () => {
     bridgeMock.gitListBranches
       .mockRejectedValueOnce(new Error("branch discovery failed"))
       .mockResolvedValue(branches);
-    getCommitGenCandidatesMock.mockReturnValue([{ kind: "codex" }]);
+    getCommitGenCandidatesMock.mockReturnValue([utilityAgent]);
     let resolveSummary!: (value: { title: string; description: string }) => void;
     bridgeMock.generatePrSummary.mockImplementationOnce(
       () =>

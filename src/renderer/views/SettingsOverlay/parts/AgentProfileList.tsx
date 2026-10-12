@@ -4,6 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronRight, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { agentProfileKind, type AgentInstanceConfig, type AgentStatus } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { assertAgentProfileDependencies } from "@/shared/agentProfileDependencies";
 import { readBridge } from "@/renderer/bridge";
 import { ConfirmDialog, Input, PixelLoader } from "@/renderer/components/common";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -139,9 +140,11 @@ export function AgentProfileList(props: {
       // update; snapshot them so a failed flush can restore the exact
       // pre-removal state instead of a half-deleted profile.
       const snapshot = useSharedSettings.getState();
-      removeAgentInstance(instance.id);
       try {
-        await flushSharedSettings();
+        const { [instance.id]: _removed, ...remaining } = snapshot.agentInstances;
+        assertAgentProfileDependencies(snapshot.agentInstances, remaining);
+        removeAgentInstance(instance.id);
+        await flushSharedSettings({ requireSuccess: true });
       } catch (error) {
         useSharedSettings.setState({
           agentInstances: snapshot.agentInstances,

@@ -299,7 +299,12 @@ function mapClaudeSdkMessageInner(
             ? (block.input as Record<string, unknown>)
             : {};
         const itemId = typeof block.id === "string" ? block.id : newItemId("tool");
-        startToolItem(state, createToolItemState({ itemId, toolName, input }), index, events);
+        startToolItem(
+          state,
+          { ...createToolItemState({ itemId, toolName, input }), inputStreaming: true },
+          index,
+          events,
+        );
         return events;
       }
       return events;
@@ -384,6 +389,8 @@ function mapClaudeSdkMessageInner(
     }
 
     if (type === "content_block_stop") {
+      const tool = state.toolItemsByIndex.get(index);
+      if (tool) delete tool.inputStreaming;
       const assistant = state.assistantTextItems.get(index);
       if (assistant) completeTextItem(state, assistant, "assistant_text", events);
       const reasoning = state.reasoningItems.get(index);
@@ -499,6 +506,8 @@ function mapClaudeSdkMessageInner(
               ? (obj.input as Record<string, unknown>)
               : {};
           const itemId = typeof obj.id === "string" ? obj.id : newItemId("tool");
+          const existingTool = state.toolItemsById.get(itemId);
+          if (existingTool) delete existingTool.inputStreaming;
           startToolItem(
             state,
             createToolItemState({ itemId, toolName, input }),

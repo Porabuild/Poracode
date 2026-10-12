@@ -8,7 +8,7 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { Check } from "lucide-react";
-import { formatResetCountdown, usageWindowDisplayLabel } from "@poracode/agents-usage/formatters";
+import { formatResetCountdown } from "@poracode/agents-usage/formatters";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
 import { openUsagePanel } from "@/renderer/actions/panelActions";
 import { readBridge } from "@/renderer/bridge";
@@ -20,6 +20,7 @@ import { UsageCostLine } from "./UsageCostLine";
 import { UsageOverflowChip } from "./UsageOverflowChip";
 import { PaceLine } from "./UsageWindowBars";
 import {
+  usageWindowDisplayLabel,
   formatWindowPace,
   formatWindowSecondaryValue,
   formatWindowValue,

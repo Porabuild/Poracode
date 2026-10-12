@@ -9,8 +9,15 @@ import {
   useState,
 } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Check, ChevronDown, Search, Star, Zap } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { Tooltip } from "@heroui/react";
+import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
+import { isSortable } from "@dnd-kit/react/sortable";
+import { Accessibility } from "@dnd-kit/dom";
+import { reorderModelPickerRefs } from "@/shared/modelPickerOrder";
+import { ModelMenuRow, SortableFavoriteModelRow } from "./parts/ModelMenuRow";
+import { splitModelLabel } from "./parts/splitModelLabel";
+import { useFavoriteModelDragAccessibility } from "./parts/useFavoriteModelDragAccessibility";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -18,6 +25,11 @@ import { effectiveProviderOrder } from "@/shared/machineSettings";
 import { LOCAL_NATIVE_MACHINE_KEY } from "@/shared/machines";
 import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
+import {
+  canonicalProviderModelId,
+  defaultFastEnabled,
+  normalizeProviderModelConfig,
+} from "@/renderer/components/providers/modelConfig";
 import { Button } from "../Button";
 import {
   buildProviderModelItems,
@@ -25,13 +37,15 @@ import {
   type ProviderModelMenuProvider,
 } from "./parts/buildItems";
 import { deriveSubProvider } from "./parts/deriveSubProvider";
+import { modelFamilyMemberDisplay } from "./parts/modelFamilyDisplay";
 import { providerMenuKey } from "./parts/providerIdentity";
-import type { ProviderModelItem } from "./parts/types";
+import type { ProviderModelItem, ProviderModelSelection } from "./parts/types";
+export type { ProviderModelSelection, ProviderModelSelectionIntent } from "./parts/types";
 
 export type { ProviderModelMenuProvider };
 
 const MODEL_MENU_ROW_HEIGHT = 28;
-/** Model rows grow to a finger-friendly target in the mobile PWA drawer; headers
+/** Model rows grow to a finger-friendly target in the compact drawer; headers
  * stay compact. Threaded through the virtualizer so the JS row math and the
  * rendered row height never disagree (a mismatch desyncs the scroll spacers). */
 const MODEL_MENU_ROW_HEIGHT_MOBILE = 44;
@@ -41,7 +55,6 @@ const MODEL_MENU_MAX_HEIGHT = 288;
 const MODEL_MENU_LISTBOX_PADDING_BOTTOM = 6;
 const MODEL_MENU_MOBILE_SCROLL_END_GAP = 32;
 const MODEL_MENU_OVERSCAN_ROWS = 16;
-const MODEL_DESCRIPTION_TOOLTIP_DELAY_MS = 1000;
 
 interface WindowedItemsMeta {
   structureKey: string;
@@ -76,13 +89,11 @@ export interface ProviderModelMenuProps {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
+  /** Hide tuple details when separate selector controls already display them. */
+  showFamilySelectionSummary?: boolean;
   collapseTier?: number;
   openSignal?: number;
-  onChange: (next: {
-    agentKind: string;
-    model: string;
-    presentationMode?: ThreadPresentationMode;
-  }) => void;
+  onChange: (next: ProviderModelSelection) => void;
   onOpenChange?: (open: boolean) => void;
 }
 
@@ -93,6 +104,12 @@ function normalizeCurrentModelForProvider(
   if (!provider || provider.capabilities.models.some((model) => model.id === modelId)) {
     return modelId;
   }
+  const canonicalModel = canonicalProviderModelId(
+    provider.kind,
+    modelId,
+    provider.capabilities.models,
+  );
+  if (canonicalModel !== modelId) return canonicalModel;
   if (baseAgentKind(provider.kind) !== "cursor") {
     return modelId;
   }
@@ -216,15 +233,6 @@ function selectedModelIndex(selectedKeys: Set<string>, meta: WindowedItemsMeta):
   return -1;
 }
 
-function splitModelLabel(label: string): { name: string; hint?: string } {
-  const separatorIdx = label.indexOf(" · ");
-  if (separatorIdx < 0) return { name: label };
-  return {
-    name: label.slice(0, separatorIdx),
-    hint: label.slice(separatorIdx + 3),
-  };
-}
-
 function expandedMobileModelMenuMaxHeight(): number {
   if (typeof window === "undefined") return MODEL_MENU_MAX_HEIGHT;
   return Math.max(
@@ -251,6 +259,18 @@ function browserToolbarScrollClearance(): number {
   return height;
 }
 
+function safeAreaBottomScrollClearance(): number {
+  if (typeof document === "undefined") return 0;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;width:0;" +
+    "height:env(safe-area-inset-bottom,0px);";
+  document.body.append(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height;
+}
+
 function refsForPresentation(
   refs: readonly ModelRef[],
   presentationMode: ThreadPresentationMode | undefined,
@@ -269,6 +289,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     isDisabled,
     hideLabelOnWrap,
     forceHideLabel = false,
+    showFamilySelectionSummary = true,
     collapseTier,
     openSignal,
     onChange,
@@ -307,15 +328,36 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     ) ?? providers.find((p) => p.kind === currentAgentKind);
   const currentProviderKey = currentProvider ? providerMenuKey(currentProvider) : currentAgentKind;
   const effectiveCurrentModel = normalizeCurrentModelForProvider(currentProvider, currentModel);
+  // A projected family member reads as the family name plus its current
+  // selector options — never the giant native pair label — and suppresses the
+  // group hint, which would only repeat the family name.
+  const currentFamilyDisplay = modelFamilyMemberDisplay(
+    currentProvider?.capabilities,
+    effectiveCurrentModel,
+  );
   const currentLabel =
+    currentFamilyDisplay?.familyLabel ??
     currentProvider?.capabilities.models.find((m) => m.id === effectiveCurrentModel)?.label ??
     effectiveCurrentModel;
   const currentLabelParts = splitModelLabel(currentLabel);
-  const currentSubProvider = currentProvider
+  const selectedSubProvider = currentProvider
     ? deriveSubProvider(effectiveCurrentModel, currentProvider.capabilities)
     : undefined;
-  const currentDisplayLabel = currentSubProvider
-    ? `${currentLabelParts.name} · ${currentSubProvider.label}`
+  const currentSubProvider = currentFamilyDisplay
+    ? undefined
+    : selectedSubProvider?.label.trim().toLocaleLowerCase() ===
+        currentLabelParts.name.trim().toLocaleLowerCase()
+      ? undefined
+      : selectedSubProvider;
+  // Family selector menus already show the tuple. Keep the model trigger on
+  // the family name so it does not repeat those controls or consume their width.
+  const currentSubLabel = currentFamilyDisplay
+    ? showFamilySelectionSummary
+      ? currentFamilyDisplay.selectorSummary
+      : undefined
+    : currentSubProvider?.label;
+  const currentDisplayLabel = currentSubLabel
+    ? `${currentLabelParts.name} · ${currentSubLabel}`
     : currentLabelParts.name;
   // Snapshot the favorites/recents lists when the menu opens so rows stay
   // stable while it is open; the search-field focus stays in the effect below.
@@ -390,34 +432,84 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const items = isOpen ? buildItemsForSearch(deferredSearch) : [];
 
   // Highlight the current model wherever it appears (provider section, favorites, recents).
+  // Inside a projected family the single family row highlights for any member.
   const selectedKeys = new Set<string>([
     `fav:${currentAgentKind}:${effectiveCurrentModel}`,
     `recent:${currentAgentKind}:${effectiveCurrentModel}`,
     `model:${currentProviderKey}:${effectiveCurrentModel}`,
+    ...(currentFamilyDisplay && currentProvider
+      ? [`model:${currentProviderKey}:${currentFamilyDisplay.representativeModel}`]
+      : []),
+    // An exact favorite/recent row of the current model keeps its highlight
+    // even though its item id differs from the projected family row's.
+    `model-exact:${currentProviderKey}:${effectiveCurrentModel}`,
   ]);
 
-  // Rows mirror the Fast preference saved per model — an explicitly saved value
-  // wins, otherwise the app default keeps Fast on for models that support it.
-  // This is intentionally not the current draft's toggle: the icon answers
-  // "what will selecting this model do", so every row resolves independently.
+  // Rows mirror the Fast preference saved per model. An explicit value wins;
+  // otherwise `defaultFastEnabled` applies. A saved fast-sibling id counts as
+  // Fast on for the standard row. This is not the current draft's toggle:
+  // the icon answers "what will selecting this model do".
   function modelFastEnabled(providerKind: string, modelId: string): boolean {
-    const saved = providerModelPreferences[providerKind]?.[modelId];
-    if (saved) return saved.fast ?? true;
+    const models =
+      providers.find((provider) => provider.kind === providerKind)?.capabilities.models ?? [];
+    const picked = normalizeProviderModelConfig(providerKind, { model: modelId }, models);
+    const saved = providerModelPreferences[providerKind]?.[picked.model];
+    if (saved) return saved.fast ?? picked.fast ?? defaultFastEnabled(providerKind);
+    if (picked.fast !== undefined) return picked.fast;
     const legacy = providerConfigs[providerKind];
-    if (legacy?.model === modelId && legacy.fast !== undefined) return legacy.fast;
-    return true;
+    if (!legacy?.model) return defaultFastEnabled(providerKind);
+    const normalized = normalizeProviderModelConfig(providerKind, legacy, models);
+    if (normalized.model !== picked.model) return defaultFastEnabled(providerKind);
+    return normalized.fast ?? defaultFastEnabled(providerKind);
+  }
+
+  function toggleModelFavorite(
+    providerKind: string,
+    modelId: string,
+    rowPresentationMode?: ThreadPresentationMode,
+  ) {
+    const mode = rowPresentationMode ?? presentationMode ?? "terminal";
+    const models =
+      providers.find((provider) => provider.kind === providerKind)?.capabilities.models ?? [];
+    const canonicalModel = canonicalProviderModelId(providerKind, modelId, models);
+    const matches = favorites.filter(
+      (ref) =>
+        ref.agentKind === providerKind &&
+        ref.presentationMode === mode &&
+        canonicalProviderModelId(providerKind, ref.modelId, models) === canonicalModel,
+    );
+    if (matches.length > 0) {
+      for (const ref of matches) toggleFavoriteModel(providerKind, ref.modelId, mode);
+    } else {
+      toggleFavoriteModel(providerKind, modelId, mode);
+    }
+  }
+
+  function removeModelFromRecents(ref: ModelRef) {
+    const models =
+      providers.find(
+        (provider) =>
+          provider.kind === ref.agentKind &&
+          (!provider.presentationMode || provider.presentationMode === ref.presentationMode),
+      )?.capabilities.models ?? [];
+    const canonicalModel = canonicalProviderModelId(ref.agentKind, ref.modelId, models);
+    const matches = (entry: ModelRef) =>
+      entry.agentKind === ref.agentKind &&
+      (!presentationMode || entry.presentationMode === ref.presentationMode) &&
+      canonicalProviderModelId(entry.agentKind, entry.modelId, models) === canonicalModel;
+    const settings = useSharedSettings.getState();
+    settings.removeRecentModels(settings.recentModels.filter(matches));
+    setSessionRecents((current) => (current ?? recents).filter((entry) => !matches(entry)));
+    if (!mobile) searchRef.current?.focus();
   }
 
   function selectModelItem(selected: ProviderModelItem | undefined) {
-    if (selected?.type !== "model") return;
-    if (
-      selected.providerKind === currentAgentKind &&
-      selected.modelId === effectiveCurrentModel &&
-      selected.providerKey === currentProviderKey
-    ) {
-      handleOpenChange(false);
-      return;
-    }
+    if (selected?.type !== "model" || isDisabled) return;
+    // A deliberate activation always reaches the owner, including a re-pick of
+    // the already-current model: an exact same-UID pick must drop stored
+    // selection-binding evidence, and a family-row re-pick may clean a stale
+    // record. The owner's complete-config equality check suppresses genuinely
+    // unchanged persistence, so this side never second-guesses the event.
     // Close synchronously so the popover starts unmounting immediately, then
     // mark the upstream state cascade as a transition so the parent's effort/
     // context/fast resolution doesn't block the close animation.
@@ -427,6 +519,10 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         agentKind: selected.providerKind,
         model: selected.modelId,
         ...(selected.presentationMode ? { presentationMode: selected.presentationMode } : {}),
+        // Named ephemeral intent: the collapsed family row retains the
+        // family's current member, every exact row (favorites and recents
+        // included, an exact representative row included) selects its UID.
+        selectionIntent: selected.familyModelIds ? "family" : "exact",
       });
     });
   }
@@ -462,9 +558,9 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         <span className="max-w-full truncate leading-tight">
           {currentLabelParts.name || t`Select model`}
         </span>
-        {currentSubProvider ? (
+        {currentSubLabel ? (
           <span className="max-w-full truncate text-[10px] font-medium leading-tight text-muted/70">
-            {currentSubProvider.label}
+            {currentSubLabel}
           </span>
         ) : null}
       </span>
@@ -535,13 +631,12 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           mobileExpanded={mobile && expanded}
           onActiveChange={setActiveModelItemId}
           modelFastEnabled={modelFastEnabled}
-          toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
-            toggleFavoriteModel(
-              providerKind,
-              modelId,
-              rowPresentationMode ?? presentationMode ?? "terminal",
-            )
-          }
+          toggleFavorite={toggleModelFavorite}
+          onRemoveRecent={removeModelFromRecents}
+          onReorderFavorites={(ordered) => {
+            useSharedSettings.getState().reorderFavoriteModels(ordered);
+            setSessionFavorites((current) => reorderModelPickerRefs(current ?? favorites, ordered));
+          }}
           onSelect={handleSelect}
         />
       )}
@@ -568,6 +663,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       placement="top start"
       contentClassName="w-96 p-0"
       dialogClassName="flex max-h-[28rem] flex-col overflow-hidden !p-0"
+      sheetClassName="m-sheet--model-picker"
     >
       {renderContent}
     </ResponsiveMenuSurface>
@@ -595,6 +691,8 @@ interface WindowedProviderModelListProps {
     presentationMode: ThreadPresentationMode | undefined,
   ) => void;
   onSelect: (itemId: string) => void;
+  onReorderFavorites: (ordered: readonly ModelRef[]) => void;
+  onRemoveRecent: (ref: ModelRef) => void;
 }
 
 const WindowedProviderModelList = forwardRef<
@@ -612,9 +710,20 @@ const WindowedProviderModelList = forwardRef<
     modelFastEnabled,
     toggleFavorite,
     onSelect,
+    onReorderFavorites,
+    onRemoveRecent,
   } = props;
   const { t } = useLingui();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
+  const [dragSourceId, setDragSourceId] = useState<string | null>(null);
+  const sortableFavorites = items.filter(
+    (item): item is Extract<ProviderModelItem, { type: "model" }> =>
+      item.type === "model" && item.favoriteRef !== undefined && item.isFavorite,
+  );
+  const favoriteIndexById = new Map(sortableFavorites.map((item, index) => [item.id, index]));
+  const dragAccessibility = useFavoriteModelDragAccessibility(sortableFavorites);
+
   const [visibleRow, setVisibleRow] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [activeRowId, setActiveRowId] = useState<string | null>(() => {
@@ -625,6 +734,7 @@ const WindowedProviderModelList = forwardRef<
       initialMeta.firstModelId
     );
   });
+  const [showMobileKeyboardHighlight, setShowMobileKeyboardHighlight] = useState(false);
   const shouldAutoScrollRef = useRef(true);
   const shouldCenterActiveRef = useRef(true);
   const ignorePointerRef = useRef(true);
@@ -654,9 +764,11 @@ const WindowedProviderModelList = forwardRef<
   }, [activeIndex, activeRowId, onActiveChange]);
 
   const totalHeight = meta.totalHeight;
-  const [browserToolbarClearance] = useState(() => (mobile ? browserToolbarScrollClearance() : 0));
+  const [mobileBottomClearance] = useState(() =>
+    mobile ? browserToolbarScrollClearance() + safeAreaBottomScrollClearance() : 0,
+  );
   const scrollEndGapHeight = mobile
-    ? MODEL_MENU_MOBILE_SCROLL_END_GAP + browserToolbarClearance
+    ? MODEL_MENU_MOBILE_SCROLL_END_GAP + mobileBottomClearance
     : MODEL_MENU_LISTBOX_PADDING_BOTTOM;
   const totalScrollHeight = totalHeight + scrollEndGapHeight;
   const maxViewportHeight = mobileExpanded
@@ -665,11 +777,25 @@ const WindowedProviderModelList = forwardRef<
   const viewportHeight = Math.min(totalScrollHeight, maxViewportHeight);
   const visibleRowCount = Math.max(1, Math.ceil(viewportHeight / modelRowHeight));
   const clampedVisibleRow = Math.min(visibleRow, Math.max(0, items.length - 1));
-  const startIndex = Math.max(0, clampedVisibleRow - MODEL_MENU_OVERSCAN_ROWS);
+  const normalStartIndex = Math.max(0, clampedVisibleRow - MODEL_MENU_OVERSCAN_ROWS);
+  const dragSourceIndex = dragSourceId === null ? -1 : (meta.itemIndexById.get(dragSourceId) ?? -1);
+  // Keep the source and the interval to its targets mounted while scrolling;
+  // unregistering a virtualized source freezes the sortable operation's index.
+  const startIndex =
+    dragSourceIndex >= 0 ? Math.min(normalStartIndex, dragSourceIndex) : normalStartIndex;
   const endIndex = Math.min(
     items.length,
-    startIndex + visibleRowCount + MODEL_MENU_OVERSCAN_ROWS * 2,
+    Math.max(
+      normalStartIndex + visibleRowCount + MODEL_MENU_OVERSCAN_ROWS * 2,
+      dragSourceIndex + 1,
+    ),
   );
+  const lastFavorite = sortableFavorites.at(-1);
+  const lastFavoriteIndex = lastFavorite ? meta.itemIndexById.get(lastFavorite.id) : undefined;
+  const dragMaxScrollTop =
+    lastFavoriteIndex === undefined
+      ? 0
+      : Math.max(0, itemTop(meta, lastFavoriteIndex + 1) - viewportHeight);
   const stickyHeaderIndex = meta.stickyHeaderIndexByRow[clampedVisibleRow] ?? -1;
   const stickyHeader = items[stickyHeaderIndex];
   const stickySubHeaderIndex = meta.stickySubHeaderIndexByRow[clampedVisibleRow] ?? -1;
@@ -760,6 +886,7 @@ const WindowedProviderModelList = forwardRef<
 
   function moveActive(delta: number) {
     if (modelRowIndices.length === 0) return;
+    if (mobile) setShowMobileKeyboardHighlight(true);
     shouldAutoScrollRef.current = true;
     const currentPosition = meta.modelPositionByIndex.get(activeIndex) ?? -1;
     const basePosition = currentPosition < 0 ? (delta > 0 ? -1 : 0) : currentPosition;
@@ -768,6 +895,49 @@ const WindowedProviderModelList = forwardRef<
     if (nextIndex !== undefined) {
       setActiveRowId(items[nextIndex]?.id ?? null);
     }
+  }
+
+  function handleFavoriteDragEnd(event: DragEndEvent) {
+    // Suppress the pointer/keyboard activation that finishes the drag.
+    requestAnimationFrame(() => {
+      draggingRef.current = false;
+      setDragSourceId(null);
+    });
+    const source = event.operation.source;
+    if (!source || !isSortable(source)) return;
+    if (event.canceled) {
+      if (event.operation.activatorEvent instanceof KeyboardEvent) {
+        shouldAutoScrollRef.current = true;
+        shouldCenterActiveRef.current = false;
+        setActiveRowId(String(source.id));
+        const index = meta.itemIndexById.get(String(source.id));
+        if (scrollRef.current && index !== undefined) {
+          const nextScrollTop = Math.min(dragMaxScrollTop, itemTop(meta, index));
+          scrollRef.current.scrollTop = nextScrollTop;
+          setScrollTop(nextScrollTop);
+          setVisibleRow(itemIndexAtOffset(meta, nextScrollTop));
+        }
+      }
+      return;
+    }
+    const from = favoriteIndexById.get(String(source.id)) ?? -1;
+    const to = source.index;
+    if (from < 0 || to < 0 || to >= sortableFavorites.length || from === to) return;
+    const reordered = [...sortableFavorites];
+    const [moved] = reordered.splice(from, 1);
+    if (!moved) return;
+    reordered.splice(to, 0, moved);
+    // Reordering is deliberate; preserve the viewport instead of treating it
+    // like a new search and centering the keyboard-active row again.
+    shouldAutoScrollRef.current = false;
+    prevStructureKeyRef.current = getWindowedItemsMeta(
+      items.map((item) => {
+        const index = favoriteIndexById.get(item.id) ?? -1;
+        return index >= 0 ? reordered[index]! : item;
+      }),
+      modelRowHeight,
+    ).structureKey;
+    onReorderFavorites(reordered.map((item) => item.favoriteRef!));
   }
 
   useImperativeHandle(ref, () => ({
@@ -783,223 +953,165 @@ const WindowedProviderModelList = forwardRef<
   }));
 
   return (
-    <div
-      ref={scrollRef}
-      id={`${domIdPrefix}-listbox`}
-      role="listbox"
-      aria-label={t`Models`}
-      aria-activedescendant={
-        activeIndex >= 0 ? `${domIdPrefix}-${items[activeIndex]?.id}` : undefined
+    <DragDropProvider
+      plugins={(defaults) =>
+        defaults.map((plugin) => (plugin === Accessibility ? dragAccessibility : plugin))
       }
-      className={`poracode-model-menu-listbox no-scrollbar overflow-y-auto outline-none ${
-        mobileExpanded ? "max-h-none" : "max-h-72"
-      }`}
-      style={{ height: viewportHeight }}
-      tabIndex={0}
-      onScroll={(event) => {
-        const nextScrollTop = event.currentTarget.scrollTop;
-        const nextVisibleRow = itemIndexAtOffset(meta, nextScrollTop);
-        setScrollTop((currentScrollTop) =>
-          currentScrollTop === nextScrollTop ? currentScrollTop : nextScrollTop,
-        );
-        setVisibleRow((currentVisibleRow) =>
-          currentVisibleRow === nextVisibleRow ? currentVisibleRow : nextVisibleRow,
-        );
+      onDragStart={(event) => {
+        draggingRef.current = true;
+        setDragSourceId(event.operation.source ? String(event.operation.source.id) : null);
       }}
-      onKeyDown={(event) => {
-        if (modelRowIndices.length === 0) return;
-        if (event.key === "ArrowDown") {
-          event.preventDefault();
-          moveActive(1);
-          return;
-        }
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          moveActive(-1);
-          return;
-        }
-        if (event.key === "PageDown") {
-          event.preventDefault();
-          moveActive(Math.max(1, visibleRowCount - 1));
-          return;
-        }
-        if (event.key === "PageUp") {
-          event.preventDefault();
-          moveActive(-Math.max(1, visibleRowCount - 1));
-          return;
-        }
-        if (event.key === "Home") {
-          event.preventDefault();
-          shouldAutoScrollRef.current = true;
-          const firstIndex = modelRowIndices[0];
-          if (firstIndex !== undefined) {
-            setActiveRowId(items[firstIndex]?.id ?? null);
-          }
-          return;
-        }
-        if (event.key === "End") {
-          event.preventDefault();
-          shouldAutoScrollRef.current = true;
-          const lastIndex = modelRowIndices[modelRowIndices.length - 1];
-          if (lastIndex !== undefined) {
-            setActiveRowId(items[lastIndex]?.id ?? null);
-          }
-          return;
-        }
-        if ((event.key === "Enter" || event.key === " ") && activeIndex >= 0) {
-          event.preventDefault();
-          const activeItem = items[activeIndex];
-          if (activeItem?.type === "model") {
-            onSelect(activeItem.id);
-          }
-        }
-      }}
+      onDragEnd={handleFavoriteDragEnd}
     >
-      {shouldShowStickyHeader ? (
-        <StickyWindowedHeader
-          headerItem={isPrimaryHeader(stickyHeader) ? stickyHeader : null}
-          subHeaderItem={isSubHeader(stickySubHeader) ? stickySubHeader : null}
-        />
-      ) : null}
-      <div style={{ height: topSpacerHeight }} aria-hidden="true" />
-      {visibleItems.map((item, visibleIndex) => {
-        const itemIndex = startIndex + visibleIndex;
-        const isStickyHeaderDuplicate =
-          shouldShowStickyHeader &&
-          (itemIndex === stickyHeaderIndex || itemIndex === stickySubHeaderIndex);
-        const primaryHeaderClassName = isStickyHeaderDuplicate
-          ? "invisible mb-1"
-          : "relative z-30 mb-1";
-        const subHeaderClassName = isStickyHeaderDuplicate ? "invisible mb-1" : "mb-1";
-        if (item.type === "header-plain") {
-          return <HeaderPlain key={item.id} item={item} className={primaryHeaderClassName} />;
-        }
-        if (item.type === "header-provider") {
-          return <HeaderProvider key={item.id} item={item} className={primaryHeaderClassName} />;
-        }
-        if (item.type === "header-sub") {
-          return <HeaderSub key={item.id} item={item} className={subHeaderClassName} />;
-        }
-        const isSelected = selectedKeys.has(item.id);
-        const isActive = itemIndex === activeIndex;
-        return (
-          <div
-            key={item.id}
-            id={`${domIdPrefix}-${item.id}`}
-            role="option"
-            aria-selected={isSelected}
-            data-active={isActive ? "true" : undefined}
-            className="poracode-menu-item group mx-1.5 flex cursor-default items-center text-foreground"
-            style={{ height: modelRowHeight }}
-            onPointerMove={(event) => {
-              if (ignorePointerRef.current) return;
-              if (event.movementX === 0 && event.movementY === 0) return;
-              if (isActive) return;
-              shouldAutoScrollRef.current = false;
-              setActiveRowId(item.id);
-            }}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onSelect(item.id)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onSelect(item.id);
-              }
-            }}
-            tabIndex={-1}
-          >
-            <Check
-              className={`size-3 shrink-0 transition-opacity ${isSelected ? "opacity-100" : "opacity-0"}`}
-            />
-            {(() => {
-              // Some providers (Cursor ACP) bake their parameter chips into
-              // the label string itself (e.g. "GPT-5.5 · 272K · Medium").
-              // Render the head as the model name and the tail as muted hint.
-              const { name, hint } = splitModelLabel(item.label);
-              const mutedHint = [hint, item.contextDescription].filter(Boolean).join(" · ");
-              const rowFastEnabled = modelFastEnabled(item.providerKind, item.modelId);
-              const content = (
-                <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                  <span className="min-w-0 truncate">{name}</span>
-                  {item.supportsFast ? (
-                    // Filled when Fast mode is saved on for this model,
-                    // outlined when it merely supports it or Fast was saved off.
-                    <Zap
-                      role="img"
-                      aria-label={rowFastEnabled ? t`Fast mode` : t`Supports Fast mode`}
-                      className={
-                        rowFastEnabled
-                          ? "size-3 shrink-0 fill-current text-muted"
-                          : "size-3 shrink-0 text-muted/60"
-                      }
-                    />
-                  ) : null}
-                  {mutedHint ? (
-                    <span className="shrink-0 text-[10px] leading-none text-muted/60">
-                      · {mutedHint}
-                    </span>
-                  ) : null}
-                </span>
-              );
-              return item.tooltipDescription ? (
-                <Tooltip delay={MODEL_DESCRIPTION_TOOLTIP_DELAY_MS}>
-                  {content}
-                  <Tooltip.Content
-                    placement="right"
-                    className="max-w-72 whitespace-normal break-words text-xs"
-                  >
-                    {item.tooltipDescription}
-                  </Tooltip.Content>
-                </Tooltip>
-              ) : (
-                content
-              );
-            })()}
-            {item.showProviderIcon || item.subProviderLabel ? (
-              <span className="ml-auto flex min-w-0 max-w-[45%] items-center gap-1 text-muted/70">
-                {item.subProviderLabel ? (
-                  <span className="min-w-0 truncate text-[10px]">{item.subProviderLabel}</span>
-                ) : null}
-                {item.showProviderIcon ? (
-                  <ProviderIcon
-                    kind={item.providerKind}
-                    {...(item.providerIcon ? { icon: item.providerIcon } : {})}
-                    fallbackLabel={item.providerLabel}
-                    tone="inactive"
-                    className="size-3 shrink-0"
-                  />
-                ) : null}
-              </span>
-            ) : null}
-            {item.hideFavoriteToggle ? null : (
-              <button
-                type="button"
-                aria-label={item.isFavorite ? t`Remove from favorites` : t`Add to favorites`}
-                className={`ml-1 flex size-5 shrink-0 items-center justify-center rounded transition ${
-                  item.isFavorite
-                    ? "text-foreground"
-                    : "text-muted/40 opacity-0 group-hover:opacity-100 hover:text-foreground"
-                }`}
-                onPointerDown={(event) => event.stopPropagation()}
-                onPointerUp={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleFavorite(item.providerKind, item.modelId, item.presentationMode);
-                }}
-              >
-                <Star className="size-3.5" fill={item.isFavorite ? "currentColor" : "none"} />
-              </button>
-            )}
-          </div>
-        );
-      })}
       <div
-        className="poracode-model-menu-bottom-spacer"
-        data-scroll-end-gap={scrollEndGapHeight}
-        style={{ height: bottomSpacerHeight }}
-        aria-hidden="true"
-      />
-    </div>
+        ref={scrollRef}
+        id={`${domIdPrefix}-listbox`}
+        role="listbox"
+        aria-label={t`Models`}
+        aria-activedescendant={
+          activeIndex >= 0 ? `${domIdPrefix}-${items[activeIndex]?.id}` : undefined
+        }
+        className={`poracode-model-menu-listbox no-scrollbar overflow-y-auto outline-none ${
+          mobileExpanded ? "max-h-none" : "max-h-72"
+        }`}
+        data-mobile={mobile ? "true" : undefined}
+        style={{ height: viewportHeight }}
+        tabIndex={0}
+        onScroll={(event) => {
+          const nextScrollTop = draggingRef.current
+            ? Math.min(event.currentTarget.scrollTop, dragMaxScrollTop)
+            : event.currentTarget.scrollTop;
+          if (event.currentTarget.scrollTop !== nextScrollTop)
+            event.currentTarget.scrollTop = nextScrollTop;
+          const nextVisibleRow = itemIndexAtOffset(meta, nextScrollTop);
+          setScrollTop((currentScrollTop) =>
+            currentScrollTop === nextScrollTop ? currentScrollTop : nextScrollTop,
+          );
+          setVisibleRow((currentVisibleRow) =>
+            currentVisibleRow === nextVisibleRow ? currentVisibleRow : nextVisibleRow,
+          );
+        }}
+        onKeyDown={(event) => {
+          if (modelRowIndices.length === 0) return;
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            moveActive(1);
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            moveActive(-1);
+            return;
+          }
+          if (event.key === "PageDown") {
+            event.preventDefault();
+            moveActive(Math.max(1, visibleRowCount - 1));
+            return;
+          }
+          if (event.key === "PageUp") {
+            event.preventDefault();
+            moveActive(-Math.max(1, visibleRowCount - 1));
+            return;
+          }
+          if (event.key === "Home") {
+            event.preventDefault();
+            if (mobile) setShowMobileKeyboardHighlight(true);
+            shouldAutoScrollRef.current = true;
+            const firstIndex = modelRowIndices[0];
+            if (firstIndex !== undefined) {
+              setActiveRowId(items[firstIndex]?.id ?? null);
+            }
+            return;
+          }
+          if (event.key === "End") {
+            event.preventDefault();
+            if (mobile) setShowMobileKeyboardHighlight(true);
+            shouldAutoScrollRef.current = true;
+            const lastIndex = modelRowIndices[modelRowIndices.length - 1];
+            if (lastIndex !== undefined) {
+              setActiveRowId(items[lastIndex]?.id ?? null);
+            }
+            return;
+          }
+          if ((event.key === "Enter" || event.key === " ") && activeIndex >= 0) {
+            event.preventDefault();
+            const activeItem = items[activeIndex];
+            if (activeItem?.type === "model") {
+              onSelect(activeItem.id);
+            }
+          }
+        }}
+      >
+        {shouldShowStickyHeader ? (
+          <StickyWindowedHeader
+            headerItem={isPrimaryHeader(stickyHeader) ? stickyHeader : null}
+            subHeaderItem={isSubHeader(stickySubHeader) ? stickySubHeader : null}
+          />
+        ) : null}
+        <div style={{ height: topSpacerHeight }} aria-hidden="true" />
+        {visibleItems.map((item, visibleIndex) => {
+          const itemIndex = startIndex + visibleIndex;
+          const isStickyHeaderDuplicate =
+            shouldShowStickyHeader &&
+            (itemIndex === stickyHeaderIndex || itemIndex === stickySubHeaderIndex);
+          const primaryHeaderClassName = isStickyHeaderDuplicate
+            ? "invisible mb-1"
+            : "relative z-30 mb-1";
+          const subHeaderClassName = isStickyHeaderDuplicate ? "invisible mb-1" : "mb-1";
+          if (item.type === "header-plain") {
+            return <HeaderPlain key={item.id} item={item} className={primaryHeaderClassName} />;
+          }
+          if (item.type === "header-provider") {
+            return <HeaderProvider key={item.id} item={item} className={primaryHeaderClassName} />;
+          }
+          if (item.type === "header-sub") {
+            return <HeaderSub key={item.id} item={item} className={subHeaderClassName} />;
+          }
+          const favoriteIndex = favoriteIndexById.get(item.id) ?? -1;
+          // Session favorites stay visible after unstar; preserve their focused row.
+          const Row = item.favoriteRef ? SortableFavoriteModelRow : ModelMenuRow;
+          const recentRef = item.recentRef;
+          return (
+            <Row
+              key={item.id}
+              item={item}
+              domId={`${domIdPrefix}-${item.id}`}
+              rowHeight={modelRowHeight}
+              isSelected={selectedKeys.has(item.id)}
+              isActive={itemIndex === activeIndex && (!mobile || showMobileKeyboardHighlight)}
+              modelFastEnabled={modelFastEnabled}
+              index={favoriteIndex}
+              group={domIdPrefix}
+              {...(recentRef ? { removeRecent: () => onRemoveRecent(recentRef) } : {})}
+              onPointerMove={(event) => {
+                if (mobile || draggingRef.current || ignorePointerRef.current) return;
+                if (event.movementX === 0 && event.movementY === 0) return;
+                if (itemIndex === activeIndex) return;
+                shouldAutoScrollRef.current = false;
+                setActiveRowId(item.id);
+              }}
+              onSelect={() => {
+                if (!draggingRef.current) onSelect(item.id);
+              }}
+              toggleFavorite={() => {
+                const favorite = item.favoriteRef;
+                toggleFavorite(
+                  favorite?.agentKind ?? item.providerKind,
+                  favorite?.modelId ?? item.modelId,
+                  favorite?.presentationMode ?? item.presentationMode,
+                );
+              }}
+            />
+          );
+        })}
+        <div
+          className="poracode-model-menu-bottom-spacer"
+          data-scroll-end-gap={scrollEndGapHeight}
+          style={{ height: bottomSpacerHeight }}
+          aria-hidden="true"
+        />
+      </div>
+    </DragDropProvider>
   );
 });
 
@@ -1044,7 +1156,7 @@ function HeaderPlain(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--plain flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
       {t(item.label)}
     </div>
@@ -1060,15 +1172,17 @@ function HeaderProvider(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center gap-1.5 border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--provider flex h-7 items-center gap-1.5 border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
-      <ProviderIcon
-        kind={item.providerKind}
-        {...(item.providerIcon ? { icon: item.providerIcon } : {})}
-        fallbackLabel={item.label}
-        tone="active"
-        className="size-3"
-      />
+      <span className="poracode-model-menu-provider-mark contents">
+        <ProviderIcon
+          kind={item.providerKind}
+          {...(item.providerIcon ? { icon: item.providerIcon } : {})}
+          fallbackLabel={item.label}
+          tone="active"
+          className="size-3"
+        />
+      </span>
       <span className="min-w-0 truncate">{item.label}</span>
       {subProviderLabel ? (
         <>
@@ -1088,7 +1202,7 @@ function HeaderSub(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--sub flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
       {item.label}
     </div>

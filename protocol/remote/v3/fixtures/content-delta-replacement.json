@@ -1,0 +1,282 @@
+{
+  "threadId": "thread-replacement",
+  "itemId": "item-replacement",
+  "cases": [
+    {
+      "id": "replace-resets-one-stream-then-append-resumes",
+      "events": [
+        {
+          "type": "item.started",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "itemType": "assistant_message",
+          "payload": {
+            "retained": true
+          }
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "stale prefix"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "reasoning_text",
+          "delta": "reasoning remains"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "fresh",
+          "replace": true
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": " text"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "!",
+          "replace": false
+        }
+      ],
+      "expected": {
+        "state": "updated",
+        "payload": {
+          "retained": true
+        },
+        "streams": {
+          "assistant_text": "fresh text!",
+          "reasoning_text": "reasoning remains"
+        }
+      }
+    },
+    {
+      "id": "duplicate-replacement-is-idempotent",
+      "events": [
+        {
+          "type": "item.started",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "itemType": "assistant_message",
+          "payload": {
+            "retained": true
+          }
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "stale"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "答🙂",
+          "replace": true
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "答🙂",
+          "replace": true
+        }
+      ],
+      "expected": {
+        "state": "updated",
+        "payload": {
+          "retained": true
+        },
+        "streams": {
+          "assistant_text": "答🙂"
+        }
+      }
+    },
+    {
+      "id": "empty-replacement-clears-only-target-stream",
+      "events": [
+        {
+          "type": "item.started",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "itemType": "assistant_message",
+          "payload": {
+            "retained": true
+          }
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "stale"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "reasoning_text",
+          "delta": "reasoning remains"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "",
+          "replace": true
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "",
+          "replace": false
+        }
+      ],
+      "expected": {
+        "state": "updated",
+        "payload": {
+          "retained": true
+        },
+        "streams": {
+          "assistant_text": "",
+          "reasoning_text": "reasoning remains"
+        }
+      }
+    },
+    {
+      "id": "completed-item-stays-completed-after-replacement",
+      "events": [
+        {
+          "type": "item.started",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "itemType": "assistant_message",
+          "payload": {
+            "retained": true
+          }
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "stale"
+        },
+        {
+          "type": "item.completed",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement"
+        },
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "restored",
+          "replace": true
+        }
+      ],
+      "expected": {
+        "state": "completed",
+        "payload": {
+          "retained": true
+        },
+        "streams": {
+          "assistant_text": "restored"
+        }
+      }
+    },
+    {
+      "id": "replacement-does-not-fabricate-an-orphan",
+      "events": [
+        {
+          "type": "content.delta",
+          "threadId": "thread-replacement",
+          "itemId": "item-replacement",
+          "stream": "assistant_text",
+          "delta": "orphan",
+          "replace": true
+        }
+      ],
+      "expected": null
+    }
+  ],
+  "invalidEvents": [
+    {
+      "type": "content.delta",
+      "threadId": "thread-replacement",
+      "itemId": "item-replacement",
+      "stream": "assistant_text",
+      "delta": "invalid",
+      "replace": null
+    },
+    {
+      "type": "content.delta",
+      "threadId": "thread-replacement",
+      "itemId": "item-replacement",
+      "stream": "assistant_text",
+      "delta": "invalid",
+      "replace": "true"
+    },
+    {
+      "type": "content.delta",
+      "threadId": "thread-replacement",
+      "itemId": "item-replacement",
+      "stream": "assistant_text",
+      "delta": "invalid",
+      "replace": "false"
+    },
+    {
+      "type": "content.delta",
+      "threadId": "thread-replacement",
+      "itemId": "item-replacement",
+      "stream": "assistant_text",
+      "delta": "invalid",
+      "replace": 0
+    },
+    {
+      "type": "content.delta",
+      "threadId": "thread-replacement",
+      "itemId": "item-replacement",
+      "stream": "assistant_text",
+      "delta": "invalid",
+      "replace": 1
+    },
+    {
+      "type": "content.delta",
+      "threadId": "thread-replacement",
+      "itemId": "item-replacement",
+      "stream": "assistant_text",
+      "delta": "invalid",
+      "replace": {}
+    },
+    {
+      "type": "content.delta",
+      "threadId": "thread-replacement",
+      "itemId": "item-replacement",
+      "stream": "assistant_text",
+      "delta": "invalid",
+      "replace": []
+    }
+  ]
+}

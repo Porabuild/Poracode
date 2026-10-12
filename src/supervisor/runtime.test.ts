@@ -64,6 +64,7 @@ import { SupervisorRuntime } from "./supervisorRuntime";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];
+const ptyExitCleanups: Array<() => void> = [];
 const poracodeDataDirBeforeTests = process.env.PORACODE_DATA_DIR;
 
 function makeTempDir(): string {
@@ -78,36 +79,25 @@ function makeRuntime(emit: ConstructorParameters<typeof SupervisorRuntime>[0]): 
   return runtime;
 }
 
-afterEach(() => {
-  // Dispose any runtimes the test created so their owned services (LSP
-  // manager, project watcher, session manager, hook coordinator) stop
-  // scheduling async work. Without this, lingering operations can log to
-  // console after the test file completes — vitest's worker IPC then
-  // rejects the queued `onUserConsoleLog` forward as it tears down,
-  // surfacing as an unhandled rejection that fails the CI run.
-  for (const runtime of runtimesToDispose.splice(0)) {
-    try {
-      runtime.dispose();
-    } catch {
-      // best-effort cleanup
+afterEach(async () => {
+  // Fake PTYs have no native process to report exit during shutdown.
+  for (const emitExit of ptyExitCleanups.splice(0)) emitExit();
+  try {
+    // Join owned services before restoring mocks or removing their files.
+    for (const runtime of runtimesToDispose.splice(0)) await runtime.disposeAsync();
+  } finally {
+    // Node coerces an assigned undefined env value into the string "undefined".
+    if (poracodeDataDirBeforeTests === undefined) {
+      delete process.env.PORACODE_DATA_DIR;
+    } else {
+      process.env.PORACODE_DATA_DIR = poracodeDataDirBeforeTests;
     }
-  }
-  // Restoring an env var to `undefined` coerces it to the literal string
-  // "undefined" (Node stringifies anything assigned to `process.env.X`).
-  // That bug used to cause the supervisor to resolve its baseDir as the
-  // string "undefined" and create `./undefined/settings.json` in cwd on
-  // the next `SupervisorRuntime` construction. Use `delete` when the
-  // original value was absent; assign otherwise.
-  if (poracodeDataDirBeforeTests === undefined) {
-    delete process.env.PORACODE_DATA_DIR;
-  } else {
-    process.env.PORACODE_DATA_DIR = poracodeDataDirBeforeTests;
-  }
-  taskkillSpawnSyncMock.mockReset();
-  ptySpawnMock.mockReset();
-  appendFileMock.mockReset();
-  for (const dir of tempDirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
+    taskkillSpawnSyncMock.mockReset();
+    ptySpawnMock.mockReset();
+    appendFileMock.mockReset();
+    for (const dir of tempDirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   }
 });
 
@@ -115,7 +105,7 @@ function createMockPty() {
   let onDataHandler: ((data: string) => void) | undefined;
   let onExitHandler: ((event: { exitCode: number | null }) => void) | undefined;
 
-  return {
+  const pty = {
     pid: 4242,
     write: vi.fn<(data: string) => void>(),
     resize: vi.fn<(cols: number, rows: number) => void>(),
@@ -130,9 +120,13 @@ function createMockPty() {
       onDataHandler?.(data);
     },
     emitExit(exitCode: number | null) {
-      onExitHandler?.({ exitCode });
+      const handler = onExitHandler;
+      onExitHandler = undefined;
+      handler?.({ exitCode });
     },
   };
+  ptyExitCleanups.push(() => pty.emitExit(0));
+  return pty;
 }
 
 function decodeSpawnCommand(spawnArgs: string[]): string {
@@ -2099,41 +2093,24 @@ describe("SupervisorRuntime thread input", () => {
   });
 
   it("settles a queued GUI startup stop when ACP closes during activate", async () => {
-    const emitted: Array<Record<string, unknown>> = [];
+    process.env.PORACODE_DATA_DIR = makeTempDir();
+    const emitted: SupervisorEvent[] = [];
     const runtime = makeRuntime((event) => {
-      emitted.push(event as Record<string, unknown>);
+      emitted.push(event);
     });
-    let resolveStructuredSession:
-      | ((session: {
-          launchOptions: Record<string, never>;
-          activate: () => Promise<void>;
-          openThread: () => Promise<string>;
-          startTurn: () => Promise<void>;
-          interruptTurn: () => Promise<void>;
-          setListener: (listener: { onUpdate(update: Record<string, unknown>): void }) => void;
-          dispose: () => Promise<void>;
-        }) => void)
-      | undefined;
-    const activate = vi
-      .fn<() => Promise<void>>()
-      .mockRejectedValue(new Error("ACP connection closed"));
+    let rejectActivation: ((error: Error) => void) | undefined;
+    const activate = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectActivation = reject;
+        }),
+    );
     const openThread = vi.fn<() => Promise<string>>().mockResolvedValue("session-1");
     const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const interruptTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const setListener =
       vi.fn<(listener: { onUpdate(update: Record<string, unknown>): void }) => void>();
     const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    const structuredSessionPromise = new Promise<{
-      launchOptions: Record<string, never>;
-      activate: () => Promise<void>;
-      openThread: () => Promise<string>;
-      startTurn: () => Promise<void>;
-      interruptTurn: () => Promise<void>;
-      setListener: (listener: { onUpdate(update: Record<string, unknown>): void }) => void;
-      dispose: () => Promise<void>;
-    }>((resolve) => {
-      resolveStructuredSession = resolve;
-    });
 
     const adapter = {
       kind: "generic-gui" as const,
@@ -2160,9 +2137,15 @@ describe("SupervisorRuntime thread input", () => {
       createInitialSessionRef: vi
         .fn<() => { providerSessionId: string; discoveredAt: string } | undefined>()
         .mockReturnValue(undefined),
-      createStructuredSession: vi.fn<() => Promise<Record<string, unknown>>>(
-        () => structuredSessionPromise,
-      ),
+      createStructuredSession: vi.fn<() => Promise<Record<string, unknown>>>().mockResolvedValue({
+        launchOptions: {},
+        activate,
+        openThread,
+        startTurn,
+        interruptTurn,
+        setListener,
+        dispose,
+      }),
     };
 
     (runtime as unknown as { adapters: Map<string, typeof adapter> }).adapters.set(
@@ -2181,33 +2164,82 @@ describe("SupervisorRuntime thread input", () => {
         model: "model-a",
       },
       prompt: "hi",
+      userMessageItemId: "user-gui-activate-stop",
       presentationMode: "gui",
       initialSize: {
         cols: 132,
         rows: 42,
       },
     });
-    await Promise.resolve();
-    await Promise.resolve();
+    try {
+      // Stop must race an in-flight activation, not an arbitrary number of
+      // preparation microtasks before the provider factory has run.
+      await vi.waitFor(() => expect(activate).toHaveBeenCalledTimes(1));
+      expect(adapter.createStructuredSession).toHaveBeenCalledTimes(1);
+      expect(dispose).not.toHaveBeenCalled();
+      expect(runtime.sessions.has("thread-gui-activate-stop")).toBe(false);
+      expect(runtime.hostResourceAdmission.usage().agentSessions).toEqual({
+        active: 0,
+        pending: 1,
+        retiring: 0,
+      });
+      expect(emitted.filter((event) => event.type === "thread-state")).toEqual([
+        expect.objectContaining({
+          threadId: "thread-gui-activate-stop",
+          status: "working",
+          attention: "working",
+        }),
+      ]);
 
-    await runtime.threadSessionManager.interruptThread({ threadId: "thread-gui-activate-stop" });
-
-    resolveStructuredSession?.({
-      launchOptions: {},
-      activate,
-      openThread,
-      startTurn,
-      interruptTurn,
-      setListener,
-      dispose,
-    });
+      await runtime.threadSessionManager.interruptThread({ threadId: "thread-gui-activate-stop" });
+      expect(emitted.filter((event) => event.type === "thread-state").at(-1)).toMatchObject({
+        threadId: "thread-gui-activate-stop",
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: false,
+        forceCloseActiveTurn: true,
+      });
+      expect(dispose).not.toHaveBeenCalled();
+    } finally {
+      // Release the provider gate even if a boundary assertion fails, so
+      // teardown cannot be stranded on an unpublished startup handle.
+      rejectActivation?.(new Error("ACP connection closed"));
+      await startPromise.catch(() => undefined);
+    }
 
     await expect(startPromise).resolves.toEqual({ threadId: "thread-gui-activate-stop" });
+    expect(activate).toHaveBeenCalledTimes(1);
     expect(dispose).toHaveBeenCalledTimes(1);
     expect(openThread).not.toHaveBeenCalled();
     expect(setListener).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
     expect(interruptTurn).not.toHaveBeenCalled();
+    expect(ptySpawnMock).not.toHaveBeenCalled();
+    expect(adapter.buildLaunchArgv).not.toHaveBeenCalled();
+    expect(runtime.sessions.has("thread-gui-activate-stop")).toBe(false);
+    expect(runtime.hostResourceAdmission.usage().total).toBe(0);
+    expect(
+      emitted.filter((event) => event.type === "thread-state").map((event) => event.status),
+    ).toEqual(["working", "idle"]);
+    expect(runtimeEventsOf(emitted)).toEqual([
+      {
+        type: "turn.started",
+        threadId: "thread-gui-activate-stop",
+        turnId: expect.any(String),
+      },
+      {
+        type: "item.started",
+        threadId: "thread-gui-activate-stop",
+        itemId: "user-gui-activate-stop",
+        itemType: "user_message",
+        payload: { content: [{ kind: "text", text: "hi" }] },
+      },
+      {
+        type: "item.completed",
+        threadId: "thread-gui-activate-stop",
+        itemId: "user-gui-activate-stop",
+      },
+    ]);
   });
 
   it("settles a Codex GUI /goal initial turn after the goal item is emitted", async () => {
@@ -2816,6 +2848,42 @@ describe("SupervisorRuntime thread input", () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+
+  it("delivers a fresh GUI launch's client context with the initial turn only", async () => {
+    const { runtime, startTurn, events } = makeGuiSwitchFixture();
+    const { providerSwitch: _providerSwitch, ...freshLaunch } = guiSwitchPayload;
+    await runtime.threadSessionManager.startThread({
+      ...freshLaunch,
+      threadId: "thread-fresh-context",
+      clientContext: {
+        browserFocus: { activeTab: { tabId: 31, title: "Launch tab", url: "https://a.test/" } },
+      },
+    });
+
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    const [prompt, , , options] = startTurn.mock.calls[0] as unknown as [
+      string,
+      unknown,
+      unknown,
+      { inlineInstructions?: string; userMessageItemId?: string },
+    ];
+    expect(prompt).toBe("continue the task");
+    expect(options.userMessageItemId).toMatch(/^user-/);
+    expect(options.inlineInstructions).toContain("- tab_id: 31");
+    expect(options.inlineInstructions).toContain('- url: "https://a.test/"');
+    const painted = events.flatMap((event) =>
+      event.type === "thread-runtime-event" &&
+      event.event.type === "item.started" &&
+      event.event.itemType === "user_message"
+        ? [JSON.stringify(event.event.payload)]
+        : [],
+    );
+    expect(painted).toHaveLength(1);
+    expect(painted[0]).toContain("continue the task");
+    expect(painted[0]).not.toContain("client context");
+    const session = runtime.threadSessionManager.sessions.get("thread-fresh-context");
+    expect(JSON.stringify(session?.config)).not.toContain("tab_id");
   });
 
   it("omits the transcript handoff instruction when read_thread is unavailable for the incoming session", async () => {

@@ -1,14 +1,32 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, posix as posixPath } from "node:path";
 import { parse as parseToml } from "smol-toml";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
-import { getProjectFsPath, toWslUncPath } from "@/shared/wsl";
+import { getProjectFsPath } from "@/shared/wsl";
+import {
+  readWslDirectory,
+  readWslTextFile,
+  wslPathExists,
+  type WslFileIoOptions,
+} from "../plugin/wslStaging";
 import { resolveWslHomeDirectory } from "../base";
 
 interface SkillConfigEntry {
   path: string;
   enabled: boolean;
+}
+
+/**
+ * Path IO used by the skill-conflict probe. Native launches read the host
+ * filesystem directly; WSL launches route every read through the per-distro
+ * staging worker so a stalled UNC share cannot pin the supervisor.
+ */
+export interface CodexSkillConflictIo {
+  exists(path: string): Promise<boolean>;
+  readDirectory(path: string): Promise<{ name: string; directory: boolean }[]>;
+  /** `null` when the file does not exist; throws when it exists but is unreadable. */
+  readTextFile(path: string): Promise<string | null>;
 }
 
 const BROWSER_PLUGIN_SKILL = {
@@ -17,12 +35,55 @@ const BROWSER_PLUGIN_SKILL = {
   pathSegments: ["skills", "control-in-app-browser", "SKILL.md"],
 } as const;
 
-function readSkillConfigEntries(configPath: string): SkillConfigEntry[] | undefined {
-  if (!existsSync(configPath)) return [];
+const nativeSkillConflictIo: CodexSkillConflictIo = {
+  async exists(path) {
+    try {
+      await stat(path);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  async readDirectory(path) {
+    try {
+      const entries = await readdir(path, { withFileTypes: true });
+      return entries.map((entry) => ({ name: entry.name, directory: entry.isDirectory() }));
+    } catch {
+      return [];
+    }
+  },
+  async readTextFile(path) {
+    try {
+      return await readFile(path, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  },
+};
+
+function wslSkillConflictIo(distro: string, options?: WslFileIoOptions): CodexSkillConflictIo {
+  return {
+    exists: (path) => wslPathExists(distro, path, options),
+    readDirectory: (path) => readWslDirectory(distro, path, options),
+    readTextFile: (path) => readWslTextFile(distro, path, options),
+  };
+}
+
+async function readSkillConfigEntries(
+  configPath: string,
+  io: CodexSkillConflictIo,
+): Promise<SkillConfigEntry[] | undefined> {
+  let raw: string | null;
   try {
-    const parsed = parseToml(readFileSync(configPath, "utf8")) as {
-      skills?: { config?: unknown };
-    };
+    raw = await io.readTextFile(configPath);
+  } catch (error) {
+    console.warn(`[codex] unable to read skill config from ${configPath}:`, error);
+    return undefined;
+  }
+  if (raw === null) return [];
+  try {
+    const parsed = parseToml(raw) as { skills?: { config?: unknown } };
     if (!Array.isArray(parsed.skills?.config)) return [];
     return parsed.skills.config.flatMap((entry) => {
       if (!entry || typeof entry !== "object") return [];
@@ -54,22 +115,29 @@ function hasBrowserMcp(mcpServers: readonly ResolvedMcpServer[]): boolean {
   return mcpServers.some((server) => server.id === "browser");
 }
 
-function installedBrowserSkillPaths(hostCodexHome: string, providerCodexHome: string): string[] {
-  const hostPluginRoot = join(
+async function installedBrowserSkillPaths(
+  hostCodexHome: string,
+  providerCodexHome: string,
+  io: CodexSkillConflictIo,
+): Promise<string[]> {
+  const hostJoin = hostCodexHome.startsWith("/") ? posixPath.join : join;
+  const providerJoin = providerCodexHome.startsWith("/") ? posixPath.join : join;
+  const hostPluginRoot = hostJoin(
     hostCodexHome,
     "plugins",
     "cache",
     BROWSER_PLUGIN_SKILL.marketplace,
     BROWSER_PLUGIN_SKILL.plugin,
   );
-  if (!existsSync(hostPluginRoot)) return [];
-  const providerJoin = providerCodexHome.startsWith("/") ? posixPath.join : join;
   try {
-    return readdirSync(hostPluginRoot, { withFileTypes: true }).flatMap((entry) => {
-      if (!entry.isDirectory()) return [];
-      const hostPath = join(hostPluginRoot, entry.name, ...BROWSER_PLUGIN_SKILL.pathSegments);
-      if (!existsSync(hostPath)) return [];
-      return [
+    if (!(await io.exists(hostPluginRoot))) return [];
+    const entries = await io.readDirectory(hostPluginRoot);
+    const paths: string[] = [];
+    for (const entry of entries) {
+      if (!entry.directory) continue;
+      const hostPath = hostJoin(hostPluginRoot, entry.name, ...BROWSER_PLUGIN_SKILL.pathSegments);
+      if (!(await io.exists(hostPath))) continue;
+      paths.push(
         providerJoin(
           providerCodexHome,
           "plugins",
@@ -79,26 +147,32 @@ function installedBrowserSkillPaths(hostCodexHome: string, providerCodexHome: st
           entry.name,
           ...BROWSER_PLUGIN_SKILL.pathSegments,
         ),
-      ];
-    });
+      );
+    }
+    return paths;
   } catch {
     return [];
   }
 }
 
-function codexHomePaths(
+async function codexHomePaths(
   location: ProjectLocation,
-): { hostPath: string; providerPath: string } | undefined {
+): Promise<{ codexHome: string; projectConfigPath: string } | undefined> {
   if (location.kind !== "wsl") {
-    const path = join(homedir(), ".codex");
-    return { hostPath: path, providerPath: path };
+    const codexHome = join(homedir(), ".codex");
+    return {
+      codexHome,
+      projectConfigPath: join(getProjectFsPath(location), ".codex", "config.toml"),
+    };
   }
-  const home = resolveWslHomeDirectory(location.distro);
+  // Awaits the bounded authoritative distro probe; no synchronous UNC read.
+  const home = await resolveWslHomeDirectory(location.distro);
   if (!home) return undefined;
-  const providerPath = `${home.replace(/\/$/, "")}/.codex`;
+  const linuxHome = home.replace(/\/$/, "");
+  const linuxProject = location.linuxPath.replace(/\/$/, "");
   return {
-    hostPath: toWslUncPath(location.distro, providerPath),
-    providerPath,
+    codexHome: `${linuxHome}/.codex`,
+    projectConfigPath: `${linuxProject}/.codex/config.toml`,
   };
 }
 
@@ -109,39 +183,41 @@ function codexHomePaths(
  * skill in this child process while preserving the user's existing skill
  * enablement config. The plugin remains enabled in every other Codex host.
  */
-export function buildCodexMcpSkillConflictArgs(
+export async function buildCodexMcpSkillConflictArgs(
   location: ProjectLocation,
   mcpServers: readonly ResolvedMcpServer[],
-): string[] {
+  options?: WslFileIoOptions,
+): Promise<string[]> {
   if (!hasBrowserMcp(mcpServers)) return [];
 
-  const codexHome = codexHomePaths(location);
-  if (!codexHome) return [];
-  const configPaths = [
-    join(codexHome.hostPath, "config.toml"),
-    join(getProjectFsPath(location), ".codex", "config.toml"),
-  ];
+  const homes = await codexHomePaths(location);
+  if (!homes) return [];
+  const io =
+    location.kind === "wsl" ? wslSkillConflictIo(location.distro, options) : nativeSkillConflictIo;
+  const providerJoin = homes.codexHome.startsWith("/") ? posixPath.join : join;
   return buildCodexMcpSkillConflictArgsForPaths(
     mcpServers,
-    codexHome.hostPath,
-    codexHome.providerPath,
-    configPaths,
+    homes.codexHome,
+    homes.codexHome,
+    [providerJoin(homes.codexHome, "config.toml"), homes.projectConfigPath],
+    io,
   );
 }
 
-export function buildCodexMcpSkillConflictArgsForPaths(
+export async function buildCodexMcpSkillConflictArgsForPaths(
   mcpServers: readonly ResolvedMcpServer[],
   hostCodexHome: string,
   providerCodexHome: string,
   configPaths: readonly string[],
-): string[] {
+  io: CodexSkillConflictIo = nativeSkillConflictIo,
+): Promise<string[]> {
   if (!hasBrowserMcp(mcpServers)) return [];
-  const conflictingPaths = installedBrowserSkillPaths(hostCodexHome, providerCodexHome);
+  const conflictingPaths = await installedBrowserSkillPaths(hostCodexHome, providerCodexHome, io);
   if (conflictingPaths.length === 0) return [];
 
   const existingEntries: SkillConfigEntry[] = [];
   for (const configPath of configPaths) {
-    const entries = readSkillConfigEntries(configPath);
+    const entries = await readSkillConfigEntries(configPath, io);
     // Do not replace an unreadable user config with a partial skills array.
     if (!entries) return [];
     existingEntries.push(...entries);

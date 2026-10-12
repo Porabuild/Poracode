@@ -85,7 +85,7 @@ interface OpenCodeRetryStatus {
 }
 
 /**
- * Resolve the display text for a retry `session.status`: trimmed provider
+ * Resolve the warning text for a retry `session.status`: trimmed provider
  * message first, then the trimmed retry-action message, then the localized
  * fallback. Trim-first so a whitespace-only provider message falls through
  * instead of shadowing the valid action text.
@@ -309,8 +309,8 @@ function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent
   // transport-level progress markers with no chat-row equivalent. Step cost
   // and tokens are already accounted at the message level (`message.updated`
   // usage events); agent switches have no provider-handoff anchor (no
-  // from/to pair is tracked). Retries are surfaced through `session.status`
-  // as transient error events so upstream throttling/failures never stall silently.
+  // from/to pair is tracked). Retries emit warnings through `session.status`
+  // while the session's working state keeps the progress indicator active.
   // They are intentionally not surfaced as their own canonical items.
 }
 
@@ -666,7 +666,9 @@ function mapCanonicalEvent(
         if (state.lastEmittedRetryKey !== retryKey) {
           state.lastEmittedRetryKey = retryKey;
           events.push({
-            type: "error",
+            // The provider still owns the retry. Only session/message errors
+            // report that it has given up; warnings never become chat rows.
+            type: "warning",
             threadId: state.threadId,
             message,
           });
@@ -681,7 +683,7 @@ function mapCanonicalEvent(
     //   session id comes from openThread), session.updated/deleted,
     //   session.diff (aggregate of per-tool file changes), session.compacted,
     //   session.idle (thread status via StructuredSessionListener; status
-    //   is handled above to surface retries),
+    //   is handled above to emit retry warnings),
     // - command.executed (slash commands already listed via command.list),
     // - file.edited, file.watcher.updated, reference.updated, lsp.updated,
     //   project.*, workspace.*, worktree.*, vcs.*, pty.*, tui.*, mcp.*,
@@ -697,7 +699,7 @@ function mapCanonicalEvent(
 /**
  * Map a single OpenCode SSE event to canonical RuntimeEvents. Returns an
  * empty array for events that are not surfaced (or are session-status only —
- * `session.status` retry rows are emitted as transient `error` events here
+ * `session.status` retries are emitted as non-fatal `warning` events here
  * and the working/idle state is surfaced through
  * `StructuredSessionListener.onUpdate` separately by the session class).
  */

@@ -133,7 +133,7 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
       // still land on a tab (Fitts's law). Empty strip space stays a window-drag
       // region; tabs themselves opt out via `__controls`.
       "flex h-full min-w-0 flex-1 items-stretch overflow-x-auto"
-    : "flex items-center overflow-x-auto border-b border-border bg-[var(--content-background)] px-1 py-0.5";
+    : "poracode-browser-tab-strip flex items-center overflow-x-auto border-b border-border bg-[var(--content-background)] px-1 py-0.5";
 
   const groupById = new Map(groups.map((g) => [g.id, g]));
   const countByGroup = new Map<string, number>();
@@ -163,7 +163,7 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
         role="button"
         tabIndex={0}
         draggable
-        className={`group flex w-40 min-w-[48px] shrink cursor-pointer items-center gap-1 px-2 text-left text-[12px] ${
+        className={`poracode-browser-tab group flex w-40 min-w-[48px] shrink cursor-pointer items-center gap-1 px-2 text-left text-[12px] ${
           opts.grouped ? "rounded-t-md" : "rounded-md"
         } ${opts.marginClass} ${isHeader ? "" : "py-0.5"} ${noDrag} ${
           active
@@ -211,7 +211,7 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
         <button
           type="button"
           aria-label={t`Close tab`}
-          className="invisible flex h-4 w-4 items-center justify-center rounded text-foreground/50 hover:bg-[var(--row-hover)] hover:text-foreground group-hover:visible group-focus-within:visible"
+          className="poracode-browser-tab-close invisible flex h-4 w-4 items-center justify-center rounded text-foreground/50 hover:bg-[var(--row-hover)] hover:text-foreground group-hover:visible group-focus-within:visible"
           title={t`Close tab`}
           onClick={(e) => {
             e.stopPropagation();

@@ -159,6 +159,8 @@ export class FollowUpQueueCoordinator {
           config: entry.payload.config,
           prompt: input.prompt,
           ...(input.segments ? { segments: input.segments } : {}),
+          // An edit changes the text, not when or where the user sent it.
+          ...(entry.payload.clientContext ? { clientContext: entry.payload.clientContext } : {}),
         }),
       };
       delete record.items[index]!.prepared;

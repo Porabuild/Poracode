@@ -1,0 +1,66 @@
+{
+  "agentVersion": "3000.11.3",
+  "receipt": "tmp/devin/probe/results/workspace-owned-fwVM09/receipt.json",
+  "steps": [
+    {
+      "label": "new extra-a",
+      "option": {
+        "id": "workspace-dirs",
+        "name": "Workspace Directories",
+        "type": "select",
+        "currentValue": "[\"<owned-fixture>/extra-a\"]",
+        "options": []
+      }
+    },
+    {
+      "label": "select advertised inexpensive model",
+      "option": {
+        "id": "workspace-dirs",
+        "name": "Workspace Directories",
+        "type": "select",
+        "currentValue": "[\"<owned-fixture>/extra-a\"]",
+        "options": []
+      }
+    },
+    {
+      "label": "load replacement extra-b",
+      "option": {
+        "id": "workspace-dirs",
+        "name": "Workspace Directories",
+        "type": "select",
+        "currentValue": "[\"<owned-fixture>/extra-b\"]",
+        "options": []
+      }
+    },
+    {
+      "label": "load explicit empty",
+      "option": {
+        "id": "workspace-dirs",
+        "name": "Workspace Directories",
+        "type": "select",
+        "currentValue": "[]",
+        "options": []
+      }
+    },
+    {
+      "label": "load omitted",
+      "option": {
+        "id": "workspace-dirs",
+        "name": "Workspace Directories",
+        "type": "select",
+        "currentValue": "[]",
+        "options": []
+      }
+    },
+    {
+      "label": "known workspace-dirs setter distinct extra-a",
+      "option": {
+        "id": "workspace-dirs",
+        "name": "Workspace Directories",
+        "type": "select",
+        "currentValue": "[\"<owned-fixture>/extra-a\"]",
+        "options": []
+      }
+    }
+  ]
+}

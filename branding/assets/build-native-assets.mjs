@@ -1,4 +1,4 @@
-// Renders the Poracode SVG masters into the committed Capacitor native
+// Renders the Poracode SVG masters into the committed native iOS/Android
 // projects (ios/, android/): app icons, adaptive-icon layers, and splash
 // screens. Companion to build-icons.mjs (desktop/website/PWA assets).
 // Idempotent — overwrites in place; skips a platform whose native project is
@@ -15,7 +15,7 @@ const ROOT = resolve(HERE, "../..");
 
 // Tile color baked into poracode-icon.svg.
 const TILE_BG = "#0E0E14";
-// App/window background (matches capacitor.config.ts backgroundColor).
+// App/window background (matches the native projects' window background).
 const SPLASH_BG = "#070709";
 // Glyph fill used by poracode-icon.svg for the "P".
 const GLYPH_COLOR = "#EAF0FB";
@@ -114,7 +114,7 @@ async function buildAndroid() {
   }
   console.log("  ✓ Android launcher icons (legacy + round + adaptive)");
 
-  // Splash screens (Capacitor template dimensions).
+  // Splash screens (per-density template dimensions).
   const portrait = [
     ["mdpi", 320, 480],
     ["hdpi", 480, 800],
@@ -130,7 +130,7 @@ async function buildAndroid() {
   console.log("  ✓ Android splash drawables");
 }
 
-console.log("native (Capacitor) brand assets:");
+console.log("native iOS/Android brand assets:");
 await buildIos();
 await buildAndroid();
 console.log("Done.");

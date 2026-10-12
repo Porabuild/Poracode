@@ -17,7 +17,7 @@
     "generate": "node ./scripts/generate.mjs"
   },
   "devDependencies": {
-    "@openai/codex": "0.153.4"
+    "@openai/codex": "0.155.1"
   },
   "packageManager": "pnpm@12.3.4"
 }

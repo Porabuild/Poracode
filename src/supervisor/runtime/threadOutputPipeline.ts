@@ -166,6 +166,11 @@ export class ThreadOutputPipeline {
       ...(session.launchConfig ? { launchConfig: session.launchConfig } : {}),
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
+      // Unlike slash commands, `null` is a meaningful retirement and must
+      // survive; only "never stated for this incarnation" stays absent.
+      ...(session.sessionConfigOptions !== undefined
+        ? { sessionConfigOptions: session.sessionConfigOptions }
+        : {}),
       // Ride along on every state change so the renderer learns whether this
       // session resolved `read_thread` as soon as it launches. Without this the
       // flag only travelled in pulled snapshots, which a client refetches on
@@ -322,6 +327,7 @@ export class ThreadOutputPipeline {
       threadId: session.threadId,
       data,
       outputLength: session.outputLength,
+      terminalInstanceId: session.instanceId,
     });
 
     const ptyCarryIn = session.ptyOscCarry;

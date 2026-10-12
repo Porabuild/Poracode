@@ -8,6 +8,27 @@
  */
 
 const messages = {
+  "provider.signInDataUnavailable":
+    "The provider's sign-in data could not be read. Try again or update Poracode.",
+  "provider.unavailable": "The provider is unavailable. Install or update it in provider settings.",
+  "provider.credentialRequired": "Choose a saved credential to sign out.",
+  "provider.credentialsBusy":
+    "Another Poracode process is updating these credentials. Wait and try again.",
+  "provider.previousSessionCredential": "Previous sessions; sign in again for new threads.",
+  "provider.versionUnsupported":
+    "The installed provider version is unsupported. Update it in provider settings.",
+  "profile.executionUnavailable":
+    "This profile cannot launch with its current login and configuration. Review the profile settings and try again.",
+  "profile.dependencyUnavailable":
+    'Profile "{profile}" needs account owner "{dependency}". Reassign its account before changing or removing the owner.',
+  "thread.configSelectionRejected":
+    "The session rejected the requested configuration. Review the selected settings and try again.",
+  "thread.workspaceLaunchUnavailable":
+    "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again.",
+  "thread.projectLaunchStale":
+    "The project moved or was removed before the thread could launch. Review the project and try again.",
+  "thread.sessionActionFailed": "The session action failed. Try again or reopen the session.",
+  "thread.sessionActionUnavailable": "Session actions are unavailable for this thread.",
   "voice.unavailable": "Live voice is unavailable for this thread.",
   "voice.alreadyConnected": "A voice conversation is already active.",
   "voice.subscriptionRequired": "Live voice requires a subscription sign-in for this provider.",
@@ -15,6 +36,12 @@ const messages = {
   "voice.connectionFailed": "The voice connection failed. Try again.",
   "voice.cancelled": "The voice connection was cancelled.",
   "supervisor.sendTerminalInput": "Send terminal input",
+  // ── App startup ───────────────────────────────────────────
+  "startup.failure.title": "Poracode could not start",
+  "startup.failure.body":
+    "Poracode failed to start:\n\n{detail}\n\nRetry (for example, once the other owner has finished starting) or quit.",
+  "startup.failure.retry": "Retry",
+  "startup.failure.quit": "Quit",
   // ── Git: general ──────────────────────────────────────────
   "git.commandFailed": "Git {command} failed: {detail}",
   "github.accountUnavailable":
@@ -129,6 +156,7 @@ const messages = {
   "supervisor.exited": "Background process exited unexpectedly",
   "supervisor.notRunning": "Background process is not running",
   "supervisor.proposedPlan": "Proposed plan",
+  "runtime.delegatedAgentInterrupted": "Interrupted: agent session ended before completion.",
   "supervisor.handoffTranscriptUnavailable":
     "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
   "supervisor.forkTranscriptUnavailable":
@@ -169,6 +197,12 @@ const messages = {
   // ── OpenCode ──────────────────────────────────────────
   "opencode.retryFallback": "OpenCode request failed, retrying...",
 
+  // ── Codex ─────────────────────────────────────────────────
+  "codex.compactUnavailableDuringTurn":
+    "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes.",
+  "codex.compactFailed": "Codex could not compact the conversation: {detail}",
+  "codex.modelRerouted": "Model rerouted from {fromModel} to {toModel}.",
+
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
   "update.serviceUnavailable": "The update service is temporarily unavailable.",
@@ -182,6 +216,18 @@ const messages = {
   "remote.helper.timeout": "Timed out waiting for Poracode Helper.",
   "remote.helper.startFailed":
     "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
+  "remote.helper.ownerUnverified":
+    "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect.",
+  "remote.helper.ownerUnresponsive":
+    "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect.",
+  "remote.helper.ownerIncompatible":
+    "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version.",
+  "remote.helper.ownerConflict":
+    "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect.",
+  "remote.helper.busy":
+    "Another Poracode client is preparing this connection. Try again in a moment.",
+  "remote.helper.drainTimeout":
+    "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again.",
   "ssh.runtimeManifest.invalid": "Poracode SSH runtime manifest is missing or invalid: {path}",
   "remote.project.invalidName": "Enter a valid project name.",
   "remote.project.invalidPath": "Enter a valid absolute project path.",
@@ -199,14 +245,41 @@ const messages = {
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
 
+  // ── Model family selectors ────────────────────────────────
+  "modelSelection.lead": "Lead",
+  "modelSelection.sidekick": "Sidekick",
+  "modelSelection.unsupportedOptions":
+    "This agent does not support the selected model options. Choose different options and try again.",
+  "modelSelection.unsupportedStoredData":
+    "These model settings contain unsupported selection data. Update the app before changing them.",
+  "settings.dataNotPrepared":
+    "The app's data is not ready for these settings. Restart or update the app and try again.",
+  // ── Device schedules ──────────────────────────────────────
+  "schedule.executionStale":
+    "This scheduled task changed or was removed before it could run. Review the schedule and try again.",
+  "prWatch.retirementUnconfirmed":
+    'Could not confirm that the Auto Fix thread "{id}" was stopped. Poracode keeps it recorded and will retry stopping it.',
+
   // ── Thread runtime notices ────────────────────────────────
   "thread.compact.noop": "Nothing to compact yet — the conversation is still small.",
+  "thread.goal.none": "No active goal in this session.",
+  "thread.goal.invalidState": "The goal can't do that in its current state.",
+  "thread.goal.editUsage": "Usage: /goal edit <objective>",
+  "thread.goal.unsupported":
+    "This version of Muse Code does not support session goals. Update Muse Code and try again.",
+  "desktop.promotion.progress.title": "Poracode",
+  "desktop.promotion.progress.body": "Promoting this profile into the owned data root…",
 } as const;
 
 // ---------------------------------------------------------------------------
 
 /** Union of every known message key. */
 export type MessageKey = keyof typeof messages;
+
+/** Whether `value` is a key of the shared message catalog. */
+export function isMessageKey(value: string): value is MessageKey {
+  return Object.prototype.hasOwnProperty.call(messages, value);
+}
 
 /**
  * Optional locale-aware resolver. The renderer installs one (via
@@ -252,6 +325,17 @@ export function msg(key: MessageKey, params?: Record<string, string | number>): 
   return interpolate(messages[key], params);
 }
 
+/** Translate an exact static catalog source received from another process. */
+export function localizeMessageSource(
+  source: string,
+  resolve: MessageResolver = msg,
+): string | undefined {
+  for (const key of Object.keys(messages) as MessageKey[]) {
+    if (source === messages[key]) return resolve(key);
+  }
+  return undefined;
+}
+
 /**
  * Extract the raw message string from an unknown caught value.
  *
@@ -282,6 +366,15 @@ const errorPatterns: Array<{
   key: MessageKey;
   params?: (raw: string) => Record<string, string>;
 }> = [
+  {
+    test: /^Profile "([\s\S]*)" needs account owner "([\s\S]*)"\. Reassign its account before changing or removing the owner\.$/,
+    key: "profile.dependencyUnavailable",
+    params: (raw) => {
+      const match = raw.match(/^Profile "([\s\S]*)" needs account owner "([\s\S]*)"\. Reassign/);
+      return { profile: match?.[1] ?? "", dependency: match?.[2] ?? "" };
+    },
+  },
+
   { test: /^Steer was cancelled before the message was sent\.$/, key: "supervisor.steer.cleared" },
   { test: /^Steer was replaced by a newer message\.$/, key: "supervisor.steer.replaced" },
   { test: /^The replacement message could not be sent\.$/, key: "supervisor.steer.notAdmitted" },
@@ -367,6 +460,31 @@ const errorPatterns: Array<{
     key: "remote.helper.startFailed",
   },
   {
+    test: /^The remote host has a Poracode Helper this client cannot verify\./,
+    key: "remote.helper.ownerUnverified",
+  },
+  {
+    test: /^A Poracode Helper owns this connection but is not responding\./,
+    key: "remote.helper.ownerUnresponsive",
+  },
+  {
+    test: /^The remote host runs an incompatible Poracode Helper \(/,
+    key: "remote.helper.ownerIncompatible",
+    params: (raw) => ({ version: raw.match(/\(([^)]*)\)/)?.[1] ?? "unknown" }),
+  },
+  {
+    test: /^Another Poracode owner already holds this connection's data root\./,
+    key: "remote.helper.ownerConflict",
+  },
+  {
+    test: /^Another Poracode client is (?:preparing this connection|installing the remote runtime)\./,
+    key: "remote.helper.busy",
+  },
+  {
+    test: /^The remote helper did not stop within its shutdown window/,
+    key: "remote.helper.drainTimeout",
+  },
+  {
     // undici and browser fetch collapse transport failures into these opaque
     // messages. Anchored so longer errors that mention fetching keep their text.
     test: /^(?:fetch failed|failed to fetch)\.?$/i,
@@ -413,7 +531,7 @@ function stripIpcPrefix(raw: string): string {
  * Null bytes do not appear in legitimate error messages, so the marker is
  * collision-safe against real content.
  */
-const DETAILS_SENTINEL = " __LC_DETAILS__ ";
+const DETAILS_SENTINEL = "\0__LC_DETAILS__\0";
 
 /** Append a details block to an error summary so the renderer can disclose it. */
 export function attachErrorDetails(summary: string, details: string): string {
@@ -504,13 +622,7 @@ export function friendlyErrorWithDetail(err: unknown): { summary: string; detail
   return { summary: localizeCatalogMessage(rawSummary), details };
 }
 
-/**
- * Supervisor errors cross IPC as source-language strings. A static catalog
- * message is translated exactly; anything else is returned unchanged.
- */
+/** Translate static catalog sources, preserving unmatched provider prose. */
 export function localizeCatalogMessage(raw: string): string {
-  for (const key of Object.keys(messages) as MessageKey[]) {
-    if (raw === messages[key]) return msg(key);
-  }
-  return raw;
+  return localizeMessageSource(raw) ?? raw;
 }

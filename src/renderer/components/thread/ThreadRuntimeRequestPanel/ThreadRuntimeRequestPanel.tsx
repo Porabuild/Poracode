@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { Button, Tooltip, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { FileText, HelpCircle, ListChecks, Plug, ShieldAlert } from "lucide-react";
+import { FileText, HelpCircle, ListChecks, Loader2, Plug, ShieldAlert } from "lucide-react";
 import {
   asPermissionRequestDetails,
   type RequestOutcome,
@@ -199,7 +199,11 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         size="sm"
         type="submit"
         variant="tertiary"
-        className={gated ? "cursor-not-allowed opacity-50 text-white" : "text-white"}
+        className={
+          gated && !resolving
+            ? "pointer-events-auto cursor-not-allowed opacity-50 text-white"
+            : "text-white"
+        }
       >
         <Trans>Submit</Trans>
       </Button>
@@ -274,6 +278,15 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           </div>
         ) : userInputFormActions ? (
           <div className="ml-auto shrink-0 self-start">{userInputFormActions}</div>
+        ) : null}
+        {resolving ? (
+          <span
+            className="flex shrink-0 items-center gap-1 self-center text-[11px] text-muted"
+            role="status"
+          >
+            <Loader2 className="size-3 animate-spin" />
+            <Trans>Resolving…</Trans>
+          </span>
         ) : null}
       </div>
 

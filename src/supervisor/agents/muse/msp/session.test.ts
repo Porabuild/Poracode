@@ -13,7 +13,7 @@ const initialize = vi.hoisted(() =>
 );
 const disposeClient = vi.hoisted(() => vi.fn<() => void>());
 const terminate = vi.hoisted(() =>
-  vi.fn<(child: EventEmitter, options: { ownedProcessGroup: boolean }) => void>(),
+  vi.fn<(child: EventEmitter, options: { ownedProcessGroup: boolean }) => Promise<void>>(),
 );
 const spawnMuseServeHost = vi.hoisted(() =>
   vi.fn<
@@ -30,7 +30,14 @@ let serverRequestHandler:
     }) => Record<string, unknown>)
   | undefined;
 
-vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: terminate }));
+const batchWslCommandsAsync = vi.hoisted(() =>
+  vi.fn<() => Promise<{ ok: boolean; stdout: string }[]>>(),
+);
+vi.mock("@/shared/awaitProcessTermination", () => ({ awaitProcessTermination: terminate }));
+vi.mock("../../base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../base")>()),
+  batchWslCommandsAsync,
+}));
 vi.mock("./client", () => ({
   spawnMuseServeHost,
   MuseMspClient: class {
@@ -126,6 +133,8 @@ async function createSession(overrides: Partial<CreateStructuredSessionInput> = 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  terminate.mockResolvedValue(undefined);
+  batchWslCommandsAsync.mockResolvedValue([{ ok: true, stdout: "" }]);
   notificationHandler = undefined;
   clientErrorHandler = undefined;
   serverRequestHandler = undefined;
@@ -264,9 +273,57 @@ describe("MuseMspStructuredSession", () => {
       sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-01-01T00:00:00Z" },
     });
     await session.openThread(config);
+    // Snapshot serves the folded goal/todo state with no transcript items.
     expect(request).toHaveBeenCalledWith(
       "session/resume",
-      expect.objectContaining({ sessionId: "session-1", excludeItems: true }),
+      expect.objectContaining({ sessionId: "session-1", history: "snapshot" }),
+    );
+    expect(request).not.toHaveBeenCalledWith(
+      "session/resume",
+      expect.objectContaining({ excludeItems: expect.anything() }),
+    );
+  });
+
+  it("hydrates the retained goal and plan from the resume snapshot", async () => {
+    const { session, runtimeEvents } = await createSession({
+      sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-01-01T00:00:00Z" },
+    });
+    request.mockImplementation(async (method) => {
+      if (method === "session/resume") {
+        return {
+          session: { sessionId: "session-1", activeTurnId: null },
+          history: {
+            mode: "snapshot",
+            items: null,
+            snapshot: {
+              state: {
+                goal: { objective: "Retained goal", status: "paused", percentComplete: 10 },
+                todoList: { items: [{ text: "Retained task", status: "inProgress" }] },
+              },
+            },
+          },
+        };
+      }
+      return { status: "accepted" };
+    });
+    await session.openThread(config);
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "goal",
+        payload: expect.objectContaining({
+          action: "set",
+          objective: "Retained goal",
+          status: "paused",
+        }),
+      }),
+    );
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "plan",
+        payload: { steps: [{ step: "Retained task", status: "in_progress" }] },
+      }),
     );
   });
 
@@ -782,6 +839,43 @@ describe("MuseMspStructuredSession", () => {
     ).toHaveLength(1);
   });
 
+  it("shares concurrent disposal and waits for both local and WSL exit confirmation", async () => {
+    const { session, closes } = await createSession();
+    let finishLocal!: () => void;
+    let finishRemote!: (result: { ok: boolean; stdout: string }[]) => void;
+    terminate.mockReturnValue(
+      new Promise((resolve) => {
+        finishLocal = resolve;
+      }),
+    );
+    batchWslCommandsAsync.mockReturnValue(
+      new Promise((resolve) => {
+        finishRemote = resolve;
+      }),
+    );
+    const first = session.dispose();
+    expect(session.dispose()).toBe(first);
+    expect(terminate).toHaveBeenCalledTimes(1);
+    finishLocal();
+    await Promise.resolve();
+    expect(closes).toEqual([]);
+    finishRemote([{ ok: true, stdout: "" }]);
+    await first;
+    expect(closes).toEqual(["close"]);
+  });
+
+  it.each(["local", "remote"])("allows retry after an unconfirmed %s shutdown", async (failure) => {
+    const { session, closes } = await createSession();
+    if (failure === "local") terminate.mockRejectedValueOnce(new Error("Still running"));
+    else batchWslCommandsAsync.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
+    await expect(session.dispose()).rejects.toThrow("Muse MSP shutdown failed");
+    expect(closes).toEqual([]);
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(2);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(2);
+    expect(closes).toEqual(["close"]);
+  });
+
   it("interrupts the exact active turn and terminates its owned host on dispose", async () => {
     const { session, child } = await createSession();
     await session.openThread(config);
@@ -825,6 +919,33 @@ describe("MuseMspStructuredSession", () => {
       threadId: "thread-1",
       reason: "exited",
     });
+  });
+
+  it("tears down the owned host after an unexpected exit, once across a later dispose", async () => {
+    const { session, child } = await createSession();
+    child.emit("close", 143, null);
+    await vi.waitFor(() => expect(batchWslCommandsAsync).toHaveBeenCalledTimes(1));
+    expect(disposeClient).toHaveBeenCalledTimes(1);
+    expect(terminate).toHaveBeenCalledExactlyOnceWith(child, {
+      ownedProcessGroup: process.platform !== "win32",
+    });
+
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(1);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a failed crash cleanup on dispose", async () => {
+    const { session, child } = await createSession();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    batchWslCommandsAsync.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
+    child.emit("close", 143, null);
+    await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+    warn.mockRestore();
+
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(2);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(2);
   });
 
   it("reports a failed write channel while the server process remains open", async () => {
@@ -1046,6 +1167,187 @@ describe("MuseMspStructuredSession", () => {
     // Nothing will be compacted, so there is no item to wait for.
     expect(runtimeEvents.at(-1)).toEqual(
       expect.objectContaining({ type: "turn.completed", state: "completed" }),
+    );
+  });
+});
+
+describe("Muse MSP goal commands", () => {
+  it("routes /goal set through goal/set and adopts the woken turn", async () => {
+    const { session, runtimeEvents, updates } = await createSession();
+    await session.openThread(config);
+    request.mockImplementation(async (method) => {
+      if (method === "goal/set") return { status: "accepted", turnId: "goal-turn-1" };
+      return { status: "accepted" };
+    });
+
+    const result = await session.startTurn("/goal Ship the feature", config);
+
+    expect(request).toHaveBeenCalledWith(
+      "goal/set",
+      expect.objectContaining({ sessionId: "session-1", objective: "Ship the feature" }),
+    );
+    expect(request).not.toHaveBeenCalledWith("turn/start", expect.anything());
+    // The host owns the turn lifecycle from here: no local completion.
+    expect(result).toBeUndefined();
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "turn.started", turnId: "goal-turn-1" }),
+    );
+    expect(updates.at(-1)?.status).toBe("working");
+
+    notificationHandler?.("turn/completed", {
+      sessionId: "session-1",
+      turnId: "goal-turn-1",
+      terminal: "completed",
+    });
+    expect(runtimeEvents.at(-1)).toEqual(
+      expect.objectContaining({ type: "turn.completed", turnId: "goal-turn-1" }),
+    );
+    expect(updates.at(-1)?.status).toBe("idle");
+  });
+
+  it("settles pause and clear without a turn", async () => {
+    const { session, runtimeEvents, updates } = await createSession();
+    await session.openThread(config);
+
+    for (const prompt of ["/goal pause", "/goal clear"]) {
+      const result = await session.startTurn(prompt, config);
+      expect(result).toEqual({ outcome: "completed-without-turn" });
+    }
+
+    expect(request).toHaveBeenCalledWith(
+      "goal/pause",
+      expect.objectContaining({ sessionId: "session-1" }),
+    );
+    expect(request).toHaveBeenCalledWith(
+      "goal/clear",
+      expect.objectContaining({ sessionId: "session-1" }),
+    );
+    expect(request).not.toHaveBeenCalledWith("turn/start", expect.anything());
+    expect(
+      runtimeEvents.filter(
+        (event) => event.type === "turn.started" || event.type === "turn.completed",
+      ),
+    ).toHaveLength(0);
+    // Working is still visited so the renderer's optimistic Working clears.
+    expect(updates.map((update) => update.status)).toContain("working");
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+  });
+
+  it("treats a busy-admission turn id as owned by the running turn", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("hello", config);
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "turn.started", turnId: "turn-1" }),
+    );
+
+    request.mockImplementation(async (method) => {
+      if (method === "goal/pause") return { status: "accepted", turnId: "turn-1" };
+      return { status: "accepted" };
+    });
+    const result = await session.startTurn("/goal pause", config);
+
+    expect(result).toBeUndefined();
+    expect(runtimeEvents.filter((event) => event.type === "turn.started")).toHaveLength(1);
+  });
+
+  it("warns on /goal view without a goal and on a bare edit", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+
+    await expect(session.startTurn("/goal", config)).resolves.toEqual({
+      outcome: "completed-without-turn",
+    });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "warning", message: "No active goal in this session." }),
+    );
+    expect(request).not.toHaveBeenCalledWith(expect.stringMatching(/^goal\//), expect.anything());
+
+    await expect(session.startTurn("/goal edit", config)).resolves.toEqual({
+      outcome: "completed-without-turn",
+    });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "warning", message: "Usage: /goal edit <objective>" }),
+    );
+  });
+
+  it("reports a failed goal dispatch inline without failing the session", async () => {
+    const { MspRpcError } = await import("./protocol");
+    const { session, runtimeEvents, updates, errors } = await createSession();
+    await session.openThread(config);
+    request.mockImplementation(async (method) => {
+      if (method === "goal/pause") {
+        throw new MspRpcError("method not found", { code: -32601, kind: "methodNotFound" });
+      }
+      if (method === "turn/start") {
+        return { turnId: "turn-1", status: "accepted", disposition: "started" };
+      }
+      return { status: "accepted" };
+    });
+
+    const result = await session.startTurn("/goal pause", config);
+
+    expect(result).toEqual({ outcome: "completed-without-turn" });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "error",
+        message:
+          "This version of Muse Code does not support session goals. Update Muse Code and try again.",
+      }),
+    );
+    expect(updates.at(-1)?.status).toBe("idle");
+    expect(errors).toHaveLength(0);
+
+    // The session survives: ordinary turns still start.
+    await session.startTurn("hello", config);
+    expect(request).toHaveBeenCalledWith("turn/start", expect.anything());
+  });
+
+  it("runs dock controls as goal RPCs and adopts resume turns", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+
+    await session.controlGoal({ action: "pause" });
+    expect(request).toHaveBeenCalledWith(
+      "goal/pause",
+      expect.objectContaining({ sessionId: "session-1" }),
+    );
+
+    await session.controlGoal({ action: "edit", objective: "Edited goal" });
+    expect(request).toHaveBeenCalledWith(
+      "goal/edit",
+      expect.objectContaining({ sessionId: "session-1", objective: "Edited goal" }),
+    );
+
+    request.mockImplementation(async (method) => {
+      if (method === "goal/resume") return { status: "accepted", turnId: "goal-turn-2" };
+      return { status: "accepted" };
+    });
+    await session.controlGoal({ action: "resume" });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "turn.started", turnId: "goal-turn-2" }),
+    );
+
+    // Stop targets the adopted goal turn.
+    await session.interruptTurn();
+    expect(request).toHaveBeenCalledWith(
+      "turn/interrupt",
+      expect.objectContaining({ turnId: "goal-turn-2" }),
+    );
+  });
+
+  it("rejects dock controls on pre-goal hosts with the unsupported error", async () => {
+    const { MspRpcError } = await import("./protocol");
+    const { session } = await createSession();
+    await session.openThread(config);
+    request.mockImplementation(async (method) => {
+      if (method === "goal/clear") {
+        throw new MspRpcError("method not found", { code: -32601, kind: "methodNotFound" });
+      }
+      return { status: "accepted" };
+    });
+    await expect(session.controlGoal({ action: "clear" })).rejects.toThrow(
+      "This version of Muse Code does not support session goals. Update Muse Code and try again.",
     );
   });
 });

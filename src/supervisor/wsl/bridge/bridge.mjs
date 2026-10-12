@@ -33,10 +33,12 @@ import { execFile, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import {
+  cpSync,
   mkdirSync,
   opendirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -47,12 +49,16 @@ import {
 } from "node:fs";
 // We always run on Linux inside a distro, so force POSIX semantics — this
 // also keeps the unit tests path-agnostic when executed on a Windows host.
-import { isAbsolute, normalize, resolve as resolvePath } from "node:path/posix";
+import { isAbsolute, normalize, relative, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
 // Parent-pipe EOF now releases idle bridges and orphaned helpers.
-const BRIDGE_VERSION = "2.16.0";
+// 2.17.0: forces replacement of 2.16.0 helpers deployed before
+// symlink-ancestor mutation rejection — that behavior shipped while the
+// constant still said 2.16.0, so the handshake cannot tell them apart.
+// 2.18.0: project reads, listings and editor writes reject symlink escapes.
+const BRIDGE_VERSION = "2.18.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -259,8 +265,54 @@ function resolveSafePath(projectRoot, target) {
   if (typeof target !== "string" || !isAbsolute(target)) return null;
   const normRoot = normalize(projectRoot);
   const normTarget = normalize(target);
-  if (normTarget !== normRoot && !normTarget.startsWith(normRoot + "/")) return null;
+  if (normTarget !== normRoot && !normTarget.startsWith(normRoot === "/" ? "/" : normRoot + "/"))
+    return null;
   return normTarget;
+}
+
+function resolveContainedReadPath(projectRoot, target) {
+  const safe = resolveSafePath(projectRoot, target);
+  if (!safe) return null;
+  try {
+    const root = realpathSync(projectRoot);
+    const candidate = realpathSync(safe);
+    const tail = relative(root, candidate);
+    return isAbsolute(tail) || tail.split("/")[0] === ".." ? null : candidate;
+  } catch (err) {
+    // Preserve the endpoint's existing missing-file response. The eventual
+    // read/stat cannot succeed when realpath failed with ENOENT.
+    if (err?.code === "ENOENT") return safe;
+    return null;
+  }
+}
+
+function pathHasSymlink(projectRoot, target, includeTarget = true) {
+  const normRoot = normalize(projectRoot);
+  const normTarget = normalize(target);
+  const parts = relative(normRoot, normTarget).split("/").filter(Boolean);
+  const checked = includeTarget ? parts : parts.slice(0, -1);
+  let current = normRoot;
+  for (const part of checked) {
+    current = resolvePath(current, part);
+    try {
+      if (lstatSync(current).isSymbolicLink()) return true;
+    } catch (err) {
+      if (err?.code === "ENOENT") return false;
+      throw err;
+    }
+  }
+  return false;
+}
+
+function rejectSymlinkPath(projectRoot, target, includeTarget = true) {
+  try {
+    return pathHasSymlink(projectRoot, target, includeTarget)
+      ? { status: 400, code: "ELOOP", message: "symbolic links are not allowed for mutations" }
+      : null;
+  } catch (err) {
+    const code = typeof err?.code === "string" ? err.code : "EIO";
+    return { status: 500, code, message: String(err?.message ?? err) };
+  }
 }
 
 function classifyDirent(dirent) {
@@ -271,7 +323,7 @@ function classifyDirent(dirent) {
 }
 
 function readdirHandler(req, body) {
-  const target = resolveSafePath(body.projectRoot, body.path);
+  const target = resolveContainedReadPath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
   let entries;
   try {
@@ -288,14 +340,15 @@ function readdirHandler(req, body) {
     const full = resolvePath(target, d.name);
     if (type === "symlink") {
       let isDirectoryLink = false;
+      const contained = resolveContainedReadPath(body.projectRoot, full);
       try {
-        isDirectoryLink = statSync(full).isDirectory();
+        isDirectoryLink = contained !== null && statSync(contained).isDirectory();
       } catch {
         // broken symlink; report as symlink, no directory hint
       }
       const entry = { name: d.name, type, isDirectoryLink };
       if (includeChildCount && isDirectoryLink) {
-        entry.hasChildren = dirHasVisibleChildren(full);
+        entry.hasChildren = dirHasVisibleChildren(contained);
       }
       result.push(entry);
       continue;
@@ -337,7 +390,9 @@ function statHandler(req, body) {
     return { status: 400, code: "EINVAL", message: "paths must be an array" };
   const results = [];
   for (const rawPath of body.paths) {
-    const target = resolveSafePath(body.projectRoot, rawPath);
+    const target = body.follow
+      ? resolveContainedReadPath(body.projectRoot, rawPath)
+      : resolveSafePath(body.projectRoot, rawPath);
     if (!target) {
       results.push({ path: rawPath, exists: false, code: "ESCAPE" });
       continue;
@@ -493,7 +548,7 @@ function findHandler(req, body) {
 }
 
 function readFileHandler(req, body) {
-  const target = resolveSafePath(body.projectRoot, body.path);
+  const target = resolveContainedReadPath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
   let st;
   try {
@@ -530,7 +585,7 @@ function readFileHandler(req, body) {
 }
 
 function writeFileHandler(req, body) {
-  const target = resolveSafePath(body.projectRoot, body.path);
+  const target = resolveContainedReadPath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
   if (typeof body.contentBase64 !== "string") {
     return { status: 400, code: "EINVAL", message: "contentBase64 required" };
@@ -580,6 +635,8 @@ function writeFileHandler(req, body) {
 function mkdirHandler(req, body) {
   const target = resolveSafePath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
+  const unsafe = rejectSymlinkPath(body.projectRoot, target, false);
+  if (unsafe) return unsafe;
   try {
     mkdirSync(target, { recursive: Boolean(body.recursive) });
   } catch (err) {
@@ -597,6 +654,8 @@ function rmHandler(req, body) {
   if (target === normalize(body.projectRoot)) {
     return { status: 400, code: "EINVAL", message: "refusing to remove projectRoot" };
   }
+  const unsafe = rejectSymlinkPath(body.projectRoot, target);
+  if (unsafe) return unsafe;
   try {
     rmSync(target, {
       recursive: Boolean(body.recursive),
@@ -628,6 +687,38 @@ function renameHandler(req, body) {
   return { status: 200, data: {} };
 }
 
+function moveNoReplaceHandler(req, body) {
+  const from = resolveSafePath(body.projectRoot, body.from);
+  const to = resolveSafePath(body.projectRoot, body.to);
+  if (!from || !to || from === normalize(body.projectRoot)) {
+    return {
+      status: 400,
+      code: "ESCAPE",
+      message: "move endpoints must stay below projectRoot",
+    };
+  }
+  const unsafeSource = rejectSymlinkPath(body.projectRoot, from);
+  if (unsafeSource) return unsafeSource;
+  const unsafeDestination = rejectSymlinkPath(body.projectRoot, to, false);
+  if (unsafeDestination) return unsafeDestination;
+  try {
+    cpSync(from, to, {
+      recursive: true,
+      force: false,
+      errorOnExist: true,
+      preserveTimestamps: true,
+      dereference: false,
+      verbatimSymlinks: true,
+    });
+    rmSync(from, { recursive: true, force: false });
+  } catch (err) {
+    const code = typeof err?.code === "string" ? err.code : "EIO";
+    const status = code === "EEXIST" || code === "ERR_FS_CP_EEXIST" ? 409 : 500;
+    return { status, code, message: String(err?.message ?? err) };
+  }
+  return { status: 200, data: {} };
+}
+
 function homeHandler() {
   const home = homedir();
   if (!home || !isAbsolute(home)) {
@@ -639,6 +730,8 @@ function homeHandler() {
 function writeNewFileHandler(req, body) {
   const target = resolveSafePath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
+  const unsafe = rejectSymlinkPath(body.projectRoot, target, false);
+  if (unsafe) return unsafe;
   if (typeof body.contentBase64 !== "string") {
     return { status: 400, code: "EINVAL", message: "contentBase64 required" };
   }
@@ -1047,6 +1140,7 @@ const FS_ROUTES = new Map([
   ["/v1/fs/mkdir", mkdirHandler],
   ["/v1/fs/rm", rmHandler],
   ["/v1/fs/rename", renameHandler],
+  ["/v1/fs/move-no-replace", moveNoReplaceHandler],
   ["/v1/fs/home", homeHandler],
 ]);
 

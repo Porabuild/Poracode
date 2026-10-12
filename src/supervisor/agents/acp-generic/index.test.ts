@@ -12,6 +12,7 @@ import {
   logoutAcpGenericInstance,
   verifyAcpGenericAuthentication,
 } from ".";
+import { primeWslLaunchEnvironment } from "../base";
 
 vi.mock("../acp", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../acp")>();
@@ -54,6 +55,9 @@ describe("createAcpGenericAdapter", () => {
     vi.mocked(authenticateAcpAgent).mockReset().mockResolvedValue(undefined);
     vi.mocked(logoutAcpAgent).mockReset().mockResolvedValue(undefined);
     vi.mocked(probeAcpCapabilities).mockReset().mockResolvedValue(undefined);
+    for (const distro of ["Ubuntu", "Debian"]) {
+      primeWslLaunchEnvironment(distro, { shellPath: "/bin/bash", home: "/home/demo" });
+    }
   });
 
   it("produces a chat-only adapter with a namespaced kind", () => {

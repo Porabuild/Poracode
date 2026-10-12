@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="git_summary_ahead_behind">%1$d попереду, %2$d позаду</string>
+    <string name="git_summary_additions_deletions">+%1$d / −%2$d</string>
+    <string name="git_summary_not_repo">Не репозиторій</string>
+    <string name="git_summary_pull_request">Pull request #%1$d</string>
+    <string name="git_summary_state_description">Гілка %1$s, на %2$d комітів попереду та на %3$d комітів позаду віддаленого.</string>
+    <plurals name="git_summary_project_active_threads">
+        <item quantity="one">%1$d потік зі змінами</item>
+        <item quantity="few">%1$d потоки зі змінами</item>
+        <item quantity="many">%1$d потоків зі змінами</item>
+        <item quantity="other">%1$d потоку зі змінами</item>
+    </plurals>
+</resources>

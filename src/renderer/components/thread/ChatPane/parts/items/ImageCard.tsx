@@ -39,10 +39,11 @@ export const ImageCard = memo(function ImageCard({
   // single-image preview when rendered outside a thread.
   const threadId = useChatPaneActions()?.threadId;
   const openPreview = () => {
+    if (!source.src) return;
     if (threadId) {
       const gallery = getThreadGalleryImages(threadId);
       if (gallery.some((img) => img.src === source.src)) {
-        openThreadGallery(gallery, source.src);
+        openThreadGallery(gallery, source.src, 0, threadId);
         return;
       }
     }
@@ -53,14 +54,23 @@ export const ImageCard = memo(function ImageCard({
   };
   // A `data:` source is already in hand, so it paints on the first frame; fading
   // it would only add perceived latency. Anything fetched over the network gets
-  // the crossfade (and the blurred stand-in, when the host supplied one).
-  const fadesIn = !source.src.startsWith("data:");
-  const [loaded, setLoaded] = useState(!fadesIn);
-  const showPreview = fadesIn && !loaded && Boolean(source.preview);
+  // the crossfade (and the blurred stand-in, when the host supplied one). An
+  // empty source is a pending/evicted host-held image: the reserved slot (and
+  // blurred stand-in) stays, but no `<img src="">` request is ever issued.
+  const hasSource = source.src.length > 0;
+  const fadesIn = hasSource && !source.src.startsWith("data:");
+  // Reset for a replacement resource before it paints, without remounting the
+  // card or briefly treating the new URI as the previous image's loaded state.
+  const [loadState, setLoadState] = useState({ src: source.src, loaded: false });
+  if (loadState.src !== source.src) setLoadState({ src: source.src, loaded: false });
+  const loaded =
+    source.src.startsWith("data:") || (loadState.src === source.src && loadState.loaded);
+  const showPreview = !loaded && Boolean(source.preview) && (fadesIn || !hasSource);
   // Reserve the final box up front so the transcript never reflows when a
   // fetched image lands. Inline `data:` images paint immediately and keep the
   // natural `w-auto` sizing.
-  const reservedSlot = fadesIn ? reserveInlineImageSlot(source.width, source.height) : undefined;
+  const reservedSlot =
+    !hasSource || fadesIn ? reserveInlineImageSlot(source.width, source.height) : undefined;
 
   return (
     <span
@@ -71,6 +81,7 @@ export const ImageCard = memo(function ImageCard({
         type="button"
         className="relative block cursor-zoom-in bg-black/20"
         aria-label={t`Open image preview`}
+        disabled={!hasSource}
         onClick={openPreview}
       >
         {/* Blurred stand-in for a host-held image, painted in the slot the <img>
@@ -85,25 +96,37 @@ export const ImageCard = memo(function ImageCard({
             style={{ backgroundImage: `url("${source.preview!}")` }}
           />
         ) : null}
-        <img
-          src={source.src}
-          alt={imageAlt}
-          draggable={false}
-          decoding="async"
-          onLoad={() => setLoaded(true)}
-          onError={() => setLoaded(true)}
-          {...(source.width && source.height ? { width: source.width, height: source.height } : {})}
-          {...(reservedSlot ? { style: reservedSlot } : {})}
-          className={`${chatInlineImageClass} relative${fadesIn ? ` transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}` : ""}${imageClassName ? ` ${imageClassName}` : ""}`}
-        />
+        {hasSource ? (
+          <img
+            src={source.src}
+            alt={imageAlt}
+            draggable={false}
+            decoding="async"
+            onLoad={() => setLoadState({ src: source.src, loaded: true })}
+            onError={() => setLoadState({ src: source.src, loaded: true })}
+            {...(source.width && source.height
+              ? { width: source.width, height: source.height }
+              : {})}
+            {...(reservedSlot ? { style: reservedSlot } : {})}
+            className={`${chatInlineImageClass} relative${fadesIn ? ` transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}` : ""}${imageClassName ? ` ${imageClassName}` : ""}`}
+          />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="block bg-black/10"
+            {...(reservedSlot ? { style: reservedSlot } : {})}
+          />
+        )}
       </button>
-      <span className="poracode-image-action-toolbar absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 backdrop-blur-sm transition-opacity duration-150">
-        <CopyImageButton source={source} />
-        <DownloadImageButton src={source.src} fileName={source.fileName} />
-        <IconButton label={t`Open preview`} onClick={openPreview}>
-          <Maximize2 className="size-3.5" />
-        </IconButton>
-      </span>
+      {hasSource ? (
+        <span className="poracode-image-action-toolbar absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 backdrop-blur-sm transition-opacity duration-150">
+          <CopyImageButton source={source} />
+          <DownloadImageButton src={source.src} fileName={source.fileName} />
+          <IconButton label={t`Open preview`} onClick={openPreview}>
+            <Maximize2 className="size-3.5" />
+          </IconButton>
+        </span>
+      ) : null}
     </span>
   );
 });

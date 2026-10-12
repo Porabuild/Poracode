@@ -63,7 +63,7 @@ describe("Codex native-plugin discovery for profiles", () => {
     });
 
   it("does not report a base-only native plugin for a profile", async () => {
-    const baseOverlay = getCodexPluginPaths({ envKind: "posix", baseDir }).codexHomeDir;
+    const baseOverlay = (await getCodexPluginPaths({ envKind: "posix", baseDir })).codexHomeDir;
     mkdirSync(baseOverlay, { recursive: true });
     mocks.pluginsByHome.set(baseOverlay, ["github"]);
 
@@ -84,9 +84,11 @@ describe("Codex native-plugin discovery for profiles", () => {
   });
 
   it("inspects the profile's hook overlay once one is staged, as launches do", async () => {
-    const overlay = getCodexPluginPaths(
-      { envKind: "posix", baseDir },
-      { profileId: "work", sourceHomeDir: profileHome },
+    const overlay = (
+      await getCodexPluginPaths(
+        { envKind: "posix", baseDir },
+        { profileId: "work", sourceHomeDir: profileHome },
+      )
     ).codexHomeDir;
     mkdirSync(overlay, { recursive: true });
     mocks.pluginsByHome.set(overlay, ["linear"]);

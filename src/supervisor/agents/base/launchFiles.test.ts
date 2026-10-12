@@ -1,50 +1,43 @@
-import { getWslCommand } from "./shellBasics";
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { toWslUncPath } from "@/shared/wsl";
+import { setWslStagingService } from "../../wsl/staging";
 import { stageLaunchFiles } from "./launchFiles";
 
-vi.mock("node:child_process", () => ({ execFileSync: vi.fn<typeof execFileSync>() }));
-vi.mock("node:fs", async (importOriginal) => {
-  const fs = await importOriginal<typeof import("node:fs")>();
-  return {
-    ...fs,
-    mkdirSync: vi.fn<typeof fs.mkdirSync>(fs.mkdirSync),
-    writeFileSync: vi.fn<typeof fs.writeFileSync>(fs.writeFileSync),
-    rmSync: vi.fn<typeof fs.rmSync>(fs.rmSync),
-  };
-});
 const cleanup: (() => void)[] = [];
 afterEach(() => {
   for (const close of cleanup.splice(0)) close();
-  vi.resetAllMocks();
+  setWslStagingService(undefined);
 });
 
 describe("private launch files", () => {
-  it("isolates simultaneous launches and removes only its own files", () => {
-    const first = stageLaunchFiles({ kind: "posix", path: "/project" }, "fixture", {
+  it("isolates simultaneous launches and removes only its own files", async () => {
+    const first = await stageLaunchFiles({ kind: "posix", path: "/project" }, "fixture", {
       "nested/config.json": "secret",
     });
-    const second = stageLaunchFiles({ kind: "posix", path: "/project" }, "fixture", {
+    const second = await stageLaunchFiles({ kind: "posix", path: "/project" }, "fixture", {
       "config.json": "other",
     });
-    cleanup.push(first.cleanup, second.cleanup);
+    cleanup.push(
+      () => void first.cleanup(),
+      () => void second.cleanup(),
+    );
     expect(first.directory).not.toBe(second.directory);
     expect(readFileSync(join(first.directory, "nested/config.json"), "utf8")).toBe("secret");
-    first.cleanup();
-    first.cleanup();
+    await first.cleanup();
+    await first.cleanup();
     expect(existsSync(first.directory)).toBe(false);
     expect(existsSync(second.directory)).toBe(true);
   });
 
   it.skipIf(process.platform === "win32")(
     "creates owner-only directories and files on POSIX",
-    () => {
-      const files = stageLaunchFiles({ kind: "posix", path: "/project" }, "fixture", {
+    async () => {
+      const files = await stageLaunchFiles({ kind: "posix", path: "/project" }, "fixture", {
         "config.json": "private",
       });
-      cleanup.push(files.cleanup);
+      cleanup.push(() => void files.cleanup());
       expect(statSync(files.directory).mode & 0o777).toBe(0o700);
       expect(statSync(join(files.directory, "config.json")).mode & 0o777).toBe(0o600);
     },
@@ -52,18 +45,40 @@ describe("private launch files", () => {
 
   it.each(["../outside", "/absolute", "C:\\absolute", "nested/../../outside"])(
     "rejects escaping path %s",
-    (path) => {
-      expect(() =>
+    async (path) => {
+      await expect(
         stageLaunchFiles({ kind: "posix", path: "/project" }, "fixture", { [path]: "secret" }),
-      ).toThrow("inside its directory");
+      ).rejects.toThrow("inside its directory");
     },
   );
 
-  it("protects WSL directories inside Linux before writing over UNC", () => {
-    vi.mocked(mkdirSync).mockImplementation(() => undefined);
-    vi.mocked(writeFileSync).mockImplementation(() => undefined);
-    vi.mocked(rmSync).mockImplementation(() => undefined);
-    const result = stageLaunchFiles(
+  it("writes WSL launch files through the staging worker with private modes", async () => {
+    const dirs: { distro: string; path: string; mode?: number }[] = [];
+    const writes: { distro: string; path: string; content: string; mode?: number }[] = [];
+    const removed: string[] = [];
+    setWslStagingService({
+      mkdirp: async (distro: string, path: string, options?: { mode?: number }) => {
+        dirs.push({ distro, path, ...(options?.mode !== undefined ? { mode: options.mode } : {}) });
+      },
+      writeTextFile: async (
+        distro: string,
+        path: string,
+        content: string,
+        options?: { mode?: number },
+      ) => {
+        writes.push({
+          distro,
+          path,
+          content,
+          ...(options?.mode !== undefined ? { mode: options.mode } : {}),
+        });
+      },
+      remove: async (_distro: string, path: string) => {
+        removed.push(path);
+      },
+    } as never);
+
+    const files = await stageLaunchFiles(
       {
         kind: "wsl",
         distro: "Ubuntu",
@@ -73,26 +88,34 @@ describe("private launch files", () => {
       "fixture",
       { "config.json": "secret" },
     );
-    result.cleanup();
-    expect(execFileSync).toHaveBeenCalledWith(
-      getWslCommand(),
-      ["-d", "Ubuntu", "--exec", "mkdir", "--mode=700", "--", result.directory],
-      { windowsHide: true },
-    );
-    expect(vi.mocked(execFileSync).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(writeFileSync).mock.invocationCallOrder[0]!,
-    );
-    vi.mocked(execFileSync).mockImplementation(() => {
-      throw new Error("distro unavailable");
-    });
-    vi.mocked(writeFileSync).mockClear();
-    expect(() =>
+
+    expect(files.directory).toMatch(/^\/tmp\/poracode-fixture-/u);
+    expect(dirs).toEqual([
+      { distro: "Ubuntu", path: toWslUncPath("Ubuntu", files.directory), mode: 0o700 },
+    ]);
+    expect(writes[0]).toMatchObject({ distro: "Ubuntu", content: "secret", mode: 0o600 });
+    expect(writes[0]!.path).toContain("\\tmp\\poracode-fixture-");
+
+    await files.cleanup();
+    expect(removed[0]).toBe(dirs[0]!.path);
+
+    // A failed write removes the partial directory instead of leaking it.
+    setWslStagingService({
+      mkdirp: async () => {},
+      writeTextFile: async () => {
+        throw new Error("distro unavailable");
+      },
+      remove: async (_distro: string, path: string) => {
+        removed.push(path);
+      },
+    } as never);
+    await expect(
       stageLaunchFiles(
         { kind: "wsl", distro: "Ubuntu", linuxPath: "/project", uncPath: "unused" },
         "fixture",
         { "config.json": "secret" },
       ),
-    ).toThrow("distro unavailable");
-    expect(writeFileSync).not.toHaveBeenCalled();
+    ).rejects.toThrow("distro unavailable");
+    expect(removed).toHaveLength(2);
   });
 });

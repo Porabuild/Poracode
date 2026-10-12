@@ -3,6 +3,7 @@ import { TerminalSquare, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
+import { PaneDragHandle } from "./PaneDragAndDrop";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 
 export type ThreadDraftDropIndicator =
@@ -19,8 +20,6 @@ export function ThreadDraftCompactHeader({
 }: {
   alignClass: string;
   dragHandleRef?: RefCallback<Element> | undefined;
-  /** Whether the pane can be reordered (two or more panes). */
-  paneDraggable?: boolean | undefined;
   headerNeedsTrafficLightPad: boolean;
   onClose?: (() => void) | undefined;
   projectId: string;
@@ -35,20 +34,15 @@ export function ThreadDraftCompactHeader({
       className={`px-2 ${props.headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
     >
       <div
-        className={`${props.paneDraggable ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} ${props.alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+        className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} ${props.alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
       >
-        {/* The drag handle wraps only the title. dnd-kit exposes the handle as
-            a (possibly disabled) button, so it must not contain other controls
-            or the pane content. */}
-        <div
-          ref={dragHandleRef}
-          className={`flex min-w-0 flex-1 items-center gap-2 ${props.paneDraggable ? "cursor-grab active:cursor-grabbing" : ""}`}
-        >
-          <TerminalSquare className="size-3.5 shrink-0 text-muted/60" />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-muted">
-            <Trans>New thread</Trans>
-          </span>
-        </div>
+        {/* Dedicated drag element — see PaneDragHandle for why the persistent
+            header strip must not be the dnd activator. */}
+        {dragHandleRef ? <PaneDragHandle handleRef={dragHandleRef} /> : null}
+        <TerminalSquare className="size-3.5 shrink-0 text-muted/60" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-muted">
+          <Trans>New thread</Trans>
+        </span>
         <div className="flex shrink-0 items-center">
           {props.scopeLabel ? (
             <span className="px-1 text-sm leading-tight text-muted/60">{props.scopeLabel}</span>

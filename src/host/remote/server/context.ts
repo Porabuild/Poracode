@@ -1,0 +1,159 @@
+import type { WebSocket, WebSocketServer } from "ws";
+import type {
+  RemoteAccessTokenResult,
+  RemoteGitSummariesEvent,
+  RemoteGitStateEvent,
+  RemoteProjectsChangedEvent,
+  RemoteThreadsChangedEvent,
+  RemoteTokenExchangePayload,
+  RemoteUserNotificationEvent,
+  RemoteWebSocketServerMessage,
+} from "@/shared/remote";
+import type { SupervisorEvent } from "@/shared/ipc";
+import type { BackgroundTask } from "@/shared/contracts";
+import type { GitStateInterest } from "@/shared/gitState";
+import type { AuthenticatedRemoteSession, RemoteAuthStore } from "../auth";
+import type { EnvironmentProxyGatewayLike } from "../environments/types";
+import type { PortProxy } from "../portForward/portProxy";
+import type { RemoteBrowserGatewayLike } from "../RemoteBrowserGateway";
+import type { RemotePortForwardGateway } from "../RemotePortForwardGateway";
+import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "../RemoteAccessServer";
+import type { RemoteServerSecurity } from "./security";
+import type { PrincipalAdmissionController } from "./principalAdmission";
+import type { LegacyBulkReadAdmission } from "./legacyBulkReadAdmission";
+import type { TerminalCursorSyncRegistry } from "./terminalCursorSync";
+import type { TerminalBaselineStreamScheduler } from "./terminalBaselineStream";
+import type { SessionConfigInventory } from "./sessionConfigInventory";
+
+export type RemoteBroadcastEvent =
+  | SupervisorEvent
+  | RemoteGitSummariesEvent
+  | RemoteGitStateEvent
+  | RemoteProjectsChangedEvent
+  | RemoteThreadsChangedEvent
+  | RemoteUserNotificationEvent;
+
+export interface BufferedSupervisorEvent {
+  readonly seq: number;
+  readonly event: RemoteBroadcastEvent;
+  /** Serialized size of `event`, so the replay buffer can enforce a byte budget
+   * and not just an entry count (see `eventSizeGuard.trimEventBuffer`). */
+  readonly bytes: number;
+  /**
+   * WS5: the pre-serialized wire form of `event` (image refs already
+   * projected). Replay reuses this string when per-client scoping would leave
+   * the event untouched, so a multi-kilobyte entry is never stringified again
+   * per replaying client (serialize once at ingest).
+   */
+  readonly json: string;
+  /**
+   * Bounded catalog changes: this entry is the canonical signal form of a
+   * `remote-projects-changed` mutation (the full list is live-only and never
+   * retained). Replay answers an undeclared socket with `resync-required`
+   * instead of re-parsing the event.
+   */
+  readonly catalogChange?: "signal";
+}
+
+/**
+ * The slice of `RemoteAccessServer` state and helpers the extracted server
+ * modules (`httpRouter`, `wsConnections`, `snapshots`, `threadCommands`)
+ * operate on. The orchestrator builds this once and passes it to the free
+ * functions in those modules so the class keeps ownership of the mutable state
+ * (sessions, event buffer, options) while the behavior lives in focused files.
+ */
+export interface RemoteServerContext {
+  readonly options: RemoteAccessServerOptions;
+  readonly auth: RemoteAuthStore;
+  readonly wss: WebSocketServer;
+  readonly security: RemoteServerSecurity;
+  /** B3 post-authentication principal/session budgets. */
+  readonly principalAdmission: PrincipalAdmissionController;
+  /** B4 explicit admission for undeclared unbounded legacy reads (2 global /
+   * 1 per principal) plus the pre-materialization reservation refusal. */
+  readonly legacyBulkReadAdmission: LegacyBulkReadAdmission;
+  readonly clients: Map<WebSocket, AuthenticatedRemoteSession>;
+  readonly replayingClients: Set<WebSocket>;
+  readonly clientLiveness: Map<WebSocket, boolean>;
+  readonly terminalWatches: Map<WebSocket, Set<string>>;
+  /** Opt-in reliable terminal watches (cursor-sync v1/v2). */
+  readonly terminalCursorSync: TerminalCursorSyncRegistry;
+  /** Cursor-sync v2 chunked-baseline delivery (credit-windowed streaming). */
+  readonly terminalBaselineStreams: TerminalBaselineStreamScheduler;
+  /** Git-state interests declared by each connection, so pull-request bodies are
+   * only sent to the client that asked for them. */
+  readonly gitStateInterests: Map<WebSocket, readonly GitStateInterest[]>;
+  /** Threads each connection wants live transcript content for. Absent entry =
+   * the client never declared any, so it keeps receiving everything. */
+  readonly itemInterests: Map<WebSocket, ReadonlySet<string>>;
+  /**
+   * B1: connections that declared `notices=v1` at upgrade. A connection not in
+   * this set receives emptied canonical runtime batches for notice threads
+   * (see `noticeGate.ts`) while every other frame passes unchanged.
+   */
+  readonly noticeCapableClients: Set<WebSocket>;
+  /**
+   * Connections that declared `catalogChanges=bounded-v1` at upgrade (with
+   * `session:read`). They receive bounded catalog-change signals instead of the
+   * full project list; every other connection keeps the legacy full event.
+   */
+  readonly boundedCatalogChangeClients: Set<WebSocket>;
+  readonly eventBuffer: BufferedSupervisorEvent[];
+  /** Latest replayable background-task level, updated synchronously with live events. */
+  readonly backgroundTasksByThread: ReadonlyMap<string, readonly BackgroundTask[]>;
+  /**
+   * Volatile latest per-thread `sessionConfigOptions` inventory, updated
+   * synchronously with live `thread-state` events. Pull surfaces overlay it
+   * onto served db rows because the durable store cannot hold the field; see
+   * `sessionConfigInventory.ts`.
+   */
+  readonly sessionConfigInventory: SessionConfigInventory;
+  /** Live in-memory event sequence; read through a getter so replays see the
+   * current value rather than a snapshot taken at context-build time. */
+  readonly seq: number;
+  /** Becomes true synchronously when external admission closes. */
+  readonly stopping: boolean;
+  /**
+   * Item 4.6 (S6): the parsed `/oauth/token` payload — either the
+   * pairing-token grant or the additive refresh_token grant. The server owns
+   * the grant dispatch and the audit line.
+   */
+  exchangePairingCredential(input: RemoteTokenExchangePayload): RemoteAccessTokenResult;
+  requireInfo(): RemoteAccessServerInfo;
+  requireSettingsGateway(): NonNullable<RemoteAccessServerOptions["settings"]>;
+  requireSchedulesGateway(): NonNullable<RemoteAccessServerOptions["schedules"]>;
+  requirePrWatchesGateway(): NonNullable<RemoteAccessServerOptions["prWatches"]>;
+  requireBrowserGateway(): RemoteBrowserGatewayLike;
+  requirePortForwardGateway(): RemotePortForwardGateway;
+  requirePortProxy(): PortProxy;
+  /** The composed C1 parent proxy gateway, or `null` when not composed. The
+   * data-plane prefix fails closed either way. */
+  readonly environmentProxy: EnvironmentProxyGatewayLike | null;
+  /** C1 parent proxy gateway (typed 503 when the host is not composed with it). */
+  requireEnvironmentProxyGateway(): EnvironmentProxyGatewayLike;
+  requirePushRegistrations(): NonNullable<RemoteAccessServerOptions["pushRegistrations"]>;
+  publishSupervisorEvent(event: RemoteBroadcastEvent): void;
+  publishThreadsChanged(threadIds: readonly string[]): void;
+  /**
+   * Declaration-aware catalog membership publication (bounded catalog
+   * changes): reads the authoritative project rows only when an undeclared
+   * connection or the embedding `onProjectsChanged` callback consumes them;
+   * otherwise publishes the bounded signal alone.
+   */
+  publishCatalogChanged(): void;
+  scopeEventForClient(event: RemoteBroadcastEvent, client: WebSocket): RemoteBroadcastEvent;
+  send(ws: WebSocket, message: RemoteWebSocketServerMessage): void;
+  sendRaw(ws: WebSocket, data: string, onSent?: (error?: Error) => void): boolean;
+  /**
+   * Recomputes aggregate live-stream demand and notifies the backend host.
+   * Awaitable so reliable terminal watches can establish the interest barrier
+   * before taking a snapshot.
+   */
+  notifyEventInterestsChanged(): void | Promise<void>;
+  /** Admit and join asynchronous work initiated by HTTP or WebSocket clients. */
+  runIngressWork<T>(operation: () => T | PromiseLike<T>, source?: object): Promise<T>;
+  waitForSupervisorEvent(
+    match: (event: RemoteBroadcastEvent) => boolean,
+    timeoutMs: number,
+  ): Promise<RemoteBroadcastEvent>;
+}

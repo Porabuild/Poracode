@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   asPermissionRequestDetails,
   commandExecutionPayloadSchema,
+  errorItemPayloadSchema,
   fileChangePayloadSchema,
   goalItemPayloadSchema,
   messageItemPayloadSchema,
@@ -203,6 +204,29 @@ describe("runtimeEventSchema discriminated union", () => {
     const err = { type: "error", threadId: "t", message: "broke" };
     expect(runtimeEventSchema.parse(roundTrip(warn))).toEqual(warn);
     expect(runtimeEventSchema.parse(roundTrip(err))).toEqual(err);
+  });
+
+  it("round-trips a notice warning and keeps pre-field warnings valid", () => {
+    const notice = {
+      type: "warning",
+      threadId: "t",
+      message: "config changed",
+      presentation: "notice",
+    };
+    expect(runtimeEventSchema.parse(roundTrip(notice))).toEqual(notice);
+    // A warning written before `presentation` existed still parses, unmarked.
+    expect(
+      runtimeEventSchema.parse(roundTrip({ type: "warning", threadId: "t", message: "old" })),
+    ).not.toHaveProperty("presentation");
+    expect(runtimeEventSchema.safeParse({ ...notice, presentation: "banner" }).success).toBe(false);
+  });
+
+  it("round-trips an error item's optional warning severity", () => {
+    const warning = { message: "heads up", severity: "warning" };
+    expect(errorItemPayloadSchema.parse(roundTrip(warning))).toEqual(warning);
+    expect(errorItemPayloadSchema.parse(roundTrip({ message: "broke" }))).toEqual({
+      message: "broke",
+    });
   });
 
   it("rejects an event without a discriminator", () => {

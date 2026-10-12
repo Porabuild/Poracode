@@ -62,12 +62,12 @@ describe("getOpenCodePluginPaths", () => {
 });
 
 describe("installOpenCodePlugin", () => {
-  it("stages assets and drops the plugin + manifest into OpenCode's plugins dir", () => {
+  it("stages assets and drops the plugin + manifest into OpenCode's plugins dir", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
 
-    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const result = await installOpenCodePlugin({ envKind: "posix", baseDir });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -94,7 +94,7 @@ describe("installOpenCodePlugin", () => {
       ),
     ).toBe(true);
 
-    expect(isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toMatchObject({
+    expect(await isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toMatchObject({
       installed: true,
       version: "1.8.0",
     });
@@ -104,7 +104,7 @@ describe("installOpenCodePlugin", () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
-    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const result = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -142,7 +142,7 @@ describe("installOpenCodePlugin", () => {
     }
   });
 
-  it("scrubs a stale `file://` plugin entry that older builds left in opencode.json", () => {
+  it("scrubs a stale `file://` plugin entry that older builds left in opencode.json", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
@@ -159,7 +159,7 @@ describe("installOpenCodePlugin", () => {
       "utf8",
     );
 
-    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const result = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(result.ok).toBe(true);
 
     const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
@@ -168,7 +168,7 @@ describe("installOpenCodePlugin", () => {
     expect(config.plugin).toEqual(["@warp-dot-dev/opencode-warp"]);
   });
 
-  it("removes the `plugin` key entirely when ours was the only entry", () => {
+  it("removes the `plugin` key entirely when ours was the only entry", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
@@ -181,14 +181,14 @@ describe("installOpenCodePlugin", () => {
       "utf8",
     );
 
-    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const result = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(result.ok).toBe(true);
 
     const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
     expect(config.plugin).toBeUndefined();
   });
 
-  it("preserves user MCP entries whose names match Poracode built-ins", () => {
+  it("preserves user MCP entries whose names match Poracode built-ins", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
@@ -201,13 +201,13 @@ describe("installOpenCodePlugin", () => {
     );
     writeFileSync(configPath, JSON.stringify({ mcp: userMcp }), "utf8");
 
-    expect(installOpenCodePlugin({ envKind: "posix", baseDir }).ok).toBe(true);
+    expect((await installOpenCodePlugin({ envKind: "posix", baseDir })).ok).toBe(true);
 
     const config = JSON.parse(readFileSync(configPath, "utf8")) as { mcp: unknown };
     expect(config.mcp).toEqual(userMcp);
   });
 
-  it("restores entries shadowed by the retired MCP config projection", () => {
+  it("restores entries shadowed by the retired MCP config projection", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
@@ -230,30 +230,30 @@ describe("installOpenCodePlugin", () => {
       "utf8",
     );
 
-    expect(installOpenCodePlugin({ envKind: "posix", baseDir }).ok).toBe(true);
+    expect((await installOpenCodePlugin({ envKind: "posix", baseDir })).ok).toBe(true);
 
     const config = JSON.parse(readFileSync(configPath, "utf8")) as { mcp: unknown };
     expect(config.mcp).toEqual({ browser: originalBrowser });
     expect(existsSync(sidecarPath)).toBe(false);
   });
 
-  it("is idempotent — restaging produces the same end state", () => {
+  it("is idempotent — restaging produces the same end state", async () => {
     const baseDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = makeBaseDir();
 
-    const first = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const first = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(first.ok).toBe(true);
 
-    const second = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const second = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(second.ok).toBe(true);
     if (!second.ok) return;
 
-    expect(isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toMatchObject({
+    expect(await isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toMatchObject({
       installed: true,
     });
   });
 
-  it("removes a legacy poracode-status.mjs left behind by an older install", () => {
+  it("removes a legacy poracode-status.mjs left behind by an older install", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
@@ -262,13 +262,13 @@ describe("installOpenCodePlugin", () => {
     mkdirSync(dirname(legacyPath), { recursive: true });
     writeFileSync(legacyPath, "// stale legacy plugin\n");
 
-    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const result = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(result.ok).toBe(true);
 
     expect(existsSync(legacyPath)).toBe(false);
   });
 
-  it("removes a legacy lightcode-status.js left behind by the old brand", () => {
+  it("removes a legacy lightcode-status.js left behind by the old brand", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
@@ -277,46 +277,50 @@ describe("installOpenCodePlugin", () => {
     mkdirSync(dirname(legacyPath), { recursive: true });
     writeFileSync(legacyPath, "// stale legacy plugin\n");
 
-    expect(installOpenCodePlugin({ envKind: "posix", baseDir }).ok).toBe(true);
+    expect((await installOpenCodePlugin({ envKind: "posix", baseDir })).ok).toBe(true);
     expect(existsSync(legacyPath)).toBe(false);
   });
 
-  it("treats a hand-edited drop as not-installed", () => {
+  it("treats a hand-edited drop as not-installed", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
 
-    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const result = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
     writeFileSync(result.paths.opencodePluginFile, "// hand edit\n");
 
-    expect(isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toEqual({ installed: false });
+    expect(await isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toEqual({
+      installed: false,
+    });
   });
 
-  it("treats a missing dropped manifest as not-installed", () => {
+  it("treats a missing dropped manifest as not-installed", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
 
-    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const result = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
     unlinkSync(join(opencodeDir, "plugins", "poracode-status.plugin.json"));
 
-    expect(isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toEqual({ installed: false });
+    expect(await isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toEqual({
+      installed: false,
+    });
   });
 });
 
 describe("uninstallOpenCodePlugin", () => {
-  it("removes dropped files, staging dir, and the opencode.json entry", () => {
+  it("removes dropped files, staging dir, and the opencode.json entry", async () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
 
-    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    const result = await installOpenCodePlugin({ envKind: "posix", baseDir });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -335,7 +339,7 @@ describe("uninstallOpenCodePlugin", () => {
       "utf8",
     );
 
-    uninstallOpenCodePlugin({ envKind: "posix", baseDir });
+    await uninstallOpenCodePlugin({ envKind: "posix", baseDir });
 
     expect(existsSync(result.paths.opencodePluginFile)).toBe(false);
     expect(existsSync(join(opencodeDir, "plugins", "poracode-status.plugin.json"))).toBe(false);

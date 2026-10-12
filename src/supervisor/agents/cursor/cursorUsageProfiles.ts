@@ -1,6 +1,18 @@
 import { collectCursorFromApiKey, type HostPort, type UsageSnapshot } from "@poracode/agents-usage";
 import { cursorProfileKind } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
+import type { UsageProfileSource } from "../../runtime/usageProfileTypes";
+
+export function createCursorUsageProfileSource(settings: SharedSettings): UsageProfileSource {
+  const profiles = readCursorUsageProfiles(settings);
+  const baseProfile = readCursorSdkUsageProfile(settings);
+  return {
+    collectors: [...profiles.values(), ...(baseProfile ? [baseProfile] : [])].map((profile) => ({
+      providerId: profile.providerId,
+      collect: (host) => collectCursorProfile(profile, host),
+    })),
+  };
+}
 
 /**
  * Cursor profiles cannot isolate `cursor-agent login`, so each profile's usage

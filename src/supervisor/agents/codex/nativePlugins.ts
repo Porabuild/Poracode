@@ -53,7 +53,7 @@ export async function listNativeCodexPlugins(
   ctx: AgentEnvContext,
   profile?: CodexPluginDiscoveryHome,
 ): Promise<readonly AgentNativePlugin[]> {
-  const paths = getCodexPluginPaths(ctx, profile?.overlay);
+  const paths = await getCodexPluginPaths(ctx, profile?.overlay);
   if (ctx.envKind === "wsl" && ctx.wslDistro) {
     const homePrefix = profile
       ? `export CODEX_HOME=${quotePosixShellArg(profile.homeDir)}; `

@@ -11,7 +11,7 @@ import type {
   StructuredSessionUpdate,
 } from "../base";
 import { cursorSdkAgentId, CursorSdkSession } from "./sdkSession";
-import { CursorSdkWorkerRpcError } from "./sdkWorkerClient";
+import { CursorSdkWorkerRpcError, CursorSdkWorkerStartupError } from "./sdkWorkerClient";
 import type {
   CursorSdkWorkerAgentMessage,
   CursorSdkWorkerEvent,
@@ -1277,6 +1277,94 @@ describe("CursorSdkSession", () => {
       state: "cancelled",
     });
     expect(recorded.updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+  });
+
+  it("shares disposal completion and retries the owned worker after failed shutdown", async () => {
+    const { session, worker } = await createSession();
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    const cleanup = deferred<void>();
+    worker.dispose.mockReturnValueOnce(cleanup.promise);
+    const first = session.dispose();
+    expect(session.dispose()).toBe(first);
+    expect(recorded.closes).toBe(0);
+    cleanup.reject(new Error("Still alive"));
+    await expect(first).rejects.toThrow("Cursor SDK session shutdown failed");
+    expect(recorded.closes).toBe(0);
+    await session.dispose();
+    expect(worker.dispose).toHaveBeenCalledTimes(2);
+    expect(recorded.closes).toBe(1);
+  });
+
+  it("retains failed replacement cleanup until disposal confirms its exit", async () => {
+    const originalWorker = new FakeWorker();
+    const candidate = new FakeWorker();
+    candidate.initialize.mockRejectedValue(new Error("Initialization failed"));
+    candidate.dispose.mockRejectedValue(new Error("Candidate still alive"));
+    const { session } = await createSessionWithWorkers([originalWorker, candidate]);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+    await session.startTurn("change safety", { ...baseConfig, sandboxMode: "danger-full-access" });
+    await expect(session.dispose()).rejects.toThrow("Cursor SDK session shutdown failed");
+    expect(recorded.closes).toBe(0);
+    candidate.dispose.mockResolvedValue(undefined);
+    await session.dispose();
+    expect(originalWorker.dispose).toHaveBeenCalledTimes(1);
+    expect(candidate.dispose).toHaveBeenCalledTimes(3);
+    expect(recorded.closes).toBe(1);
+  });
+
+  it.each(["initial", "replacement"])(
+    "retains a failed %s worker boot until shutdown can be confirmed",
+    async (phase) => {
+      const { session, spawnWorker, worker } = await createSession();
+      const recorded = recordingListener();
+      session.setListener(recorded.listener);
+      if (phase === "replacement") {
+        await session.activate();
+        await session.openThread(baseConfig);
+      }
+      const failedWorker = new FakeWorker();
+      const cleanupError = new Error("Boot worker still alive");
+      failedWorker.dispose.mockRejectedValue(cleanupError);
+      const startupError = new CursorSdkWorkerStartupError(
+        new Error("Worker boot failed"),
+        cleanupError,
+        failedWorker,
+      );
+      spawnWorker.mockRejectedValueOnce(startupError);
+      const startup =
+        phase === "initial"
+          ? session.activate()
+          : session.startTurn("change safety", {
+              ...baseConfig,
+              sandboxMode: "danger-full-access",
+            });
+      const outcome = await startup.catch((error: unknown) => error);
+      expect(outcome).toBe(phase === "initial" ? startupError : undefined);
+      await expect(session.dispose()).rejects.toThrow("Cursor SDK session shutdown failed");
+      expect(recorded.closes).toBe(0);
+      failedWorker.dispose.mockResolvedValue(undefined);
+      await session.dispose();
+      expect(failedWorker.dispose).toHaveBeenCalledTimes(2);
+      expect(worker.dispose).toHaveBeenCalledTimes(phase === "replacement" ? 1 : 0);
+      expect(recorded.closes).toBe(1);
+    },
+  );
+
+  it("starts worker disposal even if the run cancel RPC never acknowledges", async () => {
+    const { session, worker } = await createSession();
+    await session.activate();
+    await session.openThread(baseConfig);
+    const turn = session.startTurn("long task", baseConfig);
+    await vi.waitFor(() => expect(worker.start).toHaveBeenCalledOnce());
+    worker.cancel.mockReturnValue(new Promise(() => {}));
+    await session.dispose();
+    await turn;
+    expect(worker.dispose).toHaveBeenCalledTimes(1);
   });
 
   it("disposes an active run without leaking late events", async () => {

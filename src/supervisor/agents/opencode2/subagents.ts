@@ -14,10 +14,10 @@ import {
 interface ChildSession {
   state: OpenCode2MapperState;
   parentTool?: OpenCode2ToolItemState;
-  /** Stable rows seen across every continuation of this native session. */
-  itemIds: Set<string>;
-  /** New rows attached to the current parent invocation. */
-  stepCount: number;
+  /** Out-of-step operations can reannounce stable rows across continuations. */
+  operationIds: Set<string>;
+  /** Recovery can relink older invocations before returning to the active one. */
+  stepCounts: WeakMap<OpenCode2ToolItemState, number>;
   pending: V2Event[];
 }
 
@@ -78,7 +78,7 @@ export class OpenCode2Subagents {
     if (!child) {
       const state = createOpenCode2MapperState(this.root.threadId);
       setOpenCode2SessionId(state, sessionID, { fresh: true });
-      child = { state, pending: [], itemIds: new Set(), stepCount: 0 };
+      child = { state, pending: [], operationIds: new Set(), stepCounts: new WeakMap() };
       this.children.set(sessionID, child);
     }
     return child;
@@ -96,7 +96,6 @@ export class OpenCode2Subagents {
     const tool = parent.messages.get(event.data.assistantMessageID)?.tools.get(event.data.id);
     if (!tool || !["task", "subagent"].includes(tool.name.toLowerCase())) return [];
     const child = this.ensure(childID);
-    if (child.parentTool && child.parentTool.itemId !== tool.itemId) child.stepCount = 0;
     child.parentTool = tool;
     const pending = child.pending;
     child.pending = [];
@@ -105,12 +104,22 @@ export class OpenCode2Subagents {
 
   private mapChild(child: ChildSession, event: V2Event): RuntimeEvent[] {
     const events = this.tag(mapOpenCode2Event(event, child.state), child.parentTool!.itemId);
-    // Native operation replays can reannounce a stable canonical row.
+    const parent = child.parentTool!;
+    let stepCount = child.stepCounts.get(parent) ?? 0;
+    const operation =
+      event.type === "session.skill.activated" ||
+      event.type === "session.shell.started" ||
+      event.type === "session.shell.ended";
+    // Ordinary starts are fenced by the mapper's announcement/completion state.
     for (const entry of events) {
-      if (entry.type !== "item.started" || child.itemIds.has(entry.itemId)) continue;
-      child.itemIds.add(entry.itemId);
-      child.stepCount += 1;
+      if (entry.type !== "item.started") continue;
+      if (operation) {
+        if (child.operationIds.has(entry.itemId)) continue;
+        child.operationIds.add(entry.itemId);
+      }
+      stepCount += 1;
     }
+    child.stepCounts.set(parent, stepCount);
     // Child rows are gated while their panel is closed. Publish the count on
     // the parent tool as well so the main transcript still sees live progress.
     events.push(...this.updateProgress(child));
@@ -119,8 +128,9 @@ export class OpenCode2Subagents {
 
   private updateProgress(child: ChildSession): RuntimeEvent[] {
     const parent = child.parentTool;
-    const stepCount = child.stepCount;
-    if (!parent || stepCount <= (readNonNegativeInteger(parent.progress.stepCount) ?? 0)) return [];
+    if (!parent) return [];
+    const stepCount = child.stepCounts.get(parent) ?? 0;
+    if (stepCount <= (readNonNegativeInteger(parent.progress.stepCount) ?? 0)) return [];
     parent.progress = { ...parent.progress, stepCount };
     return [
       {

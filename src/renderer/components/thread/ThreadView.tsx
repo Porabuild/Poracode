@@ -16,6 +16,7 @@ import { localizeCatalogMessage } from "@/shared/messages";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
@@ -28,6 +29,9 @@ import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 import { ThreadToolRail } from "./ThreadToolRail";
+import { PaneDragHandle } from "./PaneDragAndDrop";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { ThinkingAnimationVisibility } from "@/renderer/thinkingAnimator";
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix
@@ -83,7 +87,9 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.pendingLaunchMentionHandoff === next.pendingLaunchMentionHandoff &&
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
+    prev.chatOnly === next.chatOnly &&
     prev.paneAlign === next.paneAlign &&
+    prev.hidden === next.hidden &&
     prev.isDragging === next.isDragging &&
     prev.dropIndicator === next.dropIndicator &&
     prev.paneCount === next.paneCount &&
@@ -113,8 +119,12 @@ export type ThreadViewProps = {
   pendingLaunchMentionHandoff?: true;
   isWsl?: boolean;
   showCloseButton?: boolean;
+  /** Embedded chat clients supply their own selector header and omit workspace tools. */
+  chatOnly?: boolean;
   paneAlign?: "left" | "center" | "right";
   isDragging?: boolean;
+  /** Mounted but hidden for keep-alive. */
+  hidden?: boolean;
   dropIndicator?:
     | false
     | "replace"
@@ -158,6 +168,7 @@ export type ThreadViewProps = {
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
+  const compactLayout = useCompactLayout();
   const {
     thread,
     agentStatus,
@@ -172,6 +183,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     showCloseButton,
     paneAlign = "center",
     isDragging,
+    hidden = false,
     dropIndicator,
     paneIndex: _paneIndex,
     paneCount = 1,
@@ -304,6 +316,10 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
       });
     })()
       .catch((error) => {
+        // Uncertain: the launch may have committed. The launch action already
+        // reconciled once and explained it, so keep the launch key set (never
+        // re-drive the same start) and paint no definite failure.
+        if (isRemoteCommandOutcomeUncertainError(error)) return;
         launchRequestRef.current = null;
         onLaunchFailed?.(formatLaunchError(error, t`Thread failed to start.`));
       })
@@ -328,18 +344,17 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
 
   const alignClass =
     paneAlign === "right" ? "ml-auto" : paneAlign === "left" ? "mr-auto" : "mx-auto";
-  // A lone pane cannot be reordered, so its header stays a window drag region.
-  const paneDraggable = paneCount > 1;
   const paddingClass = "px-2";
-  const contentShellClass = `${alignClass} relative flex min-h-0 w-full max-w-[1040px] flex-1 flex-col ${paddingClass} px-3 pb-2`;
+  const contentShellClass = `m-thread-content ${alignClass} relative flex min-h-0 w-full max-w-[1040px] flex-1 flex-col ${paddingClass} px-3 pb-2`;
   const contentBodyClass = `${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col pt-2`;
 
   return (
-    <>
+    <ThinkingAnimationVisibility value={!hidden}>
       <div
         ref={droppableRef}
         data-poracode-thread-pane=""
-        className={`group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
+        data-poracode-pane-hidden={hidden || undefined}
+        className={`${usesTerminalPresentation ? "m-thread m-thread--terminal" : "m-thread"} group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
       >
         {dropIndicator === "replace" && (
           <div
@@ -373,25 +388,27 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         )}
 
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
-        <div className={`px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}>
+        {props.chatOnly ? null : (
           <div
-            className={`${paneDraggable ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+            data-poracode-thread-header=""
+            data-compact={compactLayout || undefined}
+            className={`poracode-thread-pane-header px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
           >
-            <ThreadHeaderStatusButton
-              threadId={thread.id}
-              fallbackThread={thread}
-              fallbackAgentKind={thread.agentKind}
-              agentLabel={agentStatus?.label}
-              agentIcon={agentStatus?.icon}
-            />
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              {/* The drag handle wraps only the title. dnd-kit exposes the
-                  handle as a (possibly disabled) button, so it must not
-                  contain other controls or the pane content. */}
-              <div
-                ref={dragHandleRef}
-                className={`flex min-w-0 flex-1 items-center ${paneDraggable ? "cursor-grab active:cursor-grabbing" : ""}`}
-              >
+            <div
+              className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+            >
+              <ThreadHeaderStatusButton
+                threadId={thread.id}
+                fallbackThread={thread}
+                fallbackAgentKind={thread.agentKind}
+                agentLabel={agentStatus?.label}
+                agentIcon={agentStatus?.icon}
+              />
+              {/* The drag handle is a dedicated element (see PaneDragHandle):
+                dnd-kit brands its activator element and never un-brands it, so
+                the persistent title strip must never be the activator. */}
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                {dragHandleRef ? <PaneDragHandle handleRef={dragHandleRef} /> : null}
                 <Tooltip
                   delay={500}
                   isOpen={isTitleTooltipOpen}
@@ -406,7 +423,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     }
                   }}
                 >
-                  <Tooltip.Trigger className="min-w-0 flex-1" tabIndex={-1} role="none">
+                  <Tooltip.Trigger
+                    className="poracode-thread-pane-title min-w-0 flex-1"
+                    tabIndex={-1}
+                    role="none"
+                  >
                     <span
                       ref={titleRef}
                       className="block truncate text-sm font-medium leading-tight text-foreground @max-[560px]:text-xs @max-[360px]:text-[11px]"
@@ -418,104 +439,106 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     {thread.title}
                   </Tooltip.Content>
                 </Tooltip>
-              </div>
-              <div className="flex shrink-0 items-center">
-                {projectName ? (
-                  <span className="px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
-                    {projectName}
-                  </span>
-                ) : null}
-                {isWsl ? <TuxIcon className="h-3 w-auto shrink-0 px-1 text-muted/60" /> : null}
-                {/* No `sessionRef` gate — see "continue-in" in ThreadContextMenu:
+                <div className="flex shrink-0 items-center">
+                  {projectName ? (
+                    <span className="poracode-thread-pane-project px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
+                      {projectName}
+                    </span>
+                  ) : null}
+                  {isWsl ? <TuxIcon className="h-3 w-auto shrink-0 px-1 text-muted/60" /> : null}
+                  {/* No `sessionRef` gate — see "continue-in" in ThreadContextMenu:
                     no session is exactly when the transcript fallback matters. */}
-                {onContinueInProvider &&
-                installedAgents &&
-                installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0 ? (
-                  <Tooltip delay={0}>
-                    <Tooltip.Trigger>
-                      <button
-                        type="button"
-                        aria-label={t`Continue in another provider`}
-                        className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setContinueDialogOpen(true);
-                        }}
-                      >
-                        <ArrowRightLeft className="size-3.5" />
-                      </button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>
-                      <Trans>Continue in another provider</Trans>
-                    </Tooltip.Content>
-                  </Tooltip>
-                ) : null}
-                {import.meta.env.DEV && !usesTerminalPresentation ? (
-                  <Tooltip delay={0}>
-                    <Tooltip.Trigger>
-                      <button
-                        type="button"
-                        aria-label={
-                          runtimeDebugOpen
-                            ? t`Hide runtime debug panel`
-                            : t`Show runtime debug panel`
-                        }
-                        aria-pressed={runtimeDebugOpen}
-                        className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${runtimeDebugOpen ? "text-foreground" : "text-muted/60 hover:text-foreground"}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRuntimeDebugOpen((o) => !o);
-                        }}
-                      >
-                        <Bug className="size-3.5" />
-                      </button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>
-                      {runtimeDebugOpen ? (
-                        <Trans>Hide canonical runtime item inspector</Trans>
-                      ) : (
-                        <Trans>Inspect canonical runtime items</Trans>
-                      )}
-                    </Tooltip.Content>
-                  </Tooltip>
-                ) : null}
-                {onMarkDone ? (
-                  <button
-                    type="button"
-                    aria-label={thread.done ? t`Unmark done` : t`Mark done`}
-                    className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${thread.done ? "text-[oklch(0.78_0.1_180)]" : "text-muted/60 hover:text-foreground"}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMarkDone();
-                    }}
-                  >
-                    <CircleCheck className="size-3.5" />
-                  </button>
-                ) : null}
-                {awaitingWorktree ? null : (
-                  <ThreadToolRail
-                    projectId={thread.projectId}
-                    paneCount={paneCount}
-                    {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-                  />
-                )}
-                {showCloseButton ? (
-                  <button
-                    type="button"
-                    aria-label={t`Close pane`}
-                    className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClose?.();
-                    }}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                ) : null}
+                  {onContinueInProvider &&
+                  installedAgents &&
+                  installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0 ? (
+                    <Tooltip delay={0}>
+                      <Tooltip.Trigger>
+                        <button
+                          type="button"
+                          aria-label={t`Continue in another provider`}
+                          className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setContinueDialogOpen(true);
+                          }}
+                        >
+                          <ArrowRightLeft className="size-3.5" />
+                        </button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        <Trans>Continue in another provider</Trans>
+                      </Tooltip.Content>
+                    </Tooltip>
+                  ) : null}
+                  {import.meta.env.DEV && !usesTerminalPresentation ? (
+                    <Tooltip delay={0}>
+                      <Tooltip.Trigger>
+                        <button
+                          type="button"
+                          data-poracode-thread-debug=""
+                          aria-label={
+                            runtimeDebugOpen
+                              ? t`Hide runtime debug panel`
+                              : t`Show runtime debug panel`
+                          }
+                          aria-pressed={runtimeDebugOpen}
+                          className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${runtimeDebugOpen ? "text-foreground" : "text-muted/60 hover:text-foreground"}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRuntimeDebugOpen((o) => !o);
+                          }}
+                        >
+                          <Bug className="size-3.5" />
+                        </button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        {runtimeDebugOpen ? (
+                          <Trans>Hide canonical runtime item inspector</Trans>
+                        ) : (
+                          <Trans>Inspect canonical runtime items</Trans>
+                        )}
+                      </Tooltip.Content>
+                    </Tooltip>
+                  ) : null}
+                  {onMarkDone ? (
+                    <button
+                      type="button"
+                      aria-label={thread.done ? t`Unmark done` : t`Mark done`}
+                      className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${thread.done ? "text-[oklch(0.78_0.1_180)]" : "text-muted/60 hover:text-foreground"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkDone();
+                      }}
+                    >
+                      <CircleCheck className="size-3.5" />
+                    </button>
+                  ) : null}
+                  {awaitingWorktree ? null : (
+                    <ThreadToolRail
+                      projectId={thread.projectId}
+                      paneCount={paneCount}
+                      {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                    />
+                  )}
+                  {showCloseButton ? (
+                    <button
+                      type="button"
+                      data-poracode-thread-close=""
+                      aria-label={t`Close pane`}
+                      className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClose?.();
+                      }}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className={contentShellClass}>
           <div className={contentBodyClass}>
@@ -528,6 +551,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 onTerminalResize={setTerminalSize}
+                hidden={hidden}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(remoteTerminalTransport ? { remoteTerminalTransport } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
@@ -542,6 +566,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 runtimeDebugOpen={import.meta.env.DEV && runtimeDebugOpen}
+                {...(props.chatOnly ? { submitOnEnter: true } : {})}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(onOpenProjectRelativePath ? { onOpenProjectRelativePath } : {})}
                 {...(checkpointActions ? { checkpointActions } : {})}
@@ -590,6 +615,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           }}
         />
       ) : null}
-    </>
+    </ThinkingAnimationVisibility>
   );
 }, areThreadViewPropsEqual);

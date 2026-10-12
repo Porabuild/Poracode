@@ -40,6 +40,8 @@ export function TerminalSurfaces(props: {
   updateTabTitle: (tabId: string, title: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
   watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
+  mobile?: boolean;
+  allowSplit?: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -95,7 +97,9 @@ export function TerminalSurfaces(props: {
       settledFrame = requestAnimationFrame(() => {
         if (requestId !== latestFocusRequestRef.current) return;
         if (!activeTab?.mainExited) terminalRefs.current.get(selectedTabId)?.refit();
-        if (activeTab?.splitId) terminalRefs.current.get(activeTab.splitId)?.refit();
+        if (activeTab?.splitId && (props.allowSplit !== false || activeTab.mainExited)) {
+          terminalRefs.current.get(activeTab.splitId)?.refit();
+        }
         const focusId = activeTab?.mainExited ? activeTab.splitId : selectedTabId;
         if (focusId) terminalRefs.current.get(focusId)?.focus();
       });
@@ -105,7 +109,14 @@ export function TerminalSurfaces(props: {
       if (frame !== 0) cancelAnimationFrame(frame);
       if (settledFrame !== 0) cancelAnimationFrame(settledFrame);
     };
-  }, [activeTab?.mainExited, activeTab?.splitId, activeTabId, focusRequestId, selectedTabId]);
+  }, [
+    activeTab?.mainExited,
+    activeTab?.splitId,
+    activeTabId,
+    focusRequestId,
+    props.allowSplit,
+    selectedTabId,
+  ]);
 
   function handleResizeStart(e: React.MouseEvent) {
     e.preventDefault();
@@ -156,19 +167,32 @@ export function TerminalSurfaces(props: {
     setSplitPercent(clamped);
   }
 
-  function surfaceProps(tab: DevTerminalTab) {
+  function surfaceProps(terminalId: string, runActionId?: string) {
+    const mobileProps = props.mobile
+      ? {
+          preferDomRenderer: true,
+          resizeTerminalOnFit: true,
+          suppressTouchKeyboard: true,
+          themeBackgroundVar: "--background",
+          touchScrollEnabled: true,
+        }
+      : {};
     if (watchTerminal) {
       return {
-        outputSource: (listener: TerminalFeedListener) => watchTerminal(tab.id, listener),
-        initialScrollback: tab.runActionId
-          ? useThreadOutputStore.getState().readTail(tab.id, 100_000)
+        outputSource: (listener: TerminalFeedListener) => watchTerminal(terminalId, listener),
+        initialScrollback: runActionId
+          ? useThreadOutputStore.getState().readTail(terminalId, 100_000)
           : "",
         preferDomRenderer: true,
+        ...mobileProps,
       };
     }
-    return tab.runActionId
-      ? { initialScrollback: useThreadOutputStore.getState().readTail(tab.id, 100_000) }
-      : {};
+    return {
+      ...(runActionId
+        ? { initialScrollback: useThreadOutputStore.getState().readTail(terminalId, 100_000) }
+        : {}),
+      ...mobileProps,
+    };
   }
 
   function handleResizeKeyDown(e: React.KeyboardEvent) {
@@ -194,9 +218,9 @@ export function TerminalSurfaces(props: {
     }
   }
 
-  if (activeTab?.splitId) {
-    // An exited main shell keeps its surface mounted but hidden, so the split
-    // can take the full width without remounting and losing its screen.
+  if (activeTab?.splitId && (props.allowSplit !== false || activeTab.mainExited)) {
+    // Keep the exited main mounted but hidden so the surviving split keeps its screen.
+    // Compact layout also displays that survivor, without offering a split control.
     const mainHidden = activeTab.mainExited ? "hidden" : "";
     return (
       <div ref={containerRef} className="flex h-full min-h-0 w-full">
@@ -220,7 +244,7 @@ export function TerminalSurfaces(props: {
                 onActivity={() => markTabActive(tab.id)}
                 onBell={() => markTabActive(tab.id)}
                 onTitleChange={(title) => updateTabTitle(tab.id, title)}
-                {...surfaceProps(tab)}
+                {...surfaceProps(tab.id, tab.runActionId)}
                 {...(onTerminalResize
                   ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
                   : {})}
@@ -258,14 +282,7 @@ export function TerminalSurfaces(props: {
                   onActivity={() => markTabActive(tab.id)}
                   onBell={() => markTabActive(tab.id)}
                   onTitleChange={(title) => updateTabTitle(tab.splitId!, title)}
-                  {...(watchTerminal
-                    ? {
-                        outputSource: (listener: TerminalFeedListener) =>
-                          watchTerminal(tab.splitId!, listener),
-                        initialScrollback: "",
-                        preferDomRenderer: true,
-                      }
-                    : {})}
+                  {...surfaceProps(tab.splitId!)}
                   {...(onTerminalResize
                     ? { onTerminalResize: (size) => onTerminalResize(tab.splitId!, size) }
                     : {})}
@@ -300,7 +317,7 @@ export function TerminalSurfaces(props: {
             onActivity={() => markTabActive(tab.id)}
             onBell={() => markTabActive(tab.id)}
             onTitleChange={(title) => updateTabTitle(tab.id, title)}
-            {...surfaceProps(tab)}
+            {...surfaceProps(tab.id, tab.runActionId)}
             {...(onTerminalResize
               ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
               : {})}

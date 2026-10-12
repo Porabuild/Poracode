@@ -728,21 +728,21 @@ describe("SingleAgentSettings", () => {
 
   it("shows the concise login command while executing its platform wrapper", () => {
     statusesState.agentStatuses = [
-      makeStatus("muse", {
-        label: "Muse Code",
+      makeStatus("grok", {
+        label: "Grok Build",
         authState: "missing",
-        loginCommand: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'muse login'",
-        loginCommandDisplay: "muse login",
+        loginCommand: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'grok login'",
+        loginCommandDisplay: "grok login",
       }),
     ];
 
-    render(<SingleAgentSettings agentKind="muse" />);
+    render(<SingleAgentSettings agentKind="grok" />);
 
-    expect(screen.getByText("Run muse login to sign in.")).toBeInTheDocument();
+    expect(screen.getByText("Run grok login to sign in.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /login/i }));
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
-      label: "Muse Code",
-      command: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'muse login'",
+      label: "Grok Build",
+      command: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'grok login'",
       onCommandComplete: expect.any(Function),
     });
   });
@@ -1391,7 +1391,7 @@ describe("SingleAgentSettings", () => {
     });
   });
 
-  it("offers Muse's WSL-backed installer for a native Windows environment", () => {
+  it("offers Muse's native PowerShell installer for a native Windows environment", () => {
     appState.projects = [
       makeProject({
         id: "windows-project",
@@ -1433,7 +1433,9 @@ describe("SingleAgentSettings", () => {
     const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
       | { command: (project: Project) => string }
       | undefined;
-    expect(installInput?.command(appState.projects[0]!)).toContain("wsl.exe --exec bash -lc");
+    expect(installInput?.command(appState.projects[0]!)).toContain(
+      "irm https://dev.meta.ai/install.ps1 | iex",
+    );
   });
 
   it("shows a WSL install row when Grok is only installed on Windows", async () => {

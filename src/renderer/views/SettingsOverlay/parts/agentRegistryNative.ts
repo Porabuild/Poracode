@@ -1,5 +1,9 @@
 import type { ComponentType, ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
+import {
+  DevinAgentSettingsPanel,
+  devinProfileSupport,
+} from "@/renderer/components/providers/devin/profileSettings";
 import type { MessageDescriptor } from "@lingui/core";
 import type {
   AgentInstanceConfig,
@@ -10,12 +14,18 @@ import type {
   Project,
 } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
-import { ClaudeAgentSettingsPanel, claudeProfileSupport } from "./ClaudeProfileSettings";
-import { CodexAgentSettingsPanel, codexProfileSupport } from "./CodexProfileSettings";
+import {
+  ClaudeAgentSettingsPanel,
+  claudeProfileSupport,
+} from "../../../components/providers/settings/ClaudeProfileSettings";
+import {
+  CodexAgentSettingsPanel,
+  codexProfileSupport,
+} from "@/renderer/components/providers/codex/profileSettings";
 import { cursorProfileSupport } from "./CursorProfileSettings";
-import { CursorProviderSettings } from "./CursorProviderSettings";
-import { OpenCode2ProviderSettings } from "./OpenCode2ProviderSettings";
-import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
+import { CursorProviderSettings } from "../../../components/providers/settings/CursorProviderSettings";
+import { OpenCode2ProviderSettings } from "../../../components/providers/settings/OpenCode2ProviderSettings";
+import { OpenCodeProviderSettings } from "../../../components/providers/settings/OpenCodeProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 import { antigravityCliInstallCommand, antigravityRuntimeSlots } from "./antigravityRuntimeInstall";
@@ -319,14 +329,13 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     id: "muse",
     description: msg`First-class Muse Code integration using Poracode's native terminal and GUI runtimes.`,
     docsUrl: "https://dev.meta.ai/docs/muse-code",
-    // Muse Code has no native Windows build. On Windows, install it in the
-    // default WSL distro; launches use the adapter's matching WSL fallback.
+    // Muse Code ships a native Windows build via the official PowerShell installer.
     installCommand: (project) =>
       posixOrWindows(
         project,
         "if command -v curl >/dev/null 2>&1; then curl -fsSL https://dev.meta.ai/install.sh | bash; " +
           "else printf 'curl is required to install Muse Code. Install curl, then refresh detected agents.\\n'; fi",
-        'wsl.exe --exec bash -lc "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi"',
+        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://dev.meta.ai/install.ps1 | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
       ),
   },
   {
@@ -437,6 +446,20 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "; fi",
         "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://qoder.com/install.ps1 | iex } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @qoder-ai/qodercli@latest } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod or Node.js/npm first, then refresh detected agents.' }",
       ),
+  },
+  {
+    id: "devin",
+    settingsPanel: DevinAgentSettingsPanel,
+    profiles: devinProfileSupport,
+    description: msg`Devin CLI with terminal and structured chat support.`,
+    docsUrl: "https://docs.devin.ai/cli",
+    installCommand: (project) =>
+      nativeInstallCommand(project, {
+        mac: "if command -v brew >/dev/null 2>&1; then brew install --cask devin-cli; else curl -fsSL https://cli.devin.ai/install.sh | bash; fi",
+        posix: "curl -fsSL https://cli.devin.ai/install.sh | bash",
+        windows:
+          "if (Get-Command winget -ErrorAction SilentlyContinue) { winget install --id CognitionAI.DevinCLI } else { irm https://static.devin.ai/cli/setup.ps1 | iex }",
+      }),
   },
   {
     id: "copilot",

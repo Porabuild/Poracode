@@ -1,0 +1,26 @@
+[Unit]
+Description=Poracode standalone server
+Documentation=https://github.com/poracode/poracode
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=poracode
+Group=poracode
+Environment=PORACODE_APP_VERSION=dev
+Environment=PORACODE_BASE_DIR=/var/lib/poracode/profile
+Environment=PORACODE_REMOTE_ACCESS_HOST=127.0.0.1
+Environment=PORACODE_REMOTE_ACCESS_PORT=49152
+EnvironmentFile=-/etc/poracode/server.env
+ExecStart=/usr/bin/node /opt/poracode/current/lib/server.cjs
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=90
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/poracode
+
+[Install]
+WantedBy=multi-user.target

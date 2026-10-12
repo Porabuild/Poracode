@@ -27,6 +27,7 @@ export const PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY = "poracodeParentToolCall
 export const PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY = "poracodeTopLevelToolCall";
 export const PORACODE_ACP_DETACHED_SUBAGENT_META_KEY = "poracodeDetachedSubAgent";
 export const PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY = "poracodeDetachedSubAgentActivity";
+/** `true` closes all content; `"owner"` closes only this chunk's content owner. */
 export const PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY = "poracodeNewAssistantItem";
 export const PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY = "poracodeSynthesizeSubAgentResult";
 export const PORACODE_ACP_SUBAGENT_PROGRESS_META_KEY = "poracodeSubAgentProgress";

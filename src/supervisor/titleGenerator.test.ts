@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { AgentAdapter } from "./agents/base";
 
@@ -16,7 +16,6 @@ const prepareOneShotMock = vi.hoisted(() =>
 const resolveAgentProjectLocationMock = vi.hoisted(() =>
   vi.fn<
     (
-      _adapter: AgentAdapter,
       location: ProjectLocation,
       _environment?: unknown,
       signal?: AbortSignal,
@@ -33,6 +32,7 @@ vi.mock("./agents/base", async (importOriginal) => ({
 }));
 
 import { generateTitle } from "./titleGenerator";
+import { MockAgentLaunchBlockedError } from "./agentLaunchGuard";
 
 const windowsProject: ProjectLocation = { kind: "windows", path: "C:\\Users\\demo\\project" };
 const baseSpawnEnv = { DROID_DISABLE_AUTO_UPDATE: "true" };
@@ -53,7 +53,7 @@ function cliAdapter(overrides: Partial<AgentAdapter> = {}): AgentAdapter {
 describe("generateTitle CLI spawn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveAgentProjectLocationMock.mockImplementation(async (_adapter, location) => location);
+    resolveAgentProjectLocationMock.mockImplementation(async (location) => location);
     prepareOneShotMock.mockReturnValue({
       spec: { command: "droid", args: ["exec"] },
       spawn: async () => "Fix login timeout",
@@ -72,7 +72,6 @@ describe("generateTitle CLI spawn", () => {
     await generateTitle(windowsProject, cliAdapter(), "the login times out");
 
     expect(resolveAgentProjectLocationMock).toHaveBeenCalledWith(
-      expect.anything(),
       windowsProject,
       undefined,
       expect.any(AbortSignal),
@@ -155,6 +154,117 @@ describe("generateTitle CLI spawn", () => {
       expect.any(String),
       windowsProject,
       undefined,
+      { selection: { model: "" } },
+    );
+  });
+});
+
+describe("title generation mock isolation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("PORACODE_IS_DEV", "1");
+    vi.stubEnv("PORACODE_MOCK_AGENTS", "1");
+    resolveAgentProjectLocationMock.mockImplementation(async (location) => location);
+  });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each(["structured", "cli"] as const)(
+    "refuses %s title generation before dispatch or location resolution",
+    async (lane) => {
+      const runOneShot = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>(
+        async () => "Unexpected real turn",
+      );
+      const buildOneShotCommand = vi.fn<NonNullable<AgentAdapter["buildOneShotCommand"]>>(() => ({
+        command: "fixture-agent",
+        args: [],
+      }));
+      const adapter = {
+        label: "Fixture agent",
+        defaultOneShotModel: "fixture-model",
+        ...(lane === "structured" ? { runOneShot } : { buildOneShotCommand }),
+      } as unknown as AgentAdapter;
+
+      await expect(
+        generateTitle(windowsProject, adapter, "Private message"),
+      ).rejects.toBeInstanceOf(MockAgentLaunchBlockedError);
+
+      expect(runOneShot).not.toHaveBeenCalled();
+      expect(buildOneShotCommand).not.toHaveBeenCalled();
+      expect(resolveAgentProjectLocationMock).not.toHaveBeenCalled();
+      expect(prepareOneShotMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("preserves structured generation outside the mock profile", async () => {
+    vi.stubEnv("PORACODE_MOCK_AGENTS", "0");
+    const runOneShot = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>(async () => "Fixture title");
+    const adapter = {
+      label: "Fixture agent",
+      defaultOneShotModel: "fixture-model",
+      runOneShot,
+    } as unknown as AgentAdapter;
+
+    await expect(generateTitle(windowsProject, adapter, "Title this task")).resolves.toBe(
+      "Fixture title",
+    );
+    expect(runOneShot).toHaveBeenCalledOnce();
+  });
+});
+
+describe("generateTitle selection transport", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolveAgentProjectLocationMock.mockImplementation(async (location) => location);
+    prepareOneShotMock.mockReturnValue({
+      spec: { command: "droid", args: ["exec"] },
+      spawn: async () => "Fix login timeout",
+    });
+  });
+
+  it("passes the full selection into the SDK path and as argument 6 with checked positionals on the CLI path", async () => {
+    const tuple = {
+      model: "model-a",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "default",
+    };
+    const runOneShot = vi
+      .fn<NonNullable<AgentAdapter["runOneShot"]>>()
+      .mockResolvedValue("Fix login timeout");
+    const adapter = cliAdapter({ runOneShot });
+    await generateTitle(windowsProject, adapter, "the login times out", tuple);
+    expect(runOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({ selection: tuple, prompt: expect.any(String) }),
+    );
+
+    const buildOneShotCommand = vi.fn<NonNullable<AgentAdapter["buildOneShotCommand"]>>(
+      (
+        model: string,
+        effort?: string,
+        _prompt?: string,
+        _loc?: ProjectLocation,
+        fast?: boolean,
+      ) => ({
+        command: "droid",
+        args: ["exec", model, effort ?? "", String(fast)],
+      }),
+    );
+    await generateTitle(
+      windowsProject,
+      cliAdapter({ buildOneShotCommand }),
+      "the login times out",
+      tuple,
+    );
+    // Empty effort / false Fast reach the checked positionals exactly.
+    expect(buildOneShotCommand).toHaveBeenCalledWith(
+      "model-a",
+      "",
+      expect.any(String),
+      windowsProject,
+      false,
+      { selection: tuple },
     );
   });
 });

@@ -1,0 +1,5 @@
+{
+  "$comment": "Sanitized live wire capture, devin acp 3000.11.3 (2026-10-07). Unsolicited startup notification, observed 2-3 times with empty params.",
+  "method": "_cognition.ai/mcp/serversChanged",
+  "params": {}
+}

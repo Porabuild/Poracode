@@ -1,5 +1,9 @@
 import { msg } from "@lingui/core/macro";
 import type { AgentStatus } from "@/shared/contracts";
+import {
+  canonicalProviderModelId,
+  normalizeProviderModelConfig,
+} from "@/renderer/components/providers/modelConfig";
 import { i18n } from "@/renderer/i18n/i18n";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 
@@ -18,7 +22,12 @@ export function resolveModelLabel(
   model: string | undefined,
 ): string | undefined {
   if (!model) return undefined;
-  return agent?.capabilities.models?.find((entry) => entry.id === model)?.label ?? model;
+  const modelId = canonicalProviderModelId(
+    agent?.kind ?? "",
+    model,
+    agent?.capabilities.models ?? [],
+  );
+  return agent?.capabilities.models?.find((entry) => entry.id === modelId)?.label ?? modelId;
 }
 
 /**
@@ -30,10 +39,15 @@ export function formatModelConfigLabel(
   agent: AgentStatus | undefined,
   config: ModelConfigLabelInput,
 ): string {
+  const normalized = normalizeProviderModelConfig(
+    agent?.kind ?? "",
+    config,
+    agent?.capabilities.models ?? [],
+  );
   const parts = [
     resolveModelLabel(agent, config.model),
     config.effort ? formatEffortLabel(config.effort) : undefined,
-    config.fast ? i18n._(msg`Fast`) : undefined,
+    normalized.fast ? i18n._(msg`Fast`) : undefined,
   ].filter((value): value is string => !!value);
   return parts.join(" · ");
 }

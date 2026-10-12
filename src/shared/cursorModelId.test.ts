@@ -69,6 +69,31 @@ describe("parseCursorModelId", () => {
     expect(result.effort).toBe("none");
     expect(result.baseId).toBe("gpt-4o");
   });
+
+  it("parses ACP bracket parameters into separate controls", () => {
+    expect(parseCursorModelId("gpt-5.5[context=272k,reasoning=medium,fast=false]")).toEqual({
+      baseId: "gpt-5.5",
+      effort: "medium",
+      contextSize: "272k",
+      fast: false,
+      thinking: false,
+    });
+    expect(
+      parseCursorModelId("claude-opus-4-7[thinking=true,context=300k,effort=xhigh,fast=false]"),
+    ).toEqual({
+      baseId: "claude-opus-4-7",
+      effort: "xhigh",
+      contextSize: "300k",
+      fast: false,
+      thinking: true,
+    });
+    expect(parseCursorModelId("grok-4.6[effort=high,fast=true]")).toEqual({
+      baseId: "grok-4.6",
+      effort: "high",
+      fast: true,
+      thinking: false,
+    });
+  });
 });
 
 describe("migrateCursorBaseId", () => {

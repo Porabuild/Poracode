@@ -4,7 +4,7 @@ const REMOTE_THREAD_APPEAR_DELAY_MS = 250;
 /**
  * `startNewThread` acks before the thread is visible in the server snapshot,
  * so every client polls its refresh path until the thread appears. Shared so
- * the mobile app and the desktop's remote store use one loop with one set of
+ * browser and Electron remote clients use one loop with one set of
  * constants. Resolves false when the thread never showed up.
  */
 export async function waitForRemoteThreadAppearance(options: {

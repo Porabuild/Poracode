@@ -6,8 +6,9 @@ import {
 } from "@/shared/keybindings";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { bindingForPlatform, canonicalizeKeybinding, type PlatformName } from "./keybindingMatcher";
-import { buildCommandRegistry, buildWhenContext } from "./registry";
+import { buildCommandRegistry, buildWhenContext, isCommandAvailable } from "./registry";
 import { evaluateWhenClause } from "./when";
 
 const PLATFORMS: PlatformName[] = ["darwin", "win32", "linux"];
@@ -198,6 +199,63 @@ describe("default keybindings", () => {
       expect(evaluateWhenClause(when, { composerFocus: true })).toBe(false);
       expect(evaluateWhenClause(when, { browserFocus: true })).toBe(false);
     }
+
+    // The markdown preview toggle lives in the editor surface — the source view
+    // (Monaco's hidden textarea reports inputFocus, so editorFocus must win) or
+    // the preview render (focus usually resting on <body>) — but never where a
+    // paste-style chord carries meaning, never for non-markdown files (where the
+    // chord must stay unswallowed), and never while the editor is closed.
+    const previewToggle = bindings["editor.toggle-markdown-preview"]?.when;
+    const previewContext = { editorSurfaceOpen: true, markdownActive: true };
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, editorFocus: true })).toBe(true);
+    expect(evaluateWhenClause(previewToggle, previewContext)).toBe(true);
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, inputFocus: true })).toBe(false);
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, composerFocus: true })).toBe(
+      false,
+    );
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, terminalFocus: true })).toBe(
+      false,
+    );
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, browserFocus: true })).toBe(
+      false,
+    );
+    expect(evaluateWhenClause(previewToggle, { editorSurfaceOpen: true, editorFocus: true })).toBe(
+      false,
+    );
+    expect(evaluateWhenClause(previewToggle, { editorSurfaceOpen: true })).toBe(false);
+    expect(evaluateWhenClause(previewToggle, {})).toBe(false);
+  });
+
+  it("keeps the markdown preview toggle unavailable while the editor surface is closed", () => {
+    // Closing the editor clears overlayMode but leaves activePath behind, so a
+    // bare markdownActive would keep the chord live with no editor visible.
+    useFileEditorStore.setState({
+      rootContext: {
+        projectId: "project-1",
+        projectName: "Poracode",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        rootLabel: "Poracode",
+      },
+      overlayMode: null,
+      tabs: ["README.md"],
+      activePath: "README.md",
+      previewTab: null,
+      markdownPreviewPath: "README.md",
+      buffers: {},
+      refreshToken: 0,
+      pendingReveal: null,
+    });
+
+    const command = buildCommandRegistry().find(
+      (item) => item.id === "editor.toggle-markdown-preview",
+    );
+    const closedContext = buildWhenContext(null);
+    expect(closedContext.markdownActive).toBe(true);
+    expect(closedContext.editorSurfaceOpen).toBe(false);
+    expect(isCommandAvailable(command!, closedContext)).toBe(false);
+
+    useFileEditorStore.setState({ overlayMode: "fullscreen" });
+    expect(isCommandAvailable(command!, buildWhenContext(null))).toBe(true);
   });
 
   it("treats the focused split draft pane as draft context", () => {

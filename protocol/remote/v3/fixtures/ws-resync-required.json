@@ -1,0 +1,5 @@
+{
+  "type": "resync-required",
+  "seq": 7,
+  "reason": "Event replay window expired; request a fresh snapshot."
+}

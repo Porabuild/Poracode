@@ -28,8 +28,8 @@ describe("installCommandCodePlugin (native staging)", () => {
     rmSync(ccDir, { recursive: true, force: true });
   });
 
-  it("stages forward.mjs + runtime + wrapper and merges the three hooks", () => {
-    const result = installCommandCodePlugin(ctx, { globalCommandCodeDirOverride: ccDir });
+  it("stages forward.mjs + runtime + wrapper and merges the three hooks", async () => {
+    const result = await installCommandCodePlugin(ctx, { globalCommandCodeDirOverride: ccDir });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -52,12 +52,12 @@ describe("installCommandCodePlugin (native staging)", () => {
     }
   });
 
-  it("preserves a pre-existing unrelated settings key across install", () => {
+  it("preserves a pre-existing unrelated settings key across install", async () => {
     // Seed the override settings.json with a user key, then install.
-    const result = installCommandCodePlugin(ctx, { globalCommandCodeDirOverride: ccDir });
+    const result = await installCommandCodePlugin(ctx, { globalCommandCodeDirOverride: ccDir });
     expect(result.ok).toBe(true);
     // Re-install on top of the produced doc must remain idempotent (one entry).
-    const second = installCommandCodePlugin(ctx, { globalCommandCodeDirOverride: ccDir });
+    const second = await installCommandCodePlugin(ctx, { globalCommandCodeDirOverride: ccDir });
     expect(second.ok).toBe(true);
     const doc = JSON.parse(readFileSync(join(ccDir, "settings.json"), "utf8")) as {
       hooks: Record<string, unknown[]>;

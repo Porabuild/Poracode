@@ -263,3 +263,35 @@ describe("handleComposerControlShortcut", () => {
   });
 });
 // @vitest-environment node
+
+it("keeps effort and Fast shortcuts on the ordinary carriers beside a paired control", () => {
+  const onFastChange = vi.fn<(value: boolean) => void>();
+  const onEffortChange = vi.fn<(value: string) => void>();
+  const fastToggle: ComposerControl = {
+    kind: "toggle",
+    label: "Fast",
+    isSelected: false,
+    onChange: onFastChange,
+  };
+  const paired: ComposerControl = {
+    kind: "effort-context",
+    efforts: [
+      { id: "low", label: "Low" },
+      { id: "high", label: "High" },
+    ],
+    effortValue: "low",
+    onEffortChange,
+    contextSizes: [],
+    familySelection: { columns: [], effortScope: "shared" },
+  };
+  const input = { controls: [paired, fastToggle], onOpenModelPicker: vi.fn<() => void>() };
+  expect(dispatch(shortcutEvent("t"), input)).toBe(true);
+  expect(onEffortChange).toHaveBeenCalledWith("high");
+  expect(dispatch(shortcutEvent("f", { shiftKey: true }), input)).toBe(true);
+  expect(onFastChange).toHaveBeenCalledExactlyOnceWith(true);
+  fastToggle.disabledReason = "Unavailable";
+  expect(dispatch(shortcutEvent("f", { shiftKey: true }), input)).toBe(false);
+  expect(onFastChange).toHaveBeenCalledTimes(1);
+  paired.isDisabled = true;
+  expect(dispatch(shortcutEvent("t"), input)).toBe(false);
+});

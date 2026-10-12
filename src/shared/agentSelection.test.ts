@@ -105,6 +105,64 @@ describe("agent selection", () => {
     ]);
   });
 
+  it("never carries a root family relation across a presentation override", () => {
+    const withFamilies: AgentCapability = {
+      ...capabilities,
+      modelFamilies: [
+        {
+          model: "terminal-model",
+          label: "Composite",
+          selectors: [
+            {
+              id: "half",
+              labelKey: "modelSelection.lead",
+              options: [{ id: "terminal-model", label: "Terminal" }],
+            },
+          ],
+          bindings: { effort: "model", fast: "model" },
+          members: [
+            {
+              model: "terminal-model",
+              selections: { half: "terminal-model" },
+              effort: "low",
+              fast: false,
+            },
+          ],
+        },
+      ],
+    };
+    // Terminal (no override) keeps the root relation.
+    expect(capabilitiesForPresentation(withFamilies, "terminal").modelFamilies).toHaveLength(1);
+    // An override without its own relation must not inherit the root one.
+    const guiWithout = capabilitiesForPresentation(capabilities, "gui");
+    expect(guiWithout.modelFamilies).toBeUndefined();
+    const split: AgentCapability = {
+      ...withFamilies,
+      presentationCapabilities: {
+        gui: {
+          ...capabilities.presentationCapabilities!.gui!,
+          modelFamilies: [
+            {
+              model: "chat-model",
+              label: "Chat Pair",
+              selectors: [
+                {
+                  id: "half",
+                  labelKey: "modelSelection.lead",
+                  options: [{ id: "chat-model", label: "Chat" }],
+                },
+              ],
+              bindings: { effort: "config", fast: "config" },
+              members: [{ model: "chat-model", selections: { half: "chat-model" } }],
+            },
+          ],
+        },
+      },
+    };
+    const gui = capabilitiesForPresentation(split, "gui");
+    expect(gui.modelFamilies?.map((family) => family.label)).toEqual(["Chat Pair"]);
+  });
+
   it("does not leak terminal visibility defaults into a GUI capability override", () => {
     const splitDefaults: AgentCapability = {
       ...capabilities,

@@ -1,0 +1,17 @@
+{
+  "$comment": "Sanitized live wire capture, devin acp 3000.11.3 (2026-10-07). Home path redacted to a fixture root; field set (incl. order) preserved from the capture.",
+  "request": { "sessionId": "fixture-session" },
+  "response": {
+    "rules": [
+      {
+        "name": "CLAUDE",
+        "path": "/home/fixture/.claude/CLAUDE.md",
+        "provider": "claude",
+        "providerLabel": ".claude",
+        "trigger": "always_on",
+        "userInvocable": false,
+        "scope": "global"
+      }
+    ]
+  }
+}

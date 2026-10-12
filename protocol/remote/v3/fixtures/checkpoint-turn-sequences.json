@@ -1,0 +1,135 @@
+{
+  "projectLocation": { "kind": "posix", "path": "/srv/fixture" },
+  "captures": [
+    {
+      "request": {
+        "threadId": "thread-rich",
+        "checkpointItemId": "rich-user-1",
+        "projectLocation": { "kind": "posix", "path": "/srv/fixture" }
+      },
+      "result": {
+        "checkpoint": {
+          "threadId": "thread-rich",
+          "checkpointItemId": "rich-user-1",
+          "ref": "refs/poracode/rich-user-1",
+          "commit": "1111111",
+          "capturedAt": "2026-08-12T10:01:10.000Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "threadId": "thread-rich",
+        "checkpointItemId": "rich-user-2",
+        "projectLocation": { "kind": "posix", "path": "/srv/fixture" }
+      },
+      "result": {
+        "checkpoint": {
+          "threadId": "thread-rich",
+          "checkpointItemId": "rich-user-2",
+          "ref": "refs/poracode/rich-user-2",
+          "commit": "2222222",
+          "capturedAt": "2026-08-12T10:01:20.000Z"
+        }
+      }
+    }
+  ],
+  "turns": [
+    {
+      "request": {
+        "threadId": "thread-rich",
+        "checkpointItemId": "rich-assistant-1",
+        "baseCheckpointItemId": "rich-user-1",
+        "projectLocation": { "kind": "posix", "path": "/srv/fixture" }
+      },
+      "result": {
+        "checkpoint": {
+          "threadId": "thread-rich",
+          "checkpointItemId": "rich-assistant-1",
+          "ref": "refs/poracode/rich-assistant-1",
+          "commit": "aaaaaaa",
+          "capturedAt": "2026-08-12T10:01:12.000Z",
+          "baseCheckpointItemId": "rich-user-1",
+          "baseRef": "refs/poracode/rich-user-1",
+          "changedFiles": [
+            { "path": "src/new.ts", "status": "added" },
+            { "path": "src/old.ts", "status": "deleted" }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "threadId": "thread-rich",
+        "checkpointItemId": "rich-assistant-2",
+        "baseCheckpointItemId": "rich-user-2",
+        "projectLocation": { "kind": "posix", "path": "/srv/fixture" }
+      },
+      "result": {
+        "checkpoint": {
+          "threadId": "thread-rich",
+          "checkpointItemId": "rich-assistant-2",
+          "ref": "refs/poracode/rich-assistant-2",
+          "commit": "bbbbbbb",
+          "capturedAt": "2026-08-12T10:01:25.000Z",
+          "baseCheckpointItemId": "rich-user-2",
+          "baseRef": "refs/poracode/rich-user-2",
+          "changedFiles": [
+            { "path": "src/renamed.ts", "oldPath": "src/new.ts", "status": "renamed" },
+            { "path": "README.md", "status": "modified" }
+          ]
+        }
+      }
+    }
+  ],
+  "listRequest": {
+    "threadId": "thread-rich",
+    "projectLocation": { "kind": "posix", "path": "/srv/fixture" }
+  },
+  "listResult": {
+    "checkpoints": [
+      {
+        "threadId": "thread-rich",
+        "checkpointItemId": "rich-user-1",
+        "ref": "refs/poracode/rich-user-1",
+        "commit": "1111111",
+        "capturedAt": "2026-08-12T10:01:10.000Z"
+      },
+      {
+        "threadId": "thread-rich",
+        "checkpointItemId": "rich-user-2",
+        "ref": "refs/poracode/rich-user-2",
+        "commit": "2222222",
+        "capturedAt": "2026-08-12T10:01:20.000Z"
+      }
+    ],
+    "turns": [
+      {
+        "threadId": "thread-rich",
+        "checkpointItemId": "rich-assistant-1",
+        "ref": "refs/poracode/rich-assistant-1",
+        "commit": "aaaaaaa",
+        "capturedAt": "2026-08-12T10:01:12.000Z",
+        "baseCheckpointItemId": "rich-user-1",
+        "baseRef": "refs/poracode/rich-user-1",
+        "changedFiles": [
+          { "path": "src/new.ts", "status": "added" },
+          { "path": "src/old.ts", "status": "deleted" }
+        ]
+      },
+      {
+        "threadId": "thread-rich",
+        "checkpointItemId": "rich-assistant-2",
+        "ref": "refs/poracode/rich-assistant-2",
+        "commit": "bbbbbbb",
+        "capturedAt": "2026-08-12T10:01:25.000Z",
+        "baseCheckpointItemId": "rich-user-2",
+        "baseRef": "refs/poracode/rich-user-2",
+        "changedFiles": [
+          { "path": "src/renamed.ts", "oldPath": "src/new.ts", "status": "renamed" },
+          { "path": "README.md", "status": "modified" }
+        ]
+      }
+    ]
+  }
+}

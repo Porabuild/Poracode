@@ -1,9 +1,8 @@
-import { unified } from "unified";
-import remarkParse from "remark-parse";
+import { extractMarkdownGalleryImages } from "./threadGalleryMarkdownImages";
+export { extractMarkdownGalleryImages } from "./threadGalleryMarkdownImages";
+import { GalleryImageReadiness } from "./threadGalleryImageReadiness";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
-import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
-import { resolveMarkdownImageUrl } from "@/shared/markdownLocalImages";
 import {
   fileNameFromPath,
   isImagePath,
@@ -14,20 +13,55 @@ import {
 import { getProjectFsPath } from "@/shared/wsl";
 import { resolveProjectLocation } from "@/shared/worktree";
 import type { RemoteImageRefValue } from "@/shared/remote";
-import { readBridge } from "@/renderer/bridge";
-import { imageUrlMetadata } from "@/renderer/utils/imageUrlMetadata";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  forgetThreadGalleryCache,
+  readThreadGalleryCache,
+  writeThreadGalleryCache,
+  type GalleryCacheRevision,
+} from "@/renderer/state/threadGalleryCache";
+import {
+  getRemoteBridgeImageReadiness,
+  getRemoteBridgeClient,
+  remoteBridgeImageRefUrl,
+  remoteBridgeLocalImageUrl,
+} from "@/renderer/browser/remoteBridge";
+import {
+  readManagedLoopbackImageSession,
+  type ManagedLoopbackImageSession,
+} from "@/renderer/state/managedLoopbackImages";
+import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
 import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
 import { resolveThreadMarkdownImageRoots } from "@/renderer/components/thread/threadMarkdownImageRoots";
-import { imageViewSourceFromImageBlock, resolveImageViewSource } from "./imageViewSource";
+import { imageViewSourceFromImageBlock, resolveImageViewSources } from "./imageViewSource";
 
 /** Renderable thread image for galleries, mosaics, and the fullscreen lightbox. */
 export type ThreadGalleryImage = LightboxImage;
+
+/** One collection pass: the renderable images plus the host-held refs still pending. */
+export interface ThreadGalleryCollection {
+  readonly images: readonly ThreadGalleryImage[];
+  /**
+   * Environment-held references the transcript currently presents as pending
+   * (resolved URL is still empty). Consumers subscribe to these keys through
+   * the existing bounded keyed readiness surface so an already-open gallery or
+   * lightbox picks the image up when its blob lands.
+   */
+  readonly pendingRemoteRefs: readonly RemoteImageRefValue[];
+  /** Remote user-attachment paths awaiting a renderable blob URL. */
+  readonly pendingRemotePaths: readonly string[];
+  /** Ready cache coordinates remain watched even when URLs deduplicate. */
+  readonly readyRemoteRefs: readonly RemoteImageRefValue[];
+  readonly readyRemotePaths: readonly string[];
+}
 
 export interface ThreadGalleryResolvers {
   /** Resolve a user-attachment path (remote desktop image endpoint). */
@@ -36,6 +70,8 @@ export interface ThreadGalleryResolvers {
   remoteImageRefUrl?: ((ref: RemoteImageRefValue) => string) | undefined;
   /** Resolve a `poracode-local://` URL on a remote client. */
   remoteLocalImageUrl?: ((url: string) => string) | undefined;
+  /** Decodes the same host path used by the local-URL resolver for keyed readiness. */
+  localImagePathForUrl?: ((url: string) => string) | undefined;
   /** Project / worktree filesystem root for project-relative markdown images. */
   projectRoot?: string | undefined;
   /** Extra roots for session-media relative images. */
@@ -48,14 +84,18 @@ export interface ThreadGalleryResolvers {
  * before markdown, document tails before heads). Skips sub-agent children
  * (they render in the overlay, not the main transcript) and anything that
  * cannot resolve to a renderable URL on this client (remote refs without a
- * session).
+ * session). Host-held refs whose authenticated blob is still pending are
+ * reported separately (not as images) so the consumer can subscribe to their
+ * readiness keys instead of dropping them until an incidental re-render.
  */
-export function collectThreadGalleryImages(
+export function collectThreadGallery(
   items: readonly RuntimeChatItem[],
   resolvers: ThreadGalleryResolvers = {},
-): ThreadGalleryImage[] {
+): ThreadGalleryCollection {
   const gallery: ThreadGalleryImage[] = [];
+  const readiness = new GalleryImageReadiness();
   const seen = new Set<string>();
+
   const push = (image: ThreadGalleryImage | null | undefined) => {
     if (!image || !image.src) return;
     // One source is one gallery image even when repeated with different alt
@@ -74,8 +114,10 @@ export function collectThreadGalleryImages(
         const att = attachments[j];
         if (!att) continue;
         const mime = att.mimeType ?? mimeForPath(att.path);
+        const src = attachmentImageUrl(att, resolvers.imageUrlForPath);
+        readiness.recordPath(att.path, src);
         push({
-          src: attachmentImageUrl(att, resolvers.imageUrlForPath),
+          src,
           ...(att.name ? { alt: att.name, fileName: att.name } : {}),
           ...(mime ? { mime } : {}),
         });
@@ -87,16 +129,20 @@ export function collectThreadGalleryImages(
         const source = imageViewSourceFromImageBlock(
           blocks[j] as { dataUrl?: unknown; mimeType?: unknown; name?: unknown },
           resolvers.remoteImageRefUrl,
+          { pendingAsPlaceholder: true },
         );
-        if (source)
-          push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+        if (!source) continue;
+        readiness.recordRef(source);
+        push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
       }
       // Pure text deltas intentionally do not invalidate the gallery cache.
       // Collect markdown once the item completes, when its structural version
       // advances and the parsed destination is no longer a streaming tail.
       if (item.state === "completed") {
         const text = assistantDisplayText(item);
-        const markdown = extractMarkdownGalleryImages(text, resolvers);
+        const markdown = extractMarkdownGalleryImages(text, resolvers, (url, src) =>
+          readiness.recordLocalUrl(url, src, resolvers.localImagePathForUrl),
+        );
         for (let j = markdown.length - 1; j >= 0; j--) push(markdown[j]);
       }
     } else if (
@@ -108,15 +154,34 @@ export function collectThreadGalleryImages(
       // An errored tool call renders the generic accordion, never an image
       // card (mirrors `ImageView`'s render decision).
       if (readToolStatus(item.payload) === "error") continue;
-      const source = resolveImageViewSource(
+      const sources = resolveImageViewSources(
         item.payload as ToolCallPayload | undefined,
         resolvers.remoteImageRefUrl,
+        { pendingAsPlaceholder: true },
       );
-      if (source)
+      for (let index = sources.length - 1; index >= 0; index--) {
+        const source = sources[index];
+        if (!source) continue;
+        readiness.recordRef(source);
         push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+      }
     }
   }
-  return gallery;
+  return {
+    images: gallery,
+    readyRemoteRefs: readiness.readyRemoteRefs,
+    readyRemotePaths: readiness.readyRemotePaths,
+    pendingRemoteRefs: readiness.pendingRemoteRefs,
+    pendingRemotePaths: readiness.pendingRemotePaths,
+  };
+}
+
+/** Image-only compatibility wrapper for synchronous click-time collectors. */
+export function collectThreadGalleryImages(
+  items: readonly RuntimeChatItem[],
+  resolvers: ThreadGalleryResolvers = {},
+): readonly ThreadGalleryImage[] {
+  return collectThreadGallery(items, resolvers).images;
 }
 
 /** Mirrors `imageViewSource`'s status check: errored tool calls show the accordion. */
@@ -156,200 +221,6 @@ function resolveAttachmentName(name: unknown, path: string): { name?: string } {
   return resolved ? { name: resolved } : {};
 }
 
-const HTML_IMG_RE = /<img\b[^>]*>/gi;
-const SRC_FROM_HTML_RE = /(?:^|\s)src\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i;
-const ALT_FROM_HTML_RE = /\balt\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i;
-
-interface MarkdownGalleryNode {
-  type: string;
-  url?: string;
-  alt?: string | null;
-  identifier?: string;
-  value?: string;
-  children?: MarkdownGalleryNode[];
-  position?: { start?: { offset?: number } };
-}
-
-const markdownParser = unified().use(remarkParse).freeze();
-
-/**
- * Extract parsed markdown + raw-HTML images from display text, in document
- * order, and resolve them with the same pipeline the chat renderer uses. Code
- * nodes and HTML comments never become candidates. Markdown image nodes
- * targets go through `resolveMarkdownImageUrl` (project/session roots);
- * raw-HTML targets only resolve absolute paths (mirroring the rehype
- * fallback, which has no roots). Anything the transcript sanitizer strips —
- * `data:`/`blob:`/`lightcode-local:` markdown targets, unresolvable relative
- * paths — is skipped so the gallery never shows what the transcript hides.
- */
-export function extractMarkdownGalleryImages(
-  text: string,
-  resolvers: ThreadGalleryResolvers = {},
-): ThreadGalleryImage[] {
-  if (!text || (!text.includes("![") && !text.toLowerCase().includes("<img"))) return [];
-  type Candidate = { index: number; alt: string; rawUrl: string; fromHtml: boolean };
-  const candidates: Candidate[] = [];
-  const tree = markdownParser.parse(text) as MarkdownGalleryNode;
-  const definitions = new Map<string, string>();
-  collectMarkdownDefinitions(tree, definitions);
-  collectMarkdownCandidates(tree, candidates, definitions);
-  candidates.sort((a, b) => a.index - b.index);
-  const out: ThreadGalleryImage[] = [];
-  for (const candidate of candidates) {
-    if (!candidate.rawUrl) continue;
-    const resolved = candidate.fromHtml
-      ? resolveHtmlImageTarget(candidate.rawUrl, resolvers)
-      : resolveMarkdownImageTarget(candidate.rawUrl, resolvers);
-    if (resolved) {
-      const alt = candidate.alt || fileNameFromPath(candidate.rawUrl);
-      // Read metadata before a remote resolver replaces the original path with an opaque URL.
-      const { fileName, mime } = imageUrlMetadata(candidate.rawUrl, alt);
-      out.push({ src: resolved, fileName, mime, ...(alt ? { alt } : {}) });
-    }
-  }
-  return out;
-}
-
-function collectMarkdownCandidates(
-  node: MarkdownGalleryNode,
-  candidates: { index: number; alt: string; rawUrl: string; fromHtml: boolean }[],
-  definitions: ReadonlyMap<string, string>,
-): void {
-  const nodeOffset = node.position?.start?.offset ?? 0;
-  if (node.type === "image" && typeof node.url === "string") {
-    candidates.push({
-      index: nodeOffset,
-      alt: node.alt?.trim() ?? "",
-      rawUrl: node.url,
-      fromHtml: false,
-    });
-  } else if (node.type === "imageReference" && node.identifier) {
-    const url = definitions.get(node.identifier);
-    if (url) {
-      candidates.push({
-        index: nodeOffset,
-        alt: node.alt?.trim() ?? "",
-        rawUrl: url,
-        fromHtml: false,
-      });
-    }
-  } else if (node.type === "html" && typeof node.value === "string") {
-    const html = maskHiddenHtml(node.value);
-    HTML_IMG_RE.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = HTML_IMG_RE.exec(html)) !== null) {
-      const srcMatch = SRC_FROM_HTML_RE.exec(match[0] ?? "");
-      if (!srcMatch) continue;
-      const altMatch = ALT_FROM_HTML_RE.exec(match[0] ?? "");
-      candidates.push({
-        index: nodeOffset + match.index,
-        alt: decodeHtmlAttribute((altMatch?.[1] ?? altMatch?.[2] ?? altMatch?.[3] ?? "").trim()),
-        rawUrl: decodeHtmlAttribute((srcMatch[1] ?? srcMatch[2] ?? srcMatch[3] ?? "").trim()),
-        fromHtml: true,
-      });
-    }
-  }
-  node.children?.forEach((child) => collectMarkdownCandidates(child, candidates, definitions));
-}
-
-function collectMarkdownDefinitions(
-  node: MarkdownGalleryNode,
-  definitions: Map<string, string>,
-): void {
-  if (node.type === "definition" && node.identifier && node.url) {
-    definitions.set(node.identifier, node.url);
-  }
-  node.children?.forEach((child) => collectMarkdownDefinitions(child, definitions));
-}
-
-function maskHiddenHtml(html: string): string {
-  let visible = html.replace(/<!--[\s\S]*?(?:-->|$)/g, maskHtml);
-  for (const tag of [
-    "script",
-    "style",
-    "template",
-    "textarea",
-    "title",
-    "noscript",
-    "iframe",
-    "object",
-  ]) {
-    visible = visible.replace(
-      new RegExp(`<${tag}\\b[\\s\\S]*?(?:<\\/${tag}\\s*>|$)`, "gi"),
-      maskHtml,
-    );
-  }
-  return visible;
-}
-
-function maskHtml(value: string): string {
-  return " ".repeat(value.length);
-}
-
-function decodeHtmlAttribute(value: string): string {
-  if (!value.includes("&")) return value;
-  const textarea = document.createElement("textarea");
-  textarea.innerHTML = value;
-  return textarea.value;
-}
-
-function resolveMarkdownImageTarget(
-  rawUrl: string,
-  resolvers: ThreadGalleryResolvers,
-): string | null {
-  const trimmed = rawUrl.trim();
-  if (!trimmed || isStrippedScheme(trimmed)) return null;
-  const rewritten = resolveMarkdownImageUrl(trimmed, {
-    ...(resolvers.projectRoot ? { projectRoot: resolvers.projectRoot } : {}),
-    ...(resolvers.extraRoots?.length ? { extraRoots: resolvers.extraRoots } : {}),
-  });
-  if (rewritten) return mapLocalUrlToDisplay(rewritten, resolvers);
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (trimmed.startsWith("poracode-local://")) return mapLocalUrlToDisplay(trimmed, resolvers);
-  // Absolute filesystem paths that skipped the pre-parse rewrite.
-  if (isAbsoluteFsPath(trimmed)) return mapLocalUrlToDisplay(toLocalFileUrl(trimmed), resolvers);
-  return null;
-}
-
-/**
- * Raw-HTML `<img>` fallback: the renderer's rehype pass resolves absolute
- * paths only (relative project paths need the pre-parse rewrite, which sees
- * markdown syntax alone), so the gallery applies no roots here either.
- */
-function resolveHtmlImageTarget(rawUrl: string, resolvers: ThreadGalleryResolvers): string | null {
-  const trimmed = rawUrl.trim();
-  if (!trimmed || isStrippedScheme(trimmed)) return null;
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (trimmed.startsWith("poracode-local://")) return mapLocalUrlToDisplay(trimmed, resolvers);
-  if (isAbsoluteFsPath(trimmed)) return mapLocalUrlToDisplay(toLocalFileUrl(trimmed), resolvers);
-  return null;
-}
-
-/**
- * Schemes the transcript sanitizer strips from `<img src>` (only `http`,
- * `https`, and locally-added `poracode-local` survive). Gallery targets with
- * these schemes would never paint, so they are excluded.
- */
-function isStrippedScheme(url: string): boolean {
-  return /^(data|blob|lightcode-local):/i.test(url);
-}
-
-function isAbsoluteFsPath(value: string): boolean {
-  return /^[A-Za-z]:[\\/]/.test(value) || value.startsWith("\\\\") || value.startsWith("/");
-}
-
-function mapLocalUrlToDisplay(poracodeLocalUrl: string, resolvers: ThreadGalleryResolvers): string {
-  // Remote PWA: swap the local scheme for the desktop's authenticated endpoint.
-  if (poracodeLocalUrl.startsWith("poracode-local://") && resolvers.remoteLocalImageUrl) {
-    const mapped = resolvers.remoteLocalImageUrl(poracodeLocalUrl);
-    if (mapped) return mapped;
-  }
-  // Desktop (no remote resolver installed) keeps `poracode-local://` untouched
-  // for the privileged protocol handler; remote clients map via the global
-  // resolver installed by the mobile bridge.
-  return resolveLocalImageDisplayUrl(poracodeLocalUrl);
-}
-
 interface GalleryStoreShape {
   runtimeItemIdsByThread: Record<string, readonly string[]>;
   runtimeItemsByIdByThread: Record<string, Record<string, RuntimeChatItem>>;
@@ -368,6 +239,43 @@ interface GalleryStoreShape {
     | undefined;
 }
 
+const unavailableImageUrl = () => "";
+
+function galleryRemoteServer(remoteServerId: string | undefined) {
+  if (typeof remoteServerId !== "string" || remoteServerId.length === 0) return undefined;
+  return useRemoteServersStore
+    .getState()
+    .servers.find((server) => remoteConnectionKey(server) === remoteServerId);
+}
+
+/**
+ * The volatile image owner, identical for hook-time and click-time cache reads.
+ * Environment adapters are freshly constructed; the remote record/revision
+ * already carries their connection identity. Own-host sessions instead need
+ * their stable custody object so a same-endpoint replacement invalidates URLs.
+ */
+export function threadGalleryImageAuthority(
+  thread: { id: string; remoteServerId?: string | undefined } | undefined,
+  managedSession: ManagedLoopbackImageSession | null = readManagedLoopbackImageSession(),
+  browserReadiness: RemoteImageReadiness | undefined = getRemoteBridgeImageReadiness(),
+): object | null | undefined {
+  if (!thread) return undefined;
+  if (isRemoteSession()) {
+    if (
+      thread.remoteServerId !== undefined &&
+      (typeof thread.remoteServerId !== "string" || thread.remoteServerId.length === 0)
+    )
+      return undefined;
+    // Browser/attached projections already route through the selected bridge,
+    // including when its persisted row is temporarily absent. Environment
+    // clients expose keyed readiness through their connection, not this cache.
+    return browserReadiness ?? getRemoteBridgeClient();
+  }
+  if (thread.remoteServerId !== undefined) return galleryRemoteServer(thread.remoteServerId);
+  if (managedRootOwner(thread)) return managedSession;
+  return undefined;
+}
+
 /**
  * Build the ChatPane-mirroring resolvers for a thread from store state alone
  * (plus the live remote clients): attachment paths, host-held refs, and
@@ -378,27 +286,48 @@ export function buildGalleryResolversFromState(
   threadId: string,
 ): ThreadGalleryResolvers {
   const thread = state.threads?.find((t) => t.id === threadId);
-  const resolvers: ThreadGalleryResolvers = {};
+  const resolvers: ThreadGalleryResolvers = { remoteImageRefUrl: unavailableImageUrl };
   const remoteServerId = thread?.remoteServerId;
-  if (remoteServerId) {
-    const desktopId = remoteServerId;
-    resolvers.imageUrlForPath = (path: string) =>
-      useRemoteServersStore.getState().localImageUrl(desktopId, path);
-    resolvers.remoteImageRefUrl = (ref) =>
-      useRemoteServersStore.getState().imageRefUrl(desktopId, ref);
+  const browserSession = isRemoteSession();
+  const validRemoteServerId =
+    remoteServerId === undefined ||
+    (typeof remoteServerId === "string" && remoteServerId.length > 0);
+  if (thread && browserSession && validRemoteServerId) {
+    // Keep the selected browser/attached client and its existing image cache.
+    resolvers.imageUrlForPath = remoteBridgeLocalImageUrl;
+    resolvers.remoteImageRefUrl = remoteBridgeImageRefUrl;
+  } else if (remoteServerId !== undefined) {
+    // A present but malformed/missing connection never becomes an own-host image.
+    const server = browserSession ? undefined : galleryRemoteServer(remoteServerId);
+    resolvers.imageUrlForPath = server
+      ? (path) => useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
+      : unavailableImageUrl;
+    resolvers.remoteImageRefUrl = server
+      ? (ref) => useRemoteServersStore.getState().imageRefUrl(remoteServerId, ref)
+      : unavailableImageUrl;
+  } else if (thread && managedRootOwner(thread)) {
+    resolvers.remoteImageRefUrl =
+      readManagedLoopbackImageSession()?.readiness.resolveRef ?? unavailableImageUrl;
+    resolvers.imageUrlForPath = toLocalFileUrl;
+    resolvers.remoteLocalImageUrl = (url) => url;
   }
   const project = thread ? state.projects?.find((p) => p.id === thread.projectId) : undefined;
   if (project && thread) {
     const projectLocation = resolveProjectLocation(project.location, thread.worktreePath);
     resolvers.projectRoot = getProjectFsPath(projectLocation);
-    if (remoteServerId) {
+    if (remoteServerId !== undefined) {
+      resolvers.localImagePathForUrl = (url) =>
+        resolveLocalFileUrlPath(url, projectLocation.kind === "windows" ? "win32" : "linux");
       resolvers.remoteLocalImageUrl = (url: string) => {
         const platform =
           projectLocation.kind === "windows"
             ? ("win32" as NodeJS.Platform)
             : ("linux" as NodeJS.Platform);
         const imagePath = resolveLocalFileUrlPath(url, platform);
-        return useRemoteServersStore.getState().localImageUrl(remoteServerId, imagePath);
+        if (browserSession) return validRemoteServerId ? remoteBridgeLocalImageUrl(imagePath) : "";
+        return galleryRemoteServer(remoteServerId)
+          ? useRemoteServersStore.getState().localImageUrl(remoteServerId, imagePath)
+          : "";
       };
     }
     const homeDir = readBridge()?.homeDir ?? undefined;
@@ -420,11 +349,7 @@ function resolverCacheKey(resolvers: ThreadGalleryResolvers): string {
   return [resolvers.projectRoot ?? "", resolvers.extraRoots?.join("\0") ?? ""].join("\n");
 }
 
-export interface GalleryCacheRevision {
-  structuralVersion: number;
-  remoteRevision: string;
-  locale: string;
-}
+export type { GalleryCacheRevision };
 
 type RemoteGalleryState = Pick<
   ReturnType<typeof useRemoteServersStore.getState>,
@@ -436,60 +361,19 @@ export function selectRemoteGalleryRevision(
   remoteServerId: string | undefined,
 ): string {
   if (!remoteServerId) return "";
-  const server = state.servers.find((entry) => entry.desktopId === remoteServerId);
+  // `remoteServerId` on a projected thread is the CONNECTION key, which for a
+  // host-owned environment is not the child host identity.
+  const server = state.servers.find((entry) => remoteConnectionKey(entry) === remoteServerId);
   const status = state.runtime[remoteServerId]?.status ?? "offline";
   return `${server?.endpoint ?? ""}\0${server?.accessToken ?? ""}\0${status}`;
 }
 
-interface GalleryCacheEntry {
-  itemIds: readonly string[];
-  itemsById: Record<string, RuntimeChatItem>;
-  resolverKey: string;
-  revision: GalleryCacheRevision;
-  result: ThreadGalleryImage[];
-}
-
-const galleryCache = new Map<string, GalleryCacheEntry>();
-
-function readCachedGallery(
-  threadId: string,
-  itemIds: readonly string[],
-  itemsById: Record<string, RuntimeChatItem>,
-  resolvers: ThreadGalleryResolvers,
-  revision: GalleryCacheRevision,
-): ThreadGalleryImage[] | null {
-  const cached = galleryCache.get(threadId);
-  if (
-    cached &&
-    cached.itemIds === itemIds &&
-    cached.itemsById === itemsById &&
-    cached.resolverKey === resolverCacheKey(resolvers) &&
-    cached.revision.structuralVersion === revision.structuralVersion &&
-    cached.revision.remoteRevision === revision.remoteRevision &&
-    cached.revision.locale === revision.locale
-  ) {
-    return cached.result;
-  }
-  return null;
-}
-
-function writeCachedGallery(
-  threadId: string,
-  itemIds: readonly string[],
-  itemsById: Record<string, RuntimeChatItem>,
-  resolvers: ThreadGalleryResolvers,
-  revision: GalleryCacheRevision,
-  result: ThreadGalleryImage[],
-): ThreadGalleryImage[] {
-  if (galleryCache.size > 200) galleryCache.clear();
-  galleryCache.set(threadId, {
-    itemIds,
-    itemsById,
-    resolverKey: resolverCacheKey(resolvers),
-    revision,
-    result,
-  });
-  return result;
+/**
+ * Drops one thread's cached collection. Readiness transitions call this so the
+ * next collection pass (from any subscriber) sees the newly resolved URL.
+ */
+export function invalidateCachedThreadGallery(threadId: string): void {
+  forgetThreadGalleryCache(threadId);
 }
 
 /**
@@ -503,10 +387,23 @@ export function getCachedThreadGallery(
   itemsById: Record<string, RuntimeChatItem>,
   resolvers: ThreadGalleryResolvers,
   revision: GalleryCacheRevision,
-): ThreadGalleryImage[] {
-  const cached = readCachedGallery(threadId, itemIds, itemsById, resolvers, revision);
+): ThreadGalleryCollection {
+  const cached = readThreadGalleryCache(
+    threadId,
+    itemIds,
+    itemsById,
+    resolverCacheKey(resolvers),
+    revision,
+  );
   if (cached) return cached;
   const items = itemIds.map((id) => itemsById[id]).filter((item) => item !== undefined);
-  const result = collectThreadGalleryImages(items, resolvers);
-  return writeCachedGallery(threadId, itemIds, itemsById, resolvers, revision, result);
+  const result = collectThreadGallery(items, resolvers);
+  return writeThreadGalleryCache(
+    threadId,
+    itemIds,
+    itemsById,
+    resolverCacheKey(resolvers),
+    revision,
+    result,
+  );
 }

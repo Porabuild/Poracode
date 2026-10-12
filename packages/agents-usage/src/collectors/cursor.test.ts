@@ -154,7 +154,7 @@ describe("parseCursorUsage", () => {
     expect(api.limit).toBeCloseTo(250);
   });
 
-  it("adds an on-demand window only when enabled", () => {
+  it("adds an on-demand window when enabled", () => {
     const body = {
       membershipType: "pro",
       individualUsage: {
@@ -164,9 +164,77 @@ describe("parseCursorUsage", () => {
     };
     const snap = parseCursorUsage(body, {}, NOW);
     const onDemand = snap.windows.find((w) => w.id === "extra-usage");
+    expect(onDemand?.label).toBe("On-demand");
     expect(onDemand?.unit).toBe("usd");
     expect(onDemand?.used).toBeCloseTo(5);
     expect(onDemand?.limit).toBeCloseTo(20);
+    expect(onDemand?.usedPercent).toBeCloseTo(25);
+  });
+
+  it("shows on-demand when it is enabled but unused", () => {
+    const snap = parseCursorUsage(
+      {
+        individualUsage: {
+          plan: { apiPercentUsed: 10 },
+          onDemand: { used: 0, limit: 5000, enabled: true },
+        },
+      },
+      {},
+      NOW,
+    );
+    expect(snap.windows.find((w) => w.id === "extra-usage")).toMatchObject({
+      used: 0,
+      limit: 50,
+      usedPercent: 0,
+    });
+  });
+
+  it("uses spend-limit usage when the individual on-demand bucket is empty", () => {
+    const snap = parseCursorUsage(
+      {
+        individualUsage: { plan: { apiPercentUsed: 99.8 } },
+        spendLimitUsage: { totalSpend: 6887, pooledUsed: 6887, pooledLimit: 75000 },
+      },
+      {},
+      NOW,
+    );
+    const onDemand = snap.windows.find((w) => w.id === "extra-usage")!;
+    expect(onDemand.used).toBeCloseTo(68.87);
+    expect(onDemand.limit).toBeCloseTo(750);
+    expect(onDemand.usedPercent).toBeCloseTo(9.182666, 2);
+  });
+
+  it.each([{ totalSpend: 0, pooledLimit: 75000 }, { pooledLimit: 75000 }])(
+    "shows an unused period allowance: %j",
+    (spendLimitUsage) => {
+      const snap = parseCursorUsage({ spendLimitUsage }, {}, NOW);
+      expect(snap.windows.find((w) => w.id === "extra-usage")).toMatchObject({
+        used: 0,
+        limit: 750,
+        usedPercent: 0,
+      });
+    },
+  );
+
+  it.each([
+    { totalSpend: 500 },
+    { totalSpend: 500, pooledLimit: 0 },
+    { totalSpend: 500, individualLimit: 0, pooledLimit: 75000 },
+  ])("hides period spend without an allowance: %j", (spendLimitUsage) => {
+    const snap = parseCursorUsage({ spendLimitUsage }, {}, NOW);
+    expect(snap.windows.find((w) => w.id === "extra-usage")).toBeUndefined();
+  });
+
+  it("honors disabled on-demand despite period allowance and past spend", () => {
+    const snap = parseCursorUsage(
+      {
+        individualUsage: { onDemand: { enabled: false, used: 500, limit: 2000 } },
+        spendLimitUsage: { totalSpend: 500, pooledLimit: 75000 },
+      },
+      {},
+      NOW,
+    );
+    expect(snap.windows.find((w) => w.id === "extra-usage")).toBeUndefined();
   });
 
   it("does not throw on an empty body", () => {
@@ -223,6 +291,35 @@ describe("parseCursorPeriodUsage", () => {
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.used).toBeCloseTo(113);
     expect(api.limit).toBeCloseTo(120);
+  });
+
+  it("adds an on-demand bar from period spend-limit usage", () => {
+    const snap = parseCursorPeriodUsage(
+      {
+        billingCycleEnd: "1791056140000",
+        planUsage: {
+          totalSpend: 57633,
+          includedSpend: 2000,
+          limit: 2000,
+          autoPercentUsed: 35.87,
+          apiPercentUsed: 99.825,
+        },
+        spendLimitUsage: {
+          totalSpend: 6887,
+          pooledUsed: 6887,
+          pooledRemaining: 68113,
+          pooledLimit: 75000,
+        },
+      },
+      { plan: "Cursor Team" },
+      NOW,
+      "cursor:work",
+    );
+    const onDemand = snap.windows.find((w) => w.id === "extra-usage")!;
+    expect(onDemand.used).toBeCloseTo(68.87);
+    expect(onDemand.limit).toBeCloseTo(750);
+    expect(onDemand.resetsAt).toBe(1_791_056_140_000);
+    expect(snap.windows.find((w) => w.id === "extra-usage" && w.used === 0)).toBeUndefined();
   });
 });
 

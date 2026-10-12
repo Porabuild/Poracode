@@ -21,8 +21,7 @@ export function FileEditorModal() {
   const hasDirtyBuffers = Object.values(buffers).some(
     (buffer) => buffer.status === "ready" && buffer.isDirty,
   );
-  const canBrowseProject =
-    rootContext?.remoteServerId === undefined && !isHomeProjectId(rootContext?.projectId);
+  const canBrowseProject = !isHomeProjectId(rootContext?.projectId);
 
   function requestClose() {
     if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {
@@ -80,9 +79,10 @@ export function FileEditorModal() {
                       <ProjectTreeView
                         rootContext={rootContext}
                         onSelectFile={(path) => {
-                          void openFile(path, "modal", true).catch((error) =>
-                            toast.danger(error instanceof Error ? error.message : String(error)),
-                          );
+                          void openFile(path, "modal", true).catch((error) => {
+                            console.error("[file-editor] open failed:", error);
+                            toast.danger(t`Unable to open the file`);
+                          });
                         }}
                         onPinFile={pinTab}
                       />

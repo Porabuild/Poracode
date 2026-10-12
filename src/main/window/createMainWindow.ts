@@ -1,4 +1,6 @@
-import { dbGetState, dbSetState } from "../db";
+import { pathToFileURL } from "node:url";
+import { registerLocalFontRenderer } from "../browser/localFontPermissions";
+import type { ShellStateStore } from "../backend/BackendStateStore";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
@@ -21,9 +23,9 @@ interface WindowBounds {
   isMaximized: boolean;
 }
 
-function getSavedWindowBounds(stateKey: string): WindowBounds | null {
+function getSavedWindowBounds(state: ShellStateStore, stateKey: string): WindowBounds | null {
   try {
-    const raw = dbGetState(stateKey);
+    const raw = state.get(stateKey);
     if (!raw) {
       return null;
     }
@@ -48,13 +50,23 @@ function getSavedWindowBounds(stateKey: string): WindowBounds | null {
   }
 }
 
-function saveWindowBounds(window: BrowserWindow, stateKey: string): void {
+export function saveWindowBounds(
+  window: BrowserWindow,
+  state: ShellStateStore,
+  stateKey: string,
+): void {
+  if (window.isDestroyed()) return;
+  state.set(stateKey, captureWindowBounds(window));
+}
+
+function captureWindowBounds(window: BrowserWindow): string {
   const isMaximized = window.isMaximized();
   const { x, y, width, height } = window.getNormalBounds();
-  dbSetState(stateKey, JSON.stringify({ x, y, width, height, isMaximized }));
+  return JSON.stringify({ x, y, width, height, isMaximized });
 }
 
 export interface CreateMainWindowOptions {
+  state: ShellStateStore;
   title: string;
   windowKind?: PoracodeWindowKind;
   boundsStateKey?: string | null;
@@ -72,6 +84,7 @@ export interface CreateMainWindowOptions {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
+  hostCapabilities?: import("@/shared/hostControlProtocol").HostServiceCapabilities;
   windowChromeHeight: number;
   browserUserAgent: string;
   /** Saved appearance, so the native window opens matching the theme. */
@@ -92,7 +105,7 @@ export interface CreateMainWindowOptions {
 export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
   const boundsStateKey =
     options.boundsStateKey === undefined ? "window-bounds" : options.boundsStateKey;
-  const saved = boundsStateKey ? getSavedWindowBounds(boundsStateKey) : null;
+  const saved = boundsStateKey ? getSavedWindowBounds(options.state, boundsStateKey) : null;
   const supportsTitleBarOverlay = process.platform === "win32" || process.platform === "linux";
   const isDark = options.appearance === "dark";
   // Base bg/symbol per appearance, matching styles.css and the runtime
@@ -155,9 +168,18 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
         posthogHost: options.posthogHost,
         posthogKey: options.posthogKey,
         sentryEnabled: options.sentryEnabled,
+        ...(options.hostCapabilities ? { hostCapabilities: options.hostCapabilities } : {}),
       }),
     },
   });
+  if ((options.windowKind ?? "main") === "main") {
+    registerLocalFontRenderer(
+      window.webContents,
+      options.isDev
+        ? (options.devServerUrl as string)
+        : pathToFileURL(options.rendererHtmlPath).href,
+    );
+  }
   installSessionPermissions(window.webContents.session);
   if (options.isDev && process.env.PORACODE_PROFILE_STARTUP === "1") {
     console.log(`[startup] ${Date.now()} window-created`);
@@ -211,29 +233,35 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   });
 
   let boundsTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingBounds: string | null = null;
+  const flushBounds = () => {
+    if (boundsTimer) clearTimeout(boundsTimer);
+    boundsTimer = null;
+    if (boundsStateKey && pendingBounds !== null) {
+      options.state.set(boundsStateKey, pendingBounds);
+      pendingBounds = null;
+    }
+  };
   const debouncedSave = () => {
-    if (boundsTimer) {
-      clearTimeout(boundsTimer);
-    }
-    if (boundsStateKey) {
-      boundsTimer = setTimeout(() => saveWindowBounds(window, boundsStateKey), 500);
-    }
+    if (!boundsStateKey || window.isDestroyed()) return;
+    pendingBounds = captureWindowBounds(window);
+    if (boundsTimer) clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(flushBounds, 500);
   };
   window.on("resize", debouncedSave);
   window.on("move", debouncedSave);
   window.on("maximize", debouncedSave);
   window.on("unmaximize", debouncedSave);
   window.on("close", (event) => {
-    if (boundsTimer) {
-      clearTimeout(boundsTimer);
-    }
-    if (boundsStateKey) {
-      saveWindowBounds(window, boundsStateKey);
-    }
+    if (boundsStateKey) pendingBounds = captureWindowBounds(window);
+    flushBounds();
     options.onClose?.(event);
     noteRendererWindowClose(window, event);
   });
-  window.on("closed", options.onClosed);
+  window.on("closed", () => {
+    flushBounds();
+    options.onClosed();
+  });
 
   return window;
 }

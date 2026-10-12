@@ -1,12 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ZodError } from "zod";
 import {
   isRemoteTransportFailure,
   isUnauthorizedRemoteError,
   RemoteClientError,
   RemoteDesktopClient,
+  remoteMutationMayHaveCommitted,
+  type RemoteFetch,
 } from "./client";
 import { defaultSharedSettings } from "../settings";
-import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./protocol";
+import type { RemoteThreadCommand } from "../contracts/thread";
+import {
+  hostSupportsProjectCommandResults,
+  hostSupportsThreadLaunchMetadata,
+  PORACODE_REMOTE_PROTOCOL_VERSION,
+} from "./protocol";
+import type { RemoteProjectCommand } from "./protocol/resources";
 
 describe("remote error classification", () => {
   it("separates transport failures from reachable application errors", () => {
@@ -128,19 +137,47 @@ describe("RemoteDesktopClient", () => {
       { onRequestSuccess, onRequestError },
     );
 
-    await expect(failureClient.websocketTicket()).rejects.toBe(transportError);
-    expect(onRequestError).toHaveBeenLastCalledWith(transportError);
+    const failure = await failureClient.websocketTicket().catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(RemoteClientError);
+    expect(failure).toMatchObject({ status: 0, code: "network", requestPhase: "dispatched" });
+    expect((failure as RemoteClientError).cause).toBe(transportError);
+    expect(onRequestError).toHaveBeenLastCalledWith(failure);
   });
 
-  it("keeps profile-stats fields beyond the light shape check (loose parse)", async () => {
+  it("validates complete profile stats without stripping contract fields", async () => {
     const coreStats = {
-      scope: "device",
-      device: { id: "dev-1" },
-      totals: { prompts: 3 },
-      accounts: [{ key: "claude", label: "Claude", count: 3, share: 1 }],
+      scope: "device" as const,
+      device: { id: "dev-1", label: "Test Mac", platform: "darwin" },
+      generatedAt: 1,
+      timezoneOffsetMinutes: 0,
+      totals: {
+        totalThreads: 1,
+        totalPrompts: 3,
+        messagesSent: 3,
+        goalsSet: 0,
+        longestTaskMs: 100,
+        currentStreakDays: 1,
+        longestStreakDays: 1,
+        activeDays: 1,
+      },
+      promptHeatmap: { metric: "prompts" as const, windowDays: 7, cells: [], max: 0 },
+      insights: {
+        fastModePercent: 0,
+        skillsExplored: 0,
+        totalSkillsUsed: 0,
+        workflowRuns: 0,
+        subagentRuns: 0,
+        mcpToolCalls: 0,
+      },
+      accounts: [{ key: "claude", label: "Claude", count: 3, percent: 100 }],
       providers: [],
-      availableAccounts: [],
+      models: [],
+      modes: [],
+      skills: [],
+      mcps: [],
+      aiActions: [],
       identity: { name: "Test", handle: "test", avatarColor: "oklch(0.6 0.14 295)" },
+      availableAccounts: [],
     };
     const client = new RemoteDesktopClient(
       "http://127.0.0.1:38987/",
@@ -152,8 +189,6 @@ describe("RemoteDesktopClient", () => {
         }),
     );
 
-    // A plain z.object would strip every key the check doesn't name; the
-    // desktop ProfileSettings component reads accounts/providers/identity.
     await expect(client.profileCoreStats({ utcOffsetMinutes: 0 })).resolves.toEqual(coreStats);
   });
 
@@ -215,6 +250,49 @@ describe("RemoteDesktopClient", () => {
     ]);
   });
 
+  it("reads host-declared capabilities and fails closed on a missing describe route", async () => {
+    const capabilities = {
+      ssh: true,
+      browserPanel: false,
+      chromeBridge: true,
+      computerUse: false,
+      nativeSecrets: false,
+      portForward: true,
+      autoUpdate: false,
+      osNotifications: false,
+    };
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url) => {
+        if (String(url).endsWith("/api/host/describe")) {
+          return new Response(JSON.stringify({ capabilities }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({}), { status: 404 });
+      },
+    );
+    await expect(client.describeHost()).resolves.toEqual(capabilities);
+
+    const oldHost = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async () => new Response(JSON.stringify({}), { status: 404 }),
+    );
+    await expect(oldHost.describeHost()).resolves.toEqual({
+      ssh: false,
+      browserPanel: false,
+      chromeBridge: false,
+      computerUse: false,
+      nativeSecrets: false,
+      portForward: false,
+      autoUpdate: false,
+      osNotifications: false,
+    });
+  });
+
   it("reads and writes encoded project notes paths", async () => {
     const requests: Array<{ url: string; method: string; body: unknown }> = [];
     const notes = {
@@ -251,7 +329,11 @@ describe("RemoteDesktopClient", () => {
       {
         url: "https://relay.example.test/s/server-1/api/projects/project%20one/notes",
         method: "POST",
-        body: notes,
+        body: {
+          doc: notes.doc,
+          todos: notes.todos,
+          updatedAt: notes.updatedAt,
+        },
       },
     ]);
   });
@@ -448,6 +530,29 @@ describe("RemoteDesktopClient", () => {
     expect(signal?.aborted).toBe(false);
   });
 
+  it("marks an automatic reopen explicitly without changing the legacy start shape", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        bodies.push(JSON.parse(init?.body as string));
+        return new Response(JSON.stringify({ threadId: "thread-1" }), { status: 200 });
+      },
+    );
+    const input = {
+      threadId: "thread-1",
+      projectLocation: { kind: "posix" as const, path: "/repo" },
+      agentKind: "codex" as const,
+      config: { model: "test" },
+      prompt: "",
+    };
+    await client.startThread({ ...input, ensureRunning: true });
+    await client.startThread(input);
+    expect(bodies[0]).toHaveProperty("ensureRunning", true);
+    expect(bodies[1]).not.toHaveProperty("ensureRunning");
+  });
+
   it("uses the optimistic message id as the remote send idempotency key", async () => {
     let commandId = "";
     const client = new RemoteDesktopClient(
@@ -470,6 +575,38 @@ describe("RemoteDesktopClient", () => {
     });
 
     expect(commandId).toBe("user-message-1");
+  });
+
+  it("uses a distinct start command id so unknown-session resume is not a receipt conflict", async () => {
+    const commandIds: string[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        commandIds.push(init?.headers?.["x-poracode-command-id"] ?? "");
+        return new Response(JSON.stringify({ ok: true, threadId: "thread-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.sendThreadInput({
+      threadId: "thread-1",
+      prompt: "continue",
+      config: { model: "gpt-5" },
+      userMessageItemId: "user-message-1",
+    });
+    await client.startThread({
+      threadId: "thread-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "continue",
+      userMessageItemId: "user-message-1",
+    });
+
+    expect(commandIds).toEqual(["user-message-1", "thread-start-item:user-message-1"]);
   });
 
   it("forwards a preallocated thread and optimistic message id when starting remotely", async () => {
@@ -510,6 +647,294 @@ describe("RemoteDesktopClient", () => {
       userMessageItemId: "user-optimistic",
     });
     expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-preallocated/command");
+  });
+
+  it("forwards per-turn client context on every input route body", async () => {
+    const bodies: Record<string, unknown> = {};
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        bodies[new URL(String(url)).pathname] = JSON.parse(
+          typeof init?.body === "string" ? init.body : "{}",
+        ) as unknown;
+        return new Response(JSON.stringify({ ok: true, threadId: "thread-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+    const clientContext = {
+      browserFocus: { activeTab: { tabId: 3, title: "Tab", url: "https://t.test/" } },
+    };
+    const config = { model: "gpt-5" };
+
+    await client.startNewThread({
+      threadId: "thread-1",
+      projectId: "project-1",
+      agentKind: "codex",
+      config,
+      prompt: "start",
+      clientContext,
+    });
+    await client.startThread({
+      threadId: "thread-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config,
+      prompt: "resume",
+      clientContext,
+    });
+    await client.sendThreadInput({ threadId: "thread-1", prompt: "send", config, clientContext });
+    await client.setPendingSteer({ threadId: "thread-1", prompt: "steer", config, clientContext });
+
+    expect(bodies).toEqual({
+      "/api/threads/thread-1/command": expect.objectContaining({ prompt: "start", clientContext }),
+      "/api/threads/start": expect.objectContaining({ prompt: "resume", clientContext }),
+      "/api/threads/thread-1/send": expect.objectContaining({ prompt: "send", clientContext }),
+      "/api/threads/thread-1/steer/set": expect.objectContaining({
+        prompt: "steer",
+        clientContext,
+      }),
+    });
+  });
+
+  it("forwards launch metadata and one retained operation id for startNewThread", async () => {
+    let requestUrl = "";
+    let requestBody: unknown;
+    const headers: Record<string, string>[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        headers.push((init?.headers ?? {}) as Record<string, string>);
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(
+      client.startNewThread(
+        {
+          threadId: "thread-retained",
+          projectId: "project-1",
+          agentKind: "codex",
+          config: { model: "gpt-5" },
+          prompt: "go",
+          title: "Fork child",
+          groupId: "group-1",
+          groupName: "Group One",
+          parentThreadId: "parent-1",
+          prNumber: 7,
+          workspaceId: "workspace-1",
+          initialSize: { cols: 132, rows: 43 },
+        },
+        { commandId: "renderer-launch-op-7" },
+      ),
+    ).resolves.toEqual({ threadId: "thread-retained" });
+
+    expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-retained/command");
+    expect(headers[0]?.["x-poracode-command-id"]).toBe("renderer-launch-op-7");
+    expect(requestBody).toEqual({
+      kind: "start",
+      projectId: "project-1",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "go",
+      title: "Fork child",
+      groupId: "group-1",
+      groupName: "Group One",
+      parentThreadId: "parent-1",
+      prNumber: 7,
+      workspaceId: "workspace-1",
+      initialSize: { cols: 132, rows: 43 },
+    });
+
+    // Retaining one operation identity requires the same explicit target; a
+    // random per-call thread id would address a different thread on retry.
+    await expect(
+      client.startNewThread(
+        { projectId: "project-1", agentKind: "codex", config: { model: "gpt-5" }, prompt: "go" },
+        { commandId: "renderer-launch-op-8" },
+      ),
+    ).rejects.toThrow(/explicit threadId/);
+    expect(headers).toHaveLength(1);
+
+    // Omitting the option keeps the historical per-thread identity.
+    await client.startNewThread({
+      threadId: "thread-default-id",
+      projectId: "project-1",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "go",
+    });
+    expect(headers[1]?.["x-poracode-command-id"]).toBe("thread-start:thread-default-id");
+  });
+
+  it("declares the bounded project-command result mode, refuses a missing id and a complete response", async () => {
+    const requests: Array<{
+      readonly url: string;
+      readonly headers: Record<string, string>;
+      readonly body: unknown;
+    }> = [];
+    const boundedClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({
+          url: String(url),
+          headers: (init?.headers ?? {}) as Record<string, string>,
+          body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown,
+        });
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            project: {
+              id: "p1",
+              name: "Renamed",
+              location: { kind: "posix", path: "/tmp/p1" },
+              createdAt: "2026-01-01T00:00:00.000Z",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      },
+    );
+
+    await expect(
+      boundedClient.projectCommand(
+        { kind: "update", projectId: "p1", patch: { name: "Renamed" } },
+        { commandId: "bounded-op-1", result: "bounded" },
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      project: expect.objectContaining({ id: "p1", name: "Renamed" }),
+    });
+    expect(requests[0]?.url).toBe("http://127.0.0.1:38987/api/projects/command");
+    expect(requests[0]?.headers["x-poracode-command-id"]).toBe("bounded-op-1");
+    expect(requests[0]?.headers["x-poracode-project-command-result"]).toBe("bounded-v1");
+    expect(requests[0]?.body).toEqual({
+      kind: "update",
+      projectId: "p1",
+      patch: { name: "Renamed" },
+    });
+
+    const missingId = await boundedClient
+      .projectCommand(
+        { kind: "update", projectId: "p1", patch: { name: "Renamed" } },
+        { result: "bounded" },
+      )
+      .catch((error: unknown) => error);
+    expect(missingId).toBeInstanceOf(Error);
+    expect((missingId as Error).message).toMatch(/requires an explicit per-operation commandId/);
+    // Caller validation happens before dispatch: definite, never uncertain.
+    expect(remoteMutationMayHaveCommitted(missingId)).toBe(false);
+    expect(requests).toHaveLength(1);
+
+    // An old host ignores the unknown header and answers the complete result:
+    // the client refuses instead of silently accepting the catalog. The 200
+    // proves the host executed the mutation, so the refusal must classify as
+    // may-have-committed (invalid_response at 500), never as definite.
+    const completeClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify({ projects: [], project: undefined }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const unhonored = await completeClient
+      .projectCommand(
+        { kind: "update", projectId: "p1", patch: { name: "Renamed" } },
+        { commandId: "bounded-op-2", result: "bounded" },
+      )
+      .catch((error: unknown) => error);
+    expect(unhonored).toBeInstanceOf(RemoteClientError);
+    expect(unhonored).toMatchObject({ status: 500, code: "invalid_response" });
+    expect((unhonored as Error).message).toMatch(
+      /did not honor the bounded project-command result declaration/,
+    );
+    expect(remoteMutationMayHaveCommitted(unhonored)).toBe(true);
+
+    // Capability gates: only a host that advertises version 1 may be declared.
+    expect(hostSupportsProjectCommandResults({ versions: [1] })).toBe(true);
+    expect(hostSupportsProjectCommandResults({ versions: [2] })).toBe(false);
+    expect(hostSupportsProjectCommandResults(undefined)).toBe(false);
+    expect(hostSupportsThreadLaunchMetadata({ versions: [1] })).toBe(true);
+    expect(hostSupportsThreadLaunchMetadata({ versions: [] })).toBe(false);
+    expect(hostSupportsThreadLaunchMetadata(undefined)).toBe(false);
+  });
+
+  it("classifies a malformed 200 project-command success as an ambiguous invalid response", async () => {
+    let dispatched = 0;
+    const malformedClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () => {
+        dispatched++;
+        return new Response(JSON.stringify({ ok: true, project: { id: "p1" } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    // Bounded mode: the 200 proves the mutation executed, but the body matches
+    // neither result variant. The shape rejection must be the readable
+    // `invalid_response` classification (cause preserved), not a raw ZodError
+    // the caller would treat as a definite pre-effect failure.
+    const bounded = await malformedClient
+      .projectCommand(
+        { kind: "update", projectId: "p1", patch: { name: "Renamed" } },
+        { commandId: "malformed-op-1", result: "bounded" },
+      )
+      .catch((error: unknown) => error);
+    expect(bounded).toBeInstanceOf(RemoteClientError);
+    expect(bounded).toMatchObject({ status: 500, code: "invalid_response" });
+    expect((bounded as Error).message).toMatch(/unexpected project command response/);
+    expect((bounded as RemoteClientError).cause).toBeInstanceOf(ZodError);
+    expect(remoteMutationMayHaveCommitted(bounded)).toBe(true);
+    // Exactly one dispatch: a classified response failure is never retried.
+    expect(dispatched).toBe(1);
+
+    // Legacy mode without the bounded declaration reaches the same
+    // post-response schema check and must classify identically.
+    const legacy = await malformedClient
+      .projectCommand({ kind: "update", projectId: "p1", patch: { name: "Renamed" } })
+      .catch((error: unknown) => error);
+    expect(legacy).toMatchObject({ status: 500, code: "invalid_response" });
+    expect(remoteMutationMayHaveCommitted(legacy)).toBe(true);
+    expect(dispatched).toBe(2);
+
+    // A valid complete legacy success is unchanged.
+    const validClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(
+          JSON.stringify({
+            projects: [
+              {
+                id: "p1",
+                name: "Renamed",
+                location: { kind: "posix", path: "/tmp/p1" },
+                createdAt: "2026-01-01T00:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+    await expect(
+      validClient.projectCommand({ kind: "update", projectId: "p1", patch: { name: "Renamed" } }),
+    ).resolves.toEqual({
+      projects: [expect.objectContaining({ id: "p1", name: "Renamed" })],
+    });
   });
 
   it("forwards goal controls to the paired desktop", async () => {
@@ -842,6 +1267,185 @@ describe("RemoteDesktopClient", () => {
     expect(body.client).toEqual({ label: "My Mac", deviceType: "desktop" });
   });
 
+  it("parses /api/git/call with the procedure result schema and treats void as {}", async () => {
+    const payloads: unknown[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        payloads.push(JSON.parse(typeof init?.body === "string" ? init.body : "{}"));
+        const body = payloads.at(-1) as { procedure?: string };
+        if (body.procedure === "gitPush") {
+          return new Response("{}", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ result: { available: true } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(client.callRemoteProcedure("ghCheckAvailable", {})).resolves.toEqual({
+      available: true,
+    });
+    await expect(client.callRemoteProcedure("gitPush", {})).resolves.toBeUndefined();
+
+    const nullVoid = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify({ result: null }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    await expect(nullVoid.callRemoteProcedure("gitPush", {})).rejects.toMatchObject({
+      code: "invalid_response",
+    });
+  });
+
+  it("rejects non-allowlisted remote procedures before making a request", async () => {
+    const fetch = vi.fn<RemoteFetch>();
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", "lc_access_test", fetch);
+
+    await expect(client.callRemoteProcedure("notAProcedure", {})).rejects.toMatchObject({
+      status: 403,
+      code: "git_procedure_not_allowed",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("carries a stable start identity on the startThread passthrough and nothing elsewhere", async () => {
+    const headers: Array<Record<string, string>> = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        headers.push((init?.headers ?? {}) as Record<string, string>);
+        const procedure = (JSON.parse(String(init?.body ?? "{}")) as { procedure?: string })
+          .procedure;
+        return new Response(
+          procedure === "gitPush" ? "{}" : JSON.stringify({ result: { threadId: "t1" } }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      },
+    );
+    const payload = {
+      threadId: "t1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+    };
+
+    await client.callRemoteProcedure("startThread", payload);
+    await client.callRemoteProcedure("startThread", payload);
+    // Without an optimistic item id each launch is a fresh attempt: a stable
+    // per-thread id would replay a stale completion or conflict on a later
+    // resume/switch of the same thread.
+    expect(headers[0]?.["x-poracode-command-id"]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(headers[1]?.["x-poracode-command-id"]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(headers[0]?.["x-poracode-command-id"]).not.toBe(headers[1]?.["x-poracode-command-id"]);
+
+    await client.callRemoteProcedure("startThread", { ...payload, userMessageItemId: "user-1" });
+    expect(headers[2]?.["x-poracode-command-id"]).toBe("thread-start-item:user-1");
+
+    await client.callRemoteProcedure("startThread", { ...payload, userMessageItemId: "user-1" });
+    expect(headers[3]?.["x-poracode-command-id"]).toBe("thread-start-item:user-1");
+
+    await client.callRemoteProcedure("gitPush", {});
+    expect(headers[4]?.["x-poracode-command-id"]).toBeUndefined();
+  });
+
+  it("requires an explicit operation id for catalog commands and keeps legacy dispatch unchanged", async () => {
+    const requests: Array<{ readonly url: string; readonly headers: Record<string, string> }> = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({
+          url: String(url),
+          headers: (init?.headers ?? {}) as Record<string, string>,
+        });
+        return new Response(JSON.stringify({ projects: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    // The type surface enforces the id; the runtime guard is the truthful
+    // backstop for untyped/JS callers. Both must reject before any request.
+    const untypedClient = client as unknown as {
+      projectCommand(
+        command: RemoteProjectCommand,
+        options?: { commandId?: string },
+      ): Promise<unknown>;
+      sendThreadCommand(
+        command: RemoteThreadCommand,
+        options?: { commandId?: string },
+      ): Promise<void>;
+    };
+    await expect(
+      untypedClient.projectCommand({
+        kind: "reorder",
+        projectId: "p1",
+        targetProjectId: "p2",
+        placement: "before",
+      }),
+    ).rejects.toThrow(/explicit per-operation commandId/);
+    await expect(
+      untypedClient.sendThreadCommand({
+        kind: "set-workspace",
+        threadId: "t1",
+        workspaceId: "w",
+      }),
+    ).rejects.toThrow(/explicit per-operation commandId/);
+    expect(requests).toHaveLength(0);
+
+    await client.projectCommand(
+      { kind: "reorder", projectId: "p1", targetProjectId: "p2", placement: "before" },
+      { commandId: "op-project-1" },
+    );
+    expect(requests[0]?.url).toContain("/api/projects/command");
+    expect(requests[0]?.headers["x-poracode-command-id"]).toBe("op-project-1");
+
+    await client.sendThreadCommand(
+      {
+        kind: "reorder",
+        threadId: "t1",
+        projectId: "p1",
+        threadIds: ["t1"],
+        targetThreadId: "t2",
+        placement: "before",
+      },
+      { commandId: "op-thread-1" },
+    );
+    expect(requests[1]?.headers["x-poracode-command-id"]).toBe("op-thread-1");
+
+    // Legacy kinds keep the historical optional header.
+    await client.sendThreadCommand({ kind: "rename", threadId: "t1", title: "Renamed" });
+    expect(requests[2]?.headers["x-poracode-command-id"]).toBeUndefined();
+
+    // `start` keeps its automatic stable identity.
+    await client.sendThreadCommand({
+      kind: "start",
+      threadId: "t9",
+      projectId: "p1",
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "",
+    });
+    expect(requests[3]?.headers["x-poracode-command-id"]).toBe("thread-start:t9");
+  });
+
   it.each(["gitPush", "waitMcpServerOauth"])(
     "gives long-running %s operations a larger timeout than ordinary requests",
     async (procedure) => {
@@ -892,18 +1496,40 @@ describe("RemoteDesktopClient", () => {
     await expect(clone).resolves.toMatchObject({ code: "timeout" });
   });
 
-  it("builds authenticated local image URLs against the endpoint", () => {
+  it("builds ticketed local image URLs against the endpoint (no bearer in any URL)", async () => {
+    const mintRequests: Array<{ url: string; authorization: string | undefined }> = [];
     const client = new RemoteDesktopClient(
       "https://relay.example.test/s/server-1/",
       "lc_access_test",
+      async (url, init) => {
+        mintRequests.push({
+          url: String(url),
+          authorization: (init?.headers as Record<string, string> | undefined)?.authorization,
+        });
+        return new Response(
+          JSON.stringify({ ticket: "lc_img_relay", expiresAt: "2099-01-01T00:00:30.000Z" }),
+          { status: 200 },
+        );
+      },
     );
 
-    const url = new URL(client.localImageUrl("C:\\Users\\me\\img one.png"));
+    // Gate 6 item 4.6 (S6): the mint is asynchronous while the render-path
+    // consumer is synchronous, so the first resolution carries NO credential
+    // at all (the caller falls back to the unrenderable original URL).
+    expect(client.localImageUrl("C:\\Users\\me\\img one.png")).toBe("");
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
+    // The mint itself rode the Authorization header, never a URL credential.
+    expect(mintRequests).toHaveLength(1);
+    expect(new URL(mintRequests[0]!.url).pathname).toBe("/s/server-1/api/files/image-ticket");
+    expect(mintRequests[0]!.authorization).toBe("Bearer lc_access_test");
+
+    const url = new URL(client.localImageUrl("C:\\Users\\me\\img one.png"));
     expect(url.origin).toBe("https://relay.example.test");
     expect(url.pathname).toBe("/s/server-1/api/files/image");
     expect(url.searchParams.get("path")).toBe("C:\\Users\\me\\img one.png");
-    expect(url.searchParams.get("access_token")).toBe("lc_access_test");
+    expect(url.searchParams.get("ticket")).toBe("lc_img_relay");
+    expect(url.toString()).not.toContain("access_token");
   });
 
   it("returns an empty local image URL without an access token", () => {
@@ -941,5 +1567,640 @@ describe("RemoteDesktopClient", () => {
     expect(url.searchParams.get("threadId")).toBe("thread/one");
     expect(url.searchParams.get("name")).toBe("photo one.png");
     expect(Array.from(requestBody!)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("RemoteDesktopClient ETag revalidation cache", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+  // Minimal body that satisfies remoteShellSnapshotSchema.
+  const snapshotBody = {
+    snapshotSeq: 1,
+    projects: [],
+    threads: [],
+    runtimeSummariesByThread: {},
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  function jsonResponse(status: number, bodyText: string, headers: Record<string, string> = {}) {
+    // 304 responses must carry no body per the fetch spec.
+    return new Response(status === 304 || status === 204 ? null : bodyText, {
+      status,
+      headers,
+    });
+  }
+
+  it("stores an ETag on a full GET and replays the cached body on a matching 304", async () => {
+    const responses = [
+      jsonResponse(200, JSON.stringify(snapshotBody), { etag: 'W/"abc"' }),
+      jsonResponse(304, ""),
+    ];
+    const fetch = vi.fn<RemoteFetch>(() => Promise.resolve(responses.shift()!));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    const first = await client.snapshot();
+    expect(first).toMatchObject({ snapshotSeq: 1 });
+
+    const second = await client.snapshot();
+    expect(second).toMatchObject({ snapshotSeq: 1 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const [, secondInit] = vi.mocked(fetch).mock.calls[1]!;
+    const secondHeaders = (secondInit ? secondInit.headers : {}) as Record<string, string>;
+    expect(secondHeaders["if-none-match"]).toBe('W/"abc"');
+  });
+
+  it("does not cache non-GET requests or responses without an ETag", async () => {
+    const fetch = vi.fn<RemoteFetch>(() =>
+      Promise.resolve(jsonResponse(200, JSON.stringify(snapshotBody))),
+    );
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    await client.snapshot();
+    await client.snapshot();
+    for (const [, init] of vi.mocked(fetch).mock.calls) {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      expect(headers["if-none-match"]).toBeUndefined();
+    }
+  });
+
+  it("still fails loudly on a bare 304 with no cached entry", async () => {
+    const fetch = vi.fn<RemoteFetch>(() => Promise.resolve(jsonResponse(304, "")));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    await expect(client.snapshot()).rejects.toMatchObject({ code: "not_modified" });
+  });
+});
+
+describe("RemoteDesktopClient bounded snapshot thread list", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+  const PAGE_LIMIT = 2;
+
+  function threadRow(id: string) {
+    return {
+      id,
+      projectId: "project-1",
+      title: `Thread ${id}`,
+      agentKind: "claude",
+      config: { model: "sonnet" },
+      status: "idle",
+      attention: "none",
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+  }
+
+  function jsonResponse(status: number, body: unknown) {
+    return new Response(JSON.stringify(body), { status });
+  }
+
+  /** Fake host: bounds /api/snapshot and serves /api/threads continuations. */
+  function pagingHostFetch(allThreadIds: string[]) {
+    const calls: string[] = [];
+    const fetch = vi.fn<RemoteFetch>((url) => {
+      const request = new URL(String(url));
+      calls.push(`${request.pathname}${request.search}`);
+      if (request.pathname === "/api/snapshot") {
+        const raw = request.searchParams.get("threadLimit");
+        const limit = raw === null ? allThreadIds.length : Number(raw);
+        const page = allThreadIds.slice(0, limit);
+        return Promise.resolve(
+          jsonResponse(200, {
+            snapshotSeq: 7,
+            projects: [],
+            threads: page.map(threadRow),
+            ...(page.length < allThreadIds.length
+              ? { threadsNextCursor: `cursor:${page.length}` }
+              : {}),
+            runtimeSummariesByThread: Object.fromEntries(page.map((id) => [id, { itemCount: 2 }])),
+            gitSummariesByThread: Object.fromEntries(
+              page.map((id) => [
+                id,
+                {
+                  isRepo: true,
+                  branch: "main",
+                  totalInsertions: 0,
+                  totalDeletions: 0,
+                  ahead: 0,
+                  behind: 0,
+                  pr: null,
+                },
+              ]),
+            ),
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          }),
+        );
+      }
+      if (request.pathname === "/api/threads") {
+        const start = Number(request.searchParams.get("cursor")!.split(":")[1]);
+        const limit = Number(request.searchParams.get("limit"));
+        const page = allThreadIds.slice(start, start + limit);
+        return Promise.resolve(
+          jsonResponse(200, {
+            threads: page.map(threadRow),
+            runtimeSummariesByThread: Object.fromEntries(page.map((id) => [id, { itemCount: 2 }])),
+            gitSummariesByThread: Object.fromEntries(
+              page.map((id) => [
+                id,
+                {
+                  isRepo: true,
+                  branch: "main",
+                  totalInsertions: 0,
+                  totalDeletions: 0,
+                  ahead: 0,
+                  behind: 0,
+                  pr: null,
+                },
+              ]),
+            ),
+            nextCursor: start + limit < allThreadIds.length ? `cursor:${start + limit}` : null,
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse(404, {}));
+    });
+    return { fetch, calls };
+  }
+
+  it("assembles a complete snapshot from the bounded head plus continuation pages", async () => {
+    const ids = Array.from({ length: 5 }, (_, index) => `thread-${index}`);
+    const { fetch, calls } = pagingHostFetch(ids);
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    const snapshot = await client.snapshot({ threadListPageLimit: PAGE_LIMIT });
+    expect(snapshot.threads.map((thread) => thread.id)).toEqual(ids);
+    // The assembled snapshot is complete: no dangling cursor for callers.
+    expect(snapshot.threadsNextCursor).toBeNull();
+    expect(Object.keys(snapshot.runtimeSummariesByThread).sort()).toEqual(ids);
+    expect(Object.keys(snapshot.gitSummariesByThread ?? {}).sort()).toEqual(ids);
+    expect(calls[0]).toBe("/api/snapshot?threadLimit=2");
+    expect(calls.slice(1)).toEqual([
+      "/api/threads?limit=2&cursor=cursor%3A2",
+      "/api/threads?limit=2&cursor=cursor%3A4",
+    ]);
+  });
+
+  it("accepts a legacy host that ignores the limit and returns the full list", async () => {
+    const ids = ["thread-0", "thread-1"];
+    const { fetch, calls } = pagingHostFetch(ids);
+    // A legacy host never sends threadsNextCursor even when threadLimit is set.
+    const originalFetch = fetch;
+    // (pagingHostFetch only adds a cursor when the list is longer than the page,
+    // so a fitting list already behaves like a legacy host.)
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", originalFetch);
+    const snapshot = await client.snapshot({ threadListPageLimit: 10 });
+    expect(snapshot.threads.map((thread) => thread.id)).toEqual(ids);
+    // A legacy host sends no cursor field at all; absent means complete.
+    expect(snapshot.threadsNextCursor ?? null).toBeNull();
+    expect(calls).toEqual(["/api/snapshot?threadLimit=10"]);
+  });
+
+  it("keeps the unbounded request path untouched without options", async () => {
+    const ids = ["thread-0"];
+    const { fetch, calls } = pagingHostFetch(ids);
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    const snapshot = await client.snapshot();
+    expect(snapshot.threads).toHaveLength(1);
+    expect(calls).toEqual(["/api/snapshot"]);
+  });
+
+  it("refuses a host that repeats a cursor instead of looping forever", async () => {
+    const fetch = vi.fn<RemoteFetch>((url) => {
+      const request = new URL(String(url));
+      if (request.pathname === "/api/snapshot") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            snapshotSeq: 7,
+            projects: [],
+            threads: [threadRow("thread-0")],
+            threadsNextCursor: "cursor:1",
+            runtimeSummariesByThread: {},
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          }),
+        );
+      }
+      return Promise.resolve(
+        jsonResponse(200, {
+          threads: [threadRow("thread-1")],
+          runtimeSummariesByThread: {},
+          nextCursor: "cursor:1",
+        }),
+      );
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    await expect(client.snapshot({ threadListPageLimit: 1 })).rejects.toMatchObject({
+      code: "thread_list_cursor_loop",
+    });
+  });
+});
+
+describe("RemoteDesktopClient image ticket flow", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+  const PATH = "/Users/host/pictures/cat.png";
+  const TICKET = "lc_img_testticket";
+
+  function jsonResponse(status: number, body: unknown) {
+    return new Response(JSON.stringify(body), { status });
+  }
+
+  function flushMint(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  function searchParamsOf(url: string): URLSearchParams {
+    return new URL(url).searchParams;
+  }
+
+  it("mints a ticket and serves subsequent image URLs from it without the bearer token", async () => {
+    const mints: string[] = [];
+    const fetch = vi.fn<RemoteFetch>((url, init) => {
+      const request = new URL(String(url));
+      if (request.pathname === "/api/files/image-ticket" && init?.method === "POST") {
+        mints.push(String(url));
+        return Promise.resolve(
+          jsonResponse(200, { ticket: TICKET, expiresAt: "2026-01-01T00:00:30.000Z" }),
+        );
+      }
+      return Promise.resolve(jsonResponse(404, {}));
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    // First resolution happens while the mint is in flight: NO credential in
+    // the URL at all (Gate 6 item 4.6 removed the bearer-in-URL fallback).
+    const first = client.localImageUrl(PATH);
+    expect(first).toBe("");
+    await flushMint();
+    const minted = vi.mocked(fetch).mock.calls[0];
+    expect(String(minted?.[0])).toContain("/api/files/image-ticket");
+    const mintInit = minted?.[1];
+    const headers = (mintInit?.headers ?? {}) as Record<string, string>;
+    expect(headers.authorization).toContain("Bearer lc_access_test");
+
+    // Subsequent resolutions carry the one-time ticket, never the bearer token.
+    const second = client.localImageUrl(PATH);
+    expect(searchParamsOf(second).get("ticket")).toBe(TICKET);
+    expect(searchParamsOf(second).get("access_token")).toBeNull();
+    expect(second).not.toContain("access_token");
+    expect(mints).toHaveLength(1);
+  });
+
+  it("uses a fresh one-time ticket for each blob fetch", async () => {
+    let issued = 0;
+    const used: string[] = [];
+    const mintHeaders: Array<Record<string, string>> = [];
+    const imageHeaders: Array<Record<string, string>> = [];
+    const fetch = vi.fn<RemoteFetch>((url, init) => {
+      const request = new URL(String(url));
+      if (request.pathname === "/api/files/image-ticket") {
+        issued += 1;
+        mintHeaders.push((init?.headers ?? {}) as Record<string, string>);
+        return Promise.resolve(
+          jsonResponse(200, { ticket: `lc_img_${issued}`, expiresAt: "2026-01-01T00:00:30Z" }),
+        );
+      }
+      imageHeaders.push((init?.headers ?? {}) as Record<string, string>);
+      used.push(request.searchParams.get("ticket") ?? "");
+      return Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          headers: { "content-type": "image/png" },
+        }),
+      );
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    const path = `/api/files/image?path=${encodeURIComponent(PATH)}`;
+    const first = await client.fetchTicketedImageBytes(path, new AbortController().signal);
+    const second = await client.fetchTicketedImageBytes(path, new AbortController().signal);
+    expect(first).toEqual({ bytes: new Uint8Array([1, 2, 3]), contentType: "image/png" });
+    expect(second.bytes).toEqual(first.bytes);
+    expect(used).toEqual(["lc_img_1", "lc_img_2"]);
+    expect(mintHeaders.map((headers) => headers.authorization)).toEqual([
+      "Bearer lc_access_test",
+      "Bearer lc_access_test",
+    ]);
+    expect(imageHeaders.every((headers) => headers.authorization === undefined)).toBe(true);
+  });
+
+  it("latches off tickets when an older host has no mint route and serves no image URL", async () => {
+    let mintCalls = 0;
+    const fetch = vi.fn<RemoteFetch>((url) => {
+      if (new URL(String(url)).pathname === "/api/files/image-ticket") {
+        mintCalls += 1;
+        return Promise.resolve(jsonResponse(404, {}));
+      }
+      return Promise.resolve(jsonResponse(404, {}));
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    expect(client.localImageUrl(PATH)).toBe("");
+    await flushMint();
+    expect(mintCalls).toBe(1);
+
+    // The 404 latch means no further mint attempts. There is no credential an
+    // <img> tag could legally carry on such a host: every URL stays empty
+    // (callers fall back to the original, unrenderable URL).
+    for (let index = 0; index < 3; index += 1) {
+      expect(client.localImageUrl(PATH)).toBe("");
+    }
+    await flushMint();
+    expect(mintCalls).toBe(1);
+  });
+
+  it("re-mints after the ticket window has passed", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    try {
+      let mints = 0;
+      const fetch = vi.fn<RemoteFetch>((url, init) => {
+        if (
+          new URL(String(url)).pathname === "/api/files/image-ticket" &&
+          init?.method === "POST"
+        ) {
+          mints += 1;
+          return Promise.resolve(
+            jsonResponse(200, { ticket: TICKET, expiresAt: "2026-01-01T00:00:30.000Z" }),
+          );
+        }
+        return Promise.resolve(jsonResponse(404, {}));
+      });
+      const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+      expect(client.localImageUrl(PATH)).toBe("");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(client.localImageUrl(PATH).includes("ticket=")).toBe(true);
+
+      // Past the mint window: the cached ticket is no longer reused.
+      vi.advanceTimersByTime(31_000);
+      const expired = client.localImageUrl(PATH);
+      expect(expired).toBe("");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mints).toBe(2);
+      expect(client.localImageUrl(PATH).includes("ticket=")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+/** `requestJson` is the unit under test but stays private; drive it through
+ * a structural cast instead of widening the public client surface. */
+function requestJsonVia(client: RemoteDesktopClient, path: string): Promise<unknown> {
+  return (client as unknown as { requestJson(path: string): Promise<unknown> }).requestJson(path);
+}
+
+describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+
+  function jsonResponse(status: number, body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  function lifecycle(
+    refreshToken: string | undefined,
+    refreshed: (tokens: { accessToken: string; refreshToken?: string }) => void,
+  ) {
+    return {
+      refreshToken: () => refreshToken,
+      onTokensRefreshed: refreshed,
+    };
+  }
+
+  it("transparently refreshes once on a 401 and retries with the new access token", async () => {
+    const calls: Array<{ path: string; authorization: string | undefined }> = [];
+    let rotated = false;
+    const refreshBodies: Array<{ grantType: string; refreshToken: string }> = [];
+    const fetch = vi.fn<RemoteFetch>(async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      const authorization = (init?.headers as Record<string, string> | undefined)?.authorization;
+      calls.push({ path, authorization });
+      if (path === "/oauth/token") {
+        const body = JSON.parse(String(init?.body)) as { grantType: string; refreshToken: string };
+        refreshBodies.push(body);
+        rotated = true;
+        return jsonResponse(200, {
+          accessToken: "lc_access_new",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-02T00:00:00.000Z",
+          scopes: ["session:read"],
+          refreshToken: "lc_refresh_new",
+          refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
+        });
+      }
+      if (!rotated) {
+        return jsonResponse(401, {
+          error: { message: "Invalid access token.", code: "invalid_access_token" },
+        });
+      }
+      return jsonResponse(200, { ok: true });
+    });
+    const onTokensRefreshed =
+      vi.fn<(tokens: { accessToken: string; refreshToken?: string }) => void>();
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: lifecycle("lc_refresh_old", onTokensRefreshed),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).resolves.toEqual({ ok: true });
+    // 401, refresh, retry — exactly once.
+    expect(calls.map((call) => call.path)).toEqual([
+      "/api/snapshot",
+      "/oauth/token",
+      "/api/snapshot",
+    ]);
+    expect(refreshBodies).toEqual([{ grantType: "refresh_token", refreshToken: "lc_refresh_old" }]);
+    expect(calls[2]?.authorization).toBe("Bearer lc_access_new");
+    expect(onTokensRefreshed).toHaveBeenCalledExactlyOnceWith({
+      accessToken: "lc_access_new",
+      refreshToken: "lc_refresh_new",
+      refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
+    });
+  });
+
+  it("shares concurrent rotation across clients holding the same single-use refresh token", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let tokenCalls = 0;
+    const fetch = vi.fn<RemoteFetch>(async (url) => {
+      expect(new URL(String(url)).pathname).toBe("/oauth/token");
+      tokenCalls += 1;
+      await gate;
+      return jsonResponse(200, {
+        accessToken: "new-access",
+        tokenType: "Bearer",
+        expiresAt: "2099-01-02T00:00:00.000Z",
+        scopes: ["session:read"],
+        refreshToken: "new-refresh",
+      });
+    });
+    const options = { tokenLifecycle: lifecycle("single-use-refresh", () => {}) };
+    const first = new RemoteDesktopClient(endpoint, "old-access", fetch, options);
+    const second = new RemoteDesktopClient(endpoint, "old-access", fetch, options);
+    const pending = [first.refreshTokens(), second.refreshTokens()];
+    expect(tokenCalls).toBe(1);
+    release();
+    expect(await Promise.all(pending)).toEqual([
+      { accessToken: "new-access", refreshToken: "new-refresh" },
+      { accessToken: "new-access", refreshToken: "new-refresh" },
+    ]);
+  });
+
+  it("does not retry again when the post-refresh retry is also unauthorized", async () => {
+    let tokenCalls = 0;
+    const fetch = vi.fn<RemoteFetch>(async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/oauth/token") {
+        tokenCalls += 1;
+        return jsonResponse(200, {
+          accessToken: `lc_access_new_${tokenCalls}`,
+          tokenType: "Bearer",
+          expiresAt: "2099-01-02T00:00:00.000Z",
+          scopes: ["session:read"],
+          refreshToken: "lc_refresh_new",
+        });
+      }
+      return jsonResponse(401, {
+        error: { message: "Invalid access token.", code: "invalid_access_token" },
+      });
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: lifecycle("lc_refresh_old", () => {}),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).rejects.toMatchObject({
+      status: 401,
+      code: "invalid_access_token",
+    });
+    expect(tokenCalls).toBe(1);
+  });
+
+  it("surfaces the original authorization error when the refresh itself fails", async () => {
+    const fetch = vi.fn<RemoteFetch>(async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/oauth/token") {
+        return jsonResponse(401, {
+          error: { message: "Invalid refresh token.", code: "invalid_refresh_token" },
+        });
+      }
+      return jsonResponse(401, {
+        error: { message: "Invalid access token.", code: "invalid_access_token" },
+      });
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: lifecycle("lc_refresh_dead", () => {}),
+    });
+
+    // The caller keeps seeing a clean 401, never a grant-endpoint failure.
+    await expect(requestJsonVia(client, "/api/snapshot")).rejects.toMatchObject({
+      status: 401,
+      code: "invalid_access_token",
+    });
+  });
+
+  it("does not attempt a refresh without a lifecycle or stored refresh token", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () =>
+      jsonResponse(401, {
+        error: { message: "Invalid access token.", code: "invalid_access_token" },
+      }),
+    );
+    const onTokensRefreshed = vi.fn<(tokens: { accessToken: string }) => void>();
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: lifecycle(undefined, onTokensRefreshed),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).rejects.toMatchObject({ status: 401 });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(onTokensRefreshed).not.toHaveBeenCalled();
+  });
+});
+
+describe("RemoteDesktopClient certificate fingerprint pinning (Gate 6 item 4.2)", () => {
+  const endpoint = "https://127.0.0.1:38987/";
+  const SERVER_FINGERPRINT = "a".repeat(64);
+  const IMPOSTER_FINGERPRINT = "b".repeat(64);
+
+  function jsonResponse(status: number, body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  it("adopts the probed certificate as the pin on first pair and notifies persistence", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () =>
+      jsonResponse(200, {
+        accessToken: "lc_access_test",
+        tokenType: "Bearer",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        scopes: ["session:read"],
+        refreshToken: "lc_refresh_test",
+        refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
+      }),
+    );
+    const onCertFingerprintValidated = vi.fn<(fingerprint: string) => void>();
+    const client = new RemoteDesktopClient(endpoint, undefined, fetch, {
+      certFingerprintProbe: () => Promise.resolve(SERVER_FINGERPRINT),
+      onCertFingerprintValidated,
+    });
+
+    await expect(
+      client.exchangePairingCredential({ credential: "lc_pair_test", scopes: ["session:read"] }),
+    ).resolves.toMatchObject({ accessToken: "lc_access_test" });
+    expect(onCertFingerprintValidated).toHaveBeenCalledExactlyOnceWith(SERVER_FINGERPRINT);
+  });
+
+  it("refuses a pairing whose QR fingerprint contradicts the server certificate before spending the credential", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => jsonResponse(200, {}));
+    const client = new RemoteDesktopClient(endpoint, undefined, fetch, {
+      certFingerprintProbe: () => Promise.resolve(IMPOSTER_FINGERPRINT),
+    });
+
+    await expect(
+      client.exchangePairingCredential({
+        credential: "lc_pair_test",
+        scopes: ["session:read"],
+        certFingerprint: SERVER_FINGERPRINT,
+      }),
+    ).rejects.toMatchObject({ code: "certificate_fingerprint_mismatch" });
+    // The one-time credential was never sent.
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses every request once the pinned certificate stops matching", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => jsonResponse(200, { ok: true }));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      certFingerprint: SERVER_FINGERPRINT,
+      certFingerprintProbe: () => Promise.resolve(IMPOSTER_FINGERPRINT),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).rejects.toMatchObject({
+      code: "certificate_fingerprint_mismatch",
+    });
+    // Refusal happens before credentials leave the client.
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps working when the pin matches the probed certificate", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => jsonResponse(200, { ok: true }));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      certFingerprint: SERVER_FINGERPRINT,
+      certFingerprintProbe: () => Promise.resolve(SERVER_FINGERPRINT),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).resolves.toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("treats an unprovable transport as pass-through (browser fetch posture)", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => jsonResponse(200, { ok: true }));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      certFingerprint: SERVER_FINGERPRINT,
+    });
+
+    // No probe transport: the platform's TLS chain validation owns trust, the
+    // pin rides along as data for the record.
+    await expect(requestJsonVia(client, "/api/snapshot")).resolves.toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledOnce();
   });
 });

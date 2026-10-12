@@ -9,9 +9,10 @@ import {
   type CursorSdkDiagnostic,
   type CursorSdkExecutionEnvironment,
   type CursorSdkPackageSource,
+  type CursorSdkPinHint,
 } from "./sdkLoaderSupport";
+import { CURSOR_SDK_PACKAGE_NAME } from "@/shared/agents/cursorSdkPackage";
 
-const CURSOR_SDK_PACKAGE_NAME = "@cursor/sdk";
 const PACKAGE_JSON_MAX_BYTES = 1024 * 1024;
 const GLOBAL_ROOT_PROBE_TIMEOUT_MS = 5_000;
 const GLOBAL_ROOT_PROBE_MAX_BYTES = 64 * 1024;
@@ -44,6 +45,15 @@ export interface CursorSdkLoadOptions {
   env?: Readonly<Record<string, string | undefined>>;
   /** Additional global node_modules roots, ahead of inferred npm/pnpm roots. */
   globalPackageRoots?: readonly string[];
+  /**
+   * A previously resolved installation, recorded by the host so it can be
+   * re-found without a package-manager probe. Ordered behind every freely
+   * re-derivable candidate — a fresh observable install must outrank it — and
+   * ahead of the package-manager probes it exists to replace, and treated as a
+   * hint rather than a claim: a stale root falls through to normal discovery
+   * instead of failing the load.
+   */
+  pinnedRoot?: CursorSdkPinHint;
   /** Disable NODE_PATH and global npm/pnpm discovery. Primarily useful in tests. */
   includeGlobal?: boolean;
   /** Runtime probes default to the current process values. */
@@ -93,6 +103,13 @@ type PackageInspection =
 interface PackageCandidate {
   path: string;
   source: CursorSdkPackageSource;
+  /**
+   * A soft candidate can never fail the load — only a fully valid package
+   * satisfies it, and anything else is skipped. Recorded roots use this so a
+   * directory that has since been pruned or replaced by another package falls
+   * through to ordinary discovery instead of surfacing as `package_invalid`.
+   */
+  soft?: boolean;
 }
 
 export interface CursorSdkDiscoveryFailure {
@@ -124,7 +141,8 @@ export async function discoverCursorSdkPackage(
 
   // Filesystem-only candidates come first in the resolution order, so probing
   // `npm root -g` / `pnpm root -g` — two real subprocesses on every worker load
-  // — is deferred until none of them holds an installation.
+  // that only resolve when the package manager happens to be on this process'
+  // PATH — is deferred until none of them holds an installation.
   const freeCandidates: PackageCandidate[] = [];
   addProjectCandidates(freeCandidates, options.projectCwd ?? process.cwd());
   if (options.includeGlobal !== false) {
@@ -138,6 +156,18 @@ export async function discoverCursorSdkPackage(
       env,
       dependencies.executablePath ?? process.execPath,
     );
+    // A recorded root sits behind every candidate that re-derives for free —
+    // a fresh observable install must outrank the pin — and ahead of the
+    // subprocess probes it exists to replace, so a previously-working
+    // installation survives the PATH changing under us. It is a soft
+    // candidate: a stale root falls through instead of failing the load.
+    if (options.pinnedRoot) {
+      freeCandidates.push({
+        path: options.pinnedRoot.packageRoot,
+        source: options.pinnedRoot.source,
+        soft: true,
+      });
+    }
   }
 
   const seenCandidates = new Set<string>();
@@ -404,6 +434,9 @@ async function inspectCandidates(
     const inspected = await inspectPackageRoot(candidate.path, candidate.source);
     if (inspected.kind === "missing") continue;
     if (inspected.kind === "invalid") {
+      // A recorded root that no longer holds a valid package is a stale hint,
+      // not a broken installation: keep looking instead of failing the load.
+      if (candidate.soft) continue;
       return {
         diagnostic: {
           code: "package_invalid",

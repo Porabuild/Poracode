@@ -18,7 +18,6 @@ import {
   injectWslEnv,
   mergeSpawnEnv,
   readCommandOutputAsync,
-  resolveAgentEnvContext,
   WSL_HOST_BROWSER_ENV,
   withCommandBaseSpawnEnv,
 } from "../base";
@@ -67,10 +66,7 @@ export async function dispatchAcpAuthenticate(input: {
   if (!input.adapter.buildAcpAuthCommand) {
     throw new Error(`Agent does not support ACP authentication: ${input.adapter.kind}`);
   }
-  const requestedContext = envContextFromPayload(input.envKind, input.wslDistro);
-  const ctx = requestedContext
-    ? await resolveAgentEnvContext(input.adapter, requestedContext)
-    : undefined;
+  const ctx = envContextFromPayload(input.envKind, input.wslDistro);
   const rawCommand = await input.adapter.buildAcpAuthCommand(ctx);
   if (!rawCommand) {
     throw new Error(`Agent did not return an ACP auth command: ${input.adapter.kind}`);
@@ -99,10 +95,7 @@ export async function dispatchAcpLogout(input: {
   envKind?: AgentEnvContext["envKind"];
   wslDistro?: string;
 }): Promise<AgentEnvContext | undefined> {
-  const requestedContext = envContextFromPayload(input.envKind, input.wslDistro);
-  const ctx = requestedContext
-    ? await resolveAgentEnvContext(input.adapter, requestedContext)
-    : undefined;
+  const ctx = envContextFromPayload(input.envKind, input.wslDistro);
   const location = detectProbeLocation(ctx);
   if (input.adapter.buildAcpLogoutCommand) {
     if (input.adapter.preferAcpLogoutRpc) {

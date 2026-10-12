@@ -6,6 +6,11 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 const { discardExperimentMock } = vi.hoisted(() => ({
   discardExperimentMock: vi.fn<(experimentId: string) => Promise<boolean>>(async () => true),
 }));
+const layoutMock = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => layoutMock.compact,
+}));
 
 vi.mock("@/renderer/actions/experimentActions", () => ({
   discardExperiment: discardExperimentMock,
@@ -20,6 +25,14 @@ vi.mock("@/renderer/utils/shellUtils", () => ({
 vi.mock("@/renderer/analytics/productAnalytics", () => ({
   captureProductEvent: vi.fn<(name: string) => void>(),
 }));
+const groupIntentsMock = vi.hoisted(() => vi.fn<(assignments: unknown) => void>());
+vi.mock("@/renderer/state/managedRootCatalog/rootCatalogIntents", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/renderer/state/managedRootCatalog/rootCatalogIntents")
+  >()),
+  dispatchManagedRootThreadGroupIntents: groupIntentsMock,
+}));
+
 vi.mock("./SyncBadge", () => ({
   SyncBadge: (props: { projectId: string }) => (
     <span data-testid="project-sync-badge">{props.projectId}</span>
@@ -62,6 +75,7 @@ const project: Project = {
 
 describe("SidebarThreadGroup — experiment header", () => {
   beforeEach(() => {
+    layoutMock.compact = false;
     discardExperimentMock.mockClear();
     const threads = [makeThread("t-1"), makeThread("t-2")];
     useAppStore.setState({ threads });
@@ -149,5 +163,65 @@ describe("SidebarThreadGroup — experiment header", () => {
     );
 
     expect(screen.getByTestId("project-sync-badge")).toHaveTextContent(project.id);
+  });
+
+  it("routes a group rename through the managed-root per-member set-group intents", () => {
+    groupIntentsMock.mockClear();
+    useExperimentStore.setState({ experiments: {} });
+    const threads = [
+      { ...makeThread("t-1"), groupId: "group-1", groupName: "Old" },
+      { ...makeThread("t-2"), groupId: "group-1", groupName: "Old" },
+    ];
+    useAppStore.setState({ threads });
+
+    render(
+      <SidebarThreadGroup
+        entry={{
+          kind: "thread-group",
+          group: { kind: "default", groupId: "group-1", groupName: "Old", threads },
+        }}
+        project={project}
+        editingThreadId={"group:group-1"}
+        setEditingThreadId={() => undefined}
+      />,
+    );
+
+    const input = screen.getByRole("textbox", { name: "Rename Group" });
+    fireEvent.change(input, { target: { value: "New Name" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(groupIntentsMock).toHaveBeenCalledWith([
+      { threadId: "t-1", groupId: "group-1", groupName: "New Name" },
+      { threadId: "t-2", groupId: "group-1", groupName: "New Name" },
+    ]);
+  });
+
+  it("hides desktop group actions in compact layouts", () => {
+    layoutMock.compact = true;
+    useExperimentStore.setState({ experiments: {} });
+
+    render(
+      <SidebarThreadGroup
+        entry={{
+          kind: "thread-group",
+          group: {
+            kind: "default",
+            groupId: "group-1",
+            groupName: "Continue in Other Provider",
+            threads: useAppStore.getState().threads,
+          },
+        }}
+        project={project}
+        editingThreadId={null}
+        setEditingThreadId={() => undefined}
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(screen.queryByTestId("project-sync-badge")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open all in group" })).not.toBeInTheDocument();
+    expect(screen.getByText("Continue in Other Provider").closest("button")).toHaveClass(
+      "poracode-sidebar-touch-row",
+    );
   });
 });

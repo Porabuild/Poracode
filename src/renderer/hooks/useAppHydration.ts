@@ -1,12 +1,18 @@
 import { startTransition, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import {
+  hasAnyClientBridge,
+  hasClientCapability,
+  isCompactClientRuntimeSurface,
+} from "@/renderer/clientRuntime";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRunningExperimentCandidateIds,
   useExperimentStore,
 } from "@/renderer/state/experimentStore";
+import { hydrateManagedExperimentState } from "@/renderer/state/managedRootCatalog/rootExperimentAuthority";
 import { recoverExperimentCandidateWorktrees } from "@/renderer/state/experimentHydration";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { usePlugins } from "@/renderer/state/pluginsStore";
@@ -16,6 +22,8 @@ import { startPrMergeAutoDone } from "@/renderer/state/prMergeAutoDone";
 import { startPrWatchStatusSync } from "@/renderer/state/prWatchStatusSync";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 import { setThreadRuntimeReopenEnabled } from "@/renderer/actions/threadActions";
+import { isManagedRootDesktopRuntime } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { auxiliaryThreadIds, setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 
 interface IdleCallbackHandle {
   cancel: () => void;
@@ -43,21 +51,11 @@ function getAppStoreHydrationSnapshot(): boolean {
   return useAppStore.persist.hasHydrated();
 }
 
-function subscribeToExperimentStoreHydration(listener: () => void): () => void {
-  const unsubscribeHydrate = useExperimentStore.persist.onHydrate(listener);
-  const unsubscribeFinishHydration = useExperimentStore.persist.onFinishHydration(listener);
-  return () => {
-    unsubscribeHydrate();
-    unsubscribeFinishHydration();
-  };
-}
-
-function getExperimentStoreHydrationSnapshot(): boolean {
-  return useExperimentStore.persist.hasHydrated();
-}
-
-export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
-  const runtimeOwner = options.runtimeOwner ?? true;
+export function useAppHydration(
+  options: { runtimeOwner?: boolean; prewarmFeatures?: boolean } = {},
+) {
+  const runtimeOwner =
+    options.runtimeOwner ?? (!hasAnyClientBridge() ? true : hasClientCapability("localBackend"));
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
   const purgeStaleArchivedThreads = useAppStore((state) => state.purgeStaleArchivedThreads);
   const archiveOldDoneThreads = useAppStore((state) => state.archiveOldDoneThreads);
@@ -70,11 +68,10 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     subscribeToAppStoreHydration,
     getAppStoreHydrationSnapshot,
   );
-  const experimentStoreHydrated = useSyncExternalStore(
-    subscribeToExperimentStoreHydration,
-    getExperimentStoreHydrationSnapshot,
-  );
-  const storeHydrated = appStoreHydrated && experimentStoreHydrated;
+  // The experiment store is a memory-only projection of the host authority, so
+  // it has no persisted hydration of its own; it hydrates from
+  // `GET /api/experiments` below.
+  const storeHydrated = appStoreHydrated;
   const [loadT0] = useState(() => Date.now());
   const [runtimeSnapshotsReady, setRuntimeSnapshotsReady] = useState(false);
   const skipSnapshotRefreshForView = useRef<ReturnType<typeof useAppStore.getState>["view"] | null>(
@@ -99,15 +96,10 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     setThreadRuntimeReopenEnabled(false);
     skipSnapshotRefreshForView.current = null;
     const appState = useAppStore.getState();
-    const experimentStore = useExperimentStore.getState();
-    experimentStore.reconcileExperiments(new Set(appState.projects.map((project) => project.id)));
     const restoredView = appState.view;
-    if (
-      restoredView.kind === "experiment" &&
-      !useExperimentStore.getState().experiments[restoredView.experimentId]
-    ) {
-      appState.openHome();
-    }
+    const experimentAuthorityHydration = isManagedRootDesktopRuntime()
+      ? hydrateManagedExperimentState()
+      : Promise.resolve(false);
     console.log(
       `[renderer] +${Date.now() - loadT0}ms: store hydrated, view=${JSON.stringify(restoredView)}, ${useAppStore.getState().projects.length} projects, ${useAppStore.getState().threads.length} threads`,
     );
@@ -122,33 +114,73 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     }
 
     void (async () => {
-      const candidateRecovery = recoverExperimentCandidateWorktrees();
-      if (candidateRecovery) await candidateRecovery;
       if (!isActive) return;
+      // Reset restored runtime state before yielding to host hydration. A
+      // forwarded start can arrive during that await; it is a fresh live row,
+      // not restored state that may be marked inactive and relaunched.
+      if (runtimeOwner) {
+        startTransition(() => {
+          // Ephemeral session maps reset on every launch; the status rewrite in
+          // this action is scoped to renderer-owned rows, so host-owned catalog
+          // rows — including terminal root rows with no source marker — keep the
+          // server's status.
+          markThreadsInactiveOnLaunch({
+            preserveHostOwnedRootRows: isManagedRootDesktopRuntime(),
+          });
+          // The purge sweep is renderer-owned policy that used to persist
+          // through the catalog mirror. The root desktop has no mirror anymore,
+          // so it must not derive destructive work from a partial projection:
+          // host-owned housekeeping is the remaining authority move (see the B4
+          // report's host dependency) and the sweep stays off until it lands.
+          if (!isManagedRootDesktopRuntime()) purgeStaleArchivedThreads(30);
+        });
+      }
+      // The experiment board's records come from the host authority; wait for
+      // this activation's projection before deciding whether a restored
+      // experiment view still exists. A loopback that is down resolves
+      // truthfully after its own bounded read instead of pinning the shell.
+      await experimentAuthorityHydration;
+      if (!isActive) return;
+      if (
+        restoredView.kind === "experiment" &&
+        !useExperimentStore.getState().experiments[restoredView.experimentId]
+      ) {
+        useAppStore.getState().openHome();
+      }
       if (!runtimeOwner) {
         setInitialLoading(false);
         setThreadRuntimeReopenEnabled(true);
         setRuntimeSnapshotsReady(true);
+        void recoverExperimentCandidateWorktrees()?.catch((error: unknown) => {
+          captureRendererException(error, { featureArea: "hydration" });
+        });
         return;
       }
-
-      startTransition(() => {
-        markThreadsInactiveOnLaunch();
-        purgeStaleArchivedThreads(30);
-      });
 
       // A user can create a thread while this request is in flight. Scope the
       // response to the threads that existed when it began so an older empty
       // snapshot cannot mark a fresh direct launch inactive and relaunch it.
       const requestedThreadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
+      // Native windows outlive a main renderer reload. Restore their session
+      // ownership before closing any runtime absent from the main panes.
+      let auxiliaryOwnershipKnown = true;
+      try {
+        const ids = await readBridge().getSideChatThreadIds?.();
+        if (ids) setAuxiliaryThreadIds(ids);
+      } catch (error) {
+        auxiliaryOwnershipKnown = false;
+        captureRendererException(error, { featureArea: "hydration" });
+      }
       const snapshotsPromise = readBridge().getThreadSnapshots();
 
+      // Backend IPC can hang if the host is dead; do not pin the splash on it.
       const visibleGuiThreadIds = collectVisibleGuiThreadIds();
-      if (visibleGuiThreadIds.length > 0) {
-        await Promise.all(
-          visibleGuiThreadIds.map((threadId) => hydrateThreadRuntimeItems(threadId)),
-        );
-      }
+      void Promise.all([
+        recoverExperimentCandidateWorktrees() ?? Promise.resolve(),
+        ...visibleGuiThreadIds.map((threadId) => hydrateThreadRuntimeItems(threadId)),
+      ]).catch((error: unknown) => {
+        captureRendererException(error, { featureArea: "hydration" });
+      });
 
       if (!isActive) return;
       startTransition(() => {
@@ -171,7 +203,11 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
         const storeThreadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
 
         for (const snapshot of snapshots) {
-          if (!selectedIds.has(snapshot.threadId) && storeThreadIds.has(snapshot.threadId)) {
+          if (
+            auxiliaryOwnershipKnown &&
+            !selectedIds.has(snapshot.threadId) &&
+            storeThreadIds.has(snapshot.threadId)
+          ) {
             void readBridge()
               .closeThread({ threadId: snapshot.threadId })
               .catch((error: unknown) => {
@@ -186,6 +222,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
               ? snapshots.filter((snapshot) => selectedIds.has(snapshot.threadId))
               : [],
             requestedThreadIds,
+            { preserveHostOwnedRootRows: isManagedRootDesktopRuntime() },
           );
         });
       } catch (error) {
@@ -221,6 +258,9 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
     const idleHandle = scheduleIdle(() => {
       if (!isActive) return;
+      // Host-owned auto-archive is a pending host obligation for the managed
+      // root; the renderer must not flip rows it cannot persist.
+      if (isManagedRootDesktopRuntime()) return;
       const days = useSharedSettings.getState().autoArchiveDoneAfterDays;
       if (days > 0) {
         startTransition(() => {
@@ -297,17 +337,19 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   ]);
 
   useEffect(() => {
-    if (!storeHydrated || initialLoading) return;
+    if (!storeHydrated || initialLoading || options.prewarmFeatures === false) return;
 
     let stopPrewarm = () => {};
     const frame = window.requestAnimationFrame(() => {
-      stopPrewarm = startDeferredFeaturePrewarm();
+      stopPrewarm = startDeferredFeaturePrewarm(
+        isCompactClientRuntimeSurface() ? "compact" : "desktop",
+      );
     });
     return () => {
       window.cancelAnimationFrame(frame);
       stopPrewarm();
     };
-  }, [initialLoading, storeHydrated]);
+  }, [initialLoading, storeHydrated, options.prewarmFeatures]);
 
   return { initialLoading, runtimeSnapshotsReady, storeHydrated, loadT0 };
 }
@@ -329,6 +371,7 @@ function collectRetainedThreadIds(
   view: ReturnType<typeof useAppStore.getState>["view"],
 ): Set<string> {
   const retained = getRunningExperimentCandidateIds();
+  for (const threadId of auxiliaryThreadIds()) retained.add(threadId);
   if (view.kind === "thread") {
     for (const threadId of view.panes) retained.add(threadId);
   } else if (view.kind === "experiment") {

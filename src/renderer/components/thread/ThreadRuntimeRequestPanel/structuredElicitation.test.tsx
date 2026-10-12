@@ -297,6 +297,42 @@ describe("StructuredElicitationForm", () => {
     );
   });
 
+  it("submits a typed custom answer for a one-choice string that allows another value", () => {
+    const { onSubmit } = renderForm({
+      acpElicitation: {
+        mode: "form",
+        message: "Color",
+        requestedSchema: {
+          type: "object",
+          required: ["q0"],
+          properties: {
+            q0: {
+              type: "string",
+              title: "Color",
+              allowCustom: true,
+              oneOf: [
+                { const: "Blue", title: "Blue" },
+                { const: "Green", title: "Green" },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    const input = screen.getByRole("combobox", { name: "Color" });
+    expect(input.tagName).toBe("INPUT");
+    expect(input.tagName).not.toBe("SELECT");
+    expect(screen.queryByRole("button", { name: /Color$/u })).toBeNull();
+    fireEvent.change(input, { target: { value: "Q17_OTHER" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      { action: "accept", content: { q0: "Q17_OTHER" } },
+      "answered",
+    );
+  });
+
   it("opens http(s) elicitation links through openExternal and rejects other schemes", () => {
     expect(
       asStructuredElicitationDetails({

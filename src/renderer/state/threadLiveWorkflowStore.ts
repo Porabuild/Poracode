@@ -4,6 +4,8 @@ import {
   WORKFLOW_STALE_PROGRESS_MS,
   isWorkflowRunLive,
   type ProjectLocation,
+  type WorkflowAgent,
+  type WorkflowRun,
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 
@@ -32,8 +34,8 @@ const POLL_MS = 4000;
 // A launched workflow writes its manifest within ~seconds, on its first
 // progress event (see workflowRunStore). Treat a never-seen manifest as a dead
 // launch only after this generous window, so a merely slow first phase isn't
-// mistaken for a failure. Once any manifest is seen, liveness follows the
-// manifest status (running until terminal) rather than this deadline.
+// mistaken for a failure. Once any snapshot is seen, timestamp-free liveness
+// uses the longer fallback below; reported activity uses the manifest's clock.
 const LAUNCH_DEADLINE_MS = 10 * 60_000;
 // Backstop for a workflow whose manifest was seen but never reaches a terminal
 // status (e.g. the runtime crashed mid-run leaving it pinned "running"). Long
@@ -81,6 +83,20 @@ function entryKey(threadId: string, itemId: string): string {
 function isExpired(entry: LiveWorkflowEntry): boolean {
   const maxAge = entry.manifestSeen ? MAX_ENTRY_AGE_MS : LAUNCH_DEADLINE_MS;
   return Date.now() - entry.registeredAt > maxAge;
+}
+
+function hasActivityTimestamp(run: WorkflowRun): boolean {
+  // These are the activity fields read by isWorkflowRunLive. A duration needs
+  // startTime to locate it on the clock, so duration alone is not activity.
+  const hasAgentTime = (agent: WorkflowAgent): boolean =>
+    agent.queuedAt !== undefined ||
+    agent.startedAt !== undefined ||
+    agent.lastProgressAt !== undefined;
+  return (
+    run.startTime !== undefined ||
+    run.phases.some((phase) => phase.agents.some(hasAgentTime)) ||
+    run.unphasedAgents.some(hasAgentTime)
+  );
 }
 
 export const useThreadLiveWorkflowStore = create<ThreadLiveWorkflowStore>((set, get) => {
@@ -132,13 +148,16 @@ export const useThreadLiveWorkflowStore = create<ThreadLiveWorkflowStore>((set, 
       });
       // The entry may have been removed (terminal/markTerminal) while in flight.
       const current = entries.get(key);
-      if (!current) return;
+      if (current !== entry) return;
       if (result.run) {
         current.manifestSeen = true;
         // Drop once the manifest reports a terminal status, or its `running`
         // status has gone stale - a crashed runtime that never wrote a terminal
         // manifest (see isWorkflowRunLive).
-        if (!isWorkflowRunLive(result.run)) {
+        if (
+          !isWorkflowRunLive(result.run) ||
+          (!hasActivityTimestamp(result.run) && isExpired(current))
+        ) {
           removeEntry(key);
         }
         return;
@@ -149,7 +168,7 @@ export const useThreadLiveWorkflowStore = create<ThreadLiveWorkflowStore>((set, 
       if (isExpired(current)) removeEntry(key);
     } catch {
       const current = entries.get(key);
-      if (current && isExpired(current)) removeEntry(key);
+      if (current === entry && isExpired(current)) removeEntry(key);
     }
   }
 
@@ -161,9 +180,18 @@ export const useThreadLiveWorkflowStore = create<ThreadLiveWorkflowStore>((set, 
       if (existing) {
         // Refresh mutable fields in case the manifest path/location resolved
         // after the first registration; leave registeredAt/manifestSeen intact.
-        existing.manifestPath = input.manifestPath;
-        existing.location = input.location;
-        existing.transcriptDir = input.transcriptDir;
+        if (
+          existing.manifestPath !== input.manifestPath ||
+          existing.transcriptDir !== input.transcriptDir ||
+          !shallow(existing.location, input.location)
+        ) {
+          entries.set(key, {
+            ...existing,
+            manifestPath: input.manifestPath,
+            location: input.location,
+            transcriptDir: input.transcriptDir,
+          });
+        }
         return;
       }
       entries.set(key, {

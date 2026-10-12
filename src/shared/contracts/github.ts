@@ -471,6 +471,10 @@ export interface CloneRepoResult {
   path: string;
 }
 
+export const cloneRepoResultSchema = z.object({
+  path: z.string().min(1),
+});
+
 export const ghListAccountsPayloadSchema = z.object({
   /** Runtime context (cwd / WSL distro) the `gh` CLI should run in. */
   runtime: projectLocationSchema,

@@ -2,51 +2,12 @@ import type { Monaco } from "@monaco-editor/react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { createLspRootUri } from "@/shared/lsp";
 import { readBridge } from "../bridge";
-import { getLanguageFromPath } from "../views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane";
+import { detectLanguageServerId, getMonacoLanguages } from "./languageSupport";
 import { LspIpcTransport } from "./ipcTransport";
 import { registerLspProviders } from "./monacoProviders";
 import { DocumentSyncManager } from "./documentSync";
 
 type IDisposable = { dispose(): void };
-
-/** Map file extension to the language server's languageId. */
-function detectLanguageServerId(filePath: string): string | null {
-  const lang = getLanguageFromPath(filePath);
-  // Map Monaco language IDs to language server IDs
-  switch (lang) {
-    case "typescript":
-    case "javascript":
-      return "typescript";
-    case "python":
-      return "python";
-    case "go":
-      return "go";
-    case "css":
-    case "scss":
-    case "less":
-      return "css";
-    case "html":
-      return "html";
-    case "json":
-      return "json";
-    case "rust":
-      return "rust";
-    default:
-      return null;
-  }
-}
-
-/** Monaco language IDs served by a given server language ID. */
-function getMonacoLanguages(serverLanguageId: string): string[] {
-  switch (serverLanguageId) {
-    case "typescript":
-      return ["typescript", "javascript"];
-    case "css":
-      return ["css", "scss", "less"];
-    default:
-      return [serverLanguageId];
-  }
-}
 
 interface LspSession {
   transport: LspIpcTransport;
@@ -54,12 +15,28 @@ interface LspSession {
   providerDisposables: IDisposable[];
 }
 
-/**
- * Manages LSP sessions per project+language.
- * Call `ensureServer()` when a file opens, `stopProject()` when editor closes.
- */
+interface SessionAttempt {
+  sessionId: string;
+  projectId: string;
+  languageId: string;
+  retired: boolean;
+  startRequested: boolean;
+  transport: LspIpcTransport | null;
+  session: LspSession | null;
+  ready: Promise<LspSession | null>;
+}
+
+interface Retirement {
+  projectId: string;
+  finished: Promise<void>;
+}
+
+/** Owns pending and ready language servers. Project retirement fences both. */
 export class LspOrchestrator {
-  private sessions = new Map<string, LspSession>();
+  private attempts = new Map<string, SessionAttempt>();
+  private retirements = new Map<string, Retirement>();
+  private disposed = false;
+  private projectOwners = new Map<string, Set<symbol>>();
 
   async ensureServer(
     monaco: Monaco,
@@ -67,77 +44,167 @@ export class LspOrchestrator {
     projectLocation: ProjectLocation,
     filePath: string,
   ): Promise<LspSession | null> {
-    // LSP sessions and their message stream are owned by the local supervisor.
-    // Remote file editing remains available, but must never start a local
-    // language server against a path that exists only on the paired host.
-    if (projectLocation.remoteServerId) return null;
+    // Remote paths belong to the paired host, never a local language server.
+    if (this.disposed || projectLocation.remoteServerId) return null;
     const languageId = detectLanguageServerId(filePath);
     if (!languageId) return null;
-
     const sessionId = `${projectId}:${languageId}`;
-    const existing = this.sessions.get(sessionId);
-    if (existing) return existing;
+    const existing = this.attempts.get(sessionId);
+    if (existing) return existing.ready;
 
-    // Start the language server via IPC
-    const transport = new LspIpcTransport(sessionId);
-
-    try {
-      await readBridge().lspStart({ sessionId, projectLocation, languageId });
-    } catch (error) {
-      transport.dispose();
-      console.warn(`[LSP] Failed to start ${languageId} server:`, error);
-      return null;
-    }
-
-    const monacoLanguages = getMonacoLanguages(languageId);
-    const providerDisposables = registerLspProviders(
-      monaco,
-      transport,
-      monacoLanguages,
-      createLspRootUri(projectLocation),
-    );
-    const docSync = new DocumentSyncManager(transport);
-
-    const session: LspSession = { transport, docSync, providerDisposables };
-    this.sessions.set(sessionId, session);
-    return session;
+    const attempt: SessionAttempt = {
+      sessionId,
+      projectId,
+      languageId,
+      retired: false,
+      startRequested: false,
+      transport: null,
+      session: null,
+      ready: Promise.resolve(null),
+    };
+    this.attempts.set(sessionId, attempt);
+    attempt.ready = this.startAttempt(attempt, monaco, projectLocation);
+    return attempt.ready;
   }
 
-  /** Get the active session for a file (if any). */
+  private current(attempt: SessionAttempt): boolean {
+    return !this.disposed && !attempt.retired && this.attempts.get(attempt.sessionId) === attempt;
+  }
+
+  private async startAttempt(
+    attempt: SessionAttempt,
+    monaco: Monaco,
+    location: ProjectLocation,
+  ): Promise<LspSession | null> {
+    try {
+      // A previous stop must be acknowledged before reusing its wire session ID.
+      await this.retirements.get(attempt.sessionId)?.finished;
+      if (!this.current(attempt)) return null;
+      const transport = new LspIpcTransport(attempt.sessionId);
+      attempt.transport = transport;
+      transport.onStatus((status) => {
+        if (this.current(attempt) && attempt.session) {
+          if (status === "starting") attempt.session.docSync.suspend();
+          if (status === "ready") attempt.session.docSync.resume();
+        }
+        if ((status === "error" || status === "stopped") && this.current(attempt))
+          void this.retire(attempt);
+      });
+      attempt.startRequested = true;
+      await readBridge().lspStart({
+        sessionId: attempt.sessionId,
+        projectLocation: location,
+        languageId: attempt.languageId,
+      });
+      if (!this.current(attempt)) return null;
+      const providerDisposables = registerLspProviders(
+        monaco,
+        transport,
+        getMonacoLanguages(attempt.languageId),
+        monaco.Uri.parse(createLspRootUri(location)).toString(),
+      );
+      attempt.session = {
+        transport,
+        providerDisposables,
+        docSync: new DocumentSyncManager(transport),
+      };
+      if (!this.current(attempt)) {
+        this.releaseResources(attempt);
+        return null;
+      }
+      return attempt.session;
+    } catch (error) {
+      if (this.current(attempt)) {
+        console.warn(`[LSP] Failed to start ${attempt.languageId} server:`, error);
+        void this.retire(attempt);
+      }
+      return null;
+    }
+  }
+
   getSession(projectId: string, filePath: string): LspSession | null {
     const languageId = detectLanguageServerId(filePath);
     if (!languageId) return null;
-    return this.sessions.get(`${projectId}:${languageId}`) ?? null;
+    return this.attempts.get(`${projectId}:${languageId}`)?.session ?? null;
+  }
+
+  private releaseResources(attempt: SessionAttempt): void {
+    if (attempt.session) {
+      for (const disposable of attempt.session.providerDisposables) disposable.dispose();
+      attempt.session.docSync.dispose();
+      attempt.session = null;
+    }
+    attempt.transport?.dispose();
+    attempt.transport = null;
+  }
+
+  private retire(attempt: SessionAttempt): Promise<void> {
+    if (attempt.retired)
+      return this.retirements.get(attempt.sessionId)?.finished ?? Promise.resolve();
+    attempt.retired = true;
+    if (this.attempts.get(attempt.sessionId) === attempt) this.attempts.delete(attempt.sessionId);
+    this.releaseResources(attempt);
+    const previous = this.retirements.get(attempt.sessionId)?.finished;
+    const retirement: Retirement = {
+      projectId: attempt.projectId,
+      finished: (async () => {
+        await previous;
+        if (attempt.startRequested) {
+          try {
+            await readBridge().lspStop({ sessionId: attempt.sessionId });
+          } catch {
+            /* Host retirement is best effort. */
+          }
+        }
+      })(),
+    };
+    this.retirements.set(attempt.sessionId, retirement);
+    void retirement.finished.then(() => {
+      if (this.retirements.get(attempt.sessionId) === retirement)
+        this.retirements.delete(attempt.sessionId);
+    });
+    return retirement.finished;
+  }
+
+  /** Editor surfaces share one project lifetime, including transition overlap. */
+  retainProject(projectId: string): IDisposable {
+    if (this.disposed) return { dispose: () => {} };
+    let owners = this.projectOwners.get(projectId);
+    if (!owners) {
+      owners = new Set();
+      this.projectOwners.set(projectId, owners);
+    }
+    const token = Symbol();
+    const activeOwners = owners;
+    activeOwners.add(token);
+    return {
+      dispose: () => {
+        if (!activeOwners.delete(token)) return;
+        if (activeOwners.size === 0 && this.projectOwners.get(projectId) === activeOwners) {
+          this.projectOwners.delete(projectId);
+          void this.stopProject(projectId);
+        }
+      },
+    };
   }
 
   async stopProject(projectId: string): Promise<void> {
-    for (const [sessionId, session] of this.sessions) {
-      if (sessionId.startsWith(`${projectId}:`)) {
-        for (const d of session.providerDisposables) d.dispose();
-        session.docSync.dispose();
-        session.transport.dispose();
-        this.sessions.delete(sessionId);
-        try {
-          await readBridge().lspStop({ sessionId });
-        } catch {
-          /* ignore */
-        }
-      }
+    const finished = [...this.retirements.values()]
+      .filter((r) => r.projectId === projectId)
+      .map((r) => r.finished);
+    // Retire all owners synchronously before awaiting any stop acknowledgement.
+    for (const attempt of this.attempts.values()) {
+      if (attempt.projectId === projectId) finished.push(this.retire(attempt));
     }
+    await Promise.all(finished);
   }
 
   dispose(): void {
-    for (const [sessionId, session] of this.sessions) {
-      for (const d of session.providerDisposables) d.dispose();
-      session.docSync.dispose();
-      session.transport.dispose();
-      readBridge()
-        .lspStop({ sessionId })
-        .catch(() => {});
-    }
-    this.sessions.clear();
+    if (this.disposed) return;
+    this.disposed = true;
+    this.projectOwners.clear();
+    for (const attempt of this.attempts.values()) void this.retire(attempt);
   }
 }
 
-/** Singleton orchestrator — shared across all editor instances. */
 export const lspOrchestrator = new LspOrchestrator();

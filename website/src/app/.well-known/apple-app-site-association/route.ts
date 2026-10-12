@@ -15,8 +15,12 @@ export function GET() {
               {
                 appIDs: [appleAppId],
                 components: [
-                  { "/": "/pair*", comment: "Pairing deep links open the installed app" },
-                  { "/": "/app*", comment: "App entry deep links open the installed app" },
+                  {
+                    "/": "/",
+                    comment: "Canonical app and pairing links open the installed app",
+                  },
+                  { "/": "/pair*", comment: "Legacy pairing links open the installed app" },
+                  { "/": "/app*", comment: "Legacy app links open the installed app" },
                 ],
               },
             ]

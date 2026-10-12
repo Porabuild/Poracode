@@ -2,7 +2,15 @@ import { mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { readBundledHelperVersion, resolveWslHelpersDir } from "./wslDeploy";
+import { WslStagingService } from "./staging";
+import type { WslStagingRequest } from "./staging/protocol";
+import {
+  deployFilesToWslHome,
+  deployFilesToWslTempBase,
+  readBundledHelperVersion,
+  removeWslStagedPath,
+  resolveWslHelpersDir,
+} from "./wslDeploy";
 
 /**
  * Direct unit tests for `resolveWslHelpersDir` (env-var fallback) and the
@@ -136,6 +144,133 @@ describe("readBundledHelperVersion", () => {
     const dir = makeTempDir();
     writeFileSync(join(dir, "helper.mjs"), `export const V = "2.0.0";\n`, "utf8");
     expect(readBundledHelperVersion("helper.mjs", "V", dir)).toBe("2.0.0");
+  });
+});
+
+describe("staging-backed WSL deploys", () => {
+  function makeStagingService(): {
+    service: WslStagingService;
+    requests: WslStagingRequest[];
+    fail: (error: Error) => void;
+  } {
+    const requests: WslStagingRequest[] = [];
+    let failure: Error | undefined;
+    const service = new WslStagingService({
+      cachedHome: () => "/home/user",
+      createExecutor: () => ({
+        execute: async <T = unknown>(request: WslStagingRequest): Promise<T> => {
+          requests.push(request);
+          if (failure) throw failure;
+          return { filesWritten: 1 } as T;
+        },
+        dispose: async () => undefined,
+      }),
+    });
+    return {
+      service,
+      requests,
+      fail: (error) => {
+        failure = error;
+      },
+    };
+  }
+
+  it("deploys home files through the staging service and returns the linux base", async () => {
+    const dir = makeTempDir();
+    const source = join(dir, "helper.mjs");
+    writeFileSync(source, "helper");
+    const { service, requests } = makeStagingService();
+
+    const result = await deployFilesToWslHome(
+      "Ubuntu",
+      [{ src: source, relDest: "agent-plugins/x/helper.mjs" }],
+      { staging: service },
+    );
+
+    expect(result).toEqual({ home: "/home/user", linuxBaseDir: "/home/user/.poracode" });
+    expect(requests[0]).toMatchObject({
+      op: "deploy",
+      base: "\\\\wsl.localhost\\Ubuntu\\home\\user\\.poracode",
+      freshness: "content",
+    });
+  });
+
+  it("returns null for a missing source without touching the distro", async () => {
+    const dir = makeTempDir();
+    const { service, requests } = makeStagingService();
+
+    const result = await deployFilesToWslHome(
+      "Ubuntu",
+      [{ src: join(dir, "missing.mjs"), relDest: "missing.mjs" }],
+      { staging: service },
+    );
+
+    expect(result).toBeNull();
+    expect(requests).toEqual([]);
+  });
+
+  it("returns null when home resolution fails", async () => {
+    const dir = makeTempDir();
+    const source = join(dir, "helper.mjs");
+    writeFileSync(source, "helper");
+    const service = new WslStagingService({ resolveHome: async () => undefined });
+
+    const result = await deployFilesToWslHome("Ubuntu", [{ src: source, relDest: "helper.mjs" }], {
+      staging: service,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when the staging worker rejects", async () => {
+    const dir = makeTempDir();
+    const source = join(dir, "helper.mjs");
+    writeFileSync(source, "helper");
+    const { service, fail } = makeStagingService();
+    fail(new Error("UNC stalled"));
+
+    const result = await deployFilesToWslHome("Ubuntu", [{ src: source, relDest: "helper.mjs" }], {
+      staging: service,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("removes a staged temp base through the staging service", async () => {
+    const dir = makeTempDir();
+    const source = join(dir, "bridge.mjs");
+    writeFileSync(source, "bridge");
+    const { service, requests } = makeStagingService();
+
+    await removeWslStagedPath("Ubuntu", "/tmp/poracode-bridge-99-deadbeefcafe", {
+      staging: service,
+    });
+
+    expect(requests[0]).toEqual({
+      op: "remove",
+      path: "\\\\wsl.localhost\\Ubuntu\\tmp\\poracode-bridge-99-deadbeefcafe",
+      recursive: true,
+    });
+  });
+
+  it("stages a temp base under a content-addressed directory", async () => {
+    const dir = makeTempDir();
+    const source = join(dir, "bridge.mjs");
+    writeFileSync(source, "bridge");
+    const { service, requests } = makeStagingService();
+
+    const result = await deployFilesToWslTempBase(
+      "Ubuntu",
+      "poracode-bridge-99",
+      [{ src: source, relDest: "bridge/bridge.mjs" }],
+      { staging: service },
+    );
+
+    expect(result?.linuxBaseDir).toMatch(/^\/tmp\/poracode-bridge-99-[0-9a-f]{12}$/u);
+    expect(requests[0]).toMatchObject({
+      op: "deploy",
+      base: expect.stringContaining("poracode-bridge-99-"),
+    });
   });
 });
 

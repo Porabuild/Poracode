@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dbReadThreadRuntimeSummaries } from "./db";
+import { dbReadThreadRuntimeSummaries } from "@/host/db";
 
 describe("dbReadThreadRuntimeSummaries", () => {
   it("returns item counts, latest item metadata, and context usage without full item reads", () => {

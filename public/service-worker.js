@@ -1,6 +1,6 @@
 // Service worker for the standalone (hosted) Poracode PWA. The desktop-served
-// build ships an equivalent worker generated at runtime (see
-// src/main/remote/pairingPage.ts); keep the two in sync.
+// build serves this finalized worker when bundled. The pairing-only fallback
+// in src/host/remote/pairingPage.ts has a separate, smaller shell cache.
 //
 // Strategy: cache-first for immutable hashed build assets, network-first for
 // other same-origin GETs, and an app-shell fallback for offline navigations.
@@ -11,10 +11,71 @@ const CACHE_NAME = `poracode-pwa-${BUILD_VERSION}`;
 const NAVIGATION_FALLBACK_DELAY_MS = 500;
 const APP_BASE_URL = new URL("./", self.location.href);
 const shellUrl = (path) => new URL(path, APP_BASE_URL).pathname;
-const SHELL_URLS = ["./", "app", "manifest.webmanifest", "app-icon.svg"].map(shellUrl);
-// Substituted per channel by scripts/finalize-mobile-build.mjs so a nightly
+const SHELL_URLS = ["./", "manifest.webmanifest", "app-icon.svg"].map(shellUrl);
+// Substituted per channel by scripts/finalize-web-build.mjs so a nightly
 // install's notifications carry the nightly art, not the stable icon.
 const NOTIFICATION_ICON_URL = shellUrl("__PORACODE_NOTIFICATION_ICON__");
+
+// Optional cache warming must not flood foreground requests when several
+// clients report the same build. These owners exist only for unsettled work;
+// cache eviction and failed fills remain retryable. Cache/message formats are
+// unchanged; finalize-web-build derives a new identity from the worker bytes.
+const MAX_ACTIVE_BUILD_ASSET_FILLS = 4;
+const pendingBuildAssets = new Map();
+const buildAssetQueue = [];
+let activeBuildAssetFills = 0;
+
+function isHtmlResponse(response) {
+  return (response.headers.get("content-type") ?? "").toLowerCase().startsWith("text/html");
+}
+
+async function cacheBuildAsset(cache, url) {
+  const response = await fetch(url);
+  // A deployment's SPA fallback may return HTTP 200 for a missing hashed
+  // asset. Validate before writing so a concurrent reader never sees HTML
+  // under a script/style URL.
+  if (!response.ok || isHtmlResponse(response)) {
+    throw new Error(`Unavailable build asset: ${url}`);
+  }
+  await cache.put(url, response);
+}
+
+async function fillBuildAsset(job) {
+  try {
+    const cached = await job.cache.match(job.url, { ignoreVary: true });
+    // Preserve the opportunity to repair a legacy HTML fallback entry instead
+    // of treating that stale asset as an immutable cache hit.
+    if (!cached || isHtmlResponse(cached)) {
+      await cacheBuildAsset(job.cache, job.url);
+    }
+    job.resolve();
+  } catch (error) {
+    job.reject(error);
+  } finally {
+    pendingBuildAssets.delete(job.url);
+    activeBuildAssetFills--;
+    drainBuildAssets();
+  }
+}
+
+function drainBuildAssets() {
+  while (activeBuildAssetFills < MAX_ACTIVE_BUILD_ASSET_FILLS && buildAssetQueue.length > 0) {
+    const job = buildAssetQueue.shift();
+    activeBuildAssetFills++;
+    void fillBuildAsset(job);
+  }
+}
+
+function queueBuildAsset(cache, url) {
+  const existing = pendingBuildAssets.get(url);
+  if (existing) return existing;
+  const completion = new Promise((resolve, reject) => {
+    buildAssetQueue.push({ cache, url, resolve, reject });
+  });
+  pendingBuildAssets.set(url, completion);
+  drainBuildAssets();
+  return completion;
+}
 
 function shellAssetUrls(html) {
   const urls = new Set();
@@ -27,11 +88,16 @@ function shellAssetUrls(html) {
 
 async function cacheShell() {
   const cache = await caches.open(CACHE_NAME);
-  await Promise.allSettled(SHELL_URLS.map((url) => cache.add(url)));
-  const shell = await cache.match(shellUrl("app"));
-  if (!shell) return;
+  // Reject installation if the runnable shell is incomplete. Otherwise the
+  // replacement could activate and retire the previous usable offline build.
+  await cache.add(shellUrl("./"));
+  const shell = await cache.match(shellUrl("./"));
+  if (!shell) throw new Error("Unavailable application shell");
   const assets = shellAssetUrls(await shell.text());
-  await Promise.allSettled(assets.map((url) => cache.add(url)));
+  if (assets.length === 0) throw new Error("Application shell has no build assets");
+  await Promise.all(assets.map((url) => cacheBuildAsset(cache, url)));
+  // Branding/install metadata are best-effort, not startup prerequisites.
+  await Promise.allSettled(SHELL_URLS.slice(1).map((url) => cache.add(url)));
 }
 
 function validBuildAssetUrls(value) {
@@ -48,7 +114,9 @@ function validBuildAssetUrls(value) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(cacheShell());
-  self.skipWaiting();
+  // Keep the previous worker in control until its documents close or reload.
+  // Activating immediately can delete the previous hashed asset cache while
+  // an old document still requests one of those URLs.
 });
 
 self.addEventListener("activate", (event) => {
@@ -126,7 +194,9 @@ self.addEventListener("message", (event) => {
   if (event.data?.type !== "cache-build-assets") return;
   const urls = validBuildAssetUrls(event.data.urls);
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => Promise.allSettled(urls.map((url) => cache.add(url)))),
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => Promise.allSettled(urls.map((url) => queueBuildAsset(cache, url)))),
   );
 });
 
@@ -137,23 +207,30 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   // Only handle same-origin requests; the desktop API lives elsewhere.
   if (url.origin !== self.location.origin) return;
-  const isAppRequest = url.pathname === "/app" || url.pathname.startsWith("/app/");
   const buildRoute = APP_BASE_URL.pathname.replace(/\/$/, "");
   const isBuildRequest =
     buildRoute === "" || url.pathname === buildRoute || url.pathname.startsWith(`${buildRoute}/`);
-  if (!isAppRequest && !isBuildRequest) return;
+  const isRuntimeRequest =
+    url.pathname === "/ws" ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/oauth/") ||
+    url.pathname.startsWith("/.well-known/") ||
+    url.pathname.startsWith("/forward/");
+  if (!isBuildRequest || isRuntimeRequest) return;
 
   if (url.pathname.startsWith(`${APP_BASE_URL.pathname}assets/`)) {
     event.respondWith(
-      caches.match(request).then(
+      // Hashed assets are immutable. Ignore Vary here because a later
+      // URL-only cache refresh has no Origin header, while ES-module requests
+      // do; matching Vary would strand a fully cached PWA at a blank shell.
+      caches.match(request, { ignoreVary: true }).then(
         (cached) =>
-          cached ||
+          (cached && !isHtmlResponse(cached) ? cached : null) ||
           fetch(request).then((response) => {
             // The SPA fallback rewrites missing assets to the HTML shell. A
             // hashed build asset that returns HTML is stale — the deployment
             // replaced it. Serve a clean 404 instead of a MIME-type violation.
-            const contentType = response.headers.get("content-type") ?? "";
-            if (response.ok && contentType.startsWith("text/html")) {
+            if (response.ok && isHtmlResponse(response)) {
               return new Response("Not found", { status: 404, statusText: "Not Found" });
             }
             if (response.ok) {
@@ -171,13 +248,13 @@ self.addEventListener("fetch", (event) => {
     const networkResponse = fetch(request).then(async (response) => {
       if (response.ok) {
         const cache = await caches.open(CACHE_NAME);
-        await cache.put(shellUrl("app"), response.clone());
+        await cache.put(shellUrl("./"), response.clone());
       }
       return response;
     });
     const cachedResponse = new Promise((resolve) => {
       setTimeout(() => {
-        void caches.match(shellUrl("app")).then(resolve);
+        void caches.match(shellUrl("./")).then(resolve);
       }, NAVIGATION_FALLBACK_DELAY_MS);
     });
     event.waitUntil(
@@ -189,12 +266,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       Promise.race([networkResponse, cachedResponse])
         .then((response) => response || networkResponse)
-        .catch(
-          async () =>
-            (await caches.match(shellUrl("app"))) ||
-            (await caches.match(shellUrl("./"))) ||
-            Response.error(),
-        ),
+        .catch(async () => (await caches.match(shellUrl("./"))) || Response.error()),
     );
     return;
   }
@@ -204,7 +276,7 @@ self.addEventListener("fetch", (event) => {
       .then((response) => {
         if (response.ok) {
           const clone = response.clone();
-          const cacheKey = request.mode === "navigate" ? shellUrl("app") : request;
+          const cacheKey = request.mode === "navigate" ? shellUrl("./") : request;
           void caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
         }
         return response;
@@ -213,11 +285,7 @@ self.addEventListener("fetch", (event) => {
         const cached = await caches.match(request);
         if (cached) return cached;
         if (request.mode === "navigate") {
-          return (
-            (await caches.match(shellUrl("app"))) ||
-            (await caches.match(shellUrl("./"))) ||
-            Response.error()
-          );
+          return (await caches.match(shellUrl("./"))) || Response.error();
         }
         return Response.error();
       }),

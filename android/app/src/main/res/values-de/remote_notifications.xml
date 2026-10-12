@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_notification_done">Abgeschlossen</string>
+    <string name="remote_notification_needs_attention">Aufmerksamkeit erforderlich</string>
+    <string name="remote_notification_error">Fehler</string>
+    <string name="remote_notification_dismiss">Benachrichtigung schließen</string>
+</resources>

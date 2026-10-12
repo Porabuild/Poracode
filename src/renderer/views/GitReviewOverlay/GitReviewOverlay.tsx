@@ -10,14 +10,16 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { BranchSelector } from "@/renderer/components/common";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { GitReviewSidebar } from "./parts/GitReviewSidebar/GitReviewSidebar";
 import { GitDiffContent, type DiffFilter } from "./parts/GitDiffContent/GitDiffContent";
 import { addGitRemote, initGitRepository } from "./parts/initGitRepository";
+import { CompactGitReviewOverlay } from "./CompactGitReviewOverlay";
 
 /** Matches DiffModeEnum values from @git-diff-view/react — kept local to avoid importing the heavy library. */
 const DIFF_MODE = { Split: 1, Unified: 4 } as const;
 
-export function GitReviewOverlay(props: {
+export interface GitReviewOverlayProps {
   project: Project;
   locationOverride?: ProjectLocation;
   statusKey?: string;
@@ -25,7 +27,18 @@ export function GitReviewOverlay(props: {
   worktreePath?: string | undefined;
   onMergeAndRemove?: (() => void) | undefined;
   onClose: () => void;
-}) {
+}
+
+export function GitReviewOverlay(props: GitReviewOverlayProps) {
+  const compactLayout = useCompactLayout();
+  return compactLayout ? (
+    <CompactGitReviewOverlay {...props} />
+  ) : (
+    <DesktopGitReviewOverlay {...props} />
+  );
+}
+
+function DesktopGitReviewOverlay(props: GitReviewOverlayProps) {
   const {
     project,
     locationOverride,

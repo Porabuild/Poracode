@@ -105,6 +105,7 @@ export function RightTerminalLayout(props: {
                   </span>
                   <button
                     className="ml-auto flex size-4 shrink-0 items-center justify-center rounded opacity-0 transition hover:text-danger group-hover:opacity-100"
+                    aria-label={t`Close tab`}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();

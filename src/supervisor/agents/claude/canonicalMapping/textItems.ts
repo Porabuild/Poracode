@@ -63,10 +63,8 @@ export function completeTextItem(
   events.push({ type: "item.completed", threadId: state.threadId, itemId: item.itemId });
 }
 
-export function closeClaudeOpenItems(
-  state: ClaudeMapperState,
-  options?: { closePlan?: boolean },
-): RuntimeEvent[] {
+/** End the current generation's text without retiring tools or the logical turn. */
+function closeClaudeOpenTextItems(state: ClaudeMapperState): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   for (const item of state.assistantTextItems.values()) {
     completeTextItem(state, item, "assistant_text", events);
@@ -74,6 +72,35 @@ export function closeClaudeOpenItems(
   for (const item of state.reasoningItems.values()) {
     completeTextItem(state, item, "reasoning_text", events);
   }
+  state.assistantTextItems.clear();
+  state.reasoningItems.clear();
+  return events;
+}
+
+/** Close abandoned generation, keeping fully formed tools available for their results. */
+export function closeClaudeGenerationItems(state: ClaudeMapperState): RuntimeEvent[] {
+  const events = closeClaudeOpenTextItems(state);
+  for (const [index, tool] of state.toolItemsByIndex) {
+    if (!tool.inputStreaming) continue;
+    if (!tool.planAggregatorRole) {
+      events.push({
+        type: "item.completed",
+        threadId: state.threadId,
+        itemId: tool.itemId,
+        payload: toolPayload(tool, "error"),
+      });
+    }
+    state.toolItemsByIndex.delete(index);
+    state.toolItemsById.delete(tool.itemId);
+  }
+  return events;
+}
+
+export function closeClaudeOpenItems(
+  state: ClaudeMapperState,
+  options?: { closePlan?: boolean },
+): RuntimeEvent[] {
+  const events = closeClaudeOpenTextItems(state);
   // Background subagents run past the main turn's `result`; their parent tool
   // and any in-flight child tools must survive this close so a later
   // `task_notification` / child tool_result can complete them. Once no subagent
@@ -110,8 +137,6 @@ export function closeClaudeOpenItems(
     state.toolItemsById.delete(id);
     state.subAgentChildToolItemIds?.delete(id);
   }
-  state.assistantTextItems.clear();
-  state.reasoningItems.clear();
   if (options?.closePlan && state.planAggregator) {
     events.push(...closePlanAggregator(state.planAggregator));
   }

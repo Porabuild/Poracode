@@ -1,7 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { sortEffortsByCanonicalOrder } from "./effortOrder";
+import { canonicalizeEffortId, sortEffortsByCanonicalOrder } from "./effortOrder";
+
+describe("canonicalizeEffortId", () => {
+  it("maps extra-high spellings to xhigh", () => {
+    expect(canonicalizeEffortId("extra-high")).toBe("xhigh");
+    expect(canonicalizeEffortId("Extra-High")).toBe("xhigh");
+    expect(canonicalizeEffortId("extra_high")).toBe("xhigh");
+  });
+
+  it("leaves canonical ids unchanged", () => {
+    expect(canonicalizeEffortId("high")).toBe("high");
+  });
+});
 
 describe("sortEffortsByCanonicalOrder", () => {
+  it("places disabled reasoning before explicit tiers without changing its wire ID", () => {
+    expect(sortEffortsByCanonicalOrder(["low", "high", "max", "off"])).toEqual([
+      "off",
+      "low",
+      "high",
+      "max",
+    ]);
+    expect(canonicalizeEffortId("off")).toBe("off");
+  });
+
   it("orders a scrambled ladder weakest to strongest", () => {
     expect(sortEffortsByCanonicalOrder(["xhigh", "low", "medium", "none"])).toEqual([
       "none",

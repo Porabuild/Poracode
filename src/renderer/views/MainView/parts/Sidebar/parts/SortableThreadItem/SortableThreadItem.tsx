@@ -3,6 +3,7 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingThread, type DragSourceData } from "@/renderer/dnd";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { getStatusTone } from "@/renderer/components/providers/statusTone";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { ThreadContextMenu } from "@/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu";
@@ -49,6 +50,19 @@ export function SortableThreadItem(props: {
   );
   const isCurrentThread = useIsCurrentThread(thread.id);
   const hasDraft = useThreadHasDraft(thread.id);
+  const compactLayout = useCompactLayout();
+
+  // dnd-kit brands the sortable's activator (`handle ?? element`) as a
+  // keyboard-draggable control — `aria-roledescription="draggable"`, drag
+  // instructions, and `aria-disabled=String(disabled)` — and never reverts
+  // those attributes. For a row that cannot drag that would paint an
+  // operable `SidebarButton` as a disabled draggable. Experiment candidates
+  // cannot drag (the experiment owns their order) and the compact provider
+  // ships no sensors, so those rows register without elements: no activator,
+  // no branding, and the button keeps sole ownership of the row's semantics.
+  // The registration itself stays so the sidebar's reorder handling still
+  // sees every row's id/index/group.
+  const rowCanDrag = !compactLayout && !isExperimentCandidate;
 
   const { ref, handleRef } = useSortable({
     id: `thread:${thread.id}`,
@@ -57,7 +71,7 @@ export function SortableThreadItem(props: {
     // A locked row never takes a drop, and a locked source never shifts the
     // rows it passes over.
     accept:
-      sortDisabled || isExperimentCandidate
+      !rowCanDrag || sortDisabled || isExperimentCandidate
         ? []
         : (source) =>
             source.type === "worktree-group" ||
@@ -113,7 +127,7 @@ export function SortableThreadItem(props: {
   );
 
   return (
-    <div ref={ref} className="relative w-full pb-0.5">
+    <div {...(rowCanDrag ? { ref } : {})} className="relative w-full pb-0.5">
       <ThreadContextMenu
         thread={thread}
         project={project}
@@ -121,7 +135,8 @@ export function SortableThreadItem(props: {
         showProjectActions={stacked}
       >
         <SidebarButton
-          ref={handleRef}
+          {...(rowCanDrag ? { ref: handleRef } : {})}
+          className="poracode-sidebar-thread-row"
           size="xs"
           density={stacked ? "compact" : "default"}
           statusTone={statusTone}
@@ -140,17 +155,14 @@ export function SortableThreadItem(props: {
                 <span className="flex h-[18px] items-center gap-1.5">
                   <span className="min-w-0 flex-1 truncate">{titleContent}</span>
                   {hasDraft && <DraftIndicator />}
-                  {/* No padding here: the time slot carries the 2px inset that
-                      matches the git badge's own p-0.5, so both rows' icon
-                      columns share the same offset from the row's right edge. */}
-                  <span className="flex shrink-0 items-center gap-[3px]">
-                    <ThreadItemTopSuffix {...suffixProps} />
+                  <span className="flex shrink-0 items-center gap-1 text-muted">
+                    <ThreadItemTopSuffix {...suffixProps} mobileControls={compactLayout} />
                   </span>
                 </span>
                 <span className="flex h-[18px] items-center gap-1.5">
                   {projectTag}
                   <span className="flex shrink-0 items-center gap-[3px]">
-                    <ThreadItemBottomSuffix {...suffixProps} />
+                    <ThreadItemBottomSuffix {...suffixProps} mobileControls={compactLayout} />
                   </span>
                 </span>
               </span>
@@ -158,8 +170,13 @@ export function SortableThreadItem(props: {
               titleContent
             ) : (
               <span className="flex items-center gap-1.5">
-                <span className="min-w-0 truncate">{titleNode}</span>
+                <span className="min-w-0 flex-1 truncate">{titleNode}</span>
                 {hasDraft && <DraftIndicator />}
+                {compactLayout ? (
+                  <span className="flex shrink-0 items-center text-muted">
+                    <ThreadItemTopSuffix {...suffixProps} mobileControls />
+                  </span>
+                ) : null}
               </span>
             )
           }
@@ -170,7 +187,7 @@ export function SortableThreadItem(props: {
           onPress={() => openThread(thread.id)}
           onDoubleClick={() => props.setEditingThreadId(thread.id)}
           isDragging={isDragging}
-          {...(stacked ? {} : { suffix: <ThreadItemSuffix {...suffixProps} /> })}
+          {...(stacked || compactLayout ? {} : { suffix: <ThreadItemSuffix {...suffixProps} /> })}
         />
       </ThreadContextMenu>
     </div>

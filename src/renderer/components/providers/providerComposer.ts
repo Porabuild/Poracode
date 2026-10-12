@@ -1,4 +1,5 @@
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
+import type { ComposerSelectionOrigin } from "@/renderer/components/thread/composerSelectionMutation";
 import type { MessageDescriptor } from "@lingui/core";
 import type {
   AgentCapability,
@@ -14,7 +15,14 @@ export interface ComposerControlsInput {
   capabilities: AgentCapability;
   config: ThreadConfig;
   isDisabled: boolean;
-  onConfigChange: (patch: Partial<ThreadConfig>) => void;
+  /**
+   * One resolved config edit. `origin` is the optional ephemeral
+   * selection-event metadata (see `ComposerSelectionOrigin`): a patch the
+   * shared relation helper resolved carries `family-resolved` so the
+   * composition point can route the event, while an absent origin classifies
+   * from the patch's touched keys alone. Purely in-process — never persisted.
+   */
+  onConfigChange: (patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) => void;
   /** Active presentation mode for this thread, when the caller knows it. */
   presentationMode?: ThreadPresentationMode;
 }
@@ -54,6 +62,29 @@ export function getComposerControls(kind: string): ComposerControlsFactory | und
     }
     return out;
   };
+}
+
+/**
+ * Facts a provider declares about how its GUI sessions react to composer
+ * config changes. Every field defaults to "no special handling".
+ */
+export interface ComposerConfigBehavior {
+  /**
+   * Changing the context size on a thread whose provider session already
+   * started reloads that session; the new size applies from the next message.
+   * The composer asks the user to confirm such a change first.
+   */
+  contextSizeChangeReloadsSession?: boolean;
+}
+
+const composerConfigBehaviorRegistry = new Map<string, ComposerConfigBehavior>();
+
+export function registerComposerConfigBehavior(kind: string, behavior: ComposerConfigBehavior) {
+  composerConfigBehaviorRegistry.set(kind, behavior);
+}
+
+export function getComposerConfigBehavior(kind: string): ComposerConfigBehavior | undefined {
+  return lookupProviderRegistration(composerConfigBehaviorRegistry, kind);
 }
 
 export interface ConfigNormalizerInput {

@@ -1,0 +1,426 @@
+name: Server artifact (reusable)
+
+# One assembly recipe for qualification and release (plan D3). Every advertised
+# machine family is built and qualified once, the exact bytes are uploaded per
+# leg, and the aggregate job merges the per-leg metadata into one launcher
+# manifest. Release promotes those exact files; it never rebuilds a lookalike
+# after tests.
+#
+# Matrix (plan D3): Linux glibc x64+arm64 (cross-built arm64), macOS arm64+x64
+# (the arm64 runner stages the published x64 prebuilds), native linux-arm64 and
+# native darwin-x64 qualification of the SAME uploaded bytes, and Windows x64
+# (built and qualified natively on a Windows runner; node-pty and
+# better-sqlite3 publish win32-x64 prebuilds, so there is no cross build). A
+# target is only published when its leg produced and verified it.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Commit to check out and build from; empty uses the caller's ref"
+        required: false
+        type: string
+        default: ""
+      version:
+        description: "Release version; empty keeps the checked-out package.json version"
+        required: false
+        type: string
+        default: ""
+      require_targets:
+        description: "Comma-separated Linux glibc shapes advertised by the Linux leg"
+        required: false
+        type: string
+        default: "linux-x64,linux-arm64"
+      artifact_name:
+        description: "Base name for the uploaded artifact"
+        required: false
+        type: string
+        default: "poracode-server-artifact"
+      retention_days:
+        description: "Artifact retention"
+        required: false
+        type: number
+        default: 7
+    outputs:
+      version:
+        description: "Version embedded in the qualified artifacts"
+        value: ${{ jobs.aggregate.outputs.version }}
+
+permissions:
+  contents: read
+
+env:
+  # Release runners are disposable single checkouts; keep native rebuilds on
+  # this checkout instead of the shared global virtual store.
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
+jobs:
+  # ── Build and qualify one tarball per machine family ─────────────
+  build:
+    name: Build and qualify (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            require_targets: ${{ inputs.require_targets }}
+            cross_build: true
+          - name: darwin
+            os: macos-15
+            # node-pty and better-sqlite3 publish both macOS arch prebuilds, so
+            # one arm64-assembled tarball covers darwin-arm64 and darwin-x64.
+            require_targets: darwin-arm64,darwin-x64
+            cross_build: false
+          - name: windows
+            os: windows-latest
+            # Windows x64 is built and qualified natively; both native modules
+            # ship win32-x64 prebuilds, so nothing is rebuilt or cross-built.
+            require_targets: win32-x64
+            cross_build: false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        # Every run step is bash (Git Bash on Windows) so one recipe serves
+        # all legs; Windows-specific work lives in node scripts.
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Setup pnpm
+        if: runner.os != 'Windows'
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          # The pnpm cache needs pnpm on PATH at setup time, which Windows only
+          # has after Corepack below; an empty value disables the cache there.
+          # `cond && '' || x` always yields x: '' is falsy in expressions.
+          cache: ${{ runner.os != 'Windows' && 'pnpm' || '' }}
+
+      # pnpm/action-setup's shim for the pinned pnpm 12 is not runnable on
+      # Windows runners ("is not recognized"). Corepack activates exactly
+      # package.json#packageManager (same pattern as windows-wsl-qualification).
+      - name: Activate the pinned pnpm (Corepack)
+        if: runner.os == 'Windows'
+        run: |
+          corepack enable
+          pnpm --version
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Set the release version
+        if: ${{ inputs.version != '' }}
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
+
+      - name: Setup Rust for the computer-use helper
+        # Pinned to the verified `stable` head (2026-09-03); the previous SHA did
+        # not resolve (HTTP 422) and failed the whole reusable workflow at action
+        # resolution before any build step could run.
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.1
+
+      - name: Cache computer-use helper build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: native/computer-use-helper
+
+      - name: Build native dependencies for the tarball
+        # Windows stages the published win32-x64 prebuilds (prepare-server-native
+        # verifies ConPTY loads); there is nothing to compile.
+        if: runner.os != 'Windows'
+        run: scripts/ci-rebuild-node-pty.sh
+
+      - name: Enable arm64 container emulation
+        if: matrix.cross_build
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
+
+      - name: Cross-build the linux-arm64 node-pty binding
+        # node-pty 1.1.0 publishes no Linux prebuilds (docs/STANDALONE_SERVER.md
+        # §8): build the arm64 binding in an emulated arm64 container and drop it
+        # where prepare-server-native.mjs picks cross targets up. Uses the
+        # runner's Docker and the explicit binfmt setup above.
+        #
+        # pnpm resolves node-pty's only dependency, node-addon-api, to a sibling
+        # of the package in its virtual store, so copying node_modules/node-pty
+        # alone leaves binding.gyp's `require('node-addon-api')` unresolvable
+        # inside the container. Stage the exact installed copy — resolved by
+        # Node through pnpm's symlinks from the installed node-pty, never
+        # fetched from the registry where the version would be unpinned — and
+        # make the container prove it is visible before building.
+        # `npm rebuild --offline` fails loudly instead of papering over a
+        # missing dependency with a network fetch.
+        if: matrix.cross_build
+        run: |
+          mkdir -p dist/server-native-cross/linux-arm64 dist/server-native-cross/node-pty/node_modules
+          cp -RL node_modules/node-pty/. dist/server-native-cross/node-pty/
+          ADDON_API_DIR="$(node -p "require('node:path').dirname(require.resolve('node-addon-api/package.json', { paths: [require('node:path').dirname(require.resolve('node-pty/package.json'))] }))")"
+          cp -RL "$ADDON_API_DIR" dist/server-native-cross/node-pty/node_modules/node-addon-api
+          docker run --rm --platform linux/arm64 \
+            -v "$PWD":/work -w /armbuild node:24-bookworm \
+            sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
+        shell: bash
+
+      - name: Build and assemble the server artifact
+        env:
+          REQUIRE_TARGETS: ${{ matrix.require_targets }}
+          PORACODE_NODE_PTY_CROSS_BINDINGS: ${{ github.workspace }}/dist/server-native-cross
+        run: |
+          set -euo pipefail
+          pnpm run codex-protocol:gen
+          # The canonical web build (plan D2) also builds the Electron bundles
+          # and the embedded SSH runtime through prepare:web:ssh.
+          pnpm run build:web
+          REQUIRE_ARGS=()
+          TARGET_ARGS=()
+          for target in $(echo "$REQUIRE_TARGETS" | tr ',' ' '); do
+            REQUIRE_ARGS+=(--require-target "$target")
+            TARGET_ARGS+=(--target "$target")
+          done
+          node scripts/prepare-server-native.mjs "${REQUIRE_ARGS[@]}"
+          pnpm run prepare:package-assets
+          pnpm run prepare:agent-plugins
+          pnpm run prepare:computer-use-helper
+          node scripts/assemble-server-tarball.mjs "${TARGET_ARGS[@]}"
+          ls -lh dist/poracode-server-*.tar.gz dist/server-artifact.json
+        shell: bash
+
+      - name: Record artifact outputs
+        id: artifact
+        run: |
+          set -euo pipefail
+          # Portable to macOS bash 3.2 (no mapfile) and macOS (no sha256sum).
+          TARBALLS=()
+          for candidate in dist/poracode-server-*.tar.gz; do
+            [ -f "$candidate" ] || continue
+            TARBALLS+=("$candidate")
+          done
+          if [ "${#TARBALLS[@]}" -ne 1 ]; then
+            echo "::error::expected exactly one assembled tarball, found ${#TARBALLS[@]}"
+            exit 1
+          fi
+          TARBALL="${TARBALLS[0]}"
+          TARBALL_SHA=$(node -e "console.log(require('node:crypto').createHash('sha256').update(require('node:fs').readFileSync(process.argv[1])).digest('hex'))" "$TARBALL")
+          echo "tarball_name=$(basename "$TARBALL")" >> "$GITHUB_OUTPUT"
+          echo "tarball_sha256=$TARBALL_SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$(node -p "require('./dist/server-artifact.json').version")" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Build the standalone container
+        if: runner.os == 'Linux'
+        run: |
+          docker build -t poracode-server:qualification dist/poracode-server-stage
+          docker run --rm poracode-server:qualification node lib/server.cjs doctor --json
+
+      - name: Require every advertised prebuild and the web client in the tarball
+        env:
+          REQUIRE_TARGETS: ${{ matrix.require_targets }}
+        run: |
+          set -euo pipefail
+          TARBALLS=()
+          for candidate in dist/poracode-server-*.tar.gz; do
+            [ -f "$candidate" ] || continue
+            TARBALLS+=("$candidate")
+          done
+          TARBALL="${TARBALLS[0]}"
+          VERIFY_ARGS=()
+          for target in $(echo "$REQUIRE_TARGETS" | tr ',' ' '); do
+            VERIFY_ARGS+=(--target "$target")
+          done
+          node scripts/verify-server-tarball-contents.mjs \
+            --tarball "$TARBALL" \
+            --overlay-root dist/server-native \
+            "${VERIFY_ARGS[@]}"
+          test -f dist/server-artifact.json
+        shell: bash
+
+      - name: Upgrade a running install from the real tarball (vitest)
+        # Required mode: the real-artifact upgrade gate must fail when the
+        # freshly assembled tarball is missing or not D4-capable, never skip to
+        # green (src/server/serverUpgrade.integration.test.ts).
+        env:
+          PORACODE_REQUIRE_SERVER_IT: "1"
+        run: pnpm exec vitest run --configLoader runner src/server/serverUpgrade.integration.test.ts
+
+      - name: Verify systemd unit
+        if: runner.os == 'Linux'
+        run: |
+          unit="$RUNNER_TEMP/poracode-server.service"
+          sed -e '/^User=/d' -e '/^Group=/d' -e 's|^ExecStart=.*|ExecStart=/bin/true|' \
+            packaging/systemd/poracode-server.service > "$unit"
+          systemd-analyze verify "$unit"
+
+      - name: Install outside the checkout without a toolchain
+        # One node script for every OS (PATH without python/make/compilers,
+        # then scripts/install-server-prefix.mjs); it exports PREFIX and TARBALL.
+        run: node scripts/ci-install-no-toolchain.mjs
+
+      - name: Qualify doctor, start, pair, thread turn, SIGTERM
+        run: node scripts/server-install-qualification.mjs --tarball "$TARBALL" --prefix "$PREFIX" --artifact dist/server-artifact.json
+        env:
+          PREFIX: ${{ env.PREFIX }}
+          TARBALL: ${{ env.TARBALL }}
+
+      - name: Qualify the publishable launcher against the real tarball
+        # Plan D1/D3: real npm pack, empty external cwd, verified runtime
+        # install into the versioned cache, and a real server doctor through
+        # the installed `poracode` bin.
+        run: node scripts/poracode-cli-qualification.mjs --runtime-tarball "$TARBALL"
+        env:
+          TARBALL: ${{ env.TARBALL }}
+
+      - name: Upload the qualified server artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ inputs.artifact_name }}-build-${{ matrix.name }}-${{ github.run_attempt }}
+          path: |
+            dist/poracode-server-*.tar.gz
+            dist/poracode-server-*.tar.gz.sha256
+            dist/server-artifact.json
+          # A missing tarball or metadata file must fail the leg here, not
+          # silently pass qualification and break the release `ls` later.
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}
+
+  # ── Native execution of the exact uploaded bytes ─────────────────
+  native_qualification:
+    name: Native qualification (${{ matrix.target }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            target: linux-arm64
+            build_leg: linux
+            # Linux ARM64 is a supported server target, but the optional native
+            # computer-use helper currently has no ARM64 artifact.
+            computer_use: false
+          - name: darwin-x64
+            os: macos-15-intel
+            target: darwin-x64
+            build_leg: darwin
+            computer_use: true
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Download the build leg's exact bytes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ${{ inputs.artifact_name }}-build-${{ matrix.build_leg }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qualified
+
+      - name: Install and qualify the native target from the qualified tarball
+        env:
+          TARGET: ${{ matrix.target }}
+          QUALIFIED_DIR: ${{ runner.temp }}/qualified
+          PORACODE_EXPECT_COMPUTER_USE: ${{ matrix.computer_use }}
+        run: |
+          set -euo pipefail
+          # Verified advertisement and sha256; $GITHUB_ENV would only reach
+          # later steps, so this step reads the script's output.
+          NATIVE_RESULT=$(node scripts/ci-server-artifact-meta.mjs native-target)
+          TARBALL=$(printf '%s\n' "$NATIVE_RESULT" | sed -n 1p)
+          META=$(printf '%s\n' "$NATIVE_RESULT" | sed -n 2p)
+          PREFIX="$RUNNER_TEMP/poracode-native-prefix"
+          node scripts/install-server-prefix.mjs --tarball "$TARBALL" --prefix "$PREFIX"
+          test -f "$PREFIX/current/lib/server.cjs"
+          node scripts/server-install-qualification.mjs --tarball "$TARBALL" --prefix "$PREFIX" --artifact "$META"
+          node scripts/poracode-cli-qualification.mjs --runtime-tarball "$TARBALL"
+        shell: bash
+
+  # ── Merge the per-leg qualified hashes into one launcher manifest ─
+  aggregate:
+    name: Aggregate the qualified targets
+    needs: [build, native_qualification]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.aggregate.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Download every build leg
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ${{ inputs.artifact_name }}-build-*-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/legs
+
+      - name: Merge, verify, and emit the aggregate artifact
+        id: aggregate
+        env:
+          LEGS_DIR: ${{ runner.temp }}/legs
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          OUT=dist/qualified
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+          METADATA=()
+          while IFS= read -r metadata; do
+            METADATA+=("$metadata")
+          done < <(find "$LEGS_DIR" -name server-artifact.json | sort)
+          if [ "${#METADATA[@]}" -eq 0 ]; then
+            echo "::error::no build leg produced server-artifact.json"
+            exit 1
+          fi
+          ARGS=()
+          RELEASE_VERSION_FOUND=""
+          for metadata in "${METADATA[@]}"; do
+            # Verifies version pin, tarball presence and sha256, copies the leg
+            # into $OUT and prints the copied server-artifact-<platform>-<arch>.json
+            # (win32-x64 included) followed by the leg version.
+            LEG_RESULT=$(METADATA_FILE="$metadata" OUT_DIR="$OUT" \
+              node scripts/ci-server-artifact-meta.mjs aggregate-leg)
+            COPIED=$(printf '%s\n' "$LEG_RESULT" | sed -n 1p)
+            RELEASE_VERSION_FOUND=$(printf '%s\n' "$LEG_RESULT" | sed -n 2p)
+            ARGS+=(--artifact "$COPIED")
+          done
+          node scripts/generate-runtime-manifest.mjs "${ARGS[@]}" \
+            --out "$OUT/poracode-runtime-manifest.json"
+          node scripts/generate-runtime-manifest.mjs --verify "${ARGS[@]}" \
+            --manifest "$OUT/poracode-runtime-manifest.json"
+          echo "version=$RELEASE_VERSION_FOUND" >> "$GITHUB_OUTPUT"
+          ls -lh "$OUT"
+        shell: bash
+
+      - name: Upload the aggregate qualified artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          # Distinct from the per-leg `-build-*` artifacts so release can
+          # download exactly the verified aggregate set.
+          name: ${{ inputs.artifact_name }}-qualified-${{ github.run_attempt }}
+          path: dist/qualified/*
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}

@@ -1,8 +1,7 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
 import { getCachedWslHomeDirectory } from "../../base";
 import {
@@ -20,12 +19,18 @@ import {
   parseExistingHooksJson,
   readBundledPluginVersion,
   readPluginManifest,
+  parseHooksJsonText,
+  readWslTextFile,
   removeStagedPluginDir,
+  resolvePluginVerificationIo,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   verifyStagedPluginAt,
   writeHooksJsonFile,
   writeNativeHookWrapper,
   type PluginManifest,
+  type PluginVerificationTarget,
+  type StagedPluginIo,
 } from "../../plugin/installerBase";
 
 export interface CursorPluginPaths {
@@ -205,10 +210,12 @@ export interface InstallCursorPluginOptions {
   globalCursorDirOverride?: string;
 }
 
-export function installCursorPlugin(
+export async function installCursorPlugin(
   ctx?: AgentEnvContext,
   options?: InstallCursorPluginOptions,
-): { ok: true; paths: CursorPluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<
+  { ok: true; paths: CursorPluginPaths; version: string } | { ok: false; reason: string }
+> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -280,14 +287,16 @@ export function installCursorPlugin(
   };
 }
 
-function installCursorPluginWsl(
+async function installCursorPluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
   globalCursorDirOverride: string | undefined,
-): { ok: true; paths: CursorPluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "cursor", {
+): Promise<
+  { ok: true; paths: CursorPluginPaths; version: string } | { ok: false; reason: string }
+> {
+  const staged = await stagePluginAssetsToWsl(distro, sourceDir, "cursor", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
@@ -296,10 +305,10 @@ function installCursorPluginWsl(
   const linuxHooksPath = globalCursorDirOverride
     ? `${globalCursorDirOverride}/hooks.json`
     : `${staged.deploy.home}/.cursor/hooks.json`;
-  const uncHooks = toWslUncPath(distro, linuxHooksPath);
 
-  const existing = parseExistingHooksJson(uncHooks);
-  if (existing === null && existsSync(uncHooks)) {
+  const raw = await readWslTextFile(distro, linuxHooksPath);
+  const existing = raw === null ? null : parseHooksJsonText(raw);
+  if (existing === null && raw !== null) {
     return {
       ok: false,
       reason: `malformed Cursor hooks.json at ${linuxHooksPath} in wsl distro ${distro}`,
@@ -310,7 +319,7 @@ function installCursorPluginWsl(
 
   try {
     const merged = mergeCursorHooksDocument(existing, commandHead);
-    writeHooksJsonFile(uncHooks, merged);
+    await writeWslTextFile(distro, linuxHooksPath, `${JSON.stringify(merged, null, 2)}\n`);
   } catch (error) {
     return {
       ok: false,
@@ -331,36 +340,48 @@ function installCursorPluginWsl(
   };
 }
 
-export function isCursorPluginInstalled(
+export async function isCursorPluginInstalled(
   ctx?: AgentEnvContext,
 ): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "cursor");
-    if (!wsl) return Promise.resolve({ installed: false });
-    const hooksPath = toWslUncPath(ctx.wslDistro, wslGlobalCursorHooksPath(ctx.wslDistro));
-    return Promise.resolve(verifyCursorInstallAt(wsl.uncBase, "wsl", hooksPath));
+    if (!wsl) return { installed: false };
+    return verifyCursorInstallAt(wsl.linuxBase, "wsl", wslGlobalCursorHooksPath(ctx.wslDistro), {
+      distro: ctx.wslDistro,
+    });
   }
   const hooksPath = join(nativeGlobalCursorDir(), "hooks.json");
-  return Promise.resolve(
-    verifyCursorInstallAt(getNativePluginBaseDir("cursor", ctx?.baseDir), "native", hooksPath),
-  );
+  return verifyCursorInstallAt(getNativePluginBaseDir("cursor", ctx?.baseDir), "native", hooksPath);
 }
 
-export function uninstallCursorPlugin(ctx?: AgentEnvContext): void {
-  const hooksPath = isWslPluginContext(ctx)
-    ? toWslUncPath(ctx.wslDistro, wslGlobalCursorHooksPath(ctx.wslDistro))
-    : join(nativeGlobalCursorDir(), "hooks.json");
+export async function uninstallCursorPlugin(ctx?: AgentEnvContext): Promise<void> {
+  if (isWslPluginContext(ctx)) {
+    const linuxHooksPath = wslGlobalCursorHooksPath(ctx.wslDistro);
+    const raw = await readWslTextFile(ctx.wslDistro, linuxHooksPath);
+    if (raw !== null) {
+      const existing = parseHooksJsonText(raw);
+      await writeWslTextFile(
+        ctx.wslDistro,
+        linuxHooksPath,
+        `${JSON.stringify(removeCursorHooksDocument(existing), null, 2)}\n`,
+      );
+    }
+    await removeStagedPluginDir("cursor", ctx);
+    return;
+  }
+  const hooksPath = join(nativeGlobalCursorDir(), "hooks.json");
   const existing = parseExistingHooksJson(hooksPath);
   if (existing !== null || existsSync(hooksPath)) {
     writeHooksJsonFile(hooksPath, removeCursorHooksDocument(existing));
   }
-  removeStagedPluginDir("cursor", ctx);
+  await removeStagedPluginDir("cursor", ctx);
 }
 
-function hooksJsonHasPoracodeEntry(hooksPath: string): boolean {
-  if (!existsSync(hooksPath)) return false;
+async function hooksJsonHasPoracodeEntry(io: StagedPluginIo, hooksPath: string): Promise<boolean> {
   try {
-    const doc = JSON.parse(readFileSync(hooksPath, "utf8")) as { hooks?: Record<string, unknown> };
+    const raw = await io.readTextFile(hooksPath);
+    if (raw === null) return false;
+    const doc = JSON.parse(raw) as { hooks?: Record<string, unknown> };
     if (!doc.hooks) return false;
     for (const spec of CURSOR_HOOK_SPECS) {
       const entries = doc.hooks[spec.event];
@@ -383,9 +404,12 @@ function verifyCursorInstallAt(
   readableDir: string,
   target: "native" | "wsl",
   hooksPath: string,
-): { installed: boolean; version?: string } {
+  options?: PluginVerificationTarget,
+): Promise<{ installed: boolean; version?: string }> {
+  const io = resolvePluginVerificationIo(target, options);
   return verifyStagedPluginAt(readableDir, target, {
     assets: CURSOR_VERIFY_ASSETS,
-    extraCheck: () => hooksJsonHasPoracodeEntry(hooksPath),
+    extraCheck: () => hooksJsonHasPoracodeEntry(io, hooksPath),
+    ...options,
   });
 }

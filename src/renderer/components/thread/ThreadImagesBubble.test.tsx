@@ -17,6 +17,7 @@ import { ThreadImagesDock } from "./ThreadImagesDock";
 import { getThreadGalleryImages } from "./useThreadGalleryImages";
 
 const defaultLocalImageUrl = useRemoteServersStore.getState().localImageUrl;
+const defaultImageReadinessFor = useRemoteServersStore.getState().imageReadinessFor;
 
 vi.mock("@heroui/react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@heroui/react")>();
@@ -124,6 +125,7 @@ describe("ThreadImagesBubble", () => {
       servers: [],
       runtime: {},
       localImageUrl: defaultLocalImageUrl,
+      imageReadinessFor: defaultImageReadinessFor,
     });
     usePanelStore.setState({
       threadDocksPanelOpen: false,
@@ -263,6 +265,49 @@ describe("ThreadImagesBubble", () => {
     expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
   });
 
+  it("shows an attachment when its remote image cache becomes ready", () => {
+    seedThreadWithImages("t-gallery");
+    const thread = useAppStore.getState().threads[0]!;
+    useAppStore.setState({
+      threads: [{ ...thread, remoteServerId: "desktop-1" }],
+      runtimeItemIdsByThread: { "t-gallery": ["u1"] },
+      runtimeStructuralVersionByThread: { "t-gallery": 1 },
+    });
+    let url = "";
+    const listeners = new Set<() => void>();
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote",
+          endpoint: "https://desktop.test",
+          accessToken: "test-token",
+          scopes: [],
+        },
+      ],
+      localImageUrl: () => url,
+      imageReadinessFor: () => ({
+        resolveRef: () => "",
+        subscribeRef: () => () => undefined,
+        requestRef: () => undefined,
+        resolvePath: () => url,
+        subscribePath: (_path, listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        requestPath: () => undefined,
+      }),
+    });
+    render(<ThreadImagesBubble threadId="t-gallery" />);
+    expect(screen.queryByRole("button", { name: "Show images" })).not.toBeInTheDocument();
+
+    act(() => {
+      url = "blob:direct-attachment";
+      for (const listener of listeners) listener();
+    });
+    expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
+  });
+
   it("follows the persisted dock order beside informational bubbles", () => {
     seedThreadWithImages("t-gallery");
     useSharedSettings.setState({
@@ -299,6 +344,7 @@ describe("ThreadImagesDock", () => {
       servers: [],
       runtime: {},
       localImageUrl: defaultLocalImageUrl,
+      imageReadinessFor: defaultImageReadinessFor,
     });
   });
 

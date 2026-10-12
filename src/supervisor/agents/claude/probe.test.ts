@@ -11,6 +11,7 @@ import type {
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk";
 import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
+import { MOCK_AGENTS_ENV, MockAgentLaunchBlockedError } from "@/supervisor/agentLaunchGuard";
 
 const mockSdk = vi.hoisted(() => ({
   query: vi.fn<(input: unknown) => Query>(),
@@ -115,6 +116,7 @@ beforeEach(() => {
 
 afterEach(() => {
   Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+  vi.unstubAllEnvs();
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -451,6 +453,67 @@ describe("Claude SDK probe process handling", () => {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
+  });
+
+  function stubMockSession(): void {
+    vi.stubEnv(MOCK_AGENTS_ENV, "1");
+    vi.stubEnv("PORACODE_IS_DEV", "1");
+  }
+
+  it("refuses to spawn the SDK probe child in a mock QA session", () => {
+    stubMockSession();
+    expect(() =>
+      spawnClaudeProbeProcess({
+        command: "claude",
+        args: ["--sdk-mcp-server"],
+        cwd: "/tmp",
+        env: {},
+        signal: new AbortController().signal,
+      }),
+    ).toThrow(MockAgentLaunchBlockedError);
+    expect(mockChildProcess.spawn).not.toHaveBeenCalled();
+  });
+
+  it("fails the SDK probe closed without a model turn in a mock QA session", async () => {
+    stubMockSession();
+    mockSdk.query.mockImplementation((input: unknown) => {
+      const params = input as {
+        options?: { spawnClaudeCodeProcess?: (options: SpawnOptions) => SpawnedProcess };
+      };
+      params.options?.spawnClaudeCodeProcess?.({
+        command: "claude",
+        args: [],
+        cwd: "/tmp",
+        env: {},
+        signal: new AbortController().signal,
+      });
+      return createProbeQuery();
+    });
+
+    const result = await probeClaudeCapabilities({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "claude",
+    });
+
+    expect(result).toEqual({
+      authMethods: [
+        { type: "terminal", id: "claude-login", name: "Claude login", args: ["auth", "login"] },
+      ],
+      authLogoutSupported: true,
+    });
+    expect(mockChildProcess.spawn).not.toHaveBeenCalled();
+  });
+
+  it("still spawns the SDK probe child without the flag (real-mode parity)", () => {
+    vi.stubEnv(MOCK_AGENTS_ENV, "");
+    spawnClaudeProbeProcess({
+      command: "claude",
+      args: ["--sdk-mcp-server"],
+      cwd: "/tmp",
+      env: {},
+      signal: new AbortController().signal,
+    });
+    expect(mockChildProcess.spawn).toHaveBeenCalledOnce();
   });
 });
 

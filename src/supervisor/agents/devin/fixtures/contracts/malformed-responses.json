@@ -1,0 +1,23 @@
+{
+  "$comment": "SYNTHETIC contract-violation inputs, derived by mutating the recorded 3000.11.3 response shapes (rules-list.json / hooks-list.json). These are test fixtures for validation paths — no entry here was ever observed on the wire.",
+  "rulesResponses": [
+    { "rules": {} },
+    { "rules": null },
+    { "rules": "CLAUDE" },
+    {},
+    "ok",
+    null,
+    { "rules": [{ "name": "CLAUDE", "path": "/home/fixture/.claude/CLAUDE.md" }, "not-an-object"] },
+    { "rules": [{ "name": "", "path": "/x" }] },
+    { "rules": [{ "name": "orphan" }] }
+  ],
+  "hooksResponses": [
+    { "hooks": {} },
+    { "hooks": null },
+    {},
+    7,
+    { "hooks": [null] },
+    { "hooks": ["entry"] },
+    { "hooks": [42] }
+  ]
+}

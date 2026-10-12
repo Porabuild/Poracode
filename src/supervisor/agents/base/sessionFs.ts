@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, readdirSync, statSync, watch as fsWatch } from "node:fs";
+import { existsSync, readdirSync, statSync, watch as fsWatch } from "node:fs";
+import { open, readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -159,7 +160,7 @@ export async function readSessionFileText(
 ): Promise<string | undefined> {
   if (location.kind !== "wsl") {
     try {
-      const raw = readFileSync(absolutePath);
+      const raw = await readFile(absolutePath);
       if (maxBytes > 0 && raw.length > maxBytes) return undefined;
       return raw.toString("utf8");
     } catch {
@@ -180,6 +181,27 @@ export async function readSessionFileText(
     return Buffer.from(result.contentBase64, "base64").toString("utf8");
   } catch {
     return undefined;
+  }
+}
+
+export async function readSessionFilePrefixText(
+  location: ProjectLocation,
+  absolutePath: string,
+  maxBytes: number,
+): Promise<string | undefined> {
+  if (location.kind === "wsl") {
+    return readSessionFileText(location, absolutePath);
+  }
+  let file: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    file = await open(absolutePath, "r");
+    const buffer = Buffer.allocUnsafe(maxBytes);
+    const { bytesRead } = await file.read(buffer, 0, maxBytes, 0);
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } catch {
+    return undefined;
+  } finally {
+    await file?.close().catch(() => undefined);
   }
 }
 
@@ -216,11 +238,11 @@ export async function findSessionFiles(
 
   if (location.kind !== "wsl") {
     const out: FoundSessionFile[] = [];
-    const walk = (dir: string): void => {
+    const walk = async (dir: string): Promise<void> => {
       if (out.length >= maxEntries) return;
       let entries: import("node:fs").Dirent[];
       try {
-        entries = readdirSync(dir, { withFileTypes: true });
+        entries = await readdir(dir, { withFileTypes: true });
       } catch {
         return;
       }
@@ -229,13 +251,13 @@ export async function findSessionFiles(
         if (out.length >= maxEntries) return;
         const full = join(dir, d.name);
         if (d.isDirectory()) {
-          walk(full);
+          await walk(full);
           continue;
         }
         if (d.isFile() && acceptFile(d.name)) {
           if (opts.includeMtime) {
             try {
-              out.push({ path: full, name: d.name, mtimeMs: statSync(full).mtimeMs });
+              out.push({ path: full, name: d.name, mtimeMs: (await stat(full)).mtimeMs });
             } catch {
               out.push({ path: full, name: d.name });
             }
@@ -245,7 +267,7 @@ export async function findSessionFiles(
         }
       }
     };
-    walk(opts.root);
+    await walk(opts.root);
     return out;
   }
 
@@ -303,10 +325,23 @@ export function watchSessionPaths(
   if (paths.length === 0) return () => undefined;
   if (location.kind !== "wsl") {
     const watchers: Array<() => void> = [];
+    let changed = false;
+    let throttleTimer: ReturnType<typeof setTimeout> | undefined;
+    const notifyChanged = (): void => {
+      changed = true;
+      if (throttleTimer) return;
+      onChanged();
+      changed = false;
+      throttleTimer = setTimeout(() => {
+        throttleTimer = undefined;
+        if (changed) notifyChanged();
+      }, 2_000);
+      throttleTimer.unref?.();
+    };
     for (const p of paths) {
       if (!existsSync(p)) continue;
       try {
-        const w = fsWatch(p, { recursive: true }, () => onChanged());
+        const w = fsWatch(p, { recursive: true }, notifyChanged);
         w.on("error", () => {
           try {
             w.close();
@@ -334,6 +369,7 @@ export function watchSessionPaths(
       console.log("[%s] session watcher active (%d native path(s))", label, watchers.length);
     }
     return () => {
+      if (throttleTimer) clearTimeout(throttleTimer);
       for (const close of watchers) close();
     };
   }

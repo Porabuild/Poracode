@@ -1,5 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import {
   type AgentHookSupportEntry,
   defaultSharedSettings,
@@ -23,10 +22,13 @@ import {
 import type { WslBridgeServer } from "../wsl/bridge";
 import { isPoracodeHookDebug } from "./hookDebug";
 import { HookIngress, type HookIngressBootInfo } from "./hookIngress";
+import type { SupervisorSettingsWriter } from "./supervisorSettingsWriter";
 
 export interface CliHookPluginCoordinatorOptions {
   adapters: Map<AgentKind, AgentAdapter>;
   settingsPath: string;
+  /** Commits install verdicts through the canonical settings owner. */
+  settingsWriter: SupervisorSettingsWriter;
   /**
    * Poracode data base dir for native plugin staging. Forwarded to each
    * adapter's `ctx.baseDir` so dev (`~/.poracode-dev`) and prod
@@ -284,7 +286,7 @@ export class CliHookPluginCoordinator {
     }
     const cacheKey = composeCacheKey(input.agentKind, ctx);
     this.installPromises.delete(cacheKey);
-    this.writeCacheEntry(cacheKey, {
+    await this.writeCacheEntry(cacheKey, {
       agentBinaryVersion: "n/a",
       pluginVersion: result.version,
       protocolVersion: slice.minProtocolVersion,
@@ -311,7 +313,7 @@ export class CliHookPluginCoordinator {
     await slice.uninstallPlugin(ctx);
     const cacheKey = composeCacheKey(input.agentKind, ctx);
     this.installPromises.delete(cacheKey);
-    this.deleteCacheEntry(cacheKey);
+    await this.deleteCacheEntry(cacheKey);
     return { status: await this.getStatus(input.agentKind, input.env) };
   }
 
@@ -362,7 +364,7 @@ export class CliHookPluginCoordinator {
   ): Promise<InstallOutcome> {
     const supported = (await slice.isPluginSupported?.(ctx)) ?? true;
     if (!supported) {
-      this.writeNegativeCacheEntry(cacheKey, slice, "unsupported environment");
+      await this.writeNegativeCacheEntry(cacheKey, slice, "unsupported environment");
       return { ok: false, reason: "unsupported environment" };
     }
     await warmWslHomeCache(ctx);
@@ -387,10 +389,10 @@ export class CliHookPluginCoordinator {
         if (installed.version !== undefined && installed.version !== slice.pluginVersion) {
           const result = await slice.installPlugin(ctx);
           if (!result.ok) {
-            this.writeNegativeCacheEntry(cacheKey, slice, result.reason);
+            await this.writeNegativeCacheEntry(cacheKey, slice, result.reason);
             return result;
           }
-          this.writeCacheEntry(cacheKey, {
+          await this.writeCacheEntry(cacheKey, {
             agentBinaryVersion: "n/a",
             pluginVersion: result.version,
             protocolVersion: slice.minProtocolVersion,
@@ -401,7 +403,7 @@ export class CliHookPluginCoordinator {
           return { ok: true, version: result.version };
         }
         if (!cached.supportsL1) {
-          this.writeCacheEntry(cacheKey, {
+          await this.writeCacheEntry(cacheKey, {
             agentBinaryVersion: "n/a",
             pluginVersion: installed.version ?? cached.pluginVersion,
             protocolVersion: slice.minProtocolVersion,
@@ -423,13 +425,13 @@ export class CliHookPluginCoordinator {
     if (installedVersion !== slice.pluginVersion) {
       const result = await slice.installPlugin(ctx);
       if (!result.ok) {
-        this.writeNegativeCacheEntry(cacheKey, slice, result.reason);
+        await this.writeNegativeCacheEntry(cacheKey, slice, result.reason);
         return result;
       }
       installedVersion = result.version;
     }
 
-    this.writeCacheEntry(cacheKey, {
+    await this.writeCacheEntry(cacheKey, {
       agentBinaryVersion: "n/a",
       pluginVersion: installedVersion ?? slice.pluginVersion,
       protocolVersion: slice.minProtocolVersion,
@@ -446,11 +448,11 @@ export class CliHookPluginCoordinator {
    * transient "manifest unreadable at module load" state, not a real negative,
    * and would otherwise block hook install until the next cache TTL expiry.
    */
-  private writeNegativeCacheEntry(
+  private async writeNegativeCacheEntry(
     cacheKey: string,
     slice: AgentCliHookPluginSupport,
     reason: string,
-  ): void {
+  ): Promise<void> {
     if (slice.pluginVersion === PLUGIN_VERSION_UNKNOWN) {
       console.warn(
         `[supervisor] not caching hook install failure for ${cacheKey} ` +
@@ -462,7 +464,7 @@ export class CliHookPluginCoordinator {
       `[supervisor] hook install for ${cacheKey} failed (reason: ${reason}); ` +
         `thread will fall back to L2 terminal parsing`,
     );
-    this.writeCacheEntry(cacheKey, {
+    await this.writeCacheEntry(cacheKey, {
       agentBinaryVersion: "n/a",
       pluginVersion: slice.pluginVersion,
       protocolVersion: slice.minProtocolVersion,
@@ -472,33 +474,28 @@ export class CliHookPluginCoordinator {
     });
   }
 
-  private writeCacheEntry(cacheKey: string, entry: AgentHookSupportEntry): void {
-    const settings = readSharedSettings(this.options.settingsPath);
-    const next = {
-      ...settings,
-      agentHookSupport: { ...settings.agentHookSupport, [cacheKey]: entry },
-    };
-    try {
-      mkdirSync(dirname(this.options.settingsPath), { recursive: true });
-      writeFileSync(this.options.settingsPath, JSON.stringify(next, null, 2), "utf8");
-    } catch (error) {
-      console.warn("[supervisor] failed to persist agentHookSupport cache:", error);
-    }
+  private writeCacheEntry(cacheKey: string, entry: AgentHookSupportEntry): Promise<void> {
+    return this.persistCacheEntry(cacheKey, entry);
   }
 
-  private deleteCacheEntry(cacheKey: string): void {
-    const settings = readSharedSettings(this.options.settingsPath);
-    const nextSupport = { ...settings.agentHookSupport };
-    delete nextSupport[cacheKey];
+  private deleteCacheEntry(cacheKey: string): Promise<void> {
+    return this.persistCacheEntry(cacheKey, undefined);
+  }
+
+  /** The verdict is a cache: a refused commit only costs a re-verification. */
+  private async persistCacheEntry(
+    cacheKey: string,
+    entry: AgentHookSupportEntry | undefined,
+  ): Promise<void> {
     try {
-      mkdirSync(dirname(this.options.settingsPath), { recursive: true });
-      writeFileSync(
-        this.options.settingsPath,
-        JSON.stringify({ ...settings, agentHookSupport: nextSupport }, null, 2),
-        "utf8",
-      );
+      await this.options.settingsWriter.commit([
+        {
+          subject: { kind: "entry", field: "agentHookSupport", key: cacheKey },
+          ...(entry ? { value: entry } : {}),
+        },
+      ]);
     } catch (error) {
-      console.warn("[supervisor] failed to remove agentHookSupport cache:", error);
+      console.warn("[supervisor] failed to persist agentHookSupport cache:", error);
     }
   }
 

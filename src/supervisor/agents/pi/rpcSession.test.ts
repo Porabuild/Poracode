@@ -2,8 +2,11 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { RuntimeEvent } from "@/shared/contracts";
-import type { StructuredSessionUpdate } from "../base";
+import type { RuntimeEvent, SessionRef } from "@/shared/contracts";
+import { applyRuntimeEventsToState } from "@/renderer/state/slices/runtimeEventReducer";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import type { AppStoreState } from "@/renderer/state/slices/shared";
+import { createKnownSessionRef, type StructuredSessionUpdate } from "../base";
 import { PiRpcClient } from "./rpcClient";
 import { PiRpcSession } from "./rpcSession";
 
@@ -146,7 +149,7 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     return { events, updates };
   }
 
-  async function createSession() {
+  async function createSession(sessionRef?: SessionRef) {
     const { events, updates } = makeSession();
     const session = await PiRpcSession.create(
       {
@@ -154,6 +157,7 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
         projectLocation: { kind: "posix", path: projectDir },
         config: { model: "mock/model", effort: "off" },
         presentationMode: "gui",
+        ...(sessionRef ? { sessionRef } : {}),
       },
       { binary: mockBinary },
     );
@@ -170,6 +174,150 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     return { session, events, updates };
   }
 
+  function makeHistory(savedItems: RuntimeChatItem[] = []) {
+    const state = {
+      threads: [],
+      runtimeItemIdsByThread: { "thread-mock": savedItems.map((item) => item.id) },
+      runtimeItemsByIdByThread: {
+        "thread-mock": Object.fromEntries(savedItems.map((item) => [item.id, item])),
+      },
+      runtimeRequestsByThread: {},
+      runtimeContextByThread: {},
+      runtimeBackgroundTasksByThread: {},
+      runtimeStructuralVersionByThread: {},
+      runtimeCompletedTurnsByThread: {},
+      runtimeOpenTurnByThread: {},
+    } as unknown as AppStoreState;
+    return {
+      state,
+      apply(events: RuntimeEvent[]) {
+        Object.assign(state, applyRuntimeEventsToState(state, "thread-mock", events));
+      },
+    };
+  }
+
+  it("keeps canonical item and turn identities distinct when resuming in a new RPC process", async () => {
+    const first = await createSession();
+    try {
+      const providerSessionId = await first.session.openThread();
+      await first.session.startTurn("ECHO_FIRST", { model: "mock/model", effort: "off" });
+      await first.session.startTurn("ECHO_FOLLOWUP", { model: "mock/model", effort: "off" });
+      const firstHistory = makeHistory();
+      firstHistory.apply(first.events);
+      const savedItems = Object.values(firstHistory.state.runtimeItemsByIdByThread["thread-mock"]!);
+      await first.session.dispose();
+      const resumed = await createSession(createKnownSessionRef(providerSessionId));
+      try {
+        expect(await resumed.session.openThread()).toBe(providerSessionId);
+        await resumed.session.startTurn("ECHO_SECOND", { model: "mock/model", effort: "off" });
+        const events = [...first.events, ...resumed.events];
+        const itemIds = events
+          .filter((event) => event.type === "item.started")
+          .map((event) => event.itemId);
+        const assistantIds = events.flatMap((event) =>
+          event.type === "item.started" && event.itemType === "assistant_message"
+            ? [event.itemId]
+            : [],
+        );
+        const turnIds = events
+          .filter((event) => event.type === "turn.started")
+          .map((event) => event.turnId);
+        expect(assistantIds).toHaveLength(3);
+        expect(new Set(assistantIds).size).toBe(3);
+        expect(new Set(itemIds).size).toBe(itemIds.length);
+        expect(turnIds).toHaveLength(3);
+        expect(new Set(turnIds).size).toBe(3);
+        const reopenedHistory = makeHistory(savedItems);
+        reopenedHistory.apply(resumed.events);
+        const items = reopenedHistory.state.runtimeItemsByIdByThread["thread-mock"]!;
+        expect(savedItems.map((item) => items[item.id])).toEqual(savedItems);
+        expect(reopenedHistory.state.runtimeItemIdsByThread["thread-mock"]).toHaveLength(6);
+        expect(
+          Object.values(items)
+            .filter((item) => item.type === "assistant_message")
+            .map((item) => item.streams.assistant_text),
+        ).toEqual(["SAW:ECHO_FIRST", "SAW:ECHO_FOLLOWUP", "SAW:ECHO_SECOND"]);
+      } finally {
+        await resumed.session.dispose();
+      }
+    } finally {
+      await first.session.dispose();
+    }
+  });
+
+  it("preserves legacy saved replies across resumed failure, stop and the next live turn", async () => {
+    const legacy = {
+      id: "pi-assistant-2",
+      type: "assistant_message" as const,
+      state: "completed" as const,
+      payload: { content: [] },
+      streams: { assistant_text: "OLD_SAVED_REPLY" },
+    };
+    const history = makeHistory([legacy]);
+    const { session, events } = await createSession(createKnownSessionRef("mock-session-1"));
+    const config = { model: "mock/model", effort: "off" };
+    try {
+      await session.openThread();
+      await session.startTurn("ECHO_RESUMED", config);
+      await session.startTurn("FAIL", config);
+      const stoppedTurn = session.startTurn("DIALOG", config);
+      await waitFor(events, (event) => event.type === "request.opened");
+      await session.interruptTurn();
+      session.forceCompleteTurn();
+      await stoppedTurn;
+      await session.startTurn("ECHO_AFTER_STOP", config);
+      history.apply(events);
+      const items = history.state.runtimeItemsByIdByThread["thread-mock"]!;
+      expect(items[legacy.id]).toMatchObject(legacy);
+      expect(
+        Object.values(items)
+          .filter((item) => item.type === "assistant_message")
+          .map((item) => item.streams.assistant_text),
+      ).toEqual([
+        "OLD_SAVED_REPLY",
+        "SAW:ECHO_RESUMED",
+        "DIALOG_DONE:cancelled",
+        "SAW:ECHO_AFTER_STOP",
+      ]);
+      expect(
+        events.filter((event) => event.type === "turn.completed").map((event) => event.state),
+      ).toEqual(["completed", "failed", "cancelled", "completed"]);
+      expect(events.filter((event) => event.type === "request.resolved")).toEqual([
+        expect.objectContaining({ outcome: "cancelled" }),
+      ]);
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it.each([false, true])(
+    "confirms the CLI session identity before a turn (resume=%s)",
+    async (resume) => {
+      const { session, updates } = await createSession(
+        resume
+          ? {
+              providerSessionId: "mock-session-1",
+              discoveredAt: "2026-09-13T23:00:00Z",
+            }
+          : undefined,
+      );
+      try {
+        expect(await session.openThread()).toBe("mock-session-1");
+        expect(updates.at(-1)).toMatchObject({
+          status: "idle",
+          sessionRef: { providerSessionId: "mock-session-1" },
+        });
+        const args = vi.mocked(PiRpcClient.spawn).mock.calls.at(-1)![0].args;
+        const sessionFlag = args.indexOf("--session");
+        expect(sessionFlag < 0 ? undefined : args[sessionFlag + 1]).toBe(
+          resume ? "mock-session-1" : undefined,
+        );
+      } finally {
+        await session.dispose();
+      }
+    },
+  );
+
   async function disposeSettledSession(
     session: PiRpcSession,
     events: RuntimeEvent[],
@@ -182,6 +330,51 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     );
     await session.dispose();
   }
+
+  it("shares concurrent disposal until the RPC process has exited", async () => {
+    const { session, events } = await createSession();
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const originalClose = PiRpcClient.prototype.close;
+    const close = vi
+      .spyOn(PiRpcClient.prototype, "close")
+      .mockImplementationOnce(async function (this: PiRpcClient) {
+        await pending;
+        await originalClose.call(this);
+      });
+    try {
+      const first = session.dispose();
+      expect(session.dispose()).toBe(first);
+      expect(events.some((event) => event.type === "session.exited")).toBe(false);
+      release();
+      await first;
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(events.filter((event) => event.type === "session.exited")).toHaveLength(1);
+    } finally {
+      release();
+      close.mockRestore();
+      await session.dispose();
+    }
+  });
+
+  it("retries an unconfirmed RPC shutdown without reporting an early session exit", async () => {
+    const { session, events } = await createSession();
+    const close = vi
+      .spyOn(PiRpcClient.prototype, "close")
+      .mockRejectedValueOnce(new Error("Still alive"));
+    try {
+      await expect(session.dispose()).rejects.toThrow("Still alive");
+      expect(events.some((event) => event.type === "session.exited")).toBe(false);
+      await session.dispose();
+      expect(close).toHaveBeenCalledTimes(2);
+      expect(events.filter((event) => event.type === "session.exited")).toHaveLength(1);
+    } finally {
+      close.mockRestore();
+      await session.dispose();
+    }
+  });
 
   it("streams a turn into canonical events and publishes session ref + context", async () => {
     const { session, events, updates } = await createSession();
@@ -280,6 +473,43 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     expect(JSON.stringify(userMessage)).toContain("ECHO please");
     expect(JSON.stringify(userMessage)).not.toContain("provider handoff");
     await disposeSettledSession(session, events, updates);
+  });
+
+  it("delivers inline instructions with a steer, live and as a fresh turn", async () => {
+    const { session, events, updates } = await createSession();
+    const config = { model: "mock/model", effort: "off" };
+    const request = vi.spyOn(PiRpcClient.prototype, "request");
+    try {
+      // No turn in flight: the steer starts one with the same provider message.
+      await session.steerTurn("ECHO fresh", config, undefined, {
+        inlineInstructions: "[client context] tab A",
+      });
+      const seen = events
+        .filter(
+          (e): e is Extract<RuntimeEvent, { type: "content.delta" }> =>
+            e.type === "content.delta" && e.stream === "assistant_text",
+        )
+        .map((e) => e.delta)
+        .join("");
+      expect(seen).toBe("SAW:ECHO fresh\n\n[client context] tab A");
+
+      const turn = session.startTurn("DIALOG", config);
+      const opened = (await waitFor(events, (event) => event.type === "request.opened")) as Extract<
+        RuntimeEvent,
+        { type: "request.opened" }
+      >;
+      await session.steerTurn("summarize this page instead", config, undefined, {
+        inlineInstructions: "[client context] tab B",
+      });
+      expect(request).toHaveBeenCalledWith("steer", {
+        message: "summarize this page instead\n\n[client context] tab B",
+      });
+      await session.resolveServerRequest(opened.requestId, { optionId: "alpha" });
+      await turn;
+    } finally {
+      request.mockRestore();
+      await disposeSettledSession(session, events, updates);
+    }
   });
 
   it("surfaces a provider error as a failed turn", async () => {

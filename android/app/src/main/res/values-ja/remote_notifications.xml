@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_notification_done">完了</string>
+    <string name="remote_notification_needs_attention">確認が必要</string>
+    <string name="remote_notification_error">エラー</string>
+    <string name="remote_notification_dismiss">通知を閉じる</string>
+</resources>

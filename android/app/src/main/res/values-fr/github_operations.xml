@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_github">GitHub</string><string name="github_unavailable">GitHub CLI n’est pas disponible pour ce projet.</string><string name="github_pull_requests">Demandes de tirage</string><string name="github_actions">Actions</string><string name="github_repositories">Dépôts</string>
+    <string name="github_confirm_title">Confirmer l’action GitHub</string><string name="github_confirm_message">Cette action peut supprimer ou modifier définitivement des données GitHub distantes.</string><string name="github_confirm">Continuer</string><string name="github_refresh">Actualiser GitHub</string><string name="github_no_pull_requests">Aucune demande de tirage trouvée.</string>
+    <string name="github_pr_title">Titre de la demande</string><string name="github_head_branch">Branche source</string><string name="github_base_branch">Branche de base</string><string name="github_create_pr">Créer une demande de tirage</string><string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">Sélectionnez une demande de tirage à examiner.</string><string name="github_pr_number">Demande de tirage #%1$d</string>
+    <string name="github_ready">Marquer comme prête</string><string name="github_update_branch">Mettre à jour la branche</string><string name="github_reopen">Rouvrir</string><string name="github_close">Fermer</string><string name="github_merge">Fusionner</string><string name="github_approve">Approuver</string><string name="github_post_comment">Publier le commentaire</string>
+    <string name="github_details">Détails</string><string name="github_checks">Vérifications</string><string name="github_files">Fichiers</string><string name="github_reviews">Examens</string><string name="github_dispatch">Exécuter le workflow</string><string name="github_rerun">Réexécuter</string><string name="github_cancel_run">Annuler l’exécution</string><string name="github_delete_run">Supprimer l’exécution</string><string name="github_discover_accounts">Rechercher les comptes GitHub</string><string name="github_account">%1$s sur %2$s</string>
+    <string name="github_change_reconciled">Le résultat était incertain. Poracode n’a pas réessayé l’action et a récupéré une seule fois le dernier état GitHub.</string>
+    <string name="github_request_changes">Demander des modifications</string>
+    <string name="github_comment_decision">Commenter</string>
+    <string name="github_submit_review">Envoyer la revue</string>
+    <string name="github_submit">Envoyer</string>
+    <string name="github_body">Corps</string>
+    <string name="github_merge_method_merge">Fusionner</string>
+    <string name="github_merge_method_squash">Squash</string>
+    <string name="github_merge_method_rebase">Rebase</string>
+    <string name="github_merge_admin">Fusionner avec les droits admin</string>
+    <string name="github_overview">Aperçu</string>
+    <string name="github_conversation">Conversation</string>
+    <string name="github_comments">Commentaires</string>
+    <string name="github_review_threads">Fils de revue</string>
+    <string name="github_description">Description</string>
+    <string name="github_commits">Commits</string>
+    <string name="github_no_files">Cette pull request n’a aucun fichier modifié.</string>
+    <string name="github_no_checks">Aucune vérification pour cette pull request.</string>
+    <string name="github_no_conversation">Aucun commentaire ni revue pour l’instant.</string>
+    <string name="github_no_diff">Aucun diff pour ce fichier.</string>
+    <string name="github_loading_details">Chargement des détails de la pull request…</string>
+    <string name="github_back_to_files">Retour aux fichiers</string>
+    <string name="github_back_to_list">Retour à la liste</string>
+    <string name="github_open_externally">Ouvrir dans le navigateur</string>
+    <string name="github_thread_resolved">Résolu</string>
+    <string name="github_thread_unresolved">Non résolu</string>
+    <string name="github_ref">Réf</string>
+    <string name="github_rerun_failed">Relancer les jobs en échec</string>
+    <string name="github_pr_branches">#%1$d · %2$s → %3$s</string>
+    <string name="github_additions">+%1$d</string>
+    <string name="github_deletions">−%1$d</string>
+    <string name="github_changed_files">%1$d fichiers</string>
+    <string name="github_workflow_summary">%1$s · %2$s</string>
+    <string name="github_run_summary">Exécution #%1$d · tentative %2$d · %3$s · %4$s</string>
+    <string name="github_run_revision">%1$s @ %2$s</string>
+</resources>

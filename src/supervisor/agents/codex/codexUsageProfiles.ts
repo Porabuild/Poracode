@@ -1,9 +1,10 @@
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { collectCodex, type HostPort, type UsageSnapshot } from "@poracode/agents-usage";
 import { codexProfileKind, parseCodexProfileInstanceConfig } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
 import { resolveCodexToken } from "../../runtime/codexCredentials";
+import type { UsageProfileSource } from "../../runtime/usageProfileTypes";
+import { resolveNativeTildePath } from "../base/sessionFs";
 
 /**
  * Codex-specific usage collection for profiles: each profile owns a
@@ -17,11 +18,22 @@ export interface CodexUsageProfile {
   homeDir: string;
 }
 
-function resolveNativeTildePath(rawPath: string): string {
-  const trimmed = rawPath.trim();
-  if (trimmed === "~") return homedir();
-  if (trimmed.startsWith("~/")) return join(homedir(), trimmed.slice(2));
-  return trimmed;
+/** Register profile collection and cache custody at the provider boundary. */
+export function createCodexUsageProfileSource(settings: SharedSettings): UsageProfileSource {
+  return {
+    collectors: [...readCodexUsageProfiles(settings).values()].map((profile) => ({
+      providerId: profile.providerId,
+      collect: (host) => collectCodexProfile(profile, host),
+      cacheIdentity: async () => {
+        const token = await resolveCodexToken({ CODEX_HOME: profile.homeDir });
+        // Only the opaque fingerprint persists; home changes and login/logout
+        // invalidate old quota before display and after asynchronous enrichment.
+        return createHash("sha256")
+          .update(JSON.stringify({ homeDir: profile.homeDir, token }))
+          .digest("hex");
+      },
+    })),
+  };
 }
 
 /** Enabled Codex profile instances as usage providers, keyed by provider id. */
