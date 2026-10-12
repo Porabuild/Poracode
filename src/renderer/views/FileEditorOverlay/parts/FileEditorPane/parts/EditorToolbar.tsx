@@ -1,5 +1,6 @@
 import { Code, Eye, Maximize2, Save, X } from "lucide-react";
-import { Tooltip } from "@heroui/react";
+import { Spinner, Tooltip } from "@heroui/react";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
@@ -18,6 +19,9 @@ export function EditorToolbar(props: {
   onClose?: () => void;
 }) {
   const { t } = useLingui();
+  const saving = useFileEditorStore(
+    (state) => !!(props.activePath && state.buffers[props.activePath]?.saveId),
+  );
   const {
     hasRenderedView,
     showPreview,
@@ -68,10 +72,11 @@ export function EditorToolbar(props: {
               type="button"
               className={`rounded p-0.5 ${isDirty ? "text-foreground" : "text-muted/40 pointer-events-none"}`}
               aria-label={t`Save`}
-              disabled={!isDirty}
+              disabled={!isDirty || saving}
+              aria-busy={saving}
               onClick={onSave}
             >
-              <Save className="size-3" />
+              {saving ? <Spinner size="sm" /> : <Save className="size-3" />}
             </button>
           </Tooltip.Trigger>
           <Tooltip.Content placement="bottom">

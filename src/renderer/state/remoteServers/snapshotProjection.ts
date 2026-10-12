@@ -23,6 +23,8 @@ import {
 import { hostSupportsRuntimeHistoryNotices } from "@/renderer/state/remote/historyNoticeCapability";
 import { recordAuthoritativeHistoryInstall } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
+import { finalizeProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
+import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
 import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
 import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -212,6 +214,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       // Authoritative host removal: the durable notice state goes with the
       // thread instead of surviving to re-attach to a future row.
       clearThreadHistoryNotice(viewThreadId);
+      forgetPendingCatalogEdit("thread", viewThreadId);
       useAppStore.getState().deleteThread(viewThreadId);
     }
   };
@@ -236,7 +239,8 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       };
     });
     for (const projectId of projectIds) {
-      useAppStore.getState().deleteProject(remoteProjectId(connectionKey, projectId));
+      const viewProjectId = remoteProjectId(connectionKey, projectId);
+      finalizeProjectRemoval(viewProjectId);
     }
   };
 

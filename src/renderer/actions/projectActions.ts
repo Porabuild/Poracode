@@ -17,6 +17,8 @@ import type { RemoteProjectCommand } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
+import { runRendererAction } from "@/renderer/state/rendererActionStore";
+import { presentProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -30,6 +32,11 @@ import {
   sendManagedRootProjectCommand,
 } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
+import {
+  catalogEditPatch,
+  applyCatalogPatchFields,
+  dispatchOptimisticCatalogEdit,
+} from "@/renderer/state/pendingCatalogEdits";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 // The home dir doesn't change at runtime, so cache the single IPC roundtrip
@@ -51,30 +58,41 @@ function dispatchRemoteProjectMutation(
   project: Project,
   patch: RemoteProjectPatch,
   apply: () => void,
+  onConfirmed?: () => void,
 ): boolean {
   const owner = remoteOwner(project);
-  if (owner) {
-    void useRemoteServersStore
-      .getState()
-      .runProjectCommand(owner.desktopId, {
-        kind: "update",
-        projectId: owner.remoteId,
-        patch,
-      })
-      .then(apply)
-      .catch((error) => toast.danger(friendlyError(error)));
-    return true;
-  }
   const rootOwner = managedRootOwner(project);
-  if (!rootOwner || isApplyingHostOriginatedManagedRootMutation()) return false;
-  void sendManagedRootProjectCommand({
-    kind: "update",
-    projectId: rootOwner.threadId,
-    patch,
+  if (!owner && (!rootOwner || isApplyingHostOriginatedManagedRootMutation())) return false;
+  const previousView = useAppStore.getState().view;
+  apply();
+  const paintedView = useAppStore.getState().view;
+  const painted = useAppStore.getState().projects.find((row) => row.id === project.id) ?? project;
+  const localPatch = catalogEditPatch(project, painted);
+  void dispatchOptimisticCatalogEdit({
+    kind: "project",
+    row: project,
+    patch: localPatch,
+    ...(Object.keys(patch).length === 1 && "scripts" in patch ? { coalesceKey: "scripts" } : {}),
+    apply: () => {},
+    write: () =>
+      owner
+        ? useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
+            kind: "update",
+            projectId: owner.remoteId,
+            patch,
+          })
+        : sendManagedRootProjectCommand({ kind: "update", projectId: rootOwner!.threadId, patch }),
+    restore: (base) =>
+      useAppStore.setState((state) => ({
+        ...(state.view === paintedView ? { view: previousView } : {}),
+        projects: state.projects.map((row) =>
+          row.id === project.id ? applyCatalogPatchFields(row, base, localPatch) : row,
+        ),
+      })),
   })
     .then(() => {
-      apply();
-      refreshManagedRootCatalogSoon();
+      onConfirmed?.();
+      if (rootOwner) refreshManagedRootCatalogSoon();
     })
     .catch((error) => toast.danger(friendlyError(error)));
   return true;
@@ -86,16 +104,9 @@ export function renameProject(projectId: string, name: string): void {
   if (!project) return;
   const rootOwner = managedRootOwner(project);
   if (rootOwner && !isApplyingHostOriginatedManagedRootMutation()) {
-    void sendManagedRootProjectCommand({
-      kind: "update",
-      projectId: rootOwner.threadId,
-      patch: { name },
-    })
-      .then(() => {
-        useAppStore.getState().renameProject(projectId, name);
-        refreshManagedRootCatalogSoon();
-      })
-      .catch((error) => toast.danger(friendlyError(error)));
+    dispatchRemoteProjectMutation(project, { name }, () =>
+      useAppStore.getState().renameProject(projectId, name),
+    );
     return;
   }
   store.renameProject(projectId, name);
@@ -259,9 +270,11 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
   if (!project) return;
   if ((project.disabled ?? false) === disabled) return;
 
-  const apply = () => {
-    store.setProjectDisabled(projectId, disabled);
-
+  const apply = () => useAppStore.getState().setProjectDisabled(projectId, disabled);
+  const cleanup = () => {
+    // A later toggle may already have re-enabled this project while awaiting ACK.
+    if (useAppStore.getState().projects.find((row) => row.id === projectId)?.disabled !== disabled)
+      return;
     if (disabled) {
       const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
       const releaseWslDistro =
@@ -304,8 +317,9 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
     }
   };
 
-  if (dispatchRemoteProjectMutation(project, { disabled }, apply)) return;
+  if (dispatchRemoteProjectMutation(project, { disabled }, apply, cleanup)) return;
   apply();
+  cleanup();
 }
 
 /**
@@ -380,20 +394,19 @@ export async function relocateRemoteProject(projectId: string, path: string): Pr
 }
 
 export function deleteProject(projectId: string): void {
-  void deleteProjectAsync(projectId);
+  void runRendererAction(`project:remove:${projectId}`, () => deleteProjectAsync(projectId));
 }
 
 async function deleteProjectAsync(projectId: string): Promise<void> {
   const remoteProject = useAppStore.getState().projects.find((project) => project.id === projectId);
   const owner = remoteOwner(remoteProject);
   if (owner) {
-    await useRemoteServersStore
-      .getState()
-      .runProjectCommand(owner.desktopId, {
+    await presentProjectRemoval(remoteProject!, () =>
+      useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
         kind: "remove",
         projectId: owner.remoteId,
-      })
-      .catch((error) => toast.danger(friendlyError(error)));
+      }),
+    ).catch((error) => toast.danger(friendlyError(error)));
     return;
   }
   const rootOwner = managedRootOwner(remoteProject ?? { id: projectId });
@@ -423,8 +436,11 @@ async function deleteProjectAsync(projectId: string): Promise<void> {
       refreshManagedRootCatalogSoon();
     };
     try {
-      await sendManagedRootProjectCommand({ kind: "remove", projectId: rootOwner.threadId });
-      cleanup();
+      if (!remoteProject) return;
+      await presentProjectRemoval(remoteProject, async () => {
+        await sendManagedRootProjectCommand({ kind: "remove", projectId: rootOwner.threadId });
+        cleanup();
+      });
     } catch (error) {
       toast.danger(friendlyError(error));
     }

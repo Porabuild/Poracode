@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const ACTIVE_WORKSPACE_ID = "ws-active";
 
 const mocks = vi.hoisted(() => ({
+  managed: false,
+  register: vi.fn<(input: unknown) => Promise<unknown>>(),
   createProjectDirectory: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
   cloneRepo: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
   pickFolder: vi.fn<(d?: string) => Promise<string | null>>(),
@@ -31,6 +33,11 @@ vi.mock("@/renderer/bridge", () => ({
     cloneRepo: mocks.cloneRepo,
     pickFolder: mocks.pickFolder,
   }),
+}));
+vi.mock("@/renderer/state/managedRootCatalog/rootCatalogCommands", () => ({
+  isManagedRootDesktopRuntime: () => mocks.managed,
+  isApplyingHostOriginatedManagedRootMutation: () => false,
+  sendManagedRootProjectCommand: mocks.register,
 }));
 vi.mock("@/renderer/actions/projectActions", () => ({
   loadHomeScopeLocation: mocks.loadHomeScopeLocation,
@@ -70,6 +77,22 @@ const { cloneRepo } = mocks;
 describe("commitCreateProject", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.managed = false;
+  });
+
+  test("propagates a refused host registration to the modal instead of completing", async () => {
+    mocks.managed = true;
+    mocks.register.mockRejectedValueOnce(new Error("registration refused"));
+    await expect(
+      commitCreateProject({
+        mode: "existing",
+        choice: { kind: "native" },
+        dir: "/repo",
+        name: "Repo",
+      }),
+    ).rejects.toThrow("registration refused");
+    expect(openDraft).not.toHaveBeenCalled();
+    mocks.managed = false;
   });
 
   test("existing folder: adds the project and records its parent as last-used", async () => {

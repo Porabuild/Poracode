@@ -1,4 +1,6 @@
 import { ChevronRight, FolderOpen } from "lucide-react";
+import { Spinner } from "@heroui/react";
+import { useRendererActionStore } from "@/renderer/state/rendererActionStore";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
@@ -35,6 +37,9 @@ export function SidebarProjectHeader(props: {
 }) {
   const { project, isCollapsed, isDragging, isUnreachable } = props;
   const { t } = useLingui();
+  const removing = useRendererActionStore(
+    (state) => !!state.pending[`project:remove:${project.id}`],
+  );
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
   const hasTerminal = useIsProjectTerminalOpen(project.id);
   const isActiveTerminal = useIsProjectTerminalActive(project.id);
@@ -49,7 +54,7 @@ export function SidebarProjectHeader(props: {
   // Git, run-scripts and removal all execute on the project's host, so they are
   // unavailable while a mirrored project's server is unreachable. The row
   // tooltip carries the status, so the greyed-out items read as explained.
-  const isUnavailable = isDisabled || isUnreachable;
+  const isUnavailable = isDisabled || isUnreachable || removing;
   const showBody = !isCollapsed && !isUnavailable;
   const projectMenu = useProjectMenu(project, { isUnreachable });
   // Same collapse footprint as thread / worktree panel buttons so idle icons
@@ -71,7 +76,7 @@ export function SidebarProjectHeader(props: {
         }
         label={
           <span className="flex items-center gap-1.5">
-            {customIcon}
+            {removing ? <Spinner size="sm" /> : customIcon}
             <span className="truncate text-xs font-semibold text-foreground">{project.name}</span>
             <ProjectRemoteServerIcon info={remote} />
             {/* Own span rather than the shared chip: the machine name has to

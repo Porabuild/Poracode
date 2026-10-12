@@ -4,6 +4,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { BrowserPanel } from "./BrowserPanel";
+import { editBrowserPresentation } from "@/renderer/actions/browserActions";
 
 const bridge = vi.hoisted(() => ({
   browserCreateTab: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -67,9 +68,13 @@ describe("BrowserPanel", () => {
     layout.compact = false;
     clientCapabilities.nativeBrowserWebContents = true;
     useBrowserPanelStore.setState({
+      residentTabs: [],
       tabs: [],
       groups: [],
       activeTabId: null,
+      initialized: false,
+      hostActiveTabId: null,
+      activationIntent: null,
       extracted: false,
       bookmarks: [],
       bookmarkBarVisible: false,
@@ -89,8 +94,43 @@ describe("BrowserPanel", () => {
     expect(getByText("No browser tab open")).toBeTruthy();
   });
 
+  it("retains the exact native webview while closing is pending or refused", async () => {
+    const tab = {
+      tabId: "custody",
+      url: "https://example.test",
+      title: "Resident",
+      loading: false,
+      canGoBack: false,
+      canGoForward: false,
+    };
+    useBrowserPanelStore.getState().setState({ tabs: [tab], activeTabId: tab.tabId });
+    const { container } = render(<BrowserPanel visible />);
+    const webview = container.querySelector("webview");
+    let reject!: (error: Error) => void;
+    act(() =>
+      editBrowserPresentation(
+        { kind: "close", tabId: tab.tabId },
+        () =>
+          new Promise<void>((_resolve, refuse) => {
+            reject = refuse;
+          }),
+      ),
+    );
+    expect(useBrowserPanelStore.getState().tabs).toEqual([]);
+    expect(container.querySelector("webview")).toBe(webview);
+    expect((webview as HTMLElement).style.display).toBe("none");
+    await act(async () => {
+      reject(new Error("refused"));
+      await Promise.resolve();
+    });
+    expect(container.querySelector("webview")).toBe(webview);
+    expect((webview as HTMLElement).style.display).toBe("flex");
+    act(() => useBrowserPanelStore.getState().setState({ tabs: [], activeTabId: null }));
+    expect(container.querySelector("webview")).toBeNull();
+  });
+
   it("renders a <webview> per tab and hides inactive ones", () => {
-    useBrowserPanelStore.setState({
+    useBrowserPanelStore.getState().setState({
       tabs: [
         {
           tabId: "tab-1",
@@ -122,7 +162,7 @@ describe("BrowserPanel", () => {
 
   it("renders the remote mirror instead of Electron webviews in a browser client", () => {
     clientCapabilities.nativeBrowserWebContents = false;
-    useBrowserPanelStore.setState({
+    useBrowserPanelStore.getState().setState({
       tabs: [
         {
           tabId: "tab-1",
@@ -144,7 +184,7 @@ describe("BrowserPanel", () => {
 
   it("moves browser controls below the viewport in compact layout", () => {
     layout.compact = true;
-    useBrowserPanelStore.setState({
+    useBrowserPanelStore.getState().setState({
       tabs: [
         {
           tabId: "tab-1",
@@ -198,7 +238,7 @@ describe("BrowserPanel", () => {
   });
 
   it("keeps the same webview mounted when browser panel goes fullscreen", () => {
-    useBrowserPanelStore.setState({
+    useBrowserPanelStore.getState().setState({
       tabs: [
         {
           tabId: "tab-1",
@@ -230,7 +270,7 @@ describe("BrowserPanel", () => {
   });
 
   it("attaches the right-panel webview contents to the browser tab", () => {
-    useBrowserPanelStore.setState({
+    useBrowserPanelStore.getState().setState({
       tabs: [
         {
           tabId: "tab-1",
@@ -258,7 +298,7 @@ describe("BrowserPanel", () => {
   });
 
   it("reattaches a mounted webview when it becomes visible again", () => {
-    useBrowserPanelStore.setState({
+    useBrowserPanelStore.getState().setState({
       tabs: [
         {
           tabId: "tab-1",
@@ -286,8 +326,8 @@ describe("BrowserPanel", () => {
     });
   });
 
-  it("routes browser panel reload shortcuts to the active tab", () => {
-    useBrowserPanelStore.setState({
+  it("routes browser panel reload shortcuts to the active tab in order", async () => {
+    useBrowserPanelStore.getState().setState({
       tabs: [
         {
           tabId: "tab-1",
@@ -306,13 +346,19 @@ describe("BrowserPanel", () => {
     fireEvent.keyDown(panel, { key: "r", ctrlKey: true });
     expect(bridge.browserReload).toHaveBeenCalledWith({ tabId: "tab-1" });
 
-    fireEvent.keyDown(panel, { key: "R", ctrlKey: true, shiftKey: true });
+    await act(async () => {
+      fireEvent.keyDown(panel, { key: "R", ctrlKey: true, shiftKey: true });
+    });
     expect(bridge.browserHardReload).toHaveBeenCalledWith({ tabId: "tab-1" });
 
-    fireEvent.keyDown(panel, { key: "F5" });
+    await act(async () => {
+      fireEvent.keyDown(panel, { key: "F5" });
+    });
     expect(bridge.browserReload).toHaveBeenCalledTimes(2);
 
-    fireEvent.keyDown(panel, { key: "F5", shiftKey: true });
+    await act(async () => {
+      fireEvent.keyDown(panel, { key: "F5", shiftKey: true });
+    });
     expect(bridge.browserHardReload).toHaveBeenCalledTimes(2);
   });
 

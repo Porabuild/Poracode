@@ -44,6 +44,41 @@ and instructions remain in their original database. API/IPC formats are unchange
 
 # Versioned State & Protocols
 
+Running GUI thread interests now outlive their visible panes, using the existing
+bounded loopback interest vocabulary and renderer window retention. History
+recovery retains an existing reader until its successful read can replace it;
+the pre-install callback is process-local and keeps the existing generation and
+queued-event arbitration. Catalog/snapshot projections retain the earlier local
+start only while confirming the same active turn; completion, session/provider
+replacement and a changed settled-turn boundary remain authoritative. These
+changes add no persisted or wire fields. SQLite, client-host hop, remote/native
+contracts, IndexedDB and helper/plugin versions remain compatible.
+
+Acknowledged managed clipboard uploads can admit their original image bytes to
+the owning activation's existing bounded blob cache. This is a renderer-local
+method, fenced across activation replacement; entry/byte/concurrency budgets,
+eviction and URL revocation retain their meanings. No image ticket, reference,
+upload, cache or IPC format changes. Regressions start with loaded historical
+readers, check navigation and delayed recovery, and verify upload-cache retirement
+on reconnect. Rebuilt renderer/PWA content identities retire the previous code.
+
+Immediate action feedback and optimistic catalog edits are renderer-local leases.
+They serialize existing owner commands, retain authoritative values beneath
+pending presentation, and retire on matching metadata or confirmed membership
+removal. Browser initialization, activation intents and file-save symbols are
+transient state only. Clipboard previews are admitted before upload but unresolved
+paths and blob URLs are excluded from existing durable drafts and submissions.
+No persisted JSON, SQLite, browser cache, protocol, helper or plugin format has
+changed; the prior draft/catalog shapes remain valid. Refusal, competing metadata,
+queued navigation and renamed-buffer regressions cover these boundaries.
+Hidden project removal intents remain membership candidates until authoritative
+absence retires retained contents. Native browser webviews follow authoritative
+membership while the strip projects immediate closes; refusal preserves the same
+page. Browser selection and action queues are scoped to the current owner epoch,
+so a replacement host neither inherits optimistic edits nor waits for retired
+commands. These ownership records and coalesced script writes are process-local;
+no durable cache or protocol version changes are required.
+
 Codex command and file-change completion normalize native `declined` to the
 existing canonical `error` status while retaining `item.completed`. Existing
 output and exit-code fields, legacy status omission, SQLite schemas, wire/IPC

@@ -5,6 +5,7 @@ import { makeThreadTitle, useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { generateTitleAsync, requestGeneratedTitle } from "./titleGen";
+import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
 
 const GENERATED_TITLE = "Cloud Z first";
 
@@ -39,6 +40,7 @@ vi.mock("@/renderer/state/managedRootCatalog/rootCatalogCommands", async (import
 
 describe("generateTitleAsync", () => {
   beforeEach(() => {
+    forgetPendingCatalogEdit("thread", "thread-1");
     vi.clearAllMocks();
     localStorage.clear();
     generateTitleWithFallback.mockResolvedValue(GENERATED_TITLE);
@@ -54,7 +56,7 @@ describe("generateTitleAsync", () => {
     useRemoteServersStore.setState({ sendThreadCommand });
   });
 
-  it("sends the durable rename command for a managed-root row and applies after the host accepts", async () => {
+  it("paints the generated title while sending the durable rename command", async () => {
     const thread = makeThread();
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));
     let acceptRename: (() => void) | undefined;
@@ -74,9 +76,7 @@ describe("generateTitleAsync", () => {
         title: GENERATED_TITLE,
       }),
     );
-    // The local mirror waits for host acceptance: a local-only apply would be
-    // display-only and revert on restart.
-    expect(useAppStore.getState().threads[0]?.title).toBe(makeThreadTitle(PROMPT));
+    expect(useAppStore.getState().threads[0]?.title).toBe(GENERATED_TITLE);
 
     acceptRename?.();
     await waitFor(() => expect(useAppStore.getState().threads[0]?.title).toBe(GENERATED_TITLE));

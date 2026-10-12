@@ -2,6 +2,7 @@ import { DeleteThreadPopover } from "@/renderer/views/MainView/parts/Sidebar/par
 import { ForceDeleteBranchDialog } from "@/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog";
 
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
+import { runRendererAction, useRendererActionStore } from "@/renderer/state/rendererActionStore";
 
 import { deleteThread } from "@/renderer/actions/threadActions";
 import { forceDeleteBranch } from "@/renderer/actions/worktreeActions";
@@ -11,6 +12,11 @@ export type { WorktreeDeleteDialogState } from "@/renderer/state/worktreeDeleteS
 export function WorktreeDeleteDialogs() {
   const worktreeDeleteDialog = useWorktreeDeleteStore((s) => s.dialog);
   const closeDialog = useWorktreeDeleteStore((s) => s.closeDialog);
+  const branchActionKey =
+    worktreeDeleteDialog?.kind === "branch-unmerged"
+      ? `branch:remove:${worktreeDeleteDialog.projectId}:${worktreeDeleteDialog.worktreeBranch}`
+      : "";
+  const deletingBranch = useRendererActionStore((state) => !!state.pending[branchActionKey]);
 
   return (
     <>
@@ -42,11 +48,14 @@ export function WorktreeDeleteDialogs() {
           isOpen
           branch={worktreeDeleteDialog.worktreeBranch}
           errorMessage={worktreeDeleteDialog.error}
+          isPending={deletingBranch}
           onClose={closeDialog}
           onForceDelete={() => {
-            void forceDeleteBranch(
-              worktreeDeleteDialog.projectId,
-              worktreeDeleteDialog.worktreeBranch,
+            void runRendererAction(branchActionKey, () =>
+              forceDeleteBranch(
+                worktreeDeleteDialog.projectId,
+                worktreeDeleteDialog.worktreeBranch,
+              ),
             ).then((deleted) => {
               if (deleted) closeDialog();
             });

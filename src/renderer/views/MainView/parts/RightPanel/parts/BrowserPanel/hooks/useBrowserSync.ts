@@ -22,6 +22,7 @@ export function useBrowserSync(): void {
   useEffect(() => {
     if (!browserPanelAvailable) return;
     let cancelled = false;
+    let receivedState = false;
     const isMainWindow = readBridge().windowKind === "main";
     // Overlay/panel presentation side-effects belong to the main window alone,
     // and never while the browser is extracted to its own window — the extract
@@ -29,6 +30,7 @@ export function useBrowserSync(): void {
     const reactsToPresentation = () => isMainWindow && !useBrowserPanelStore.getState().extracted;
     const unsub = readBridge().onBrowserEvent((event) => {
       if (event.type === "state") {
+        receivedState = true;
         const hadTabs = useBrowserPanelStore.getState().tabs.length > 0;
         setState(event.state);
         if (event.state.extracted && isMainWindow) {
@@ -80,7 +82,7 @@ export function useBrowserSync(): void {
     readBridge()
       .browserGetState()
       .then((state) => {
-        if (!cancelled) setState(state);
+        if (!cancelled && !receivedState) setState(state);
       })
       .catch(() => {});
     return () => {

@@ -15,8 +15,26 @@ import {
   subscribeRemoteBridgeImages,
 } from "./remoteBridge";
 import { useRemoteBridgeImageReadiness } from "./useRemoteBridgeImages";
+import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
+import {
+  beginBrowserPresentation,
+  projectBrowserPresentation,
+} from "@/renderer/state/browserPresentationIntents";
 
 describe("remote bridge", () => {
+  it("retires browser presentation and selection intents when the owner client changes", () => {
+    setRemoteBridgeClient({} as RemoteDesktopClient);
+    const lease = beginBrowserPresentation({ kind: "bookmark-bar", visible: true });
+    lease.dispatch();
+    useBrowserPanelStore.getState().beginActivation("old-owner-tab");
+    setRemoteBridgeClient({} as RemoteDesktopClient);
+    expect(useBrowserPanelStore.getState().activationIntent).toBeNull();
+    expect(
+      projectBrowserPresentation({ tabs: [], activeTabId: null, bookmarkBarVisible: false })
+        .bookmarkBarVisible,
+    ).toBe(false);
+    expect(lease.settle(false)).toBe(false);
+  });
   afterEach(() => {
     setRemoteBridgeClient(null);
     resetDesktopSettings();

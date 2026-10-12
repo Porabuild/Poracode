@@ -1,10 +1,40 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { AttachmentBar } from "./AttachmentBar";
 import type { Attachment } from "./useAttachments";
 
 describe("AttachmentBar", () => {
+  it("keeps a pending host thumbnail out of the broken-image state and updates on readiness", () => {
+    let url = "";
+    let notify = () => {};
+    const readiness = {
+      resolvePath: () => url,
+      subscribePath: (_path: string, listener: () => void) => {
+        notify = listener;
+        return () => {};
+      },
+      requestPath: vi.fn<(path: string) => void>(),
+      resolveRef: () => "",
+      subscribeRef: () => () => {},
+      requestRef: () => {},
+    };
+    const { container } = render(
+      <AttachmentBar
+        attachments={[{ id: "image", path: "/tmp/image.png", name: "image.png", isImage: true }]}
+        imagesAsPreview
+        remoteImageReadiness={readiness}
+      />,
+    );
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByRole("img", { name: "image.png" })).toBeInTheDocument();
+    act(() => {
+      url = "blob:ready";
+      notify();
+    });
+    expect(screen.getByAltText("image.png")).toHaveAttribute("src", "blob:ready");
+  });
+
   it("renders image attachments as labeled inset chips by default", () => {
     const onPreviewImage = vi.fn<(attachment: Attachment) => void>();
     const { container } = render(

@@ -173,6 +173,42 @@ export class RemoteEnvironmentImageCache {
   }
 
   /**
+   * Admit bytes just uploaded through this cache's owning authenticated client.
+   * The caller must fence the upload to that same connection. Reuses ordinary
+   * byte/entry budgets, admission, notifications and revocation; no queued job
+   * retains an extra upload buffer when the fetch slots are already occupied.
+   */
+  async admitUploadedLocalImage(
+    absolutePath: string,
+    image: RemoteEnvironmentImageBytes,
+  ): Promise<void> {
+    if (this.disposed || this.jobs.size >= this.maxConcurrentFetches) return;
+    if (image.bytes.byteLength > this.maxBytes) return;
+    const key = environmentLocalImageKey(absolutePath);
+    const previous = this.entries.get(key);
+    if (previous?.status === "ready") return;
+    if (previous) {
+      this.entries.delete(key);
+      this.release(previous);
+    }
+    this.clearLatch(key);
+    const controller = new AbortController();
+    const entry: ImageCacheEntry = {
+      requestPath: localImageRequestPath(absolutePath),
+      status: "pending",
+      controller,
+      resource: undefined,
+      retryAtMs: undefined,
+      retryTimer: undefined,
+      snapshot: snapshotFor(key, "", true),
+    };
+    this.entries.set(key, entry);
+    this.jobs.add(controller);
+    this.trim();
+    await this.load(key, entry, controller, image);
+  }
+
+  /**
    * Pure snapshot read for `useSyncExternalStore`. Never starts, retries, or
    * reorders a fetch; the returned object is stable until the key transitions.
    */
@@ -295,9 +331,11 @@ export class RemoteEnvironmentImageCache {
     key: string,
     entry: ImageCacheEntry,
     controller: AbortController,
+    uploadedImage?: RemoteEnvironmentImageBytes,
   ): Promise<void> {
     try {
-      const { bytes, contentType } = await this.fetchBytes(entry.requestPath, controller.signal);
+      const { bytes, contentType } =
+        uploadedImage ?? (await this.fetchBytes(entry.requestPath, controller.signal));
       // Generation guard: a replaced, evicted, or disposed entry owns identity,
       // so only the exact object still in the map may publish a result.
       if (!this.isCurrentFetch(key, entry, controller)) return;

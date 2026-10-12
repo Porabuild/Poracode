@@ -50,6 +50,11 @@ import { closePanelsForUnloadedThread } from "./panelActions";
 import { getCurrentProjectId } from "./currentProject";
 import { switchWorkspaceForProject } from "./workspaceActions";
 import { deleteWorktreeGroup } from "./worktreeActions";
+import {
+  catalogEditPatch,
+  applyCatalogPatchFields,
+  dispatchOptimisticCatalogEdit,
+} from "@/renderer/state/pendingCatalogEdits";
 
 let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
@@ -68,25 +73,55 @@ function dispatchRemoteThreadMutation(
   thread: Thread,
   command: (remoteThreadId: string) => RemoteThreadCommand,
   apply: () => void,
+  onConfirmed?: () => void,
 ): boolean {
   const owner = remoteOwner(thread);
-  if (owner) {
-    void useRemoteServersStore
-      .getState()
-      .sendThreadCommand(owner.desktopId, command(owner.remoteId))
-      .then(apply)
-      .catch((error) => toast.danger(friendlyError(error)));
-    return true;
-  }
   const rootOwner = managedRootOwner(thread);
-  if (!rootOwner || isApplyingHostOriginatedManagedRootMutation()) return false;
-  const release = pinManagedRootThread(rootOwner.threadId);
-  void sendManagedRootThreadCommand(command(rootOwner.threadId))
+  if (!owner && (!rootOwner || isApplyingHostOriginatedManagedRootMutation())) return false;
+  const oldView = useAppStore.getState().view;
+  apply();
+  const painted = useAppStore.getState().threads.find((row) => row.id === thread.id) ?? thread;
+  const paintedView = useAppStore.getState().view;
+  const rollbackPatch = catalogEditPatch(thread, painted);
+  // Runtime status is live authority, even while a content command is pending.
+  // Acknowledging a finished turn must never mask the next turn's working event.
+  const { status: _status, ...patch } = rollbackPatch;
+  const release = rootOwner ? pinManagedRootThread(rootOwner.threadId) : () => {};
+  void dispatchOptimisticCatalogEdit({
+    kind: "thread",
+    row: thread,
+    patch,
+    apply: () => {},
+    serverGeneratedFields: ["updatedAt", "archivedAt", "doneAt"],
+    write: () =>
+      owner
+        ? useRemoteServersStore
+            .getState()
+            .sendThreadCommand(owner.desktopId, command(owner.remoteId))
+        : sendManagedRootThreadCommand(command(rootOwner!.threadId)),
+    restore: (base) =>
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((row) =>
+          row.id === thread.id
+            ? {
+                ...applyCatalogPatchFields(row, base, patch),
+                ...(rollbackPatch.status && row.status === painted.status
+                  ? { status: thread.status }
+                  : {}),
+              }
+            : row,
+        ),
+        ...(state.view === paintedView ? { view: oldView } : {}),
+      })),
+  })
     .then(() => {
-      apply();
-      refreshManagedRootCatalogSoon();
+      onConfirmed?.();
+      if (rootOwner) refreshManagedRootCatalogSoon();
     })
-    .catch((error) => toast.danger(friendlyError(error)))
+    .catch((error) => {
+      toast.danger(friendlyError(error));
+      if (rootOwner) refreshManagedRootCatalogSoon();
+    })
     .finally(release);
   return true;
 }
@@ -514,10 +549,20 @@ export function markThreadDone(threadId: string): void {
       thread,
       (remoteThreadId) => ({ kind: "set-done", threadId: remoteThreadId, done: true }),
       () => useAppStore.getState().markThreadDone(threadId),
+      () => cleanupDoneThread(threadId),
     )
   )
     return;
 
+  store.markThreadDone(threadId);
+  cleanupDoneThread(threadId);
+}
+
+/** Confirmation-only, idempotent cleanup for a thread whose visible flag may already be painted. */
+export function cleanupDoneThread(threadId: string): void {
+  const store = useAppStore.getState();
+  const thread = store.threads.find((row) => row.id === threadId);
+  if (!thread?.done) return;
   void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
   const worktreePath = thread.worktreePath;
   const isLastOpenWorktreeThread =
@@ -534,7 +579,6 @@ export function markThreadDone(threadId: string): void {
       termStore.closePanel();
     }
   }
-  store.markThreadDone(threadId);
 }
 
 export function toggleMarkThreadDone(threadId: string): void {
@@ -551,6 +595,9 @@ export function toggleMarkThreadDone(threadId: string): void {
         const nextStore = useAppStore.getState();
         if (done) nextStore.markThreadDone(threadId);
         else nextStore.unmarkThreadDone(threadId);
+      },
+      () => {
+        if (done) cleanupDoneThread(threadId);
       },
     )
   )
@@ -685,20 +732,20 @@ function deleteThreadOnly(threadId: string): void {
     return;
   }
   const rootOwner = thread ? managedRootOwner(thread) : undefined;
-  const applyRemoteDelete = () => {
+  const confirmRemoteDelete = () => {
     // A successful explicit delete is authoritative resolution of any
     // retained uncertain launch episode. Keep the marker until command
     // success so a refused or ambiguous delete can still replay the exact
     // original launch operation.
     if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
-    useAppStore.getState().deleteThread(threadId);
   };
   if (
     thread &&
     dispatchRemoteThreadMutation(
       thread,
       (remoteThreadId) => ({ kind: "delete", threadId: remoteThreadId }),
-      applyRemoteDelete,
+      () => useAppStore.getState().archiveThread(threadId),
+      confirmRemoteDelete,
     )
   )
     return;

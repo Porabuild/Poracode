@@ -1,4 +1,29 @@
-import { hasHydratedThreadRuntimeItems, hydrateThreadRuntimeItems } from "./chatRuntimePersister";
+import {
+  hasHydratedThreadRuntimeItems,
+  hydrateThreadRuntimeItems,
+  retainThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+} from "./chatRuntimePersister";
+import { retainRendererEventInterest } from "./rendererEventInterests";
+
+/** One owner for both a local reader's bounded window and its live stream. */
+export function retainRuntimeThreadReader(threadId: string): { release(): void } {
+  retainThreadRuntimeItems(threadId);
+  const interest = retainRendererEventInterest("runtime", threadId);
+  const continuous = interest.continuous;
+  let active = true;
+  void interest.ready.then(() => {
+    if (active) hydrateThreadRuntimeItemsForInterest(threadId, continuous && interest.continuous);
+  });
+  return {
+    release: () => {
+      if (!active) return;
+      active = false;
+      interest.release();
+      releaseThreadRuntimeItems(threadId);
+    },
+  };
+}
 
 type RuntimeHistoryRecovery = (threadId: string) => void;
 let recoverRuntimeHistory: RuntimeHistoryRecovery | null = null;

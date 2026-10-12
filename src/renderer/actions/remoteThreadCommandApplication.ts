@@ -1,4 +1,8 @@
-import type { RemoteThreadCommand } from "@/shared/contracts";
+import type { RemoteThreadCommand, Thread } from "@/shared/contracts";
+import {
+  projectAuthoritativeCatalogPatch,
+  applyCatalogPatchFields,
+} from "@/renderer/state/pendingCatalogEdits";
 import { useAppStore } from "@/renderer/state/appStore";
 import { runHostOriginatedManagedRootMutation } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import {
@@ -8,6 +12,7 @@ import {
   renameThread,
   toggleMarkThreadDone,
   toggleStarThread,
+  cleanupDoneThread,
 } from "./threadActions";
 import { forgetRemovedWorktreeGroup } from "./worktreeActions";
 import { primeWorktreeGitState } from "./worktreeLaunchActions";
@@ -50,6 +55,43 @@ export function applyForwardedRemoteThreadCommand(command: RemoteThreadCommand):
     }
     const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
     if (!thread) return;
+    const now = new Date().toISOString();
+    const patch: Partial<Thread> | undefined =
+      command.kind === "rename"
+        ? { title: command.title }
+        : command.kind === "set-starred"
+          ? { starred: command.starred }
+          : command.kind === "set-done"
+            ? {
+                done: command.done,
+                doneAt: command.done ? now : undefined,
+                ...(command.done ? { starred: false } : {}),
+              }
+            : command.kind === "archive"
+              ? { archived: true, archivedAt: now, updatedAt: now }
+              : command.kind === "unarchive"
+                ? { archived: false, archivedAt: undefined, updatedAt: now }
+                : undefined;
+    const projected = patch ? projectAuthoritativeCatalogPatch("thread", thread, patch) : undefined;
+    const paintProjection = () => {
+      if (!patch || !projected) return;
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((row) =>
+          row.id === thread.id ? applyCatalogPatchFields(row, projected, patch) : row,
+        ),
+      }));
+    };
+    // An older forwarded command must not close panes or unload a thread that
+    // a newer pending intent has already restored.
+    if (
+      projected &&
+      ((command.kind === "set-done" && projected.done !== command.done) ||
+        (command.kind === "archive" && !projected.archived) ||
+        (command.kind === "unarchive" && projected.archived))
+    ) {
+      paintProjection();
+      return;
+    }
     switch (command.kind) {
       case "acknowledge":
         acknowledgeThread(command.threadId);
@@ -117,5 +159,7 @@ export function applyForwardedRemoteThreadCommand(command: RemoteThreadCommand):
         deleteThread(command.threadId);
         break;
     }
+    paintProjection();
+    if (command.kind === "set-done" && command.done) cleanupDoneThread(command.threadId);
   });
 }

@@ -137,10 +137,10 @@ export function useProjectTree(props: {
   async function toggleDirectory(path: string) {
     const treeStore = useProjectTreeStore.getState();
     const isExpanded = treeStore.expandedPaths[path] ?? false;
+    treeStore.toggleExpanded(path);
     if (!isExpanded && !(path in treeStore.directoryEntries)) {
       await reloadPaths([path]);
     }
-    treeStore.toggleExpanded(path);
   }
 
   function ensureActiveBufferCanChange(nextPath: string): boolean {
@@ -296,24 +296,24 @@ export function useProjectTree(props: {
       }
       if (action === "new-file") {
         useProjectTreeStore.getState().setExpanded(entry.path, true);
-        await reloadPaths([entry.path]);
         setDraft({
           mode: "create",
           type: "file",
           parentPath: entry.path,
           value: "",
         });
+        void reloadPaths([entry.path]);
         return;
       }
       if (action === "new-folder") {
         useProjectTreeStore.getState().setExpanded(entry.path, true);
-        await reloadPaths([entry.path]);
         setDraft({
           mode: "create",
           type: "directory",
           parentPath: entry.path,
           value: "",
         });
+        void reloadPaths([entry.path]);
       }
     } catch (error) {
       toast.danger(error instanceof Error ? error.message : String(error));

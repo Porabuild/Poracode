@@ -20,6 +20,7 @@ import {
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { runRendererAction, useRendererActionStore } from "@/renderer/state/rendererActionStore";
 import { SkillImportModal } from "./SkillImportModal";
 import { SkillMarketplaceModal } from "./SkillMarketplaceModal";
 import { SkillViewModal } from "./SkillViewModal";
@@ -39,6 +40,8 @@ export function SkillsManager(props: {
   defaultDestinationId?: string;
 }) {
   const { t } = useLingui();
+  const createActionKey = "skill:create-draft";
+  const creating = useRendererActionStore((state) => !!state.pending[createActionKey]);
   const localizedPlugins = useLocalizedPluginCatalog();
   const [destinationId, setDestinationId] = useState(
     props.defaultDestinationId ?? GLOBAL_MCP_DESTINATION_ID,
@@ -312,13 +315,19 @@ export function SkillsManager(props: {
             globalLabel={hostGlobalLabel}
             value={target.id}
             trigger={
-              <Button size="sm" variant="tertiary" aria-label={t`Add skill`}>
+              <Button
+                size="sm"
+                variant="tertiary"
+                aria-label={t`Add skill`}
+                isPending={creating}
+                isDisabled={creating}
+              >
                 <Plus className="size-4" />
                 <Trans>Add skill</Trans>
                 <ChevronDown className="size-3.5 text-muted" />
               </Button>
             }
-            onChange={(value) => void createSkill(value)}
+            onChange={(value) => void runRendererAction(createActionKey, () => createSkill(value))}
           />
           <Tooltip>
             <Tooltip.Trigger>

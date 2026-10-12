@@ -4,6 +4,7 @@ import {
   RemoteEnvironmentImageCache,
   environmentImageRefKey,
   environmentLocalImageKey,
+  type RemoteEnvironmentImageBytes,
 } from "@/shared/remote/clientEnvironmentImages";
 import {
   readManagedLoopbackActivation,
@@ -15,6 +16,8 @@ import type { RemoteImageReadiness } from "./remoteServers/environmentSessions";
 /** Volatile custody identity shared by managed transcript and gallery consumers. */
 export interface ManagedLoopbackImageSession {
   readonly readiness: RemoteImageReadiness;
+  /** Only for a successful upload made through this same managed activation. */
+  readonly admitUploadedImage: (path: string, image: RemoteEnvironmentImageBytes) => Promise<void>;
 }
 
 interface OwnedImageSession {
@@ -84,7 +87,14 @@ function reconcileActivation(next: ManagedLoopbackActivationSnapshot | null): vo
       cache.localImageResolution(path);
     },
   });
-  publishSession({ cache, snapshot: Object.freeze({ readiness }) });
+  publishSession({
+    cache,
+    snapshot: Object.freeze({
+      readiness,
+      admitUploadedImage: (path: string, image: RemoteEnvironmentImageBytes) =>
+        cache.admitUploadedLocalImage(path, image),
+    }),
+  });
 }
 
 /** Install once from managed bootstrap, reconciling an already-live activation. */

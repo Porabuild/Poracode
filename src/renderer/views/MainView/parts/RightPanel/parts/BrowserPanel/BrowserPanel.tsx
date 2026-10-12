@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Tooltip } from "@heroui/react";
+import { Spinner, Tooltip } from "@heroui/react";
+import { useRendererActionStore } from "@/renderer/state/rendererActionStore";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Check,
@@ -13,6 +14,7 @@ import {
 import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { readBridge } from "@/renderer/bridge";
+import { createBrowserTab, runBrowserNavigation } from "@/renderer/actions/browserActions";
 import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -34,9 +36,12 @@ const DEFAULT_HOME = "https://duckduckgo.com";
 
 export function BrowserPanel(props: { visible: boolean; surface?: "main" | "window" }) {
   const { t } = useLingui();
+  const movingWindow = useRendererActionStore((state) => !!state.pending["browser:window"]);
   const compact = useCompactLayout();
   const tabs = useBrowserPanelStore((s) => s.tabs);
+  const residentTabs = useBrowserPanelStore((s) => s.residentTabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
+  const initialized = useBrowserPanelStore((s) => s.initialized);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
   const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
@@ -61,9 +66,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   const rootRef = useRef<HTMLDivElement>(null);
 
   const createTab = useCallback(() => {
-    void readBridge()
-      .browserCreateTab({ url: DEFAULT_HOME, activate: true })
-      .catch(() => {});
+    createBrowserTab(DEFAULT_HOME);
   }, []);
 
   // Attached imperatively (rather than a JSX onKeyDown) because this container
@@ -79,10 +82,10 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
       event.stopPropagation();
       const bridge = readBridge();
       if (event.shiftKey) {
-        bridge.browserHardReload({ tabId: activeTabId }).catch(() => {});
+        runBrowserNavigation(activeTabId, () => bridge.browserHardReload({ tabId: activeTabId }));
         return;
       }
-      bridge.browserReload({ tabId: activeTabId }).catch(() => {});
+      runBrowserNavigation(activeTabId, () => bridge.browserReload({ tabId: activeTabId }));
     };
     el.addEventListener("keydown", handleKeyDown);
     return () => el.removeEventListener("keydown", handleKeyDown);
@@ -97,18 +100,11 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   }, [tabs.length]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !initialized) return;
     if (tabs.length > 0) return;
     if (everHadTabsRef.current) return;
-    // Small grace window so persisted tabs restored by main don't race with
-    // an auto-create on cold start.
-    const timer = setTimeout(() => {
-      if (useBrowserPanelStore.getState().tabs.length === 0 && !everHadTabsRef.current) {
-        void createTab();
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [createTab, visible, tabs.length]);
+    createTab();
+  }, [createTab, visible, initialized, tabs.length]);
 
   const isFullscreenOverlay = browserOverlayOpen && browserOverlayMaximized;
   const hasWindowHeader = isFullscreenOverlay || isWindowSurface;
@@ -128,8 +124,10 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
       title={t`Move browser to window`}
       aria-label={t`Move browser to window`}
       onClick={extractBrowserToWindow}
+      disabled={movingWindow}
+      aria-busy={movingWindow}
     >
-      <PictureInPicture2 className="size-3.5" />
+      {movingWindow ? <Spinner size="sm" /> : <PictureInPicture2 className="size-3.5" />}
     </button>
   ) : null;
   const toolbar = (
@@ -187,8 +185,10 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
               title={t`Move browser back to main window`}
               aria-label={t`Move browser back to main window`}
               onClick={injectBrowserToMain}
+              disabled={movingWindow}
+              aria-busy={movingWindow}
             >
-              <PanelRightOpen className="size-3.5" />
+              {movingWindow ? <Spinner size="sm" /> : <PanelRightOpen className="size-3.5" />}
             </button>
           ) : browserPanelOpen ? (
             <>
@@ -245,7 +245,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
       {compact ? null : <BrowserBookmarkBar />}
       <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
         {nativeBrowserWebContents ? (
-          tabs.map((tab) => (
+          residentTabs.map((tab) => (
             <BrowserTabWebview
               key={tab.tabId}
               tabId={tab.tabId}

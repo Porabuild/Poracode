@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Monitor, Settings2, Webhook } from "lucide-react";
 import { Modal, toast } from "@heroui/react";
+import { friendlyError } from "@/shared/messages";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentStatus,
@@ -805,6 +806,7 @@ export function ContinueInProviderDialog(props: {
   }
 
   function buildSubmission(inputSegments?: PromptSegment[]): PendingSubmission | null {
+    if (attachments.hasPendingUploads()) return null;
     // A typed `/skill …` becomes a real skill segment, the same delivery path a
     // chip insertion takes, so the target provider receives the skill rather
     // than literal slash text.
@@ -940,7 +942,7 @@ export function ContinueInProviderDialog(props: {
     );
   }
 
-  const canSubmit = Boolean(selectedKind && targetConfig.model);
+  const canSubmit = Boolean(selectedKind && targetConfig.model) && !attachments.isUploading;
   const targetProviderFallback = t`the target provider`;
   const switchOpensNewThread = !continuesInPlace(sourcePresentationMode, targetPresentationMode);
 
@@ -1059,7 +1061,9 @@ export function ContinueInProviderDialog(props: {
                             : {})}
                           onTextChange={() => undefined}
                           onPasteImage={(file) => {
-                            void attachments.addClipboardImage(file, `handoff:${thread.id}`);
+                            void attachments
+                              .addClipboardImage(file, `handoff:${thread.id}`)
+                              .catch((error: unknown) => toast.danger(friendlyError(error)));
                           }}
                           onInterceptKey={(e) => {
                             if (!showCommandPanel) return false;

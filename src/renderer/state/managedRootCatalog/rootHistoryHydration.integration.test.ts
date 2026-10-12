@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getSqlite } from "@/host/db/connection";
+import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   hasHydratedThreadRuntimeItems,
@@ -26,6 +27,44 @@ import {
 
 beforeEach(setupManagedRootFixture);
 afterEach(teardownManagedRootFixture);
+
+it("keeps the loaded reader visible while a discontinuous interest refresh is pending", async () => {
+  const threadId = "t-retained-reader";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  await activate();
+  await vi.waitFor(() => expect(threadRow(threadId)).toBeDefined(), { timeout: 15_000 });
+  await hydrateThreadRuntimeItems(threadId);
+  const client = readManagedLoopbackActivation()!.client;
+  const originalRead = client.boundedThreadHistory.bind(client);
+  let releaseRead = () => {};
+  const held = new Promise<void>((resolve) => {
+    releaseRead = resolve;
+  });
+  const read = vi.spyOn(client, "boundedThreadHistory").mockImplementation(async (...args) => {
+    const result = await originalRead(...args);
+    await held;
+    return result;
+  });
+  let reducer: SupervisorEventReducer;
+  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
+  const uninstall = installRuntimeHistoryRecovery(reducer.recoverRuntimeHistory);
+  try {
+    hydrateThreadRuntimeItemsForInterest(threadId, false);
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+    releaseRead();
+    await vi.waitFor(() => expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true));
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+  } finally {
+    releaseRead();
+    read.mockRestore();
+    uninstall();
+    reducer.clear();
+  }
+}, 60_000);
 
 it("reopens background history without losing its pending approval", async () => {
   const threadId = "t-background-approval";

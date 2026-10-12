@@ -48,6 +48,7 @@ import { selectBrowserBridgeServer } from "@/renderer/state/remoteServers/browse
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useBrowserMirrorStore } from "./browserMirror";
+import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { readCachedBrowserThreadSnapshot } from "./offlineThreadCache";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { pushDesktopSettingsDiff } from "./remoteSettingsSync";
@@ -99,6 +100,7 @@ export function setRemoteBridgeClient(
   platform?: NodeJS.Platform | null,
 ): void {
   if (activeClient !== client) {
+    useBrowserPanelStore.getState().resetOwner();
     browserImages?.dispose();
     browserImages =
       client && !(client instanceof RemoteEnvironmentClient)

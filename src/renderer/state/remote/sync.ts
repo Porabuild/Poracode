@@ -16,6 +16,8 @@ import {
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
+import { carryActiveTurnTiming } from "../activeTurnTiming";
+import { projectPendingCatalogEdit } from "../pendingCatalogEdits";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 import { showUserNotification } from "@/renderer/notifications";
 import {
@@ -378,7 +380,10 @@ function syncThreadMetadataFromSnapshot(
       // and that absence retains the live inventory the event stream already
       // applied — same owner/session only.
       return preservePendingThreadConfig(
-        carryVolatileSessionConfigOptions(thread, replacement),
+        carryVolatileSessionConfigOptions(
+          thread,
+          carryActiveTurnTiming(thread, projectPendingCatalogEdit("thread", replacement)),
+        ),
         current.pendingThreadConfigByThreadId[thread.id],
       );
     });
