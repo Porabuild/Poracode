@@ -125,7 +125,7 @@ export async function mockSideChatGate({
     );
     const composerSpacing = await main(`(() => {
       const shell = document.querySelector('[data-side-chat-surface=panel] .poracode-composer-shell');
-      const parent = shell.parentElement;
+      const parent = shell.closest('.px-3.pb-2');
       return { padding: getComputedStyle(parent).padding, draft: shell.classList.contains('poracode-composer-shell--draft') };
     })()`);
     assert.equal(composerSpacing.padding, "0px 12px 8px");
@@ -279,6 +279,18 @@ export async function mockSideChatGate({
         ),
       (value) => value === false,
       "trash disposes child catalog row",
+    );
+    await waitForValue(
+      () =>
+        main(`(async () => {
+        const { loopback } = await window.__poracodeDev.loadHostDiagnostics();
+        const activation = loopback.readManagedLoopbackActivation();
+        if (!activation) throw new Error('Side chat fixture requires the managed host');
+        const membership = await activation.client.boundedCatalogMembership({ threadIds: ['side-chat-smoke-child'] });
+        return membership.existingThreadIds.includes('side-chat-smoke-child');
+      })()`),
+      (value) => value === false,
+      "trash confirms child deletion at its owning host",
     );
     assert.equal(
       await main(
