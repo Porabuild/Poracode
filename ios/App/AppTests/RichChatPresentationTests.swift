@@ -90,6 +90,7 @@ final class RichChatPresentationTests: XCTestCase {
       "common.action.retry", "common.error.title", "common.state.loading",
       "home.project.threads.empty.description",
       "rich_chat_context_window", "rich_chat_context_unknown",
+      "rich_chat_context_reload_body", "rich_chat_context_reload_stops_subagents",
       "rich_chat_context_percent", "rich_chat_context_tokens",
       "rich_chat_scroll_to_bottom",
       "rich_chat_continue_in_provider", "rich_chat_handoff_fork", "rich_chat_handoff_prompt",
