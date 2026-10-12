@@ -3477,3 +3477,25 @@ protocol major. Supervisor status cache 57 and renderer persisted copy 53 discar
 fixtures cover both copies. Settings, sessions, IPC/remote protocols and deployed
 helpers retain their existing formats and versions. Existing broken installations
 can be repaired through the updated Install action without changing global npm policy.
+
+## Muse Code 1.4.6 catalogs and reasoning choices
+
+The provider pins the stable MSP schema exported by 1.4.6-R6000.1 (schema
+version 1, fingerprint `sha256:eae467ab60cb9a5d5af4de616830f065e59375c987fd59269c8cc33ed2a1137f`).
+The additive-open decoder retains older hosts: absent/unknown reasoning
+variants use the help ladder, while explicit arrays (including empty arrays)
+and valid per-model defaults are authoritative. Current Wonder and Wonder Full
+model IDs arrive through the native catalog; the fallback catalog and help
+parser also cover the new family. Live catalogs retain account/provider routing
+and remain authoritative over that fallback.
+
+Supervisor agent-status cache advances from 57 to 58 and its renderer persisted
+copy from 53 to 54, invalidating pre-upgrade model/effort inventories on native
+and WSL targets. Prior-generation regressions cover both readers. The new
+projection uses existing capability fields. Thread configs, session IDs,
+canonical history, settings, IPC/remote/native contracts and deployed helpers
+remain compatible; no migration or protocol bump is needed. Muse owns its
+separate model-catalog cache: MSP `model/list` may return that saved snapshot
+without fetching again, so a settled `providerCatalog` is not proof of network
+freshness. A normal standalone Muse startup refreshed the observed October 8
+Spark-only cache to the October 12 Wonder catalog during live verification.

@@ -12,13 +12,17 @@ import {
 } from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { nativeMuseAuthPath, WSL_MUSE_AUTH_PATH } from "./paths";
-import { probeMuseModelCatalog, type MuseProbedCatalog } from "./msp/probe";
+import { probeMuseModelCatalog } from "./msp/probe";
+import { buildMuseCatalogCapabilities, humanizeMuseModelLabel } from "./modelCatalog";
+
+export { buildMuseCatalogCapabilities, humanizeMuseModelLabel } from "./modelCatalog";
 
 // Curated static fallback — Muse ships no `list-models` command, so this is
 // the model/effort source of truth when the `--help` probe below yields
 // nothing new. All ship with a 1M context window (1.1/1.2 verified against
 // Muse Code 0.1.0 docs/binary; 1.3 confirmed at 1,048,576 tokens via Model API
-// catalogs on release day, 2026-09-02).
+// catalogs on release day, 2026-09-02; Wonder/Full confirmed in Meta
+// developer docs and the 1.4.6 host catalog on 2026-10-12).
 const MUSE_DISABLE_AUTO_UPDATE_ENV: Record<string, string> = {
   MUSE_NO_AUTO_UPDATE: "1",
 };
@@ -33,6 +37,8 @@ const MUSE_STATIC_MODELS: Array<{ id: string; label: string }> = [
   { id: "muse-spark-1.2", label: "Muse Spark 1.2" },
   { id: "muse-spark-1.2-contributor", label: "Muse Spark 1.2 Contributor" },
   { id: "muse-spark-1.1", label: "Muse Spark 1.1" },
+  { id: "muse-wonder-1.0", label: "Muse Wonder 1.0" },
+  { id: "muse-wonder-full-1.0", label: "Muse Wonder Full 1.0" },
 ];
 
 const MUSE_MODEL_IDS: string[] = MUSE_STATIC_MODELS.map((model) => model.id);
@@ -140,10 +146,10 @@ export function parseMuseHelpEfforts(output: string): string[] | undefined {
   return undefined;
 }
 
-const MUSE_HELP_MODEL_RE = /\bmuse-spark-\d+\.\d+(?:-contributor)?(?![\w.-])/g;
+const MUSE_HELP_MODEL_RE = /\bmuse-(?:spark|wonder(?:-full)?)-\d+\.\d+(?:-contributor)?(?![\w.-])/g;
 
 /**
- * Collect `muse-spark-X.Y(-contributor)?` ids mentioned in `muse --help`
+ * Collect versioned coding-model ids mentioned in `muse --help`
  * output, deduped in order of first appearance. The CLI never enumerates its
  * models, so help mentions are the only installed-binary signal for newly
  * shipped ids — the caller overlays these additively onto the curated list.
@@ -160,61 +166,8 @@ export function parseMuseHelpModelIds(output: string): string[] {
   return ids;
 }
 
-/**
- * Display label derived from the id's own segments
- * (`muse-spark-1.4-contributor` → `Muse Spark 1.4 Contributor`) — no
- * provider-owned name table to go stale.
- */
-export function humanizeMuseModelLabel(id: string): string {
-  return id
-    .split("-")
-    .filter(Boolean)
-    .map((part) =>
-      /^\d+(\.\d+)?$/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1),
-    )
-    .join(" ");
-}
-
 function museStaticModelEntries(): Array<{ id: string; label: string }> {
   return MUSE_STATIC_MODELS.map((model) => ({ ...model }));
-}
-
-/**
- * Convert a non-empty live `model/list` catalog into picker capabilities.
- * The host documents this as the models it accepts in `session/setModel`, so
- * it is authoritative rather than an additive overlay on the static fallback.
- * Context limits come from the catalog when declared, else the 1M all Muse
- * models ship with. Empty catalogs return null so unauthenticated detection
- * can keep the static fallback.
- */
-export function buildMuseCatalogCapabilities(
-  baseModels: ReadonlyArray<{ id: string; label: string }>,
-  catalog: MuseProbedCatalog,
-  efforts: string[],
-): Pick<AgentCapability, "models" | "modelEfforts" | "contextSizes" | "modelContextSizes"> | null {
-  const liveModels = catalog.models.filter((model) => model.id);
-  if (liveModels.length === 0) return null;
-  const baseLabels = new Map(baseModels.map((model) => [model.id, model.label]));
-  const models = liveModels.map((model) => ({
-    id: model.id,
-    label:
-      (model.label !== model.id ? model.label : "") ||
-      baseLabels.get(model.id) ||
-      humanizeMuseModelLabel(model.id),
-  }));
-  const limits = new Map<string, number>();
-  for (const model of catalog.models) {
-    if (typeof model.contextLimit === "number" && model.contextLimit > 0) {
-      limits.set(model.id, model.contextLimit);
-    }
-  }
-  return {
-    models,
-    modelEfforts: Object.fromEntries(models.map((model) => [model.id, [...efforts]])),
-    ...buildContextSizeCapabilities(
-      new Map(models.map((model) => [model.id, limits.get(model.id) ?? 1_000_000])),
-    ),
-  };
 }
 
 /**
@@ -412,8 +365,8 @@ export const museDetectionSpec: DetectionSpec = {
     if (!ctx.executablePath) return undefined;
     // Two dynamic sources, one static fallback. First the cheap,
     // unauthenticated `muse --help` spawn (effort ladder + mentioned model
-    // ids, additive-only). Then the `muse serve` model catalog when the host
-    // answers — live when logged in, empty otherwise. probeEnv carries
+    // ids, additive-only). Then the `muse serve` catalog snapshot, which can
+    // contain saved provider rows or bundled rows. probeEnv carries
     // baseSpawnEnv (MUSE_NO_AUTO_UPDATE) so neither probe triggers the CLI's
     // updater. Anything missing falls back to the static list above with zero
     // behavior change.
