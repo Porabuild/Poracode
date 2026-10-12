@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
+import { QuestionStepForm, isQuestionStepEnter } from "./QuestionStepForm";
 import { QuestionOptionRow } from "./parts/QuestionOptionRow";
 
 export type UserInputFormOption = {
@@ -124,7 +125,7 @@ export type UserInputFormController = {
   toggleMultiSelect: (questionId: string, optionId: string) => void;
   setDirectAnswer: (questionId: string, value: string) => void;
   setCustomAnswer: (questionId: string, value: string) => void;
-  buildResponse: () => unknown;
+  buildResponse: (answerOverrides?: Record<string, UserInputFormAnswer>) => unknown;
 };
 
 export function useUserInputFormController(
@@ -173,14 +174,18 @@ export function useUserInputFormController(
     }
   }
 
-  function buildResponse(): unknown {
+  function buildResponse(answerOverrides: Record<string, UserInputFormAnswer> = {}): unknown {
+    const responseAnswers = { ...answers, ...answerOverrides };
+    const responseCustomAnswers = Object.fromEntries(
+      Object.entries(customAnswers).filter(([key]) => !Object.hasOwn(answerOverrides, key)),
+    );
     if (form.responseShape === "codex-request-user-input") {
       return {
         answers: Object.fromEntries(
           form.questions.map((question) => {
-            const custom = (customAnswers[question.id] ?? "").trim();
+            const custom = (responseCustomAnswers[question.id] ?? "").trim();
             if (custom.length > 0) return [question.id, { answers: [custom] }];
-            const value = answers[question.id];
+            const value = responseAnswers[question.id];
             const values = Array.isArray(value) ? value : value ? [value] : [];
             return [question.id, { answers: values }];
           }),
@@ -190,9 +195,9 @@ export function useUserInputFormController(
     return {
       answers: Object.fromEntries(
         form.questions.map((question) => {
-          const custom = (customAnswers[question.id] ?? "").trim();
+          const custom = (responseCustomAnswers[question.id] ?? "").trim();
           if (custom.length > 0) return [question.id, custom];
-          return [question.id, answers[question.id]];
+          return [question.id, responseAnswers[question.id]];
         }),
       ),
     };
@@ -257,18 +262,18 @@ export function UserInputForm(props: {
     activeQuestion.header !== summary;
 
   return (
-    <form
+    <QuestionStepForm
       id={formId}
-      className="space-y-2 border-t border-[color:var(--border)] px-2 py-1.5"
-      onSubmit={(event) => {
-        event.preventDefault();
-        // The supervisor rejects answers with empty entries, so never submit
-        // an incomplete form — the Submit button is gated to match.
-        if (!allQuestionsAnswered) return;
-        onSubmit(controller.buildResponse(), "answered");
+      activeStep={activeQuestion.id}
+      isLastStep={controller.activeIndex >= controller.questions.length - 1}
+      canAdvance={questionHasAnswer(activeQuestion, controller.answers, controller.customAnswers)}
+      isDisabled={isDisabled}
+      onAdvance={() => controller.setActiveIndex(controller.activeIndex + 1)}
+      onSubmit={() => {
+        if (allQuestionsAnswered) onSubmit(controller.buildResponse(), "answered");
       }}
     >
-      <div className="space-y-1">
+      <div data-question-step className="space-y-1">
         {showHeader || showQuestion ? (
           <div>
             {showHeader ? (
@@ -311,6 +316,29 @@ export function UserInputForm(props: {
                     }
                     controller.selectSingleChoice(activeQuestion.id, option.optionId);
                   }}
+                  onKeyDown={(event) => {
+                    if (isDisabled || activeQuestion.multiSelect || !isQuestionStepEnter(event))
+                      return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    controller.selectSingleChoice(activeQuestion.id, option.optionId);
+                    const answers = { ...controller.answers, [activeQuestion.id]: option.optionId };
+                    if (
+                      controller.activeIndex === controller.questions.length - 1 &&
+                      controller.questions.every((question) =>
+                        questionHasAnswer(
+                          question,
+                          answers,
+                          question.id === activeQuestion.id ? {} : controller.customAnswers,
+                        ),
+                      )
+                    ) {
+                      onSubmit(
+                        controller.buildResponse({ [activeQuestion.id]: option.optionId }),
+                        "answered",
+                      );
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -341,6 +369,6 @@ export function UserInputForm(props: {
           />
         )}
       </div>
-    </form>
+    </QuestionStepForm>
   );
 }

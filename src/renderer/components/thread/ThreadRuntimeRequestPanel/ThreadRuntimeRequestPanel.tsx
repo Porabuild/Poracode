@@ -22,7 +22,12 @@ import {
   readInputString,
 } from "./helpers";
 import { asStructuredElicitationDetails, StructuredElicitationForm } from "./structuredElicitation";
-import { asUserInputFormDetails, UserInputForm, useUserInputFormController } from "./userInputForm";
+import {
+  asUserInputFormDetails,
+  questionHasAnswer,
+  UserInputForm,
+  useUserInputFormController,
+} from "./userInputForm";
 import { ApprovalActions } from "./parts/ApprovalActions";
 import {
   OpenCodePermissionDetailsLine,
@@ -190,7 +195,18 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
     // A gated Submit stays hoverable (not natively disabled) so its tooltip
     // explains why; the form's own guard no-ops the click. Mirrors the
     // composer's `disabledReason` toggle pattern.
-    const gated = !userInputFormAllAnswered;
+    const isLastStep =
+      !userInputFormController ||
+      userInputFormController.activeIndex >= userInputFormController.questions.length - 1;
+    const activeQuestion = userInputFormController?.questions[userInputFormController.activeIndex];
+    const gated = isLastStep
+      ? !userInputFormAllAnswered
+      : !activeQuestion ||
+        !questionHasAnswer(
+          activeQuestion,
+          userInputFormController!.answers,
+          userInputFormController!.customAnswers,
+        );
     const submit = (
       <Button
         aria-disabled={gated}
@@ -205,7 +221,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
             : "text-white"
         }
       >
-        <Trans>Submit</Trans>
+        {isLastStep ? t`Submit` : t`Continue`}
       </Button>
     );
     if (!gated) return submit;
@@ -213,7 +229,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       <Tooltip delay={0}>
         {submit}
         <Tooltip.Content placement="top">
-          <Trans>Answer every question to submit</Trans>
+          {isLastStep ? t`Answer every question to submit` : t`Answer this question to continue`}
         </Tooltip.Content>
       </Tooltip>
     );

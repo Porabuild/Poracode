@@ -36,6 +36,7 @@ export function StructuredCustomValues(props: {
       ))}
       <div className="flex items-center gap-1">
         <Input
+          data-question-enter-local
           aria-label={t`Other`}
           placeholder={t`Other`}
           value={draft}
