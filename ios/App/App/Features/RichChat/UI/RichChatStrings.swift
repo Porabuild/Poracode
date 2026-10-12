@@ -139,6 +139,14 @@ enum RichChatStrings {
   static let queueSendAction = value("rich_chat_queue_send_action", "Queue follow-up")
 
   static let contextWindow = value("rich_chat_context_window", "Context window")
+  static let contextReloadBody = value(
+    "rich_chat_context_reload_body",
+    "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+  )
+  static let contextReloadStopsSubagents = value(
+    "rich_chat_context_reload_stops_subagents",
+    "Any subagents still running when the session reloads will be stopped."
+  )
   static let contextUsageUnknown = value(
     "rich_chat_context_unknown", "Occupancy not reported"
   )

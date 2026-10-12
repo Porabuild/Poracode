@@ -67,7 +67,8 @@ describe("remote v3 native binding generator", () => {
         // Master adds optional profile/theme/import fields; v2 adds the capability-gated
         // flat reorder command. Host-scoped usage adds two procedures and four roots.
         // Regenerate native authority from all combined schemas.
-        sourceHash: "sha256:1133236427e6c54288804ccf7509aaa8ef835afd319d95d8c361ccf768226df6",
+        // Optional context-reload facts also add one generated Swift chunk.
+        sourceHash: "sha256:b3d9c64583854d1c737d308363e580c55d5c48266313ce958cc900f3436c089a",
         manifestHash: "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982",
         counts: {
           routes: 95,
@@ -80,7 +81,7 @@ describe("remote v3 native binding generator", () => {
           schemaRoots: 429,
           structuralTypes: 974,
           semanticValidators: 18,
-          swiftFiles: 61,
+          swiftFiles: 62,
           kotlinFiles: 53,
           stateMachines: 5,
         },

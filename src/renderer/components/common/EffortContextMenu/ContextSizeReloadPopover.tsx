@@ -8,6 +8,7 @@ import { setConfirmContextSizeReload } from "@/renderer/state/contextSizeReloadP
 export function ContextSizeReloadPopover(props: {
   anchorPosition: { x: number; y: number };
   contextLabel: string;
+  stopsSubagents?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -29,10 +30,17 @@ export function ContextSizeReloadPopover(props: {
       className="w-80 max-w-[calc(100vw-16px)]"
       title={t`Change context size to ${contextLabel}?`}
       body={
-        <Trans>
-          The new context size applies from your next message. The agent session reloads before that
-          message is sent; the conversation is kept.
-        </Trans>
+        <>
+          <Trans>
+            The new context size applies from your next message. The agent session reloads before
+            that message is sent; the conversation is kept.
+          </Trans>
+          {props.stopsSubagents ? (
+            <p className="mt-2">
+              <Trans>Any subagents still running when the session reloads will be stopped.</Trans>
+            </p>
+          ) : null}
+        </>
       }
       actions={[{ label: t`Change`, onPress: handleConfirm }]}
     >

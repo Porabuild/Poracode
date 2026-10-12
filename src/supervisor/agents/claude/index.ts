@@ -29,6 +29,7 @@ import {
   type DetectProbeCtx,
 } from "../base";
 import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForConfig } from "./argv";
+import { claudeContextWindowEnv } from "./contextWindow";
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
 import { claudeSkillInvocationFor, claudeSkillText, leadingSkill } from "./skillPrompt";
@@ -371,7 +372,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       const args = buildClaudeArgs(config, prompt, undefined, assignedId);
       const mcp = await claudeMcpLaunch(location, launchOptions?.mcpServers);
       args.splice(claudeExtraArgsPosition(args, prompt), 0, ...mcp.args);
-      const env = await profileEnv(location);
+      const env = claudeContextWindowEnv(config.contextSize, await profileEnv(location));
       return {
         ...mcp,
         binary: "claude",
@@ -384,7 +385,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
       const mcp = await claudeMcpLaunch(location, launchOptions?.mcpServers);
       args.splice(claudeExtraArgsPosition(args, prompt), 0, ...mcp.args);
-      const env = await profileEnv(location);
+      const env = claudeContextWindowEnv(config.contextSize, await profileEnv(location));
       return { ...mcp, binary: "claude", args, ...(env ? { env } : {}) };
     },
     extraArgsPosition: claudeExtraArgsPosition,

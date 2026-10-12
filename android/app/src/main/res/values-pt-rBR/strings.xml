@@ -156,4 +156,6 @@
     <string name="discover_hosts_empty">Nenhum host do Poracode encontrado ainda.</string>
     <string name="discover_hosts_unverified">Não verificado</string>
     <string name="tls_pin_mismatch">O certificado TLS do servidor não corresponde à impressão digital do código de emparelhamento. Emparelhe novamente pelo painel de acesso remoto do desktop.</string>
+    <string name="rich_chat_context_reload_body">O novo tamanho do contexto vale a partir da sua próxima mensagem. A sessão do agente é recarregada antes de essa mensagem ser enviada; a conversa é mantida.</string>
+    <string name="rich_chat_context_reload_stops_subagents">Todos os subagentes que ainda estiverem em execução quando a sessão for recarregada serão interrompidos.</string>
 </resources>

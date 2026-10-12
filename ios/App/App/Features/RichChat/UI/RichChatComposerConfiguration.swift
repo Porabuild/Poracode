@@ -54,6 +54,15 @@ struct RichChatComposerControlCatalog {
   /// inventory) leaves every control on the exact static capability path.
   private let negotiated: RichChatNegotiatedControls?
 
+  var contextSizeReloadStopsSubagents: Bool {
+    capabilities["contextSizeReloadStopsSubagents"]?.boolValue == true
+  }
+
+  func confirmsContextChange(from previous: ThreadConfig, to next: ThreadConfig, hasStartedSession: Bool) -> Bool {
+    guard hasStartedSession, capabilities["contextSizeChangeReloadsSession"]?.boolValue == true else { return false }
+    return previous.contextSize != next.contextSize
+  }
+
   init(
     agentStatus: AgentStatusRecord?,
     presentationMode: ThreadPresentationMode,
@@ -342,8 +351,8 @@ struct RichChatComposerControlCatalog {
       let allowed = capabilities["modelContextSizes"]?.objectValue?[modelID]?.arrayValue?
         .compactMap(\.stringValue)
     else { return all }
-    let allowedIDs = Set(allowed)
-    return all.filter { allowedIDs.contains($0.id) }
+    // Per-model order declares the default; the global list only supplies labels.
+    return allowed.compactMap { id in all.first { $0.id == id } }
   }
 
   /// Static app mode options only. Live `mode`-role selects never project
@@ -406,6 +415,7 @@ struct RichChatComposerControlCatalog {
     return slashCommands.filter {
       $0.displayID.lowercased().hasPrefix(query) || $0.id.lowercased().hasPrefix(query)
     }
+
   }
 
   /// The existing first-class toggles, gated on the negotiated model by the
@@ -618,14 +628,18 @@ struct RichChatComposerControlsSheet: View {
   /// User-saved visibility lists; nil leaves the provider defaults in charge.
   private let hiddenModels: [String: [String]]?
   @State private var draft: ThreadConfig
+  @State private var showsContextReloadConfirmation = false
+  private let hasStartedSession: Bool
 
   init(
     configuration: Binding<ThreadConfig>,
     agentStatus: AgentStatusRecord?,
     presentationMode: ThreadPresentationMode,
     sessionConfigOptions: JSONValue? = nil,
-    hiddenModels: [String: [String]]? = nil
+    hiddenModels: [String: [String]]? = nil,
+    hasStartedSession: Bool = false
   ) {
+    self.hasStartedSession = hasStartedSession
     _configuration = configuration
     self.agentStatus = agentStatus
     self.presentationMode = presentationMode
@@ -661,13 +675,28 @@ struct RichChatComposerControlsSheet: View {
         }
         ToolbarItem(placement: .confirmationAction) {
           Button(RichChatStrings.save) {
-            configuration = draft
-            dismiss()
+            if catalog.confirmsContextChange(from: configuration, to: draft, hasStartedSession: hasStartedSession) {
+              showsContextReloadConfirmation = true
+            } else {
+              configuration = draft
+              dismiss()
+            }
           }
         }
       }
     }
     .presentationDetents([.medium, .large])
+    .alert(RichChatStrings.contextWindow, isPresented: $showsContextReloadConfirmation) {
+      Button(RichChatStrings.cancel, role: .cancel) {}
+      Button(RichChatStrings.save) {
+        configuration = draft
+        dismiss()
+      }
+    } message: {
+      Text(catalog.contextSizeReloadStopsSubagents
+        ? RichChatStrings.contextReloadBody + "\n\n" + RichChatStrings.contextReloadStopsSubagents
+        : RichChatStrings.contextReloadBody)
+    }
   }
 
   private var modelSection: some View {

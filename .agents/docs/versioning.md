@@ -61,6 +61,30 @@ and instructions remain in their original database. API/IPC formats are unchange
 
 # Versioned State & Protocols
 
+Claude SDK 0.3.296 adds editable working windows to long-context model
+catalogs, initially 1M/400k. Each account/profile stores its optional
+`agentSettings[kind].contextWindows` list using the existing JSON-string setting
+format. Missing or invalid lists fall back to the presets; the original Codex
+list format is unchanged. Provider-owned presets and the native 100k–1M bounds
+are mirrored in the renderer and supervisor. Supervisor agent-status cache 55
+and renderer persisted cache 51 invalidate the preceding 51–54 and 47–50
+catalogs so existing installs re-probe the choices. Pre-upgrade cache fixtures cover both native and WSL inventories.
+Existing `ThreadConfig.contextSize` strings, session references, canonical history,
+settings and IPC/remote/native contracts remain compatible. The CLI's launch-only
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW` override applies the selection without requiring
+the newer CLI flag; resizing resumes the same conversation.
+The deployed hook plugin and its settings format are unchanged. Native pickers
+already consume the ordered capability options dynamically.
+Context reload and subagent-stop consequences are additive optional provider
+capabilities, consumed by desktop/PWA and native composers. Prior capability
+payloads remain accepted; older clients ignore the new facts. The optional fields
+are included in regenerated remote schemas/native bindings under the current
+protocol and binding format versions. The native E2E operation map's manifest
+hash is regenerated against that inventory; its 277 operation keys are unchanged.
+Existing confirmation preferences remain
+compatible. Reload drains the predecessor query and confirms owned process-group
+termination before launching its replacement.
+
 Running GUI thread interests now outlive their visible panes, using the existing
 bounded loopback interest vocabulary and renderer window retention. History
 recovery retains an existing reader until its successful read can replace it;

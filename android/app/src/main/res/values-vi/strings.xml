@@ -155,4 +155,6 @@
     <string name="discover_hosts_empty">Chưa tìm thấy máy chủ Poracode nào.</string>
     <string name="discover_hosts_unverified">Chưa xác minh</string>
     <string name="tls_pin_mismatch">Chứng chỉ TLS của máy chủ không khớp với vân tay từ mã ghép nối. Hãy ghép nối lại từ bảng Remote Access trên máy tính.</string>
+    <string name="rich_chat_context_reload_body">Kích thước ngữ cảnh mới áp dụng từ tin nhắn tiếp theo của bạn. Phiên tác nhân sẽ được tải lại trước khi gửi tin nhắn đó; cuộc trò chuyện vẫn được giữ nguyên.</string>
+    <string name="rich_chat_context_reload_stops_subagents">Mọi tác nhân phụ vẫn đang chạy khi phiên được tải lại sẽ bị dừng.</string>
 </resources>

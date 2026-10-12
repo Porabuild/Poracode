@@ -60,6 +60,7 @@ describe("EffortContextMenu context-size reload confirmation", () => {
     pickContext("1M");
 
     expect(await screen.findByText("Change context size to 1M?")).toBeInTheDocument();
+    expect(screen.queryByText(/subagents still running/)).not.toBeInTheDocument();
     expect(onContextChange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Change" }));
     expect(onContextChange).toHaveBeenCalledWith("1m");

@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 
 internal data class RichChatComposerOption(
     val id: String,
@@ -37,6 +38,14 @@ internal class RichChatComposerControlCatalog(
 ) {
     val agentLabel: String = agentStatus.label
     private val capabilities = resolvedGuiCapabilities(agentStatus)
+
+    val contextSizeReloadStopsSubagents: Boolean
+        get() = (capabilities["contextSizeReloadStopsSubagents"] as? JsonPrimitive)?.booleanOrNull == true
+
+    fun confirmsContextChange(previous: ThreadConfig, next: ThreadConfig, hasStartedSession: Boolean): Boolean {
+        if (!hasStartedSession || (capabilities["contextSizeChangeReloadsSession"] as? JsonPrimitive)?.booleanOrNull != true) return false
+        return previous.contextSize != next.contextSize
+    }
 
     /**
      * Surface-scoped family relations intersected with the effective accepted
@@ -163,9 +172,9 @@ internal class RichChatComposerControlCatalog(
         val modelContexts = capabilities["modelContextSizes"] as? JsonObject
         val allowed = (modelContexts?.get(modelId) as? JsonArray)
             ?.mapNotNull(JsonElement::stringValue)
-            ?.toSet()
             ?: return all
-        return all.filter { it.id in allowed }
+        // Per-model order declares the default; the global list only supplies labels.
+        return allowed.mapNotNull { id -> all.firstOrNull { it.id == id } }
     }
 
     // The live toggles are gated by select-backed descriptors only — the

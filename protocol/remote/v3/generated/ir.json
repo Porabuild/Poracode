@@ -24987,6 +24987,12 @@
                 "bypassPermissions": {
                   "$ref": "#/$defs/__schema16"
                 },
+                "contextSizeChangeReloadsSession": {
+                  "type": "boolean"
+                },
+                "contextSizeReloadStopsSubagents": {
+                  "type": "boolean"
+                },
                 "contextSizes": {
                   "items": {
                     "$ref": "#/$defs/__schema9"
@@ -25395,6 +25401,12 @@
                 },
                 "bypassPermissions": {
                   "$ref": "#/$defs/__schema16"
+                },
+                "contextSizeChangeReloadsSession": {
+                  "type": "boolean"
+                },
+                "contextSizeReloadStopsSubagents": {
+                  "type": "boolean"
                 },
                 "contextSizes": {
                   "items": {
@@ -53337,7 +53349,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:1133236427e6c54288804ccf7509aaa8ef835afd319d95d8c361ccf768226df6",
+  "sourceHash": "sha256:b3d9c64583854d1c737d308363e580c55d5c48266313ce958cc900f3436c089a",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

@@ -14,10 +14,8 @@ import type {
   Project,
 } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
-import {
-  ClaudeAgentSettingsPanel,
-  claudeProfileSupport,
-} from "../../../components/providers/settings/ClaudeProfileSettings";
+import { claudeProfileSupport } from "../../../components/providers/settings/ClaudeProfileSettings";
+import { ClaudeAgentSettingsPanel } from "@/renderer/components/providers/claude/AgentSettingsPanel";
 import {
   CodexAgentSettingsPanel,
   codexProfileSupport,

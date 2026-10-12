@@ -37817,6 +37817,172 @@
           }
         }
       }
+    },
+    "rich_chat_context_reload_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die neue Kontextgröße gilt ab deiner nächsten Nachricht. Die Agentensitzung wird vor dem Senden dieser Nachricht neu geladen; die Unterhaltung bleibt erhalten."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nuevo tamaño del contexto se aplica a partir de tu próximo mensaje. La sesión del agente se recarga antes de enviar ese mensaje; la conversación se conserva."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La nouvelle taille du contexte s’applique à partir de votre prochain message. La session de l’agent est rechargée avant l’envoi de ce message ; la conversation est conservée."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいコンテキストサイズは次のメッセージから適用されます。そのメッセージを送信する前にエージェントのセッションが再読み込みされます。会話は保持されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 컨텍스트 크기는 다음 메시지부터 적용됩니다. 해당 메시지를 보내기 전에 에이전트 세션을 다시 불러오며, 대화 내용은 유지됩니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nowy rozmiar kontekstu obowiązuje od następnej wiadomości. Sesja agenta zostanie ponownie załadowana przed jej wysłaniem; rozmowa zostanie zachowana."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O novo tamanho do contexto vale a partir da sua próxima mensagem. A sessão do agente é recarregada antes de essa mensagem ser enviada; a conversa é mantida."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новый размер контекста применяется со следующего сообщения. Сессия агента перезагрузится перед его отправкой; беседа сохранится."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeni bağlam boyutu bir sonraki mesajınızdan itibaren geçerli olur. Bu mesaj gönderilmeden önce aracı oturumu yeniden yüklenir; konuşma korunur."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новий розмір контексту застосовується з наступного повідомлення. Сесія агента перезавантажиться перед його надсиланням; розмову буде збережено."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kích thước ngữ cảnh mới áp dụng từ tin nhắn tiếp theo của bạn. Phiên tác nhân sẽ được tải lại trước khi gửi tin nhắn đó; cuộc trò chuyện vẫn được giữ nguyên."
+          }
+        },
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新的上下文大小将从你的下一条消息开始生效。发送该消息前会重新加载智能体会话；对话内容会保留。"
+          }
+        }
+      }
+    },
+    "rich_chat_context_reload_stops_subagents": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any subagents still running when the session reloads will be stopped."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Subagenten, die beim Neuladen der Sitzung noch laufen, werden gestoppt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los subagentes que sigan en ejecución cuando se recargue la sesión se detendrán."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tous les sous-agents encore en cours d’exécution lors du rechargement de la session seront arrêtés."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションの再読み込み時に実行中のサブエージェントはすべて停止されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "세션을 다시 불러올 때 실행 중인 모든 하위 에이전트가 중지됩니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wszystkie podagenty działające podczas ponownego ładowania sesji zostaną zatrzymane."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos os subagentes que ainda estiverem em execução quando a sessão for recarregada serão interrompidos."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все субагенты, которые ещё работают при перезагрузке сессии, будут остановлены."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oturum yeniden yüklendiğinde hâlâ çalışan tüm alt ajanlar durdurulacak."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Усі субагенти, які ще працюють під час перезавантаження сесії, будуть зупинені."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mọi tác nhân phụ vẫn đang chạy khi phiên được tải lại sẽ bị dừng."
+          }
+        },
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话重新加载时仍在运行的所有子代理都将停止。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

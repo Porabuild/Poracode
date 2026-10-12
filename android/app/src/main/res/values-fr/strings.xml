@@ -156,4 +156,6 @@
     <string name="discover_hosts_empty">Aucun hôte Poracode trouvé pour l’instant.</string>
     <string name="discover_hosts_unverified">Non vérifié</string>
     <string name="tls_pin_mismatch">Le certificat TLS du serveur ne correspond pas à l’empreinte du code d’appariement. Réappareillez depuis le panneau Accès distant du bureau.</string>
+    <string name="rich_chat_context_reload_body">La nouvelle taille du contexte s’applique à partir de votre prochain message. La session de l’agent est rechargée avant l’envoi de ce message ; la conversation est conservée.</string>
+    <string name="rich_chat_context_reload_stops_subagents">Tous les sous-agents encore en cours d’exécution lors du rechargement de la session seront arrêtés.</string>
 </resources>

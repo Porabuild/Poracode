@@ -206,4 +206,6 @@
     <string name="discover_hosts_empty">No Poracode hosts found yet.</string>
     <string name="discover_hosts_unverified">Unverified</string>
     <string name="tls_pin_mismatch">The server’s TLS certificate does not match the fingerprint from the pairing code. Re-pair from the desktop Remote Access panel.</string>
+    <string name="rich_chat_context_reload_body">The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept.</string>
+    <string name="rich_chat_context_reload_stops_subagents">Any subagents still running when the session reloads will be stopped.</string>
 </resources>

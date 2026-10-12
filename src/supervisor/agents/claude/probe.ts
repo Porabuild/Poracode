@@ -8,7 +8,8 @@ import {
   type CapabilitiesProbeResult,
   type DetectProbeCtx,
 } from "../base";
-import { CLAUDE_FAST_MODE_DISABLED_MESSAGE } from "./detection";
+import { claudeCapabilities, CLAUDE_FAST_MODE_DISABLED_MESSAGE } from "./detection";
+import { claudeContextSizeCapabilities } from "./contextWindow";
 import { resolveFastModeCachePath } from "./fastModeCache";
 import { resolveFastAvailability } from "./fastModeProbe";
 import { claudeCapabilitiesFromCliVersion, claudeCapabilitiesFromSdkModels } from "./models";
@@ -297,6 +298,10 @@ export async function probeClaudeCapabilities(
   return {
     ...(sdkPartial ?? {}),
     ...(versionPartial ?? {}),
+    ...claudeContextSizeCapabilities(
+      { ...claudeCapabilities, ...sdkPartial, ...versionPartial },
+      ctx.agentSettings,
+    ),
     authMethods: [claudeTerminalAuthMethod(options?.env)],
     authLogoutSupported: true,
   };

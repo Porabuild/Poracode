@@ -17,6 +17,7 @@ import {
 import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import type { AgentCapability } from "@/shared/contracts";
 import type { ModelInfo } from "@anthropic-ai/claude-agent-sdk";
+import { claudeContextManagedModelId, CLAUDE_LONG_CONTEXT_SIZES } from "./contextWindow";
 
 export {
   claudeDefaultHiddenModels,
@@ -77,15 +78,15 @@ export const CLAUDE_BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
 
 export const CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES: NonNullable<AgentCapability["modelContextSizes"]> =
   {
-    [CLAUDE_FABLE_51_MODEL_ID]: ["1m"],
-    [CLAUDE_FABLE_5_MODEL_ID]: ["1m"],
-    [CLAUDE_OPUS_5_MODEL_ID]: ["1m"],
-    [CLAUDE_OPUS_48_MODEL_ID]: ["1m", "200k"],
-    [CLAUDE_OPUS_47_MODEL_ID]: ["1m", "200k"],
-    [CLAUDE_OPUS_46_MODEL_ID]: ["1m", "200k"],
-    [CLAUDE_SONNET_5_MODEL_ID]: ["1m"],
+    [CLAUDE_FABLE_51_MODEL_ID]: CLAUDE_LONG_CONTEXT_SIZES,
+    [CLAUDE_FABLE_5_MODEL_ID]: CLAUDE_LONG_CONTEXT_SIZES,
+    [CLAUDE_OPUS_5_MODEL_ID]: CLAUDE_LONG_CONTEXT_SIZES,
+    [CLAUDE_OPUS_48_MODEL_ID]: CLAUDE_LONG_CONTEXT_SIZES,
+    [CLAUDE_OPUS_47_MODEL_ID]: CLAUDE_LONG_CONTEXT_SIZES,
+    [CLAUDE_OPUS_46_MODEL_ID]: CLAUDE_LONG_CONTEXT_SIZES,
+    [CLAUDE_SONNET_5_MODEL_ID]: CLAUDE_LONG_CONTEXT_SIZES,
     // Legacy `sonnet` alias retained for backward compatibility.
-    sonnet: ["200k", "1m"],
+    sonnet: CLAUDE_LONG_CONTEXT_SIZES,
   };
 
 export const CLAUDE_BUILTIN_FAST_MODELS: NonNullable<AgentCapability["fastModels"]> = [
@@ -186,7 +187,10 @@ export function claudeCapabilitiesFromSdkModels(
   // Haiku release. External profile targets must retain their own identities.
   const aliasTargets = new Map<string, string>();
   for (const model of sdkModels) {
-    const resolved = model.resolvedModel?.replace(/\[[0-9]+[mk]\]$/i, "").trim();
+    const rawResolved = model.resolvedModel?.trim();
+    const resolved = rawResolved
+      ? (claudeContextManagedModelId(rawResolved) ?? rawResolved)
+      : undefined;
     if (model.value === CLAUDE_HAIKU_MODEL_ID && resolved && resolved.startsWith("claude-haiku-")) {
       aliasTargets.set(resolved, CLAUDE_HAIKU_MODEL_ID);
     }
@@ -195,7 +199,7 @@ export function claudeCapabilitiesFromSdkModels(
   for (const sdkModel of sdkModels) {
     const rawId = sdkModel.resolvedModel || sdkModel.value;
     if (!rawId) continue;
-    const resolvedId = rawId.replace(/\[[0-9]+[mk]\]$/i, "").trim();
+    const resolvedId = claudeContextManagedModelId(rawId.trim()) ?? rawId.trim();
     const modelId = aliasTargets.get(resolvedId) ?? resolvedId;
     if (!modelId || modelId === "default" || modelId === "auto") continue;
     matched = true;
@@ -222,7 +226,22 @@ export function claudeCapabilitiesFromSdkModels(
     }
 
     if (!modelContextSizes[modelId]) {
-      modelContextSizes[modelId] = ["1m"];
+      const nativeId = /^claude-/i.test(resolvedId) ? resolvedId : undefined;
+      const parsed = nativeId ? parseClaudeModel(nativeId) : undefined;
+      const supportsLongContext =
+        parsed &&
+        // Preserve the SDK catalog's 1M fallback for newly released families.
+        (parsed.family === "other" ||
+          (parsed.family === "fable" && parsed.version >= 5) ||
+          (parsed.family === "opus" && parsed.version >= 4.6) ||
+          (parsed.family === "sonnet" && parsed.version >= 4.6) ||
+          (parsed.family === "haiku" && parsed.version >= 5.5) ||
+          /\[1m\]$/i.test(rawId));
+      modelContextSizes[modelId] = supportsLongContext
+        ? CLAUDE_LONG_CONTEXT_SIZES
+        : nativeId
+          ? ["200k"]
+          : ["1m"];
     }
 
     if (sdkModel.supportsFastMode === true) {

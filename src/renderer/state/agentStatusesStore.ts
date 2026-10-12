@@ -96,6 +96,12 @@ function capabilitiesEqual(
   // gets replaced — otherwise the one-shot AI selectors would keep hiding
   // one-shot-capable providers for the whole first post-upgrade session.
   if ((a.supportsOneShot ?? false) !== (b.supportsOneShot ?? false)) return false;
+  if (
+    (a.contextSizeChangeReloadsSession ?? false) !== (b.contextSizeChangeReloadsSession ?? false) ||
+    (a.contextSizeReloadStopsSubagents ?? false) !== (b.contextSizeReloadStopsSubagents ?? false)
+  ) {
+    return false;
+  }
   // Codex context-window lists are user-editable. A detection that only
   // changes those fields must replace the cached status or the composer keeps
   // the previous picker after settings save / next launch.
@@ -272,9 +278,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 48,
-      // v48 mirrors supervisor STATUS_CACHE_VERSION=52: refresh SDK readiness
-      // and model capabilities after the structured-runtime upgrade.
+      version: 51,
+      // v51 mirrors supervisor STATUS_CACHE_VERSION=55: refresh working-window
+      // catalogs and context-reload consequences before rendering composer controls.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

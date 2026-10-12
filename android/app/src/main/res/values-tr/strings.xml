@@ -156,4 +156,6 @@
     <string name="discover_hosts_empty">Henüz Poracode sunucusu bulunamadı.</string>
     <string name="discover_hosts_unverified">Doğrulanmamış</string>
     <string name="tls_pin_mismatch">Sunucunun TLS sertifikası eşleme kodundaki parmak iziyle eşleşmiyor. Masaüstündeki Uzaktan Erişim panelinden yeniden eşleyin.</string>
+    <string name="rich_chat_context_reload_body">Yeni bağlam boyutu bir sonraki mesajınızdan itibaren geçerli olur. Bu mesaj gönderilmeden önce aracı oturumu yeniden yüklenir; konuşma korunur.</string>
+    <string name="rich_chat_context_reload_stops_subagents">Oturum yeniden yüklendiğinde hâlâ çalışan tüm alt ajanlar durdurulacak.</string>
 </resources>
