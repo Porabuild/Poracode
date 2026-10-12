@@ -628,6 +628,15 @@ describe.skipIf(!entrypoint)(
         );
         assert(stalledWarmup !== null, "stalled client never received the agent-8 warmup marker");
 
+        // Prepare truncate tails before streaming. These fixture writes use a
+        // second SQLite connection; running its startup/close maintenance in
+        // the load window competes with the owning host's production writer.
+        const truncateAnchorIds: string[] = [];
+        for (const fixture of guiThreadFixtures) {
+          const appended = await appendGuiThreadItemsWhenUnlocked(dbPath, fixture, 2);
+          truncateAnchorIds.push(appended[0]!);
+        }
+
         // ---- Stalled window: 8 agents stream; GUI workload continues --------
         stalled.pauseSocket();
         const pausedAtMs = Date.now();
@@ -654,10 +663,9 @@ describe.skipIf(!entrypoint)(
           const acting = guiClients[actingIndex]!;
           const fixture = guiThreadFixtures[actingIndex]!;
 
-          // Transcript churn while every agent streams.
-          const appended = await appendGuiThreadItemsWhenUnlocked(dbPath, fixture, 2);
+          // Production transcript truncation while every agent streams.
           await new Promise((resolve) => setTimeout(resolve, 250));
-          const anchorItemId = appended[0]!;
+          const anchorItemId = truncateAnchorIds[actingIndex]!;
           fixture.survivingItemIds.pop(); // The truncate removes the appended tail item.
           const fanout = await truncateAndAwaitFanout(
             guiClients,

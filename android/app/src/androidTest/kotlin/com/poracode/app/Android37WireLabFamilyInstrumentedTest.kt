@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
@@ -246,8 +247,7 @@ class Android37WireLabFamilyInstrumentedTest {
                 }.isSuccess
             }
         } else {
-            control.waitUntilHostObserved(
-                "primary",
+            waitForOperations(
                 listOf(
                     "route:environment",
                     "route:token-exchange",
@@ -302,7 +302,7 @@ class Android37WireLabFamilyInstrumentedTest {
     private fun pairAndOpenFixtureThread() {
         pairUntilHome()
         compose.onNodeWithText("Fixture thread").performClick()
-        control.waitUntilHostObserved("primary", listOf("route:thread-history"), 20_000L)
+        waitForOperation("route:thread-history", 20_000L)
         waitForText("Fixture response")
         compose.waitUntil(15_000) {
             application.richChat.chat.state.value.selection?.threadId == "thread-fixture-001"
@@ -347,14 +347,26 @@ class Android37WireLabFamilyInstrumentedTest {
         }
     }
 
-    /** Compose-aware wait: a blocking control-plane poll starves the UI
-     * coroutine that must issue the operation being observed. */
+    /** Poll the host journal while allowing Compose's test clock to advance. */
     private fun waitForOperation(operation: String, timeoutMs: Long = 20_000L) {
-        compose.waitUntil(timeoutMs) {
-            // Routes/WS frames have exact arrival entries in operationJournal,
-            // while procedure IDs are derived from the host coverage ledger.
-            // The consolidated observed set is the common causal surface.
-            operation in control.hostObserved("primary")
+        waitForOperations(listOf(operation), timeoutMs)
+    }
+
+    private fun waitForOperations(operations: List<String>, timeoutMs: Long = 20_000L) {
+        var lastObserved = emptyList<String>()
+        try {
+            compose.waitUntil(timeoutMs) {
+                // Routes/WS frames have exact arrival entries in operationJournal,
+                // while procedure IDs are derived from the host coverage ledger.
+                // The consolidated observed set is the common causal surface.
+                lastObserved = control.hostObserved("primary")
+                operations.all { it in lastObserved }
+            }
+        } catch (timeout: ComposeTimeoutException) {
+            timeout.addSuppressed(
+                AssertionError("host primary operations: wanted=$operations lastObserved=$lastObserved"),
+            )
+            throw timeout
         }
     }
 
