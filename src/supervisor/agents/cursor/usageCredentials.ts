@@ -1,12 +1,8 @@
-import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import type { OAuthToken } from "@poracode/agents-usage";
-
-const execFileAsync = promisify(execFile);
-const KEYCHAIN_TIMEOUT_MS = 5_000;
+import { readMacKeychainPassword } from "../../runtime/macKeychain";
 
 /**
  * Resolve Cursor Agent's JWT access token without consulting the Cursor desktop
@@ -64,26 +60,10 @@ export const CURSOR_CLI_KEYCHAIN_ACCOUNT = "cursor-user";
  * app's account.
  */
 async function readCursorCliKeychainToken(): Promise<string | undefined> {
-  if (process.platform !== "darwin") return undefined;
-  try {
-    const { stdout } = await execFileAsync(
-      "security",
-      [
-        "find-generic-password",
-        "-a",
-        CURSOR_CLI_KEYCHAIN_ACCOUNT,
-        "-w",
-        "-s",
-        CURSOR_CLI_KEYCHAIN_SERVICE,
-      ],
-      { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
-    );
-    const trimmed = stdout.trim();
-    return trimmed || undefined;
-  } catch {
-    // Missing/locked keychains and CLI-not-signed-in degrade to auth-missing.
-    return undefined;
-  }
+  return readMacKeychainPassword({
+    service: CURSOR_CLI_KEYCHAIN_SERVICE,
+    account: CURSOR_CLI_KEYCHAIN_ACCOUNT,
+  });
 }
 
 export function parseCursorCliAuth(

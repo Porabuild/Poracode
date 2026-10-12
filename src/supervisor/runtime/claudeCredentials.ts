@@ -12,7 +12,7 @@ import {
   readClaudeCredentialsFromMacKeychainEntry,
   readClaudeCredentialsFromMacKeychainService,
   writeClaudeCredentialsToMacKeychain,
-} from "./macClaudeKeychain";
+} from "../agents/claude/macKeychain";
 import { createNodeHttpClient } from "./usageHttpClient";
 import { readClaudeCredentialsFromWindowsVault } from "./windowsClaudeVault";
 import { readClaudeCredsFromWsl } from "./wslCredentials";

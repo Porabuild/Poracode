@@ -1,4 +1,5 @@
 import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
+import { retireMacKeychainCommands } from "./runtime/macKeychainProcess";
 import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -1162,6 +1163,7 @@ export class SupervisorRuntime {
   async disposeAsync(): Promise<void> {
     await joinRuntimeShutdown([
       () => this.disposeNativeRuntime(),
+      () => retireMacKeychainCommands(),
       async () => {
         this.disposeWindowsPowerShellPreference();
         this.disposeWslCredentialProjectScope();

@@ -1,5 +1,14 @@
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { SupervisorRuntime } from "./supervisorRuntime";
+const retireKeychain = vi.hoisted(() => vi.fn<() => Promise<void>>());
+vi.mock("./runtime/macKeychainProcess", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./runtime/macKeychainProcess")>()),
+  retireMacKeychainCommands: retireKeychain,
+}));
+
+beforeEach(() => {
+  retireKeychain.mockReset().mockResolvedValue(undefined);
+});
 
 function runtimeFixture(disposeNativeRuntime: () => Promise<void>) {
   const dispose = vi.fn<() => void>();
@@ -46,6 +55,32 @@ it("reports failed native retirement after closing the other owned sessions and 
   const f = runtimeFixture(async () => {
     throw failure;
   });
+  await expect(f.runtime.disposeAsync()).rejects.toMatchObject({ errors: [failure] });
+  expect(f.closeThreads).toHaveBeenCalledOnce();
+  expect(f.closeHooks).toHaveBeenCalledOnce();
+});
+
+it("joins pending Keychain clients without delaying other owned sessions", async () => {
+  const pending = Promise.withResolvers<void>();
+  retireKeychain.mockReturnValue(pending.promise);
+  const f = runtimeFixture(async () => {});
+  let completed = false;
+  const disposing = f.runtime.disposeAsync().then(() => {
+    completed = true;
+  });
+  await Promise.resolve();
+  expect(retireKeychain).toHaveBeenCalledOnce();
+  expect(f.closeThreads).toHaveBeenCalledOnce();
+  expect(completed).toBe(false);
+  pending.resolve();
+  await disposing;
+  expect(completed).toBe(true);
+});
+
+it("reports failed Keychain retirement after closing other owned sessions and hooks", async () => {
+  const failure = new Error("Keychain client exit could not be confirmed");
+  retireKeychain.mockRejectedValue(failure);
+  const f = runtimeFixture(async () => {});
   await expect(f.runtime.disposeAsync()).rejects.toMatchObject({ errors: [failure] });
   expect(f.closeThreads).toHaveBeenCalledOnce();
   expect(f.closeHooks).toHaveBeenCalledOnce();

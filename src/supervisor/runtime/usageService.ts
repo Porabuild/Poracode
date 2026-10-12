@@ -16,6 +16,7 @@ import type { UsageProfileCollector, UsageProfileSource } from "./usageProfileTy
 import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
 import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
+import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 
 /**
  * Periodic/on-demand provider usage collection, modeled on AgentStatusService:
@@ -231,7 +232,8 @@ export class UsageService {
   /** Return cache immediately; background collection follows the owning host's
    * effective provider cadences, opt-outs and rate-limit backoff. */
   async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
-    if (this.options.collectionEnabled === false) return { snapshots: [], fromCache: false };
+    if (this.stopped || this.options.collectionEnabled === false)
+      return { snapshots: [], fromCache: false };
     const scope = this.readScope();
     const ids = this.resolveIds(payload, scope);
     await this.profileCacheIdentities.synchronize(scope.collectors, ids);
@@ -259,7 +261,8 @@ export class UsageService {
 
   /** Forces a live collection of the requested providers and emits the results. */
   async refreshProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
-    if (this.options.collectionEnabled === false) return { snapshots: [], fromCache: false };
+    if (this.stopped || this.options.collectionEnabled === false)
+      return { snapshots: [], fromCache: false };
     const ids = this.resolveIds(payload);
     if (ids.length === 0) {
       return { snapshots: [], fromCache: false };
@@ -270,18 +273,34 @@ export class UsageService {
     // or a background tick racing a manual refresh) don't double-hit rate-limited
     // endpoints. Keyed by the sorted ids so it holds for any subset, not just the
     // full default set.
-    const key = [...ids].sort().join(",");
+    const key = JSON.stringify([...ids].sort());
     // After a credential change the caller passes force so we never reuse an
     // in-flight collection that began with the previous secret (e.g. a
     // background tick started before the user pasted an API key).
     if (payload.force) {
-      const existing = this.refreshesInFlight.get(key);
-      if (existing) await existing.catch(() => undefined);
+      const requested = new Set(ids);
+      // A subset refresh must also drain a larger background batch. Otherwise
+      // provider-owned credential caches can join its old authorization result
+      // before the explicit retry reaches the Keychain reader.
+      while (true) {
+        const pending = [...this.refreshesInFlight]
+          .filter(([inFlightKey]) =>
+            (JSON.parse(inFlightKey) as string[]).some((id) => requested.has(id)),
+          )
+          .map(([, request]) => request);
+        if (pending.length === 0) break;
+        await Promise.allSettled(pending);
+      }
     }
-    return coalesceByKey(this.refreshesInFlight, key, () => this.runRefresh(ids));
+    return coalesceByKey(this.refreshesInFlight, key, () =>
+      payload.force
+        ? withMacKeychainAuthorizationRetry(() => this.runRefresh(ids))
+        : this.runRefresh(ids),
+    );
   }
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
+    if (this.stopped) return { snapshots: [], fromCache: false };
     const sources = this.usageProfileSources();
     const profileCollectors = this.profileCollectors(sources);
     await this.profileCacheIdentities.synchronize(profileCollectors, ids);
@@ -303,6 +322,9 @@ export class UsageService {
         }),
       ),
     ]);
+    // Shutdown can cancel a credential dialog while collection is pending.
+    // Preserve the previous cache instead of publishing that cancellation as logout.
+    if (this.stopped) return { snapshots: [], fromCache: false };
     let snapshots = [...registrySnaps, ...localSnaps, ...profileSnaps].map((snap) =>
       this.preserveOnTransientFailure(snap, sources),
     );
