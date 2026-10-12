@@ -142,9 +142,9 @@ internal class HomeQuickComposeCatalog(
         val modelContexts = capabilities["modelContextSizes"] as? JsonObject
         val allowed = (modelContexts?.get(modelId) as? JsonArray)
             ?.mapNotNull(JsonElement::stringOrNull)
-            ?.toSet()
             ?: return all
-        return all.filter { it.id in allowed }
+        // Per-model order declares the default; the global list only supplies labels.
+        return allowed.mapNotNull { id -> all.firstOrNull { it.id == id } }
     }
 
     /** Family-aware Fast availability: an encoded family needs an opposite-Fast sibling. */

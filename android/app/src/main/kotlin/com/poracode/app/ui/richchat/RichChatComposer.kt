@@ -362,6 +362,7 @@ fun RichChatComposer(
             configuration = configuration,
             catalog = catalog,
             enabled = controlsEnabled,
+            hasStartedSession = currentThread?.sessionRef != null,
             onDismiss = { showControls = false },
             onSave = {
                 onConfigurationChange(it)

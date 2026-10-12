@@ -155,4 +155,6 @@
     <string name="discover_hosts_empty">Хосты Poracode пока не найдены.</string>
     <string name="discover_hosts_unverified">Не проверено</string>
     <string name="tls_pin_mismatch">TLS-сертификат сервера не совпадает с отпечатком из кода сопряжения. Повторите сопряжение из панели удалённого доступа на компьютере.</string>
+    <string name="rich_chat_context_reload_body">Новый размер контекста применяется со следующего сообщения. Сессия агента перезагрузится перед его отправкой; беседа сохранится.</string>
+    <string name="rich_chat_context_reload_stops_subagents">Все субагенты, которые ещё работают при перезагрузке сессии, будут остановлены.</string>
 </resources>

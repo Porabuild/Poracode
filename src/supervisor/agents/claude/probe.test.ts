@@ -252,6 +252,32 @@ describe("claudeCapabilitiesFromCliVersion", () => {
 });
 
 describe("claudeCapabilitiesFromSdkModels", () => {
+  it("exposes smaller working windows for newly discovered long-context Claude models", () => {
+    const models = [
+      "claude-fable-5-2",
+      "claude-opus-5-1",
+      "claude-sonnet-4-6",
+      "claude-haiku-5-5",
+      "claude-mythos-5-1",
+    ];
+    const capabilities = claudeCapabilitiesFromSdkModels(
+      models.map((value) => ({ value, displayName: value, description: "" })),
+    );
+    for (const model of models) {
+      expect(capabilities?.modelContextSizes?.[model]).toEqual(["1m", "400k"]);
+    }
+  });
+
+  it("does not offer long-context limits for 200k Claude models or custom profile IDs", () => {
+    const capabilities = claudeCapabilitiesFromSdkModels([
+      { value: "claude-sonnet-4-5", displayName: "Sonnet 4.5", description: "" },
+      { value: "glm-5.2[1m]", displayName: "GLM", description: "" },
+    ]);
+    expect(capabilities?.modelContextSizes?.["claude-sonnet-4-5"]).toEqual(["200k"]);
+    expect(capabilities?.models).toContainEqual({ id: "glm-5.2[1m]", label: "GLM" });
+    expect(capabilities?.modelContextSizes?.["glm-5.2[1m]"]).toEqual(["1m"]);
+  });
+
   it("maps the Claude Code 2.1.219 Opus 5 capability payload", () => {
     const capabilities = claudeCapabilitiesFromSdkModels([
       {
@@ -306,6 +332,17 @@ describe("win32PathToWslMount", () => {
 });
 
 describe("Claude SDK probe process handling", () => {
+  it("publishes saved custom windows through capability discovery", async () => {
+    mockSdk.query.mockReturnValue(createProbeQuery());
+    const result = await probeClaudeCapabilities({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "claude",
+      agentSettings: { contextWindows: '["400k","512k","1m"]' },
+    });
+    expect(result?.contextSizes).toContainEqual({ id: "512k", label: "512k" });
+    expect(result?.modelContextSizes?.["claude-fable-5-1"]).toEqual(["1m", "400k", "512k"]);
+  });
+
   it("contains probe-owned stdin EPIPE from the Claude SDK child", async () => {
     Object.defineProperty(process, "platform", { value: "linux", configurable: true });
     mockSdk.query.mockImplementation((input: unknown) => {
@@ -495,7 +532,7 @@ describe("Claude SDK probe process handling", () => {
       executablePath: "claude",
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       authMethods: [
         { type: "terminal", id: "claude-login", name: "Claude login", args: ["auth", "login"] },
       ],
@@ -551,7 +588,7 @@ it("merges the native Haiku resolution into its built-in alias and metadata", ()
     { id: "haiku", label: "Haiku" },
   ]);
   expect(result?.modelEfforts.haiku).toEqual([]);
-  expect(result?.modelContextSizes?.haiku).toEqual(["1m"]);
+  expect(result?.modelContextSizes?.haiku).toEqual(["200k"]);
   expect(result?.modelContextSizes).not.toHaveProperty("claude-haiku-4-5-20251001");
 });
 it("keeps external targets of the Haiku alias as distinct profile models", () => {

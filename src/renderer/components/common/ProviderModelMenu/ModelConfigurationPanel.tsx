@@ -79,6 +79,9 @@ export function ModelConfigurationPanel(props: ModelConfigurationPanelProps & { 
             {...(props.contextValue !== undefined ? { contextValue: props.contextValue } : {})}
             {...(props.onContextChange ? { onContextChange: props.onContextChange } : {})}
             {...(props.confirmContextChange ? { confirmContextChange: true } : {})}
+            {...(props.contextSizeReloadStopsSubagents
+              ? { contextSizeReloadStopsSubagents: true }
+              : {})}
             {...(props.thinkingSupported
               ? { thinkingSupported: true, thinkingValue: props.thinkingValue ?? false }
               : {})}

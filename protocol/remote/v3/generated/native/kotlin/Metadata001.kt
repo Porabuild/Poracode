@@ -13,14 +13,14 @@ object RemoteContractMetadata {
     const val protocolVersion = 13
     const val bindingFormatVersion = 2
     const val generatorVersion = 4
-    const val sourceHash = "sha256:1133236427e6c54288804ccf7509aaa8ef835afd319d95d8c361ccf768226df6"
+    const val sourceHash = "sha256:b3d9c64583854d1c737d308363e580c55d5c48266313ce958cc900f3436c089a"
     const val manifestHash = "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
     val routes = listOf(
         RemoteRouteDescriptor("agent-slash-commands", "GET", "/api/agents/{kind}/slash-commands", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteagentU2DSlashU2DCommandsResponse_d50d163800", listOf()),
-        RemoteRouteDescriptor("agent-statuses", "GET", "/api/agent-statuses", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteagentU2DStatusesResponse_98b8d023dd", listOf(RemoteQueryParameterDescriptor("slashCommands", "0-or-1", true, false))),
+        RemoteRouteDescriptor("agent-statuses", "GET", "/api/agent-statuses", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteagentU2DStatusesResponse_1c2020f9fb", listOf(RemoteQueryParameterDescriptor("slashCommands", "0-or-1", true, false))),
         RemoteRouteDescriptor("attachment-upload", "POST", "/api/files/attachment", "bearer", listOf("session:operate"), "raw-upload", "json", 200, "ByteArray", "ProcedurecloneRepoResult_6a0c18e639", listOf(RemoteQueryParameterDescriptor("threadId", "string", false, false), RemoteQueryParameterDescriptor("name", "string", false, false))),
         RemoteRouteDescriptor("browser-command", "POST", "/api/browser/command", "bearer", listOf("session:operate"), "json", "json", 200, "RoutebrowserU2DCommandRequest_80a9ff940d", "RoutebrowserU2DCommandResponse_1b7f16955d", listOf()),
         RemoteRouteDescriptor("browser-state", "GET", "/api/browser/state", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutebrowserU2DCommandResponse_1b7f16955d", listOf()),

@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -56,10 +57,12 @@ internal fun RichChatComposerControlsSheet(
     enabled: Boolean,
     onDismiss: () -> Unit,
     onSave: (ThreadConfig) -> Unit,
+    hasStartedSession: Boolean = false,
 ) {
     var draft by remember(configuration, catalog) {
         mutableStateOf(catalog.normalize(configuration))
     }
+    var pendingContextChange by remember { mutableStateOf<ThreadConfig?>(null) }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             Modifier
@@ -194,13 +197,42 @@ internal fun RichChatComposerControlsSheet(
                     Text(stringResource(R.string.rich_chat_cancel))
                 }
                 Button(
-                    onClick = { onSave(catalog.normalize(draft)) },
+                    onClick = {
+                        val next = catalog.normalize(draft)
+                        if (catalog.confirmsContextChange(configuration, next, hasStartedSession)) {
+                            pendingContextChange = next
+                        } else {
+                            onSave(next)
+                        }
+                    },
                     enabled = enabled,
                 ) {
                     Text(stringResource(R.string.rich_chat_save))
                 }
             }
         }
+    }
+    pendingContextChange?.let { next ->
+        AlertDialog(
+            onDismissRequest = { pendingContextChange = null },
+            title = { Text(stringResource(R.string.rich_chat_context)) },
+            text = {
+                val body = stringResource(R.string.rich_chat_context_reload_body)
+                val warning = stringResource(R.string.rich_chat_context_reload_stops_subagents)
+                Text(if (catalog.contextSizeReloadStopsSubagents) "$body\n\n$warning" else body)
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingContextChange = null
+                    onSave(next)
+                }) { Text(stringResource(R.string.rich_chat_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingContextChange = null }) {
+                    Text(stringResource(R.string.rich_chat_cancel))
+                }
+            },
+        )
     }
 }
 

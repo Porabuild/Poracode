@@ -21,6 +21,21 @@ import org.junit.Test
 
 class HomeQuickComposeCatalogTest {
     @Test
+    fun contextWindowsKeepTheModelDefaultAndSavedSelection() {
+        val agent = status("""{
+          "kind":"provider","label":"Provider","installed":true,"authState":"authenticated",
+          "capabilities":{"models":[{"id":"wide","label":"Wide"}],
+            "contextSizes":[{"id":"200k","label":"200k"},{"id":"400k","label":"400k"},{"id":"512k","label":"512k"},{"id":"1m","label":"1M"}],
+            "modelContextSizes":{"wide":["1m","400k","512k"]},"defaultContextSize":"200k"}
+        }""")
+        val catalog = HomeQuickComposeCatalog(agent, ThreadPresentationMode.Gui, ThreadConfig(model = "wide"))
+        assertEquals(listOf("1m", "400k", "512k"), catalog.contextOptions("wide").map { it.id })
+        assertEquals("1m", catalog.applyModel(ThreadConfig(model = "wide"), "wide").contextSize)
+        assertEquals("400k", catalog.applyModel(ThreadConfig(model = "wide", contextSize = "400k"), "wide").contextSize)
+        assertEquals("512k", catalog.applyModel(ThreadConfig(model = "wide", contextSize = "512k"), "wide").contextSize)
+    }
+
+    @Test
     fun presentationScopedCapabilitiesDriveSafeModelControls() {
         val status = status(
             """

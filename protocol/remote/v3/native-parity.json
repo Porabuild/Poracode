@@ -535,6 +535,7 @@
         "id": "agent-statuses",
         "scopes": ["session:read"],
         "batch": "settings-integrations",
+        "note": "Optional context-reload and subagent-stop capability facts drive native composer Save confirmations for started sessions. Prior payloads without these facts remain accepted. Native catalog tests cover changed, unchanged, draft and undeclared-provider selections; device confirmation journeys remain unqualified.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -542,7 +543,10 @@
           },
           "ui": {
             "disposition": "partial",
-            "evidence": ["ios/App/App/Features/Settings/UI/SettingsHostView.swift"],
+            "evidence": [
+              "ios/App/App/Features/Settings/UI/SettingsHostView.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatComposerConfiguration.swift"
+            ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
         },
@@ -556,7 +560,8 @@
           "ui": {
             "disposition": "partial",
             "evidence": [
-              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsScreen.kt"
+              "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsScreen.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatComposerControls.kt"
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
@@ -8656,6 +8661,7 @@
       {
         "id": "agent-status-updated",
         "batch": "settings-integrations",
+        "note": "Updated optional context-reload consequences flow through the existing capability dictionaries to native composer confirmations; no event name, receipt or sequence semantics changed.",
         "ios": {
           "wire": {
             "disposition": "implemented",

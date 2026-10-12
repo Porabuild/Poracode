@@ -20,6 +20,7 @@ struct RichChatThreadComposerSurface: View {
   /// every composer control on the static capability projection.
   let sessionConfigOptions: JSONValue?
   let canConfigure: Bool
+  var hasStartedSession: Bool = false
   /// User-saved visibility lists for the model picker; empty keeps the
   /// provider's advertised defaults in charge.
   var hiddenModels: [String: [String]] = [:]
@@ -49,6 +50,7 @@ struct RichChatThreadComposerSurface: View {
       threadSlashCommands: threadSlashCommands,
       sessionConfigOptions: sessionConfigOptions,
       canConfigure: canConfigure,
+      hasStartedSession: hasStartedSession,
       hiddenModels: hiddenModels,
       fileMentionController: fileMentionController,
       onSubmissionStarted: state.beginSubmission,

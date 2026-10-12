@@ -111,6 +111,7 @@ export type ComposerControl =
       onContextChange?: (value: string) => void;
       /** Confirm before `onContextChange`: the change reloads a started session. */
       confirmContextChange?: boolean;
+      contextSizeReloadStopsSubagents?: boolean;
       thinkingSupported?: boolean;
       thinkingValue?: boolean;
       onThinkingChange?: (value: boolean) => void;
@@ -539,6 +540,9 @@ export function ThreadComposer(props: {
           {...(control.contextValue !== undefined ? { contextValue: control.contextValue } : {})}
           {...(control.onContextChange ? { onContextChange: control.onContextChange } : {})}
           {...(control.confirmContextChange ? { confirmContextChange: true } : {})}
+          {...(control.contextSizeReloadStopsSubagents
+            ? { contextSizeReloadStopsSubagents: true }
+            : {})}
           {...(control.thinkingSupported !== undefined
             ? { thinkingSupported: control.thinkingSupported }
             : {})}

@@ -828,6 +828,7 @@ describe("buildModelPickerControls family controls", () => {
     context.contextValue = "small";
     context.onContextChange = onContextChange;
     context.confirmContextChange = true;
+    context.contextSizeReloadStopsSubagents = true;
     const onConfigChange = vi.fn<(patch: Partial<ThreadConfig>) => void>();
     const merged = appendProviderComposerControls(controls, {
       agentKind: "paired-test",
@@ -848,6 +849,7 @@ describe("buildModelPickerControls family controls", () => {
     expect(paired.familySelection).not.toHaveProperty("fast");
     expect(paired.contextValue).toBe("small");
     expect(paired.confirmContextChange).toBe(true);
+    expect(paired.contextSizeReloadStopsSubagents).toBe(true);
     paired.onContextChange?.("large");
     expect(onContextChange).toHaveBeenCalledWith("large");
     // The retained toggle still resolves the model-bound fast edit into the

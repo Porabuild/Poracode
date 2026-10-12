@@ -4,6 +4,55 @@ import XCTest
 @testable import App
 
 final class RichChatComposerParityTests: XCTestCase {
+  func testContextReloadConfirmationUsesDeclaredCapabilitiesAndStartedSession() throws {
+    let previous = ThreadConfig(model: "wide")
+    let next = ThreadConfig(model: "wide", contextSize: "400k")
+    let capabilities: [String: JSONValue] = [
+      "models": .array([.object(["id": .string("wide"), "label": .string("Wide")])]),
+      "contextSizes": .array(["1m", "400k"].map { .object(["id": .string($0), "label": .string($0)]) }),
+      "contextSizeChangeReloadsSession": .bool(true), "contextSizeReloadStopsSubagents": .bool(true),
+    ]
+    func catalog(_ capabilities: [String: JSONValue]) throws -> RichChatComposerControlCatalog {
+      let agent = try AgentStatusRecord(wire: .object([
+        "kind": .string("provider"), "label": .string("Provider"),
+        "installed": .bool(true), "authState": .string("authenticated"),
+        "capabilities": .object(capabilities),
+      ]))
+      return RichChatComposerControlCatalog(agentStatus: agent, presentationMode: .gui, configuration: previous)
+    }
+    let reload = try catalog(capabilities)
+    XCTAssertTrue(reload.confirmsContextChange(from: previous, to: next, hasStartedSession: true))
+    XCTAssertFalse(reload.confirmsContextChange(from: previous, to: next, hasStartedSession: false))
+    XCTAssertTrue(reload.confirmsContextChange(from: previous, to: ThreadConfig(model: "wide", contextSize: "1m"), hasStartedSession: true))
+    XCTAssertFalse(reload.confirmsContextChange(from: next, to: next, hasStartedSession: true))
+    XCTAssertTrue(reload.contextSizeReloadStopsSubagents)
+    let plain = try catalog(capabilities.filter { !["contextSizeChangeReloadsSession", "contextSizeReloadStopsSubagents"].contains($0.key) })
+    XCTAssertFalse(plain.confirmsContextChange(from: previous, to: next, hasStartedSession: true))
+    XCTAssertFalse(plain.contextSizeReloadStopsSubagents)
+  }
+
+  func testContextWindowsKeepTheModelDefaultAndSavedSelection() throws {
+    let agent = try AgentStatusRecord(wire: .object([
+      "kind": .string("provider"), "label": .string("Provider"),
+      "installed": .bool(true), "authState": .string("authenticated"),
+      "capabilities": .object([
+        "models": .array([.object(["id": .string("wide"), "label": .string("Wide")])]),
+        "contextSizes": .array(["200k", "400k", "512k", "1m"].map { .object(["id": .string($0), "label": .string($0)]) }),
+        "modelContextSizes": .object(["wide": .array(["1m", "400k", "512k"].map { .string($0) })]),
+        "defaultContextSize": .string("200k"),
+      ]),
+    ]))
+    let catalog = RichChatComposerControlCatalog(agentStatus: agent, presentationMode: .gui, configuration: ThreadConfig(model: "wide"))
+    XCTAssertEqual(catalog.contextOptions(for: "wide").map(\.id), ["1m", "400k", "512k"])
+    XCTAssertEqual(catalog.contextOptions(for: "wide").first?.id, "1m")
+    var configuration = ThreadConfig(model: "wide", contextSize: "400k")
+    catalog.applyModel("wide", to: &configuration)
+    XCTAssertEqual(configuration.contextSize, "400k")
+    configuration.contextSize = "512k"
+    catalog.applyModel("wide", to: &configuration)
+    XCTAssertEqual(configuration.contextSize, "512k")
+  }
+
   func testCapabilityCatalogScopesOptionsToTheSelectedModel() throws {
     let agent = try agentStatus()
     let configuration = ThreadConfig(

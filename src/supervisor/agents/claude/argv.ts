@@ -1,6 +1,7 @@
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
-import { CLAUDE_CONTEXT_MANAGED_MODEL_IDS, CLAUDE_DEFAULT_APPROVAL_POLICY } from "./detection";
+import { CLAUDE_DEFAULT_APPROVAL_POLICY } from "./detection";
 import { prepareClaudeMergedSettingsFile } from "./mergedSettings";
+import { claudeContextManagedModelId, resolveClaudeContextWindowTokens } from "./contextWindow";
 
 /**
  * Re-attach the `[<size>]` suffix Claude's CLI uses to pick a context-window
@@ -14,10 +15,13 @@ import { prepareClaudeMergedSettingsFile } from "./mergedSettings";
  * would send `glm-5.2`, which z.ai rejects.
  */
 export function applyClaudeContextSuffix(model: string, contextSize?: string): string {
-  const base = model.replace(/\[[0-9]+[mk]\]$/i, "");
-  if (!CLAUDE_CONTEXT_MANAGED_MODEL_IDS.has(base)) return model;
-  if (!contextSize || contextSize === "200k") return base;
-  return `${base}[${contextSize}]`;
+  const base = claudeContextManagedModelId(model);
+  if (!base) return model;
+  const contextWindow = resolveClaudeContextWindowTokens(contextSize);
+  if (contextWindow === undefined || contextWindow <= 200_000) return base;
+  // 400k is a working-window limit, not a model variant. The model still needs
+  // its 1M variant (notably Opus/Sonnet 4.6); the launch override lowers it.
+  return `${base}[1m]`;
 }
 
 export function buildClaudeArgs(

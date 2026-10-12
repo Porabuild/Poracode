@@ -29,6 +29,7 @@ struct RichChatComposerView: View {
   /// composer control on the static capability projection.
   let sessionConfigOptions: JSONValue?
   let canConfigure: Bool
+  var hasStartedSession: Bool = false
   /// User-saved visibility lists for the model picker; empty keeps the
   /// provider's advertised defaults in charge.
   var hiddenModels: [String: [String]] = [:]
@@ -81,7 +82,8 @@ struct RichChatComposerView: View {
         agentStatus: agentStatus,
         presentationMode: .gui,
         sessionConfigOptions: sessionConfigOptions,
-        hiddenModels: hiddenModels
+        hiddenModels: hiddenModels,
+        hasStartedSession: hasStartedSession
       )
     }
     .sheet(isPresented: $showsSkillPicker) {

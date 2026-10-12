@@ -40,10 +40,7 @@ import {
   providerMenuKey,
   providerVisibilityKey,
 } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
-import {
-  getComposerConfigBehavior,
-  getComposerControls,
-} from "@/renderer/components/providers/providerComposer";
+import { getComposerControls } from "@/renderer/components/providers/providerComposer";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import {
   capabilitiesForPresentation,
@@ -80,8 +77,10 @@ export type BuildModelPickerControlsInput = {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   includeFastToggle?: boolean;
-  /** Ask before applying a context-size change (see `ComposerConfigBehavior`). */
+  /** Ask before applying a context-size change (see `AgentCapability`). */
   confirmContextChange?: boolean;
+  /** Include the declared subagent interruption consequence in the confirmation. */
+  contextSizeReloadStopsSubagents?: boolean;
   onProviderModelChange: (next: ProviderModelSelection) => void;
   /**
    * One resolved config edit. `origin` is the optional ephemeral
@@ -407,6 +406,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       ...(selectableContextSizes.length > 0 && contextSize ? { contextValue: contextSize } : {}),
       onContextChange: (value) => onConfigPatch({ contextSize: value }),
       ...(confirmContextChange ? { confirmContextChange } : {}),
+      ...(input.contextSizeReloadStopsSubagents ? { contextSizeReloadStopsSubagents: true } : {}),
       thinkingSupported: supportsThinking,
       thinkingValue: thinking === true,
       onThinkingChange: (value) => onConfigPatch({ thinking: value }),
@@ -496,6 +496,9 @@ export function appendProviderComposerControls(
             ? { onContextChange: commonEffort.onContextChange }
             : {}),
           ...(commonEffort.confirmContextChange ? { confirmContextChange: true } : {}),
+          ...(commonEffort.contextSizeReloadStopsSubagents
+            ? { contextSizeReloadStopsSubagents: true }
+            : {}),
           ...(commonEffort.thinkingSupported
             ? { thinkingSupported: true, thinkingValue: commonEffort.thinkingValue ?? false }
             : {}),
@@ -641,9 +644,13 @@ export function buildControls(
       presentationMode,
       isDisabled,
       // A started session is reloaded to apply a new size; drafts apply it at launch.
-      ...(thread.sessionRef &&
-      getComposerConfigBehavior(thread.agentKind)?.contextSizeChangeReloadsSession
-        ? { confirmContextChange: true }
+      ...(thread.sessionRef && filteredCaps.contextSizeChangeReloadsSession
+        ? {
+            confirmContextChange: true,
+            ...(filteredCaps.contextSizeReloadStopsSubagents
+              ? { contextSizeReloadStopsSubagents: true }
+              : {}),
+          }
         : {}),
       onProviderModelChange: ({ model: selectedModel, selectionIntent }) => {
         const current = normalizeProviderModelConfig(

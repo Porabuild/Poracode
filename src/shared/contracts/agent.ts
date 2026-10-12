@@ -258,6 +258,8 @@ const agentPresentationCapabilityOverrideSchema = z
     contextSizes: z.array(labeledOptionSchema).optional(),
     modelContextSizes: z.record(z.string(), z.array(z.string().min(1))).optional(),
     defaultContextSize: z.string().optional(),
+    contextSizeChangeReloadsSession: z.boolean().optional(),
+    contextSizeReloadStopsSubagents: z.boolean().optional(),
     fastModels: z.array(z.string().min(1)).optional(),
     fastDisabledReason: z.string().optional(),
     thinkingModels: z.array(z.string().min(1)).optional(),
@@ -367,6 +369,10 @@ export const agentCapabilitySchema = z.object({
   modelContextSizes: z.record(z.string(), z.array(z.string().min(1))).optional(),
   /** Provider's default contextSize id. */
   defaultContextSize: z.string().optional(),
+  /** GUI context changes reload started sessions before the next message. */
+  contextSizeChangeReloadsSession: z.boolean().optional(),
+  /** That reload stops subagents still running in the predecessor session. */
+  contextSizeReloadStopsSubagents: z.boolean().optional(),
   /** Model ids that support a fast/turbo execution mode. */
   fastModels: z.array(z.string().min(1)).optional(),
   /**

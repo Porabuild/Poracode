@@ -17,6 +17,10 @@ export function createClaudeTestQuery() {
     supportedModels: async () => [],
     getContextUsage: async () => null,
     close: () => output.end(),
+    return: vi.fn<() => Promise<IteratorResult<SDKMessage, void>>>().mockResolvedValue({
+      done: true,
+      value: undefined,
+    }),
   };
   return { output, ...controls, runtime: Object.assign(output, controls) as unknown as Query };
 }

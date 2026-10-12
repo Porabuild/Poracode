@@ -155,4 +155,6 @@
     <string name="discover_hosts_empty">Poracodeホストはまだ見つかりません。</string>
     <string name="discover_hosts_unverified">未確認</string>
     <string name="tls_pin_mismatch">サーバーの TLS 証明書がペアリングコードのフィンガープリントと一致しません。デスクトップのリモートアクセスパネルから再ペアリングしてください。</string>
+    <string name="rich_chat_context_reload_body">新しいコンテキストサイズは次のメッセージから適用されます。そのメッセージを送信する前にエージェントのセッションが再読み込みされます。会話は保持されます。</string>
+    <string name="rich_chat_context_reload_stops_subagents">セッションの再読み込み時に実行中のサブエージェントはすべて停止されます。</string>
 </resources>

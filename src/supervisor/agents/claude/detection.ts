@@ -10,6 +10,7 @@ import {
   CLAUDE_PREMIUM_EFFORT_TIERS,
 } from "./models";
 import { probeClaudeCapabilities } from "./probe";
+import { CLAUDE_CONTEXT_SIZES } from "./contextWindow";
 
 /** Default `--permission-mode` when `ThreadConfig.approvalPolicy` is omitted. */
 export const CLAUDE_DEFAULT_APPROVAL_POLICY = "auto" as const;
@@ -34,10 +35,9 @@ export const claudeCapabilities: AgentCapability = {
   efforts: CLAUDE_PREMIUM_EFFORT_TIERS,
   defaultEffort: "medium",
   modelEfforts: CLAUDE_BUILTIN_MODEL_EFFORTS,
-  contextSizes: [
-    { id: "200k", label: "200k" },
-    { id: "1m", label: "1M" },
-  ],
+  contextSizes: CLAUDE_CONTEXT_SIZES,
+  contextSizeChangeReloadsSession: true,
+  contextSizeReloadStopsSubagents: true,
   // Order matters: the first entry is the per-model default. Frontier models
   // default to 1M (the long-context build users select these for).
   modelContextSizes: CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
@@ -98,18 +98,6 @@ export const claudeCapabilities: AgentCapability = {
     },
   ],
 };
-
-/**
- * Built-in Claude model ids whose `[<size>]` suffix Poracode owns — it derives
- * that suffix from the thread's `contextSize` selector (see
- * {@link applyClaudeContextSuffix}). Any model id NOT in this set is a custom /
- * external-provider model (e.g. z.ai `glm-5.2[1m]`) whose suffix is part of the
- * provider's real model name and must be sent to the CLI/SDK verbatim. Keyed off
- * `modelContextSizes` so adding a context-managed model stays a one-line change.
- */
-export const CLAUDE_CONTEXT_MANAGED_MODEL_IDS: ReadonlySet<string> = new Set(
-  Object.keys(claudeCapabilities.modelContextSizes ?? {}),
-);
 
 interface ClaudeAuthStatusResponse {
   loggedIn?: boolean;

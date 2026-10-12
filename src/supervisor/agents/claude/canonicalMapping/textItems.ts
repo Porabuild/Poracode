@@ -98,15 +98,16 @@ export function closeClaudeGenerationItems(state: ClaudeMapperState): RuntimeEve
 
 export function closeClaudeOpenItems(
   state: ClaudeMapperState,
-  options?: { closePlan?: boolean },
+  options?: { closePlan?: boolean; abandonTools?: boolean },
 ): RuntimeEvent[] {
   const events = closeClaudeOpenTextItems(state);
+  const completedToolIds = new Set<string>();
   // Background subagents run past the main turn's `result`; their parent tool
   // and any in-flight child tools must survive this close so a later
   // `task_notification` / child tool_result can complete them. Once no subagent
   // is live, nothing more is coming, so any dangling child rows are flushed.
   for (const [index, tool] of [...state.toolItemsByIndex]) {
-    if (isLiveSubAgentScopedTool(state, tool)) continue;
+    if (!options?.abandonTools && isLiveSubAgentScopedTool(state, tool)) continue;
     // Plan-aggregated tools never emitted item.started; their lifecycle is
     // owned by the aggregator's plan item, which persists across turns.
     if (!tool.planAggregatorRole) {
@@ -114,24 +115,29 @@ export function closeClaudeOpenItems(
         type: "item.completed",
         threadId: state.threadId,
         itemId: tool.itemId,
-        payload: toolPayload(tool, "success"),
+        payload: toolPayload(tool, options?.abandonTools ? "error" : "success"),
       });
+      completedToolIds.add(tool.itemId);
     }
     state.toolItemsByIndex.delete(index);
   }
   for (const [id, tool] of [...state.toolItemsById]) {
-    if (isLiveSubAgentScopedTool(state, tool)) continue;
+    if (!options?.abandonTools && isLiveSubAgentScopedTool(state, tool)) continue;
     // A dangling sub-agent child whose subagent already closed will never get
     // its tool_result; flush it with a completion (like the open main-thread
     // tools above) so it doesn't stay "running" in the overlay forever. Tools
     // completed by the index loop above are never in the child set, so this
     // cannot double-complete.
-    if (!tool.planAggregatorRole && state.subAgentChildToolItemIds?.has(id)) {
+    if (
+      !tool.planAggregatorRole &&
+      !completedToolIds.has(tool.itemId) &&
+      (options?.abandonTools || state.subAgentChildToolItemIds?.has(id))
+    ) {
       events.push({
         type: "item.completed",
         threadId: state.threadId,
         itemId: tool.itemId,
-        payload: toolPayload(tool, "success"),
+        payload: toolPayload(tool, options?.abandonTools ? "error" : "success"),
       });
     }
     state.toolItemsById.delete(id);

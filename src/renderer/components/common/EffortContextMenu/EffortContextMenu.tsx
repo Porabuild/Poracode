@@ -17,6 +17,8 @@ export interface EffortContextMenuProps {
   onContextChange?: (value: string) => void;
   /** Confirm a context change first: it reloads an already-started session. */
   confirmContextChange?: boolean;
+  /** The confirmed session reload stops its active subagents. */
+  contextSizeReloadStopsSubagents?: boolean;
   thinkingSupported?: boolean;
   thinkingValue?: boolean;
   onThinkingChange?: (value: boolean) => void;
@@ -303,6 +305,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
       {menu}
       {pendingContext ? (
         <ContextSizeReloadPopover
+          {...(props.contextSizeReloadStopsSubagents ? { stopsSubagents: true } : {})}
           anchorPosition={pendingContext.anchor}
           contextLabel={
             contextSizes.find((option) => option.id === pendingContext.id)?.label ??

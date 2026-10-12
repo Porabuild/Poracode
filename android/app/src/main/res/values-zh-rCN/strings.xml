@@ -155,4 +155,6 @@
     <string name="discover_hosts_empty">尚未发现 Poracode 主机。</string>
     <string name="discover_hosts_unverified">未验证</string>
     <string name="tls_pin_mismatch">服务器的 TLS 证书与配对码中的指纹不匹配。请从桌面“远程访问”面板重新配对。</string>
+    <string name="rich_chat_context_reload_body">新的上下文大小将从你的下一条消息开始生效。发送该消息前会重新加载智能体会话；对话内容会保留。</string>
+    <string name="rich_chat_context_reload_stops_subagents">会话重新加载时仍在运行的所有子代理都将停止。</string>
 </resources>

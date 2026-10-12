@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { claudeContextWindowEnv, resolveClaudeContextWindowTokens } from "./contextWindow";
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
@@ -137,6 +138,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private openedResumeSessionId: string | undefined;
   private currentConfig: ThreadConfig;
   private appliedModel: string | undefined;
+  private appliedContextWindow: number | undefined;
+  private sessionHasHistory = false;
   private appliedPermissionMode: PermissionMode | undefined;
   private appliedUltracode = false;
   private appliedFast = false;
@@ -308,6 +311,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.currentConfig = config;
     this.sessionId = sessionRef?.providerSessionId ?? randomUUID();
     this.openedResumeSessionId = sessionRef?.providerSessionId;
+    this.sessionHasHistory = this.openedResumeSessionId !== undefined;
     // Usage scope for per-call spend events: fresh only when the SDK session
     // starts brand-new (a resumed session's history is not new spend).
     this.mapperState.usageScope = new ClaudeUsageScopeTracker(
@@ -326,6 +330,19 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     options?: StartTurnOptions,
   ): Promise<void> {
     if (this.disposed) return;
+    // The CLI reads its auto-compact window at launch: applyFlagSettings does
+    // not change the effective window (verified with SDK/CLI 0.3.296/2.1.296).
+    if (
+      this.queryRuntime &&
+      resolveClaudeContextWindowTokens(config.contextSize) !== this.appliedContextWindow
+    ) {
+      this.currentConfig = config;
+      this.reopenQuery(this.sessionHasHistory ? this.sessionId : undefined, this.activeResumeAt);
+      void this.requireQuery().then(
+        () => this.refreshContextUsage(),
+        () => {},
+      );
+    }
     const generation = ++this.submissionGeneration;
     this.steerError = undefined;
     this.beginTurn(prompt, config, segments, options);
@@ -575,9 +592,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * `ultracode` is not a model-level effort: it's a Claude Code session flag
    * that sends `xhigh` to the model and enables dynamic-workflow orchestration.
    * It lives in the flag-settings layer (CLI: `--settings '{"ultracode":true}'`;
-   * SDK: applyFlagSettings). Cast through `unknown` because the SDK type
-   * definitions for `Settings` (v0.3.142) don't yet declare `ultracode`, but
-   * the underlying CLI (2.1.154+) recognizes the key.
+   * SDK: applyFlagSettings).
    */
   private async syncUltracodeFlag(runtime: Query): Promise<void> {
     const wantUltracode = this.currentConfig.effort === "ultracode";
@@ -585,7 +600,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     try {
       await runtime.applyFlagSettings({
         ultracode: wantUltracode ? true : null,
-      } as unknown as Parameters<Query["applyFlagSettings"]>[0]);
+      });
       this.appliedUltracode = wantUltracode;
     } catch {
       // Older CLIs ignore the unknown flag; effort still degrades to xhigh.
@@ -649,7 +664,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (anchorIndex >= 0) {
       this.completedTurns = this.completedTurns.slice(0, anchorIndex + 1);
     }
-    this.applyResumePoint(resumeSessionAt);
+    this.reopenQuery(sessionId, resumeSessionAt);
     await this.requireQuery();
     return { providerSessionId: sessionId, messages: [] };
   }
@@ -658,7 +673,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     const sessionId = this.assertRollbackReady();
     const resumeSessionAt = this.planResumeAnchor(numTurns);
     this.completedTurns = this.completedTurns.slice(0, this.completedTurns.length - numTurns);
-    this.applyResumePoint(resumeSessionAt);
+    this.reopenQuery(sessionId, resumeSessionAt);
     await this.requireQuery();
     return { providerSessionId: sessionId, messages: [] };
   }
@@ -693,16 +708,29 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     return this.sessionId;
   }
 
-  /** Closes the live query and reopens the session at an absolute position. */
-  private applyResumePoint(resumeSessionAt: string): void {
+  /** Restart with launch-only controls, optionally retaining a rollback anchor. */
+  private reopenQuery(resumeSessionId: string | undefined, resumeSessionAt?: string): void {
+    this.deferredCompletion.clear();
+    this.clearDeferredFlushTimer();
+    this.stopGoalTracking();
+    this.cancelPendingRequests();
+    this.emitRuntimeEvents(
+      closeClaudeOpenItems(this.mapperState, { closePlan: true, abandonTools: true }),
+    );
+    this.mapperState.activeSubAgentTaskToTool?.clear();
+    this.mapperState.activeSubAgentToolToTask?.clear();
     this.submissionGeneration++;
     this.steerDelivery.reset();
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = false;
-    this.openedResumeSessionId = this.sessionId;
+    this.openedResumeSessionId = resumeSessionId;
+    this.interruptInFlight = false;
+    this.goalSteerInterruptInFlight = false;
     this.activeResumeAt = resumeSessionAt;
     this.promptQueue.close();
-    this.queryRuntime?.close();
+    const retiringQuery = this.queryRuntime;
+    const retiringProcesses = [...this.spawnedProcesses];
+    const retirement = this.retireQuery(retiringQuery, retiringProcesses);
     this.promptQueue = new AsyncPromptQueue();
     this.queryRuntime = undefined;
     this.queryReady = undefined;
@@ -711,7 +739,17 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.appliedPermissionMode = undefined;
     this.appliedUltracode = false;
     this.appliedFast = false;
-    this.startQuery(this.sessionId, resumeSessionAt);
+    this.startQuery(resumeSessionId, resumeSessionAt, retirement);
+  }
+
+  /** Drain the transcript and confirm descendant exit before resuming its session. */
+  private async retireQuery(runtime: Query | undefined, children: ChildProcess[]): Promise<void> {
+    try {
+      runtime?.close();
+      await runtime?.return();
+    } finally {
+      await Promise.all(children.map((child) => this.terminateSpawnedProcess(child)));
+    }
   }
 
   async interruptTurn(): Promise<void> {
@@ -913,12 +951,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.submissionGeneration++;
     this.stopGoalTracking();
     this.flushDeferredCompletion();
+    this.cancelPendingRequests();
+    this.emitRuntimeEvents(closeClaudeOpenItems(this.mapperState, { closePlan: true }));
+    this.promptQueue.close();
+  }
+
+  private cancelPendingRequests(): void {
     for (const [requestId, pending] of this.pendingRequests) {
-      if (pending.kind === "permission") {
-        pending.resolve({ behavior: "deny", message: "Session closed." });
-      } else {
-        pending.resolve({ behavior: "deny", message: "Session closed." });
-      }
+      pending.resolve({ behavior: "deny", message: "Session closed." });
       this.emitRuntimeEvents([
         {
           type: "request.resolved",
@@ -929,8 +969,6 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       ]);
     }
     this.pendingRequests.clear();
-    this.emitRuntimeEvents(closeClaudeOpenItems(this.mapperState, { closePlan: true }));
-    this.promptQueue.close();
   }
 
   /**
@@ -982,7 +1020,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     return this.queryReady;
   }
 
-  private startQuery(resumeSessionId: string | undefined, resumeSessionAt?: string): void {
+  private startQuery(
+    resumeSessionId: string | undefined,
+    resumeSessionAt?: string,
+    retirement?: Promise<void>,
+  ): void {
     if (this.disposed) throw new Error("ClaudeSdkSession cannot open a disposed session.");
     if (this.streamStarted) return;
     this.streamStarted = true;
@@ -995,6 +1037,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.emitRuntimeEvents(clearBackgroundTasks(this.mapperState));
 
     this.queryReady = (async () => {
+      if (retirement) await retirement;
+      if (this.disposed) throw new Error("ClaudeSdkSession was disposed during query retirement.");
       const wslPrime =
         this.input.projectLocation.kind === "wsl"
           ? primeWslProjectShellEnv(
@@ -1007,6 +1051,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         await wslPrime;
       }
       const permissionMode = basePermissionModeForConfig(this.currentConfig);
+      const contextWindow = resolveClaudeContextWindowTokens(this.currentConfig.contextSize);
       const model = applyClaudeContextSuffix(
         this.currentConfig.model,
         this.currentConfig.contextSize,
@@ -1124,7 +1169,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         extraArgs: { "replay-user-messages": null },
         forwardSubagentText: true,
         canUseTool: this.canUseTool,
-        env,
+        env: { ...env, ...claudeContextWindowEnv(this.currentConfig.contextSize) },
         ...(this.currentConfig.effort
           ? {
               // `ultracode` is not a model-level effort value — the CLI rejects
@@ -1144,6 +1189,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       if (this.disposed) throw new Error("ClaudeSdkSession was disposed during query creation.");
       this.queryRuntime = query({ prompt: this.promptQueue, options });
       this.appliedModel = model;
+      this.appliedContextWindow = contextWindow;
       this.appliedPermissionMode = permissionMode;
       void this.refreshSlashCommands(this.queryRuntime);
       void this.syncUltracodeFlag(this.queryRuntime);
@@ -1301,6 +1347,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   private handleSdkMessage(message: SDKMessage): void {
+    // Locally queued input is not provider history: Stop can clear it before
+    // the SDK consumes it. A main-thread echo/reply confirms it was admitted.
+    if (
+      (message.type === "user" || message.type === "assistant") &&
+      !readParentToolUseId(message)
+    ) {
+      this.sessionHasHistory = true;
+      this.activeResumeAt = undefined;
+    }
     const sessionId =
       "session_id" in message && typeof message.session_id === "string"
         ? message.session_id
@@ -1540,7 +1595,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       const runtime = this.queryRuntime;
       if (!runtime) return;
       const usage = await runtime.getContextUsage();
-      if (this.disposed) return;
+      if (this.disposed || runtime !== this.queryRuntime) return;
       const event = mapClaudeContextUsageResponse(this.input.threadId, usage);
       if (event) this.emitRuntimeEvents([event]);
       // Goal token spend accumulates from per-call assistant-message usage

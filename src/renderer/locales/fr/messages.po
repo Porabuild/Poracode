@@ -237,7 +237,7 @@ msgstr "Hooks {0} retirés pour {envName}."
 #~ msgstr "{0} cibles d'installation"
 
 #. placeholder {0}: parsed.label
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "{0} is already in the list."
 msgstr "{0} est déjà dans la liste."
 
@@ -994,7 +994,7 @@ msgstr "Métrique d'activité"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -1083,7 +1083,7 @@ msgstr "Ajouter un candidat"
 #~ msgid "Add Claude profile"
 #~ msgstr "Ajouter un profil Claude"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Add context window"
 msgstr "Ajouter une fenêtre de contexte"
 
@@ -1572,6 +1572,10 @@ msgstr "Antigravity ACP"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #~ msgid "Antigravity updated to v{version}."
 #~ msgstr "Antigravity a été mis à jour vers la v{version}."
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Any subagents still running when the session reloads will be stopped."
+msgstr "Tous les sous-agents encore en cours d’exécution lors du rechargement de la session seront arrêtés."
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
@@ -3824,7 +3828,7 @@ msgstr "Contexte transféré à {targetLabel}"
 msgid "Context usage"
 msgstr "Utilisation du contexte"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
 msgstr "Fenêtres de contexte"
 
@@ -4530,7 +4534,7 @@ msgstr "Couleur personnalisée"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Commandes personnalisées disponibles dans le menu contextuel du projet (clic droit)."
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Custom context window"
 msgstr "Fenêtre de contexte personnalisée"
 
@@ -5348,7 +5352,7 @@ msgstr "Nom de serveur en double dans l’analyse"
 msgid "e.g. -NoProfile"
 msgstr "p. ex. -NoProfile"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "e.g. 512k or 1m"
 msgstr "p. ex. 512k ou 1m"
 
@@ -5604,6 +5608,10 @@ msgstr "Entrez une URL de dépôt."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "Saisissez une URL de dépôt sûre utilisant HTTPS, HTTP, SSH, Git, FTP, FTPS ou la syntaxe scp."
+
+#: src/renderer/components/providers/claude/ContextWindowSettings.tsx
+msgid "Enter a size between 100k and 1m."
+msgstr "Saisissez une taille entre 100k et 1m."
 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
@@ -11917,7 +11925,7 @@ msgstr "Supprimer « {removingTarget} » d’OpenCode 2 ? Vous pourrez le réins
 #. placeholder {0}: removeProject.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove {0}"
 msgstr "Supprimer {0}"
@@ -12248,11 +12256,11 @@ msgstr "Les avis, conversations ou vérifications de statut requis ne sont pas s
 msgid "reset"
 msgstr "réinitialiser"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "Réinitialiser"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "Réinitialiser les fenêtres de contexte"
 
@@ -13815,6 +13823,10 @@ msgstr "Déconnexion {env}. Les agents détectés seront actualisés une fois l'
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Déconnexion. Les agents détectés seront actualisés une fois l'opération terminée."
+
+#: src/renderer/components/providers/claude/ContextWindowSettings.tsx
+msgid "Sizes shown for 1M Claude models. Choose any size from 100k to 1M; new chats default to 1M when available."
+msgstr "Tailles proposées pour les modèles Claude à contexte de 1M. Choisissez une taille de 100k à 1M ; les nouvelles conversations utilisent 1M par défaut si disponible."
 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."

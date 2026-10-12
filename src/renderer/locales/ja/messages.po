@@ -237,7 +237,7 @@ msgstr "{envName}の{0}フックが削除されました。"
 #~ msgstr "{0}インストールターゲット"
 
 #. placeholder {0}: parsed.label
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "{0} is already in the list."
 msgstr "{0} はすでにリストにあります。"
 
@@ -993,7 +993,7 @@ msgstr "アクティビティ指標"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -1082,7 +1082,7 @@ msgstr "候補を追加"
 #~ msgid "Add Claude profile"
 #~ msgstr "Claude プロファイルを追加"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Add context window"
 msgstr "コンテキストウィンドウを追加"
 
@@ -1571,6 +1571,10 @@ msgstr "Antigravity ACP"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #~ msgid "Antigravity updated to v{version}."
 #~ msgstr "Antigravity を v{version} に更新しました。"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Any subagents still running when the session reloads will be stopped."
+msgstr "セッションの再読み込み時に実行中のサブエージェントはすべて停止されます。"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
@@ -3823,7 +3827,7 @@ msgstr "{targetLabel}に転送されたコンテキスト"
 msgid "Context usage"
 msgstr "コンテキストの使用量"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
 msgstr "コンテキストウィンドウ"
 
@@ -4529,7 +4533,7 @@ msgstr "カスタムカラー"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "プロジェクトのコンテキスト メニュー (右クリック) から使用できるカスタム コマンド。"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Custom context window"
 msgstr "カスタムコンテキストウィンドウ"
 
@@ -5347,7 +5351,7 @@ msgstr "スキャン内でサーバー名が重複しています"
 msgid "e.g. -NoProfile"
 msgstr "例: -NoProfile"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "e.g. 512k or 1m"
 msgstr "例: 512k または 1m"
 
@@ -5603,6 +5607,10 @@ msgstr "リポジトリの URL を入力します。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "HTTPS、HTTP、SSH、Git、FTP、FTPS、または scp 構文を使用した安全なリポジトリ URL を入力してください。"
+
+#: src/renderer/components/providers/claude/ContextWindowSettings.tsx
+msgid "Enter a size between 100k and 1m."
+msgstr "100kから1mまでのサイズを入力してください。"
 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
@@ -11916,7 +11924,7 @@ msgstr "「{removingTarget}」を OpenCode 2 から削除しますか？「見�
 #. placeholder {0}: removeProject.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove {0}"
 msgstr "{0}を削除"
@@ -12247,11 +12255,11 @@ msgstr "必要なレビュー、会話、ステータスチェックが満たさ
 msgid "reset"
 msgstr "リセット"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "リセット"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "コンテキストウィンドウをリセット"
 
@@ -13814,6 +13822,10 @@ msgstr "{env}からサインアウトします。検出されたエージェン�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "サインアウトしています。検出されたエージェントは終了時に更新されます。"
+
+#: src/renderer/components/providers/claude/ContextWindowSettings.tsx
+msgid "Sizes shown for 1M Claude models. Choose any size from 100k to 1M; new chats default to 1M when available."
+msgstr "1MのClaudeモデルで表示するサイズです。100kから1Mまでの任意のサイズを選べます。新しいチャットでは、利用可能な場合は1Mがデフォルトになります。"
 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."

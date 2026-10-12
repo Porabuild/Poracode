@@ -155,4 +155,6 @@
     <string name="discover_hosts_empty">Nie znaleziono jeszcze hostów Poracode.</string>
     <string name="discover_hosts_unverified">Niezweryfikowany</string>
     <string name="tls_pin_mismatch">Certyfikat TLS serwera nie zgadza się z odciskiem z kodu parowania. Sparuj ponownie z panelu zdalnego dostępu na pulpicie.</string>
+    <string name="rich_chat_context_reload_body">Nowy rozmiar kontekstu obowiązuje od następnej wiadomości. Sesja agenta zostanie ponownie załadowana przed jej wysłaniem; rozmowa zostanie zachowana.</string>
+    <string name="rich_chat_context_reload_stops_subagents">Wszystkie podagenty działające podczas ponownego ładowania sesji zostaną zatrzymane.</string>
 </resources>

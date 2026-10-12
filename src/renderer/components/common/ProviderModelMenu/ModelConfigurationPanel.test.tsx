@@ -170,12 +170,16 @@ describe("ModelConfigurationPanel", () => {
         contextValue="small"
         onContextChange={onContextChange}
         confirmContextChange
+        contextSizeReloadStopsSubagents
         mobile={false}
       />,
     );
     mouseClick(screen.getByRole("button", { name: "Effort and context" }));
     mouseClick(await screen.findByText("Large"));
     expect(await screen.findByText("Change context size to Large?")).toBeInTheDocument();
+    expect(
+      screen.getByText("Any subagents still running when the session reloads will be stopped."),
+    ).toBeInTheDocument();
     expect(onContextChange).not.toHaveBeenCalled();
     mouseClick(screen.getByRole("button", { name: "Change" }));
     expect(onContextChange).toHaveBeenCalledWith("large");

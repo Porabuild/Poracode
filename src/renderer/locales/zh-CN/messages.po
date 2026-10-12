@@ -237,7 +237,7 @@ msgstr "删除了{envName}的{0}挂钩。"
 #~ msgstr "{0}安装目标"
 
 #. placeholder {0}: parsed.label
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "{0} is already in the list."
 msgstr "{0} 已在列表中。"
 
@@ -994,7 +994,7 @@ msgstr "活动指标"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -1083,7 +1083,7 @@ msgstr "添加候选项"
 #~ msgid "Add Claude profile"
 #~ msgstr "添加 Claude 配置文件"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Add context window"
 msgstr "添加上下文窗口"
 
@@ -1572,6 +1572,10 @@ msgstr "Antigravity ACP"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #~ msgid "Antigravity updated to v{version}."
 #~ msgstr "Antigravity 已更新至 v{version}。"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Any subagents still running when the session reloads will be stopped."
+msgstr "会话重新加载时仍在运行的所有子代理都将停止。"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Anything currently unavailable — a provider, model, reasoning level, or Fast mode — is skipped automatically. Unchecked providers and models are skipped until re-checked."
@@ -3824,7 +3828,7 @@ msgstr "上下文转移到{targetLabel}"
 msgid "Context usage"
 msgstr "上下文使用"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
 msgstr "上下文窗口"
 
@@ -4530,7 +4534,7 @@ msgstr "自定义颜色"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "可从项目上下文菜单（右键单击）使用自定义命令。"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Custom context window"
 msgstr "自定义上下文窗口"
 
@@ -5348,7 +5352,7 @@ msgstr "扫描结果中存在重复的服务器名称"
 msgid "e.g. -NoProfile"
 msgstr "例如 -NoProfile"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "e.g. 512k or 1m"
 msgstr "例如 512k 或 1m"
 
@@ -5604,6 +5608,10 @@ msgstr "输入存储库 URL。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "请输入使用 HTTPS、HTTP、SSH、Git、FTP、FTPS 或 scp 语法的安全仓库 URL。"
+
+#: src/renderer/components/providers/claude/ContextWindowSettings.tsx
+msgid "Enter a size between 100k and 1m."
+msgstr "请输入 100k 到 1m 之间的大小。"
 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
@@ -11917,7 +11925,7 @@ msgstr "要从 OpenCode 2 中删除“{removingTarget}”吗？你可以稍后�
 #. placeholder {0}: removeProject.name
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove {0}"
 msgstr "删除{0}"
@@ -12248,11 +12256,11 @@ msgstr "未满足所需的审查、对话或状态检查。"
 msgid "reset"
 msgstr "重置"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset"
 msgstr "重置"
 
-#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Reset context windows"
 msgstr "重置上下文窗口"
 
@@ -13815,6 +13823,10 @@ msgstr "注销{env}。检测到的代理将在完成后刷新。"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "正在退出。检测到的代理将在完成后刷新。"
+
+#: src/renderer/components/providers/claude/ContextWindowSettings.tsx
+msgid "Sizes shown for 1M Claude models. Choose any size from 100k to 1M; new chats default to 1M when available."
+msgstr "1M 上下文 Claude 模型显示的大小。可选择 100k 到 1M 之间的任意大小；新对话默认使用 1M（如果可用）。"
 
 #: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."

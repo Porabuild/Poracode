@@ -191,6 +191,7 @@ struct RichChatThreadView: View {
       threadSlashCommands: thread?.slashCommands,
       sessionConfigOptions: thread?.sessionConfigOptions,
       canConfigure: canConfigureComposer,
+      hasStartedSession: thread?.sessionRef != nil,
       hiddenModels: pageState.hiddenModels,
       fileMentionController: fileMentionController,
       skillPickerContext: skillPickerContext,
