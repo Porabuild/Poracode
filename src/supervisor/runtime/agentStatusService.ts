@@ -776,8 +776,7 @@ export class AgentStatusService {
     }
     const detectionWslDistros = [...this.startupDetectionWslDistros];
     void this.queueFullDetection(detectionWslDistros).catch((error) => {
-      if (!this.fullDetectionJobs.size && String(error).includes("Agent discovery cancelled"))
-        return;
+      if (error instanceof AgentDiscoveryCancelledError) return;
       console.error("[supervisor] background agent detection failed", error);
     });
   }

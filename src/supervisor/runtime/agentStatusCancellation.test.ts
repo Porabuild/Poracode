@@ -103,7 +103,9 @@ describe("scoped fallback cancellation ownership", () => {
 });
 
 describe("cancelled startup retry", () => {
+  afterEach(() => vi.restoreAllMocks());
   it("allows a later request for the same WSL environment to start detection again", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const blocked = deferred<AgentStatus>();
     const started = deferred<void>();
     let calls = 0;
@@ -119,10 +121,13 @@ describe("cancelled startup retry", () => {
     const first = activeDetection(service).catch((error) => error);
     await started.promise;
     service.cancelAgentDiscovery();
+    // Retry before the cancelled job's background rejection handler runs.
+    const retry = service.getAgentStatuses({ wslDistros: [DISTRO] });
     await first;
-    await service.getAgentStatuses({ wslDistros: [DISTRO] });
+    await retry;
     await activeDetection(service);
     expect(probe).toHaveBeenCalledTimes(4);
+    expect(errors).not.toHaveBeenCalled();
     expect(modelIds(await service.getAgentStatuses({ wslDistros: [DISTRO] }))).toEqual(["retried"]);
     blocked.resolve(status(FAST, "late"));
   });
