@@ -407,6 +407,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // factories stay process-local. Bearer tokens live in the native OS
       // keystore or the browser/Electron WebCrypto vault, not plaintext storage.
       partialize: persistedRemoteServersState,
+      // Browser default filings reuse the released string/null project pins.
+      // v2 documents, including explicit unfiling and cached projects, remain
+      // valid; workspaceFilings.test covers delayed hydration and reload.
       version: 2,
       /**
        * v1 → v2: `connectionId` becomes the per-connection key.

@@ -4,6 +4,7 @@ import { readBridge } from "@/renderer/bridge";
 import {
   hasAnyClientBridge,
   hasClientCapability,
+  isBrowserClientRuntime,
   isCompactClientRuntimeSurface,
 } from "@/renderer/clientRuntime";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
@@ -104,10 +105,11 @@ export function useAppHydration(
       `[renderer] +${Date.now() - loadT0}ms: store hydrated, view=${JSON.stringify(restoredView)}, ${useAppStore.getState().projects.length} projects, ${useAppStore.getState().threads.length} threads`,
     );
 
-    // Seed default workspaces and file pre-existing projects. Runtime-owner
-    // only: a remote client must not decide how the desktop's projects are
-    // grouped. Projects are hydrated by now, so nothing is missed.
-    if (runtimeOwner) {
+    // The desktop seeds its own list. A browser client seeds a separate list
+    // in this browser: it can be paired with more than one server, and those
+    // servers do not share workspace ids. The seed writes only this client's
+    // settings and local project pins, never the server's catalog.
+    if (runtimeOwner || isBrowserClientRuntime()) {
       void bootstrapWorkspaces().catch((error: unknown) => {
         captureRendererException(error, { featureArea: "hydration" });
       });

@@ -7,6 +7,9 @@ import {
 } from "@/shared/contracts";
 import { useAppStore } from "./appStore";
 import { useSharedSettings, whenSharedSettingsHydrated } from "./sharedSettingsStore";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { useRemoteServersStore } from "./remoteServersStore";
 
 const PERSIST_KEY = "poracode-active-workspace";
 
@@ -112,6 +115,23 @@ export function getKnownWorkspaceIds(): ReadonlySet<string> {
  */
 export async function bootstrapWorkspaces(): Promise<void> {
   await whenSharedSettingsHydrated();
+  const browserClient = isBrowserClientRuntime();
+  // Filing restored mirrors persists project pins. The encrypted connection
+  // read must finish first, or that write could save the empty startup catalog.
+  if (browserClient && !useRemoteServersStore.persist.hasHydrated()) {
+    await new Promise<void>((resolve) => {
+      // The store hydrates on creation. Wait for its current successful read;
+      // reconnect may supersede an earlier read without completing hydration.
+      const unsubscribe = useRemoteServersStore.persist.onFinishHydration(() => {
+        unsubscribe();
+        resolve();
+      });
+      if (useRemoteServersStore.persist.hasHydrated()) {
+        unsubscribe();
+        resolve();
+      }
+    });
+  }
   const settings = useSharedSettings.getState();
   const existing = settings.workspaces ?? [];
   if (existing.length > 0) {
@@ -138,6 +158,26 @@ export async function bootstrapWorkspaces(): Promise<void> {
   settings.setWorkspaces(seeded);
 
   const primary = seeded[0]!;
-  useAppStore.getState().refileProjects(undefined, primary.id);
+  if (browserClient) {
+    const pins = useRemoteServersStore.getState().projectWorkspaceIds;
+    useAppStore.setState((state) => {
+      const projects = state.projects.map((project) => {
+        if (project.workspaceId !== undefined || project.id === HOME_PROJECT_ID) return project;
+        if (
+          project.remoteServerId &&
+          project.remoteId &&
+          pins[project.remoteServerId]?.[project.remoteId] !== undefined
+        ) {
+          return project;
+        }
+        return { ...project, workspaceId: primary.id };
+      });
+      return projects.some((project, index) => project !== state.projects[index])
+        ? { projects }
+        : {};
+    });
+  } else {
+    useAppStore.getState().refileProjects(undefined, primary.id);
+  }
   useWorkspaceStore.getState().setActiveWorkspaceId(primary.id);
 }
