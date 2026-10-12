@@ -4,30 +4,13 @@
  * tolerant list-route reads.
  */
 
-import { redactSecrets } from "./redaction.mjs";
+import { jsonRequest, readQualificationProtocolVersion } from "../qualification-http.mjs";
+export { jsonRequest } from "../qualification-http.mjs";
 import { pairingCredentialFromCliOutput, parseLastJsonLine } from "./server-process.mjs";
 
-export async function jsonRequest(fetchImpl, url, { method = "GET", token, body } = {}) {
-  const headers = { "content-type": "application/json" };
-  if (token) headers.authorization = `Bearer ${token}`;
-  const response = await fetchImpl(url, {
-    method,
-    headers,
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  const text = redactSecrets(await response.text());
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    parsed = text;
-  }
-  return { status: response.status, body: parsed };
-}
-
 /** Pair against the running daemon; the pairing URL never survives an error. */
-export async function pairAndAuthenticate(runCli, entry, env, httpBase, fetchImpl) {
+export async function pairAndAuthenticate(runCli, entry, env, httpBase, fetchImpl, doctorReport) {
+  const protocolVersion = await readQualificationProtocolVersion(fetchImpl, httpBase, doctorReport);
   // Parse the credential from the in-memory raw result. Redaction belongs at
   // log/evidence sinks; redacting before this point would destroy the URL the
   // gate itself must exchange.
@@ -49,7 +32,7 @@ export async function pairAndAuthenticate(runCli, entry, env, httpBase, fetchImp
     },
   });
   if (token.status !== 200) throw new Error(`pairing token exchange failed: ${token.status}`);
-  return token.body.accessToken;
+  return { token: token.body.accessToken, protocolVersion };
 }
 
 export function assertDoctorOk(runCli, entry, env, label) {
