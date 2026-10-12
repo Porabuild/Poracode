@@ -1,10 +1,7 @@
-import { extractOscEventsFromPtyStream } from "@/shared/osc";
+import { createShellPromptGate } from "@/shared/shellPromptReady";
 import { readBridge } from "@/renderer/bridge";
 import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
 import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
-
-const REMOTE_SHELL_QUIET_READY_MS = 250;
-const REMOTE_SHELL_QUERY_FALLBACK_MS = 12_000;
 
 interface RoutedShellSessionOptions {
   readonly shellId: string;
@@ -34,11 +31,10 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
   disposeRoutedShellSession(options.shellId);
   let armed = true;
   let observedSpawnReset = false;
-  let outputBuffer = "";
-  let oscCarry = "";
   let timer = 0;
   let disposed = false;
   let unsubscribe: () => void = () => undefined;
+  const prompt = createShellPromptGate();
 
   const clearTimer = () => {
     if (timer === 0) return;
@@ -67,10 +63,17 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
     if (disposed) return;
     observedSpawnReset = true;
     armed = true;
-    outputBuffer = "";
-    oscCarry = "";
+    prompt.reset();
     clearTimer();
     options.onReset?.();
+  };
+  const armWrite = (output: string) => {
+    if (prompt.push(output) === "ready") {
+      write();
+      return;
+    }
+    clearTimer();
+    timer = window.setTimeout(write, prompt.delayMs());
   };
   const onOutput = (output: string) => {
     if (disposed) return;
@@ -78,24 +81,10 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
       options.onOutput?.(output);
       return;
     }
-    if (!options.remoteServerId) {
-      write();
-      return;
-    }
-    outputBuffer = `${outputBuffer}${output}`.slice(-2048);
-    const extracted = extractOscEventsFromPtyStream(oscCarry, output);
-    oscCarry = extracted.carryOut;
-    if (extracted.shell.some((event) => event.code === 133 && event.kind === "prompt-end")) {
-      write();
-      return;
-    }
-    clearTimer();
-    const sawTerminalQuery =
-      outputBuffer.includes("\u001B[0c") || outputBuffer.includes("\u001B[6n");
-    timer = window.setTimeout(
-      write,
-      sawTerminalQuery ? REMOTE_SHELL_QUERY_FALLBACK_MS : REMOTE_SHELL_QUIET_READY_MS,
-    );
+    // Local and remote shells share this gate. The first bytes are often a
+    // device-attribute query, not a prompt; writing the command there leaves
+    // an empty pane and skips `exit` because the script runs before PATH exists.
+    armWrite(output);
   };
 
   unsubscribe = watchRoutedTerminal(
@@ -118,9 +107,8 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
         ) {
           return;
         }
-        outputBuffer = "";
-        oscCarry = "";
-        onOutput(snapshot.data);
+        prompt.reset();
+        armWrite(snapshot.data);
       },
       onExited: (exitCode) => {
         dispose();

@@ -4130,10 +4130,25 @@ describe("RemoteAccessServer", () => {
       "startShell",
       expect.objectContaining({ worktreePath: "/repo/worktrees/mobile-fix" }),
     );
-    expect(callSupervisor).toHaveBeenCalledWith(
-      "writeTerminal",
-      expect.objectContaining({ data: "pnpm install && exit\r" }),
-    );
+    const setupShellId = callSupervisor.mock.calls.find((call) => call[0] === "startShell")?.[1] as
+      | { shellId: string }
+      | undefined;
+    server.publishSupervisorEvent({
+      type: "thread-output",
+      threadId: setupShellId!.shellId,
+      data: "\u001B]133;B\u001B\\",
+      outputLength: 1,
+      terminalInstanceId: "gen",
+    });
+    await vi.waitFor(() => {
+      expect(callSupervisor).toHaveBeenCalledWith(
+        "writeTerminal",
+        expect.objectContaining({
+          threadId: setupShellId!.shellId,
+          data: "pnpm install && exit\r",
+        }),
+      );
+    });
     expect(callSupervisor).toHaveBeenCalledWith(
       "startThread",
       expect.objectContaining({ threadId: "thread-worktree" }),
@@ -4205,6 +4220,25 @@ describe("RemoteAccessServer", () => {
       "startShell",
       expect.objectContaining({ worktreePath: "/repo/worktrees/offline" }),
     );
+    const setupShellId = callSupervisor.mock.calls.find((call) => call[0] === "startShell")?.[1] as
+      | { shellId: string }
+      | undefined;
+    server.publishSupervisorEvent({
+      type: "thread-output",
+      threadId: setupShellId!.shellId,
+      data: "\u001B]133;B\u001B\\",
+      outputLength: 1,
+      terminalInstanceId: "gen",
+    });
+    await vi.waitFor(() => {
+      expect(callSupervisor).toHaveBeenCalledWith(
+        "writeTerminal",
+        expect.objectContaining({
+          threadId: setupShellId!.shellId,
+          data: "pnpm install && exit\r",
+        }),
+      );
+    });
     expect(callSupervisor).toHaveBeenCalledWith(
       "startThread",
       expect.objectContaining({ threadId: "thread-offline" }),

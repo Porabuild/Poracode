@@ -13420,6 +13420,10 @@ msgstr "Ayarlar"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "Ayarlar henüz kullanılamadığı için değişiklikleriniz kaydedilemedi. Lütfen tekrar deneyin."
 
+#: src/renderer/actions/worktreeLaunchActions.ts
+msgid "setup"
+msgstr "kurulum"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
 msgstr "Kurulum komut dosyası"

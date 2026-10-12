@@ -13420,6 +13420,10 @@ msgstr "Настройки"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "Настройки пока недоступны, поэтому не удалось сохранить ваши изменения. Попробуйте ещё раз."
 
+#: src/renderer/actions/worktreeLaunchActions.ts
+msgid "setup"
+msgstr "настройка"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
 msgstr "Скрипт настройки"
