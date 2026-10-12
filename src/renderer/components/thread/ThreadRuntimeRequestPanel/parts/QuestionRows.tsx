@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { UserInputOption } from "@/shared/contracts";
 import { QuestionOptionRow } from "./QuestionOptionRow";
+import { handleQuestionOptionKey } from "../questionOptionKeyboard";
 
 export function QuestionRows(props: {
   options: readonly UserInputOption[];
@@ -13,9 +14,17 @@ export function QuestionRows(props: {
   const { options, isDisabled, onSubmit, multiSelect } = props;
   const { t } = useLingui();
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  function onOptionKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!isDisabled) handleQuestionOptionKey(event, event.currentTarget);
+  }
   if (!multiSelect) {
     return (
-      <div role="listbox" aria-label={t`Options`} className="flex flex-col px-1 pb-1">
+      <div
+        role="listbox"
+        aria-label={t`Options`}
+        className="flex flex-col px-1 pb-1"
+        onKeyDownCapture={onOptionKeyDown}
+      >
         {options.map((option, index) => (
           <QuestionOptionRow
             key={option.optionId}
@@ -47,6 +56,7 @@ export function QuestionRows(props: {
       role="listbox"
       aria-label={t`Options`}
       aria-multiselectable="true"
+      onKeyDownCapture={onOptionKeyDown}
       className="flex flex-col px-1 pb-1"
     >
       {options.map((option, index) => (
