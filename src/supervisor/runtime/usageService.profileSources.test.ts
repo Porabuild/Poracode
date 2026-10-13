@@ -287,6 +287,63 @@ describe("usage account-source custody", () => {
     expect((await pending).snapshots).toEqual([]);
   });
 
+  it("keeps newer account quota when an older overlapping refresh finishes last", async () => {
+    let identity = "account-a";
+    const started = Promise.withResolvers<void>();
+    const blocked = Promise.withResolvers<UsageSnapshot>();
+    const newer = {
+      ...snapshot("fixture"),
+      windows: [{ id: "weekly", label: "Weekly", usedPercent: 75 }],
+    };
+    const emit = vi.fn<(event: import("@/shared/ipc").SupervisorEvent) => void>();
+    const service = new UsageService({
+      cachePath: cachePath(),
+      host,
+      emit,
+      providerIds: ["fixture", "fixture:other"],
+      localCollectors: [],
+      profileSources: () => [
+        {
+          collectors: [
+            {
+              providerId: "fixture",
+              cacheIdentity: async () => identity,
+              collect: async () => {
+                if (identity === "account-a") {
+                  started.resolve();
+                  return blocked.promise;
+                }
+                return newer;
+              },
+            },
+            { providerId: "fixture:other", collect: async () => snapshot("fixture:other") },
+          ],
+        },
+      ],
+    });
+    const pending = service.refreshProviderUsage({});
+    try {
+      await started.promise;
+      identity = "account-b";
+      expect((await service.refreshProviderUsage({ providerIds: ["fixture"] })).snapshots).toEqual([
+        newer,
+      ]);
+      blocked.resolve(snapshot("fixture"));
+      expect((await pending).snapshots).toEqual([snapshot("fixture:other")]);
+      expect((await service.getProviderUsage({ providerIds: ["fixture"] })).snapshots).toEqual([
+        newer,
+      ]);
+      expect(emit).toHaveBeenLastCalledWith({
+        type: "provider-usage-all",
+        snapshots: [newer, snapshot("fixture:other")],
+      });
+    } finally {
+      blocked.resolve(snapshot("fixture"));
+      await pending;
+      service.stop();
+    }
+  });
+
   it("publishes account-source retirement immediately without fetching quota", async () => {
     let identity = "account-a";
     const emit = vi.fn<(event: import("@/shared/ipc").SupervisorEvent) => void>();

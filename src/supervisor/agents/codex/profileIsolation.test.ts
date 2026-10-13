@@ -187,7 +187,7 @@ describe("Codex profile usage cache custody", () => {
       writeFileSync(
         cachePath,
         JSON.stringify({
-          version: 10,
+          version: 11,
           snapshots: [cached],
           ...(storedIdentity ? { profileIdentities: { "codex:work": identity } } : {}),
         }),

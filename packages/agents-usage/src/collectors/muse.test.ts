@@ -78,7 +78,7 @@ describe("parseMuseUsage", () => {
 });
 
 describe("collectMuse", () => {
-  it("tries the CLI token before falling back to a captured dashboard session", async () => {
+  it("uses the captured dashboard session without requesting the CLI key endpoint", async () => {
     const urls: string[] = [];
     const host = createFakeHost({
       secrets: { muse: { cookie: "llm_sess=abc" } },
@@ -87,8 +87,7 @@ describe("collectMuse", () => {
       onRequest: (req) => urls.push(req.url),
     });
     await collectMuse(host);
-    expect(urls).toContain("https://dev.meta.ai/api/portal/teams");
-    expect(urls[0]).toBe(MUSE_KEY_ENDPOINT);
+    expect(urls).toEqual(["https://dev.meta.ai/api/portal/teams"]);
   });
 
   it("returns auth-missing without a stored CLI token", async () => {

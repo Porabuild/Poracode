@@ -40,7 +40,8 @@ import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 // v9 scopes cached profile quota to an opaque account-source fingerprint.
 // v10 rejects snapshots that could survive account retirement during enrichment
 // and refreshes explicit zero/balance-only usage omitted by earlier collectors.
-const USAGE_CACHE_VERSION = 10;
+// v11 makes Muse browser sessions authoritative and scopes quota to the selected session/team.
+const USAGE_CACHE_VERSION = 11;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createFakeHost, FAKE_NOW_MS, type FakeHostConfig } from "../testHost";
 import { collectMuse, MUSE_KEY_ENDPOINT } from "./muse";
 import { museSpendWindow } from "./museDashboard";
@@ -6,7 +6,6 @@ import { museSpendWindow } from "./museDashboard";
 const span = museSpendWindow(FAKE_NOW_MS);
 const QUOTA = "https://dev.meta.ai/api/portal/teams/team-1/subscription-quota";
 const SPEND = `https://dev.meta.ai/api/portal/teams/team-1/usage?metric=USAGE_BILLABLE_COST&start_date=${span.start}&end_date=${span.end}&timezone=UTC`;
-const ACCOUNT = "https://dev.meta.ai/api/auth/me";
 const CLI = {
   subs_tier_name: "Everyday",
   user_email: "ada@example.com",
@@ -30,118 +29,99 @@ function host(overrides: FakeHostConfig["routes"] = {}) {
         metric: "usage_billable_cost",
         series: [{ type: "TOTAL", data_points: [{ value: 142000000 }] }],
       }),
-      [ACCOUNT]: json({ email: "ADA@example.com" }),
       ...overrides,
     },
   });
 }
 
 describe("Muse source priority", () => {
-  it("prefers CLI meters and identity while adding same-account billed spend", async () => {
-    const result = await collectMuse(host());
-    expect(result.status).toBe("ok");
-    expect(result.windows.map((w) => w.usedPercent)).toEqual([20, 30]);
-    expect(result.plan).toBe("Everyday");
-    expect(result.authenticatedAs).toBe("ada@example.com");
-    expect(result.cost?.amount).toBe(1.42);
-  });
-
-  it.each([
-    json({ email: "other@example.com" }),
-    json({}),
-    { status: 401 },
-    { status: 500 },
-    { body: "invalid" },
-  ])("does not combine unverified/different browser accounts (%j)", async (account) => {
-    const result = await collectMuse(host({ [ACCOUNT]: account }));
-    expect(result.windows.map((w) => w.usedPercent)).toEqual([20, 30]);
-    expect(result.cost).toBeUndefined();
-  });
-
-  it.each([401, 403, 500])(
-    "keeps healthy CLI meters when browser session fails with %i",
-    async (status) => {
-      const result = await collectMuse(host({ [QUOTA]: { status }, [SPEND]: { status } }));
-      expect(result.status).toBe("ok");
-      expect(result.windows).toHaveLength(2);
-      expect(result.cost).toBeUndefined();
-    },
-  );
-
-  it("falls back to the complete browser snapshot when CLI omits meters", async () => {
-    const result = await collectMuse(
-      host({
-        [MUSE_KEY_ENDPOINT]: json({ subs_tier_name: "Everyday", user_email: "ada@example.com" }),
-      }),
-    );
+  it("uses browser quota and billing without reading CLI credentials or mixing accounts", async () => {
+    const h = host();
+    const getOAuthToken = vi.spyOn(h.credentials, "getOAuthToken");
+    const request = vi.spyOn(h.http, "request");
+    const result = await collectMuse(h);
     expect(result.status).toBe("ok");
     expect(result.windows.map((w) => w.usedPercent)).toEqual([90]);
     expect(result.plan).toBe("Browser plan");
     expect(result.authenticatedAs).toBeUndefined();
     expect(result.cost?.amount).toBe(1.42);
+    expect(getOAuthToken).not.toHaveBeenCalled();
+    expect(request.mock.calls.map(([req]) => req.url)).toEqual([QUOTA, SPEND]);
   });
 
-  it.each([401, 500])("uses browser fallback when CLI fails with %i", async (status) => {
-    expect((await collectMuse(host({ [MUSE_KEY_ENDPOINT]: { status } }))).cost?.amount).toBe(1.42);
+  it.each([401, 403, 500])(
+    "does not fall back to CLI credentials when the browser session fails with %i",
+    async (status) => {
+      const h = host({ [QUOTA]: { status }, [SPEND]: { status } });
+      const getOAuthToken = vi.spyOn(h.credentials, "getOAuthToken");
+      expect(await collectMuse(h)).toMatchObject({
+        status: status === 500 ? "error" : "auth-missing",
+        windows: [],
+      });
+      expect(getOAuthToken).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not read CLI credentials when a saved session requires team selection", async () => {
+    const h = createFakeHost({
+      tokens: { muse: { accessToken: "dca:test" } },
+      secrets: { muse: { cookie: "llm_sess=test" } },
+      routes: {
+        "https://dev.meta.ai/api/portal/teams": json({ teams: [] }),
+        [MUSE_KEY_ENDPOINT]: json(CLI),
+      },
+    });
+    const getOAuthToken = vi.spyOn(h.credentials, "getOAuthToken");
+    expect((await collectMuse(h)).status).toBe("auth-missing");
+    expect(getOAuthToken).not.toHaveBeenCalled();
   });
 
-  it("preserves primary rate limiting and does not request optional sources", async () => {
-    const h = host({ [MUSE_KEY_ENDPOINT]: { status: 429, headers: { "retry-after": "3600" } } });
-    const request = h.http.request;
-    const urls: string[] = [];
-    h.http.request = (req) => {
-      urls.push(req.url);
-      return request(req);
-    };
+  it("keeps browser cooldowns without requesting CLI credentials", async () => {
+    const h = host({
+      [QUOTA]: { status: 429, headers: { "retry-after": "3600" } },
+      [SPEND]: { status: 429, headers: { "retry-after": "300" } },
+    });
+    const getOAuthToken = vi.spyOn(h.credentials, "getOAuthToken");
     expect(await collectMuse(h)).toMatchObject({
       status: "rate-limited",
       rateLimitedUntil: FAKE_NOW_MS + 3600000,
     });
-    expect(urls).toEqual([MUSE_KEY_ENDPOINT]);
+    expect(getOAuthToken).not.toHaveBeenCalled();
   });
 
-  it("retains optional-source cooldown when CLI returns only account details", async () => {
-    const result = await collectMuse(
-      host({
-        [MUSE_KEY_ENDPOINT]: json({ subs_tier_name: "Everyday", user_email: "ada@example.com" }),
-        [QUOTA]: { status: 429, headers: { "retry-after": "3600" } },
-        [SPEND]: { status: 429 },
-      }),
-    );
-    expect(result).toMatchObject({
-      status: "ok",
-      windows: [],
-      rateLimitedUntil: FAKE_NOW_MS + 3600000,
-    });
-  });
+  it.each([undefined, "", "   "])(
+    "uses CLI quota and identity only when the browser cookie is absent or blank: %j",
+    async (cookie) => {
+      const h = createFakeHost({
+        tokens: { muse: { accessToken: "dca:test" } },
+        secrets: { muse: cookie === undefined ? {} : { cookie } },
+        routes: { [MUSE_KEY_ENDPOINT]: json(CLI) },
+      });
+      const getOAuthToken = vi.spyOn(h.credentials, "getOAuthToken");
+      const request = vi.spyOn(h.http, "request");
+      expect(await collectMuse(h)).toMatchObject({
+        status: "ok",
+        windows: [{ usedPercent: 20 }, { usedPercent: 30 }],
+        authenticatedAs: "ada@example.com",
+        plan: "Everyday",
+      });
+      expect(getOAuthToken).toHaveBeenCalledWith("muse");
+      expect(request.mock.calls.map(([req]) => req.url)).toEqual([MUSE_KEY_ENDPOINT]);
+    },
+  );
 
-  it("honors the longest cooldown across quota, spend and identity endpoints", async () => {
-    const result = await collectMuse(
-      host({
-        [QUOTA]: { status: 429, headers: { "retry-after": "3600" } },
-        [ACCOUNT]: { status: 429, headers: { "retry-after": "300" } },
-      }),
-    );
-    expect(result).toMatchObject({
-      status: "ok",
-      windows: [{ usedPercent: 20 }, { usedPercent: 30 }],
-      rateLimitedUntil: FAKE_NOW_MS + 3600000,
-    });
-    expect(result.cost).toBeUndefined();
-  });
-
-  it("works without a browser session or a running CLI", async () => {
+  it("preserves CLI rate limiting when there is no browser session", async () => {
     const h = createFakeHost({
       tokens: { muse: { accessToken: "dca:test" } },
-      routes: { [MUSE_KEY_ENDPOINT]: json(CLI) },
+      routes: { [MUSE_KEY_ENDPOINT]: { status: 429, headers: { "retry-after": "3600" } } },
     });
     expect(await collectMuse(h)).toMatchObject({
-      status: "ok",
-      windows: [{ usedPercent: 20 }, { usedPercent: 30 }],
+      status: "rate-limited",
+      rateLimitedUntil: FAKE_NOW_MS + 3600000,
     });
   });
 
-  it("rejects malformed success bodies and inference keys", async () => {
+  it("rejects malformed success bodies and inference keys without a browser session", async () => {
     for (const body of [null, [], {}, "account"]) {
       expect(
         (
