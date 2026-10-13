@@ -275,6 +275,7 @@ describe("ChatPane", () => {
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
       runtimeCompletedTurnsByThread: {},
+      runtimeHydrationStatus: {},
       fileCheckpointsByThread: {},
       fileCheckpointTurnsByThread: {},
       provisioningWorktreeThreadIds: {},
@@ -350,6 +351,50 @@ describe("ChatPane", () => {
     expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
+
+  it("shows the working timer instead of connecting while a live turn's history is still loading", async () => {
+    const thread = {
+      ...makeThread(),
+      status: "working" as const,
+      activeTurnStartedAt: new Date(Date.now() - 5_000).toISOString(),
+    };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeHydrationStatus: { [thread.id]: "pending" },
+    });
+
+    renderChatPane(thread);
+
+    expect(await screen.findByText(/^Working for/)).toBeInTheDocument();
+    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["idle", 75_000],
+    ["idle", 700],
+    ["inactive", 75_000],
+    ["inactive", 700],
+  ] as const)(
+    "keeps connecting while an %s thread's completed history is loading (%i ms turn)",
+    async (status, durationMs) => {
+      const startedAt = "2026-05-01T12:00:00.000Z";
+      const thread = {
+        ...makeThread(),
+        status,
+        lastTurnStartedAt: startedAt,
+        lastTurnEndedAt: new Date(Date.parse(startedAt) + durationMs).toISOString(),
+      };
+      useAppStore.setState({
+        threads: [thread],
+        runtimeHydrationStatus: { [thread.id]: "pending" },
+      });
+
+      renderChatPane(thread);
+
+      expect(await screen.findByText("Connecting…")).toBeInTheDocument();
+      expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
+    },
+  );
 
   it("waits for the initial history layout before paging at the start", async () => {
     const thread = makeThread();
