@@ -1,6 +1,6 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project } from "@/shared/contracts";
+import { threadSchema, type Project, type Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useGitRefresh } from "./useGitRefresh";
@@ -102,6 +102,129 @@ describe("useGitRefresh remote reachability", () => {
       projectId: remoteProject.id,
       projectLocation: remoteProject.location,
     });
+    unmount();
+  });
+});
+
+const localProject: Project = {
+  id: "local-project",
+  name: "Local project",
+  location: { kind: "posix", path: "/local" },
+  createdAt: "2026-08-10T00:00:00.000Z",
+};
+
+function makeThread(overrides: Partial<Thread> = {}): Thread {
+  return threadSchema.parse({
+    id: "thread-1",
+    projectId: localProject.id,
+    title: "Thread",
+    agentKind: "acp-generic:fixture",
+    config: { model: "fixture" },
+    status: "working",
+    attention: "working",
+    canResumeWithConfig: true,
+    presentationMode: "gui",
+    worktreePath: "/local/.poracode/worktrees/one",
+    worktreeBranch: "poracode/one",
+    createdAt: "2026-10-07T00:00:00Z",
+    updatedAt: "2026-10-07T00:00:00Z",
+    ...overrides,
+  });
+}
+
+describe("useGitRefresh branch PR prefetch triggers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    bridgeMock.gitWatchProject.mockResolvedValue(undefined);
+    bridgeMock.gitUnwatchProject.mockResolvedValue(undefined);
+    bridgeMock.onSupervisorEvent.mockReturnValue(vi.fn());
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useAppStore.setState({ projects: [localProject], threads: [makeThread()] });
+  });
+
+  function renderAndClearInitialPrefetch() {
+    const hook = renderHook(() => useGitRefresh(true));
+    expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledWith(localProject);
+    gitRefreshMocks.prefetchBranchPrData.mockClear();
+    return hook;
+  }
+
+  it("does not re-prefetch for streamed thread updates that leave PR inputs unchanged", () => {
+    const { unmount } = renderAndClearInitialPrefetch();
+
+    act(() => {
+      useAppStore.setState({
+        threads: [makeThread({ title: "Renamed", updatedAt: "2026-10-07T00:00:05Z" })],
+      });
+    });
+    act(() => {
+      useAppStore.setState({ threads: [makeThread({ attention: "needs_approval" })] });
+    });
+
+    expect(gitRefreshMocks.prefetchBranchPrData).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it("re-prefetches when a worktree branch appears or a thread finishes its turn", () => {
+    const { unmount } = renderAndClearInitialPrefetch();
+
+    act(() => {
+      useAppStore.setState({
+        threads: [
+          makeThread(),
+          makeThread({
+            id: "thread-2",
+            worktreePath: "/local/.poracode/worktrees/two",
+            worktreeBranch: "poracode/two",
+          }),
+        ],
+      });
+    });
+    expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      useAppStore.setState({
+        threads: [
+          makeThread({ status: "inactive", attention: "none" }),
+          makeThread({
+            id: "thread-2",
+            worktreePath: "/local/.poracode/worktrees/two",
+            worktreeBranch: "poracode/two",
+          }),
+        ],
+      });
+    });
+    expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it("re-prefetches only the project whose thread changed", () => {
+    const otherProject: Project = {
+      ...localProject,
+      id: "other-project",
+      location: { kind: "posix", path: "/other" },
+    };
+    const otherThread = makeThread({
+      id: "thread-other",
+      projectId: otherProject.id,
+      worktreePath: "/other/.poracode/worktrees/one",
+    });
+    useAppStore.setState({
+      projects: [localProject, otherProject],
+      threads: [makeThread(), otherThread],
+    });
+    const { unmount } = renderHook(() => useGitRefresh(true));
+    expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledTimes(2);
+    gitRefreshMocks.prefetchBranchPrData.mockClear();
+
+    act(() => {
+      useAppStore.setState({
+        threads: [makeThread(), { ...otherThread, status: "inactive", attention: "none" }],
+      });
+    });
+
+    expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledTimes(1);
+    expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledWith(otherProject);
     unmount();
   });
 });

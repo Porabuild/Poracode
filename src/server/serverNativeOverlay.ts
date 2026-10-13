@@ -2,7 +2,7 @@
  * Typed reader for the single native-overlay implementation. The install
  * logic lives in `scripts/server-native-overlay.mjs` and is shipped inside the
  * server tarball, so the TypeScript side re-exports rather than maintaining a
- * second copy (docs/.agents/docs/versioning.md).
+ * second copy (.agents/docs/versioning.md).
  */
 export {
   applyServerNativeOverlay,

@@ -469,6 +469,29 @@
   animation-delay: 0s;
 }
 
+/* Pause the ring's decorative infinite movers while the window is hidden or
+   unfocused (attributes toggled by uiAnimationActivity.ts). Neither runs on the
+   compositor — the glow animates box-shadow and the spins animate a registered
+   custom property inside a conic-gradient — so a visible-but-unfocused welcome,
+   discovery, or pairing screen otherwise re-styles and repaints every frame
+   (~12% renderer + ~25% GPU process measured on an idle welcome screen). They
+   resume from the same frame on focus. The intro ring lists the one-shot reveal
+   first, so it keeps running; the steady ring has only the glow and must come
+   after this rule. */
+html[data-app-hidden] .poracode-welcome-ring,
+html[data-app-unfocused] .poracode-welcome-ring {
+  animation-play-state: running, paused;
+}
+
+html[data-app-hidden] .poracode-welcome-ring-steady,
+html[data-app-unfocused] .poracode-welcome-ring-steady,
+html[data-app-hidden] .poracode-welcome-ring::before,
+html[data-app-unfocused] .poracode-welcome-ring::before,
+html[data-app-hidden] .poracode-welcome-ring::after,
+html[data-app-unfocused] .poracode-welcome-ring::after {
+  animation-play-state: paused;
+}
+
 .poracode-welcome-light {
   background: radial-gradient(
     circle,

@@ -16,7 +16,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outputDir = join(repoRoot, "dist", "server-native");
 
 /**
- * Overlay manifest boundary (docs/.agents/docs/versioning.md): formatVersion 2
+ * Overlay manifest boundary (.agents/docs/versioning.md): formatVersion 2
  * carries one staged prebuild per TARGET so one tarball can serve several
  * machine shapes (V6 D.2: Linux x64 and arm64). Readers
  * (`serverNativeOverlay.ts`, `install-server-prefix.mjs`) still accept
@@ -168,7 +168,7 @@ export function stageBetterSqlite3({
     });
     console.log(`[poracode-server] staged better-sqlite3 ${target}.node`);
   }
-  // Overlay manifest boundary (docs/.agents/docs/versioning.md): the wrapper
+  // Overlay manifest boundary (.agents/docs/versioning.md): the wrapper
   // version is recorded so an install can refuse bindings staged for another
   // better-sqlite3 version. Older tarballs without this file still apply.
   const modulePackagePath = join(moduleRoot, "package.json");

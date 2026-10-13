@@ -21,6 +21,10 @@ const DISABLED_INTEGRATIONS = new Set([
 type MainSentryModule = typeof import("@sentry/electron/main");
 
 let mainSentry: MainSentryModule | null | undefined;
+// Set only after `Sentry.init` runs. The SDK (plus its OpenTelemetry and
+// require-in-the-middle graph) costs ~100ms of synchronous main-thread work to
+// load, so capture paths must not pull it in just to learn it is disabled.
+let mainSentryInitialized = false;
 
 export type MainSentryOptions = {
   appVersion: string;
@@ -121,6 +125,8 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     },
   });
 
+  mainSentryInitialized = true;
+
   Sentry.setContext("poracode", {
     appVersion: options.appVersion,
     channel: options.channel,
@@ -136,6 +142,7 @@ export function captureMainException(
   tags?: PoracodeDiagnosticTags,
   fingerprint?: string[],
 ): void {
+  if (!mainSentryInitialized) return;
   const Sentry = loadMainSentry();
   if (!Sentry) return;
   if (!Sentry.isEnabled()) return;

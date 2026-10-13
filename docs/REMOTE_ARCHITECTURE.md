@@ -339,7 +339,7 @@ Production app/universal links require matching association documents at
 generated JSON files are necessary but are not proof that the production origin
 is configured correctly.
 
-## mDNS discovery (V5 plan item P4)
+## mDNS discovery
 
 When the remote access listener runs with TLS material configured in a `lan`
 or `tailnet` bind, the host advertises one DNS-SD service record set,
@@ -361,7 +361,7 @@ governed by `shouldAdvertiseMdns`, the single advertise decision:
   break serving.
 
 The TXT record carries `id=<desktopId>` and `fp=sha256:<hex>` — the same leaf
-certificate fingerprint the pairing QR carries (Gate 6 item 4.2) — so a
+certificate fingerprint the pairing QR carries (`SECURITY.md` row 4.2) — so a
 discoverer can pin the exact server on first connect. **Discovery only ever
 finds an endpoint; it never replaces the pairing credential.** The native
 discovery surfaces (Android `NsdManager` behind the Other-ways sheet on the

@@ -4,7 +4,11 @@ import { parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
-import { buildActiveProjectsKey } from "@/renderer/state/projectKeys";
+import {
+  buildActiveProjectsKey,
+  buildBranchPrPrefetchThreadKeys,
+  diffProjectKeys,
+} from "@/renderer/state/projectKeys";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -153,13 +157,14 @@ export function useGitRefresh(storeHydrated: boolean) {
       syncPendingPrRefreshProjects(activeProjects);
     }
 
-    function prefetchVisibleBranchPrData() {
+    function prefetchVisibleBranchPrData(onlyProjectIds?: ReadonlySet<string>) {
       if (!isActive) return;
       // One bulk PR query keeps sidebar rows current when a thread becomes
       // visible (for example after "See more") without spawning one `gh pr
       // view` process per worktree. Do not put this on the view-change path:
       // plain thread switches must not spawn Git work while the panel is hidden.
       for (const project of activeProjects) {
+        if (onlyProjectIds && !onlyProjectIds.has(project.id)) continue;
         if (
           project.remoteServerId &&
           isRemoteProjectStatusUnreachable(
@@ -211,11 +216,20 @@ export function useGitRefresh(storeHydrated: boolean) {
       (state) => [state.threads, state.view, state.projects],
       syncActiveWorktrees,
     );
-    const unsubBranchPrPrefetchApp = subscribeToFieldChanges(
-      useAppStore.subscribe,
-      (state) => [state.threads, state.projects],
-      prefetchVisibleBranchPrData,
-    );
+    const unsubBranchPrPrefetchApp = useAppStore.subscribe((state, prev) => {
+      if (state.projects !== prev.projects) {
+        prefetchVisibleBranchPrData();
+        return;
+      }
+      if (state.threads === prev.threads) return;
+      // Only projects whose PR-relevant thread fields changed: a turn ending in
+      // one project must not spawn `gh pr list` for every other project.
+      const changedProjectIds = diffProjectKeys(
+        buildBranchPrPrefetchThreadKeys(prev.threads),
+        buildBranchPrPrefetchThreadKeys(state.threads),
+      );
+      if (changedProjectIds.size > 0) prefetchVisibleBranchPrData(changedProjectIds);
+    });
     const unsubActiveWorktreeExperiments = subscribeToFieldChanges(
       useExperimentStore.subscribe,
       (state) => [state.experiments],

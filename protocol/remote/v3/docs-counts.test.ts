@@ -16,7 +16,7 @@ interface InventoryFile {
   };
 }
 
-describe("contract counts in docs (V6 F.3)", () => {
+describe("contract counts in docs", () => {
   const inventory = JSON.parse(
     readFileSync(join(repoRoot, "protocol/remote/v3/generated/inventory.json"), "utf8"),
   ) as InventoryFile;
@@ -48,9 +48,5 @@ describe("contract counts in docs (V6 F.3)", () => {
     expect(mobile).toContain(
       `all ${String(routes)} routes, ${String(procedures)} procedures, and ${String(wsTotal)} WebSocket`,
     );
-
-    // V4/V5 plans are dated execution histories. Their quoted counts describe
-    // those revisions and must not be rewritten whenever today's registry grows.
-    // Only the live architecture/release docs above track the current inventory.
   });
 });

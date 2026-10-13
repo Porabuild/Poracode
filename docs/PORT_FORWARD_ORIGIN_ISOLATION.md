@@ -1,10 +1,21 @@
 # Port-forward origin isolation
 
-Status: required for v2 production readiness; design review and implementation
-remain active. The current proxy is not isolated. This document is not an
-acceptance exception or a claim that the runtime is fixed.
+Status: implemented. Browser forwards are served on per-forward HTTPS child
+origins derived from the host's persistent origin secret and server id, with a
+`__Host-poracode-forward` session bound to both the forward and its exact child
+origin. Child origins require a configured wildcard HTTPS base
+(`PORACODE_REMOTE_FORWARD_BASE_URL` on the host,
+`PORACODE_RELAY_FORWARD_BASE_URL` on the relay); without one, browser-origin
+forwarding is disabled and raw TCP forwards keep working. The legacy shared
+`lc_forward` and `lc_relay` cookies are only stripped, never minted.
 
-## Confirmed failures
+Code: `src/host/remote/portForward/forwardOrigin*.ts`,
+`src/host/remote/server/forwardOriginDispatch.ts`,
+`src/server/relay/relayForwardOrigins.test.ts`, and the end-to-end two-host
+probe `src/server/relay/forwardOriginTwoHostProbe.test.ts`. The rest of this
+document records the original failures and the rationale behind the design.
+
+## Original failures
 
 Real iOS Safari opened two synthetic applications through one production host.
 After entering B, the still-open Page A sent HTTP requests to B while its
@@ -17,9 +28,6 @@ served PWA can occupy that origin too. The browser token vault's encryption does
 not create an isolation boundary between scripts on the same origin. The live
 probe used only a synthetic canary; it did not inspect credentials.
 
-Evidence: `tmp/v2-production-review/port-isolation/REPORT.md` and
-`tmp/v2-production-review/safari-composer/port-origin-isolation.md`.
-
 Server integration tests also reproduced forwarding after revocation. The
 active HTTP and WebSocket cases now pass with forward lifetime cancellation.
 A further test stops a forward, replaces its upstream listener, then opens a
@@ -27,9 +35,7 @@ new forward to the same port: the shared idle HTTP connection reached the old
 draining service. A private pool owned by each forward fixes that reproduction;
 all five server integration cases pass with the final idle-retention options.
 The combined six server suites pass all 174 tests; touched lint and formatting
-checks pass. This fixes revocation, not browser-origin isolation. See
-`tmp/v2-production-review/port-isolation/idle-reuse-before.log` and
-`tmp/v2-production-review/port-isolation/revocation-final-options.log`.
+checks pass. This fixed revocation, not browser-origin isolation.
 
 ## Required invariants
 
@@ -52,7 +58,7 @@ checks pass. This fixes revocation, not browser-origin isolation. See
    deployments. Missing DNS/TLS/proxy configuration must be explicit; the
    implementation must not silently fall back to shared-origin content.
 
-## Design under review
+## Design
 
 Use forward-specific origins bound to an authenticated host and forward.
 HTTPS/relay deployments likely need a configured isolated wildcard domain and
@@ -91,29 +97,22 @@ approach is accepted as full remediation.
 - Deployment validation for actual wildcard DNS/TLS and proxy behavior; local
   Host-header tests alone are not evidence that production routing is ready.
 
-Independent GLM 5.3 Flash High host and relay reviews are complete. Coordinator
-validation is recorded in
-`tmp/v2-production-review/port-isolation/coordinator-design-decisions.md`.
-Implementation and deployment verification remain open.
+The two-host probe covers the first item in Node with a per-origin cookie jar.
+The storage and service-worker isolation probes, web/iOS/Android checks against
+older hosts, and validation against a real wildcard DNS/TLS deployment remain
+open and are tracked in `docs/BACKLOG.md`.
 
-## Relay compatibility during implementation
-
-The relay framing version is now 2. Host and relay must be upgraded together;
-version 1 registration is rejected. The remote application wire protocol remains
-version 9 at this stage, and its generated contract drift check still passes.
+## Relay routing
 
 Relay requests carry an explicit forward UUID and external origin derived from
 the registered hostname owner. The adapter validates that context before adding
 its private local-dispatch headers. Those headers must never reach an upstream
 application. The shared `lc_relay` routing cookie and `bindVisitor` response flag
-have been removed; normal API requests require their `/s/<host>` prefix.
+were removed; normal API requests require their `/s/<host>` prefix. Host and
+relay framing are versioned together at `PORACODE_RELAY_PROTOCOL_VERSION` in
+`src/shared/remote/relayProtocol.ts`.
 
-Focused framing, adapter and routing tests pass. The five real-host relay entry
-scenarios are being migrated to the new exchange flow, and production composition
-still needs to select the registered relay origin correctly. These intermediate
-checks do not establish complete browser isolation or deployment readiness.
-
-## Coordinator validation of the relay review
+## Relay review findings
 
 The relay review confirms the routing and storage failures and the need for
 forward-specific hostnames. Its suggested legacy switching confirmation page
