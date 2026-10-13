@@ -145,6 +145,19 @@ void test("launch adds an explicit loopback main inspector only when requested",
     const userDataDir = join(appRoot, "profile");
     const plain = smokeElectronLaunch({ appRoot }, userDataDir, { PATH: process.env.PATH });
     assert.deepEqual(plain.args, [`--user-data-dir=${userDataDir}`, appRoot]);
+    assert.equal(plain.options.env.PORACODE_CDP_USER_DATA_DIR, userDataDir);
+    const hostRoot = join(appRoot, "data");
+    for (const unsafe of [hostRoot, join(hostRoot, "userData")]) {
+      assert.throws(
+        () => smokeElectronLaunch({ appRoot }, unsafe, { PORACODE_BASE_DIR: hostRoot }),
+        /userData must be outside the host data root/,
+      );
+    }
+    const separate = smokeElectronLaunch({ appRoot }, userDataDir, {
+      PORACODE_BASE_DIR: hostRoot,
+      PORACODE_CDP_USER_DATA_DIR: join(hostRoot, "userData"),
+    });
+    assert.equal(separate.options.env.PORACODE_CDP_USER_DATA_DIR, userDataDir);
     const inspected = smokeElectronLaunch({ appRoot }, userDataDir, {
       PATH: process.env.PATH,
       PORACODE_SMOKE_MAIN_INSPECT_PORT: "54123",
@@ -221,7 +234,10 @@ void test(
         NODE_OPTIONS: "--require=/outside/hook.cjs",
       });
       assert.equal(launch.command.startsWith(`${await realpath(appRoot)}/`), true);
-      assert.deepEqual(launch.options.env, { PATH: process.env.PATH });
+      assert.deepEqual(launch.options.env, {
+        PATH: process.env.PATH,
+        PORACODE_CDP_USER_DATA_DIR: join(temporary, "profile"),
+      });
       await assert.rejects(readFile(join(electronRoot, "path.txt")), { code: "ENOENT" });
       assert.equal(
         JSON.parse(
