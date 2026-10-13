@@ -623,6 +623,12 @@ export const remoteThreadSnapshotSchema = z.object({
   historyProjection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
   snapshotSeq: z.number().int().nonnegative(),
   thread: threadSchema,
+  /**
+   * Status/attention/timing include the current owner's live runtime level,
+   * rather than a possibly delayed durable row. Additive within remote-v3:
+   * old readers ignore this flag; old hosts omit it and require other proof.
+   */
+  runtimeStateCurrent: z.boolean().optional(),
   runtimeItems: z.array(historyRuntimeItemSchema),
   /** Cursor for older runtime items when the server returned a tail page. */
   runtimeNextCursor: z.number().int().nonnegative().nullable().optional(),

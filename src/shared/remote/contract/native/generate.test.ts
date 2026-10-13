@@ -70,7 +70,8 @@ describe("remote v3 native binding generator", () => {
         // Optional context-reload facts also add one generated Swift chunk.
         // The optional file-search entry filter adds one structural enum while
         // preserving existing requests and all wire versions.
-        sourceHash: "sha256:2c2074b2b0068bae421686a6b95d224aa937631b924ab979b4aefbee4d26e15d",
+        // Optional current runtime-state evidence updates both snapshot shapes.
+        sourceHash: "sha256:127b7659c1261b6f123c02e0812c1d2c13e81847180fc2b29c2c7f2747e747de",
         manifestHash: "sha256:2705e8a5e2e7c27c9e8496676b1bc0a4e7174f1b04dc74f6e5cad7d1b49559f4",
         counts: {
           routes: 97,

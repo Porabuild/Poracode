@@ -20,6 +20,7 @@ import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import type { RemoteServerContext } from "./context";
 import { SessionConfigInventory } from "./sessionConfigInventory";
+import { ThreadLiveReadState } from "./threadLiveReadState";
 import { handleCatalogMembership } from "./catalogMembership";
 import {
   buildCatalogProjectListPage,
@@ -121,6 +122,7 @@ function context(overrides: { readonly withGitState?: boolean } = {}): RemoteSer
     },
     seq: 42,
     sessionConfigInventory: new SessionConfigInventory(),
+    threadLiveReadState: new ThreadLiveReadState(),
   } as unknown as RemoteServerContext;
 }
 

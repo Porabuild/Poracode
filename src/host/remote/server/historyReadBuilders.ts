@@ -211,7 +211,9 @@ export async function buildBoundedThreadSnapshot(
         withStableUpdatedAt(`thread:${threadId}`, {
           snapshotSeq,
           runtimeResumeCursor,
-          thread: ctx.sessionConfigInventory.enrichThreadRow(thread),
+          ...ctx.threadLiveReadState.projectSnapshotRuntime(
+            ctx.sessionConfigInventory.enrichThreadRow(thread),
+          ),
           reads: CATALOG_READS_CAPABILITY,
           ...(negotiation.compactDetails ? { historyProjection: HISTORY_DETAILS_PROJECTION } : {}),
           runtimeItems: projectedGoal

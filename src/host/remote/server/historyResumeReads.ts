@@ -112,7 +112,9 @@ async function readThreadHistoryResume(call: HttpRouteCall): Promise<string> {
           snapshotSeq,
           runtimeResumeCursor: replay.cursor,
           batches: replay.batches,
-          thread: ctx.sessionConfigInventory.enrichThreadRow(thread),
+          ...ctx.threadLiveReadState.projectSnapshotRuntime(
+            ctx.sessionConfigInventory.enrichThreadRow(thread),
+          ),
           completedTurns: turns
             .reverse()
             .map(({ startedAt, endedAt, anchorItemId }) => ({ startedAt, endedAt, anchorItemId })),

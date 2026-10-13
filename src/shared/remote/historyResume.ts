@@ -21,6 +21,7 @@ export const historyResumeResponseSchema = z.discriminatedUnion("kind", [
     .pick({
       snapshotSeq: true,
       thread: true,
+      runtimeStateCurrent: true,
       completedTurns: true,
       completedTurnsNextCursor: true,
       contextUsage: true,

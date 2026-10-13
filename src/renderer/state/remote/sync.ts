@@ -19,6 +19,7 @@ import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/th
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryActiveTurnTiming } from "../activeTurnTiming";
+import { carryPendingThreadInput } from "../pendingThreadInput";
 import { projectPendingCatalogEdit } from "../pendingCatalogEdits";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 import { showUserNotification } from "@/renderer/notifications";
@@ -392,7 +393,14 @@ function syncThreadMetadataFromSnapshot(
           thread,
           carryActiveTurnTiming(
             thread,
-            projectBrowserThreadWorkspace(projectPendingCatalogEdit("thread", replacement), thread),
+            carryPendingThreadInput(
+              thread,
+              projectBrowserThreadWorkspace(
+                projectPendingCatalogEdit("thread", replacement),
+                thread,
+              ),
+              snapshot,
+            ),
           ),
         ),
         current.pendingThreadConfigByThreadId[thread.id],

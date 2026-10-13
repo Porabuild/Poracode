@@ -11,6 +11,7 @@ import type { ThreadFollowUpQueueSnapshotGuard } from "./threadFollowUpQueueStor
 import type { RuntimeEvent } from "@/shared/contracts";
 import { mergeBoundedTailTurns } from "./remoteServers/catalog/boundedHistory";
 import { isBulkRuntimeContentEvent } from "@/shared/liveEventInterests";
+import { notePendingThreadInputCanonicalEvents } from "./pendingThreadInput";
 
 /** Replays only unapplied frames, retaining expanded older history and live controls. */
 export function installHistoryResume(input: {
@@ -33,6 +34,7 @@ export function installHistoryResume(input: {
     return false;
   const appliedBefore = captured.appliedSeq;
   for (const batch of response.batches) {
+    notePendingThreadInputCanonicalEvents(threadId, batch.events);
     if (batch.seq <= appliedBefore) continue;
     const unapplied =
       batch.seq > captured.controlSeq

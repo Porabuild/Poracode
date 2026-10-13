@@ -22,6 +22,7 @@ import { reorderIds, type ReorderPlacement } from "../reorder";
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
+import { confirmPendingThreadInput } from "../pendingThreadInput";
 import { removePaneFromView } from "./helpers";
 import type { SliceCreator } from "./shared";
 
@@ -189,6 +190,7 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
         useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
         forgetTimelineMeasurements(threadId);
         forgetThreadGalleryCache(threadId);
+        confirmPendingThreadInput(threadId);
       }
 
       composerDraftStorage()?.remove("project", projectId);
