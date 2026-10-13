@@ -178,8 +178,10 @@ can still be used in either IDE when an isolated component canvas is preferable.
 
 The apps connect to the same production remote server used by desktop clients.
 Use a fresh disposable profile namespace for development. The server reports and
-writes its `.host-v1` sibling; it refuses an existing legacy profile until the V4
-activation/recovery path is available. See [Host ownership](HOST_OWNERSHIP.md).
+writes its `.host-v1` sibling; it refuses to adopt an existing legacy profile
+implicitly (legacy data moves only through the desktop's automatic promotion or
+an explicit staged import plus `poracode-server activate`). See
+[Host ownership](HOST_OWNERSHIP.md).
 
 ```bash
 pnpm install --frozen-lockfile

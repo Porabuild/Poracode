@@ -19,9 +19,8 @@ import { RemoteAccessServer, type RemoteAccessServerInfo } from "./RemoteAccessS
 import type { RemoteBroadcastEvent } from "./server/context";
 
 /**
- * Deterministic, in-process measurement infrastructure for the §0.6
- * event-amplification qualification suite
- * (docs/V2_SERVER_ARCHITECTURE_PRODUCTION_PLAN.md). Two runners:
+ * Deterministic, in-process measurement infrastructure for the
+ * event-amplification qualification suite. Two runners:
  *
  * - {@link runFanOutCell} stands up a real `RemoteAccessServer` with N real WS
  *   clients, each interested in one visible thread, while H hidden threads

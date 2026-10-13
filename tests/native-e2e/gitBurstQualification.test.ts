@@ -78,9 +78,9 @@ import {
 } from "./helpers/experimentArtifacts.ts";
 
 /**
- * §4 Git-burst qualification cell (docs/V2_SERVER_ARCHITECTURE_PRODUCTION_PLAN.md
- * §4 "Git burst" + B7 acceptance) against ONE prebuilt production
- * `dist/main/server.cjs` headless host.
+ * Git-burst qualification cell (Git burst capacity cell + B7 Git-process
+ * admission acceptance) against ONE prebuilt production `dist/main/server.cjs`
+ * headless host.
  *
  * The cell refreshes 1/16/64 DISTINCT real worktrees (created through the
  * production `gitAddWorktree` procedure) across 1/4/8 authenticated clients

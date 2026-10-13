@@ -1,7 +1,7 @@
 # Relay HTTP streaming (protocol v3, additive)
 
-Status: implemented 2026-09-12 (M2 order 3). Landed in the relay lane of the
-V3 iteration; tests in `src/server/relay/relayHttpStreaming.test.ts`.
+Status: implemented 2026-09-12. Tests in
+`src/server/relay/relayHttpStreaming.test.ts`.
 
 ## Why
 

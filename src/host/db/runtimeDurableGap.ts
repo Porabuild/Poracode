@@ -11,7 +11,7 @@ import {
  * B1 durable canonical-gap evidence: the only reader/writer of the three
  * `runtime_persistence_*` / `thread_runtime_*` evidence tables.
  *
- * Contract (see `.agents/docs/versioning.md` and the B1 ratification):
+ * Contract (see `docs/versioning-history.md`, B1 ratification):
  * - `arm()` commits the boot's root epoch with `armed = 1` before any canonical
  *   event can be admitted; `touch(T)` commits one row per thread per boot
  *   before the first accepted event of that thread in that boot.

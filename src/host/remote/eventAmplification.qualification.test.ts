@@ -10,8 +10,7 @@ import {
 } from "./eventAmplificationHarness";
 
 /**
- * §0.6 / §4 event-amplification qualification
- * (docs/V2_SERVER_ARCHITECTURE_PRODUCTION_PLAN.md).
+ * Event-amplification qualification.
  *
  * Measures, on a real RemoteAccessServer with real WS clients and the real
  * RuntimeWriteQueue → SQLite persistence path:

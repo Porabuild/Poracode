@@ -47,7 +47,7 @@ import type { PoracodeChannel } from "./channel";
 // content.delta.replace. Version 7 moved durable settings/routing ownership and
 // acknowledgements out of Electron main.
 // Versions 8-12 remain RESERVED for the V4 activations recorded in
-// .agents/docs/versioning.md (owner bootstrap, settings authority, superseded two-parent
+// docs/versioning-history.md (owner bootstrap, settings authority, superseded two-parent
 // combination, private usage-secret service) — this milestone deliberately does not
 // consume them.
 // Version 13 is the per-window delivery-ownership boundary (V4 F7 correction). It is an

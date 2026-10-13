@@ -15,7 +15,7 @@ import { CLIENT_HOST_HOP_VERSION } from "./clientHostHop";
 // rebuild after the backend host shed queued IPC copies under backpressure.
 // Version 8 added native quick-composer show events and a checked preload
 // version. Version 9 stays RESERVED for the settings-authority activation
-// (see .agents/docs/versioning.md); this milestone deliberately skips it.
+// (see docs/versioning-history.md); this milestone deliberately skips it.
 // Version 10 is the per-window delivery-ownership boundary (V4 F7
 // correction): the facade now requires the generation-fenced recovery-barrier
 // listener and the per-window ownership grant. An older preload cannot honor

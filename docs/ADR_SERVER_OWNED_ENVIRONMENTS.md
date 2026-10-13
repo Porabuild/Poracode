@@ -1,10 +1,8 @@
 # ADR: Server-Owned Execution Environments (C1)
 
-Status: decision record for implementation. This change adds no code and claims no verified behavior.
+Status: Accepted, implemented (host side in `src/host/environments/` and `src/host/remote/environments/`).
 Audited revision: `36e1649f017aeccebc202bb9d5c9c6ab0f797709` (`poracode/v2`).
-Sources: [production plan](V2_SERVER_ARCHITECTURE_PRODUCTION_PLAN.md) §3.3, §5 C1, §7 stage 4; `tmp/v2-production/research-environments.md`.
-Companion: `tmp/v2-production/c1-authorization-design.md` (client seam evidence, header/ticket matrix, refresh/revocation flows, skew analysis).
-Plan acceptance unchanged: §5 C1 and §8 gates stand; this ADR only makes the decisions implementable.
+Citations of "the plan" refer to `docs/V2_SERVER_ARCHITECTURE_PRODUCTION_PLAN.md` and "companion design note" to a local design note; both are in git history only.
 
 Decisions at a glance: (1) three concepts stay distinct; (2) `environmentId` is host-minted with CAS revisions; (3) credentials stay host-local and client tokens stay in the vault; (4) the parent proxy is the only default path, with the child bearer in `Authorization` and a separate parent header, and two WS tickets; (5) existing protocol-v12 scopes are reused, never appended; (6) the descriptor capability is emitted only when every route is usable; (7) upgrades are explicit and stop-then-start; (8) legacy migration is explicit and never uploads keys.
 
@@ -143,7 +141,7 @@ No lane edits `SshConnectionManager` internals (C3), ingress admission budgets (
 - `pnpm run typecheck && pnpm run lint`
 - `pnpm exec vitest run src/backend/environments src/host/remote/environments protocol/remote/v3/native-parity.test.ts src/renderer/state/remoteServers` (environment suites inside each root)
 - `pnpm i18n:extract` → 0 missing for every locale, plus the native test targets for environment screens.
-- Real gates, not unit proof: G-ENV-1 cross-client/close-one/restart-identity/permission/nested-host; real-sshd environment lifecycle and stop-then-start upgrade; hostkey pin matrix; old/new skew pairs. Plan §5 C1 acceptance and §8 gates are unchanged.
+- Real gates, not unit proof: G-ENV-1 cross-client/close-one/restart-identity/permission/nested-host; real-sshd environment lifecycle and stop-then-start upgrade; hostkey pin matrix; old/new skew pairs.
 
 ## 13. Consequences
 
