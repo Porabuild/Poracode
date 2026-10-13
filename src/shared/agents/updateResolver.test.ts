@@ -223,12 +223,12 @@ describe("resolveSharedUpdateCommand", () => {
   });
 
   it.each([
-    "/home/user/.bun/bin/gemini",
-    "/home/user/.bun/install/global/node_modules/@google/gemini-cli/dist/index.js",
+    "/home/user/.bun/bin/test-agent",
+    "/home/user/.bun/install/global/node_modules/test-agent/dist/index.js",
   ])("keeps the Bun installation lane for launcher and canonical paths: %s", (executablePath) => {
     expect(
       resolveSharedUpdateCommand({
-        update: geminiUpdate,
+        update: { npm: "test-agent" },
         executablePath,
         envKind: "posix",
         installedPackageManagerOnly: true,
