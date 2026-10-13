@@ -7,6 +7,7 @@ import {
   type AgentStatus,
 } from "@/shared/contracts";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
+import { localizeCatalogMessage } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { getCombinedRuntimeUpdates } from "@/renderer/components/providers/providerComposer";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -18,6 +19,15 @@ import {
   scopeEnvForStatus,
   statusUpdateScope,
 } from "@/renderer/utils/acpRegistryAuth";
+import {
+  useProviderUpdateQueue,
+  type ActiveProviderUpdatePhase,
+  type ProviderUpdateAllProgress,
+  type ProviderUpdatePhase,
+  type ProviderUpdateTarget,
+} from "./useProviderUpdateQueue";
+
+export type { ProviderUpdateAllProgress, ProviderUpdatePhase } from "./useProviderUpdateQueue";
 
 export interface ProviderEnvironmentVersion {
   /** Environment name, e.g. `Windows` or `WSL (Ubuntu)`. */
@@ -40,9 +50,6 @@ export interface ProviderUpdateEntry {
   updatePhase: ProviderUpdatePhase | undefined;
 }
 
-export type ProviderUpdatePhase = "queued" | "updating" | "probing";
-type ActiveProviderUpdatePhase = Exclude<ProviderUpdatePhase, "queued">;
-
 export interface ProviderUpdatesModel {
   entryFor: (kind: string) => ProviderUpdateEntry;
   /** Kinds with an available update, in the order they were passed in. */
@@ -51,23 +58,6 @@ export interface ProviderUpdatesModel {
   updateAllProgress: ProviderUpdateAllProgress | undefined;
   updateKind: (kind: string) => void;
   updateAll: () => void;
-}
-
-export interface ProviderUpdateAllProgress {
-  agentLabel: string;
-  targetVersion: string;
-  phase: ActiveProviderUpdatePhase;
-  current: number;
-  total: number;
-}
-
-interface PendingProviderUpdateState {
-  targetVersion: string;
-  phase: ProviderUpdatePhase;
-}
-
-interface PendingProviderUpdate extends PendingProviderUpdateState {
-  kind: string;
 }
 
 const EMPTY_ENTRY: ProviderUpdateEntry = {
@@ -114,13 +104,9 @@ export function useProviderUpdates(
   const [registryLatestById, setRegistryLatestById] = useState<Readonly<Record<string, string>>>(
     {},
   );
-  const [pendingUpdates, setPendingUpdates] = useState<
-    ReadonlyMap<string, PendingProviderUpdateState>
-  >(() => new Map());
-  const [isUpdatingAll, setIsUpdatingAll] = useState(false);
-  const [updateAllProgress, setUpdateAllProgress] = useState<
-    ProviderUpdateAllProgress | undefined
-  >();
+  const queue = useProviderUpdateQueue(runUpdate, (error, { agent }) => {
+    toast.danger(error instanceof Error ? error.message : t`Unable to update ${agent.label}.`);
+  });
 
   const kindsKey = agents.map((agent) => agent.kind).join("\0");
   const kinds = splitKinds(kindsKey);
@@ -231,7 +217,7 @@ export function useProviderUpdates(
   function entryFor(kind: string): ProviderUpdateEntry {
     const statuses = installedStatusesFor(kind);
     if (statuses.length === 0) return EMPTY_ENTRY;
-    const pendingUpdate = pendingUpdates.get(kind);
+    const pendingUpdate = queue.pendingUpdates.get(kind);
     const pendingTargetVersion = pendingUpdate?.targetVersion;
     // A provider whose surfaces ship as independently versioned runtimes has no
     // single binary to compare here — its root version is whichever runtime is
@@ -293,7 +279,7 @@ export function useProviderUpdates(
           ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
         });
         if (!result.ok) {
-          const detail = result.output?.trim();
+          const detail = localizeCatalogMessage(result.output?.trim() ?? "");
           throw new Error(
             detail
               ? t`Unable to update ${agent.label}: ${detail.slice(0, 240)}`
@@ -313,129 +299,44 @@ export function useProviderUpdates(
   }
 
   async function runUpdate(
-    agent: AgentStatus,
+    target: ProviderUpdateTarget,
     onPhaseChange: (phase: ActiveProviderUpdatePhase) => void,
   ): Promise<void> {
-    const entry = entryFor(agent.kind);
-    if (!entry.targetVersion) return;
+    const { agent } = target;
     const registryId = extractAcpGenericInstanceId(agent.kind);
-    try {
-      if (registryId === undefined) {
-        await runBinaryUpdate(agent, onPhaseChange);
-      } else {
-        onPhaseChange("updating");
-        const result = await readBridge().updateAcpRegistryAgent({ agentId: registryId });
-        syncInstalledAgents(result.installed);
-        onPhaseChange("probing");
-        await readBridge().refreshAgentStatuses(currentWslDistros(), { agentKinds: [agent.kind] });
-      }
-      toast.success(t`${agent.label} updated to v${entry.targetVersion}.`);
-    } catch (error) {
-      toast.danger(error instanceof Error ? error.message : t`Unable to update ${agent.label}.`);
+    if (registryId === undefined) {
+      await runBinaryUpdate(agent, onPhaseChange);
+    } else {
+      onPhaseChange("updating");
+      const result = await readBridge().updateAcpRegistryAgent({ agentId: registryId });
+      syncInstalledAgents(result.installed, [registryId]);
+      onPhaseChange("probing");
+      await readBridge().refreshAgentStatuses(currentWslDistros(), { agentKinds: [agent.kind] });
     }
-  }
-
-  async function withPending(
-    pending: PendingProviderUpdate,
-    run: (onPhaseChange: (phase: ActiveProviderUpdatePhase) => void) => Promise<void>,
-  ): Promise<void> {
-    setPendingUpdates((current) => {
-      const next = new Map(current);
-      next.set(pending.kind, {
-        targetVersion: pending.targetVersion,
-        phase: pending.phase,
-      });
-      return next;
-    });
-    try {
-      await run((phase) => {
-        setPendingUpdates((current) => {
-          const existing = current.get(pending.kind);
-          if (!existing || existing.phase === phase) return current;
-          const next = new Map(current);
-          next.set(pending.kind, { ...existing, phase });
-          return next;
-        });
-      });
-    } finally {
-      setPendingUpdates((current) => {
-        const next = new Map(current);
-        next.delete(pending.kind);
-        return next;
-      });
-    }
+    toast.success(t`${agent.label} updated to v${target.targetVersion}.`);
   }
 
   function updateKind(kind: string): void {
     const agent = agents.find((candidate) => candidate.kind === kind);
     const targetVersion = entryFor(kind).targetVersion;
-    if (!agent || !targetVersion || pendingUpdates.has(kind) || isAgentProfileKind(kind)) return;
-    void withPending({ kind, targetVersion, phase: "updating" }, (onPhaseChange) =>
-      runUpdate(agent, onPhaseChange),
-    );
+    if (!agent || !targetVersion || isAgentProfileKind(kind)) return;
+    queue.updateKind({ agent, targetVersion });
   }
 
   function updateAll(): void {
-    const targets = agents.filter(
-      (agent) => outdatedKinds.includes(agent.kind) && !pendingUpdates.has(agent.kind),
-    );
-    if (targets.length === 0) return;
-    const total = targets.length;
-    setIsUpdatingAll(true);
-    setPendingUpdates((current) => {
-      const next = new Map(current);
-      for (const agent of targets) {
+    queue.updateAll(
+      agents.flatMap((agent) => {
         const targetVersion = entryFor(agent.kind).targetVersion;
-        if (targetVersion) next.set(agent.kind, { targetVersion, phase: "queued" });
-      }
-      return next;
-    });
-    void (async () => {
-      try {
-        let current = 0;
-        // Sequential: concurrent installs contend for the same package
-        // manager prefix (and the same WSL distro) and fail unpredictably.
-        for (const agent of targets) {
-          const targetVersion = entryFor(agent.kind).targetVersion;
-          if (!targetVersion) continue;
-          current += 1;
-          setUpdateAllProgress({
-            agentLabel: agent.label,
-            targetVersion,
-            phase: "updating",
-            current,
-            total,
-          });
-          await withPending({ kind: agent.kind, targetVersion, phase: "updating" }, (setPhase) =>
-            runUpdate(agent, (phase) => {
-              setPhase(phase);
-              setUpdateAllProgress({
-                agentLabel: agent.label,
-                targetVersion,
-                phase,
-                current,
-                total,
-              });
-            }),
-          );
-        }
-      } finally {
-        setPendingUpdates((current) => {
-          const next = new Map(current);
-          for (const agent of targets) next.delete(agent.kind);
-          return next;
-        });
-        setUpdateAllProgress(undefined);
-        setIsUpdatingAll(false);
-      }
-    })();
+        return targetVersion ? [{ agent, targetVersion }] : [];
+      }),
+    );
   }
 
   return {
     entryFor,
     outdatedKinds,
-    isUpdatingAll,
-    updateAllProgress,
+    isUpdatingAll: queue.isUpdatingAll,
+    updateAllProgress: queue.updateAllProgress,
     updateKind,
     updateAll,
   };

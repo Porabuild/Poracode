@@ -48,6 +48,26 @@ const kimiUpdate = {
 };
 
 describe("resolveSharedUpdateCommand", () => {
+  it("resolves a self-updater's installed manager without treating a native install as npm", () => {
+    const update = { builtIn: { binary: "test-agent", args: ["update"] }, npm: "test-agent" };
+    expect(
+      resolveSharedUpdateCommand({
+        update,
+        executablePath: "/usr/local/lib/node_modules/test-agent/bin.js",
+        envKind: "posix",
+        installedPackageManagerOnly: true,
+      })?.strategy,
+    ).toBe("npm-global");
+    expect(
+      resolveSharedUpdateCommand({
+        update,
+        executablePath: "/Users/me/.local/bin/test-agent",
+        envKind: "posix",
+        installedPackageManagerOnly: true,
+      }),
+    ).toBeUndefined();
+  });
+
   it("returns the provider's built-in updater when one is configured", () => {
     expect(
       resolveSharedUpdateCommand({
@@ -200,6 +220,20 @@ describe("resolveSharedUpdateCommand", () => {
       args: ["i", "-g", "@google/gemini-cli@latest"],
       strategy: "bun-global",
     });
+  });
+
+  it.each([
+    "/home/user/.bun/bin/gemini",
+    "/home/user/.bun/install/global/node_modules/@google/gemini-cli/dist/index.js",
+  ])("keeps the Bun installation lane for launcher and canonical paths: %s", (executablePath) => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: geminiUpdate,
+        executablePath,
+        envKind: "posix",
+        installedPackageManagerOnly: true,
+      })?.strategy,
+    ).toBe("bun-global");
   });
 
   it("uses npm-global when the executable lives under a node_modules tree", () => {

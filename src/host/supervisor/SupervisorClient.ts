@@ -1,6 +1,7 @@
 import { fork, type ChildProcess } from "node:child_process";
 import type { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
+import { AGENT_UPDATE_REQUEST_TIMEOUT_MS } from "@/shared/agents/updatePolicy";
 import { constants as osConstants, setPriority } from "node:os";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import { stopSupervisorChild } from "./stopSupervisorChild";
@@ -940,7 +941,8 @@ export class SupervisorClient {
       child,
       type,
       requestPayload,
-      options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+      options.requestTimeoutMs ??
+        (type === "updateAgentBinary" ? AGENT_UPDATE_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS),
     );
   }
 

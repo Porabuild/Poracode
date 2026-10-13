@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { AGENT_UPDATE_REQUEST_TIMEOUT_MS } from "@/shared/agents/updatePolicy";
 import { fork, type ChildProcess } from "node:child_process";
 import { constants as osConstants, setPriority } from "node:os";
 import type { Readable } from "node:stream";
@@ -534,7 +535,7 @@ export class BackendHostClient {
     }
   }
 
-  private request(request: BackendHostRequest): Promise<unknown> {
+  private request(request: BackendHostRequest, timeoutMs = REQUEST_TIMEOUT_MS): Promise<unknown> {
     const sender = this.sender;
     if (!sender) return Promise.reject(new Error("Backend host is not running."));
 
@@ -543,7 +544,7 @@ export class BackendHostClient {
         if (this.pendingRequests.delete(request.id)) {
           reject(new Error(`Backend-host request "${request.operation}" timed out.`));
         }
-      }, REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
       timeout.unref?.();
       const settle = (callback: (value: unknown) => void, value: unknown): void => {
         clearTimeout(timeout);
@@ -637,9 +638,10 @@ export class BackendHostClient {
     return this.withNormalRequest(async () => {
       await this.startedGate;
       await this.waitUntilInitialized();
-      return this.request(createBackendSupervisorRequest(randomUUID(), name, payload)) as Promise<
-        IpcProcedureResult<Name>
-      >;
+      return this.request(
+        createBackendSupervisorRequest(randomUUID(), name, payload),
+        name === "updateAgentBinary" ? AGENT_UPDATE_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS,
+      ) as Promise<IpcProcedureResult<Name>>;
     });
   }
 

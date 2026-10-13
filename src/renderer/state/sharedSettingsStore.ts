@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { reconcileAcpRegistryInstalls } from "./reconcileAcpRegistryInstalls";
 import { isRemoteSession, readBridge } from "../bridge";
 import { hasAnyClientBridge, isStandaloneAttachRuntime } from "../clientRuntime";
 import { msg } from "@lingui/core/macro";
@@ -214,7 +215,10 @@ interface SharedSettingsState extends SharedSettings {
   setNotificationFilter: (value: NotificationFilter) => void;
   setRemotePushEnabled: (value: boolean) => void;
   setRemotePushRedactContent: (value: boolean) => void;
-  syncAcpRegistryInstalledAgents: (installed: InstalledAcpRegistryAgent[]) => void;
+  syncAcpRegistryInstalledAgents: (
+    installed: InstalledAcpRegistryAgent[],
+    agentIds?: readonly string[],
+  ) => void;
   setAgentInstance: (instance: AgentInstanceConfig) => void;
   removeAgentInstance: (instanceId: string) => void;
   setNotificationStatuses: (value: {
@@ -1039,31 +1043,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ remotePushRedactContent });
     persistSettings(selectSharedSettings(get()));
   },
-  syncAcpRegistryInstalledAgents: (installed) => {
+  syncAcpRegistryInstalledAgents: (installed, agentIds) => {
     const current = get().acpRegistryInstalledAgents;
-    const currentKeys = Object.keys(current);
-    if (
-      currentKeys.length === installed.length &&
-      installed.every((record) => {
-        const existing = current[record.id];
-        return (
-          existing !== undefined &&
-          existing.name === record.name &&
-          existing.version === record.version &&
-          existing.icon === record.icon &&
-          existing.installedAt === record.installedAt &&
-          existing.adapterKind === record.adapterKind &&
-          existing.installKind === record.installKind
-        );
-      })
-    ) {
-      return;
-    }
-    set({
-      acpRegistryInstalledAgents: Object.fromEntries(
-        installed.map((record) => [record.id, record]),
-      ),
-    });
+    const next = reconcileAcpRegistryInstalls(current, installed, agentIds);
+    if (next === current) return;
+    set({ acpRegistryInstalledAgents: next });
     cacheSettingsSnapshot(selectSharedSettings(get()));
   },
   setAgentInstance: (instance) => {

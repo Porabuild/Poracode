@@ -12,6 +12,9 @@ import {
 } from "@/shared/agents/updateResolver";
 import type { AgentAdapter, AgentEnvContext, AgentUpdaterCommand } from "./base";
 import { detectProbeLocation, readAgentCommandOutput } from "./base";
+import { AGENT_UPDATE_COMMAND_TIMEOUT_MS } from "@/shared/agents/updatePolicy";
+import { runSerializedAgentUpdate, runSerializedUpdateCommand } from "./updateSerialization";
+import { resolveUpdateInstallPath } from "./updateInstallPath";
 
 /**
  * Resolve the update command for `(adapter, env, status)`.
@@ -73,14 +76,18 @@ function withFallbackFailureOutput(
 export async function runUpdateCommand(
   command: AgentUpdaterCommand,
   envContext: AgentEnvContext,
+  installCommand: AgentUpdaterCommand,
+  waitDeadline: number,
 ): Promise<{ ok: boolean; output: string }> {
-  const location = detectProbeLocation(envContext);
-  const result = await readAgentCommandOutput(location, command.binary, command.args, {
-    timeoutMs: 5 * 60 * 1000,
-  });
+  return runSerializedUpdateCommand(installCommand, envContext, waitDeadline, async () => {
+    const location = detectProbeLocation(envContext);
+    const result = await readAgentCommandOutput(location, command.binary, command.args, {
+      timeoutMs: AGENT_UPDATE_COMMAND_TIMEOUT_MS,
+    });
 
-  const combined = [result.stdout, result.stderr].filter((s) => s.length > 0).join("\n");
-  return { ok: result.ok, output: trimOutput(combined) };
+    const combined = [result.stdout, result.stderr].filter((s) => s.length > 0).join("\n");
+    return { ok: result.ok, output: trimOutput(combined) };
+  });
 }
 
 export function buildUnsupportedResult(): UpdateAgentBinaryResult {
@@ -99,47 +106,76 @@ export async function runUpdateCommandWithFallback(
 ): Promise<UpdateAgentBinaryResult> {
   const command = resolveUpdateCommand(adapter, status, envContext);
   if (!command) return buildUnsupportedResult();
+  const installPath = await resolveUpdateInstallPath(status.executablePath, envContext);
 
+  const fallback =
+    command.strategy === "built-in"
+      ? resolveUpdateCommand(adapter, status, envContext, { skipBuiltIn: true })
+      : undefined;
+  const installedManager =
+    command.strategy === "built-in"
+      ? [installPath, status.executablePath]
+          .map((executablePath) =>
+            resolveSharedUpdateCommand({
+              update: status.update ?? adapter.update,
+              executablePath,
+              envKind: envContext.envKind,
+              installedPackageManagerOnly: true,
+            }),
+          )
+          .find((manager) => manager !== undefined)
+      : undefined;
   try {
-    const result = await runUpdateCommand(command, envContext);
-    const needsFallback =
-      command.strategy === "built-in" &&
-      (!result.ok ||
-        (options?.verifyBuiltInSuccess ? !(await options.verifyBuiltInSuccess()) : false));
-    if (!needsFallback) {
-      return {
-        ok: result.ok,
-        strategy: command.strategy,
-        ...(result.output ? { output: result.output } : {}),
-      };
-    }
+    return await runSerializedAgentUpdate(
+      status,
+      envContext,
+      async (waitDeadline) => {
+        const result = await runUpdateCommand(
+          command,
+          envContext,
+          installedManager ?? command,
+          waitDeadline,
+        );
+        const needsFallback =
+          command.strategy === "built-in" &&
+          (!result.ok ||
+            (options?.verifyBuiltInSuccess ? !(await options.verifyBuiltInSuccess()) : false));
+        if (!needsFallback) {
+          return {
+            ok: result.ok,
+            strategy: command.strategy,
+            ...(result.output ? { output: result.output } : {}),
+          };
+        }
 
-    const fallback = resolveUpdateCommand(adapter, status, envContext, { skipBuiltIn: true });
-    if (!fallback || fallback.strategy === "built-in") {
-      return {
-        ok: false,
-        strategy: command.strategy,
-        ...(result.output ? { output: result.output } : {}),
-      };
-    }
+        if (!fallback || fallback.strategy === "built-in") {
+          return {
+            ok: false,
+            strategy: command.strategy,
+            ...(result.output ? { output: result.output } : {}),
+          };
+        }
 
-    const fallbackResult = await runUpdateCommand(fallback, envContext);
-    return {
-      ok: fallbackResult.ok,
-      strategy: fallback.strategy,
-      ...(fallbackResult.ok
-        ? fallbackResult.output
-          ? { output: fallbackResult.output }
-          : {}
-        : {
-            output: withFallbackFailureOutput(
-              command,
-              result.output,
-              fallback,
-              fallbackResult.output,
-            ),
-          }),
-    };
+        const fallbackResult = await runUpdateCommand(fallback, envContext, fallback, waitDeadline);
+        return {
+          ok: fallbackResult.ok,
+          strategy: fallback.strategy,
+          ...(fallbackResult.ok
+            ? fallbackResult.output
+              ? { output: fallbackResult.output }
+              : {}
+            : {
+                output: withFallbackFailureOutput(
+                  command,
+                  result.output,
+                  fallback,
+                  fallbackResult.output,
+                ),
+              }),
+        };
+      },
+      installPath,
+    );
   } catch (error) {
     return {
       ok: false,

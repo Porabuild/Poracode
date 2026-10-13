@@ -8,6 +8,7 @@
  */
 
 const messages = {
+  "agent.updateQueueTimeout": "The update waited too long for another installation. Try again.",
   "provider.signInDataUnavailable":
     "The provider's sign-in data could not be read. Try again or update Poracode.",
   "provider.unavailable": "The provider is unavailable. Install or update it in provider settings.",

@@ -363,7 +363,7 @@ msgstr "{0} tokenów - {when}"
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
-#. placeholder {1}: entry.targetVersion
+#. placeholder {1}: target.targetVersion
 #: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "{0} updated to v{1}."
@@ -11186,8 +11186,8 @@ msgstr "Sprawdź klucz hosta"
 #. placeholder {1}: updateAllProgress.current
 #. placeholder {2}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
-msgid "Probing {0} ({1} of {2})"
-msgstr "Sprawdzanie {0} ({1} z {2})"
+#~ msgid "Probing {0} ({1} of {2})"
+#~ msgstr "Sprawdzanie {0} ({1} z {2})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -15255,6 +15255,10 @@ msgid "The update service is temporarily unavailable."
 msgstr "Usługa aktualizacji jest tymczasowo niedostępna."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The update waited too long for another installation. Try again."
+msgstr "Aktualizacja zbyt długo czekała na zakończenie innej instalacji. Spróbuj ponownie."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The voice connection failed. Try again."
 msgstr "Połączenie głosowe nie powiodło się. Spróbuj ponownie."
 
@@ -16679,7 +16683,7 @@ msgstr "Zaktualizowano {0}"
 msgid "Updating"
 msgstr "Aktualizowanie"
 
-#. placeholder {0}: updateAllProgress.current
+#. placeholder {0}: updateAllProgress.completed
 #. placeholder {1}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating ({0}/{1})"
@@ -16694,8 +16698,8 @@ msgstr "Aktualizowanie {0}"
 #. placeholder {1}: updateAllProgress.current
 #. placeholder {2}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
-msgid "Updating {0} ({1} of {2})"
-msgstr "Aktualizowanie {0} ({1} z {2})"
+#~ msgid "Updating {0} ({1} of {2})"
+#~ msgstr "Aktualizowanie {0} ({1} z {2})"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -16719,6 +16723,12 @@ msgstr "Aktualizowanie {0} do wersji v{1}"
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Updating in this terminal. Closes when finished."
 msgstr "Aktualizowanie w tym terminalu. Zostanie zamknięty po zakończeniu."
+
+#. placeholder {0}: updateAllProgress.completed
+#. placeholder {1}: updateAllProgress.total
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Updating providers ({0} of {1} complete)"
+msgstr "Aktualizowanie dostawców (ukończono {0} z {1})"
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
