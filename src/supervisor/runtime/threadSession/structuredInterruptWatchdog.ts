@@ -36,6 +36,12 @@ export class StructuredInterruptWatchdog {
       return;
     }
     session.structuredTurnInterruptRequested = true;
+    if (session.suppressInitialStructuredIdle === true) {
+      // No native turn may exist yet. Retire the startup generation so a
+      // delayed configuration/admission cannot launch work after Stop.
+      this.forceStopUnacknowledgedTurn(session.threadId, session.instanceId);
+      return;
+    }
     this.armStructuredInterruptWatchdog(session);
     try {
       await session.structuredSession.interruptTurn();

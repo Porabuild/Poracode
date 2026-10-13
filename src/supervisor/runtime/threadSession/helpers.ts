@@ -1,6 +1,24 @@
 import type { IPty } from "node-pty";
 import type { ProjectLocation, RuntimeEvent } from "@/shared/contracts";
 import type { SessionRuntime } from "../sessionTypes";
+import { isCompletedWithoutTurn, type StructuredTurnResult } from "../../agents/base";
+import type { ThreadOutputPipeline } from "../threadOutputPipeline";
+
+/** Settle an explicitly turnless command whose idle sync was held during startup. */
+export function settleStructuredStartupWithoutTurn(
+  session: SessionRuntime,
+  result: void | StructuredTurnResult,
+  outputPipeline: Pick<ThreadOutputPipeline, "updateState">,
+): void {
+  if (
+    !session.ignoreExit &&
+    isCompletedWithoutTurn(result) &&
+    session.suppressInitialStructuredIdle === true
+  ) {
+    session.suppressInitialStructuredIdle = undefined;
+    outputPipeline.updateState(session, "idle", "none");
+  }
+}
 
 export function shouldPrimeNativeProjectShellEnv(
   location: ProjectLocation,

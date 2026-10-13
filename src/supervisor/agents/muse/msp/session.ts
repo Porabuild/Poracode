@@ -141,6 +141,7 @@ function workspaceRoot(input: CreateStructuredSessionInput): string {
 
 /** Structured Muse Code GUI session backed by the installed `muse serve` MSP host. */
 export class MuseMspStructuredSession implements StructuredSessionHandle {
+  private pendingTurnStartState: { interrupted: boolean } | undefined;
   readonly launchOptions;
   private listener: StructuredSessionListener = NOOP_LISTENER;
   private readonly mapper;
@@ -284,7 +285,9 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void | StructuredTurnResult> {
-    const start = this.startTurnRequest(prompt, config, segments, options);
+    const state = { interrupted: false };
+    this.pendingTurnStartState = state;
+    const start = this.startTurnRequest(state, prompt, config, segments, options);
     // Goal submissions resolve with `completed-without-turn`; the
     // in-flight gate only needs completion, not the outcome.
     const pending = start.then(
@@ -295,11 +298,15 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     try {
       return await start;
     } finally {
-      if (this.pendingTurnStart === pending) this.pendingTurnStart = undefined;
+      if (this.pendingTurnStart === pending) {
+        this.pendingTurnStart = undefined;
+        this.pendingTurnStartState = undefined;
+      }
     }
   }
 
   private async startTurnRequest(
+    state: { interrupted: boolean },
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],
@@ -307,6 +314,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   ): Promise<void | StructuredTurnResult> {
     const sessionId = this.requireSessionId();
     await this.applyConfig(config);
+    if (state.interrupted || this.disposed) return this.settleInterruptedStart();
     if (isMuseCompactCommand(prompt)) {
       await this.compactSession(sessionId);
       return;
@@ -315,6 +323,8 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     if (goalCommand) {
       return this.runGoalCommand(sessionId, goalCommand);
     }
+    const input = await buildMuseTurnInput(prompt, options?.inlineInstructions);
+    if (state.interrupted || this.disposed) return this.settleInterruptedStart();
     const commandId = mintMspCommandId();
     this.pendingUserItems.set(commandId, options?.userMessageItemId ?? `user-${commandId}`);
     this.status = "working";
@@ -324,7 +334,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       const result = await this.client.request("turn/start", {
         commandId,
         sessionId,
-        input: await buildMuseTurnInput(prompt, options?.inlineInstructions),
+        input,
         displayText: prompt,
         ...(config.effort ? { reasoningEffort: config.effort } : {}),
       });
@@ -333,11 +343,20 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         this.activeTurnId = turnId;
         this.emitTurnStarted(turnId);
       }
+      if (state.interrupted && this.activeTurnId === turnId) await this.interruptTurn();
     } catch (error) {
       this.pendingUserItems.delete(commandId);
       this.failTurn(commandId, errorMessage(error));
       throw error;
     }
+  }
+
+  private settleInterruptedStart(): StructuredTurnResult {
+    if (!this.disposed) {
+      this.refreshWorkingState();
+      this.publishUpdate();
+    }
+    return { outcome: "completed-without-turn" };
   }
 
   /**
@@ -533,9 +552,21 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     }
     for (;;) {
       if (!this.activeTurnId && this.pendingTurnStart) await this.pendingTurnStart;
-      if (!this.activeTurnId) return this.startTurn(prompt, config, segments, steerOptions);
+      if (!this.activeTurnId) {
+        // A native steer can become a fresh turn after preparation. Publish
+        // working before its next settings sync, as shared ordinary starts do.
+        this.status = "working";
+        this.attention = "working";
+        this.publishUpdate();
+        return this.startTurn(prompt, config, segments, steerOptions);
+      }
       const expectedTurnId = this.activeTurnId;
       await this.applyConfig(config);
+      const input = await buildMuseTurnInput(prompt, options?.inlineInstructions);
+      // Completion can arrive while settings/input are being prepared. Recheck
+      // before sending so the follow-up starts a fresh turn (or steers the new
+      // live turn), rather than being submitted to the completed predecessor.
+      if (this.activeTurnId !== expectedTurnId) continue;
       const commandId = mintMspCommandId();
       this.pendingUserItems.set(commandId, userItemId);
       try {
@@ -543,7 +574,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           commandId,
           sessionId: this.requireSessionId(),
           expectedTurnId,
-          input: await buildMuseTurnInput(prompt, options?.inlineInstructions),
+          input,
           ...(config.effort ? { reasoningEffort: config.effort } : {}),
         });
         return;
@@ -554,8 +585,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
             continue;
           }
           if (this.activeTurnId === expectedTurnId) this.activeTurnId = undefined;
-          await this.startTurn(prompt, config, segments, steerOptions);
-          return;
+          continue;
         }
         throw error;
       }
@@ -563,7 +593,11 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   }
 
   async interruptTurn(): Promise<void> {
-    if (!this.sessionId || this.disposed || !this.activeTurnId) return;
+    if (!this.sessionId || this.disposed) return;
+    if (!this.activeTurnId) {
+      if (this.pendingTurnStartState) this.pendingTurnStartState.interrupted = true;
+      return;
+    }
     // The compact turn is local — the host knows no turn by that id and would
     // reject `turn/interrupt`. Stop just closes it.
     if (this.pendingCompact?.turnId === this.activeTurnId) {

@@ -91,9 +91,9 @@ it("waits for queued turn admission before steering another prompt", async () =>
       config: session.config,
     });
     await vi.waitFor(() => expect(startTurn).toHaveBeenCalledTimes(1));
-    // The provider has accepted the call but has not emitted its admission
-    // edge yet, so the runtime still reports idle.
-    expect(session.status).toBe("idle");
+    // Optimistic working keeps the timer visible, but must not release the
+    // queued admission barrier before the provider's canonical edge.
+    expect(session.status).toBe("working");
 
     const steering = manager.setPendingSteer({
       threadId: session.threadId,

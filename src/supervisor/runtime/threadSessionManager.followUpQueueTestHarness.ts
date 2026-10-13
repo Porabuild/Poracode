@@ -26,6 +26,9 @@ export function createFollowUpQueueHarness(options: { canonicalCapacity?: () => 
     finish = resolve;
   });
   const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(() => {
+    // Model the canonical provider working update, which releases startup
+    // suppression in SessionRuntimeLifecycle (this harness skips the listener).
+    session.suppressInitialStructuredIdle = undefined;
     session.status = "working";
     return completion;
   });

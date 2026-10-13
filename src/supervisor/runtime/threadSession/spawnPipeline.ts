@@ -58,6 +58,7 @@ import {
   type CommandSpec,
   type StructuredSessionHandle,
   type StructuredTurnResult,
+  isCompletedWithoutTurn,
   createKnownSessionRef,
   defaultFormatPromptSegments,
   injectWslEnv,
@@ -98,7 +99,7 @@ import {
 } from "../threadMentionResolver";
 import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
-import { shouldPrimeNativeProjectShellEnv } from "./helpers";
+import { settleStructuredStartupWithoutTurn, shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { ThreadSessionManagerOptions } from "./managerOptions";
 import { bindHostDiagnosticsReader } from "../../lsp/hostDiagnosticsReader";
 import type { PtyLifecycle } from "./ptyLifecycle";
@@ -317,6 +318,7 @@ export interface SpawnPipelineContext {
   cliHookPlugin: CliHookSessionCoordinator;
   closeThread(payload: CloseThreadPayload): Promise<void>;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
+  onStructuredTurnCompletedWithoutTurn(session: SessionRuntime): void;
   isCurrentSession(session: SessionRuntime): boolean;
   resolveAgentSettings(
     adapter: AgentAdapter,
@@ -841,12 +843,19 @@ export class SpawnPipeline {
             effectiveSegments,
             Object.keys(startOptions).length > 0 ? startOptions : undefined,
           )
-          .catch((error) => {
-            if (ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
-              return;
-            }
-            ctx.failStructuredSession(session, error);
-          });
+          .then(
+            (result) => {
+              if (ctx.isCurrentSession(session)) {
+                settleStructuredStartupWithoutTurn(session, result, ctx.outputPipeline);
+                if (!session.ignoreExit && isCompletedWithoutTurn(result))
+                  ctx.onStructuredTurnCompletedWithoutTurn(session);
+              }
+            },
+            (error) => {
+              if (!session.ignoreExit && ctx.isCurrentSession(session))
+                ctx.failStructuredSession(session, error);
+            },
+          );
       }
       return { threadId: payload.threadId };
     }
@@ -1182,6 +1191,7 @@ export class SpawnPipeline {
         throw new Error(`Thread ${session.threadId} cannot restart without a structured session.`);
       }
       let replacement: SessionRuntime;
+      const hasPrompt = prompt.trim().length > 0 && structuredSession.startTurn !== undefined;
       try {
         replacement = this.spawnThread({
           threadId: session.threadId,
@@ -1200,6 +1210,9 @@ export class SpawnPipeline {
           initialSize: session.terminalSize,
           launchPrompt: "",
           structuredSession,
+          initialStatus: hasPrompt ? "working" : "idle",
+          initialAttention: hasPrompt ? "working" : "none",
+          suppressInitialStructuredIdle: hasPrompt,
           resourceLease,
           sessionRef: session.sessionRef,
           mcpLaunchSnapshot,
@@ -1234,18 +1247,25 @@ export class SpawnPipeline {
           ),
         };
         try {
-          return await structuredSession.startTurn(
+          const result = await structuredSession.startTurn(
             prompt,
             launchConfig,
             turn.segments,
             startOptions,
           );
+          if (ctx.isCurrentSession(replacement)) {
+            settleStructuredStartupWithoutTurn(replacement, result, ctx.outputPipeline);
+            if (!replacement.ignoreExit && isCompletedWithoutTurn(result))
+              ctx.onStructuredTurnCompletedWithoutTurn(replacement);
+          }
+          return result;
         } catch (error) {
           // `spawnThread` has already replaced the old runtime in `sessions`.
           // Settle a failed replacement here, where its identity is still
           // available; the outer restart wrapper only knows the old session.
           // A newer replacement may have won the race, so never mutate a
           // runtime that is no longer current.
+          if (replacement.ignoreExit) return;
           if (ctx.isCurrentSession(replacement)) {
             ctx.failStructuredSession(replacement, error);
           }
