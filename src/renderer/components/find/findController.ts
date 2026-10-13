@@ -5,7 +5,11 @@ import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useGitFindStore } from "@/renderer/state/gitFindStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
-import { isEditorFocusElement, isTerminalFocusElement } from "@/renderer/commands/focusedSurface";
+import {
+  isEditorFocusElement,
+  isTerminalFocusElement,
+  resolveFocusElement,
+} from "@/renderer/commands/focusedSurface";
 import { openEditorFind } from "./editorFindBridge";
 import { openTerminalFind } from "./terminalFindBridge";
 
@@ -18,8 +22,8 @@ export type FindTarget = "editor" | "terminal" | "settings" | "git" | "tree" | "
  * fallback. Returns null when nothing is searchable (e.g. a blocking modal owns
  * its own input, or the home view).
  */
-export function resolveFindTarget(): FindTarget | null {
-  const element = document.activeElement instanceof Element ? document.activeElement : null;
+export function resolveFindTarget(target?: EventTarget | null): FindTarget | null {
+  const element = resolveFocusElement(target);
   if (isEditorFocusElement(element)) return "editor";
   if (isTerminalFocusElement(element)) return "terminal";
   const scope = element
@@ -34,7 +38,6 @@ export function resolveFindTarget(): FindTarget | null {
   // Blocking modals trap their own input — leave Ctrl+F to them.
   if (
     useCommandPaletteStore.getState().isOpen ||
-    panel.threadSearchOpen ||
     panel.createProjectModalOpen ||
     panel.cloneProjectModalOpen
   ) {
@@ -48,8 +51,8 @@ export function resolveFindTarget(): FindTarget | null {
 }
 
 /** Entry point for the `find.open` command: open Find on the active surface. */
-export function openFindForActiveSurface(): void {
-  const target = resolveFindTarget();
+export function openFindForActiveSurface(originTarget?: EventTarget | null): void {
+  const target = resolveFindTarget(originTarget);
   if (!target) return;
   switch (target) {
     case "editor":

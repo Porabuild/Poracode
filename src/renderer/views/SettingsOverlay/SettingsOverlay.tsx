@@ -161,9 +161,15 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   const { t } = useLingui();
   const compactLayout = useCompactLayout();
   const requestedSection = usePanelStore((s) => s.settingsSection);
+  const requestedAnchor = usePanelStore((s) => s.settingsAnchor);
   const clearSettingsSection = usePanelStore((s) => s.clearSettingsSection);
   const [activeSection, setActiveSection] = useState<SettingsSection>(
     (requestedSection as SettingsSection | null) ?? "general",
+  );
+  // The token re-fires scrolling when the same setting is picked twice, after
+  // the target section has mounted. Only this overlay owns the pending scroll.
+  const [scrollTarget, setScrollTarget] = useState<{ anchor: string; token: number } | null>(
+    requestedAnchor ? { anchor: requestedAnchor, token: 0 } : null,
   );
   const [mobileScreen, setMobileScreen] = useState<MobileSettingsScreen>(
     requestedSection === null ? "root" : "detail",
@@ -194,10 +200,15 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   // request selects the mobile parent — tracked in state (not a ref) so the
   // render phase can read it.
   const [prevRequestedSection, setPrevRequestedSection] = useState(requestedSection);
+  const [prevRequestedAnchor, setPrevRequestedAnchor] = useState(requestedAnchor);
   const [hadInitialRequest, setHadInitialRequest] = useState(requestedSection !== null);
-  if (prevRequestedSection !== requestedSection) {
+  if (prevRequestedSection !== requestedSection || prevRequestedAnchor !== requestedAnchor) {
     setPrevRequestedSection(requestedSection);
+    setPrevRequestedAnchor(requestedAnchor);
     if (requestedSection) {
+      setScrollTarget((prev) =>
+        requestedAnchor ? { anchor: requestedAnchor, token: (prev?.token ?? 0) + 1 } : null,
+      );
       setActiveSection(requestedSection as SettingsSection);
       setMobileDetailParent(
         hadInitialRequest
@@ -210,11 +221,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       setMobileScreen("detail");
     }
   }
-  useEffect(() => {
-    if (requestedSection) {
-      clearSettingsSection();
-    }
-  }, [requestedSection, clearSettingsSection]);
 
   // Drop a disconnected desktop selection during render so the picker never
   // paints a frame for a desktop that is no longer paired.
@@ -231,11 +237,9 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     selectBrowserBridgeDesktop(desktopId);
   };
 
-  // Pending scroll-to-setting target, set when a settings search result is
-  // clicked. The token re-fires the effect when the same setting is picked
-  // twice. Local (not a store): only this overlay coordinates the scroll, and it
-  // has to land *after* the section content remounts (`key={activeSection}`).
-  const [scrollTarget, setScrollTarget] = useState<{ anchor: string; token: number } | null>(null);
+  useEffect(() => {
+    if (requestedSection || requestedAnchor) clearSettingsSection();
+  }, [requestedSection, requestedAnchor, clearSettingsSection]);
   const navigateToSection = useCallback(
     (section: SettingsSection, anchor?: string, parent: MobileSettingsParent = "root") => {
       setActiveSection(section);

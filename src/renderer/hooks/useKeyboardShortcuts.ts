@@ -32,6 +32,9 @@ export function useKeyboardShortcuts() {
 
       const bindings = useKeybindingStore.getState().keybindings;
       const whenContext = buildWhenContext(e.target);
+      // The Search modal owns its navigation and editing keys, including
+      // Ctrl+Tab category switching; leave the underlying thread untouched.
+      if (whenContext.paletteOpen) return;
       const commands = buildCommandRegistry();
 
       for (const binding of bindings) {

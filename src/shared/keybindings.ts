@@ -17,6 +17,23 @@ export const keybindingsFileSchema = z.object({
 });
 export type KeybindingsFile = z.infer<typeof keybindingsFileSchema>;
 
+/**
+ * The former thread-only search now opens the unified Search palette. Rekey
+ * legacy entries in desktop and browser storage so custom chords remain
+ * editable on the visible `palette.open` shortcut.
+ * Version 1 remains valid: only a command identifier changes, with chords,
+ * conditions, arguments, and removal entries preserved on read.
+ */
+export function migrateThreadSearchCommand(file: KeybindingsFile): KeybindingsFile {
+  let changed = false;
+  const keybindings = file.keybindings.map((binding) => {
+    if (binding.command !== "thread.search.open") return binding;
+    changed = true;
+    return { ...binding, command: "palette.open" };
+  });
+  return changed ? { ...file, keybindings } : file;
+}
+
 export interface KeybindingsConfig {
   path: string;
   file: KeybindingsFile;
@@ -174,7 +191,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       when: "hasProject",
     },
     {
-      command: "thread.search.open",
+      command: "palette.open",
       key: "Ctrl+G",
       mac: "Meta+G",
       when: NOT_TYPING,

@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -100,11 +100,11 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 vi.mock("./parts/GeneralSettings", () => ({
-  GeneralSettings: () => <div>General</div>,
+  GeneralSettings: () => <div data-settings-anchor="general.language">General</div>,
 }));
 
 vi.mock("./parts/AppearanceSettings", () => ({
-  AppearanceSettings: () => <div>Appearance</div>,
+  AppearanceSettings: () => <div data-settings-anchor="appearance.mode">Appearance</div>,
 }));
 
 vi.mock("./parts/TerminalSettings", () => ({
@@ -196,6 +196,7 @@ function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {})
 describe("SettingsOverlay", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
   });
 
   beforeEach(() => {
@@ -206,9 +207,46 @@ describe("SettingsOverlay", () => {
     bridgeState.remote = false;
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     refreshAgentDiscoveryMock.mockReset();
-    usePanelStore.setState({ settingsSection: null });
+    usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
   });
 
+  it("scrolls to an initially requested setting anchor and consumes the request", async () => {
+    const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions | boolean) => void>();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    usePanelStore.getState().openSettingsSection("general", "general.language");
+    render(<SettingsOverlay onClose={() => undefined} />);
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" }),
+    );
+    expect(within(screen.getByRole("main")).getByText("General")).toHaveClass(
+      "poracode-setting-highlight",
+    );
+    expect(usePanelStore.getState().settingsSection).toBeNull();
+    expect(usePanelStore.getState().settingsAnchor).toBeNull();
+  });
+
+  it("repeats a same-section setting request while the overlay is open", async () => {
+    const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions | boolean) => void>();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    render(<SettingsOverlay onClose={() => undefined} />);
+    act(() => usePanelStore.getState().openSettingsSection("appearance", "appearance.mode"));
+    await waitFor(() =>
+      expect(within(screen.getByRole("main")).getByText("Appearance")).toHaveClass(
+        "poracode-setting-highlight",
+      ),
+    );
+    scrollIntoView.mockClear();
+    act(() => usePanelStore.getState().openSettingsSection("appearance", "appearance.mode"));
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" }),
+    );
+  });
   it("ports the nightly mobile settings index and keeps its drill-down local", () => {
     vi.stubGlobal(
       "matchMedia",

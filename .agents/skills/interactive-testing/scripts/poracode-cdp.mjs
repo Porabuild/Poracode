@@ -274,7 +274,7 @@ async function main() {
           `(() => { const panel = window.__poracodeDev.stores.panel.getState();` +
             ` return {` +
             ` composerText: [...document.querySelectorAll('[data-composer-input-anchor] [contenteditable="true"]')].map((el) => el.textContent ?? "").join("").trim(),` +
-            ` panelsOpen: Boolean(panel.settingsOpen || panel.projectSettingsId || panel.gitReviewContext || panel.gitOverlayOpen || panel.prReviewContext || panel.filesPanelContext || panel.subAgentPanelOpen || panel.browserPanelOpen || panel.usagePanelOpen || panel.notesPanelOpen || panel.browserOverlayOpen || panel.threadSearchOpen || panel.createProjectModalOpen || panel.cloneProjectModalOpen)` +
+            ` panelsOpen: Boolean(panel.settingsOpen || panel.projectSettingsId || panel.gitReviewContext || panel.gitOverlayOpen || panel.prReviewContext || panel.filesPanelContext || panel.subAgentPanelOpen || panel.browserPanelOpen || panel.usagePanelOpen || panel.notesPanelOpen || panel.browserOverlayOpen || window.__poracodeDev.stores.commandPalette.getState().isOpen || panel.createProjectModalOpen || panel.cloneProjectModalOpen)` +
             ` }; })()`,
         );
       } finally {

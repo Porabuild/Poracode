@@ -10,6 +10,7 @@ import type {
 import { getProjectFsPath } from "@/shared/wsl";
 import { execGit, getLocationIdentity } from "./git";
 import type { WslBridgeClient } from "./wsl/bridge/client";
+import { createSearchQuery, scoreFileSearchEntry } from "@/shared/searchMatching";
 
 const CACHE_TTL_MS = 10_000;
 const MAX_CACHE_ENTRIES = 4;
@@ -25,7 +26,10 @@ function joinRelativePath(parentPath: string, name: string): string {
 }
 
 function cacheKeyForSearchConfig(config: SearchConfigPayload): string {
-  return [...config.excludePatterns].sort().join(",");
+  return JSON.stringify({
+    useIgnoreFiles: config.useIgnoreFiles,
+    excludePatterns: [...config.excludePatterns].sort(),
+  });
 }
 
 /**
@@ -79,8 +83,8 @@ function pathHitsIgnoredName(path: string, ignored: Set<string>): boolean {
  * `resolveEntryPath` callback supplied by the host service (that helper is
  * shared with non-search code, so it is threaded in rather than moved).
  *
- * Ranking, cache keying, and walk/git index building are byte-for-byte
- * identical to the pre-extraction implementation.
+ * Indexes are memory-only and rebuilt after restart; ranking never changes
+ * the indexed shape or persists a derived score across app versions.
  */
 export class ProjectSearchIndex {
   private cache = new Map<string, CachedSearchIndex>();
@@ -109,7 +113,7 @@ export class ProjectSearchIndex {
     const config = payload.searchConfig ?? { useIgnoreFiles: true, excludePatterns: [] };
     const { entries } = await this.getOrBuildSearchIndex(payload.projectLocation, config);
     return {
-      entries: this.rankEntries(entries, query, payload.limit),
+      entries: this.rankEntries(entries, query, payload.limit, payload.entryType),
     };
   }
 
@@ -117,7 +121,7 @@ export class ProjectSearchIndex {
     location: ProjectLocation,
     config: SearchConfigPayload,
   ): Promise<{ entries: ProjectTreeEntry[] }> {
-    const key = `${getLocationIdentity(location)}|${cacheKeyForSearchConfig(config)}`;
+    const key = `${JSON.stringify(getLocationIdentity(location))}:${cacheKeyForSearchConfig(config)}`;
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
       this.cache.delete(key);
@@ -251,16 +255,19 @@ export class ProjectSearchIndex {
     return results;
   }
 
-  rankEntries(entries: ProjectTreeEntry[], query: string, limit: number): ProjectTreeEntry[] {
+  rankEntries(
+    entries: ProjectTreeEntry[],
+    query: string,
+    limit: number,
+    entryType?: ProjectTreeEntry["type"],
+  ): ProjectTreeEntry[] {
+    const search = createSearchQuery(query);
+    if (search.terms.length === 0) return [];
     const scored: { entry: ProjectTreeEntry; score: number }[] = [];
     for (const entry of entries) {
-      const nameLower = entry.name.toLowerCase();
-      const pathLower = entry.path.toLowerCase();
-      let score = 0;
-      if (nameLower.startsWith(query)) score = 3;
-      else if (nameLower.includes(query)) score = 2;
-      else if (pathLower.includes(query)) score = 1;
-      if (score > 0) scored.push({ entry, score });
+      if (entryType && entry.type !== entryType) continue;
+      const score = scoreFileSearchEntry(entry, search);
+      if (score !== null) scored.push({ entry, score });
     }
 
     scored.sort((a, b) => {
@@ -279,9 +286,9 @@ export class ProjectSearchIndex {
   }
 
   invalidateCaches(location: ProjectLocation): void {
-    const prefix = `${getLocationIdentity(location)}|`;
+    const prefix = `${JSON.stringify(getLocationIdentity(location))}:`;
     for (const key of this.cache.keys()) {
-      if (key === getLocationIdentity(location) || key.startsWith(prefix)) {
+      if (key.startsWith(prefix)) {
         this.cache.delete(key);
       }
     }

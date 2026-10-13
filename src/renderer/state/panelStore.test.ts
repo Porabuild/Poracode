@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import { selectAnyObstructingOverlayOpen, usePanelStore } from "./panelStore";
 import { useFileEditorStore } from "./fileEditorStore";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 
 const initialPanelState = usePanelStore.getState();
 const initialFileEditorState = useFileEditorStore.getState();
@@ -22,8 +23,8 @@ function resetPanelStore() {
     settingsOpen: false,
     projectSettingsId: null,
     mobileUtilityPage: null,
-    threadSearchOpen: false,
   });
+  useCommandPaletteStore.setState({ isOpen: false });
 }
 
 function resetFileEditorStore() {
@@ -156,8 +157,8 @@ describe("selectAnyObstructingOverlayOpen", () => {
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 
-  it("returns true when the thread search overlay is open", () => {
-    usePanelStore.setState({ threadSearchOpen: true });
+  it("returns true when the search palette is open", () => {
+    useCommandPaletteStore.getState().open();
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 

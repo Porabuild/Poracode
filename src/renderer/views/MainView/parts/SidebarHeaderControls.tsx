@@ -1,3 +1,4 @@
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { FolderPlus, Globe, Search, WifiOff } from "lucide-react";
 import { Button, Dropdown, Label, Separator, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -84,7 +85,7 @@ export function SidebarHeaderControls() {
             size="sm"
             variant="ghost"
             className="size-6 min-w-0 text-muted hover:text-foreground"
-            onPress={() => usePanelStore.getState().openThreadSearch()}
+            onPress={() => useCommandPaletteStore.getState().open()}
           >
             <Search className="size-3.5" />
           </Button>

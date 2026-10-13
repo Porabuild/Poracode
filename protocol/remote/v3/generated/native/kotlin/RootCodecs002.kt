@@ -131,8 +131,8 @@ val RemoteRootCodecs.procedureU2ESearchProjectFilesU2ERequest: RemoteRootCodec<P
 val RemoteRootCodecs.procedureU2ESearchProjectFilesU2EResult: RemoteRootCodec<ProceduresearchProjectFilesResult_2465ffaaf2>
     get() = RemoteRootCodec("procedure.searchProjectFiles.result", serializer<ProceduresearchProjectFilesResult_2465ffaaf2>(), schema_2465ffaaf2ca280d)
 
-val RemoteRootCodecs.procedureU2ESearchProjectTreeU2ERequest: RemoteRootCodec<ProceduresearchProjectFilesRequest_c4ad1400e2>
-    get() = RemoteRootCodec("procedure.searchProjectTree.request", serializer<ProceduresearchProjectFilesRequest_c4ad1400e2>(), schema_c4ad1400e2e98f57)
+val RemoteRootCodecs.procedureU2ESearchProjectTreeU2ERequest: RemoteRootCodec<ProceduresearchProjectTreeRequest_956459f749>
+    get() = RemoteRootCodec("procedure.searchProjectTree.request", serializer<ProceduresearchProjectTreeRequest_956459f749>(), schema_956459f749459347)
 
 val RemoteRootCodecs.procedureU2ESearchProjectTreeU2EResult: RemoteRootCodec<ProceduresearchProjectTreeResult_ed3d977334>
     get() = RemoteRootCodec("procedure.searchProjectTree.result", serializer<ProceduresearchProjectTreeResult_ed3d977334>(), schema_ed3d9773342dac2c)

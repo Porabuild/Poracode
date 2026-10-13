@@ -1,6 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { SettingsSection } from "./types";
+import { createSearchQuery, scoreSearchFields } from "@/shared/searchMatching";
 
 /**
  * Static index of individual settings, powering the sidebar's "Search settings"
@@ -680,6 +681,8 @@ export interface SettingsSearchResult {
    * target UX where a description-only hit surfaces the description snippet.
    */
   snippet: string | null;
+  /** Transient relevance score shared with the unified palette. */
+  score?: number;
 }
 
 type Translate = (descriptor: MessageDescriptor) => string;
@@ -691,10 +694,21 @@ function truncate(text: string, max = SNIPPET_MAX): string {
   return `${text.slice(0, max).trimEnd()}…`;
 }
 
+export function isSettingsSearchEntryAvailable(
+  entry: SettingsSearchEntry,
+  options?: { devMode?: boolean; remoteSession?: boolean; windows?: boolean },
+): boolean {
+  return (
+    (!entry.devOnly || Boolean(options?.devMode)) &&
+    (!entry.desktopOnly || !options?.remoteSession) &&
+    (!entry.windowsOnly || Boolean(options?.windows))
+  );
+}
+
 /**
- * Match `query` against the index. Case-insensitive substring over the localized
- * title, then description, then English `keywords` — same semantics as the
- * sidebar's existing section-label filter. Returns `[]` for a blank query.
+ * Match `query` against the index. Every whitespace-delimited term must match
+ * the localized title, description, or English `keywords`. Returns `[]` for a
+ * blank query.
  */
 export function searchSettings(
   query: string,
@@ -706,27 +720,28 @@ export function searchSettings(
     index?: readonly SettingsSearchEntry[];
   },
 ): SettingsSearchResult[] {
-  const needle = query.trim().toLowerCase();
-  if (needle === "") return [];
+  const search = createSearchQuery(query);
+  if (search.terms.length === 0) return [];
   const index = opts?.index ?? SETTINGS_SEARCH_INDEX;
   const results: SettingsSearchResult[] = [];
   for (const entry of index) {
-    if (entry.devOnly && !opts?.devMode) continue;
-    if (entry.desktopOnly && opts?.remoteSession) continue;
-    if (entry.windowsOnly && !opts?.windows) continue;
+    if (!isSettingsSearchEntryAvailable(entry, opts)) continue;
     const title = t(entry.title);
     const description = entry.description ? t(entry.description) : "";
-    const titleMatch = title.toLowerCase().includes(needle);
-    const descMatch = description !== "" && description.toLowerCase().includes(needle);
-    const keywordMatch =
-      entry.keywords !== undefined && entry.keywords.toLowerCase().includes(needle);
-    if (!titleMatch && !descMatch && !keywordMatch) continue;
+    const titleField = { text: title, fuzzy: true };
+    const score = scoreSearchFields(
+      [titleField, { text: description, weight: 0.4 }, { text: entry.keywords ?? "", weight: 0.4 }],
+      search,
+    );
+    if (score === null) continue;
+    const titleMatch = scoreSearchFields([titleField], search) !== null;
     results.push({
       section: entry.section,
       anchor: entry.anchor,
       title,
       snippet: titleMatch || description === "" ? null : truncate(description),
+      score,
     });
   }
-  return results;
+  return results.toSorted((a, b) => (b.score ?? 0) - (a.score ?? 0));
 }

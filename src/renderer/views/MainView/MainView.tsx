@@ -1,4 +1,4 @@
-import { startTransition, useEffect, type ReactNode } from "react";
+import { Suspense, startTransition, useEffect, useState, type ReactNode } from "react";
 import type { AgentStatus } from "@/shared/contracts";
 import { buildPaneLayoutFromLegacy } from "@/shared/paneLayout";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -31,7 +31,8 @@ import { PullFromSourceDialog } from "@/renderer/views/MainView/parts/PullFromSo
 import { MainPageLayout, StalePanelCleanup } from "@/renderer/views/MainView/parts/MainPageLayout";
 import { BrowserConnectionPage } from "@/renderer/views/MainView/parts/BrowserConnectionPage/BrowserConnectionPage";
 import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
-import { ThreadSearchOverlayHost } from "@/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
+import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
 import { ThreadLiveWorkflowTracker } from "@/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile";
 import { RendererRuntimeDiagnosticContextSync } from "@/renderer/diagnostics/runtimeContext";
 import { MobileTopLevelPage } from "./parts/MobileTopLevelPage";
@@ -132,35 +133,37 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
       .catch(() => undefined);
   }, [storeHydrated, wslProjectDistrosKey, backgroundWorkReleased]);
 
+  const page = mobileTopLevelPage ? (
+    <MobileTopLevelPage />
+  ) : (
+    <BrowserRemoteConnectionGate
+      allowOffline
+      checkingConnection={!browserConnectionChecked}
+      fallback={<BrowserConnectionPage />}
+    >
+      <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
+    </BrowserRemoteConnectionGate>
+  );
+
   return (
     <>
       <RendererRuntimeDiagnosticContextSync />
-      {mobileTopLevelPage ? (
-        <MobileTopLevelPage />
+      {compactLayout ? (
+        <CompactDndProvider>
+          {page}
+          <DeferredCommandPalette />
+        </CompactDndProvider>
       ) : (
-        <BrowserRemoteConnectionGate
-          allowOffline
-          checkingConnection={!browserConnectionChecked}
-          fallback={<BrowserConnectionPage />}
+        <DesktopMainDndProvider
+          paneLayout={
+            view.kind === "thread"
+              ? (view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout))
+              : buildPaneLayoutFromLegacy(["__placeholder__"])
+          }
         >
-          {compactLayout ? (
-            <CompactDndProvider>
-              <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
-              <ThreadSearchOverlayHost />
-            </CompactDndProvider>
-          ) : (
-            <DesktopMainDndProvider
-              paneLayout={
-                view.kind === "thread"
-                  ? (view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout))
-                  : buildPaneLayoutFromLegacy(["__placeholder__"])
-              }
-            >
-              <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
-              <ThreadSearchOverlayHost />
-            </DesktopMainDndProvider>
-          )}
-        </BrowserRemoteConnectionGate>
+          {page}
+          <DeferredCommandPalette />
+        </DesktopMainDndProvider>
       )}
       <StalePanelCleanup />
       <AppOverlays />
@@ -212,4 +215,21 @@ function ExperimentWorkflowTrackers() {
       );
     }),
   );
+}
+
+function DeferredCommandPalette() {
+  const open = useCommandPaletteStore((state) => state.isOpen);
+  const [enabled, setEnabled] = useState(open);
+  // Latch on first open so the lazy chunk stays mounted afterwards.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (open) setEnabled(true);
+  }
+
+  return enabled ? (
+    <Suspense>
+      <PrewarmedCommandPalette />
+    </Suspense>
+  ) : null;
 }

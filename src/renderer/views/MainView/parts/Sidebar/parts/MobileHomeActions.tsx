@@ -1,3 +1,4 @@
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -91,8 +92,8 @@ export function MobileHomeActions() {
       <div className="m-home-compose-actions">
         <MobileCircleButton
           aria-label={t`Search`}
-          onPointerDown={() => usePanelStore.getState().openThreadSearch()}
-          onPress={() => usePanelStore.getState().openThreadSearch()}
+          onPointerDown={() => useCommandPaletteStore.getState().open()}
+          onPress={() => useCommandPaletteStore.getState().open()}
         >
           <Search className="size-5" />
         </MobileCircleButton>

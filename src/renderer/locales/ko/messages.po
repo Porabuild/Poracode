@@ -959,6 +959,7 @@ msgstr "사이드바 스레드의 빠른 제거 버튼에 대한 작업입니다
 msgid "Action name"
 msgstr "액션 이름"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
@@ -1378,6 +1379,7 @@ msgstr "AI 공급자"
 msgid "Alerts when threads need you"
 msgstr "스레드에 응답이 필요할 때 알림"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -3170,7 +3172,7 @@ msgstr "실행 세부 정보 닫기"
 msgid "Close scanner"
 msgstr "스캐너 닫기"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Close search"
 msgstr "검색 닫기"
 
@@ -3375,8 +3377,6 @@ msgstr "경고 접기"
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "쉼표로 구분된 owner/name 항목(예: acme/website, acme/api). 목록은 입력한 그대로 Devin에 전달됩니다."
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "명령"
@@ -6147,9 +6147,19 @@ msgstr "파일 변경사항이 여기에 표시됩니다."
 msgid "File is too large to preview."
 msgstr "파일이 너무 커서 미리 볼 수 없습니다."
 
+#. placeholder {0}: activeProject.name
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File names in {0}"
+msgstr "{0}의 파일 이름"
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "파일이 더 이상 디스크에 존재하지 않습니다."
+
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "File search unavailable"
+msgstr "파일 검색을 사용할 수 없습니다"
 
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
@@ -6163,6 +6173,7 @@ msgstr "표시하기에 파일이 너무 큽니다 ({0, plural, one {# 줄 변�
 msgid "File uses an unsupported encoding."
 msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -6195,6 +6206,10 @@ msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨�
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Fill in all required workflow inputs."
 msgstr "필수 워크플로 입력을 모두 작성하세요."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Filter"
+msgstr "필터"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
@@ -8836,6 +8851,11 @@ msgstr "창 이동"
 msgid "Move panel"
 msgstr "패널 이동"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "스레드 {0} 이동"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "클린 작업 트리로 이동"
@@ -8963,6 +8983,10 @@ msgstr "네이티브 지원"
 #: src/renderer/utils/projectIcons.ts
 msgid "Nature & weather"
 msgstr "자연 및 날씨"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Navigate"
+msgstr "탐색"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
@@ -9335,8 +9359,8 @@ msgid "No checks reported for this PR."
 msgstr "이 PR에 대해 보고된 검사가 없습니다."
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "명령을 찾을 수 없습니다."
+#~ msgid "No commands found"
+#~ msgstr "명령을 찾을 수 없습니다."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -9492,8 +9516,8 @@ msgstr "일치하는 일정이 없습니다."
 #~ msgstr "일치하는 작업이 없습니다."
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No matching threads"
-msgstr "일치하는 스레드 없음"
+#~ msgid "No matching threads"
+#~ msgstr "일치하는 스레드 없음"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -9631,6 +9655,7 @@ msgstr "저장소 없음"
 msgid "No repositories found."
 msgstr "저장소를 찾을 수 없습니다."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9712,8 +9737,8 @@ msgstr "태그 없음 — 이 항목은 더 이상 태그 친화도에 영향을
 #~ msgstr "선택된 스레드 없음"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "스레드 없음"
+#~ msgid "No threads"
+#~ msgstr "스레드 없음"
 
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "No threads in this project"
@@ -9955,6 +9980,7 @@ msgstr "포커스가 없을 때만"
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "workflow_dispatch 트리거가 있는 워크플로만 수동으로 시작할 수 있습니다."
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -10023,8 +10049,8 @@ msgid "Open check"
 msgstr "체크 열기"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "명령 팔레트 열기"
+#~ msgid "Open Command Palette"
+#~ msgstr "명령 팔레트 열기"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -12428,6 +12454,7 @@ msgid "Resume queued follow-ups"
 msgstr "대기 중인 후속 메시지 재개"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -13066,6 +13093,8 @@ msgstr "SDK 설치되지 않음"
 #~ msgid "SDK package path (optional)"
 #~ msgstr "SDK 패키지 경로(선택 사항)"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -13091,6 +13120,10 @@ msgstr "에이전트 검색..."
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Search branches..."
 msgstr "브랜치 검색..."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search categories"
+msgstr "검색 카테고리"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
@@ -13153,6 +13186,10 @@ msgstr "저장소 검색"
 msgid "Search repositories…"
 msgstr "저장소 검색…"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Search results"
+msgstr "검색 결과"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "런타임 항목 검색…"
@@ -13190,20 +13227,28 @@ msgid "Search the current view"
 msgstr "현재 보기에서 검색"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "Search threads"
-msgstr "스레드 검색"
+#~ msgid "Search threads"
+#~ msgstr "스레드 검색"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "스레드 검색"
+#~ msgid "Search Threads"
+#~ msgstr "스레드 검색"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search threads, commands, settings, and files…"
+msgstr "스레드, 명령, 설정 및 파일 검색…"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "제목, 메시지, 폴더 검색"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "Search…"
-msgstr "검색…"
+#~ msgid "Search…"
+#~ msgstr "검색…"
+
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Searching files…"
+msgstr "파일 검색 중…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -13254,6 +13299,10 @@ msgstr "편집을 시작하려면 파일을 선택하세요."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Select a project to scan project MCP servers."
 #~ msgstr "프로젝트 MCP 서버를 스캔하려면 프로젝트를 선택하세요."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Select a project to search files"
+msgstr "파일을 검색할 프로젝트를 선택하세요"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select a repository."
@@ -13457,6 +13506,8 @@ msgstr "이 세션 시작 시 확정됨 — 플러그인을 변경하려면 새 
 #~ msgid "Setting"
 #~ msgstr "설정"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -13638,6 +13689,7 @@ msgstr "간략히 보기"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "{providerLabel}의 MCP 서버 표시"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
@@ -13722,6 +13774,10 @@ msgstr "음성 입력 버튼 표시"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "{0, plural, other {#개 스킬 표시 중}}"
+
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
+msgstr "처음 {CATEGORY_RESULT_LIMIT}개의 결과를 표시합니다. 검색 범위를 좁혀 보세요."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -15798,10 +15854,10 @@ msgstr "스레드를 찾을 수 없습니다"
 msgid "Thread todo dock"
 msgstr "스레드 할 일 도크"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "스레드"
 
@@ -15988,6 +16044,10 @@ msgstr "트리거:"
 #~ msgid "Try a different search or project filter."
 #~ msgstr "다른 검색어 또는 프로젝트 필터를 사용해 보세요."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Try different keywords or choose a category."
+msgstr "다른 키워드를 사용하거나 카테고리를 선택하세요."
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Try now"
 msgstr "지금 사용해보기"
@@ -16015,8 +16075,8 @@ msgid "Type"
 msgstr "유형"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "명령을 입력하세요"
+#~ msgid "Type a command"
+#~ msgstr "명령을 입력하세요"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
@@ -16025,6 +16085,10 @@ msgstr "명령을 입력하세요"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "페이지에 입력(먼저 필드를 탭하세요)"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "입력하여 파일 검색"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

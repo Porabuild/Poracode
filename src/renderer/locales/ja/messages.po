@@ -958,6 +958,7 @@ msgstr "サイドバー スレッドのクイック削除ボタンのアクシ�
 msgid "Action name"
 msgstr "アクション名"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
@@ -1377,6 +1378,7 @@ msgstr "AI プロバイダー"
 msgid "Alerts when threads need you"
 msgstr "スレッドが対応を必要としたら通知"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -3169,7 +3171,7 @@ msgstr "実行の詳細を閉じる"
 msgid "Close scanner"
 msgstr "スキャナーを閉じる"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Close search"
 msgstr "検索を閉じる"
 
@@ -3374,8 +3376,6 @@ msgstr "警告を折りたたむ"
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "owner/name エントリをカンマ区切りで指定します（例: acme/website, acme/api）。リストは入力したとおりにそのまま Devin に送られます。"
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "コマンド"
@@ -6146,9 +6146,19 @@ msgstr "ファイルの変更がここに表示されます。"
 msgid "File is too large to preview."
 msgstr "ファイルが大きすぎてプレビューできません。"
 
+#. placeholder {0}: activeProject.name
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File names in {0}"
+msgstr "{0} のファイル名"
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "ファイルはディスク上に存在しません。"
+
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "File search unavailable"
+msgstr "ファイル検索を利用できません"
 
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
@@ -6162,6 +6172,7 @@ msgstr "ファイルが大きすぎて表示できません（{0, plural, one {#
 msgid "File uses an unsupported encoding."
 msgstr "ファイルはサポートされていないエンコーディングを使用しています。"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -6194,6 +6205,10 @@ msgstr "これらのグロブに一致するファイルは、@file メンショ
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Fill in all required workflow inputs."
 msgstr "必須のワークフロー入力をすべて入力してください。"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Filter"
+msgstr "絞り込み"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
@@ -8834,6 +8849,11 @@ msgstr "ペインを移動"
 msgid "Move panel"
 msgstr "パネルを移動"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "スレッド「{0}」を移動"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "クリーンなワークツリーに移動"
@@ -8961,6 +8981,10 @@ msgstr "ネイティブサポート"
 #: src/renderer/utils/projectIcons.ts
 msgid "Nature & weather"
 msgstr "自然と天気"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Navigate"
+msgstr "移動"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
@@ -9333,8 +9357,8 @@ msgid "No checks reported for this PR."
 msgstr "この PR についてはチェックが報告されていません。"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "コマンドが見つかりません"
+#~ msgid "No commands found"
+#~ msgstr "コマンドが見つかりません"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -9490,8 +9514,8 @@ msgstr "一致するスケジュールはありません。"
 #~ msgstr "一致するタスクはありません。"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No matching threads"
-msgstr "一致するスレッドがありません"
+#~ msgid "No matching threads"
+#~ msgstr "一致するスレッドがありません"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -9629,6 +9653,7 @@ msgstr "リポジトリなし"
 msgid "No repositories found."
 msgstr "リポジトリが見つかりません。"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9710,8 +9735,8 @@ msgstr "タグなし — このエントリーはタグ親和性に影響しな�
 #~ msgstr "スレッドが選択されていません"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "スレッドがありません"
+#~ msgid "No threads"
+#~ msgstr "スレッドがありません"
 
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "No threads in this project"
@@ -9953,6 +9978,7 @@ msgstr "焦点が合っていないときのみ"
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "workflow_dispatch トリガーがあるワークフローのみ手動で開始できます。"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -10021,8 +10047,8 @@ msgid "Open check"
 msgstr "チェックを開く"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "コマンドパレットを開く"
+#~ msgid "Open Command Palette"
+#~ msgstr "コマンドパレットを開く"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -12426,6 +12452,7 @@ msgid "Resume queued follow-ups"
 msgstr "キューに入ったフォローアップを再開"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -13064,6 +13091,8 @@ msgstr "SDK 未インストール"
 #~ msgid "SDK package path (optional)"
 #~ msgstr "SDK パッケージのパス（任意）"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -13089,6 +13118,10 @@ msgstr "エージェントを検索..."
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Search branches..."
 msgstr "ブランチを検索..."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search categories"
+msgstr "検索カテゴリ"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
@@ -13151,6 +13184,10 @@ msgstr "リポジトリの検索"
 msgid "Search repositories…"
 msgstr "リポジトリを検索…"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Search results"
+msgstr "検索結果"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "ランタイム項目を検索…"
@@ -13188,20 +13225,28 @@ msgid "Search the current view"
 msgstr "現在のビューを検索"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "Search threads"
-msgstr "スレッドを検索する"
+#~ msgid "Search threads"
+#~ msgstr "スレッドを検索する"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "スレッドの検索"
+#~ msgid "Search Threads"
+#~ msgstr "スレッドの検索"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search threads, commands, settings, and files…"
+msgstr "スレッド、コマンド、設定、ファイルを検索…"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "タイトル、メッセージ、フォルダーを検索"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "Search…"
-msgstr "検索…"
+#~ msgid "Search…"
+#~ msgstr "検索…"
+
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Searching files…"
+msgstr "ファイルを検索中…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -13252,6 +13297,10 @@ msgstr "編集を開始するファイルを選択します。"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Select a project to scan project MCP servers."
 #~ msgstr "プロジェクトの MCP サーバーをスキャンするには、プロジェクトを選択してください。"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Select a project to search files"
+msgstr "ファイルを検索するプロジェクトを選択"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select a repository."
@@ -13455,6 +13504,8 @@ msgstr "このセッションの開始時に確定されます — プラグイ�
 #~ msgid "Setting"
 #~ msgstr "設定"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -13636,6 +13687,7 @@ msgstr "表示を少なくする"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "{providerLabel} の MCP サーバーを表示"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
@@ -13720,6 +13772,10 @@ msgstr "音声入力ボタンを表示"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "{0, plural, other {# 件のスキル}}を表示中"
+
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
+msgstr "最初の {CATEGORY_RESULT_LIMIT} 件の結果を表示しています。検索条件を絞り込んでください。"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -15796,10 +15852,10 @@ msgstr "スレッドが見つかりません"
 msgid "Thread todo dock"
 msgstr "スレッドのやることドック"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "スレッド"
 
@@ -15986,6 +16042,10 @@ msgstr "トリガー："
 #~ msgid "Try a different search or project filter."
 #~ msgstr "別の検索語句またはプロジェクトフィルターを試してください。"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Try different keywords or choose a category."
+msgstr "別のキーワードを試すか、カテゴリを選択してください。"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Try now"
 msgstr "試してみる"
@@ -16013,8 +16073,8 @@ msgid "Type"
 msgstr "タイプ"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "コマンドを入力してください"
+#~ msgid "Type a command"
+#~ msgstr "コマンドを入力してください"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
@@ -16023,6 +16083,10 @@ msgstr "コマンドを入力してください"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "ページに入力（先にフィールドをタップ）"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "入力してファイルを検索"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

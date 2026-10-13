@@ -7,6 +7,11 @@
 const EDITOR_FOCUS_SELECTOR = ".monaco-editor";
 const TERMINAL_FOCUS_SELECTOR = ".xterm";
 
+export function resolveFocusElement(target?: EventTarget | null): Element | null {
+  const element = target instanceof Element ? target : document.activeElement;
+  return element instanceof Element ? element : null;
+}
+
 /** True when `element` is inside a Monaco editor surface. */
 export function isEditorFocusElement(element: Element | null | undefined): boolean {
   return Boolean(element?.closest(EDITOR_FOCUS_SELECTOR));

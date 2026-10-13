@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 13
     const val bindingFormatVersion = 2
     const val generatorVersion = 4
-    const val sourceHash = "sha256:320e15cc00a3024d073adca717e3d528e085a6959efe63ff8aca7ad4eac4d4cf"
+    const val sourceHash = "sha256:2c2074b2b0068bae421686a6b95d224aa937631b924ab979b4aefbee4d26e15d"
     const val manifestHash = "sha256:2705e8a5e2e7c27c9e8496676b1bc0a4e7174f1b04dc74f6e5cad7d1b49559f4"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -236,7 +236,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("rollbackThreadConversation", "session:operate", "thread", "omitted", "ProcedurerollbackThreadConversationRequest_536f7d46d8", "RemoteUnit"),
         RemoteProcedureDescriptor("scanSkills", "session:read", "optionalProjectLocation", "json", "ProcedurescanSkillsRequest_eb5b966723", "ProcedurescanSkillsResult_f958c6e1fa"),
         RemoteProcedureDescriptor("searchProjectFiles", "session:read", "projectLocation", "json", "ProceduresearchProjectFilesRequest_c4ad1400e2", "ProceduresearchProjectFilesResult_2465ffaaf2"),
-        RemoteProcedureDescriptor("searchProjectTree", "session:read", "projectLocation", "json", "ProceduresearchProjectFilesRequest_c4ad1400e2", "ProceduresearchProjectTreeResult_ed3d977334"),
+        RemoteProcedureDescriptor("searchProjectTree", "session:read", "projectLocation", "json", "ProceduresearchProjectTreeRequest_956459f749", "ProceduresearchProjectTreeResult_ed3d977334"),
         RemoteProcedureDescriptor("setSkillEnabled", "session:operate", "optionalProjectLocation", "omitted", "ProceduresetSkillEnabledRequest_38462ff398", "RemoteUnit"),
         RemoteProcedureDescriptor("stageThreadInput", "session:operate", "thread", "omitted", "ProcedurestageThreadInputRequest_d4db039cba", "RemoteUnit"),
         RemoteProcedureDescriptor("startThread", "session:operate", "projectLocation", "json", "ProcedureensureThreadRunningRequest_4d961f4317", "ProcedurecancelExtractContextRequest_09b78d9c1d"),

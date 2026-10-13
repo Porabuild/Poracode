@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { resolveFindTarget } from "./findController";
+import { openFindForActiveSurface, resolveFindTarget } from "./findController";
 
 function resetFindRoutingState(): void {
   document.body.innerHTML = "";
@@ -12,11 +13,11 @@ function resetFindRoutingState(): void {
     projectSettingsId: null,
     gitOverlayOpen: false,
     prReviewContext: null,
-    threadSearchOpen: false,
     createProjectModalOpen: false,
     cloneProjectModalOpen: false,
   });
   useAppStore.setState({ view: { kind: "home" } });
+  useFindFocusStore.setState({ settingsFocusToken: 0, treeFocusToken: 0 });
 }
 
 describe("resolveFindTarget", () => {
@@ -43,5 +44,21 @@ describe("resolveFindTarget", () => {
     useCommandPaletteStore.setState({ isOpen: true });
 
     expect(resolveFindTarget()).toBeNull();
+  });
+
+  it("routes from a provided originating target after focus moves", () => {
+    document.body.innerHTML = `
+      <div data-poracode-find-scope="settings"><button id="origin">Setting</button></div>
+      <input id="palette" />
+    `;
+    const origin = document.getElementById("origin");
+    document.getElementById("palette")?.focus();
+    useCommandPaletteStore.setState({ isOpen: true });
+
+    expect(resolveFindTarget()).toBeNull();
+    expect(resolveFindTarget(origin)).toBe("settings");
+
+    openFindForActiveSurface(origin);
+    expect(useFindFocusStore.getState().settingsFocusToken).toBe(1);
   });
 });

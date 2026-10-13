@@ -19541,6 +19541,13 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
+        "entryType": {
+          "enum": [
+            "file",
+            "directory"
+          ],
+          "type": "string"
+        },
         "limit": {
           "default": 50,
           "maximum": 200,
@@ -52544,5 +52551,5 @@
   },
   "manifestHash": "sha256:2705e8a5e2e7c27c9e8496676b1bc0a4e7174f1b04dc74f6e5cad7d1b49559f4",
   "protocolVersion": 13,
-  "sourceHash": "sha256:320e15cc00a3024d073adca717e3d528e085a6959efe63ff8aca7ad4eac4d4cf"
+  "sourceHash": "sha256:2c2074b2b0068bae421686a6b95d224aa937631b924ab979b4aefbee4d26e15d"
 }
