@@ -77,6 +77,8 @@ interface MessageListProps {
   onContentHeightChange?: () => void;
   onVirtualizerLayoutChange?: () => void;
   onLiveVirtualizerLayoutChange?: () => void;
+  /** Fires after the virtualizer has measured and completed its initial scroll. */
+  onInitialLayoutReady?: () => void;
   registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
   scrollClassName?: string;
   scrollStyle?: CSSProperties;
@@ -138,6 +140,7 @@ export function MessageList({
   onContentHeightChange,
   onVirtualizerLayoutChange,
   onLiveVirtualizerLayoutChange,
+  onInitialLayoutReady,
   registerVirtualScrollToBottom,
   scrollClassName,
   scrollStyle,
@@ -517,7 +520,10 @@ export function MessageList({
               },
             }
           : {})}
-        onLoad={notifyContentHeight}
+        onLoad={() => {
+          notifyContentHeight();
+          onInitialLayoutReady?.();
+        }}
         {...(onPointerDownCapture ? { onPointerDownCapture } : {})}
         {...(onWheelCapture || onStartReached
           ? {

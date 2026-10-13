@@ -1,6 +1,5 @@
 import {
   CATALOG_READS_CAPABILITY,
-  HISTORY_ITEMS_DEFAULT_LIMIT,
   HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES,
   HISTORY_TIMELINE_ENTRY_DEFAULT,
   HISTORY_TURNS_SOFT_PACK_WIRE_BYTES,
@@ -16,6 +15,7 @@ import { dbReadCompletedTurnPhase1, dbReadCompletedTurnPhase2 } from "@/host/db/
 import { dbReadThreadHistoryPagePhase1, type HistoryPageRowMeta } from "@/host/db/historyReads";
 import { dbGetThread } from "@/host/db/projectsThreads";
 import { runtimeHistoryRevision } from "@/host/db/runtimeHistoryRevision";
+import { RUNTIME_PAGE_BOUNDARY_SCAN_SIZE } from "@/host/db/runtimeTimelineReads";
 import {
   dbGetThreadContextUsage,
   dbReadLatestThreadGoalItem,
@@ -115,7 +115,9 @@ export async function buildBoundedThreadSnapshot(
     fenced = readRuntimeFence(fenceToken, () => {
       const phase1 = dbReadThreadHistoryPagePhase1(threadId, {
         ...(negotiation.compactDetails ? { compactDetails: true } : {}),
-        limit: HISTORY_ITEMS_DEFAULT_LIMIT,
+        // A smaller scan batch avoids probing 500 candidates for a short tail;
+        // shared selection still fills the same complete timeline-entry window.
+        limit: RUNTIME_PAGE_BOUNDARY_SCAN_SIZE,
         targetTimelineEntryCount,
       });
       const { keptMeta, projectedDesc } = readProjectedHistoryWindow(
@@ -229,8 +231,9 @@ export async function buildBoundedThreadSnapshot(
 
   const fits = (itemCount: number, turnCount: number): boolean =>
     catalogSizesFit(measureCatalogBody(serialize(itemCount, turnCount)), caps);
-  if (fits(itemCountAvailable, turnsTotal)) {
-    return serialize(itemCountAvailable, turnsTotal);
+  const fullBody = serialize(itemCountAvailable, turnsTotal);
+  if (catalogSizesFit(measureCatalogBody(fullBody), caps)) {
+    return fullBody;
   }
   const emptySizes = measureCatalogBody(serialize(0, 0));
   if (!catalogSizesFit(emptySizes, caps)) {

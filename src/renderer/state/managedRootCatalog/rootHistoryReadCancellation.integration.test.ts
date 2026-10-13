@@ -242,7 +242,7 @@ it.each([false, true])(
     const uninstall = installRuntimeHistoryRecovery(reducer.recoverRuntimeHistory);
     let retained = true;
     try {
-      hydrateThreadRuntimeItemsForInterest(threadId, false);
+      void hydrateThreadRuntimeItemsForInterest(threadId, false);
       await vi.waitFor(() => expect(captured.ready).toBe(true));
       expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBe(retainedIds);
       releaseThreadRuntimeItems(threadId);
@@ -258,7 +258,7 @@ it.each([false, true])(
       // read; it must not merge a fresh tail into the old reverted transcript.
       retainThreadRuntimeItems(threadId);
       retained = true;
-      hydrateThreadRuntimeItemsForInterest(threadId, true);
+      void hydrateThreadRuntimeItemsForInterest(threadId, true);
       expect(read).toHaveBeenCalledOnce();
       held.resolve();
       await vi.waitFor(() => {

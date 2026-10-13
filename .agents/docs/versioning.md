@@ -25,6 +25,20 @@ no persisted thread or public wire shape changes.
 
 ## Bounded history presentation and restart preview (2026-10-12)
 
+Desktop history-first navigation prepares the existing bounded reader and live
+interest before replacing the pane. Only that destination pane adopts the
+reader; background runtime owners retain independently. Navigation cancellation
+and removed target rows release unadopted readers. These leases and callbacks
+are process-local. The initial snapshot uses smaller classification scan batches
+and limits stream/projection size probes to selected rows. Desktop reads request
+20 initial timeline entries
+through the existing option; continuations retain their normal page size and
+complete tool groups. Canonical content, byte caps and cursors are preserved.
+The managed pane uses the virtualizer's measured initial-layout readiness to
+reveal its prepared tail; unready and opt-in delayed layouts keep their fallback.
+SQLite schema 58, recent-history cache format 1,
+IPC/remote/native contracts and helper/plugin versions remain unchanged.
+
 Protocol 13 gains additive `historyDetails` v1 and `threadHistoryResume` v1 capabilities. `projection=details-v1` is explicit: undeclared clients retain complete command streams. Completed command streams remain in canonical SQLite storage; the new authenticated item-detail route reads them under the existing persistence fence and negotiated byte limits. Snapshot cursors bind the server epoch, thread, replay generation and process-local durable-mutation revision. The optional `omittedRuntimeThreadIds` event-envelope field records server scoping and survives worker decoding, delayed queues and direct recovery replay. It is part of `threadHistoryResume` v1, with generated native parsers kept compatible. Separate transcript and control watermarks freeze bulk coverage across an interest gap; already delivered turn controls are not replayed over newer live state. A partial append frame or bulk applied before recovery requires a fresh baseline. A truncate, replacement, reset, retention gap or server restart requires a normal bounded snapshot. No database schema, canonical IPC or helper version changes are required.
 
 The renderer's recent-tail cache has its own IndexedDB database, `poracode-recent-history-v1`, record version 1. It never upgrades or imports expanded offline-history records. Only accepted initial tails are written, capped at 500 rows and 1 MiB each, 20 records / 8 MiB total. Verified host identity owns cache keys; previews own exact row objects, never hydration or continuation proofs. Cold reads hold bulk live events until the authoritative baseline is installed, then discard covered frames and apply newer ones; live requests remain independent. Unknown versions, malformed identities and oversized records are ignored. Detail bodies and older pages are excluded. Regression tests cover pre-upgrade/invalid cache records, pruning, delayed authoritative replacement, live updates, replay isolation and original stored command output. Native bindings are regenerated; existing native callers omit the opt-in projection and retain compatible complete history. Native adoption is recorded as planned in the parity ledger.

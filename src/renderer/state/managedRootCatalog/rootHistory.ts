@@ -26,6 +26,10 @@ import {
 import { isManagedRootDesktopRuntime } from "./rootCatalogCommands";
 import { isManagedRootRow } from "./rootCatalogRows";
 
+// Paint the recent viewport first. Continuations keep their normal page size,
+// and the host still completes any tool group crossing this initial boundary.
+const INITIAL_HISTORY_TIMELINE_ENTRIES = 20;
+
 /**
  * Managed-root bounded transcript reads (B4 F6).
  *
@@ -85,6 +89,7 @@ export async function readManagedRootHistoryPage(
   const result = options.page
     ? ({ negotiation: "bounded", page: options.page } as const)
     : await activation.client.boundedThreadHistory(threadId, {
+        targetTimelineEntryCount: INITIAL_HISTORY_TIMELINE_ENTRIES,
         compactDetails: true,
         noticesCapable: true,
         maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,

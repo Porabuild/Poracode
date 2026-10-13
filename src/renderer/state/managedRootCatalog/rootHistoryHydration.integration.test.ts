@@ -5,6 +5,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import {
   hasHydratedThreadRuntimeItems,
   hydrateThreadRuntimeItems,
+  loadOlderThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
 import {
   activate,
@@ -27,6 +28,24 @@ import {
 
 beforeEach(setupManagedRootFixture);
 afterEach(teardownManagedRootFixture);
+
+it("paints a small initial tail and pages back through all saved history without gaps", async () => {
+  const threadId = "t-initial-tail";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 70);
+  await activate();
+  await vi.waitFor(() => expect(threadRow(threadId)).toBeDefined(), { timeout: 15_000 });
+  await hydrateThreadRuntimeItems(threadId);
+  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(
+    Array.from({ length: 20 }, (_, index) => `item-${50 + index}`),
+  );
+  await loadOlderThreadRuntimeItems(threadId);
+  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toHaveLength(60);
+  await loadOlderThreadRuntimeItems(threadId);
+  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(
+    Array.from({ length: 70 }, (_, index) => `item-${index}`),
+  );
+}, 60_000);
 
 it("keeps the loaded reader visible while a discontinuous interest refresh is pending", async () => {
   const threadId = "t-retained-reader";
@@ -51,7 +70,7 @@ it("keeps the loaded reader visible while a discontinuous interest refresh is pe
   reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
   const uninstall = installRuntimeHistoryRecovery(reducer.recoverRuntimeHistory);
   try {
-    hydrateThreadRuntimeItemsForInterest(threadId, false);
+    void hydrateThreadRuntimeItemsForInterest(threadId, false);
     await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
     expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
     expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
@@ -95,7 +114,7 @@ it("reopens background history without losing its pending approval", async () =>
       },
       1,
     );
-    hydrateThreadRuntimeItemsForInterest(threadId, false);
+    void hydrateThreadRuntimeItemsForInterest(threadId, false);
     await vi.waitFor(() =>
       expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]),
     );
@@ -209,13 +228,13 @@ it("restores completed background output and turn history after live coverage wa
   const uninstall = installRuntimeHistoryRecovery(reducer.recoverRuntimeHistory);
   try {
     // A continuous React hand-off keeps its current cache and does no read.
-    hydrateThreadRuntimeItemsForInterest(threadId, true);
+    void hydrateThreadRuntimeItemsForInterest(threadId, true);
     await Promise.resolve();
     expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).not.toContain(
       "background-reply",
     );
 
-    hydrateThreadRuntimeItemsForInterest(threadId, false);
+    void hydrateThreadRuntimeItemsForInterest(threadId, false);
     await vi.waitFor(() => {
       expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
         "item-0",

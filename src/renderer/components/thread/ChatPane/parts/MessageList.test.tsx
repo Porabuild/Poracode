@@ -198,6 +198,21 @@ vi.mock("./items/ChatItemRow", () => ({
 }));
 
 describe("MessageList", () => {
+  it("reports initial measured layout independently from later content-size commits", () => {
+    const onInitialLayoutReady = vi.fn<() => void>();
+    render(
+      <MessageList threadId="thread-1" entries={[]} onInitialLayoutReady={onInitialLayoutReady} />,
+    );
+    expect(onInitialLayoutReady).toHaveBeenCalledOnce();
+    act(() =>
+      (latestLegendProps.current as MockLegendProps).onContentSizeCommit?.({
+        size: 200,
+        horizontal: false,
+      }),
+    );
+    expect(onInitialLayoutReady).toHaveBeenCalledOnce();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     legendDomReflowMode.current = "sync";
