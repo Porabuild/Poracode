@@ -10,6 +10,9 @@ import type {
   Project,
 } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { reconcileAcpRegistryInstalls } from "@/renderer/state/reconcileAcpRegistryInstalls";
+import { dynamicActivate } from "@/renderer/i18n/i18n";
+import { msg } from "@/shared/messages";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
@@ -29,7 +32,8 @@ const settingsState = {
   setMachineProviderOrder: vi.fn<(machineId: string, order: string[]) => void>(),
   lockProviderOrderToMachine: vi.fn<(machineId: string) => void>(),
   acpRegistryInstalledAgents: {} as Record<string, InstalledAcpRegistryAgent>,
-  syncAcpRegistryInstalledAgents: vi.fn<(installed: InstalledAcpRegistryAgent[]) => void>(),
+  syncAcpRegistryInstalledAgents:
+    vi.fn<(installed: InstalledAcpRegistryAgent[], agentIds?: readonly string[]) => void>(),
 };
 
 const appState = { projects: [] as Project[] };
@@ -149,6 +153,7 @@ describe("ModelOrderSection provider updates", () => {
     statusesState.wslAgentStatuses = [];
     settingsState.providerOrder = [];
     settingsState.acpRegistryInstalledAgents = {};
+    settingsState.syncAcpRegistryInstalledAgents.mockReset();
     toastMock.success.mockReset();
     toastMock.danger.mockReset();
     bridge.getLatestAgentVersion.mockReset().mockResolvedValue({ source: "unknown" });
@@ -297,23 +302,19 @@ describe("ModelOrderSection provider updates", () => {
 
   it("shows queued, updating, and probing phases during Update all", async () => {
     statusesState.agentStatuses = [
-      makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3" }),
-      makeStatus({ kind: "codex", label: "Codex", version: "0.9.0" }),
+      makeStatus({ kind: "test-a", label: "Agent A", version: "1.0.0" }),
+      makeStatus({ kind: "test-b", label: "Agent B", version: "1.0.0" }),
+      makeStatus({ kind: "test-c", label: "Agent C", version: "1.0.0" }),
+      makeStatus({ kind: "test-d", label: "Agent D", version: "1.0.0" }),
     ];
-    bridge.getLatestAgentVersion.mockImplementation(({ agentKind }) =>
-      Promise.resolve({
-        source: "npm",
-        version: agentKind === "claude" ? "1.3.0" : "1.0.0",
-      }),
-    );
-    let resolveClaudeUpdate!: (value: { ok: boolean }) => void;
-    let resolveCodexUpdate!: (value: { ok: boolean }) => void;
+    settingsState.providerOrder = statusesState.agentStatuses.map((agent) => agent.kind);
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "2.0.0" });
+    const resolveUpdates = new Map<string, (value: { ok: boolean }) => void>();
     const resolveRefreshes: Array<(value: AgentStatusesResponse) => void> = [];
     bridge.updateAgentBinary.mockImplementation(
       ({ agentKind }) =>
         new Promise((resolve) => {
-          if (agentKind === "claude") resolveClaudeUpdate = resolve;
-          else resolveCodexUpdate = resolve;
+          resolveUpdates.set(agentKind, resolve);
         }),
     );
     bridge.refreshAgentStatuses.mockImplementation(
@@ -324,51 +325,58 @@ describe("ModelOrderSection provider updates", () => {
     );
 
     render(<ModelOrderSection />);
-    const updateAllButton = await screen.findByRole("button", { name: "Update all (2)" });
+    const updateAllButton = await screen.findByRole("button", { name: "Update all (4)" });
     updateAllButton.focus();
     fireEvent.click(updateAllButton);
 
     const firstProgress = await screen.findByRole("status", {
-      name: "Updating Claude Code (1 of 2)",
+      name: "Updating providers (0 of 4 complete)",
     });
     expect(firstProgress.querySelector("span.truncate")).toBeTruthy();
-    expect(screen.getByRole("status", { name: "Codex queued for update to v1.0.0" })).toBeTruthy();
+    expect(
+      screen.getByRole("status", { name: "Agent D queued for update to v2.0.0" }),
+    ).toBeTruthy();
     expect(document.activeElement).toBe(updateAllButton);
     expect(updateAllButton).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByText("Updating (1/2)")).toBeTruthy();
-    expect(screen.getByText("Updating to v1.3.0")).toBeTruthy();
-    expect(screen.getByText("Queued for v1.0.0")).toBeTruthy();
-    expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Updating (0/4)")).toBeTruthy();
+    expect(screen.getAllByText("Updating to v2.0.0")).toHaveLength(3);
+    expect(screen.getByText("Queued for v2.0.0")).toBeTruthy();
+    expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(3);
 
     await act(async () => {
-      resolveClaudeUpdate({ ok: true });
+      resolveUpdates.get("test-b")?.({ ok: true });
     });
 
-    expect(
-      await screen.findByRole("status", { name: "Probing Claude Code (1 of 2)" }),
-    ).toBeTruthy();
-    expect(screen.getByText("Probing v1.3.0")).toBeTruthy();
-    expect(screen.getByText("Queued for v1.0.0")).toBeTruthy();
-
-    await act(async () => {
-      resolveRefreshes.shift()?.({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
-    });
-
-    expect(await screen.findByRole("status", { name: "Updating Codex (2 of 2)" })).toBeTruthy();
-    expect(screen.getByText("Updating (2/2)")).toBeTruthy();
-    expect(screen.getByText("Updating to v1.0.0")).toBeTruthy();
-    expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      resolveCodexUpdate({ ok: true });
-    });
-
-    expect(await screen.findByRole("status", { name: "Probing Codex (2 of 2)" })).toBeTruthy();
-    expect(screen.getByText("Probing v1.0.0")).toBeTruthy();
+    expect(await screen.findByRole("status", { name: "Probing Agent B v2.0.0" })).toBeTruthy();
+    expect(screen.getByText("Probing v2.0.0")).toBeTruthy();
+    expect(screen.getByText("Queued for v2.0.0")).toBeTruthy();
+    expect(screen.getByText("Updating (0/4)")).toBeTruthy();
 
     await act(async () => {
       resolveRefreshes.shift()?.({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
     });
+
+    expect(await screen.findByRole("status", { name: "Updating Agent D to v2.0.0" })).toBeTruthy();
+    expect(screen.getByText("Updating (1/4)")).toBeTruthy();
+    expect(bridge.updateAgentBinary).toHaveBeenCalledTimes(4);
+    expect(screen.queryByText("Queued for v2.0.0")).toBeNull();
+
+    await act(async () => {
+      for (const kind of ["test-a", "test-c", "test-d"]) {
+        resolveUpdates.get(kind)?.({ ok: true });
+      }
+    });
+
+    expect(await screen.findByRole("status", { name: "Probing Agent D v2.0.0" })).toBeTruthy();
+    expect(screen.getAllByText("Probing v2.0.0")).toHaveLength(3);
+
+    await act(async () => {
+      for (const resolve of resolveRefreshes) {
+        resolve({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
+      }
+    });
+    await waitFor(() => expect(screen.queryByText(/Updating \(/u)).toBeNull());
+    expect(toastMock.success).toHaveBeenCalledTimes(4);
   });
 
   it("keeps an individual provider's versioned row status until refresh finishes", async () => {
@@ -513,6 +521,30 @@ describe("ModelOrderSection provider updates", () => {
     expect(toastMock.success).not.toHaveBeenCalled();
   });
 
+  it("translates the supervisor's queue-timeout detail in a non-English locale", async () => {
+    const supervisorOutput = msg("agent.updateQueueTimeout");
+    await dynamicActivate("es");
+    try {
+      statusesState.agentStatuses = [
+        makeStatus({ kind: "test-agent", label: "Test Agent", version: "1.2.3" }),
+      ];
+      bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.3.0" });
+      bridge.updateAgentBinary.mockResolvedValue({ ok: false, output: supervisorOutput });
+      render(<ModelOrderSection />);
+
+      fireEvent.click(await screen.findByRole("button", { name: /Test Agent.*v1\.3\.0/u }));
+
+      const translated = msg("agent.updateQueueTimeout");
+      expect(translated).not.toBe(supervisorOutput);
+      await waitFor(() => expect(toastMock.danger).toHaveBeenCalledOnce());
+      expect(toastMock.danger.mock.calls[0]?.[0]).toContain(translated);
+      expect(toastMock.danger.mock.calls[0]?.[0]).not.toContain(supervisorOutput);
+      expect(toastMock.success).not.toHaveBeenCalled();
+    } finally {
+      await dynamicActivate("en");
+    }
+  });
+
   it("disables per-provider updates while an update-all run is active", async () => {
     statusesState.agentStatuses = [
       makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3" }),
@@ -552,6 +584,46 @@ describe("ModelOrderSection provider updates", () => {
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith("Claude Code updated to v1.3.0."),
     );
+  });
+
+  it("keeps both registry updates current when their replies contain stale sibling versions", async () => {
+    const before = ["test-a", "test-b"].map((id) => ({
+      id,
+      name: id,
+      version: "1.0.0",
+      installedAt: "2026-10-13",
+      adapterKind: `acp-generic:${id}`,
+      installKind: "generic" as const,
+    }));
+    statusesState.agentStatuses = before.map((record) =>
+      makeStatus({ kind: record.adapterKind, label: record.name, version: record.version }),
+    );
+    settingsState.acpRegistryInstalledAgents = Object.fromEntries(
+      before.map((record) => [record.id, record]),
+    );
+    settingsState.syncAcpRegistryInstalledAgents.mockImplementation((installed, ids) => {
+      settingsState.acpRegistryInstalledAgents = reconcileAcpRegistryInstalls(
+        settingsState.acpRegistryInstalledAgents,
+        installed,
+        ids,
+      );
+    });
+    bridge.listAcpRegistry.mockResolvedValue({
+      version: "1",
+      agents: before.map((record) => ({ id: record.id, version: "2.0.0" })),
+    } as unknown as AcpRegistryListResult);
+    bridge.updateAcpRegistryAgent.mockImplementation(async ({ agentId }) => ({
+      installed: before.map((record) => ({
+        ...record,
+        version: record.id === agentId ? "2.0.0" : "1.0.0",
+      })),
+    }));
+    render(<ModelOrderSection />);
+    fireEvent.click(await screen.findByRole("button", { name: "Update all (2)" }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledTimes(2));
+    expect(settingsState.acpRegistryInstalledAgents["test-a"]?.version).toBe("2.0.0");
+    expect(settingsState.acpRegistryInstalledAgents["test-b"]?.version).toBe("2.0.0");
+    expect(screen.queryByRole("button", { name: /^Update/u })).toBeNull();
   });
 
   it("routes ACP registry instances through the registry update", async () => {

@@ -1,4 +1,10 @@
 import type { StartRemoteNewThreadInput } from "@/shared/remote/client";
+import type { ProjectLocation } from "@/shared/contracts";
+
+/** Saved metadata launches through the existing-thread endpoint at this captured location. */
+export type ManagedRootLaunchReplay = StartRemoteNewThreadInput & {
+  readonly projectLocation?: ProjectLocation;
+};
 
 /**
  * Managed-root catalog readiness (B4 S3/D2).
@@ -65,10 +71,10 @@ export function pinnedManagedRootThreadIds(): ReadonlySet<string> {
 }
 
 /**
- * A root thread row the renderer created optimistically and has NOT yet asked
- * the host to persist. `performInitialThreadLaunch` consumes the marker to
- * choose the host's create+launch command (`start`) instead of a supervisor
- * resume for a row that does not exist host-side yet.
+ * An optimistic root row awaiting its first runtime launch. Draft creation
+ * can persist its metadata first; other creators use the host's create+launch
+ * command. The marker remains until launch acknowledgement or confirmed
+ * deletion, preserving launch identity and cancellation through awaits.
  *
  * Each launch episode carries its own command id. An explicit retry starts a
  * genuinely new operation (fresh id and body) only while no uncertain episode
@@ -86,11 +92,17 @@ export function pinnedManagedRootThreadIds(): ReadonlySet<string> {
 export interface PendingManagedRootLaunch {
   readonly isNewWorktree: boolean;
   readonly commandId: string;
+  /** The host already owns the metadata row; only the runtime launch remains pending. */
+  readonly metadataCreated?: true;
+  /** Creation may have committed; deletion must still go through the host authority. */
+  readonly metadataCreationUncertain?: true;
+  /** A provisioning cancellation waits for confirmed host deletion before removing its worktree. */
+  readonly removal?: Promise<boolean>;
   /**
    * The exact original `start` body retained across an uncertain retry. A
    * fresh attempt leaves it unset and derives a new body from the thread.
    */
-  readonly replay?: StartRemoteNewThreadInput;
+  readonly replay?: ManagedRootLaunchReplay;
 }
 
 const pendingRootLaunches = new Map<string, PendingManagedRootLaunch>();
@@ -113,6 +125,33 @@ export function retainPendingManagedRootLaunch(
   launch: PendingManagedRootLaunch,
 ): void {
   pendingRootLaunches.set(threadId, launch);
+}
+
+export function markPendingManagedRootThreadCreated(threadId: string): void {
+  const pending = pendingRootLaunches.get(threadId);
+  if (pending) {
+    const { metadataCreationUncertain: _uncertain, ...rest } = pending;
+    pendingRootLaunches.set(threadId, { ...rest, metadataCreated: true });
+  }
+}
+
+export function markPendingManagedRootThreadCreationUncertain(threadId: string): void {
+  const pending = pendingRootLaunches.get(threadId);
+  if (pending) pendingRootLaunches.set(threadId, { ...pending, metadataCreationUncertain: true });
+}
+
+export function trackPendingManagedRootThreadRemoval(
+  threadId: string,
+  removal: Promise<boolean>,
+): void {
+  const pending = pendingRootLaunches.get(threadId);
+  if (pending) pendingRootLaunches.set(threadId, { ...pending, removal });
+  void removal.then(() => {
+    const current = pendingRootLaunches.get(threadId);
+    if (current?.removal !== removal) return;
+    const { removal: _removed, ...rest } = current;
+    pendingRootLaunches.set(threadId, rest);
+  });
 }
 
 /**

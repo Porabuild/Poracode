@@ -8,16 +8,14 @@ import {
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { guiChatFontCssVars } from "../../chatFontVars";
-import {
-  getChildTimelineEntriesStoreSelector,
-  getRuntimeItemStoreSelector,
-} from "../../chatPaneSelectors";
+import { getChildTimelineEntriesStoreSelector } from "../../chatPaneSelectors";
 import type { TurnTiming } from "../../ChatTurnElapsed";
 import { buildSubAgentProgressParts } from "./subAgentProgressMeta";
 import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
@@ -80,7 +78,7 @@ export function SubAgentContent({
   initialScrollRevealDelayMs = 50,
 }: SubAgentContentProps) {
   const { t } = useLingui();
-  const item = useAppStore(getRuntimeItemStoreSelector(threadId, parentItemId));
+  const item = useThreadRuntimeItem(threadId, parentItemId);
   const childEntries = useAppStore(getChildTimelineEntriesStoreSelector(threadId, parentItemId));
   const applyRuntimeEvents = useAppStore((s) => s.applyRuntimeEvents);
   const target = `${threadId}:${parentItemId}`;
@@ -204,7 +202,7 @@ export function SubAgentHeaderText({
   part?: "all" | "title" | "description";
 }) {
   const { t } = useLingui();
-  const item = useAppStore(getRuntimeItemStoreSelector(threadId, parentItemId));
+  const item = useThreadRuntimeItem(threadId, parentItemId);
   const payload = item ? getRuntimeItemPayload<ToolCallPayload>(item, "tool_call") : undefined;
   const isCrossagent = isCrossagentTool(payload);
   const display = payload ? deriveToolDisplay(payload) : null;

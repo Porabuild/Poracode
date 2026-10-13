@@ -564,13 +564,15 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     isCurrentStartup() &&
     managedLoopback.transport === transport &&
     getRuntime?.() === installedRuntime;
-  let bootstrap: ManagedLoopbackBootstrap | null = null;
-  try {
-    bootstrap =
-      (await installedRuntime.procedures.getManagedLoopbackBootstrap()) as ManagedLoopbackBootstrap | null;
-  } catch {
-    bootstrap = null;
-  }
+  // The runtime is installed, so these module imports are now safe and can
+  // overlap host readiness instead of forming a startup waterfall.
+  const [bootstrap, feed, eventInterests] = await Promise.all([
+    installedRuntime.procedures
+      .getManagedLoopbackBootstrap()
+      .catch(() => null) as Promise<ManagedLoopbackBootstrap | null>,
+    loadTerminalFeed(),
+    import("@/renderer/state/rendererEventInterests"),
+  ]);
   if (!isCurrentBootstrap()) return;
   const pairingToken = bootstrap ? parsePairingCredential(bootstrap.pairingUrl) : null;
   if (!bootstrap || !pairingToken || !isLoopbackEndpoint(bootstrap.endpoint)) {
@@ -578,15 +580,6 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     return;
   }
   const endpoint = bootstrap.endpoint;
-  // Loaded before the intake is constructed so the sync callbacks below can
-  // mirror terminal lifecycle without their own imports (V6 B.1 cycle note).
-  const feed = await loadTerminalFeed();
-  if (!isCurrentBootstrap()) return;
-  // A1: the renderer interest registry is loaded lazily for the same reason —
-  // it reads the bridge, which evaluates the client runtime, which imports this
-  // barrel (module-scope import would close the evaluation cycle, V6 B.1).
-  const eventInterests = await import("@/renderer/state/rendererEventInterests");
-  if (!isCurrentBootstrap()) return;
   let intake: DesktopLoopbackIntake | null = null;
   const isCurrentIntake = () =>
     isCurrentStartup() &&

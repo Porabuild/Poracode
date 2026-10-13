@@ -101,6 +101,20 @@ describe("generateTitleAsync", () => {
     await waitFor(() => expect(useAppStore.getState().threads[0]?.title).toBe(GENERATED_TITLE));
   });
 
+  it("matches the captured fallback when title-command normalization changes during preparation", async () => {
+    const thread = makeThread();
+    useAppStore.setState({ threads: [thread] });
+    generateTitleAsync(thread.id, POSIX, [], "normalized title prompt", thread.title);
+    await waitFor(() =>
+      expect(sendManagedRootThreadCommand).toHaveBeenCalledWith({
+        kind: "rename",
+        threadId: thread.id,
+        title: GENERATED_TITLE,
+      }),
+    );
+    expect(useAppStore.getState().threads[0]?.title).toBe(GENERATED_TITLE);
+  });
+
   it("drops the generated title when the user renames while generation is in flight", async () => {
     const thread = makeThread({ title: "User renamed" });
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));

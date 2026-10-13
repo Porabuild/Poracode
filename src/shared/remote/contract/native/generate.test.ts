@@ -68,7 +68,7 @@ describe("remote v3 native binding generator", () => {
         // flat reorder command. Host-scoped usage adds two procedures and four roots.
         // Regenerate native authority from all combined schemas.
         // Optional context-reload facts also add one generated Swift chunk.
-        sourceHash: "sha256:e4d4150c4596cf60e47cc4f8dd770023c623b8eee6a6ecb8e444356f128fc507",
+        sourceHash: "sha256:320e15cc00a3024d073adca717e3d528e085a6959efe63ff8aca7ad4eac4d4cf",
         manifestHash: "sha256:2705e8a5e2e7c27c9e8496676b1bc0a4e7174f1b04dc74f6e5cad7d1b49559f4",
         counts: {
           routes: 97,
@@ -79,7 +79,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 435,
-          structuralTypes: 986,
+          structuralTypes: 987,
           semanticValidators: 18,
           swiftFiles: 62,
           kotlinFiles: 54,

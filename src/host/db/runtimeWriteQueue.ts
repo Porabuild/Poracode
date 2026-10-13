@@ -1,5 +1,6 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import { estimateRuntimeEventBytes } from "@/shared/runtimeEventSize";
+import { runtimeRequestItemId } from "./runtimeRequestItemId";
 import type { RuntimeAdmissionRefusalReason, RuntimeRefusalScope } from "./runtimePersistenceTypes";
 import {
   RuntimeAdmissionReservations,
@@ -565,6 +566,27 @@ export class RuntimeWriteQueue {
     return [...this.pending.entries()]
       .sort((a, b) => a[1].firstEnqueuedAt - b[1].firstEnqueuedAt)
       .map(([threadId]) => threadId);
+  }
+
+  /** Whether queued lifecycle writes can change this item's stored payload or existence. */
+  hasPendingItemWrite(threadId: string, itemId: string): boolean {
+    return (
+      this.pending.get(threadId)?.events.some(({ event }) => {
+        switch (event.type) {
+          case "item.started":
+          case "item.updated":
+          case "item.completed":
+            return event.itemId === itemId;
+          case "request.opened":
+            return runtimeRequestItemId(event.requestId) === itemId;
+          case "turn.completed":
+            // Cancellation may prune trailing reasoning rows without naming an item.
+            return event.state === "interrupted" || event.state === "cancelled";
+          default:
+            return false;
+        }
+      }) ?? false
+    );
   }
 
   /** Detached payload-event inventory after a producer has retired. */

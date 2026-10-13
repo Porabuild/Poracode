@@ -17,6 +17,7 @@ import { createMainWindow } from "./window/createMainWindow";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
 import { installMainRendererInvalidation } from "./window/mainRendererInvalidation";
+import { prewarmManagedLoopbackBootstrap } from "./backend/managedLoopbackBootstrapPrewarm";
 import {
   createQuickComposerWindow,
   showQuickComposerWindow,
@@ -288,6 +289,14 @@ function createMainAppWindow(showOnReady = true, stateOverride?: ShellStateStore
     appearance: windowChrome.appearance,
     sidebarTranslucency: windowChrome.sidebarTranslucency,
     showOnReady,
+    beforeLoad: (loadingWindow) => {
+      const backendHost = desktopApp.backendHostClient;
+      // Attached windows use their external owner's bootstrap instead.
+      if (!backendHost) return;
+      prewarmManagedLoopbackBootstrap(loadingWindow.webContents, () =>
+        backendHost.callService("getManagedLoopbackBootstrap", {}),
+      );
+    },
     onClosed: () => {
       const wasMainWindow = desktopApp.mainWindow === window;
       if (wasMainWindow) {

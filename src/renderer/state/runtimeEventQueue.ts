@@ -14,8 +14,8 @@ export const RUNTIME_EVENT_QUEUE_LIMITS = {
 } as const;
 
 /**
- * A3 cooperative drain: the scheduled flush drains in safe ordered units — a
- * contiguous run of one thread's queued events, capped at this many events —
+ * A3 cooperative drain: the scheduled flush drains in safe ordered units —
+ * contiguous runs of queued events, capped at this many events in total —
  * and yields between units once its time budget is spent. The synchronous
  * overflow/recovery paths (`drain`, `discardThroughSequence`) keep their
  * whole-batch atomicity.
@@ -140,10 +140,10 @@ export class RuntimeEventQueue {
 
   /**
    * A3 budgeted drain. When `budgetMs` is finite, at most
-   * `RUNTIME_EVENT_DRAIN_UNIT_MAX_EVENTS` events per thread are taken and the
-   * loop stops once the budget is spent; remaining work is reported through
-   * `hasMore` so the caller can yield and continue. Order inside a thread is
-   * exactly the enqueue order, so a truncated frame's events stay ordered.
+   * `RUNTIME_EVENT_DRAIN_UNIT_MAX_EVENTS` events in total are taken. Partially
+   * drained threads move behind the others so a continuation cannot repeatedly
+   * serve one busy thread first. Order inside a thread is exactly the enqueue
+   * order, so a truncated frame's events stay ordered.
    */
   drainBudgeted(
     shouldFlush: (threadId: string) => boolean,
@@ -151,22 +151,24 @@ export class RuntimeEventQueue {
     now: () => number = () => performance.now(),
   ): RuntimeEventQueueBudgetedDrain {
     const batches: RuntimeEventQueueBatch[] = [];
-    let hasMore = false;
     const budgeted = Number.isFinite(budgetMs);
     const startedAt = now();
-    for (const [threadId, pending] of this.pending) {
+    let remainingEvents = budgeted ? RUNTIME_EVENT_DRAIN_UNIT_MAX_EVENTS : Number.POSITIVE_INFINITY;
+    // Rotation must not revisit a reinserted thread within this slice.
+    for (const [threadId, pending] of [...this.pending]) {
       if (this.blockedThreads.has(threadId) || !shouldFlush(threadId)) continue;
       if (pending.events.length === 0) {
         this.pending.delete(threadId);
         continue;
       }
-      if (batches.length > 0 && budgeted && now() - startedAt >= budgetMs) {
-        hasMore = true;
+      if (
+        remainingEvents === 0 ||
+        (batches.length > 0 && budgeted && now() - startedAt >= budgetMs)
+      ) {
         break;
       }
-      const take = budgeted
-        ? Math.min(pending.events.length, RUNTIME_EVENT_DRAIN_UNIT_MAX_EVENTS)
-        : pending.events.length;
+      const take = Math.min(pending.events.length, remainingEvents);
+      remainingEvents -= take;
       const taken = pending.events.splice(0, take);
       const takenBytes = taken.reduce((total, entry) => total + entry.bytes, 0);
       pending.bytes -= takenBytes;
@@ -208,9 +210,14 @@ export class RuntimeEventQueue {
         this.pending.delete(threadId);
         continue;
       }
-      hasMore = true;
+      this.pending.delete(threadId);
+      this.pending.set(threadId, pending);
       if (budgeted && now() - startedAt >= budgetMs) break;
     }
+    const hasMore = [...this.pending].some(
+      ([threadId, pending]) =>
+        pending.events.length > 0 && !this.blockedThreads.has(threadId) && shouldFlush(threadId),
+    );
     return { batches, hasMore };
   }
 

@@ -378,6 +378,12 @@ export function pendingRuntimeThreadIds(): string[] {
   return runtimePersistenceController.pendingThreadIds();
 }
 
+/** Pure item-read admission; call and read committed rows in the same synchronous turn. */
+export function canReadCommittedRuntimeItem(threadId: string, itemId: string): boolean {
+  bindCurrentConnection();
+  return runtimePersistenceController.canReadCommittedItem(threadId, itemId);
+}
+
 /** Accepted payload fragments captured before a retired producer can be replaced. */
 export function pendingRuntimeItemPayloadEvents(): ReturnType<
   typeof runtimePersistenceController.pendingItemPayloadEvents

@@ -9,6 +9,7 @@ import { readImageDimensions } from "@/shared/imageDimensions";
 import { remoteImageRef, type RemoteImageRefValue } from "@/shared/remote";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
 import { dbGetThreadRuntimeItem, dbGetThreadRuntimeItemCommitted } from "@/host/db";
+import { canReadCommittedRuntimeItem } from "@/host/db/runtimePersistenceRuntime";
 import { getCachedImagePreview, imagePreviewKey, scheduleImagePreview } from "./imagePreview";
 
 /**
@@ -150,14 +151,20 @@ export function resolveImageRef(
 }
 
 /**
- * Live references can reach the browser before their canonical writes commit.
- * Fence that prefix before resolving; storage refusals remain typed refusals.
+ * An unchanged committed image needs no transcript cursor: serve its validated
+ * bytes without waiting for unrelated streaming writes or history fences.
+ * An image's own pending writes, a thread mutation, or a missing image still
+ * require the canonical fence and preserve typed storage refusals.
  */
 export async function resolveImageRefAfterFence(
   threadId: string,
   itemId: string,
   path: InlineImagePath,
 ): Promise<ResolvedRefImage | null> {
+  if (canReadCommittedRuntimeItem(threadId, itemId)) {
+    const committed = resolveImageRef(threadId, itemId, path);
+    if (committed) return committed;
+  }
   const item = await dbGetThreadRuntimeItem(threadId, itemId, { includeStreams: false });
   return resolveImagePayload(item?.payload, path);
 }

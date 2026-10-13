@@ -391,6 +391,45 @@ describe("supervisorEventReducer — A3 budgeted scheduled drain", () => {
     vi.clearAllMocks();
   });
 
+  it("counts post-apply cost in the scheduling budget and rotates a waiting thread next", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let clock = 0;
+    const performanceSpy = vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const applied: string[][] = [];
+    useAppStore.setState({ view: { kind: "home" } });
+    const reducer = createSupervisorEventReducer({
+      recovery: inlineRecovery,
+      afterApply: (batches) => {
+        applied.push(batches.map((batch) => batch.threadId));
+        clock += 6;
+      },
+    });
+    const uninstall = reducer.installScheduling();
+    try {
+      reducer.enqueueRuntimeBatches([
+        {
+          threadId: "thread-1",
+          events: Array.from({ length: 1_200 }, (_, i) => itemStarted(`item-${i}`)),
+        },
+        { threadId: "thread-2", events: [{ ...itemStarted("steer"), threadId: "thread-2" }] },
+      ]);
+      vi.advanceTimersByTime(250);
+      expect(applied).toEqual([["thread-1"]]);
+      expect(itemIds()).toHaveLength(512);
+      expect(itemIds("thread-2")).toBeUndefined();
+      vi.advanceTimersByTime(1);
+      expect(applied[1]?.[0]).toBe("thread-2");
+      expect(itemIds("thread-2")).toEqual(["steer"]);
+      vi.runAllTimers();
+      expect(itemIds()).toEqual(Array.from({ length: 1_200 }, (_, i) => `item-${i}`));
+    } finally {
+      uninstall();
+      reducer.clear();
+      performanceSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it("splits a large scheduled flush across tasks, preserving order and converging", async () => {
     let applies = 0;
     const reducer = createSupervisorEventReducer({

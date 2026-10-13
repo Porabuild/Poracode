@@ -9,6 +9,7 @@ import type {
 import { coalesceRuntimeEvents } from "@/shared/coalesce";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { recordRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { recordRuntimeItemChanges } from "../runtimeItemChanges";
 import type { AppStoreState } from "./shared";
 import { applyRuntimeTruncation } from "./runtimeTruncation";
 import { appendRuntimeStream, replaceRuntimeStream } from "./runtimeStreamRetention";
@@ -64,11 +65,13 @@ export function applyRuntimeEventBatchesToState(
   };
   let changed = false;
   const structuralBumpThreadIds = new Set<string>();
+  const itemChangedThreadIds = new Set<string>();
   const structuralChangedItemIdsByThread = new Map<string, Set<string> | null>();
 
   for (const batch of batches) {
     if (batch.events.length === 0) continue;
     const { threadId, events } = batch;
+    const previousItems = nextState.runtimeItemsByIdByThread;
     const coalescedEvents = coalesceRuntimeEvents(events);
     let batchChanged = false;
     for (let eventIndex = 0; eventIndex < coalescedEvents.length;) {
@@ -132,9 +135,19 @@ export function applyRuntimeEventBatchesToState(
     if (batchChanged) {
       changed = true;
     }
+    if (nextState.runtimeItemsByIdByThread !== previousItems) {
+      itemChangedThreadIds.add(threadId);
+    }
   }
 
   if (!changed) return {};
+  if (nextState.runtimeItemsByIdByThread !== state.runtimeItemsByIdByThread) {
+    recordRuntimeItemChanges(
+      state.runtimeItemsByIdByThread,
+      nextState.runtimeItemsByIdByThread,
+      itemChangedThreadIds,
+    );
+  }
   if (structuralBumpThreadIds.size > 0) {
     let runtimeStructuralVersionByThread = nextState.runtimeStructuralVersionByThread;
     for (const threadId of structuralBumpThreadIds) {

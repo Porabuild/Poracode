@@ -363,7 +363,7 @@ msgstr "{0} tokens - {when}"
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
-#. placeholder {1}: entry.targetVersion
+#. placeholder {1}: target.targetVersion
 #: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "{0} updated to v{1}."
@@ -11195,8 +11195,8 @@ msgstr "Probe host key"
 #. placeholder {1}: updateAllProgress.current
 #. placeholder {2}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
-msgid "Probing {0} ({1} of {2})"
-msgstr "Probing {0} ({1} of {2})"
+#~ msgid "Probing {0} ({1} of {2})"
+#~ msgstr "Probing {0} ({1} of {2})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -15264,6 +15264,10 @@ msgid "The update service is temporarily unavailable."
 msgstr "The update service is temporarily unavailable."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The update waited too long for another installation. Try again."
+msgstr "The update waited too long for another installation. Try again."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The voice connection failed. Try again."
 msgstr "The voice connection failed. Try again."
 
@@ -15726,6 +15730,10 @@ msgstr "Thread"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Thread actions"
 msgstr "Thread actions"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "Thread already exists."
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -16692,7 +16700,7 @@ msgstr "Updated {0}"
 msgid "Updating"
 msgstr "Updating"
 
-#. placeholder {0}: updateAllProgress.current
+#. placeholder {0}: updateAllProgress.completed
 #. placeholder {1}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating ({0}/{1})"
@@ -16707,8 +16715,8 @@ msgstr "Updating {0}"
 #. placeholder {1}: updateAllProgress.current
 #. placeholder {2}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
-msgid "Updating {0} ({1} of {2})"
-msgstr "Updating {0} ({1} of {2})"
+#~ msgid "Updating {0} ({1} of {2})"
+#~ msgstr "Updating {0} ({1} of {2})"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -16732,6 +16740,12 @@ msgstr "Updating {0} to v{1}"
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Updating in this terminal. Closes when finished."
 msgstr "Updating in this terminal. Closes when finished."
+
+#. placeholder {0}: updateAllProgress.completed
+#. placeholder {1}: updateAllProgress.total
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Updating providers ({0} of {1} complete)"
+msgstr "Updating providers ({0} of {1} complete)"
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx

@@ -363,7 +363,7 @@ msgstr "토큰 {0} - {when}"
 #. placeholder {0}: agent.label
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
-#. placeholder {1}: entry.targetVersion
+#. placeholder {1}: target.targetVersion
 #: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "{0} updated to v{1}."
@@ -11186,8 +11186,8 @@ msgstr "호스트 키 확인"
 #. placeholder {1}: updateAllProgress.current
 #. placeholder {2}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
-msgid "Probing {0} ({1} of {2})"
-msgstr "{0} 확인 중({1}/{2})"
+#~ msgid "Probing {0} ({1} of {2})"
+#~ msgstr "{0} 확인 중({1}/{2})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -15255,6 +15255,10 @@ msgid "The update service is temporarily unavailable."
 msgstr "업데이트 서비스를 일시적으로 사용할 수 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The update waited too long for another installation. Try again."
+msgstr "업데이트가 다른 설치를 너무 오래 기다렸습니다. 다시 시도해 주세요."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The voice connection failed. Try again."
 msgstr "음성 연결에 실패했습니다. 다시 시도하세요."
 
@@ -15717,6 +15721,10 @@ msgstr "스레드"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Thread actions"
 msgstr "스레드 작업"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "스레드가 이미 존재합니다."
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -16679,7 +16687,7 @@ msgstr "{0} 업데이트됨"
 msgid "Updating"
 msgstr "업데이트 중"
 
-#. placeholder {0}: updateAllProgress.current
+#. placeholder {0}: updateAllProgress.completed
 #. placeholder {1}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating ({0}/{1})"
@@ -16694,8 +16702,8 @@ msgstr "{0} 업데이트 중"
 #. placeholder {1}: updateAllProgress.current
 #. placeholder {2}: updateAllProgress.total
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
-msgid "Updating {0} ({1} of {2})"
-msgstr "{0} 업데이트 중({1}/{2})"
+#~ msgid "Updating {0} ({1} of {2})"
+#~ msgstr "{0} 업데이트 중({1}/{2})"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -16719,6 +16727,12 @@ msgstr "{0}: v{1}(으)로 업데이트 중"
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Updating in this terminal. Closes when finished."
 msgstr "이 터미널에서 업데이트 중입니다. 완료되면 닫힙니다."
+
+#. placeholder {0}: updateAllProgress.completed
+#. placeholder {1}: updateAllProgress.total
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Updating providers ({0} of {1} complete)"
+msgstr "공급자 업데이트 중 ({1}개 중 {0}개 완료)"
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx

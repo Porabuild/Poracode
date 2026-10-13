@@ -272,6 +272,10 @@ export class RuntimeFenceControl {
     return this.scheduler.waiterCount(threadId);
   }
 
+  hasPendingMutation(threadId: string): boolean {
+    return this.scheduler.hasPendingMutation(threadId);
+  }
+
   /**
    * Run one content mutation under the per-thread gate. The operation may
    * await; the gate is held until it settles, so no fence or other mutation

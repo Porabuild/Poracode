@@ -1,16 +1,12 @@
 import { withThreadConfigSubmission } from "./threadConfigSubmission";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
 import type {
   Project,
   ProjectLocation,
   PromptSegment,
   TerminalSize,
   Thread,
-  ThreadConfig,
-  ThreadPresentationMode,
   TurnClientContext,
 } from "@/shared/contracts";
 import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
@@ -18,14 +14,11 @@ import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
 import { buildPromptContentBlocks, hasSendablePromptContent } from "@/shared/promptContent";
-import { resolveThreadTitlePrompt, titlePromptFromSegments } from "@/shared/threadTitle";
 import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { i18n } from "@/renderer/i18n/i18n";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { findExperimentByGroupId } from "@/renderer/state/experimentStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { unprojectProjectLocation } from "@/renderer/remoteProcedureRouter";
@@ -41,11 +34,11 @@ import {
   startManagedRootThread,
 } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import {
-  consumePendingManagedRootLaunch,
   dropPendingManagedRootLaunch,
   notePendingManagedRootLaunch,
   peekPendingManagedRootLaunch,
   retainPendingManagedRootLaunch,
+  markPendingManagedRootThreadCreated,
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { managedRootSupportsThreadLaunchMetadata } from "@/renderer/state/managedRootCatalog/rootLaunchMetadataCapability";
 import { reconcileManagedRootThreadLaunch } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
@@ -57,8 +50,6 @@ import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launch
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
-import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
 import {
   isRemoteCommandOutcomeAuthoritativelyResolved,
@@ -73,6 +64,12 @@ import {
   runWorktreeSetupScript,
 } from "./worktreeLaunchActions";
 import { performWorktreeRemoval } from "./worktreeActions";
+import { setThreadWorktree } from "./threadActions";
+import {
+  createDraftThread,
+  prepareDraftThread,
+  type ThreadLaunchRequest,
+} from "./threadDraftCreation";
 
 export async function performInitialThreadLaunch(input: {
   thread: Thread;
@@ -164,15 +161,16 @@ export async function performInitialThreadLaunch(input: {
   // apply the remote projectLocation on this machine (posix path →
   // `spawn /bin/bash ENOENT` on Windows) and never reach the remote supervisor.
   const owner = remoteOwner(thread);
-  // A root row the renderer has not asked the host to create yet is created
-  // and launched by ONE explicit host `start` command, so the durable row and
-  // the session are born together (the supervisor IPC path can only resume a
-  // row the host already knows). A resume/switch keeps the supervisor path.
+  // A root row's first launch retains its receipt and cancellation intent.
+  // Acknowledged draft metadata uses the existing-thread endpoint; other
+  // creators use the host's create+launch command. Resumes and switches follow
+  // the existing runtime path.
   const pendingRootLaunch =
     !owner && !providerSwitch && !resumableSessionRef && isManagedRootDesktopRuntime()
-      ? consumePendingManagedRootLaunch(thread.id)
+      ? peekPendingManagedRootLaunch(thread.id)
       : undefined;
   try {
+    if (pendingRootLaunch?.removal && (await pendingRootLaunch.removal)) return;
     if (pendingRootLaunch) {
       // An uncertain retry reuses the retained body VERBATIM; a new episode
       // derives it once from the thread and the launch inputs. The metadata
@@ -180,9 +178,12 @@ export async function performInitialThreadLaunch(input: {
       // answer success, so they are omitted rather than falsely claimed.
       let launchInput = pendingRootLaunch.replay;
       if (!launchInput) {
-        const supportsLaunchMetadata = await managedRootSupportsThreadLaunchMetadata();
+        const supportsLaunchMetadata =
+          pendingRootLaunch.metadataCreated === true ||
+          (await managedRootSupportsThreadLaunchMetadata());
         launchInput = {
           threadId: thread.id,
+          ...(pendingRootLaunch.metadataCreated ? { projectLocation } : {}),
           projectId: thread.projectId,
           agentKind: thread.agentKind,
           ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
@@ -219,6 +220,7 @@ export async function performInitialThreadLaunch(input: {
       retainPendingManagedRootLaunch(thread.id, {
         isNewWorktree: pendingRootLaunch.isNewWorktree,
         commandId: pendingRootLaunch.commandId,
+        ...(pendingRootLaunch.metadataCreated ? { metadataCreated: true } : {}),
         replay: launchInput,
       });
       try {
@@ -247,17 +249,27 @@ export async function performInitialThreadLaunch(input: {
           (!hadUncertainEpisode || isRemoteCommandOutcomeAuthoritativelyResolved(error))
         ) {
           notePendingManagedRootLaunch(thread.id, pendingRootLaunch.isNewWorktree);
+          if (pendingRootLaunch.metadataCreated) markPendingManagedRootThreadCreated(thread.id);
         }
         throw error;
       }
       // The operation completed (or its recorded outcome replayed): the row is
       // host-owned now, so the create+launch intent is retired and a later
       // message on this thread is an ordinary send, never a relaunch.
+      // Deletion can begin while provider startup awaits acknowledgement.
+      // Join that cancellation before retiring its marker so the creator can
+      // remove the completed worktree after confirmed host deletion.
+      const removal = peekPendingManagedRootLaunch(thread.id)?.removal;
+      if (removal && (await removal)) return;
       dropPendingManagedRootLaunch(thread.id);
       // Workspace assignment is a follow-up narrow command only when the start
       // body could not carry it (an unadvertised capability); Home threads keep
       // the workspace they were started in instead of becoming unfiled.
-      if (thread.workspaceId && launchInput.workspaceId === undefined) {
+      if (
+        !pendingRootLaunch.metadataCreated &&
+        thread.workspaceId &&
+        launchInput.workspaceId === undefined
+      ) {
         dispatchManagedRootThreadWorkspace(thread.id, thread.workspaceId);
       }
     } else if (owner) {
@@ -327,29 +339,13 @@ export async function performInitialThreadLaunch(input: {
     }
     throw error;
   }
+  if (useAppStore.getState().provisioningWorktreeThreadIds?.[thread.id]) {
+    useAppStore.getState().finishWorktreeProvisioning(thread.id);
+  }
   captureThreadStarted(thread);
   if (prompt.length > 0 || (segments?.length ?? 0) > 0) {
     captureThreadPromptSubmitted(thread, prompt, segments, "initial");
   }
-}
-
-interface ThreadLaunchRequest {
-  readonly threadId?: string;
-  readonly remoteServerId?: string;
-  readonly remoteId?: string;
-  readonly project: Project;
-  readonly agentKind: string;
-  readonly config: ThreadConfig;
-  readonly prompt: string;
-  readonly segments?: PromptSegment[];
-  readonly presentationMode?: ThreadPresentationMode;
-  readonly worktreePath?: string;
-  readonly worktreeBranch?: string;
-  readonly worktreeProvisioning?: boolean;
-  readonly userMessageItemId?: string;
-  readonly clientContext?: TurnClientContext;
-  readonly isNewWorktree: boolean;
-  readonly options: { replacePaneId?: string; preserveActiveGroup?: boolean };
 }
 
 interface ThreadLaunchHostTransport {
@@ -403,7 +399,7 @@ export async function startThreadFromDraft(
   const createsWorktree = !isHomeScope && !worktreePath && !!worktreeBranch;
   const remoteHostThreadId = createsWorktree && owner ? crypto.randomUUID() : undefined;
   const pendingThread = createsWorktree
-    ? createThreadRow({
+    ? createDraftThread({
         ...(input.threadId && !owner ? { threadId: input.threadId } : {}),
         ...(owner && remoteHostThreadId
           ? {
@@ -427,6 +423,15 @@ export async function startThreadFromDraft(
   const pendingUserMessageItemId = pendingThread
     ? appendOptimisticInitialUserMessage(pendingThread, prompt, segments)
     : undefined;
+  if (pendingThread) {
+    try {
+      if (!(await prepareDraftThread(pendingThread, project, prompt, segments))) return;
+    } catch (error) {
+      markThreadLaunchFailed(pendingThread.id, error);
+      toast.danger(friendlyError(error));
+      throw error;
+    }
+  }
   if (!isHomeScope && !worktreePath && worktreeBranch) {
     try {
       const transferUncommitted = worktreeTransferUncommitted ?? false;
@@ -470,12 +475,17 @@ export async function startThreadFromDraft(
 
   if (pendingThread && worktreePath) {
     const store = useAppStore.getState();
+    const preparationRemoval = peekPendingManagedRootLaunch(pendingThread.id)?.removal;
+    if (preparationRemoval && (await preparationRemoval)) {
+      await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+      return;
+    }
     const currentThread = store.threads.find((thread) => thread.id === pendingThread.id);
     if (!currentThread) {
       await performWorktreeRemoval(project, worktreePath, worktreeBranch);
       return;
     }
-    if (currentThread.archived) {
+    if (currentThread.archived && owner) {
       store.setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
       store.updateThreadRuntime(pendingThread.id, {
         status: "inactive",
@@ -528,15 +538,35 @@ export async function startThreadFromDraft(
         useAppStore.getState().setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
       }
     } else {
-      store.setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
       // Launch inline, never via the view-consumed launch queue: a queued
       // launch fires only when a mounted ThreadView consumes it, so switching
       // or closing the pane while the worktree provisions would leave the
       // agent silently never started. The launch must not depend on the view.
-      const launchThread =
-        useAppStore.getState().threads.find((thread) => thread.id === pendingThread.id) ??
-        pendingThread;
       try {
+        await setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch, {
+          preserveProvisioning: true,
+        });
+        const removal = peekPendingManagedRootLaunch(pendingThread.id)?.removal;
+        if (removal && (await removal)) {
+          await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+          return;
+        }
+        const launchThread = useAppStore
+          .getState()
+          .threads.find((thread) => thread.id === pendingThread.id);
+        if (!launchThread) {
+          await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+          return;
+        }
+        if (launchThread.archived) {
+          useAppStore.getState().finishWorktreeProvisioning(pendingThread.id);
+          useAppStore.getState().updateThreadRuntime(pendingThread.id, {
+            status: "inactive",
+            attention: "none",
+            canResumeWithConfig: false,
+          });
+          return;
+        }
         await performInitialThreadLaunch({
           thread: launchThread,
           projectLocation: resolveProjectLocation(project.location, worktreePath),
@@ -546,11 +576,19 @@ export async function startThreadFromDraft(
           ...(clientContext ? { clientContext } : {}),
           initialSize: DEFAULT_TERMINAL_SIZE,
         });
+        if (!useAppStore.getState().threads.some((row) => row.id === pendingThread.id)) {
+          await performWorktreeRemoval(project, worktreePath, worktreeBranch);
+          return;
+        }
       } catch (error) {
         // Uncertain: the launch may have committed — keep the optimistic row
         // and the worktree; the launch action already reconciled once.
         if (isRemoteCommandOutcomeUncertainError(error)) throw error;
-        if (!useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
+        const removal = peekPendingManagedRootLaunch(pendingThread.id)?.removal;
+        if (
+          (removal && (await removal)) ||
+          !useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)
+        ) {
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
           return;
         }
@@ -643,12 +681,17 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
   return {
     setupRunsOnHost: false,
     startThread: async (launch) => {
-      const thread = createThreadRow(launch);
+      const thread = createDraftThread(launch);
       // Launch inline, never via the view-consumed launch queue — the launch
       // must not depend on which pane is mounted (see the worktree path above).
       try {
+        if (!(await prepareDraftThread(thread, launch.project, launch.prompt, launch.segments))) {
+          return "cancelled";
+        }
+        const currentThread = useAppStore.getState().threads.find((row) => row.id === thread.id);
+        if (!currentThread || currentThread.archived) return "cancelled";
         await performInitialThreadLaunch({
-          thread,
+          thread: currentThread,
           projectLocation: resolveProjectLocation(launch.project.location, launch.worktreePath),
           prompt: launch.prompt,
           ...(launch.segments ? { segments: launch.segments } : {}),
@@ -668,63 +711,6 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
       return "started";
     },
   };
-}
-
-function createThreadRow(launch: ThreadLaunchRequest): Thread {
-  const store = useAppStore.getState();
-  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-  const projectAgentStatuses = getProjectAgentStatuses(
-    launch.project.location,
-    agentStatuses,
-    wslAgentStatuses,
-  );
-  const currentView = store.view;
-  const activeGroup =
-    launch.options.preserveActiveGroup !== false &&
-    currentView.kind === "thread" &&
-    currentView.activeGroupId &&
-    !findExperimentByGroupId(currentView.activeGroupId)
-      ? {
-          groupId: currentView.activeGroupId,
-          groupName: store.threads.find((thread) => thread.groupId === currentView.activeGroupId)
-            ?.groupName,
-        }
-      : undefined;
-
-  const agentStatus = projectAgentStatuses.find((status) => status.kind === launch.agentKind);
-  const titlePrompt = resolveThreadTitlePrompt(
-    titlePromptFromSegments(launch.prompt, launch.segments),
-    agentStatus?.capabilities.threadTitleCommands,
-  );
-  const config =
-    isHomeProject(launch.project) && agentStatus
-      ? applyHomeScopePermissions(launch.project.location, launch.config, agentStatus.capabilities)
-      : launch.config;
-
-  // Home threads stay local to the workspace they were started in; threads in
-  // real projects scope through their project's workspaceId instead.
-  const homeWorkspaceId = isHomeProject(launch.project) ? getActiveWorkspaceId() : null;
-  const thread = store.createThread({
-    ...(launch.threadId ? { threadId: launch.threadId } : {}),
-    projectId: launch.project.id,
-    ...(homeWorkspaceId ? { workspaceId: homeWorkspaceId } : {}),
-    agentKind: launch.agentKind,
-    config,
-    prompt: titlePrompt,
-    ...(launch.presentationMode ? { presentationMode: launch.presentationMode } : {}),
-    ...(launch.worktreePath ? { worktreePath: launch.worktreePath } : {}),
-    ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
-    ...(launch.worktreeProvisioning ? { worktreeProvisioning: true } : {}),
-    ...(launch.remoteServerId ? { remoteServerId: launch.remoteServerId } : {}),
-    ...(launch.remoteId ? { remoteId: launch.remoteId } : {}),
-    ...(launch.options.replacePaneId ? { replacePaneId: launch.options.replacePaneId } : {}),
-    ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
-    ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
-  });
-  if (!launch.remoteServerId && titlePrompt.trim()) {
-    generateTitleAsync(thread.id, launch.project.location, projectAgentStatuses, titlePrompt);
-  }
-  return thread;
 }
 
 /** Surface a failed launch on the thread row (error item + error status). */

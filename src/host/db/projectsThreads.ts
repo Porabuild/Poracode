@@ -5,6 +5,7 @@ import { dbAssertNoRunningCheckpointRevert } from "./checkpointRevertOperations"
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { notifyThreadsDeleted } from "./deletedThreadNotifications";
+import type { CatalogIntentCommittedSignal } from "./catalogIntents";
 import {
   projectMutableRow,
   rowToProject,
@@ -275,7 +276,11 @@ export function dbUpdateProject(project: Project): void {
   notifyProjectThreadDataChanged();
 }
 
-export function dbUpsertThread(thread: Thread, sortOrder: number): void {
+export function dbUpsertThread(
+  thread: Thread,
+  sortOrder: number,
+  onCatalogCommitted?: CatalogIntentCommittedSignal,
+): void {
   const sqlite = getSqlite();
   sqlite
     .transaction(() => {
@@ -290,6 +295,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       if (isNewRow) noteMainCreatedThread(thread.id);
     })
     .immediate();
+  onCatalogCommitted?.();
   notifyProjectThreadDataChanged();
 }
 

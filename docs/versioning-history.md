@@ -3550,3 +3550,29 @@ ownership and propagates an AbortSignal to native/WSL probes; scoped install/log
 refreshes retain their lifetimes. Status cache 58, renderer cache 54, database,
 remote/native schemas and deployed helpers retain their formats. Discovery visibility
 is session-only and excluded from the renderer store's persistence projection.
+
+## Thread metadata creation before worktree preparation
+
+The managed desktop saves new draft rows through the receipt-guarded `create`
+thread command before generating titles or preparing worktrees. Creation writes
+the existing inactive thread shape only and never starts a provider; confirmed worktree
+assignment precedes the separate existing-thread launch. Creation replay retains
+subsequent metadata changes and a different creation refuses an occupied id.
+The commit signal runs before catalog listeners, preserving uncertain outcomes
+after a committed write.
+
+The pending launch retains the exact runtime command across uncertain replies.
+Draft progress remains local until a host runtime exists. Creation uncertainty
+uses one bounded authoritative read; deletion still targets the host if that
+read is unavailable. Cancellation survives catalog reconciliation and joins
+any in-flight host deletion before the created worktree is removed.
+
+This is an additive command on the existing remote thread route. Older hosts
+reject the unknown kind, and the managed desktop sends it only to its own
+co-located host. Paired clients retain their existing start flow. Persisted
+thread rows, database schema, protocol 13, client-host hop 17, native binding
+format 2, generator 4 and manifest format 5 remain valid. Generated schemas,
+native codecs and the operation-map hash regenerate together; no migration or
+cache invalidation is needed. Regressions cover existing-row refusal, exact
+creation replay, early durable titles during delayed worktree preparation,
+committed-but-unacknowledged creation, and cancellation during preparation or startup.

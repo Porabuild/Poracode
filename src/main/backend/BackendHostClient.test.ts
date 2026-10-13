@@ -245,6 +245,28 @@ describe("BackendHostClient", () => {
     await start;
   });
 
+  it("keeps binary updates alive beyond the ordinary request deadline", async () => {
+    vi.useFakeTimers();
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client } = createClient();
+    await startClient(client, child);
+    let settled = false;
+    const call = client.call("updateAgentBinary", { agentKind: "test-agent", envKind: "posix" });
+    void call.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    await vi.advanceTimersByTimeAsync(12 * 60_000);
+    expect(settled).toBe(false);
+    reply(child, requestFor(child, "call-supervisor"), { ok: true, strategy: "npm-global" });
+    await expect(call).resolves.toEqual({ ok: true, strategy: "npm-global" });
+  });
+
   it("forwards supervisor calls and lifecycle messages", async () => {
     const child = makeFakeChild();
     forkMock.mockReturnValue(child);

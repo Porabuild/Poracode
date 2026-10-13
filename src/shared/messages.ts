@@ -8,6 +8,7 @@
  */
 
 const messages = {
+  "agent.updateQueueTimeout": "The update waited too long for another installation. Try again.",
   "provider.signInDataUnavailable":
     "The provider's sign-in data could not be read. Try again or update Poracode.",
   "provider.unavailable": "The provider is unavailable. Install or update it in provider settings.",
@@ -27,6 +28,7 @@ const messages = {
     "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again.",
   "thread.projectLaunchStale":
     "The project moved or was removed before the thread could launch. Review the project and try again.",
+  "thread.alreadyExists": "Thread already exists.",
   "thread.sessionActionFailed": "The session action failed. Try again or reopen the session.",
   "thread.sessionActionUnavailable": "Session actions are unavailable for this thread.",
   "voice.unavailable": "Live voice is unavailable for this thread.",
@@ -503,6 +505,7 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   invalid_clone_url: "remote.project.invalidCloneUrl",
   project_directory_failed: "remote.project.directoryFailed",
   project_not_found: "remote.project.notFound",
+  thread_already_exists: "thread.alreadyExists",
   project_location_conflict: "project.locationConflict",
   project_has_running_threads: "remote.project.runningThreads",
   experiment_owned: "remote.project.experimentsOwned",

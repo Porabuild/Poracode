@@ -11,6 +11,9 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "agent.updateQueueTimeout": msg({
+    message: "The update waited too long for another installation. Try again.",
+  }),
   "provider.signInDataUnavailable": msg({
     message: "The provider's sign-in data could not be read. Try again or update Poracode.",
   }),
@@ -45,6 +48,7 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
     message:
       "The project moved or was removed before the thread could launch. Review the project and try again.",
   }),
+  "thread.alreadyExists": msg({ message: "Thread already exists." }),
   "prWatch.retirementUnconfirmed": msg({
     message:
       'Could not confirm that the Auto Fix thread "{id}" was stopped. Poracode keeps it recorded and will retry stopping it.',
