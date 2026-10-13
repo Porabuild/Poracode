@@ -163,157 +163,158 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
       aria-labelledby={headingId}
     >
       <OverlayShell open instantEnter onExited={props.onHide}>
-        {/* Bare drag strip — no title bar; the heading below carries the name.
-            Keeps the frameless window draggable and clears macOS traffic
-            lights, matching the welcome overlay's chrome-free surface. */}
-        {isBrowserClientRuntime() ? null : (
-          <div
-            className="agent-discovery-dragstrip relative z-10 shrink-0"
-            style={{ height: "env(titlebar-area-height, 32px)" }}
-          />
-        )}
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <WelcomeBackdrop className="min-h-full">
-            {/* `my-auto` centers the column while it fits and keeps the top
-                reachable once the found list overflows the window. The column
-                stays narrow while scanning and widens for the results grid so
-                agent cards use the side space instead of one long list. */}
+        {/* The backdrop covers the whole surface, drag strip included, so no
+            bare window band shows at the top. Content is a fixed column: the
+            hero is pinned on top, only the results grid scrolls, and status
+            plus actions stay pinned at the bottom — the logo never shifts as
+            agents arrive. */}
+        <WelcomeBackdrop className="min-h-0 flex-1" contentClassName="min-h-0 flex-col">
+          {/* Bare drag strip — no title bar; the heading below carries the
+              name. Keeps the frameless window draggable and clears macOS
+              traffic lights, matching the welcome overlay's chrome-free
+              surface. */}
+          {isBrowserClientRuntime() ? null : (
             <div
-              className={`my-auto flex w-full flex-col items-center text-center ${
-                found.length > 0 ? "max-w-3xl" : "max-w-md"
-              }`}
-            >
-              <AgentDiscoveryRadar foundCount={found.length} scanning={scanning} />
-              <h1 id={headingId} className="mt-6 text-2xl font-semibold tracking-tight">
-                {scanning ? (
-                  <Trans>Discovering coding agents…</Trans>
-                ) : (
-                  <Trans>Discovery complete</Trans>
-                )}
-              </h1>
+              className="agent-discovery-dragstrip shrink-0"
+              style={{ height: "env(titlebar-area-height, 32px)" }}
+            />
+          )}
+          <div className="flex shrink-0 flex-col items-center px-6 pt-2 text-center">
+            <AgentDiscoveryRadar foundCount={found.length} scanning={scanning} />
+            <h1 id={headingId} className="mt-6 text-2xl font-semibold tracking-tight">
+              {scanning ? (
+                <Trans>Discovering coding agents…</Trans>
+              ) : (
+                <Trans>Discovery complete</Trans>
+              )}
+            </h1>
+            {scanning ? (
+              <>
+                <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
+                  {wslDistro
+                    ? t`Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
+                    : scanLabels.length > 1
+                      ? t`Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds.`
+                      : t`Scanning your system for installed CLIs. This usually takes a couple of seconds.`}
+                </p>
+                {scanLabels.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs text-muted">
+                    {scanLabels.map((label) => (
+                      <span key={label}>{label}</span>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+          {/* Only this region scrolls; hero and footer stay pinned. */}
+          <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
+            {groups.length > 0 ? (
+              <ul className="mx-auto grid w-full max-w-3xl grid-cols-1 items-start gap-2 px-6 pb-4 text-left sm:grid-cols-2">
+                {groups.map((group) => {
+                  const first = group.statuses[0]!;
+                  const manifestLabel = labels.get(group.kind);
+                  const label = manifestLabel ? t(manifestLabel) : first.label;
+                  const refreshing = pendingRefresh.has(group.kind);
+                  return (
+                    <li key={group.kind} className="agent-discovery-row">
+                      <div className="flex items-center gap-3">
+                        <ProviderIcon
+                          kind={group.kind}
+                          tone="active"
+                          className="size-6 shrink-0"
+                          {...(first.icon ? { icon: first.icon } : {})}
+                          fallbackLabel={label}
+                        />
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">
+                          {label}
+                        </span>
+                        {multiEnv ? null : (
+                          <span
+                            className={`agent-discovery-row__status shrink-0 text-xs font-medium ${foundBadge(first).toneClass}`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="size-1.5 shrink-0 rounded-full bg-current"
+                            />
+                            {t(foundBadge(first).label)}
+                          </span>
+                        )}
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="ghost"
+                          aria-label={t`Refresh ${label}`}
+                          isDisabled={refreshing}
+                          onPress={() => refreshGroup(group)}
+                        >
+                          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                        </Button>
+                      </div>
+                      {/* In a multi-env scan each machine with the agent gets
+                            a secondary row carrying that machine's status. */}
+                      {multiEnv ? (
+                        <ul className="mt-2 flex flex-col gap-0.5 border-t border-border/10 pt-2">
+                          {group.statuses.map((status) => {
+                            const badge = foundBadge(status);
+                            return (
+                              <li
+                                key={rowKey(status)}
+                                className="agent-discovery-env-row flex items-center gap-2 py-0.5 pl-9"
+                              >
+                                <span className="min-w-0 flex-1 truncate text-xs text-muted">
+                                  {localEnvLabel(agentEnvForStatus(status))}
+                                </span>
+                                <span
+                                  className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
+                                >
+                                  <span
+                                    aria-hidden="true"
+                                    className="size-1.5 shrink-0 rounded-full bg-current"
+                                  />
+                                  {t(badge.label)}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 flex-col items-center gap-4 px-6 pb-6 pt-3">
+            <div className="flex items-center gap-2 text-xs text-muted" aria-live="polite">
+              {scanning ? (
+                <span className="agent-discovery-screen__activity" aria-hidden="true" />
+              ) : found.length > 0 ? (
+                <Check className="size-3.5 text-success" aria-hidden="true" />
+              ) : null}
+              {renderStatusLine(scanning, discovered.length, groups.length, wslDistro)}
+            </div>
+            <div className="flex items-center gap-2">
               {scanning ? (
                 <>
-                  <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
-                    {wslDistro
-                      ? t`Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
-                      : scanLabels.length > 1
-                        ? t`Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds.`
-                        : t`Scanning your system for installed CLIs. This usually takes a couple of seconds.`}
-                  </p>
-                  {scanLabels.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs text-muted">
-                      {scanLabels.map((label) => (
-                        <span key={label}>{label}</span>
-                      ))}
-                    </div>
-                  ) : null}
-                </>
-              ) : null}
-              {groups.length > 0 ? (
-                <ul className="mt-8 grid w-full grid-cols-1 items-start gap-2 text-left sm:grid-cols-2">
-                  {groups.map((group) => {
-                    const first = group.statuses[0]!;
-                    const manifestLabel = labels.get(group.kind);
-                    const label = manifestLabel ? t(manifestLabel) : first.label;
-                    const refreshing = pendingRefresh.has(group.kind);
-                    return (
-                      <li key={group.kind} className="agent-discovery-row">
-                        <div className="flex items-center gap-3">
-                          <ProviderIcon
-                            kind={group.kind}
-                            tone="active"
-                            className="size-6 shrink-0"
-                            {...(first.icon ? { icon: first.icon } : {})}
-                            fallbackLabel={label}
-                          />
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">
-                            {label}
-                          </span>
-                          {multiEnv ? null : (
-                            <span
-                              className={`agent-discovery-row__status shrink-0 text-xs font-medium ${foundBadge(first).toneClass}`}
-                            >
-                              <span
-                                aria-hidden="true"
-                                className="size-1.5 shrink-0 rounded-full bg-current"
-                              />
-                              {t(foundBadge(first).label)}
-                            </span>
-                          )}
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="ghost"
-                            aria-label={t`Refresh ${label}`}
-                            isDisabled={refreshing}
-                            onPress={() => refreshGroup(group)}
-                          >
-                            <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                          </Button>
-                        </div>
-                        {/* In a multi-env scan each machine with the agent gets
-                            a secondary row carrying that machine's status. */}
-                        {multiEnv ? (
-                          <ul className="mt-2 flex flex-col gap-0.5 border-t border-border/10 pt-2">
-                            {group.statuses.map((status) => {
-                              const badge = foundBadge(status);
-                              return (
-                                <li
-                                  key={rowKey(status)}
-                                  className="agent-discovery-env-row flex items-center gap-2 py-0.5 pl-9"
-                                >
-                                  <span className="min-w-0 flex-1 truncate text-xs text-muted">
-                                    {localEnvLabel(agentEnvForStatus(status))}
-                                  </span>
-                                  <span
-                                    className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
-                                  >
-                                    <span
-                                      aria-hidden="true"
-                                      className="size-1.5 shrink-0 rounded-full bg-current"
-                                    />
-                                    {t(badge.label)}
-                                  </span>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-              <div className="mt-6 flex items-center gap-2 text-xs text-muted" aria-live="polite">
-                {scanning ? (
-                  <span className="agent-discovery-screen__activity" aria-hidden="true" />
-                ) : found.length > 0 ? (
-                  <Check className="size-3.5 text-success" aria-hidden="true" />
-                ) : null}
-                {renderStatusLine(scanning, discovered.length, groups.length, wslDistro)}
-              </div>
-              <div className="mt-6 flex items-center gap-2">
-                {scanning ? (
-                  <>
-                    <Button size="sm" variant="secondary" onPress={props.onHide}>
-                      <EyeOff className="size-3.5" />
-                      <Trans>Hide</Trans>
-                    </Button>
-                    <Button size="sm" variant="tertiary" onPress={props.onCancel}>
-                      <X className="size-3.5" />
-                      <Trans>Cancel</Trans>
-                    </Button>
-                  </>
-                ) : (
                   <Button size="sm" variant="secondary" onPress={props.onHide}>
-                    <Check className="size-3.5" />
-                    <Trans>Done</Trans>
+                    <EyeOff className="size-3.5" />
+                    <Trans>Hide</Trans>
                   </Button>
-                )}
-              </div>
+                  <Button size="sm" variant="tertiary" onPress={props.onCancel}>
+                    <X className="size-3.5" />
+                    <Trans>Cancel</Trans>
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" variant="secondary" onPress={props.onHide}>
+                  <Check className="size-3.5" />
+                  <Trans>Done</Trans>
+                </Button>
+              )}
             </div>
-          </WelcomeBackdrop>
-        </div>
+          </div>
+        </WelcomeBackdrop>
       </OverlayShell>
     </div>,
     document.body,
