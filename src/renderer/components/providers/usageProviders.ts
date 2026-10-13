@@ -119,8 +119,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   kimi: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
-  // Muse Code reuses the CLI login; optional browser auth adds billed spend
-  // and fallback meters. The 5h window is the fast ring, weekly the slower one.
+  // The 5h window is the fast ring, weekly the slower one.
   muse: {
     supportsBrowserLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly"] },

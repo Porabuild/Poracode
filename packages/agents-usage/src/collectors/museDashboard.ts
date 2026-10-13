@@ -178,18 +178,3 @@ export async function collectMuseDashboard(
       : {}),
   };
 }
-
-/** Confirm account ownership before combining optional billing with CLI quota. */
-export async function readMuseDashboardAccount(
-  host: HostPort,
-  cookie: string,
-  nowMs: number,
-): Promise<{ email?: string; rateLimitedUntil?: number }> {
-  const result = await fetchMuseApi(host, cookie, "/auth/me", nowMs);
-  if (result.status === "rate-limited") {
-    return { rateLimitedUntil: result.rateLimitedUntil ?? nowMs + 5 * 60_000 };
-  }
-  if (result.status !== "ok") return {};
-  const email = record(result.payload)?.email;
-  return typeof email === "string" && email.trim() ? { email: email.trim() } : {};
-}

@@ -64,7 +64,12 @@ export class UsageProfileCacheIdentities {
       current !== undefined &&
       current === expected &&
       this.identities.get(collector.providerId) === expected;
-    if (!accepted) {
+    // Rejecting an older refresh must not delete a newer snapshot whose
+    // retained fingerprint already matches the current account source.
+    if (
+      !accepted &&
+      (current === undefined || this.identities.get(collector.providerId) !== current)
+    ) {
       this.invalidate(collector.providerId);
       if (current === undefined) this.identities.delete(collector.providerId);
       else this.identities.set(collector.providerId, current);

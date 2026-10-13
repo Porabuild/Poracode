@@ -3,6 +3,7 @@ import type { SharedSettings } from "@/shared/settings";
 import { createClaudeUsageProfileSource } from "../agents/claude/claudeUsageProfiles";
 import { createCodexUsageProfileSource } from "../agents/codex/codexUsageProfiles";
 import { createCursorUsageProfileSource } from "../agents/cursor/cursorUsageProfiles";
+import { createMuseUsageProfileSource } from "../agents/muse/usageProfiles";
 import type { UsageProfileSource } from "./usageProfileTypes";
 
 /** Declarative provider registrations; the usage service never parses profile config. */
@@ -11,6 +12,7 @@ const profileSources: readonly ((settings: SharedSettings) => UsageProfileSource
   createCodexUsageProfileSource,
   createCursorUsageProfileSource,
   createDevinUsageProfileSource,
+  createMuseUsageProfileSource,
 ];
 
 export function readUsageProfileSources(settings: SharedSettings): UsageProfileSource[] {

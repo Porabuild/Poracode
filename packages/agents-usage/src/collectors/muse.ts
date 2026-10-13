@@ -1,11 +1,11 @@
 import { parseRetryAfter, toEpochMs } from "../formatters";
 import type { CollectOptions, HostPort, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
-import { collectMuseDashboard, readMuseDashboardAccount, MUSE_PROVIDER_ID } from "./museDashboard";
+import { collectMuseDashboard, MUSE_PROVIDER_ID } from "./museDashboard";
 
 /**
- * Reuses the Muse CLI's device-code login for quota, plan, and account details.
- * The optional dashboard session supplies fallback meters and billed spend.
+ * Uses a saved dashboard session for quota, plan, and billed spend. Without a
+ * browser session, reuses the Muse CLI's device-code login for quota and account.
  * Inference API keys cannot authenticate the CLI's `/muse-code/key` endpoint.
  */
 
@@ -111,38 +111,13 @@ function errorSnapshot(now: number, error: string): UsageSnapshot {
   return { providerId: MUSE_PROVIDER_ID, status: "error", windows: [], fetchedAt: now, error };
 }
 
-/** CLI quota takes precedence; browser sign-in remains optional for extra data. */
+/** A saved browser session owns usage; CLI credential reads can prompt for Keychain access. */
 export async function collectMuse(host: HostPort, _opts?: CollectOptions): Promise<UsageSnapshot> {
   const now = host.now();
-  const primary = await collectMuseKeyEndpoint(host, now);
-  // Honor the primary endpoint's backoff instead of masking it with another source.
-  if (primary.status === "rate-limited") return primary;
   const cookie = (await host.credentials.getSecret(MUSE_PROVIDER_ID, "cookie"))?.trim();
-  if (!cookie) return primary;
-  const dashboard = await collectMuseDashboard(host, cookie, now);
-  let selected = primary;
-  let accountRetryAt: number | undefined;
-  if (primary.status === "ok" && primary.windows.length > 0) {
-    // Optional billing must belong to the CLI account, not another browser login.
-    const account =
-      dashboard.cost && primary.authenticatedAs
-        ? await readMuseDashboardAccount(host, cookie, now)
-        : undefined;
-    const sameAccount =
-      account?.email !== undefined &&
-      account.email.toLowerCase() === primary.authenticatedAs?.toLowerCase();
-    accountRetryAt = account?.rateLimitedUntil;
-    selected = { ...primary, ...(sameAccount && dashboard.cost ? { cost: dashboard.cost } : {}) };
-  } else if (dashboard.status === "ok" || primary.status !== "ok") {
-    // Select a complete fallback without attaching another account's identity.
-    selected = dashboard;
-  }
-  const retryAt = Math.max(
-    accountRetryAt ?? 0,
-    dashboard.rateLimitedUntil ?? (dashboard.status === "rate-limited" ? now + 5 * 60_000 : 0),
-  );
-  // An optional endpoint's cooldown still applies when primary quota is healthy.
-  return { ...selected, ...(retryAt > 0 ? { rateLimitedUntil: retryAt } : {}) };
+  // An expired session must offer browser re-login without opening a CLI credential dialog.
+  if (cookie) return collectMuseDashboard(host, cookie, now);
+  return collectMuseKeyEndpoint(host, now);
 }
 
 /** The CLI key-endpoint path: plan + account, meters only when reported. */

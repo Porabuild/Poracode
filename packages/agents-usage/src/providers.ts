@@ -55,8 +55,7 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
   muse: {
     id: "muse",
     label: "Muse Code",
-    // CLI OAuth supplies quota; an optional dashboard session adds billed spend
-    // and fills in meters when the CLI endpoint does not report them.
+    // A saved browser session supplies quota and spend; otherwise reuse CLI OAuth.
     mechanism: "oauth-endpoint",
     needsLogin: true,
     browserSessionForDetails: true,
