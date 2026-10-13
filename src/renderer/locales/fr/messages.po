@@ -4316,6 +4316,7 @@ msgstr "Création PR…"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"
 msgstr "Création de l’arbre de travail…"
 
@@ -17476,7 +17477,9 @@ msgstr "Les fils d'arbre de travail sont marqués comme terminés dès que Porac
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
+#. placeholder {0}: thread.worktreeBranch ?? thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Worktree: {0}"
 msgstr "Arbre de travail : {0}"

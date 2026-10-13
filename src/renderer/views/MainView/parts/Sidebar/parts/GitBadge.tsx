@@ -224,7 +224,7 @@ export function GitBadge(props: {
     prState !== undefined && (isWorktree || (prState !== "merged" && prState !== "closed"));
   const showPrIcon = hasVisiblePr || canCreatePr;
   const showWorktreeFork = (props.fallbackToWorktreeIcon ?? false) && isWorktree && !showPrIcon;
-  if (!isRepo || (!hasChanges && !showPrIcon && !showWorktreeFork)) {
+  if (!showWorktreeFork && (!isRepo || (!hasChanges && !showPrIcon))) {
     return (
       <Tooltip delay={150}>
         <Tooltip.Trigger>
