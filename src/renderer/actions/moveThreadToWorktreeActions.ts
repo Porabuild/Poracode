@@ -8,11 +8,12 @@ import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { reopenStoredThread, setThreadWorktree, unloadStoredThread } from "./threadActions";
+import { createWorktree } from "./worktreeLaunchActions";
+import { initializeCreatedWorktree } from "./worktreeInitialization";
 import {
-  createWorktree,
-  primeWorktreeGitState,
-  runWorktreeSetupScript,
-} from "./worktreeLaunchActions";
+  isRemoteCommandOutcomeUncertainError,
+  notifyThreadCommandOutcomeUncertain,
+} from "./threadCommandOutcomeActions";
 
 const movingThreadIds = new Set<string>();
 
@@ -39,33 +40,64 @@ export async function moveThreadToWorktree(threadId: string, withChanges: boolea
   }
 
   const wasActive = thread.status !== "inactive";
-  // Host-owned threads: `set-worktree` with isNewWorktree already primes git and
-  // runs setup on the desktop — do not double-run those from the client.
+  // As with a new thread, only projected projects delegate setup to the host.
+  // Managed desktop rows still persist through the host, but local setup must
+  // use the same eager shell path as startThreadFromDraft, exactly once.
   const hostFollowUp = remoteOwner(thread) !== undefined;
+  let unloaded = false;
+  let assigned = false;
   movingThreadIds.add(threadId);
   try {
-    // Re-tagging only sticks for a stopped thread — unload any live runtime first.
-    if (wasActive) {
-      await unloadStoredThread(threadId);
-    }
     const currentBranch = useGitStore.getState().statuses[project.id]?.branch;
     const branch = generateWorktreeBranch();
-    const result = await createWorktree(project, {
-      branch,
-      ...(currentBranch ? { startPoint: currentBranch } : {}),
-      createBranch: true,
-      transferUncommitted: withChanges,
-      keepChangesInSource: false,
-    });
-    await setThreadWorktree(threadId, result.path, branch, { isNewWorktree: true });
-    if (wasActive) reopenStoredThread(threadId);
-    if (!hostFollowUp) {
-      void primeWorktreeGitState(project, result.path);
-      const setupScript = project.scripts?.setupScript;
-      if (setupScript) {
-        void runWorktreeSetupScript(project, result.path, setupScript);
-      }
+    const create = () =>
+      createWorktree(project, {
+        branch,
+        ...(currentBranch ? { startPoint: currentBranch } : {}),
+        createBranch: true,
+        transferUncommitted: withChanges,
+        keepChangesInSource: false,
+      });
+    const unload = async () => {
+      await unloadStoredThread(threadId);
+      unloaded = true;
+    };
+    let result: Awaited<ReturnType<typeof create>>;
+    if (wasActive && !withChanges) {
+      // A clean checkout doesn't mutate the source, so checkout and retirement
+      // can overlap. Join both even on failure before retagging or relaunching.
+      const [closed, created] = await Promise.allSettled([unload(), create()]);
+      // A newly visible worktree may already be used by another thread or
+      // contain edits. Failed shutdown cannot authorize force-removing it.
+      if (closed.status === "rejected") throw closed.reason;
+      if (created.status === "rejected") throw created.reason;
+      result = created.value;
+    } else {
+      // Stashing must wait for a live agent to stop writing to the source.
+      if (wasActive) await unload();
+      result = await create();
     }
+    if (!useAppStore.getState().threads.some((item) => item.id === threadId)) {
+      // Another thread may have adopted this worktree while checkout ran.
+      // Preserve it, including any transferred changes, after cancellation.
+      return;
+    }
+    try {
+      await setThreadWorktree(threadId, result.path, branch, {
+        ...(hostFollowUp ? { isNewWorktree: true } : {}),
+      });
+    } catch (error) {
+      // The host may have assigned the worktree while its response was lost.
+      // Resuming with stale source metadata can start the agent in the wrong cwd.
+      if (isRemoteCommandOutcomeUncertainError(error)) {
+        notifyThreadCommandOutcomeUncertain();
+        return;
+      }
+      throw error;
+    }
+    assigned = true;
+    if (wasActive) reopenStoredThread(threadId);
+    initializeCreatedWorktree(project, result.path);
     void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
 
     if (withChanges) {
@@ -93,6 +125,7 @@ export async function moveThreadToWorktree(threadId: string, withChanges: boolea
       toast.success(i18n._(msg`Moved the thread to a new worktree on "${branch}".`));
     }
   } catch (error) {
+    if (unloaded && !assigned) reopenStoredThread(threadId);
     toast.danger(friendlyError(error));
   } finally {
     movingThreadIds.delete(threadId);

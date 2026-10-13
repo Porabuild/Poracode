@@ -89,8 +89,14 @@ export function ThreadContextMenu(props: {
     thread.groupId ? state.experiments[thread.groupId] : undefined,
   );
   const isExperimentCandidate = experiment !== undefined;
+  const canMoveToWorktree = !thread.worktreePath && !isExperimentCandidate;
   const isCurrentThread = useIsCurrentThread(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
+  const hasUncommittedChanges = useGitStore((state) => {
+    if (!canMoveToWorktree) return false;
+    const status = state.statuses[project.id];
+    return !!status && status.staged.length + status.unstaged.length > 0;
+  });
   // The continue-in gate reads the pane's own population — the local installed
   // list, or the host's installed statuses for a mirrored thread (see
   // `useThreadAgentStatuses`). An enabled entry here must always be able to
@@ -168,7 +174,7 @@ export function ThreadContextMenu(props: {
               },
             ]
           : []),
-        ...(!thread.worktreePath && !isExperimentCandidate
+        ...(canMoveToWorktree
           ? [
               {
                 type: "submenu" as const,
@@ -176,10 +182,14 @@ export function ThreadContextMenu(props: {
                 label: t`Move to Worktree`,
                 icon: <GitFork className="size-3.5" />,
                 items: [
-                  {
-                    id: "move-to-worktree-with-changes",
-                    label: t`Bring Uncommitted Changes`,
-                  },
+                  ...(hasUncommittedChanges
+                    ? [
+                        {
+                          id: "move-to-worktree-with-changes",
+                          label: t`Bring Uncommitted Changes`,
+                        },
+                      ]
+                    : []),
                   {
                     id: "move-to-worktree-clean",
                     label: t`Clean Worktree`,

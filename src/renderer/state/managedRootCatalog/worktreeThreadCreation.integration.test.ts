@@ -12,6 +12,7 @@ import {
   startThreadFromDraft,
 } from "@/renderer/actions/threadLaunchActions";
 import { archiveThread, deleteThread, deleteThreadRecord } from "@/renderer/actions/threadActions";
+import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
 import { applyRootCatalogThreadRows } from "./rootCatalogRows";
 import { peekPendingManagedRootLaunch } from "./rootCatalogStore";
 import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
@@ -31,10 +32,15 @@ const mocks = vi.hoisted(() => ({
   generateTitleWithFallback: vi.fn<() => Promise<string>>(),
   danger: vi.fn<(message: string) => void>(),
   performWorktreeRemoval: vi.fn<() => Promise<void>>(async () => {}),
+  runWorktreeSetupScript: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 vi.mock("@heroui/react", () => ({
-  toast: { danger: mocks.danger, warning: vi.fn<(message: string) => void>() },
+  toast: {
+    danger: mocks.danger,
+    warning: vi.fn<(message: string) => void>(),
+    success: vi.fn<(message: string) => void>(),
+  },
 }));
 vi.mock("@/renderer/components/providers/titleGen", () => ({
   generateTitleWithFallback: mocks.generateTitleWithFallback,
@@ -42,7 +48,7 @@ vi.mock("@/renderer/components/providers/titleGen", () => ({
 vi.mock("@/renderer/actions/worktreeLaunchActions", () => ({
   createWorktree: mocks.createWorktree,
   primeWorktreeGitState: vi.fn<() => Promise<void>>(async () => {}),
-  runWorktreeSetupScript: vi.fn<() => Promise<void>>(async () => {}),
+  runWorktreeSetupScript: mocks.runWorktreeSetupScript,
 }));
 vi.mock("@/renderer/state/gitRefresh", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/state/gitRefresh")>()),
@@ -84,6 +90,37 @@ describe("worktree thread creation over the real host authority", () => {
   afterEach(async () => {
     __resetManagedRootLaunchMetadataCapabilityForTest();
     await teardownManagedRootFixture();
+  });
+
+  it("moves a managed desktop row without starting a second host setup shell", async () => {
+    const supervisorCalls: string[] = [];
+    getSqlite()
+      .prepare("UPDATE projects SET scripts = ? WHERE id = 'p-1'")
+      .run(JSON.stringify({ actions: [], setupScript: "echo setup" }));
+    await activate({
+      supervisorObserver: (procedure) => {
+        supervisorCalls.push(procedure);
+      },
+    });
+    const project = useAppStore.getState().projects.find((row) => row.id === "p-1")!;
+    useAppStore.setState({
+      threads: useAppStore
+        .getState()
+        .threads.map((row) => ({ ...row, status: "inactive" as const })),
+    });
+    mocks.createWorktree.mockResolvedValue({ path: "/tmp/repo/worktrees/moved" });
+
+    await moveThreadToWorktree("t-1", true);
+
+    expect(hostThreadRow("t-1")?.worktree_path).toBe("/tmp/repo/worktrees/moved");
+    expect(mocks.runWorktreeSetupScript).toHaveBeenCalledExactlyOnceWith(
+      project,
+      "/tmp/repo/worktrees/moved",
+      "echo setup",
+    );
+    expect(supervisorCalls).not.toContain("startShell");
+    expect(supervisorCalls).not.toContain("gitWatchWorktrees");
+    expect(mocks.danger).not.toHaveBeenCalled();
   });
 
   it("persists the thread and its early generated title before worktree creation finishes", async () => {

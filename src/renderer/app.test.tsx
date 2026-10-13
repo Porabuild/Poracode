@@ -1205,50 +1205,82 @@ describe("App", () => {
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("mirrors a host-prepared worktree into desktop git state without rerunning setup", async () => {
-    const project = {
-      id: "project-1",
-      name: "Repo",
-      location: {
-        kind: "windows" as const,
-        path: "C:\\repo",
-      },
-      scripts: {
-        actions: [],
-        setupScript: "direnv allow\npnpm ci",
-        worktreeCopyPatterns: [".envrc", ".env.*"],
-      },
-      createdAt: "2026-03-22T00:00:00.000Z",
-    };
-    useAppStore.setState({ projects: [project], view: { kind: "home" } });
-    render(<App />);
+  it.each(["prepare-worktree", "set-worktree"] as const)(
+    "shows and disposes host setup after %s without rerunning it",
+    async (kind) => {
+      const project = {
+        id: "project-1",
+        name: "Repo",
+        location: {
+          kind: "windows" as const,
+          path: "C:\\repo",
+        },
+        scripts: {
+          actions: [],
+          setupScript: "direnv allow\npnpm ci",
+          worktreeCopyPatterns: [".envrc", ".env.*"],
+        },
+        createdAt: "2026-03-22T00:00:00.000Z",
+      };
+      useAppStore.setState({ projects: [project], view: { kind: "home" } });
+      if (kind === "set-worktree") {
+        useAppStore.getState().createThread({
+          threadId: "remote-new-worktree",
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "gpt-5.6" },
+          prompt: "Move this thread",
+          focus: false,
+        });
+        useAppStore.getState().markThreadExited("remote-new-worktree");
+      }
+      render(<App />);
 
-    act(() => {
-      remoteThreadCommandListeners.at(-1)?.({
-        kind: "prepare-worktree",
-        threadId: "remote-new-worktree",
-        projectId: project.id,
-        worktreePath: "C:\\worktrees\\mobile-fix",
+      act(() => {
+        remoteThreadCommandListeners.at(-1)?.(
+          kind === "prepare-worktree"
+            ? {
+                kind: "prepare-worktree",
+                threadId: "remote-new-worktree",
+                projectId: project.id,
+                worktreePath: "C:\\worktrees\\mobile-fix",
+              }
+            : {
+                kind: "set-worktree",
+                threadId: "remote-new-worktree",
+                worktreePath: "C:\\worktrees\\mobile-fix",
+                isNewWorktree: true,
+              },
+        );
       });
-    });
 
-    expect(runWorktreeSetupScript).not.toHaveBeenCalled();
-    expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
-      projectId: project.id,
-      worktreePaths: ["C:\\worktrees\\mobile-fix"],
-    });
-    await waitFor(() => {
-      expect(useDevTerminalStore.getState().tabs).toContainEqual(
-        expect.objectContaining({
-          id: worktreeScriptShellId("project-1", "C:\\worktrees\\mobile-fix", true),
-          title: "setup",
-          worktreePath: "C:\\worktrees\\mobile-fix",
-          projectId: "project-1",
-        }),
-      );
-    });
-    expect(bridge.startShell).not.toHaveBeenCalled();
-  });
+      expect(runWorktreeSetupScript).not.toHaveBeenCalled();
+      expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
+        projectId: project.id,
+        worktreePaths: ["C:\\worktrees\\mobile-fix"],
+      });
+      await waitFor(() => {
+        expect(useDevTerminalStore.getState().tabs).toContainEqual(
+          expect.objectContaining({
+            id: worktreeScriptShellId("project-1", "C:\\worktrees\\mobile-fix", true),
+            title: "setup",
+            worktreePath: "C:\\worktrees\\mobile-fix",
+            projectId: "project-1",
+          }),
+        );
+      });
+      expect(bridge.startShell).not.toHaveBeenCalled();
+      const shellId = worktreeScriptShellId(project.id, "C:\\worktrees\\mobile-fix", true);
+      act(() => {
+        for (const listener of supervisorEventListeners) {
+          listener({ type: "thread-exited", threadId: shellId, exitCode: 0 });
+        }
+      });
+      await waitFor(() => {
+        expect(useDevTerminalStore.getState().tabs.some((tab) => tab.id === shellId)).toBe(false);
+      });
+    },
+  );
 
   it("does not run setup when the PWA reuses an existing worktree", () => {
     const project = {

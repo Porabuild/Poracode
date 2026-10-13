@@ -5,6 +5,7 @@ import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { clearEagerShellStart, wasShellStartedEagerly } from "@/renderer/utils/shellUtils";
+import { closeExitedShell } from "./terminalTabActions";
 
 const bridge = vi.hoisted(() => ({
   gitAddWorktree:
@@ -268,6 +269,7 @@ describe("runWorktreeSetupScript", () => {
 describe("showHostWorktreeSetupTerminal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    bridge.onSupervisorEvent.mockReturnValue(() => undefined);
     bridge.readTerminalSnapshot.mockResolvedValue({
       generation: "gen",
       fromCursor: 0,
@@ -311,5 +313,40 @@ describe("showHostWorktreeSetupTerminal", () => {
     );
     expect(useDevTerminalStore.getState().tabs).toEqual([]);
     expect(bridge.startShell).not.toHaveBeenCalled();
+  });
+
+  it("does not resurrect a setup shell that exited while its snapshot was loading", async () => {
+    const shellId = worktreeScriptShellId(project.id, "C:\\finished-worktree", true);
+    const snapshot =
+      Promise.withResolvers<Awaited<ReturnType<typeof bridge.readTerminalSnapshot>>>();
+    const unsubscribe = vi.fn<() => void>();
+    const listeners: ((event: unknown) => void)[] = [];
+    bridge.onSupervisorEvent.mockImplementation((listener) => {
+      listeners.push(listener);
+      return unsubscribe;
+    });
+    bridge.readTerminalSnapshot.mockReturnValue(snapshot.promise);
+
+    const adoption = showHostWorktreeSetupTerminal(
+      { ...project, scripts: { actions: [], setupScript: "echo done" } },
+      "C:\\finished-worktree",
+    );
+    closeExitedShell(shellId);
+    for (const listener of listeners) {
+      listener({ type: "thread-exited", threadId: shellId, exitCode: 0 });
+    }
+    snapshot.resolve({
+      generation: "gen",
+      fromCursor: 0,
+      toCursor: 0,
+      data: "",
+      processState: "running",
+      terminalSize: null,
+    });
+    await adoption;
+
+    expect(useDevTerminalStore.getState().tabs).toEqual([]);
+    expect(wasShellStartedEagerly(shellId)).toBe(false);
+    expect(unsubscribe).toHaveBeenCalledOnce();
   });
 });
