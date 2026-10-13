@@ -439,7 +439,7 @@ describe("ClaudeProfileProviderSettings", () => {
     const appliedConfig = applied?.config as ClaudeProfileInstanceConfig | undefined;
     expect(appliedConfig?.models).toEqual([
       { id: "k3[1m]", label: "Kimi K3 (1M)" },
-      { id: "kimi-for-coding", label: "Kimi K2.7 Code" },
+      { id: "kimi-for-coding", label: "Kimi K2.8 Preview" },
       { id: "kimi-for-coding-highspeed", label: "Kimi K2.7 Code HighSpeed" },
     ]);
     expect(applied?.config).toMatchObject({
@@ -448,7 +448,8 @@ describe("ClaudeProfileProviderSettings", () => {
       defaultEffort: "high",
       modelEfforts: {
         "k3[1m]": ["low", "high", "max", "ultracode"],
-        "kimi-for-coding": ["high"],
+        "kimi-for-coding": ["low", "high", "max", "ultracode"],
+        "kimi-for-coding-highspeed": ["high"],
       },
     });
   });
