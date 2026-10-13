@@ -126,21 +126,47 @@ describe("ClaudeProfileSettingsModel", () => {
       expect(byKey.CLAUDE_CODE_AUTO_COMPACT_WINDOW).toBe("512000");
     });
 
-    it("adds the canonical Kimi Code membership env with K3 1M", () => {
+    it("maps Kimi Code Opus/Sonnet to K2.8 Preview and Haiku to K2.7 HighSpeed", () => {
       const byKey = Object.fromEntries(
         applyPresetEnvRows(KIMI_CODE_PRESET_ROWS, [], nextRowId).map((row) => [row.key, row.value]),
       );
       expect(byKey.ANTHROPIC_BASE_URL).toBe("https://api.kimi.com/coding/");
       expect(byKey.ANTHROPIC_API_KEY).toBe("");
-      expect(byKey.ANTHROPIC_MODEL).toBe("k3[1m]");
+      expect(byKey.ANTHROPIC_MODEL).toBe("kimi-for-coding");
       expect(byKey.ANTHROPIC_DEFAULT_FABLE_MODEL).toBe("k3[1m]");
-      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("k3[1m]");
-      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("k3[1m]");
-      expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("k3[1m]");
-      expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("k3[1m]");
+      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("kimi-for-coding");
+      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("kimi-for-coding");
+      expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("kimi-for-coding-highspeed");
+      expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("kimi-for-coding");
       expect(byKey.CLAUDE_CODE_EFFORT_LEVEL).toBe("high");
       expect(byKey.CLAUDE_CODE_AUTO_COMPACT_WINDOW).toBe("1048576");
       expect(byKey.CLAUDE_CODE_MAX_CONTEXT_TOKENS).toBe("1048576");
+    });
+
+    it("updates the previous Kimi tier mappings without replacing credentials or custom env", () => {
+      const environment = {
+        ANTHROPIC_DEFAULT_OPUS_MODEL: { value: "k3[1m]" },
+        ANTHROPIC_DEFAULT_SONNET_MODEL: { value: "k3[1m]" },
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: { value: "k3[1m]" },
+        ANTHROPIC_API_KEY: { value: "lc-safe:v1:sealed", sensitive: true },
+        MY_CUSTOM: { value: "keep" },
+      };
+
+      const result = environmentFromRows(
+        applyPresetEnvRows(
+          KIMI_CODE_PRESET_ROWS,
+          rowsFromEnvironment(environment, nextRowId),
+          nextRowId,
+        ),
+      );
+
+      expect(result).toMatchObject({
+        ANTHROPIC_DEFAULT_OPUS_MODEL: { value: "kimi-for-coding" },
+        ANTHROPIC_DEFAULT_SONNET_MODEL: { value: "kimi-for-coding" },
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: { value: "kimi-for-coding-highspeed" },
+        ANTHROPIC_API_KEY: environment.ANTHROPIC_API_KEY,
+        MY_CUSTOM: environment.MY_CUSTOM,
+      });
     });
 
     it("uses the distinct Alibaba Token Plan endpoint", () => {

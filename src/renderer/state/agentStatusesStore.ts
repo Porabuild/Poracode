@@ -34,10 +34,12 @@ interface AgentStatusesStore {
   inFirstLaunchDiscovery: boolean;
   /**
    * True while the scan is streaming. The overlay keeps its results open when
-   * the scan completes (rows stay refreshable) until the user dismisses it;
-   * cancel/hydrate still end the session outright.
+   * the scan completes (rows stay refreshable) until Done or its countdown
+   * dismisses it; cancel/hydrate still end the session outright.
    */
   discoveryScanning: boolean;
+  /** A manual row refresh keeps results open for the rest of this discovery session. */
+  discoveryAutoHideCancelled: boolean;
   /** Session-only visibility; hiding the artwork does not stop detection. */
   discoveryHidden: boolean;
   setDiscoveryHidden: (hidden: boolean) => void;
@@ -167,8 +169,8 @@ function buildStatusUpdatePatch(
   const currentLoaded = isWsl ? prev.wslLoaded : prev.windowsLoaded;
   const equal = statusesEqual(currentList, incoming);
   // The terminal bulk event completes the scan but no longer dismisses the
-  // overlay: its rows stay open (and individually refreshable) until the user
-  // hides or cancels the session.
+  // overlay: its rows stay open (and individually refreshable) until Done or
+  // its countdown dismisses the session.
   const scanCompletes =
     prev.discoveryScanning &&
     (isWsl
@@ -200,6 +202,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       wslLoaded: false,
       inFirstLaunchDiscovery: false,
       discoveryScanning: false,
+      discoveryAutoHideCancelled: false,
       discoveryHidden: false,
       setDiscoveryHidden: (discoveryHidden) => set({ discoveryHidden }),
       discoveryScope: undefined,
@@ -216,6 +219,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           wslLoaded: true,
           inFirstLaunchDiscovery: false,
           discoveryScanning: false,
+          discoveryAutoHideCancelled: false,
           discoveryScope: undefined,
         })),
       beginFirstLaunchDiscovery: (scope) =>
@@ -227,6 +231,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           return {
             inFirstLaunchDiscovery: true,
             discoveryScanning: true,
+            discoveryAutoHideCancelled: false,
             discoveryHidden: false,
             discoveryScope: nextScope,
             discoveredAgents: [],
@@ -238,12 +243,14 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           prev.discoveredAgents.length === 0 &&
           !prev.inFirstLaunchDiscovery &&
           !prev.discoveryScanning &&
+          !prev.discoveryAutoHideCancelled &&
           prev.discoveryScope === undefined
             ? prev
             : {
                 discoveredAgents: [],
                 inFirstLaunchDiscovery: false,
                 discoveryScanning: false,
+                discoveryAutoHideCancelled: false,
                 discoveryScope: undefined,
                 discoveryHidden: false,
               },
@@ -317,6 +324,8 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     {
       name: "poracode-agent-statuses-v1",
       version: 56,
+      // Discovery interaction flags are excluded by partialize and do not
+      // change the persisted format.
       // v56 mirrors supervisor STATUS_CACHE_VERSION=60: advertise Muse's
       // launch-scoped MCP wiring in both presentations.
       migrate: (persisted) => {

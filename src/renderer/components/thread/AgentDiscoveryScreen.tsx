@@ -22,6 +22,7 @@ import {
   type AgentDiscoveryGroup,
 } from "./agentDiscoveryGroups";
 import { AgentDiscoveryRadar } from "./AgentDiscoveryRadar";
+import { AgentDiscoveryDoneButton } from "./AgentDiscoveryDoneButton";
 import { useDiscoveryCardMotion } from "./useDiscoveryCardMotion";
 import "./agentDiscovery.css";
 
@@ -348,10 +349,7 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                   </Button>
                 </>
               ) : (
-                <Button size="sm" variant="secondary" onPress={props.onHide}>
-                  <Check className="size-3.5" />
-                  <Trans>Done</Trans>
-                </Button>
+                <AgentDiscoveryDoneButton onDone={props.onHide} />
               )}
             </div>
           </div>
