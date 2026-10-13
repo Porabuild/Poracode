@@ -28,6 +28,7 @@ import {
 } from "../../planAggregator";
 import { buildQuestionAnswerEvents } from "../../questionAnswerEvents";
 import { buildMuseServeArgs, toMspApprovalMode } from "./argv";
+import { MuseMspApprovalDecisions } from "./approvalDecisions";
 import {
   aliasMuseMspItem,
   completeOpenMuseMspItems,
@@ -145,6 +146,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private listener: StructuredSessionListener = NOOP_LISTENER;
   private readonly mapper;
   private readonly planAggregator;
+  private readonly approvalDecisions;
   private readonly pendingRequests = new Map<string, PendingRequest>();
   private readonly pendingUserItems = new Map<string, string>();
   private readonly emittedTurnIds = new Set<string>();
@@ -179,6 +181,11 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     this.currentConfig = input.config;
     this.mapper = createMuseMspItemMapperState(input.threadId);
     this.planAggregator = createPlanAggregator(input.threadId, "muse-plan");
+    this.approvalDecisions = new MuseMspApprovalDecisions(
+      client,
+      () => this.requireSessionId(),
+      (approvalId, decision) => this.resolveRequestFromNotification(approvalId, decision),
+    );
     client.onNotification((method, params) => this.handleNotification(method, params));
     client.onError((error) => this.handleTransportError(error));
     client.onServerRequest(({ method, params }) => this.handleServerRequest(method, params));
@@ -612,6 +619,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
 
   async resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): Promise<void> {
     const id = String(requestId);
+    if (this.approvalDecisions.isResolved(id)) return;
     const pending = this.pendingRequests.get(id);
     if (!pending) throw new Error(`Muse MSP request ${id} is no longer pending.`);
     if (pending.kind === "approval") {
@@ -814,9 +822,12 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       case "approval/updated":
         this.openApproval(params);
         return;
-      case "approval/resolved":
-        this.resolveRequestFromNotification(stringValue(params["approvalId"]), params["decision"]);
+      case "approval/resolved": {
+        const approvalId = stringValue(params["approvalId"]);
+        if (approvalId) this.approvalDecisions.markResolved(approvalId);
+        this.resolveRequestFromNotification(approvalId, params["decision"]);
         return;
+      }
       case "userInput/requested":
         this.openUserInput(params);
         return;
@@ -966,7 +977,13 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           recordOf(choice) ? [recordOf(choice)!] : [],
         )
       : [];
-    if (!approvalId || !requirementId || choices.length === 0) return;
+    if (
+      !approvalId ||
+      !requirementId ||
+      choices.length === 0 ||
+      this.approvalDecisions.isResolved(approvalId)
+    )
+      return;
     // Verified against `muse` 1.0.3: even with the session in `allowAll`
     // approval mode, the host still raises an approval for shell pipelines it
     // cannot statically parse (heredocs, `… | head`, … — the subject arrives
@@ -1017,25 +1034,11 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     requirementId: Record<string, unknown>,
     choiceId: string,
   ): void {
-    const report = (error: unknown) => {
-      this.emit({ type: "error", threadId: this.input.threadId, message: errorMessage(error) });
-    };
-    let sessionId: string;
-    try {
-      sessionId = this.requireSessionId();
-    } catch (error) {
-      report(error);
-      return;
-    }
-    void this.client
-      .request("approval/decide", {
-        commandId: mintMspCommandId(),
-        sessionId,
-        approvalId,
-        requirementId,
-        choiceId,
-      })
-      .catch(report);
+    void this.approvalDecisions
+      .decide({ approvalId, requirementId }, choiceId)
+      .catch((error: unknown) => {
+        this.emit({ type: "error", threadId: this.input.threadId, message: errorMessage(error) });
+      });
   }
 
   private openUserInput(params: Record<string, unknown>): void {
@@ -1069,13 +1072,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private async resolveApproval(pending: PendingApproval, response: unknown): Promise<void> {
     const choiceId = resolveMuseApprovalChoiceId(pending, response);
     if (!choiceId) throw new Error("Muse MSP approval supplied no usable choice.");
-    await this.client.request("approval/decide", {
-      commandId: mintMspCommandId(),
-      sessionId: this.requireSessionId(),
-      approvalId: pending.approvalId,
-      requirementId: pending.requirementId,
-      choiceId,
-    });
+    await this.approvalDecisions.decide(pending, choiceId);
   }
 
   private async resolveUserInput(pending: PendingUserInput, response: unknown): Promise<void> {

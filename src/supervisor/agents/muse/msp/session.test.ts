@@ -1060,6 +1060,63 @@ describe("MuseMspStructuredSession", () => {
     );
   });
 
+  it("decides a projected child approval once across repeated notifications and requests", async () => {
+    const bypassConfig = { ...config, approvalPolicy: "yolo" };
+    const { session, runtimeEvents } = await createSession({ config: bypassConfig });
+    await session.openThread(bypassConfig);
+    const projected = {
+      ...approvalNotification,
+      subagentOrigin: {
+        subagentId: "subagent-1",
+        childRunId: "child-turn-1",
+        childSessionId: "child-session-1",
+      },
+    };
+    notificationHandler?.("approval/requested", projected);
+    serverRequestHandler?.({ id: 101, method: "approval/request", params: projected });
+    notificationHandler?.("approval/updated", projected);
+    await Promise.resolve();
+    await Promise.resolve();
+    serverRequestHandler?.({ id: 102, method: "approval/request", params: projected });
+    notificationHandler?.("approval/resolved", {
+      sessionId: "session-1",
+      approvalId: projected.approvalId,
+      decision: "approved",
+    });
+    notificationHandler?.("approval/requested", projected);
+    serverRequestHandler?.({ id: 103, method: "approval/request", params: projected });
+    await Promise.resolve();
+    expect(request.mock.calls.filter(([method]) => method === "approval/decide")).toHaveLength(1);
+    expect(
+      runtimeEvents.filter((event) => event.type === "error" || event.type === "request.opened"),
+    ).toEqual([]);
+  });
+
+  it("settles a displayed approval from the winning conflict outcome", async () => {
+    const { MspRpcError } = await import("./protocol");
+    const { session, runtimeEvents, updates } = await createSession();
+    await session.openThread(config);
+    notificationHandler?.("approval/requested", approvalNotification);
+    request.mockRejectedValueOnce(
+      new MspRpcError("already resolved", {
+        code: -32051,
+        kind: "approvalAlreadyResolved",
+        data: { resolution: { decision: "approved", resolvedBy: "policy", viewCursor: "v:1" } },
+      }),
+    );
+    await session.resolveServerRequest(approvalNotification.approvalId, { optionId: "allow_once" });
+    notificationHandler?.("approval/resolved", {
+      sessionId: "session-1",
+      approvalId: approvalNotification.approvalId,
+      decision: "approved",
+    });
+    expect(runtimeEvents.filter((event) => event.type === "request.resolved")).toEqual([
+      expect.objectContaining({ requestId: approvalNotification.approvalId, outcome: "accepted" }),
+    ]);
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+    expect(runtimeEvents.filter((event) => event.type === "error")).toEqual([]);
+  });
+
   it("never auto-answers structured questions under bypass policies", async () => {
     const { session, runtimeEvents } = await createSession({
       config: { ...config, approvalPolicy: "yolo" },
