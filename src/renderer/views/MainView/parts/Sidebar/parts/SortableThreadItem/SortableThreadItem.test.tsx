@@ -169,7 +169,7 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 vi.mock("@/renderer/state/gitStore", () => {
-  const state = { prData: {} };
+  const state = { prData: {}, statuses: {} };
   return {
     useGitStore: Object.assign((selector: (value: typeof state) => unknown) => selector(state), {
       getState: () => state,

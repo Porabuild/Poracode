@@ -145,6 +145,7 @@ export function applyForwardedRemoteThreadCommand(command: RemoteThreadCommand):
           const project = useAppStore.getState().projects.find((p) => p.id === thread.projectId);
           if (project) {
             void primeWorktreeGitState(project, command.worktreePath);
+            void showHostWorktreeSetupTerminal(project, command.worktreePath);
           }
         }
         break;

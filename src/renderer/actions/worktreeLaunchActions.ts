@@ -99,14 +99,23 @@ export async function showHostWorktreeSetupTerminal(
   );
   // Adopting a shell that never started leaves an empty tab the panel is
   // forbidden to spawn. A missing snapshot means start failed.
+  const bridge = readBridge();
+  let exited = false;
+  const unsubscribe = bridge.onSupervisorEvent((event) => {
+    if (event.type === "thread-exited" && event.threadId === shellId) exited = true;
+  });
   let running = false;
   try {
-    const snapshot = await readBridge().readTerminalSnapshot({ threadId: shellId });
+    const snapshot = await bridge.readTerminalSnapshot({ threadId: shellId });
     running = snapshot?.processState === "running";
   } catch {
     return;
+  } finally {
+    unsubscribe();
   }
-  if (!running) return;
+  // An exit may reach the renderer while a previously running snapshot is
+  // still in flight. It must not resurrect an already-disposed setup tab.
+  if (!running || exited) return;
   adoptExternalShell(shellId);
   const store = useDevTerminalStore.getState();
   const tab = store.ensureTrackedShellTab(shellId, project.id, setupTabTitle(), worktreePath);

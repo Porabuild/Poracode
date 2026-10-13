@@ -58,11 +58,8 @@ import {
   reconcileRemoteThreadCommandOutcome,
   reconcileThreadCommandOutcome,
 } from "./threadCommandOutcomeActions";
-import {
-  createWorktree,
-  primeWorktreeGitState,
-  runWorktreeSetupScript,
-} from "./worktreeLaunchActions";
+import { createWorktree, primeWorktreeGitState } from "./worktreeLaunchActions";
+import { initializeCreatedWorktree } from "./worktreeInitialization";
 import { performWorktreeRemoval } from "./worktreeActions";
 import { setThreadWorktree } from "./threadActions";
 import {
@@ -349,7 +346,6 @@ export async function performInitialThreadLaunch(input: {
 }
 
 interface ThreadLaunchHostTransport {
-  readonly setupRunsOnHost: boolean;
   startThread(input: ThreadLaunchRequest): Promise<RemoteThreadLaunchResult>;
 }
 
@@ -614,14 +610,9 @@ export async function startThreadFromDraft(
   }
 
   if (worktreePath) {
-    void primeWorktreeGitState(project, worktreePath);
+    if (isNewWorktree) initializeCreatedWorktree(project, worktreePath);
+    else void primeWorktreeGitState(project, worktreePath);
     void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-  }
-  if (isNewWorktree && worktreePath && !host.setupRunsOnHost) {
-    const setupScript = project.scripts?.setupScript;
-    if (setupScript) {
-      void runWorktreeSetupScript(project, worktreePath, setupScript);
-    }
   }
 }
 
@@ -629,7 +620,6 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
   const owner = remoteOwner(project);
   if (owner) {
     return {
-      setupRunsOnHost: true,
       startThread: async (launch) => {
         // Allocate the host thread id here, not inside `launchRemoteThread`:
         // an uncertain start still needs the id to read back authoritatively.
@@ -679,7 +669,6 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
   }
 
   return {
-    setupRunsOnHost: false,
     startThread: async (launch) => {
       const thread = createDraftThread(launch);
       // Paint the first prompt before host persistence, exactly like the

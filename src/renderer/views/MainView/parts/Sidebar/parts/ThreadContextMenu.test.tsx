@@ -1,11 +1,12 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project, Thread } from "@/shared/contracts";
+import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { groupExperiment } from "@/shared/test/threadGroups";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -68,6 +69,23 @@ function renderMenu(
   return screen.findByRole("menu");
 }
 
+function status(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
+  return {
+    isRepo: true,
+    branch: "main",
+    tracking: "",
+    hasRemote: false,
+    remoteInfo: null,
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+    ...overrides,
+  };
+}
+
 describe("ThreadContextMenu project actions", () => {
   beforeEach(() => {
     resetDevTerminalStore();
@@ -75,6 +93,71 @@ describe("ThreadContextMenu project actions", () => {
     useAppStore.setState({ threads: [], view: { kind: "home" } });
     usePanelStore.setState({ githubActionsContext: null });
     useSharedSettings.setState({ workspaces: [] } as never);
+    useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
+  });
+
+  it.each([undefined, status()])(
+    "hides the transfer choice when status is clean or unavailable (%j)",
+    async (projectStatus) => {
+      if (projectStatus) useGitStore.getState().setStatus(project.id, projectStatus);
+      await renderMenu(thread());
+      fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Move to Worktree" }));
+      expect(await screen.findByRole("menuitem", { name: "Clean Worktree" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("menuitem", { name: "Bring Uncommitted Changes" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["staged", "unstaged"] as const)(
+    "offers transfer when the source has %s files",
+    async (field) => {
+      useGitStore.getState().setStatus(
+        project.id,
+        status({
+          [field]: [
+            {
+              path: "file.txt",
+              status: field === "staged" ? "M" : "?",
+              staged: field === "staged",
+              insertions: 1,
+              deletions: 0,
+            },
+          ],
+        }),
+      );
+      await renderMenu(thread());
+      fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Move to Worktree" }));
+      expect(
+        await screen.findByRole("menuitem", { name: "Bring Uncommitted Changes" }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("updates an open menu when the source becomes clean and ignores other worktrees", async () => {
+    useGitStore.getState().setStatus(
+      project.id,
+      status({
+        unstaged: [{ path: "file.txt", status: "?", staged: false, insertions: 0, deletions: 0 }],
+      }),
+    );
+    useGitStore.getState().setWorktreeStatus(
+      "C:\\repo\\other-worktree",
+      status({
+        unstaged: [{ path: "other.txt", status: "M", staged: false, insertions: 1, deletions: 0 }],
+      }),
+    );
+    await renderMenu(thread());
+    fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Move to Worktree" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Bring Uncommitted Changes" }),
+    ).toBeInTheDocument();
+
+    act(() => useGitStore.getState().setStatus(project.id, status()));
+    expect(
+      screen.queryByRole("menuitem", { name: "Bring Uncommitted Changes" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Clean Worktree" })).toBeInTheDocument();
   });
 
   it("offers project Git and Run submenus on flat main-branch rows", async () => {
