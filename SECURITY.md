@@ -52,7 +52,8 @@ row id cited by other docs. Status vocabulary: **shipped** = landed
 
 - **Compromised client / stolen token** — everything its scopes allow until
   revocation (`revokeAccessSession`, audited). Revocation is immediate and
-  server-side; access tokens are short-lived (row 4.6).
+  server-side; access tokens expire after 24 h and refresh tokens rotate on
+  every use within a fixed 30-day window (row 4.6).
 - **LAN peer** — nothing on the default loopback bind. Against a deliberately
   acknowledged `lan` bind over plaintext, a passive peer can read traffic and
   capture credentials (that is what the acknowledgement admits); an active peer

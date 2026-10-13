@@ -97,9 +97,10 @@ approach is accepted as full remediation.
 - Deployment validation for actual wildcard DNS/TLS and proxy behavior; local
   Host-header tests alone are not evidence that production routing is ready.
 
-The two-host probe covers the first item in Node with a per-origin cookie jar;
-validation against a real wildcard DNS/TLS deployment is tracked in
-`docs/BACKLOG.md`.
+The two-host probe covers the first item in Node with a per-origin cookie jar.
+The storage and service-worker isolation probes, web/iOS/Android checks against
+older hosts, and validation against a real wildcard DNS/TLS deployment remain
+open and are tracked in `docs/BACKLOG.md`.
 
 ## Relay routing
 

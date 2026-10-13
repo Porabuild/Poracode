@@ -10,7 +10,7 @@ Universal AI agent orchestrator: an Electron desktop app (plus web, iOS, and And
 - `pnpm run dev` — run the app. `pnpm run build` then `pnpm run dist` — package it.
 - `pnpm run typecheck` (TypeScript 7 native), `pnpm run lint` (oxlint), `pnpm run fmt` / `pnpm run fmt:check` (oxfmt), `pnpm run test` (vitest).
 - Targeted tests: `pnpm exec vitest run <paths>`. Jest-only flags such as `--runInBand` do not exist here.
-- The pre-commit hook runs lint-staged (oxlint `--fix --deny-warnings`, oxfmt) and then `pnpm run typecheck`.
+- The pre-commit hook runs lint-staged (oxlint `--type-aware --fix --deny-warnings`, oxfmt) and then `pnpm run typecheck`.
 
 ## Invariants
 
@@ -35,7 +35,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 
 ## Done means
 
-- The requested change works, and nothing beyond it was added (no unrequested features, refactors, docs, or tests).
+- The requested change works, with no unrequested features, refactors, or docs. Tests that prove the change, and any regression test a rule above requires, are part of the change.
 - Checks ran for real: for a focused change, nearby tests plus touched-file lint and format plus `pnpm run typecheck`; when asked to make everything green or before a PR is marked ready, the full gate. The `verify` skill owns the exact list.
 - The report names what was verified and what was not.
 

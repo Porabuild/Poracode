@@ -21,8 +21,9 @@ query($owner: String!, $repo: String!, $pr: Int!) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $pr) {
       reviewThreads(first: 100) {
+        pageInfo { hasNextPage endCursor }
         nodes {
-          id isResolved isOutdated path line
+          id isResolved isOutdated path line originalLine
           comments(first: 50) { nodes { databaseId author { login } body url } }
         }
       }
@@ -30,6 +31,8 @@ query($owner: String!, $repo: String!, $pr: Int!) {
   }
 }'
 ```
+
+If `hasNextPage` is true, page with an `after: <endCursor>` argument; outdated threads have no `line`, so use `originalLine`.
 
 Review summaries and conversation comments:
 

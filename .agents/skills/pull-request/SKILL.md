@@ -26,11 +26,11 @@ Get committed work into a draft PR that a reviewer can understand without readin
 
 ## Title
 
-Same format as the commit subject: `type(scope): subject`, imperative, lowercase after the colon, no trailing period, 72 characters or fewer. With an issue, the number comes first: `#123 fix(sidebar): show worktree identity while pending`. Never invent an issue number. Do not add `(#PR)`; GitHub appends it on squash merge. For a single-commit PR, the title usually equals the commit subject.
+Same format as the commit subject, including the leading issue number when there is one (see the `commit` skill). For a single-commit PR the title usually equals the commit subject.
 
 ## Body
 
-Use the template sections in order. Remove its HTML comments and any section you leave empty except the required ones.
+Use the template sections in order. Remove its HTML comments. Summary, Why, How verified, Before / After, and Risk & rollback are required; drop Benefits when it would only restate Why.
 
 - **First line**: `Closes #123`, or `Refs #123` when the PR only partly resolves the issue. Omit when there is no issue.
 - **Summary**: what changed, in user-visible terms.

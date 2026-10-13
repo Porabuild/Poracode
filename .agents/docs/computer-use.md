@@ -351,8 +351,9 @@ display sleep.
 3. Return an accurate delivery or refusal: never claim background delivery for
    a route that can affect the user's foreground device or that the target
    silently drops.
-4. Keep background reachable in the wording: refusal hints, tool descriptions,
-   and MCP instructions name the semantic recovery before `mode:"foreground"`.
+4. Keep background reachable in the wording: refusal hints name only background
+   routes (never `mode:"foreground"` or `activate_window`); tool descriptions and
+   MCP instructions state the background-only rule before any takeover mention.
 5. Update the protocol constants and fixture if the wire contract changes
    incompatibly, and audit the helper/plugin versions.
 6. Add protocol, driver, backend, activity-overlay, and platform integration

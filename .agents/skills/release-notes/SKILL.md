@@ -171,7 +171,7 @@ pnpm run typecheck
 Optionally build the site to confirm the `/changelog` page renders:
 `pnpm --dir website build`.
 
-Publish through a pull request against `master` as described in
+When asked to publish, open a pull request against `master` as described in
 `.github/CONTRIBUTING.md`, using the `pull-request` skill
 (`.agents/skills/pull-request`); do not push to `master` directly. Once merged,
 the site redeploys and the app picks up the new notes without a release.

@@ -36,9 +36,9 @@ Handy scripts:
 1. Fork the repo and branch from the latest `master`. Name the branch `123-short-slug` when it fixes issue #123, otherwise `<type>/short-slug` (for example `fix/sidebar-pending-identity`).
 2. Keep the change scoped to one thing.
 3. Write commit subjects and the PR title as [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): subject`, imperative, lowercase, no trailing period, 72 characters or fewer. Prefix the issue number when there is one: `#123 fix(sidebar): show worktree identity while pending`.
-4. Run the checks listed in [`AGENTS.md`](../AGENTS.md) before pushing. Husky runs `lint-staged` and `typecheck` on commit; don't bypass it with `--no-verify`.
+4. Before pushing, run `pnpm run typecheck`, `pnpm run lint`, `pnpm run fmt:check`, and `pnpm run test`. Husky runs `lint-staged` and `typecheck` on commit; don't bypass it with `--no-verify`.
 5. Open a PR against `master` and fill in the template. Start the body with `Closes #123` when it resolves an issue. Include before/after screenshots for any visible UI change, and list only the checks you actually ran.
-6. CI (`ci`) must pass and reviewers must resolve their threads before merge.
+6. The `CI` workflow must pass and reviewers must resolve their threads before merge.
 
 Rebase on the latest `master` before requesting review. Agents working in this repo follow the same flow through the `commit`, `verify`, `pull-request`, and `address-pr-feedback` skills in `.agents/skills/`.
 

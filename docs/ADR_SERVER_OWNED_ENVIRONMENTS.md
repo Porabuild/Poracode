@@ -2,6 +2,7 @@
 
 Status: Accepted, implemented (host side in `src/host/environments/` and `src/host/remote/environments/`).
 Audited revision: `36e1649f017aeccebc202bb9d5c9c6ab0f797709` (`poracode/v2`).
+Citations of "the plan" refer to `docs/V2_SERVER_ARCHITECTURE_PRODUCTION_PLAN.md` and "companion design note" to a local design note; both are in git history only.
 
 Decisions at a glance: (1) three concepts stay distinct; (2) `environmentId` is host-minted with CAS revisions; (3) credentials stay host-local and client tokens stay in the vault; (4) the parent proxy is the only default path, with the child bearer in `Authorization` and a separate parent header, and two WS tickets; (5) existing protocol-v12 scopes are reused, never appended; (6) the descriptor capability is emitted only when every route is usable; (7) upgrades are explicit and stop-then-start; (8) legacy migration is explicit and never uploads keys.
 

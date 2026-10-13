@@ -23,7 +23,7 @@ Open follow-ups carried over from completed V2–V6 plans (archived in git histo
 
 - **SQLite integrity at startup** — run `quick_check`/`integrity_check` on open with quarantine and restore-from-backup; today it runs only on import (`src/backend/ownership/hostImportDatabase.ts`). Document the accepted unflushed-write loss window of `src/host/db/runtimeWriteQueue.ts` alongside it.
 - **Relay secret at rest** — document the storage and key-rotation posture for `src/server/headlessRelaySecret.ts`.
-- **Port-forward child origins in a real deployment** — validate wildcard DNS/TLS and proxy behavior for `PORACODE_REMOTE_FORWARD_BASE_URL` / `PORACODE_RELAY_FORWARD_BASE_URL`; current proof is the Node two-host probe (`src/server/relay/forwardOriginTwoHostProbe.test.ts`).
+- **Port-forward child origins sign-off** — validate wildcard DNS/TLS and proxy behavior for `PORACODE_REMOTE_FORWARD_BASE_URL` / `PORACODE_RELAY_FORWARD_BASE_URL`, add synthetic browser-storage and service-worker isolation probes, and check web/iOS/Android open/copy/reopen against older hosts; current proof is the Node two-host probe (`src/server/relay/forwardOriginTwoHostProbe.test.ts`). See `docs/PORT_FORWARD_ORIGIN_ISOLATION.md`.
 - **Desktop-owner attach** — `DESKTOP_OWNER_ATTACH_ADMISSION` in `src/main/backend/standaloneAttach.ts` is `"refuse"`; desktop owners must expose the backend-owned client endpoint before it can flip to `"admit"`.
 - **Live SSH end-to-end** — `src/host/ssh/*.integration.test.ts` run only when `PORACODE_SSH_E2E_TARGET`/`_IDENTITY` are set; no CI job provides them.
 

@@ -20,7 +20,8 @@ Use for in-progress work and focused fixes.
 
 1. Lint and format the touched files:
    ```sh
-   pnpm exec oxlint --type-aware --deny-warnings <files>
+   pnpm exec oxlint --deny-warnings <files>
+   pnpm exec oxlint --type-aware --deny-warnings -c .oxlintrc.type-aware.json <files>
    pnpm exec oxfmt --check <files>
    ```
 2. Run the nearby tests: the touched files' `*.test.ts(x)` plus tests for direct callers.
@@ -47,7 +48,7 @@ Add these when the change touches the matching area:
 
 - **Renderer strings** (`src/renderer`): `pnpm i18n:extract` reports 0 missing for every locale and every new `msgstr` is filled in all 12 non-English catalogs. See `.agents/docs/i18n.md`.
 - **Persisted state, caches, manifests, wire/IPC protocols, deployed helpers**: complete the audit in `.agents/docs/versioning.md` ("Required check for every change") and add the pre-upgrade regression test it calls for.
-- **Remote protocol contract** (`src/shared/remote/contract/`, `protocol/remote/v3/`): `pnpm run protocol:remote:v3:check`.
+- **Remote protocol contract** (`src/shared/remote/contract/`, `protocol/remote/v3/`): `pnpm run protocol:remote:v3:check`, then `pnpm exec vitest run --config tests/native-e2e/vitest.config.ts operationMap.test.ts` (the operation-map hash lock).
 - **Module boundaries or new cross-layer imports**: `pnpm run architecture:check`.
 - **Website** (`website/`): `pnpm run typecheck:website`.
 - **Perf-sensitive paths** (CLI hook chain, remote protocol): `pnpm run test:perf:cli-hook` or `pnpm run test:perf:remote`.
@@ -60,7 +61,7 @@ Add these when the change touches the matching area:
 `.github/workflows/ci.yml` runs these on every PR; docs-only changes (`docs/`, `*.md`) skip everything except Format.
 
 - Typecheck: `pnpm run typecheck`.
-- Lint: `pnpm run lint`, `pnpm run architecture:check`, smoke-harness and `scripts/*.test.mjs` node tests.
+- Lint: `pnpm run lint`, `pnpm run architecture:check`, smoke-harness and release/qualification script tests, and the native-e2e `managedAppSession` and `operationMap` locks.
 - Format: `actionlint` on workflows, then `pnpm run fmt:check`.
 - Canonical web build: `pnpm run build:web`.
 - Runtime dependencies: `pnpm run build:electron` plus the runtime-deps check in `scripts/build-desktop-artifact.mjs`.
