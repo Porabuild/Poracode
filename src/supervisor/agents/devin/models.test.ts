@@ -513,7 +513,7 @@ it("preserves distinct pricing descriptions including free variants in the famil
   );
 });
 
-it("surfaces per-pair pricing on Fusion entries instead of aggregating every pair price", () => {
+it("carries no pricing description on Fusion entries; the pair label names both models", () => {
   const data = parseDevinModelCatalog(
     JSON.stringify({
       families: [
@@ -537,15 +537,13 @@ it("surfaces per-pair pricing on Fusion entries instead of aggregating every pai
     }),
   );
   const caps = devinModelCapabilities(data);
-  expect(caps.models[0]).toMatchObject({
-    id: "fusion-a-b",
-    description: "$1 / 1M Input",
-  });
+  expect(caps.models[0]).toMatchObject({ id: "fusion-a-b" });
+  expect(caps.models[0]?.description).toBeUndefined();
   expect(caps.models[1]).toMatchObject({
     id: "fusion-c-d",
     label: "(C Max + D Max)",
-    description: "$2 / 1M Input",
   });
+  expect(caps.models[1]?.description).toBeUndefined();
 });
 
 // ── Live negotiated-menu semantics (real capture) ─────────────────────────

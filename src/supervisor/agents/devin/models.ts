@@ -48,7 +48,7 @@ type Variant = {
   fast: boolean;
   thinking: boolean;
   context: string;
-  /** Provider cost text, surfaced verbatim on composite picker entries. */
+  /** Provider cost text; surfaced as the row description for regular variants only. */
   cost?: string;
   /**
    * Exact provider label for composite variants (Fusion pairs and any other
@@ -180,17 +180,17 @@ export function devinModelCapabilities(
     defaultHiddenModels: devinDefaultHiddenModels(families),
     models: families.flatMap((family) => {
       // Regular variants share the family row; composite pairs surface their
-      // own exact label and cost below, so the family aggregate never becomes
-      // a hundreds-line list of pair prices.
+      // own exact label below. A pair carries NO pricing description: its
+      // label already names both models, and the two-stream (lead + sidekick)
+      // price is long enough to collapse the row's name in the picker.
       const regular = family.variants.filter((v) => !v.composite);
       const allComposite = regular.length === 0;
-      const description = (() => {
-        if (!allComposite) {
-          const costs = regular.map((v) => v.cost?.trim());
-          return costs.every(Boolean) ? [...new Set(costs)].join("\n") : undefined;
-        }
-        return family.variants[0]!.cost?.trim();
-      })();
+      const description = allComposite
+        ? undefined
+        : (() => {
+            const costs = regular.map((v) => v.cost?.trim());
+            return costs.every(Boolean) ? [...new Set(costs)].join("\n") : undefined;
+          })();
       const entries = [
         {
           id: family.id,
@@ -208,7 +208,6 @@ export function devinModelCapabilities(
         entries.push({
           id: variant.id,
           label: variant.composite,
-          ...(variant.cost ? { description: variant.cost } : {}),
         });
       }
       return entries;

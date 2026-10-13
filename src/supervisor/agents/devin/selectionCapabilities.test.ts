@@ -59,6 +59,7 @@ describe("devinNegotiatedGuiSelectionCapabilities", () => {
           thinking: false,
           fast: false,
           context: "default",
+          cost: "$10 / 1M Input · $0.25 / 1M Cached input · $50 / 1M Output · Sidekick: Free",
         },
       ],
     },
@@ -100,6 +101,9 @@ describe("devinNegotiatedGuiSelectionCapabilities", () => {
       description: "$0.10 / 1M",
     });
     expect(gui.models[2]?.label).toBe("Fusion (Claude Fable 5.1 Medium + SWE-2 Medium)");
+    // A Fusion pair's label already names both models; its row carries no
+    // pricing description (the two-stream price collapsed the picker row).
+    expect(gui.models[2]?.description).toBeUndefined();
     expect(gui.models[0]?.label).toBe("Swe 2 High");
   });
 
