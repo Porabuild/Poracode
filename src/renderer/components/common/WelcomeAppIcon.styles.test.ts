@@ -39,5 +39,9 @@ describe("welcome ring background pause", () => {
     );
     // Same specificity: the steady ring (glow only) must win by source order.
     expect(steadyRule).toBeGreaterThan(ringRule);
+    // `running, paused` assumes the intro ring lists the reveal before the glow.
+    expect(styles).toMatch(
+      /\.poracode-welcome-ring\s*\{[^}]*animation:\s*poracode-welcome-reveal[^;]*,\s*poracode-lightning-glow/,
+    );
   });
 });
