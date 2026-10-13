@@ -87,6 +87,7 @@ describe("resolveAntigravityAcpCredentials", () => {
     });
     expect(credentials?.refreshToken).toBe("refresh-token");
     expect(credentials?.keychainFingerprint).toBe("keychain-source");
+    expect(credentials?.fromKeychain).toBe(true);
     expect(readNative).not.toHaveBeenCalled();
     expect(readWsl).not.toHaveBeenCalled();
   });
@@ -101,6 +102,7 @@ describe("resolveAntigravityAcpCredentials", () => {
     });
     expect(credentials?.refreshToken).toBe("refresh-token");
     expect(credentials?.keychainFingerprint).toBeUndefined();
+    expect(credentials?.fromKeychain).toBeUndefined();
     expect(readWsl).not.toHaveBeenCalled();
   });
 
@@ -139,6 +141,7 @@ describe("resolveAntigravityAcpCredentials", () => {
     });
     expect(credentials?.refreshToken).toBe("refresh-token");
     expect(credentials?.keychainFingerprint).toBeUndefined();
+    expect(credentials?.fromKeychain).toBe(true);
   });
 });
 

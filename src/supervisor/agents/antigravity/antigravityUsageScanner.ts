@@ -93,6 +93,7 @@ export interface AntigravityUsageScannerDeps {
     wslDistros: readonly string[],
   ): Promise<UsageSnapshot | undefined>;
   resolveAcpCredentials(host: HostPort): Promise<AntigravityAcpCredentials | undefined>;
+  confirmAcpCredentials(host: HostPort, accepted: AntigravityAcpCredentials): Promise<void>;
   invalidateAcpCredentials(host: HostPort, rejected: AntigravityAcpCredentials): Promise<void>;
   collectCloudUsage(
     nowMs: number,
@@ -104,6 +105,8 @@ export interface AntigravityUsageScannerDeps {
 const defaultDeps: AntigravityUsageScannerDeps = {
   scanLanguageServer: scanAntigravityLanguageServerUsage,
   resolveAcpCredentials: (host) => antigravityAcpCredentialCache(host.credentials).resolve(),
+  confirmAcpCredentials: (host, accepted) =>
+    antigravityAcpCredentialCache(host.credentials).confirm(accepted),
   invalidateAcpCredentials: (host, rejected) =>
     antigravityAcpCredentialCache(host.credentials).invalidate(rejected),
   collectCloudUsage: collectAntigravityCloudUsage,
@@ -127,6 +130,11 @@ export async function scanAntigravityUsage(
     // The stored artifact was rejected (e.g. the user re-signed in and the
     // refresh token rotated); re-read the OS stores on the next refresh.
     await deps.invalidateAcpCredentials(host, credentials);
+  } else if (snapshot.status === "ok") {
+    // The credentials are still accepted, so bind the durable grant to the
+    // live Keychain item (recreated agentside on every server start) instead
+    // of rereading its password — and re-prompting — on the next launch.
+    await deps.confirmAcpCredentials(host, credentials);
   }
   return snapshot;
 }

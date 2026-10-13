@@ -20,20 +20,35 @@ const PROVIDER_ID = "antigravity";
 type SecretStore = Pick<CredentialStore, "getSecret" | "setSecret">;
 type ResolveCredentials = () => Promise<AntigravityAcpCredentials | undefined>;
 
-function parseSavedCredentials(
-  saved: string,
-  fingerprint: string,
-): AntigravityAcpCredentials | undefined {
+function serializeCredentials(credentials: AntigravityAcpCredentials, fingerprint: string): string {
+  return JSON.stringify({
+    client_id: credentials.clientId,
+    client_secret: credentials.clientSecret,
+    refresh_token: credentials.refreshToken,
+    token_uri: ANTIGRAVITY_GOOGLE_TOKEN_URI,
+    keychainFingerprint: fingerprint,
+  });
+}
+
+/**
+ * Parse a saved grant without comparing its fingerprint to the live item.
+ * `agy_acp_server` delete+adds its Keychain item on every start: each
+ * recreation resets the item's dates (a new fingerprint) and its ACL (the
+ * user's earlier "Always Allow" for the reader is gone), while the stored
+ * token usually stays the same. Binding reuse to the old fingerprint would
+ * therefore discard the grant and re-prompt on every launch; instead the
+ * grant is reused provisionally while the item still exists, `confirm`
+ * rebinds it after the credentials succeed against the API, and an API
+ * rejection invalidates it so the next refresh re-imports from the Keychain.
+ */
+function parseSavedCredentials(saved: string): AntigravityAcpCredentials | undefined {
   try {
     const record: unknown = JSON.parse(saved);
-    if (
-      !record ||
-      typeof record !== "object" ||
-      !("keychainFingerprint" in record) ||
-      record.keychainFingerprint !== fingerprint
-    ) {
+    if (!record || typeof record !== "object" || !("keychainFingerprint" in record)) {
       return undefined;
     }
+    const fingerprint = record.keychainFingerprint;
+    if (typeof fingerprint !== "string" || !fingerprint) return undefined;
     const credentials = parseAntigravityAcpCredentials(saved);
     return credentials ? { ...credentials, keychainFingerprint: fingerprint } : undefined;
   } catch {
@@ -43,6 +58,8 @@ function parseSavedCredentials(
 
 export interface AntigravityAcpCredentialCache {
   resolve(): Promise<AntigravityAcpCredentials | undefined>;
+  /** Bind accepted Keychain credentials to the live item and persist that binding. */
+  confirm(accepted: AntigravityAcpCredentials): Promise<void>;
   invalidate(rejected: AntigravityAcpCredentials): Promise<void>;
 }
 
@@ -57,6 +74,10 @@ export function createAntigravityAcpCredentialCache(
   let cached: AntigravityAcpCredentials | undefined;
   let readPersisted = true;
   let invalidation: Promise<void> | undefined;
+  // Credential objects this cache knows came from the Keychain item (restored
+  // grants and fresh Keychain reads), as opposed to the file/WSL sources that
+  // must never be persisted as a Keychain grant.
+  const keychainSourced = new WeakSet<AntigravityAcpCredentials>();
   const resolutions = new Map<string, Promise<AntigravityAcpCredentials | undefined>>();
 
   async function persist(value: string): Promise<void> {
@@ -76,35 +97,47 @@ export function createAntigravityAcpCredentialCache(
         await invalidation;
         if (readPersisted) {
           readPersisted = false;
+          // The attribute read doubles as an existence check: a removed item
+          // (logout) must not restore the grant. Its value is deliberately
+          // not compared to the saved fingerprint — the owning server
+          // recreates the item on every start (see parseSavedCredentials).
           const fingerprint = await readKeychainFingerprint().catch(() => undefined);
           if (fingerprint) {
             const saved = await store
               .getSecret(PROVIDER_ID, CREDENTIALS_SECRET_KEY)
               .catch(() => undefined);
-            if (saved) cached = parseSavedCredentials(saved, fingerprint);
+            if (saved) cached = parseSavedCredentials(saved);
+            if (cached) keychainSourced.add(cached);
           }
           if (cached) return cached;
         }
 
         const credentials = await resolveCredentials();
         if (credentials) {
+          if (credentials.fromKeychain || credentials.keychainFingerprint) {
+            keychainSourced.add(credentials);
+          }
           // Only Keychain grants need durable import. File/WSL credentials must
           // still be reread after restart, including account switches and logout.
           if (credentials.keychainFingerprint) {
-            await persist(
-              JSON.stringify({
-                client_id: credentials.clientId,
-                client_secret: credentials.clientSecret,
-                refresh_token: credentials.refreshToken,
-                token_uri: ANTIGRAVITY_GOOGLE_TOKEN_URI,
-                keychainFingerprint: credentials.keychainFingerprint,
-              }),
-            );
+            await persist(serializeCredentials(credentials, credentials.keychainFingerprint));
           }
           cached = credentials;
         }
         return credentials;
       }),
+    confirm: async (accepted) => {
+      // Only the live cached object may adopt a new binding; a late success
+      // for superseded credentials must not rebind their replacement.
+      if (cached !== accepted || !keychainSourced.has(accepted)) return;
+      const fingerprint = await readKeychainFingerprint().catch(() => undefined);
+      if (!fingerprint || cached !== accepted) return;
+      if (accepted.keychainFingerprint === fingerprint) return;
+      const adopted = { ...accepted, keychainFingerprint: fingerprint };
+      keychainSourced.add(adopted);
+      cached = adopted;
+      await persist(serializeCredentials(adopted, fingerprint));
+    },
     invalidate: (rejected) => {
       // A late response using an older credential must not clear its replacement.
       if (cached !== rejected) return Promise.resolve();
