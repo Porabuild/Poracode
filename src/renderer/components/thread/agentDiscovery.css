@@ -39,6 +39,12 @@
   animation: agent-discovery-env-enter 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+/* Scan finishing swaps the heading, status line, and actions; the new copy
+   fades up in step with the cards sliding into the reclaimed space. */
+.agent-discovery-phase {
+  animation: agent-discovery-phase-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
 .agent-discovery-row__status {
   display: flex;
   align-items: center;
@@ -86,6 +92,17 @@
   }
 }
 
+@keyframes agent-discovery-phase-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes agent-discovery-breathe {
   from {
     opacity: 0.4;
@@ -113,7 +130,8 @@
     display: none;
   }
   .agent-discovery-row,
-  .agent-discovery-env-row {
+  .agent-discovery-env-row,
+  .agent-discovery-phase {
     animation: none;
   }
   .agent-discovery-screen__activity {

@@ -16,6 +16,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { refreshDiscoveredAgent } from "@/renderer/actions/agentDiscoveryActions";
 import type { AgentStatus } from "@/shared/contracts";
 import { AgentDiscoveryRadar } from "./AgentDiscoveryRadar";
+import { useDiscoveryCardMotion } from "./useDiscoveryCardMotion";
 import "./agentDiscovery.css";
 
 /** Collision-free row key for (kind, env) without embedding separators. */
@@ -65,10 +66,17 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
   const { t } = useLingui();
   const headingId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const discovered = useAgentStatusesStore((s) => s.discoveredAgents);
   const scanning = useAgentStatusesStore((s) => s.discoveryScanning);
   const scope = useAgentStatusesStore((s) => s.discoveryScope);
   const [pendingRefresh, setPendingRefresh] = useState<ReadonlySet<string>>(new Set());
+  // The overlay opens instantly; only a later phase swap (scan finishing)
+  // fades the heading and footer copy in.
+  const [openedScanning] = useState(scanning);
+  const phaseClass = scanning === openedScanning ? "" : "agent-discovery-phase";
+  const phaseKey = scanning ? "scanning" : "complete";
+  useDiscoveryCardMotion(listRef);
   const wslDistro = scope?.kind === "wsl" ? scope.distro : undefined;
   const wslDistros = scope?.kind === "all" ? scope.wslDistros : [];
   const scanLabels = wslDistro
@@ -182,11 +190,13 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
           <div className="flex shrink-0 flex-col items-center px-6 pt-2 text-center">
             <AgentDiscoveryRadar foundCount={found.length} scanning={scanning} />
             <h1 id={headingId} className="mt-6 text-2xl font-semibold tracking-tight">
-              {scanning ? (
-                <Trans>Discovering coding agents…</Trans>
-              ) : (
-                <Trans>Discovery complete</Trans>
-              )}
+              <span key={phaseKey} className={`inline-block ${phaseClass}`}>
+                {scanning ? (
+                  <Trans>Discovering coding agents…</Trans>
+                ) : (
+                  <Trans>Discovery complete</Trans>
+                )}
+              </span>
             </h1>
             {scanning ? (
               <>
@@ -210,14 +220,24 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
           {/* Only this region scrolls; hero and footer stay pinned. */}
           <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
             {groups.length > 0 ? (
-              <ul className="mx-auto grid w-full max-w-3xl grid-cols-1 items-start gap-2 px-6 pb-4 text-left sm:grid-cols-2">
+              <ul
+                ref={listRef}
+                className="relative mx-auto grid w-full max-w-3xl grid-cols-1 items-start gap-2 px-6 pb-4 text-left sm:grid-cols-2"
+              >
                 {groups.map((group) => {
                   const first = group.statuses[0]!;
                   const manifestLabel = labels.get(group.kind);
                   const label = manifestLabel ? t(manifestLabel) : first.label;
                   const refreshing = pendingRefresh.has(group.kind);
                   return (
-                    <li key={group.kind} className="agent-discovery-row">
+                    // An unpaired last card (a lone result, or the odd one
+                    // out) keeps one column's width but centers under the
+                    // hero instead of hugging the left column.
+                    <li
+                      key={group.kind}
+                      data-motion-key={group.kind}
+                      className="agent-discovery-row sm:odd:last:col-span-2 sm:odd:last:w-[calc(50%-0.25rem)] sm:odd:last:justify-self-center"
+                    >
                       <div className="flex items-center gap-3">
                         <ProviderIcon
                           kind={group.kind}
@@ -286,15 +306,17 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
             ) : null}
           </div>
           <div className="flex shrink-0 flex-col items-center gap-4 px-6 pb-6 pt-3">
-            <div className="flex items-center gap-2 text-xs text-muted" aria-live="polite">
-              {scanning ? (
-                <span className="agent-discovery-screen__activity" aria-hidden="true" />
-              ) : found.length > 0 ? (
-                <Check className="size-3.5 text-success" aria-hidden="true" />
-              ) : null}
-              {renderStatusLine(scanning, discovered.length, groups.length, wslDistro)}
+            <div className="text-xs text-muted" aria-live="polite">
+              <span key={phaseKey} className={`flex items-center gap-2 ${phaseClass}`}>
+                {scanning ? (
+                  <span className="agent-discovery-screen__activity" aria-hidden="true" />
+                ) : found.length > 0 ? (
+                  <Check className="size-3.5 text-success" aria-hidden="true" />
+                ) : null}
+                {renderStatusLine(scanning, discovered.length, groups.length, wslDistro)}
+              </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div key={phaseKey} className={`flex items-center gap-2 ${phaseClass}`}>
               {scanning ? (
                 <>
                   <Button size="sm" variant="secondary" onPress={props.onHide}>
