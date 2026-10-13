@@ -210,11 +210,18 @@ export async function startDesktopApp(): Promise<void> {
     quickComposerLifecycle: desktopApp.quickComposerLifecycle,
   });
 
+  // Warm native ingresses and the backend alongside page loading. Preserve the
+  // job-object and MCP environment gates before the supervisor can start.
+  const runtimeReady = Promise.all([shell.jobObjectReady, hostShell.services.start()]).then(() =>
+    backendHost.startSupervisor(),
+  );
+  // Observe early failure while tray/window setup runs; the await below still
+  // propagates it through the normal startup-failure path.
+  void runtimeReady.catch(() => undefined);
+
   ensureMainWindow(shell.showMainWindowOnReady);
 
   await createDesktopTray(backend.trayFeed);
-
-  await shell.jobObjectReady;
 
   const hookDebugOn =
     Boolean(process.env.PORACODE_HOOK_DEBUG) && process.env.PORACODE_HOOK_DEBUG !== "0";
@@ -224,10 +231,7 @@ export async function startDesktopApp(): Promise<void> {
     );
   }
 
-  // Settle the composed MCP ingress starts before the supervisor can fork,
-  // so the launch env carries their URL/token pairs (degrades like before).
-  await hostShell.services.start();
-  await backendHost.startSupervisor();
+  await runtimeReady;
   desktopApp.desktopOwnerLease?.setPhase("ready");
   publishDesktopOwnerServices();
 
