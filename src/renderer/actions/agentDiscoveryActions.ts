@@ -34,8 +34,8 @@ export function refreshAgentDiscovery(wslDistros: string[]): void {
       setTimeout(() => {
         if (run === current) {
           baseline = undefined;
-          // The scan is over but its rows stay open — refreshed one by one or
-          // dismissed with Done; nothing here auto-hides the overlay.
+          // Completion leaves the rows open while the screen's Done countdown
+          // runs, with individual refreshes and immediate dismissal available.
           useAgentStatusesStore.setState({ discoveryScanning: false });
         }
       }, 1000);

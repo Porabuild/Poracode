@@ -5272,7 +5272,6 @@ msgstr "feito"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5285,6 +5284,10 @@ msgstr "Concluído · Aguardando sua resposta"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Done ({doneCount})"
 msgstr "Concluído ({doneCount})"
+
+#: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+msgid "Done ({remainingSeconds}s)"
+msgstr "Concluído ({remainingSeconds}s)"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Download image"

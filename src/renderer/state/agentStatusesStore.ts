@@ -34,8 +34,8 @@ interface AgentStatusesStore {
   inFirstLaunchDiscovery: boolean;
   /**
    * True while the scan is streaming. The overlay keeps its results open when
-   * the scan completes (rows stay refreshable) until the user dismisses it;
-   * cancel/hydrate still end the session outright.
+   * the scan completes (rows stay refreshable) until Done or its countdown
+   * dismisses it; cancel/hydrate still end the session outright.
    */
   discoveryScanning: boolean;
   /** Session-only visibility; hiding the artwork does not stop detection. */
@@ -167,8 +167,8 @@ function buildStatusUpdatePatch(
   const currentLoaded = isWsl ? prev.wslLoaded : prev.windowsLoaded;
   const equal = statusesEqual(currentList, incoming);
   // The terminal bulk event completes the scan but no longer dismisses the
-  // overlay: its rows stay open (and individually refreshable) until the user
-  // hides or cancels the session.
+  // overlay: its rows stay open (and individually refreshable) until Done or
+  // its countdown dismisses the session.
   const scanCompletes =
     prev.discoveryScanning &&
     (isWsl
