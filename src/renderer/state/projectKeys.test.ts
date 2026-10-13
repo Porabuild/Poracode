@@ -1,8 +1,13 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import type { Project } from "@/shared/contracts";
-import { buildActiveProjectsKey, buildWslProjectDistrosKey } from "./projectKeys";
+import { threadSchema, type Project, type Thread } from "@/shared/contracts";
+import {
+  buildActiveProjectsKey,
+  buildBranchPrPrefetchThreadKeys,
+  buildWslProjectDistrosKey,
+  diffProjectKeys,
+} from "./projectKeys";
 
 function makeProject(
   overrides: Partial<Project> & Pick<Project, "id" | "name" | "location">,
@@ -143,5 +148,52 @@ describe("projectKeys", () => {
     ];
 
     expect(buildWslProjectDistrosKey(projects)).toBe("Debian");
+  });
+
+  it("keys branch-PR prefetch inputs per project, ignoring order and streamed fields", () => {
+    const makeThread = (overrides: Partial<Thread>): Thread =>
+      threadSchema.parse({
+        id: "thread",
+        projectId: "a",
+        title: "Thread",
+        agentKind: "acp-generic:fixture",
+        config: { model: "fixture" },
+        status: "working",
+        attention: "working",
+        canResumeWithConfig: true,
+        presentationMode: "gui",
+        worktreePath: "/a/wt",
+        worktreeBranch: "branch",
+        createdAt: "2026-10-07T00:00:00Z",
+        updatedAt: "2026-10-07T00:00:00Z",
+        ...overrides,
+      });
+    const first = makeThread({ id: "one" });
+    const second = makeThread({ id: "two", projectId: "b", worktreePath: "/b/wt" });
+    const keys = buildBranchPrPrefetchThreadKeys([first, second]);
+
+    expect(buildBranchPrPrefetchThreadKeys([second, first])).toEqual(keys);
+    expect(
+      diffProjectKeys(
+        keys,
+        buildBranchPrPrefetchThreadKeys([
+          { ...first, title: "Renamed", updatedAt: "2026-10-07T00:00:09Z" },
+          second,
+        ]),
+      ),
+    ).toEqual(new Set());
+    expect(
+      diffProjectKeys(
+        keys,
+        buildBranchPrPrefetchThreadKeys([{ ...first, status: "inactive" }, second]),
+      ),
+    ).toEqual(new Set(["a"]));
+    expect(diffProjectKeys(keys, buildBranchPrPrefetchThreadKeys([first]))).toEqual(new Set(["b"]));
+    expect(
+      diffProjectKeys(
+        keys,
+        buildBranchPrPrefetchThreadKeys([{ ...first, projectId: "b" }, second]),
+      ),
+    ).toEqual(new Set(["a", "b"]));
   });
 });
