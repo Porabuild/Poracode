@@ -767,6 +767,88 @@ describe("MuseMspStructuredSession", () => {
     );
   });
 
+  it("keeps an idle native steer working while its fallback synchronizes settings", async () => {
+    const { session, updates } = await createSession();
+    await session.openThread(config);
+    const settings = Promise.withResolvers<Record<string, unknown>>();
+    request.mockImplementation(async (method) => {
+      if (method === "session/setApprovalMode") return settings.promise;
+      if (method === "turn/start")
+        return { turnId: "follow-up", status: "accepted", disposition: "started" };
+      return { status: "accepted" };
+    });
+    updates.length = 0;
+    const followUp = session.steerTurn("follow-up", { ...config, approvalPolicy: "never" });
+    try {
+      expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
+      expect(request.mock.calls.some(([method]) => method === "turn/start")).toBe(false);
+      settings.resolve({ status: "accepted" });
+      await followUp;
+      expect(updates.every((update) => update.status === "working")).toBe(true);
+    } finally {
+      settings.resolve({ status: "accepted" });
+      await followUp;
+    }
+  });
+
+  it("starts the follow-up when the running turn completes during steer preparation", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    request.mockImplementation(async (method) => {
+      if (method === "turn/start") {
+        return { turnId: "turn-2", status: "accepted", disposition: "started" };
+      }
+      return { status: "accepted" };
+    });
+    const steering = session.steerTurn("follow-up", config, undefined, {
+      userMessageItemId: "user-follow-up",
+    });
+    notificationHandler?.("turn/completed", {
+      sessionId: "session-1",
+      turnId: "turn-1",
+      terminal: "completed",
+    });
+    await steering;
+
+    expect(request.mock.calls.filter(([method]) => method === "turn/steer")).toHaveLength(0);
+    expect(request.mock.calls.filter(([method]) => method === "turn/start")).toHaveLength(2);
+    expect(request.mock.calls.findLast(([method]) => method === "turn/start")?.[1]).toMatchObject({
+      input: [{ type: "text", text: "follow-up" }],
+    });
+    expect(runtimeEvents).toContainEqual({
+      type: "turn.started",
+      threadId: "thread-1",
+      turnId: "turn-2",
+    });
+    expect(
+      runtimeEvents.filter(
+        (event) => event.type === "item.started" && event.itemType === "user_message",
+      ),
+    ).toEqual([expect.objectContaining({ itemId: "user-follow-up" })]);
+  });
+
+  it("cancels an idle native fallback before delayed settings can start work", async () => {
+    const { session, updates } = await createSession();
+    await session.openThread(config);
+    const settings = Promise.withResolvers<Record<string, unknown>>();
+    request.mockImplementation(async (method) => {
+      if (method === "session/setApprovalMode") return settings.promise;
+      return { status: "accepted" };
+    });
+    const followUp = session.steerTurn("follow-up", { ...config, approvalPolicy: "never" });
+    try {
+      await session.interruptTurn();
+      settings.resolve({ status: "accepted" });
+      expect(await followUp).toEqual({ outcome: "completed-without-turn" });
+      expect(request.mock.calls.some(([method]) => method === "turn/start")).toBe(false);
+      expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+    } finally {
+      settings.resolve({ status: "accepted" });
+      await followUp;
+    }
+  });
+
   it("steers the turn returned by an in-flight start instead of queueing another start", async () => {
     let releaseStart!: (value: Record<string, unknown>) => void;
     const startResult = new Promise<Record<string, unknown>>((resolve) => {

@@ -155,10 +155,9 @@ export interface SessionRuntime {
    */
   structuredInterruptWatchdog?: ReturnType<typeof setTimeout> | undefined;
   /**
-   * GUI Codex launches optimistically enter `working` before the app-server
-   * listener is attached. Codex then replays the newly opened thread's idle
-   * state before the first turn has been submitted; suppress that transient
-   * idle so the renderer does not close and reopen the same launch turn.
+   * GUI submissions optimistically enter `working` before provider admission.
+   * Suppress empty idle updates from open/configuration sync until provider
+   * activity, completion, or Stop settles the optimistic startup window.
    */
   suppressInitialStructuredIdle?: boolean | undefined;
   prevChunk: string;

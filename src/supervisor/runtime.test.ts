@@ -1868,6 +1868,7 @@ describe("SupervisorRuntime thread input", () => {
       emitted.push(event as Record<string, unknown>);
     });
     let runtimeListener: { onUpdate(update: Record<string, unknown>): void } | undefined;
+    const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const interruptTurn = vi.fn<() => Promise<void>>(async () => {
       runtimeListener?.onUpdate({ status: "idle", attention: "none" });
@@ -1918,7 +1919,7 @@ describe("SupervisorRuntime thread input", () => {
         startTurn,
         interruptTurn,
         setListener,
-        dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dispose,
       }),
     };
 
@@ -1948,7 +1949,11 @@ describe("SupervisorRuntime thread input", () => {
     emitted.length = 0;
     await runtime.threadSessionManager.interruptThread({ threadId: "thread-gui-quick-stop" });
 
-    expect(interruptTurn).toHaveBeenCalledTimes(1);
+    expect(interruptTurn).not.toHaveBeenCalled();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(
+      runtime.threadSessionManager.sessions.get("thread-gui-quick-stop")?.structuredSession,
+    ).toBeUndefined();
     expect(emitted).toContainEqual(
       expect.objectContaining({
         type: "thread-state",

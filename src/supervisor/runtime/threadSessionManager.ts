@@ -259,6 +259,7 @@ export class ThreadSessionManager {
         this.runtimeEventRouter.flushThread(threadId);
       },
       sessions: this.sessions,
+      outputPipeline: this.outputPipeline,
       beginFailureEpisode: (session) => this.structuredFailureReporter.beginEpisode(session),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
     });
@@ -340,6 +341,10 @@ export class ThreadSessionManager {
       outputPipeline: this.outputPipeline,
       runtimeEventRouter: this.runtimeEventRouter,
       sessionRuntimeLifecycle,
+      onStructuredTurnCompletedWithoutTurn: (session) => {
+        this.followUpQueue.onDirectTurnCompletedWithoutTurn(session);
+        this.followUpQueue.onStructuredUpdate(session, session.status);
+      },
       cliHookPlugin: this.cliHookPlugin,
       closeThread: async (payload) => {
         await this.retireThreadRuntime(payload, { replacement: true });
