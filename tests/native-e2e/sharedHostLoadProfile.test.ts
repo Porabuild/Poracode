@@ -55,8 +55,8 @@ import {
 } from "./helpers/experimentArtifacts.ts";
 
 /**
- * WS5 acceptance-gate load profile (docs/V2_PRODUCTION_PLAN.md) against ONE
- * prebuilt production `dist/main/server.cjs`:
+ * Shared-host acceptance load profile against ONE prebuilt production
+ * `dist/main/server.cjs`:
  *
  *   8 concurrent streaming agents + 4 active GUI clients + 1 stalled client:
  *   no agent death, no >1-frame stall on healthy clients, stop/steer latency

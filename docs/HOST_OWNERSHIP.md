@@ -7,13 +7,14 @@ private runtime capability and backs the host's single settings authority with
 its lease and credential capabilities. Electron startup now adopts the same boundary for
 its managed mode: the desktop owner leases the shared kernel lock and, at
 ready, publishes the shared authenticated control surface (kind `desktop`,
-`describe` only — desktop attach admission is refused at the compat gate until
-the coordinated flip). Desktop attach and the usage custody migration remain
-required V4 work; the settings custody
-migration is now wired through the per-composition settings authority
-(desktop process-lifetime lease adapter until the desktop unification).
+`describe` only). Desktop owners do not admit attach clients:
+`src/main/backend/standaloneAttach.ts` refuses a desktop owner with
+`desktop-owner-admission-disabled`, so a second launch is told to use the
+running app instead. Settings custody is wired through the per-composition
+settings authority (a desktop process-lifetime lease adapter on the desktop
+side).
 
-Since the V5 data-root unification both host kinds own the SAME data root for
+Since the data-root unification both host kinds own the SAME data root for
 a profile: the desktop-managed host adopts `<namespace>.host-v1` exactly like
 the standalone server, and the historical plain desktop root is promoted into
 it automatically on the first managed launch (see the promotion section below).
@@ -111,7 +112,7 @@ never activates an import it did not stage itself. Recovery for legacy
 settings/key state without `state.sqlite` also remains open; manual marker
 edits or moving the old directory are not a supported activation.
 
-Activation journals its mutation window (Gates 2-3 Batch 3). A running
+Activation journals its mutation window. A running
 `host-operations.json` record with the frozen custody plan (credential outcome,
 archived key names, adopted-key fingerprint — never key material) is claimed
 before the first custody side effect and settled after the activation record is
@@ -295,4 +296,4 @@ Real Node signal fixtures run the CLI with synthetic application services and a
 real lease; they cover held factory/listener startup and failed-join retention.
 These checks are not evidence of desktop attach, a usable legacy upgrade, packaged
 Linux/Windows behavior, native store readiness, multi-client performance or 120 Hz
-rendering. The remaining gates are tracked in `V4_MERGE_READINESS_PLAN.md`.
+rendering.

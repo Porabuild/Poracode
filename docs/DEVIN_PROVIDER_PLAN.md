@@ -689,8 +689,9 @@ standardPlanApprovalControls(input))` from `composerControlBuilders.tsx`, and
   in `EXPECTED_PROVIDER_ORDER`; add a label assertion `"Devin"`.
 - `tests/integration/providers-lifecycle.integration.test.ts`: `PREFERRED_MODEL.devin = "swe-1-6-fast"`;
   add a `DialogResponder` if Phase 0 shows a first-run dialog.
-- `.agents/docs/agent-adapters.md`: add a row to the Current Providers table:
-  `| Devin | swe-1-6-fast, opus/sonnet/gemini/codex aliases (probed via ACP / models list) | (runtime toggle, none via flag) | terminal | Yes (ACP, devin acp) |`.
+- `.agents/docs/provider-notes.md`: add a `## Devin` section with the behavior the code alone
+  does not explain (models probed via ACP / models list: swe-1-6-fast plus opus/sonnet/gemini/codex
+  aliases; permission mode is a runtime toggle with no launch flag; GUI via `devin acp`).
 
 ## 7. i18n
 

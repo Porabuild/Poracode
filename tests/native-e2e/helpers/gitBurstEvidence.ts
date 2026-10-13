@@ -115,7 +115,7 @@ export function gitBurstRunSummary(input: {
     runStartedAtIso: input.runStartedAtIso,
     runFinishedAtIso: new Date().toISOString(),
     build: input.build,
-    planCell: "docs/V2_SERVER_ARCHITECTURE_PRODUCTION_PLAN.md §4 Git burst + B7",
+    planCell: "Git burst + B7 qualification",
     burstSizes: Object.keys(GIT_BURST_CLIENTS_BY_SIZE),
     clientsBySize: GIT_BURST_CLIENTS_BY_SIZE,
     distinctWorktrees: GIT_BURST_WORKTREE_COUNT,

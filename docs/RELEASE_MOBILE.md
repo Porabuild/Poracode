@@ -87,7 +87,7 @@ membership check. Stable app-owned facades keep hash-derived generated names out
 of UI and domain state while validating the HTTP and WebSocket boundaries that
 are currently implemented.
 
-Pairing is generated (V5 item 5.2): the pairing state machine — deep-link
+Pairing is generated: the pairing state machine — deep-link
 intent and confirmation, one-shot candidate fingerprinting and duplicate
 policies, failure-phase recovery, and the scope-request guard — is rendered
 from the single declarative spec
@@ -117,7 +117,7 @@ hand-written. `native-bindings.json` formatVersion 3 declares both machines
 pin, `GeneratedRemoteV3ManifestTest`, and `generate.test.ts`), and a v2
 manifest is refused fail-closed.
 
-mDNS discovery (V5 item P4) ships on the same bundle: a TLS-configured `lan`
+mDNS discovery ships on the same bundle: a TLS-configured `lan`
 or `tailnet` listener advertises `_poracode._tcp.local` with the certificate
 fingerprint in its TXT record (off in loopback mode by default,
 `PORACODE_REMOTE_MDNS` overrides). The native pairing screens list discovered
@@ -151,7 +151,7 @@ independent claims per platform for every feature — never one blended
   yet), and `desktop-only` / `unsupported-by-wire` mirroring the wire claim.
 
 The columns are maintained separately: flipping one must not flip the other.
-The format-2 migration (2026-09-18, V5 plan item 5.4) kept every format-1
+The format-2 migration (2026-09-18) kept every format-1
 claim as the wire claim unchanged and seeded `ui` by mirroring it, with the
 UI-surface subset of each evidence list as ui evidence; the committed
 `migrationNote` in the ledger records this provenance, and
@@ -163,7 +163,7 @@ for example, are wire-`planned` on both natives, and wire-`implemented`
 protocol plumbing (ping/pong, cursor acks, resync frames) has no UI of its
 own.
 
-Interactive terminal (V5 plan item 5.1): the `terminal-write`/`terminal-resize`
+Interactive terminal: the `terminal-write`/`terminal-resize`
 ui claims on both platforms cite the raw hardware-keyboard passthrough
 (`TerminalRawKeyInput.swift`, `TerminalKeyAccessory.kt`) and carry a note that
 on-screen (touch) typing remains line-buffered through the command field plus
@@ -180,11 +180,10 @@ transport/runtime evidence and localized strings. Desktop live voice remains
 experimental and has no native or remote surface: do not advertise voice
 outside the experimental desktop toggle.
 
-LAN discovery (mDNS/Bonjour pairing) remains out of scope until TLS for direct
-connections lands (V5 batch 4 item 4.2): advertising unauthenticated hosts over
-multicast before the transport can be pinned would widen the exact
-first-pairing MITM window the Gate 6 work closes. Revisit discovery together
-with the TLS fingerprint-pairing flow.
+LAN discovery is tied to TLS: only TLS-configured listeners advertise over
+mDNS (see above). Advertising unauthenticated plaintext hosts over multicast,
+before the transport can be pinned, would widen the first-pairing MITM window
+that certificate pinning closes.
 
 A green binding or parity gate proves executable wire-schema coverage, source
 freshness, and the ledger's column invariants — not UI end-to-end proof. The

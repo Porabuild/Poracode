@@ -91,9 +91,8 @@ platform-only tests and must keep its rationale:
 ## Change discipline
 
 - Wire changes are additive within protocol v3 and ride the compatibility
-  matrix required by `docs/V3_ITERATION_PLAN.md` (old/new host × client ×
-  relay, negotiation or explicit rejection, generated bindings, previous-
-  version regression coverage).
+  matrix (old/new host × client × relay, negotiation or explicit rejection,
+  generated bindings, previous-version regression coverage).
 - A parity-relevant change to `pairingUrl.ts` must update
   `fixtures/pairing-url-cases.json` and run all three consumer suites
   (`pnpm exec vitest run src/shared/remote/pairingUrl.test.ts`,
