@@ -19,6 +19,10 @@ import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  notePendingThreadInputMessage,
+  retainPendingThreadInput,
+} from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { unprojectProjectLocation } from "@/renderer/remoteProcedureRouter";
@@ -80,6 +84,23 @@ export async function performInitialThreadLaunch(input: {
   clientContext?: TurnClientContext;
   initialSize: TerminalSize;
 }): Promise<void> {
+  const releasePendingInput =
+    input.thread.presentationMode === "gui" &&
+    hasSendablePromptContent(input.prompt, input.segments)
+      ? retainPendingThreadInput(input.thread.id)
+      : undefined;
+  try {
+    await performInitialThreadLaunchPending(input, releasePendingInput);
+  } catch (error) {
+    releasePendingInput?.();
+    throw error;
+  }
+}
+
+async function performInitialThreadLaunchPending(
+  input: Parameters<typeof performInitialThreadLaunch>[0],
+  releasePendingInput: (() => void) | undefined,
+): Promise<void> {
   const { thread, projectLocation, prompt, segments, userMessageItemId, initialSize } = input;
   const clientContext = input.clientContext;
   const providerSwitch = input.providerSwitch;
@@ -111,6 +132,8 @@ export async function performInitialThreadLaunch(input: {
       ? allocateInitialUserMessageItemId(thread, prompt, segments)
       : (retainedReplay?.replay?.userMessageItemId ??
         appendOptimisticInitialUserMessage(thread, prompt, segments)));
+  if (optimisticUserMessageItemId)
+    notePendingThreadInputMessage(thread.id, optimisticUserMessageItemId);
   if (optimisticUserMessageItemId && !providerSwitch) {
     useAppStore.getState().updateThreadRuntime(thread.id, {
       status: "working",
@@ -323,6 +346,7 @@ export async function performInitialThreadLaunch(input: {
     // bounded authoritative read — never a resend. The error still propagates
     // so launch catches do not paint a definite failure.
     if (isRemoteCommandOutcomeUncertainError(error)) {
+      releasePendingInput?.();
       notifyThreadCommandOutcomeUncertain();
       if (pendingRootLaunch) {
         // The same operation id and exact original body stay retained for an

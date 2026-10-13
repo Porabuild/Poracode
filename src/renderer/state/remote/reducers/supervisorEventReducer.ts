@@ -1,4 +1,8 @@
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  confirmPendingThreadInput,
+  notePendingThreadInputCanonicalEvents,
+} from "@/renderer/state/pendingThreadInput";
 import { historyContentOmissions } from "@/renderer/state/historyDelivery";
 import { noteHistoryDeliveryGap } from "@/renderer/state/historyResumeRegistry";
 import {
@@ -425,6 +429,8 @@ export function createSupervisorEventReducer(
       }
     }
     if (batches.length === 0) return;
+    for (const batch of batches)
+      notePendingThreadInputCanonicalEvents(batch.threadId, batch.events);
     if (options?.deliverRuntimeEventsImmediately) {
       // Ordered authoritative replay (recovery): apply directly without
       // re-entering the bounded queue.
@@ -554,6 +560,13 @@ export function createSupervisorEventReducer(
       case "thread-state": {
         const oldThread = useAppStore.getState().threads.find((t) => t.id === event.threadId);
         const payload = config.normalizeThreadState ? config.normalizeThreadState(event) : event;
+        if (
+          ((event.status !== "idle" && event.status !== "launching") ||
+            event.forceCloseActiveTurn) &&
+          (event.agentKind === undefined || event.agentKind === oldThread?.agentKind)
+        ) {
+          confirmPendingThreadInput(event.threadId);
+        }
         useAppStore.getState().updateThreadRuntime(event.threadId, payload);
         // Once the agent process is gone, native sub-agents that hadn't
         // completed are orphaned — their parent `item.completed` will never

@@ -215,7 +215,9 @@ export function buildShellSnapshot(
     // The unbounded list observed the FULL catalog, so it can vouch for
     // absence: drop inventory entries whose thread row is gone (deletions
     // have no dedicated event). A bounded page cannot, so it never prunes.
-    ctx.sessionConfigInventory.retainThreads(new Set(threads.map((thread) => thread.id)));
+    const knownThreadIds = new Set(threads.map((thread) => thread.id));
+    ctx.sessionConfigInventory.retainThreads(knownThreadIds);
+    ctx.threadLiveReadState.retainThreads(knownThreadIds);
     threads = threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread));
     summariesByThread = runtimeSummariesFor(threads);
     gitSummariesByThread = ctx.options.gitSummaries?.() ?? {};
@@ -447,7 +449,7 @@ export async function buildThreadSnapshot(
   return remoteThreadSnapshotSchema.parse(
     withStableUpdatedAt(`thread:${threadId}`, {
       snapshotSeq,
-      thread: enrichedThread,
+      ...ctx.threadLiveReadState.projectSnapshotRuntime(enrichedThread),
       // Inline image bytes are replaced by host-minted references: they are ~89%
       // of runtime payload bytes and the client fetches each one on demand.
       runtimeItems: projectRuntimeItemsImageRefs(threadId, runtimeItemsWithGoal),
