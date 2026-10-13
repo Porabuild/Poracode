@@ -1,10 +1,10 @@
-import type { ReactNode } from "react";
 import type {
   LabeledOption,
   ModelFamilySelection,
   ModelFamilySelectorOption,
 } from "@/shared/contracts";
-import type { ModelFamilySelectorOption as SelectorMenuOption } from "../common/ProviderModelMenu/ModelFamilySelectorMenu";
+import type { ReactNode } from "react";
+import type { FamilyMenuColumn } from "../common/ProviderModelMenu/ModelConfigurationPanel.types";
 import { formatEffortLabel } from "../common/effortLabel";
 
 /** A provider decodes its native option vocabulary, never its opaque pair UID. */
@@ -22,39 +22,76 @@ export interface ModelFamilyControlPresentation {
     selectorId: string,
     option: ModelFamilySelectorOption,
   ) => ModelFamilyOptionPresentation | undefined;
+  /** Config-bound effort may apply to the pair; model-bound effort belongs to the first component. */
+  configEffortScope?: "primary" | "shared";
 }
 
 /**
- * Selector menu options for presentation: each row keeps the exact native
- * option id (the only value the relation resolver accepts) and shows the
- * provider-decoded model label with the decoded effort as a hint. A lossy
- * interpretation must never hide a real native choice — when decoded
- * [model, effort] coordinates collide, every row falls back to its exact
- * native label with no hint.
+ * Group reachable exact selector options for presentation. Effort edits hold the
+ * component model; model edits retain effort when available, otherwise select
+ * the first real option offered for that model. Every callback still carries
+ * an existing selector option ID into the relation resolver.
  */
-export function familySelectorMenuOptions(input: {
-  selectorId: string;
+export function familyMenuColumn(input: {
+  id: string;
+  label: string;
+  icon?: ReactNode;
   options: readonly ModelFamilySelectorOption[];
+  value: string;
   decode?: ModelFamilyControlPresentation["option"];
-}): SelectorMenuOption[] {
-  const entries = input.options.map((option) => ({
-    option,
-    presentation: (input.decode?.(input.selectorId, option) ?? {
-      model: option,
-    }) as ModelFamilyOptionPresentation,
-  }));
+  onChange: (value: string) => void;
+}): FamilyMenuColumn {
+  let entries = input.options.map(
+    (
+      option,
+    ): { option: ModelFamilySelectorOption; presentation: ModelFamilyOptionPresentation } => ({
+      option,
+      presentation: input.decode?.(input.id, option) ?? { model: option },
+    }),
+  );
+  // A lossy interpretation must never hide a real native choice. Unknown or
+  // ambiguous vocabularies stay on the unsplit exact-option presentation.
   const coordinates = entries.map(({ presentation }) =>
     JSON.stringify([presentation.model.id, presentation.effort]),
   );
-  const ambiguous = new Set(coordinates).size !== entries.length;
-  return entries.map(({ option, presentation }) => {
-    if (ambiguous) return { id: option.id, label: option.label };
-    return presentation.effort === undefined
-      ? { id: option.id, label: presentation.model.label }
-      : {
-          id: option.id,
-          label: presentation.model.label,
-          hint: formatEffortLabel(presentation.effort),
-        };
-  });
+  if (new Set(coordinates).size !== entries.length) {
+    entries = input.options.map((option) => ({ option, presentation: { model: option } }));
+  }
+  const current = entries.find((entry) => entry.option.id === input.value);
+  const models = new Map<string, LabeledOption>();
+  for (const { presentation } of entries) models.set(presentation.model.id, presentation.model);
+  const currentModel = current?.presentation.model.id ?? input.value;
+  const currentEffort = current?.presentation.effort;
+  const effortEntries = entries.filter(
+    (entry) =>
+      entry.presentation.model.id === currentModel && entry.presentation.effort !== undefined,
+  );
+  const efforts = new Map(effortEntries.map((entry) => [entry.presentation.effort!, entry]));
+  return {
+    id: input.id,
+    label: input.label,
+    icon: input.icon,
+    models: {
+      options: [...models.values()],
+      value: currentModel,
+      onChange: (value) => {
+        const choices = entries.filter((entry) => entry.presentation.model.id === value);
+        const target =
+          choices.find((entry) => entry.presentation.effort === currentEffort) ?? choices[0];
+        if (target) input.onChange(target.option.id);
+      },
+    },
+    ...(currentEffort !== undefined && efforts.size > 0
+      ? {
+          effort: {
+            options: [...efforts.keys()].map((id) => ({ id, label: formatEffortLabel(id) })),
+            value: currentEffort,
+            onChange: (value: string) => {
+              const target = efforts.get(value);
+              if (target) input.onChange(target.option.id);
+            },
+          },
+        }
+      : {}),
+  };
 }

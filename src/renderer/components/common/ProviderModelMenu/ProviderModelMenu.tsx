@@ -51,6 +51,8 @@ export interface ProviderModelMenuProps {
    * model normalization, hidden models, favorites, recents and fallback rows.
    */
   optionScope?: { label: string; icon: ReactNode; options: readonly ScopedModelOption[] };
+  /** Full-width field trigger for a picker embedded in a configuration panel. */
+  triggerAppearance?: "composer" | "field";
   currentAgentKind: string;
   currentModel: string;
   /** When set, only this provider's rows are rendered. */
@@ -64,7 +66,7 @@ export interface ProviderModelMenuProps {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
-  /** Hide tuple details when separate selector controls already display them. */
+  /** Hide tuple details when the pairing control already displays them. */
   showFamilySelectionSummary?: boolean;
   collapseTier?: number;
   openSignal?: number;
@@ -106,6 +108,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const {
     providers,
     optionScope,
+    triggerAppearance = "composer",
     currentAgentKind,
     currentModel,
     lockedAgentKind,
@@ -176,10 +179,10 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         currentLabelParts.name.trim().toLocaleLowerCase()
       ? undefined
       : selectedSubProvider;
-  // Family selector menus already show the tuple. Keep the model trigger on
+  // The pairing control already shows the tuple. Keep the model trigger on
   // the family name so it does not repeat those controls or consume their width.
   const currentSubLabel =
-    optionScope?.label ??
+    (triggerAppearance === "field" ? undefined : optionScope?.label) ??
     (currentFamilyDisplay
       ? showFamilySelectionSummary
         ? currentFamilyDisplay.selectorSummary
@@ -364,8 +367,12 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         (optionScope ? optionScope.options.length === 0 : providers.length === 0)
       }
       size="sm"
-      variant="ghost"
-      className="poracode-composer-menu poracode-composer-model-control min-w-0 px-2.5"
+      variant={triggerAppearance === "field" ? "secondary" : "ghost"}
+      className={
+        triggerAppearance === "field"
+          ? "w-full min-w-0 justify-between px-2"
+          : "poracode-composer-menu poracode-composer-model-control min-w-0 px-2.5"
+      }
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
       {optionScope ? (
@@ -472,6 +479,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       label={menuLabel}
+      {...(triggerAppearance === "field" ? { triggerClassName: "w-full min-w-0" } : {})}
       trigger={
         !mobile && hideLabelOnWrap ? (
           <Tooltip>

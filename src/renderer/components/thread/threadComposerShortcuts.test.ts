@@ -264,7 +264,7 @@ describe("handleComposerControlShortcut", () => {
 });
 // @vitest-environment node
 
-it("keeps effort and Fast shortcuts on the ordinary carriers beside family selector controls", () => {
+it("keeps effort and Fast shortcuts with a single pairing control", () => {
   const onFastChange = vi.fn<(value: boolean) => void>();
   const onEffortChange = vi.fn<(value: string) => void>();
   const onSelectorChange = vi.fn<(value: string) => void>();
@@ -284,24 +284,27 @@ it("keeps effort and Fast shortcuts on the ordinary carriers beside family selec
     onEffortChange,
     contextSizes: [],
   };
-  // Selector menus own their coordinates only: they are never a menu-cycle
-  // or permission-cycle candidate, and cycle-effort stays on the common
-  // effort carrier.
-  const selector: ComposerControl = {
-    kind: "family-selector",
+  effort.familySelection = {
     agentKind: "example",
-    id: "lead",
-    label: "Main",
-    icon: null,
-    options: [
-      { id: "a", label: "Alpha" },
-      { id: "b", label: "Beta" },
+    effortScope: "primary",
+    columns: [
+      {
+        id: "lead",
+        label: "Main",
+        icon: null,
+        models: {
+          options: [
+            { id: "a", label: "Alpha" },
+            { id: "b", label: "Beta" },
+          ],
+          value: "a",
+          onChange: onSelectorChange,
+        },
+      },
     ],
-    value: "a",
-    onChange: onSelectorChange,
   };
   const input = {
-    controls: [selector, effort, fastToggle],
+    controls: [effort, fastToggle],
     onOpenModelPicker: vi.fn<() => void>(),
   };
   expect(dispatch(shortcutEvent("t"), input)).toBe(true);

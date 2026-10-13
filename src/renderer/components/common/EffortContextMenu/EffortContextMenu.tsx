@@ -9,6 +9,10 @@ import { shouldConfirmContextSizeReload } from "@/renderer/state/contextSizeRelo
 import { ContextSizeReloadPopover } from "./ContextSizeReloadPopover";
 
 export interface EffortContextMenuProps {
+  /** Full-width field trigger for a menu embedded in a configuration panel. */
+  triggerAppearance?: "composer" | "field";
+  /** Localized accessible name when a panel supplies its own visible field label. */
+  label?: string;
   efforts: readonly LabeledOption[];
   effortValue?: string;
   onEffortChange?: (value: string) => void;
@@ -34,6 +38,8 @@ export interface EffortContextMenuProps {
 
 export function EffortContextMenu(props: EffortContextMenuProps) {
   const {
+    triggerAppearance = "composer",
+    label,
     efforts,
     effortValue,
     onEffortChange,
@@ -150,11 +156,15 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
   const trigger = (
     <Button
       ref={triggerRef}
-      aria-label={t`Effort and context`}
+      aria-label={label ?? t`Effort and context`}
       isDisabled={isDisabled ?? false}
       size="sm"
-      variant="ghost"
-      className="poracode-composer-menu poracode-composer-effort-control min-w-0 px-2.5"
+      variant={triggerAppearance === "field" ? "secondary" : "ghost"}
+      className={
+        triggerAppearance === "field"
+          ? "w-full min-w-0 justify-between px-2"
+          : "poracode-composer-menu poracode-composer-effort-control min-w-0 px-2.5"
+      }
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
       {icon}
@@ -279,7 +289,8 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     <ResponsiveMenuSurface
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
-      label={t`Effort and context`}
+      label={label ?? t`Effort and context`}
+      {...(triggerAppearance === "field" ? { triggerClassName: "w-full min-w-0" } : {})}
       trigger={
         mobile ? (
           trigger

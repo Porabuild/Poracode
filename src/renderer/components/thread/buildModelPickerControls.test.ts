@@ -812,10 +812,12 @@ describe("buildModelPickerControls family controls", () => {
       onConfigChange: vi.fn<() => void>(),
     });
     expect(merged).toEqual(controls);
-    expect(merged.some((control) => control.kind === "family-selector")).toBe(false);
+    expect(
+      merged.some((control) => control.kind === "effort-context" && control.familySelection),
+    ).toBe(false);
   });
 
-  it("appends family selectors beside the kept common effort control and preserves context callbacks", () => {
+  it("keeps the ordinary Fast toggle beside the paired control and preserves context callbacks", () => {
     registerComposerControls("paired-test", (input) =>
       modelFamilySelectorControls(input, "paired-test"),
     );
@@ -839,25 +841,22 @@ describe("buildModelPickerControls family controls", () => {
       config,
       onConfigChange,
     });
-    // The family selector menus append after the common controls — the common
-    // Reasoning/context control is kept for family members instead of being
-    // merged away, and Fast stays the ordinary composer toggle.
+    // The paired control absorbs only the effort carrier; Fast stays a
+    // separate composer toggle and the family selection carries no fast data.
     expect(merged.map((control) => control.kind)).toEqual([
       "provider-model",
       "effort-context",
       "toggle",
-      "family-selector",
-      "family-selector",
     ]);
-    const effort = merged[1]!;
-    if (effort.kind !== "effort-context") throw new Error("Expected effort control");
-    expect(effort.contextValue).toBe("small");
-    expect(effort.confirmContextChange).toBe(true);
-    expect(effort.contextSizeReloadStopsSubagents).toBe(true);
-    effort.onContextChange?.("large");
+    const paired = merged[1]!;
+    if (paired.kind !== "effort-context") throw new Error("Expected paired control");
+    expect(paired.familySelection?.columns).toHaveLength(2);
+    expect(paired.familySelection).not.toHaveProperty("fast");
+    expect(paired.contextValue).toBe("small");
+    expect(paired.confirmContextChange).toBe(true);
+    expect(paired.contextSizeReloadStopsSubagents).toBe(true);
+    paired.onContextChange?.("large");
     expect(onContextChange).toHaveBeenCalledWith("large");
-    const selectors = merged.filter((control) => control.kind === "family-selector");
-    expect(selectors.map((control) => control.id)).toEqual(["lead", "sidekick"]);
     // The retained toggle still resolves the model-bound fast edit into the
     // exact Fast sibling member.
     const fast = merged[2]!;
@@ -908,7 +907,9 @@ describe("buildModelPickerControls family controls", () => {
     const fast = merged.find((control) => control.kind === "toggle" && control.label === "Fast") as
       | { isSelected: boolean; onChange: (selected: boolean) => void }
       | undefined;
-    expect(merged.filter((control) => control.kind === "family-selector")).toHaveLength(2);
+    expect(
+      merged.filter((control) => control.kind === "effort-context" && control.familySelection),
+    ).toHaveLength(1);
     expect(
       merged.filter((control) => control.kind === "toggle" && control.label === "Fast"),
     ).toHaveLength(1);
@@ -1593,11 +1594,12 @@ describe("buildControls selection binding events", () => {
       undefined,
       onConfigChange,
     );
-    const selector = controls.find(
-      (control) => control.kind === "family-selector" && control.id === "lead",
+    const paired = controls.find(
+      (control) => control.kind === "effort-context" && control.familySelection,
     )!;
-    if (selector.kind !== "family-selector") throw new Error("Expected family selector control");
-    selector.onChange("beta");
+    if (paired.kind !== "effort-context" || !paired.familySelection)
+      throw new Error("Expected paired control");
+    paired.familySelection.columns[0]!.models.onChange("beta");
     expect(onConfigChange).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         model: "pair-beta-x",

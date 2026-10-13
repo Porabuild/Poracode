@@ -320,8 +320,8 @@ msgstr "{0} ist für das Update auf v{1} eingereiht"
 
 #. placeholder {0}: column.label
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-#~ msgid "{0} reasoning"
-#~ msgstr "Denkaufwand für {0}"
+msgid "{0} reasoning"
+msgstr "Denkaufwand für {0}"
 
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
@@ -1626,8 +1626,8 @@ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot lis
 msgstr "Gilt für die Konfigurationsansicht dieses Profils (devin.org_id). Poracode kann die Organisationen eines Logins nicht auflisten; Devin prüft die ID beim Start, und eine nicht autorisierte Organisation schlägt sichtbar fehl."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
-#~ msgid "Applies to both models"
-#~ msgstr "Gilt für beide Modelle"
+msgid "Applies to both models"
+msgstr "Gilt für beide Modelle"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
@@ -8668,8 +8668,8 @@ msgstr "Modellbeschriftung"
 #~ msgstr "Modellreihenfolge"
 
 #: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
-#~ msgid "Model pairing"
-#~ msgstr "Modellpaar"
+msgid "Model pairing"
+msgstr "Modellpaar"
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -11679,6 +11679,7 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "Bereit. Aktiviere dies, um die Tailscale-HTTPS-URL in neuen Pairing-Codes bekanntzugeben."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "Begründung"
 
