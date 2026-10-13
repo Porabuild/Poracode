@@ -293,8 +293,13 @@ minimumReleaseAge: 10080
 # Each selector is scoped to the affected major so it only rewrites versions
 # inside the advisory range and never force-upgrades a different major line.
 overrides:
-  # Keep optional analytics peers on the patched Next.js server too.
-  "next@>=16.0.0 <16.3.3": "16.3.3"
+  # Keep optional analytics peers on the patched Next.js server too
+  # (RCE in next/og, image-optimization SSRF, SSG/ISR cache poisoning, #211-#217).
+  "next@>=16.0.0 <16.3.8": "16.3.8"
+  # KaTeX trust-restriction bypass (#208); rehype-katex 7 pins katex ^0.16, so
+  # unify every consumer on the patched 0.18 line — the app imports katex.min.css
+  # directly, and KaTeX renames layout classes between minors.
+  "katex@>=0.11.0 <0.18.2": "^0.18.2"
   # Tiptap 3.30 requires model 1.25.11; mixed model instances break Notes transforms.
   "prosemirror-model@>=1.0.0 <1.25.11": "1.25.11"
   "axios@<1.16.0": "^1.16.0"
@@ -336,9 +341,9 @@ overrides:
   "nanoid@>=3.0.0 <3.3.18": "3.3.18"
   # ip-address address parsing and validation advisories (#186-#188).
   "ip-address@>=10.0.0 <10.3.1": "10.3.1"
-  # sharp 0.35.x upgrades libvips past the inherited CVE batch (#142, #154).
-  # Use 0.35.3, which also restores exported TypeScript declarations.
-  "sharp@<0.35.3": "0.35.3"
+  # sharp 0.35.x upgrades libvips past the inherited CVE batch (#142, #154);
+  # 0.35.5 also covers the librsvg CVE-2026-96889 dependency advisory (#209).
+  "sharp@<0.35.5": "0.35.5"
   # got UNIX-socket redirect (#103); only the dev react-devtools update-notifier
   # chain pulls the vulnerable 6.x. Pin to the last CJS line (11.x), since
   # package-json@4 `require()`s got and got@12+ is ESM-only.
