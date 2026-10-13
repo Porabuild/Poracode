@@ -83,6 +83,34 @@ describe("MuseMspClient", () => {
     client.dispose();
   });
 
+  it("requests grantable capabilities during the handshake when asked", async () => {
+    const transport = new FakeTransport();
+    const client = new MuseMspClient(transport, 1_000);
+    const pending = client.initialize("poracode_probe", "1.0.0", ["sessionMcp"]);
+    expect(transport.written).toEqual([
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          clientInfo: { name: "poracode_probe", version: "1.0.0" },
+          capabilities: { requestedCapabilities: ["sessionMcp"] },
+        },
+      },
+    ]);
+    transport.deliver({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        serverInfo: { name: "muse", version: "1.0.2" },
+        schema: { fingerprint: "fp", version: 1 },
+        grantedCapabilities: ["sessionMcp"],
+      },
+    });
+    await expect(pending).resolves.toMatchObject({ grantedCapabilities: ["sessionMcp"] });
+    client.dispose();
+  });
+
   it("routes concurrent responses by id and surfaces error kinds", async () => {
     const transport = new FakeTransport();
     const client = new MuseMspClient(transport, 1_000);

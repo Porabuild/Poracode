@@ -163,6 +163,16 @@ export interface SupervisorClientOptions {
    * to inject `PORACODE_BROWSER_MCP_*` per-launch.
    */
   resolveExtraEnv?: () => Record<string, string>;
+  /**
+   * Async preparation awaited before every supervisor fork (initial start,
+   * lazy first call, explicit restart, and crash respawn alike). Compositions
+   * whose {@link resolveExtraEnv} depends on a started ingress use it to settle
+   * that ingress first, so no launch path can spawn an env-less supervisor
+   * that later `start()` calls then keep alive idempotently. A rejection fails
+   * the launch without forking; the next start retries. Must not call back
+   * into this supervisor client.
+   */
+  prepareLaunch?: () => Promise<void>;
   /** Apply main-process launch invariants before any start reaches the supervisor. */
   prepareStartThread?(payload: StartThreadPayload): StartThreadPayload;
   /** Host SQL authority only; client launch fields never supply workspace scope. */
@@ -267,6 +277,9 @@ interface SupervisorCallOptions {
 export class SupervisorClient {
   private child: ChildProcess | null = null;
   private disposed = false;
+  private launchPromise: Promise<void> | null = null;
+  /** Invalidated by stop/dispose so a pending preparation cannot fork afterwards. */
+  private launchGeneration = 0;
   private stopPromise: Promise<void> | null = null;
   private restartPromise: Promise<void> | null = null;
   private disposePromise: Promise<void> | null = null;
@@ -337,8 +350,7 @@ export class SupervisorClient {
     if (this.disposed) throw new Error("Supervisor client is disposed.");
     if (this.restartPromise) return this.restartPromise;
     if (this.stopPromise) return this.stopPromise.then(() => this.start());
-    if (!this.child) this.launch();
-    return Promise.resolve();
+    return this.ensureLaunched();
   }
 
   /** Kill any running supervisor and launch a fresh child. */
@@ -346,14 +358,42 @@ export class SupervisorClient {
     if (this.disposed) throw new Error("Supervisor client is disposed.");
     if (this.restartPromise) return this.restartPromise;
     this.restartPromise = this.stop(new Error("Supervisor restarting"))
-      .then(() => {
+      .then(async () => {
         if (this.disposed) throw new Error("Supervisor client is disposed.");
-        this.launch();
+        await this.ensureLaunched();
       })
       .finally(() => {
         this.restartPromise = null;
       });
     return this.restartPromise;
+  }
+
+  /**
+   * The single fork funnel: settle {@link SupervisorClientOptions.prepareLaunch}
+   * before spawning so `resolveExtraEnv` reads ingress state that is actually
+   * up. Concurrent starts share one preparation flight; a stop or disposal
+   * that lands while it is pending invalidates it instead of forking late.
+   */
+  private ensureLaunched(): Promise<void> {
+    if (this.child) return Promise.resolve();
+    if (this.launchPromise) return this.launchPromise;
+    const prepareLaunch = this.options.prepareLaunch;
+    if (!prepareLaunch) {
+      this.launch();
+      return Promise.resolve();
+    }
+    const generation = this.launchGeneration;
+    const launching = (async () => {
+      await prepareLaunch();
+      if (this.disposed || generation !== this.launchGeneration || this.child) return;
+      this.launch();
+    })();
+    this.launchPromise = launching;
+    const clear = () => {
+      if (this.launchPromise === launching) this.launchPromise = null;
+    };
+    void launching.then(clear, clear);
+    return launching;
   }
 
   private launch(): void {
@@ -537,6 +577,10 @@ export class SupervisorClient {
   }
 
   stop(error: Error): Promise<void> {
+    // A stop also cancels a launch still in its preparation phase: the
+    // pending flight observes the generation change and never forks.
+    this.launchGeneration += 1;
+    this.launchPromise = null;
     if (this.restartTimer) clearTimeout(this.restartTimer);
     this.restartTimer = null;
     if (this.stopPromise) return this.stopPromise;
@@ -660,6 +704,7 @@ export class SupervisorClient {
     return (
       this.child === null &&
       this.retiringChild === null &&
+      this.launchPromise === null &&
       this.stopPromise === null &&
       this.restartPromise === null &&
       this.restartTimer === null

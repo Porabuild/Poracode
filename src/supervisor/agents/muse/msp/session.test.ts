@@ -1,6 +1,11 @@
 import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
+import type {
+  ProjectLocation,
+  ResolvedMcpServer,
+  RuntimeEvent,
+  ThreadConfig,
+} from "@/shared/contracts";
 import type { CreateStructuredSessionInput, StructuredSessionUpdate } from "../../base";
 
 const request = vi.hoisted(() =>
@@ -8,8 +13,20 @@ const request = vi.hoisted(() =>
 );
 const initialize = vi.hoisted(() =>
   vi
-    .fn<() => Promise<{ schema: { version: number; fingerprint: string } }>>()
-    .mockResolvedValue({ schema: { version: 1, fingerprint: "fixture" } }),
+    .fn<
+      (
+        clientName: string,
+        clientVersion: string,
+        requestedCapabilities?: readonly string[],
+      ) => Promise<{
+        schema: { version: number; fingerprint: string };
+        grantedCapabilities: string[];
+      }>
+    >()
+    .mockResolvedValue({
+      schema: { version: 1, fingerprint: "fixture" },
+      grantedCapabilities: ["sessionMcp"],
+    }),
 );
 const disposeClient = vi.hoisted(() => vi.fn<() => void>());
 const terminate = vi.hoisted(() =>
@@ -140,6 +157,21 @@ beforeEach(() => {
   serverRequestHandler = undefined;
 });
 
+function appControlsMcpFixture(): ResolvedMcpServer[] {
+  return [
+    {
+      id: "app-controls",
+      name: "poracode",
+      timeoutMs: 30_000,
+      transport: {
+        type: "http",
+        url: "http://127.0.0.1:1234/mcp?threadId=thread-1",
+        headers: { Authorization: "Bearer wire-token" },
+      },
+    },
+  ];
+}
+
 describe("MuseMspStructuredSession", () => {
   it("routes session/start through the catalog's provider for the model", async () => {
     // `session/start` without `providerId` falls back to the server default,
@@ -266,6 +298,57 @@ describe("MuseMspStructuredSession", () => {
       status: "idle",
       sessionRef: { providerSessionId: "session-1" },
     });
+  });
+
+  it("delivers launch MCP servers in the session config once sessionMcp is granted", async () => {
+    const mcpServers = appControlsMcpFixture();
+    const { session } = await createSession({ mcpServers });
+    expect(initialize).toHaveBeenCalledWith("poracode", "1.0.0", ["sessionMcp"]);
+    await session.openThread(config);
+    const start = request.mock.calls.find(([method]) => method === "session/start");
+    expect(start?.[1]).toMatchObject({
+      config: {
+        mcpServers: {
+          poracode: {
+            transport: "streamableHttp",
+            url: "http://127.0.0.1:1234/mcp?threadId=thread-1",
+            headers: { Authorization: "Bearer wire-token" },
+            mode: "optional",
+          },
+        },
+      },
+    });
+  });
+
+  it("re-supplies the MCP session config on resume", async () => {
+    const mcpServers = appControlsMcpFixture();
+    const { session } = await createSession({
+      mcpServers,
+      sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-01-01T00:00:00Z" },
+    });
+    await session.openThread(config);
+    expect(request).toHaveBeenCalledWith(
+      "session/resume",
+      expect.objectContaining({
+        config: {
+          mcpServers: {
+            poracode: expect.objectContaining({ transport: "streamableHttp" }),
+          },
+        },
+      }),
+    );
+  });
+
+  it("starts without an MCP session config when the host does not grant sessionMcp", async () => {
+    initialize.mockResolvedValueOnce({
+      schema: { version: 1, fingerprint: "fixture" },
+      grantedCapabilities: [],
+    });
+    const mcpServers = appControlsMcpFixture();
+    const { session } = await createSession({ mcpServers });
+    await session.openThread(config);
+    const start = request.mock.calls.find(([method]) => method === "session/start");
+    expect(start?.[1]).not.toHaveProperty("config");
   });
 
   it("resumes only the supplied Poracode session without replaying history", async () => {

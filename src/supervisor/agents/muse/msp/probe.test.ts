@@ -30,6 +30,7 @@ class ScriptedServeHost implements MuseMspTransport {
       version: MSP_SCHEMA_VERSION,
     },
     private readonly neverAnswer = false,
+    private readonly grantedCapabilities?: string[],
   ) {
     this.catalogs = Array.isArray(catalog) ? catalog : [catalog];
   }
@@ -68,6 +69,9 @@ class ScriptedServeHost implements MuseMspTransport {
             result: {
               serverInfo: { name: "muse", version: "1.0.2" },
               schema: this.initSchema,
+              ...(this.grantedCapabilities
+                ? { grantedCapabilities: this.grantedCapabilities }
+                : {}),
             },
           }),
         );
@@ -151,6 +155,7 @@ describe("probeMuseModelCatalog", () => {
       source: "providerCatalog",
       providerId: "meta",
       profileId: null,
+      sessionMcpSupported: false,
     });
     // Spawned the ephemeral trusted host with the resolved binary + probe env.
     const [spawnLocation, spawnOptions] = calls[0]!.args as [
@@ -170,7 +175,30 @@ describe("probeMuseModelCatalog", () => {
       "model/list",
       "model/list",
     ]);
+    expect(host.written[0]).toMatchObject({
+      params: { capabilities: { requestedCapabilities: ["sessionMcp"] } },
+    });
   });
+
+  it.each([{ grants: ["sessionMcp"] }, { grants: [] }, { grants: undefined }])(
+    "records granted session MCP support even with an empty model catalog (%s)",
+    async ({ grants }) => {
+      const host = new ScriptedServeHost(
+        { ...LIVE_CATALOG, models: [] },
+        false,
+        { fingerprint: MSP_SCHEMA_FINGERPRINT, version: MSP_SCHEMA_VERSION },
+        false,
+        grants,
+      );
+      const result = await probeMuseModelCatalog(location, {
+        executablePath: "/usr/bin/muse",
+        settleMs: 0,
+        spawnHost: (async () => ({ child: { pid: 4242 } as never, transport: host })) as never,
+      });
+      expect(result?.models).toEqual([]);
+      expect(result?.sessionMcpSupported).toBe(grants?.includes("sessionMcp") ?? false);
+    },
+  );
 
   it("keeps listing until the provider catalog grows past the stale cache", async () => {
     const stale = {

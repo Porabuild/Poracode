@@ -89,6 +89,8 @@ export const museDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
+  // Advertise per-launch MCP only after the target's help flag and MSP grant
+  // are probed. Older binaries reject -c or omit the sessionMcp grant.
   mcpScope: { terminal: "none", gui: "none" },
   settingDefs: [],
   // `/goal <objective>` starts goal-driven work; title such threads from the
@@ -144,6 +146,16 @@ export function parseMuseHelpEfforts(output: string): string[] | undefined {
     }
   }
   return undefined;
+}
+
+/**
+ * True when `muse --help` advertises the per-run settings flag terminal MCP
+ * delivery rides on (`-c, --config <KEY=VALUE>`, verified on 1.4.6). Absent
+ * from the 1.0.2 help capture below — those binaries refuse `-c` entirely,
+ * so presence of the exact `<KEY=VALUE>` spelling is the support sentinel.
+ */
+export function museHelpSupportsConfigFlag(output: string): boolean {
+  return /(?:^|\s)--config\s+<KEY=VALUE>/m.test(stripAnsi(output));
 }
 
 const MUSE_HELP_MODEL_RE = /\bmuse-(?:spark|wonder(?:-full)?)-\d+\.\d+(?:-contributor)?(?![\w.-])/g;
@@ -404,6 +416,10 @@ export const museDetectionSpec: DetectionSpec = {
       authLogoutSupported: true,
       ...(skillCommands ? { slashCommands: skillCommands } : {}),
       ...(overlay ?? {}),
+      mcpScope: {
+        terminal: help?.ok && museHelpSupportsConfigFlag(helpText) ? "launch" : "none",
+        gui: catalog?.sessionMcpSupported === true ? "launch" : "none",
+      },
     };
   },
   // Muse ships via Meta's installer only — no npm package, no

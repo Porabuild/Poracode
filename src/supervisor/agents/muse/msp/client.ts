@@ -137,10 +137,21 @@ export class MuseMspClient {
     });
   }
 
-  /** `initialize` + the mandatory bare `initialized` notification. */
-  async initialize(clientName: string, clientVersion: string): Promise<MspInitializeResult> {
+  /**
+   * `initialize` + the mandatory bare `initialized` notification. Grantable
+   * capabilities (e.g. `sessionMcp` for per-session MCP configuration) must
+   * be requested here; unknown names are simply never granted.
+   */
+  async initialize(
+    clientName: string,
+    clientVersion: string,
+    requestedCapabilities?: readonly string[],
+  ): Promise<MspInitializeResult> {
     const result = await this.request("initialize", {
       clientInfo: { name: clientName, version: clientVersion },
+      ...(requestedCapabilities && requestedCapabilities.length > 0
+        ? { capabilities: { requestedCapabilities: [...requestedCapabilities] } }
+        : {}),
     });
     this.notify("initialized");
     return parseMspInitializeResult(result);

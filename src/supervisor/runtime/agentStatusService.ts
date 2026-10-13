@@ -144,7 +144,9 @@ const execFileAsync = promisify(execFile);
 // v58 re-probes catalog-native reasoning choices and current MSP model metadata.
 // v59 derives accepted-model Fast availability (including composite pairs)
 // and orders permissions least to most permissive, preserving v58 catalogs.
-export const STATUS_CACHE_VERSION = 59;
+// v60 advertises Muse's launch-scoped MCP wiring in both presentations, so
+// cached Muse statuses that hid every MCP toggle must be re-probed.
+export const STATUS_CACHE_VERSION = 60;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

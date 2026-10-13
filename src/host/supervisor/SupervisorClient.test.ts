@@ -145,6 +145,154 @@ describe("SupervisorClient.start idempotency", () => {
   });
 });
 
+describe("SupervisorClient launch preparation", () => {
+  beforeEach(() => {
+    forkMock.mockReset();
+    setPriorityMock.mockReset();
+    terminateChildProcessTreeMock.mockReset();
+  });
+
+  it("does not fork a lazy call until preparation resolves, then reads fresh extra env", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const gate = Promise.withResolvers<void>();
+    let ingressReady = false;
+    const prepareLaunch = vi.fn<() => Promise<void>>(async () => {
+      await gate.promise;
+      ingressReady = true;
+    });
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/base",
+      prepareLaunch,
+      resolveExtraEnv: () =>
+        ingressReady ? { PORACODE_APP_CONTROLS_MCP_URL: "http://127.0.0.1:4321" } : {},
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+    const getId = captureSentId(child);
+
+    const promise = client.call("any" as never, undefined as never);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(prepareLaunch).toHaveBeenCalledTimes(1);
+    expect(forkMock).not.toHaveBeenCalled();
+    expect(client.isSupervisorProvenAbsent()).toBe(false);
+
+    gate.resolve();
+    await vi.waitFor(() => expect(forkMock).toHaveBeenCalledTimes(1));
+    expect(forkMock).toHaveBeenCalledWith(
+      "/fake/supervisor.cjs",
+      [],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          PORACODE_APP_CONTROLS_MCP_URL: "http://127.0.0.1:4321",
+        }),
+      }),
+    );
+    child.emit("message", { replyTo: getId(), ok: true, data: "started-prepared" });
+    await expect(promise).resolves.toBe("started-prepared");
+  });
+
+  it("fails a launch whose preparation fails and retries preparation on the next start", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const prepareLaunch = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("Ingress failed to start."))
+      .mockResolvedValue(undefined);
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/base",
+      prepareLaunch,
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+
+    await expect(client.start()).rejects.toThrow("Ingress failed to start.");
+    expect(forkMock).not.toHaveBeenCalled();
+    expect(client.isSupervisorProvenAbsent()).toBe(true);
+
+    await client.start();
+    expect(prepareLaunch).toHaveBeenCalledTimes(2);
+    expect(forkMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fork when disposal lands while launch preparation is pending", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const gate = Promise.withResolvers<void>();
+    const client = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      supervisorPath: "/fake/supervisor.cjs",
+      wslHelpersDir: "/fake/wsl",
+      secretStorageKey: "key",
+      baseDir: "/base",
+      prepareLaunch: () => gate.promise,
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+
+    const starting = client.start();
+    await client.dispose();
+    gate.resolve();
+    await starting;
+
+    expect(forkMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["start", "restart"] as const)(
+    "%s launches a fresh flight after a pending preparation is stopped",
+    async (operation) => {
+      const child = makeFakeChild();
+      forkMock.mockReturnValue(child);
+      const oldGate = Promise.withResolvers<void>();
+      const newGate = Promise.withResolvers<void>();
+      const prepareLaunch = vi
+        .fn<() => Promise<void>>()
+        .mockReturnValueOnce(oldGate.promise)
+        .mockReturnValueOnce(newGate.promise);
+      const client = new SupervisorClient({
+        appVersion: "test",
+        isDev: false,
+        supervisorPath: "/fake/supervisor.cjs",
+        wslHelpersDir: "/fake/wsl",
+        secretStorageKey: "key",
+        baseDir: "/base",
+        prepareLaunch,
+        onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+        onReset: vi.fn<() => void>(),
+      });
+
+      const cancelledStart = client.start();
+      await client.stop(new Error("Supervisor stopped during preparation."));
+      const replacementStart = client[operation]();
+      await Promise.resolve();
+
+      oldGate.resolve();
+      await cancelledStart;
+      expect(forkMock).not.toHaveBeenCalled();
+      expect(prepareLaunch).toHaveBeenCalledTimes(2);
+      expect(client.isSupervisorProvenAbsent()).toBe(false);
+
+      newGate.resolve();
+      await replacementStart;
+      expect(forkMock).toHaveBeenCalledTimes(1);
+      expect(child.connected).toBe(true);
+    },
+  );
+});
+
 describe("SupervisorClient positive absence proof (H2)", () => {
   beforeEach(() => {
     forkMock.mockReset();
