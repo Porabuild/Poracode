@@ -1,5 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
-import { ACP_GENERIC_KIND_PREFIX, baseAgentKind, isAgentProfileKind } from "@/shared/contracts";
+import {
+  ACP_GENERIC_KIND_PREFIX,
+  baseAgentKind,
+  isAgentProfileKind,
+  stripAgentProfileBasePrefix,
+} from "@/shared/contracts";
 import type { StatusTone } from "./statusTone";
 import { syncMaskScanPhase } from "./syncMaskScanPhase";
 import { lookupProviderRegistration } from "./providerRegistry";
@@ -85,10 +90,7 @@ function profileBadgeLabel(kind: string, fallbackLabel: string | undefined): str
   // reads better as a badge than the provider's first letter.
   if (label === kind || label.toLowerCase().startsWith(`${baseKind.toLowerCase()}:`))
     return profileId;
-  const profileLabel = label.toLowerCase().startsWith(`${baseKind.toLowerCase()} `)
-    ? label.slice(baseKind.length).trim()
-    : label;
-  return profileLabel || profileId;
+  return stripAgentProfileBasePrefix(label, kind) || profileId;
 }
 
 function GenericProviderIcon(props: { label?: string; tone: StatusTone; className?: string }) {

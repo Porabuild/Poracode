@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { baseAgentKind, type AgentStatus } from "@/shared/contracts";
+import { baseAgentKind, stripAgentProfileBasePrefix, type AgentStatus } from "@/shared/contracts";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -72,10 +72,7 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
 ]);
 
 function profileSidebarLabel(agent: AgentStatus): string {
-  const baseKind = baseAgentKind(agent.kind);
-  return agent.label.toLowerCase().startsWith(`${baseKind.toLowerCase()} `)
-    ? agent.label.slice(baseKind.length).trim()
-    : agent.label;
+  return stripAgentProfileBasePrefix(agent.label, agent.kind);
 }
 
 function renderAgentIcon(

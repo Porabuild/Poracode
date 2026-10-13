@@ -97,6 +97,20 @@ export function extractAgentProfileInstanceId(kind: string): string | undefined 
 }
 
 /**
+ * Drops the leading driver word supervisor profile labels are built with
+ * (`Claude ${displayName}`) so nested UI shows the profile's own name under
+ * its base agent ("Claude Qwen" → "Qwen"). Labels without that prefix — and
+ * labels that are only the prefix — are returned trimmed but whole.
+ */
+export function stripAgentProfileBasePrefix(label: string, kind: string): string {
+  const trimmed = label.trim();
+  const driver = baseAgentKind(kind);
+  if (!trimmed.toLowerCase().startsWith(`${driver.toLowerCase()} `)) return trimmed;
+  const rest = trimmed.slice(driver.length).trim();
+  return rest || trimmed;
+}
+
+/**
  * Payload for the `setProfileEnvironment` main-local IPC. The renderer sends
  * the full desired environment (plaintext for freshly-entered values, already
  * sealed `lc-safe:` blobs round-tripped for unchanged secrets); the main
