@@ -4,7 +4,7 @@ import type { SessionRuntime } from "./sessionTypes";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { ThreadSessionManager } from "./threadSessionManager";
 
-export function createFollowUpQueueHarness() {
+export function createFollowUpQueueHarness(options: { canonicalCapacity?: () => number } = {}) {
   const emit = vi.fn<(event: SupervisorEvent) => void>();
   const adapter = {
     kind: "test-agent",
@@ -18,6 +18,7 @@ export function createFollowUpQueueHarness() {
     settingsPath: "tmp/queue-tests/settings.json",
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[adapter.kind, adapter]]),
+    ...options,
     resolveWindowsShell: () => ({ shell: "powershell.exe", kind: "powershell", args: [] }),
   });
   let finish!: () => void;
@@ -46,5 +47,5 @@ export function createFollowUpQueueHarness() {
     structuredSession: { startTurn, steerTurn, dispose: async () => {} },
   } as unknown as SessionRuntime;
   manager.sessions.set(session.threadId, session);
-  return { manager, session, startTurn, steerTurn, finish, completion };
+  return { manager, session, startTurn, steerTurn, finish, completion, emit };
 }

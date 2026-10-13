@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { PromptSegment, ProviderHandoffItemPayload } from "@/shared/contracts";
+import type { PromptSegment, ProviderHandoffItemPayload, RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { StructuredTurnResult } from "../../agents/base";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -8,6 +8,8 @@ import { structuredTurnTextOptions } from "../turnClientContext";
 
 export interface StructuredTurnQueueContext {
   emit(event: SupervisorEvent): void;
+  /** Append same-turn feedback behind buffered events and flush within credit. */
+  emitTurnContinuation(threadId: string, events: RuntimeEvent[]): void;
   sessions: Map<string, SessionRuntime>;
   beginFailureEpisode(session: SessionRuntime): void;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
@@ -100,31 +102,25 @@ export class StructuredTurnQueue {
     requestedItemId?: string,
     options?: { includeTurn?: boolean },
   ): string {
-    const turnId = `turn-${randomUUID()}`;
     const itemId = requestedItemId ?? `user-${randomUUID()}`;
-    if (options?.includeTurn !== false) {
-      this.ctx.emit({
-        type: "thread-runtime-event",
-        threadId,
-        event: { type: "turn.started", threadId, turnId },
-      });
-    }
-    this.ctx.emit({
-      type: "thread-runtime-event",
-      threadId,
-      event: {
+    const events: RuntimeEvent[] = [
+      {
         type: "item.started",
         threadId,
         itemId,
         itemType: "user_message",
         payload: { content: buildPromptContentBlocks(prompt, segments) },
       },
-    });
-    this.ctx.emit({
-      type: "thread-runtime-event",
-      threadId,
-      event: { type: "item.completed", threadId, itemId },
-    });
+      { type: "item.completed", threadId, itemId },
+    ];
+    if (options?.includeTurn === false) {
+      this.ctx.emitTurnContinuation(threadId, events);
+    } else {
+      events.unshift({ type: "turn.started", threadId, turnId: `turn-${randomUUID()}` });
+      for (const event of events) {
+        this.ctx.emit({ type: "thread-runtime-event", threadId, event });
+      }
+    }
     return itemId;
   }
 

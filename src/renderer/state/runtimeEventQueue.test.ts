@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { RuntimeEventQueue } from "./runtimeEventQueue";
+import {
+  RuntimeEventQueue,
+  runtimeBatchAppliedSequences,
+  runtimeBatchHasPartialFrame,
+} from "./runtimeEventQueue";
 
 const event = (text: string) =>
   ({
@@ -135,5 +139,61 @@ describe("RuntimeEventQueue", () => {
     queue.enqueue("thread", events);
     const drained = queue.drain(() => true);
     expect(drained).toEqual([{ threadId: "thread", events }]);
+  });
+
+  it("caps the combined slice and rotates a busy thread behind waiting threads", () => {
+    const queue = new RuntimeEventQueue();
+    queue.enqueue(
+      "busy",
+      Array.from({ length: 1_200 }, (_, i) => event(`busy-${i}`)),
+      7,
+    );
+    queue.enqueue("steered", [event("steer")], 8, "loopback");
+    queue.enqueue(
+      "background",
+      Array.from({ length: 600 }, (_, i) => event(`other-${i}`)),
+      9,
+    );
+
+    const first = queue.drainBudgeted(
+      () => true,
+      4,
+      () => 0,
+    );
+    expect(first.batches.map((batch) => batch.threadId)).toEqual(["busy"]);
+    expect(first.batches[0]!.events).toHaveLength(512);
+    expect(runtimeBatchHasPartialFrame(first.batches[0]!)).toBe(true);
+    expect(runtimeBatchAppliedSequences(first.batches[0]!)).toEqual({});
+
+    const second = queue.drainBudgeted(
+      () => true,
+      4,
+      () => 0,
+    );
+    expect(second.batches.map((batch) => batch.threadId)).toEqual(["steered", "background"]);
+    expect(second.batches.reduce((count, batch) => count + batch.events.length, 0)).toBe(512);
+    expect(runtimeBatchAppliedSequences(second.batches[0]!)).toEqual({ loopback: 8 });
+
+    const remaining = queue.drain(() => true);
+    expect(remaining.map((batch) => batch.threadId)).toEqual(["busy", "background"]);
+    expect(runtimeBatchAppliedSequences(remaining[0]!)).toEqual({ ipc: 7 });
+    expect(runtimeBatchAppliedSequences(remaining[1]!)).toEqual({ ipc: 9 });
+  });
+
+  it("skips blocked threads without letting them prevent a continuation", () => {
+    const queue = new RuntimeEventQueue();
+    queue.enqueue("recovering", [event("held")]);
+    queue.block("recovering");
+    queue.enqueue(
+      "a",
+      Array.from({ length: 600 }, () => event("a")),
+    );
+    queue.enqueue("b", [event("b")]);
+    expect(queue.drainBudgeted(() => true, 0).hasMore).toBe(true);
+    expect(queue.drainBudgeted(() => true, 0).batches[0]!.threadId).toBe("b");
+    expect(queue.drain(() => true)[0]!.threadId).toBe("a");
+    expect(queue.drainBudgeted(() => true, 0)).toEqual({ batches: [], hasMore: false });
+    queue.resume("recovering");
+    expect(queue.drain(() => true)[0]!.threadId).toBe("recovering");
   });
 });

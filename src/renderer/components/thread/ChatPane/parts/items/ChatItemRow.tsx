@@ -4,9 +4,9 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { memo } from "react";
-import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
 import type { CheckpointRevertRequest } from "../CheckpointRevertControls";
-import { getRuntimeItemStoreSelector, type ChatTimelineEntry } from "../../chatPaneSelectors";
+import type { ChatTimelineEntry } from "../../chatPaneSelectors";
 import { AssistantMessage } from "./AssistantMessage";
 import { CommandExecution } from "./CommandExecution";
 import { FileChange } from "./FileChange";
@@ -82,7 +82,7 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
   isTurnActive: boolean;
   checkpointRevert: CheckpointRevertRequest | null;
 }) {
-  const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
+  const item = useThreadRuntimeItem(threadId, itemId);
   if (import.meta.env.DEV && window.localStorage.getItem("lc-chat-debug-renders") === "1") {
     console.log("[lc-chat-debug] ChatItemRow render", {
       threadId,

@@ -468,23 +468,15 @@ export class SteerCoordinator {
   ): Promise<void | StructuredTurnResult> | undefined {
     const steerTurn = session.structuredSession?.steerTurn;
     if (!steerTurn) return;
-    const hasThreadMention = turn.displaySegments?.some((segment) => segment.kind === "thread");
-    // Queue promotions carry an id even when they have no mention. Paint those
-    // rows here as well: providers may accept native steer without echoing a
-    // user_message. Providers that do echo reuse this id, and the canonical
-    // transcript keyed by item id coalesces the echo instead of duplicating it.
-    const shouldPaintOptimistic = hasThreadMention || turn.userMessageItemId !== undefined;
     const optimisticItemId =
       session.presentationMode === "gui" && turn.prompt.length > 0
-        ? shouldPaintOptimistic
-          ? this.ctx.emitOptimisticUserMessage(
-              session.threadId,
-              turn.prompt,
-              turn.displaySegments ?? turn.segments,
-              turn.userMessageItemId,
-              { includeTurn: false },
-            )
-          : turn.userMessageItemId
+        ? this.ctx.emitOptimisticUserMessage(
+            session.threadId,
+            turn.prompt,
+            turn.displaySegments ?? turn.segments,
+            turn.userMessageItemId,
+            { includeTurn: false },
+          )
         : undefined;
     const steerOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
