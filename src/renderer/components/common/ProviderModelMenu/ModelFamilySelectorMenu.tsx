@@ -2,10 +2,9 @@ import type { ReactNode } from "react";
 import { ProviderModelMenu } from "./ProviderModelMenu";
 import type { ScopedModelOption } from "./parts/scopedModelOptions";
 
-export { scopedModelOptionDisplay as modelFamilySelectorDisplay } from "./parts/scopedModelOptions";
 export type ModelFamilySelectorOption = ScopedModelOption;
 
-/** A family coordinate uses the standard picker, restricted to its native choices. */
+/** A component model uses the standard picker, restricted to its reachable choices. */
 export function ModelFamilySelectorMenu(props: {
   agentKind: string;
   label: string;
@@ -17,6 +16,7 @@ export function ModelFamilySelectorMenu(props: {
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
   collapseTier?: number;
+  triggerAppearance?: "composer" | "field";
   onOpenChange?: (open: boolean) => void;
 }) {
   const { agentKind, label, icon, options, value, onChange, ...menuProps } = props;

@@ -60,7 +60,7 @@ describe("Devin presentation defaults", () => {
     expect(getTitleGenDefaults("devin")?.label).toBe("Devin");
   });
 
-  it("adds two family-selector controls only while a Fusion member is selected", () => {
+  it("adds one pairing control only while a Fusion member is selected", () => {
     const baseCapabilities = {
       ...devinDefaultCapabilities,
       models: [
@@ -106,16 +106,24 @@ describe("Devin presentation defaults", () => {
         ...input("pair-alpha-x"),
         presentationMode,
       });
+      const paired = inside?.filter(
+        (control) => control.kind === "effort-context" && control.familySelection,
+      );
+      expect(paired).toHaveLength(1);
+      const control = paired?.[0];
       expect(
-        inside
-          ?.filter((control) => control.kind === "family-selector")
-          .map((control) => control.id),
+        control?.kind === "effort-context" &&
+          control.familySelection?.columns.map((column) => column.id),
       ).toEqual(["lead", "sidekick"]);
       const outside = getComposerControls("devin")?.({
         ...input("solo"),
         presentationMode,
       });
-      expect(outside?.some((control) => control.kind === "family-selector")).toBe(false);
+      expect(
+        outside?.some(
+          (candidate) => candidate.kind === "effort-context" && candidate.familySelection,
+        ),
+      ).toBe(false);
     }
   });
 });

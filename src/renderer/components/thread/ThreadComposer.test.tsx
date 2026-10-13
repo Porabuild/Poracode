@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import {
@@ -384,7 +384,7 @@ describe("ThreadComposer", () => {
   });
 });
 
-it("places family selectors immediately after the model control in the toolbar and every geometry probe", () => {
+it("keeps one pairing button in the toolbar and measures its summary in every geometry probe", () => {
   const model: ComposerControl = {
     kind: "provider-model",
     providers: [],
@@ -392,47 +392,54 @@ it("places family selectors immediately after the model control in the toolbar a
     currentModel: "Pair",
     onChange: vi.fn<() => void>(),
   };
-  const selector = (
-    id: string,
-    label: string,
-    value: string,
-    option: { id: string; label: string },
-  ): ComposerControl => ({
-    kind: "family-selector",
-    agentKind: "example",
-    id,
-    label,
-    icon: null,
-    options: [option],
-    value,
-    onChange: vi.fn<() => void>(),
+  const pairing: ComposerControl = {
+    kind: "effort-context",
+    efforts: [],
+    contextSizes: [],
     hideLabelOnWrap: true,
     tier: 4,
-  });
-  const lead = selector("lead", "Main", "a", { id: "a", label: "Alpha" });
-  const sidekick = selector("sidekick", "Sidekick", "b", { id: "b", label: "Beta" });
-  const { container } = renderComposer([model, ...composerControls(), lead, sidekick]);
-  const buttons = within(composerToolbar(container))
-    .getAllByRole("button")
-    .filter((element) => element.tagName === "BUTTON");
-  const modelIndex = buttons.indexOf(screen.getByRole("button", { name: "Select model" }));
-  expect(buttons[modelIndex + 1]).toBe(screen.getByRole("button", { name: "Main" }));
-  expect(buttons[modelIndex + 1]).toHaveTextContent("Alpha");
-  expect(buttons[modelIndex + 2]).toBe(screen.getByRole("button", { name: "Sidekick" }));
-  expect(buttons[modelIndex + 2]).toHaveTextContent("Beta");
+    familySelection: {
+      agentKind: "example",
+      effortScope: "primary",
+      columns: [
+        {
+          id: "lead",
+          label: "Main",
+          icon: null,
+          models: {
+            options: [{ id: "a", label: "Alpha" }],
+            value: "a",
+            onChange: vi.fn<() => void>(),
+          },
+        },
+        {
+          id: "sidekick",
+          label: "Sidekick",
+          icon: null,
+          models: {
+            options: [{ id: "b", label: "Beta" }],
+            value: "b",
+            onChange: vi.fn<() => void>(),
+          },
+        },
+      ],
+    },
+  };
+  const { container } = renderComposer([model, pairing, ...composerControls()]);
+  expect(screen.getAllByRole("button", { name: "Model pairing" })).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Model pairing" })).toHaveTextContent("Alpha + Beta");
+  expect(screen.queryByRole("button", { name: "Main" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Sidekick" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Effort and context" })).not.toBeInTheDocument();
   const probes = [...container.querySelectorAll(".probe-wrap-container")];
   expect(probes).toHaveLength(6);
   for (const [level, probe] of probes.entries()) {
     const controls = [
       ...probe.querySelectorAll(".poracode-composer-menu, .poracode-composer-toggle"),
     ];
-    expect(controls).toHaveLength(5);
+    expect(controls).toHaveLength(4);
     expect(controls[0]).toHaveTextContent("Pair");
-    // Selector probes render both trigger lines — the option display over the
-    // selector label — so the measured width matches the real trigger.
-    expect(controls[1]!.textContent).toBe(level < 4 ? "AlphaMain" : "");
-    expect(controls[1]).not.toHaveAttribute("style");
-    expect(controls[2]!.textContent).toBe(level < 4 ? "BetaSidekick" : "");
+    expect(controls[1]!.textContent).toBe(level < 4 ? "Alpha + Beta" : "");
   }
 });
 

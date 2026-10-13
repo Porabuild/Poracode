@@ -1,7 +1,7 @@
 // @vitest-environment node
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import { describe, expect, it, vi } from "vitest";
-import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
+import type { FamilyMenuColumn } from "../common/ProviderModelMenu/ModelConfigurationPanel.types";
 import type { ComposerControlsInput } from "./providerComposer";
 import { modelFamilySelectorControls } from "./modelFamilyControls";
 
@@ -83,22 +83,25 @@ function builderInput(
   };
 }
 
-type SelectorControl = Extract<ComposerControl, { kind: "family-selector" }>;
-
-function pairControls(input: ComposerControlsInput): SelectorControl[] {
+function pairControl(input: ComposerControlsInput) {
   const controls = modelFamilySelectorControls(input, "example");
-  expect(controls).toHaveLength(2);
-  for (const control of controls)
-    if (control.kind !== "family-selector") throw new Error("Expected selector controls");
-  return controls as SelectorControl[];
+  expect(controls).toHaveLength(1);
+  const control = controls[0]!;
+  if (control.kind !== "effort-context" || !control.familySelection)
+    throw new Error("Expected pairing control");
+  return control;
+}
+
+function pairControls(input: ComposerControlsInput): readonly FamilyMenuColumn[] {
+  return pairControl(input).familySelection!.columns;
 }
 
 describe("modelFamilySelectorControls", () => {
-  it("only supplies the selector controls for a selected accepted pair", () => {
+  it("only supplies one pairing control for a selected accepted pair", () => {
     const controls = pairControls(
       builderInput(familyCapability({ effort: "config", fast: "config" }), {}),
     );
-    expect(controls.map((control) => [control.id, control.value])).toEqual([
+    expect(controls.map((control) => [control.id, control.models.value])).toEqual([
       ["lead", "alpha"],
       ["sidekick", "x"],
     ]);
@@ -116,9 +119,9 @@ describe("modelFamilySelectorControls", () => {
       ...builderInput(familyCapability({ effort: "config", fast: "config" }), {}),
       isDisabled: true,
     };
-    const controls = pairControls(input);
-    expect(controls.every((control) => control.isDisabled)).toBe(true);
-    controls[0]!.onChange("beta");
+    const control = pairControl(input);
+    expect(control.isDisabled).toBe(true);
+    control.familySelection!.columns[0]!.models.onChange("beta");
     expect(input.onConfigChange).not.toHaveBeenCalled();
   });
 
@@ -131,7 +134,7 @@ describe("modelFamilySelectorControls", () => {
       effort: "high",
       fast: true,
     });
-    pairControls(input)[0]!.onChange("beta");
+    pairControls(input)[0]!.models.onChange("beta");
     expect(input.onConfigChange).toHaveBeenCalledExactlyOnceWith(
       { model: "pair-beta-x" },
       { kind: "family-resolved" },
@@ -144,7 +147,7 @@ describe("modelFamilySelectorControls", () => {
     // otherwise inherit `fast: true` into a launch that cannot honor it.
     capabilities.fastModels = ["pair-alpha-x"];
     const input = builderInput(capabilities, { effort: "high", fast: true });
-    pairControls(input)[0]!.onChange("beta");
+    pairControls(input)[0]!.models.onChange("beta");
     expect(input.onConfigChange).toHaveBeenCalledExactlyOnceWith(
       { model: "pair-beta-x", fast: false },
       { kind: "family-resolved" },
@@ -156,7 +159,7 @@ describe("modelFamilySelectorControls", () => {
       familyCapability({ effort: "model", fast: "model" }, { effort: "low", fast: false }),
       { effort: "", fast: false },
     );
-    pairControls(input)[0]!.onChange("beta");
+    pairControls(input)[0]!.models.onChange("beta");
     expect(input.onConfigChange).toHaveBeenCalledExactlyOnceWith(
       {
         model: "pair-beta-x",
@@ -173,15 +176,15 @@ describe("modelFamilySelectorControls", () => {
     const input = builderInput(capabilities, {});
     const controls = pairControls(input);
     const lead = controls[0]!;
-    expect(lead.options.map((option) => option.id)).toEqual(["alpha"]);
-    lead.onChange("beta");
+    expect(lead.models.options.map((option) => option.id)).toEqual(["alpha"]);
+    lead.models.onChange("beta");
     expect(input.onConfigChange).not.toHaveBeenCalled();
     const other = pairControls(
       builderInput(familyCapability({ effort: "config", fast: "config" }), {
         model: "pair-beta-x",
       }),
     );
-    expect(other[1]!.options.map((option) => option.id)).toEqual(["x"]);
+    expect(other[1]!.models.options.map((option) => option.id)).toEqual(["x"]);
   });
 
   it("lets the provider opt into only its selected workflow and present its own labels and icons", () => {
@@ -194,15 +197,17 @@ describe("modelFamilySelectorControls", () => {
     const presented = modelFamilySelectorControls(input, "example", {
       selectorLabel: (id) => (id === "lead" ? "Main" : undefined),
       selectorIcon: () => icon,
-    }) as SelectorControl[];
-    expect(presented.map((control) => control.label)).toEqual(["Main", "Sidekick"]);
-    expect(presented.map((control) => control.icon)).toEqual([icon, icon]);
+    })[0]!;
+    if (presented.kind !== "effort-context") throw new Error("Expected pairing control");
+    const columns = presented.familySelection!.columns;
+    expect(columns.map((control) => control.label)).toEqual(["Main", "Sidekick"]);
+    expect(columns.map((control) => control.icon)).toEqual([icon, icon]);
     // Without a provider label the shared catalog label key supplies the name.
     expect(controls.map((control) => control.label)).toEqual(["Lead", "Sidekick"]);
   });
 });
 
-it("presents a component's decoded effort as the option hint while the edit keeps the exact id", () => {
+it("separates a component model and reasoning while edits keep the exact native id", () => {
   const capabilities = familyCapability({ effort: "config", fast: "config" });
   capabilities.fastModels = ["pair-alpha-x", "pair-alpha-y"];
   const input = builderInput(capabilities, {
@@ -214,13 +219,15 @@ it("presents a component's decoded effort as the option hint while the edit keep
       selectorId === "sidekick"
         ? { model: { id: "support", label: "Support" }, effort: option.id === "x" ? "low" : "high" }
         : undefined,
-  }) as SelectorControl[];
-  const sidekick = controls[1]!;
-  expect(sidekick.options).toEqual([
-    { id: "x", label: "Support", hint: "Low" },
-    { id: "y", label: "Support", hint: "High" },
+  })[0]!;
+  if (controls.kind !== "effort-context") throw new Error("Expected pairing control");
+  const sidekick = controls.familySelection!.columns[1]!;
+  expect(sidekick.models.options).toEqual([{ id: "support", label: "Support" }]);
+  expect(sidekick.effort?.options).toEqual([
+    { id: "low", label: "Low" },
+    { id: "high", label: "High" },
   ]);
-  sidekick.onChange("y");
+  sidekick.effort?.onChange("high");
   expect(input.onConfigChange).toHaveBeenCalledExactlyOnceWith(
     { model: "pair-alpha-y" },
     { kind: "family-resolved" },

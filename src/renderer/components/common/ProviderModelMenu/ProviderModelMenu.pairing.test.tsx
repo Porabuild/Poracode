@@ -136,7 +136,7 @@ afterEach(() => {
   delete (window as unknown as { poracode?: unknown }).poracode;
 });
 
-describe("adjacent family selector menus with real overlays", () => {
+describe("nested family pickers with real overlays", () => {
   it.each(["mouse", "keyboard"])(
     "closes the global menu through %s, edits Main to a sibling pair, and restores ordinary controls",
     async (input) => {
@@ -162,12 +162,17 @@ describe("adjacent family selector menus with real overlays", () => {
         enter(search);
       }
       await waitFor(() => expect(search).not.toBeInTheDocument());
-      // The pair's selectors show as their own composer menus; the ordinary
-      // Fast toggle and the common Reasoning control sit beside them, once.
+      // One composer button opens both selectors and reasoning, with Fast
+      // remaining an ordinary toolbar toggle.
+      expect(screen.getAllByRole("button", { name: "Fast" })).toHaveLength(1);
+      expect(screen.queryByRole("button", { name: "Effort and context" })).not.toBeInTheDocument();
+      const pairing = await screen.findByRole("button", { name: "Model pairing" });
+      expect(pairing).toHaveTextContent("Alpha + Support");
+      const toolbar = trigger.closest(".poracode-composer-toolbar")!;
+      expect([...toolbar.querySelectorAll("button")][1]).toBe(pairing);
+      mouseClick(pairing);
       const main = await screen.findByRole("button", { name: "Main" });
       expect(screen.getByRole("button", { name: "Sidekick" })).toBeInTheDocument();
-      expect(screen.getAllByRole("button", { name: "Fast" })).toHaveLength(1);
-      expect(screen.getAllByRole("button", { name: "Effort and context" })).toHaveLength(1);
       if (input === "mouse") mouseClick(main);
       else {
         act(() => main.focus());
@@ -202,6 +207,11 @@ describe("adjacent family selector menus with real overlays", () => {
       // — the focus-containing dialog must not trap the dismissal.
       pressOutside();
       await waitFor(() => expect(reopened).not.toBeInTheDocument());
+      expect(screen.getByRole("region", { name: "Main" })).toBeInTheDocument();
+      pressOutside();
+      await waitFor(() =>
+        expect(screen.queryByRole("region", { name: "Main" })).not.toBeInTheDocument(),
+      );
       mouseClick(trigger);
       const ordinarySearch = await screen.findByPlaceholderText("Search models...");
       act(() => ordinarySearch.focus());
@@ -223,16 +233,17 @@ describe("adjacent family selector menus with real overlays", () => {
 
   it("disables both selector menus and the Fast toggle while configuration is disabled", async () => {
     render(<Harness initialModel="pair-a-x" disabled />);
-    expect(screen.getByRole("button", { name: "Main" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Sidekick" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Model pairing" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Fast" })).toBeDisabled();
   });
 
   it("shows the selector name as the sheet heading in the mobile drawer", async () => {
     (window as unknown as { poracode?: unknown }).poracode = { appVersion: "remote" };
     render(<Harness initialModel="pair-a-x" />);
+    mouseClick(screen.getByRole("button", { name: "Model pairing" }));
+    expect(document.querySelector(".m-sheet-head")).toHaveTextContent("Model pairing");
     mouseClick(screen.getByRole("button", { name: "Main" }));
-    expect(document.querySelector(".m-sheet-head")).toHaveTextContent("Main");
+    expect([...document.querySelectorAll(".m-sheet-head")].at(-1)).toHaveTextContent("Main");
     const search = await screen.findByPlaceholderText("Search models...");
     expect(search).not.toHaveFocus();
     expect(await screen.findByRole("option", { name: "Alpha" })).toBeInTheDocument();

@@ -2844,12 +2844,25 @@ describe("ThreadDraftView model family drafts", () => {
   }
 
   function pairedSelectorControls() {
-    return composerControls().filter((control) => control.kind === "family-selector") as Array<{
-      id: string;
-      value: string;
-      options: ReadonlyArray<{ id: string }>;
-      onChange: (value: string) => void;
-    }>;
+    const paired = composerControls().find(
+      (control) => control.kind === "effort-context" && control.familySelection,
+    ) as
+      | {
+          familySelection: {
+            columns: Array<{
+              id: string;
+              models: {
+                value: string;
+                options: ReadonlyArray<{ id: string }>;
+                onChange: (value: string) => void;
+              };
+            }>;
+          };
+        }
+      | undefined;
+    return (
+      paired?.familySelection.columns.map((column) => ({ id: column.id, ...column.models })) ?? []
+    );
   }
 
   function pairedSelectorControl(selectorId: string) {
@@ -3132,9 +3145,8 @@ describe("ThreadDraftView model family drafts", () => {
     });
     renderFamilyDraft();
     await waitFor(() => expect(persistedDraft()?.model).toBe("pair-alpha-x"));
-    // The draft picker renders the projected family row plus one selector
-    // menu per conditional selector from the GUI override; the ordinary
-    // effort carrier stays beside them as the shortcut/cycle target.
+    // One pairing control contains both selectors and the common effort
+    // carrier from the GUI override.
     await waitFor(() => expect(pairedSelectorControls()).toHaveLength(2));
     expect(composerControls().filter((control) => control.kind === "effort-context")).toHaveLength(
       1,
@@ -3215,7 +3227,7 @@ describe("ThreadDraftView model family drafts", () => {
     await waitFor(() => {
       expect(pairedSelectorControls()).toHaveLength(2);
     });
-    // The selector controls carry the exact current pair (alpha, x).
+    // The popup columns carry the exact current pair (alpha, x).
     expect(pairedSelectorControls().map((control) => control.value)).toEqual(["alpha", "x"]);
     const plan = composerControls().find(
       (control) =>
