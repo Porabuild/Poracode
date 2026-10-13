@@ -68,7 +68,7 @@ function SortableProviderRow(props: {
   return (
     <div
       ref={ref}
-      className={`flex items-center gap-2 rounded border border-border bg-surface px-2 py-1 text-xs ${
+      className={`flex h-9 shrink-0 items-center gap-2 rounded border border-border bg-surface px-2 text-xs ${
         isDragging ? "opacity-40" : ""
       }`}
     >
@@ -98,21 +98,16 @@ function SortableProviderRow(props: {
       </span>
       {update.updatePhase ? (
         <div
-          className="flex h-5 min-w-[6.5rem] max-w-[45%] shrink-0 items-center gap-1.5 text-[10px] text-muted"
-          {...(isBulkUpdating && update.updatePhase !== "queued"
-            ? { "aria-hidden": true }
-            : isBulkUpdating
-              ? {
-                  role: "status",
-                  "aria-label": t`${agent.label} queued for update to v${update.targetVersion}`,
-                }
-              : {
-                  role: "status",
-                  "aria-label":
-                    update.updatePhase === "probing"
-                      ? t`Probing ${agent.label} v${update.targetVersion}`
-                      : t`Updating ${agent.label} to v${update.targetVersion}`,
-                })}
+          className="flex h-6 min-w-[6.5rem] max-w-[45%] shrink-0 items-center gap-1.5 text-[11px] text-muted"
+          role="status"
+          {...(isBulkUpdating ? { "aria-live": "off" as const } : {})}
+          aria-label={
+            update.updatePhase === "queued"
+              ? t`${agent.label} queued for update to v${update.targetVersion}`
+              : update.updatePhase === "probing"
+                ? t`Probing ${agent.label} v${update.targetVersion}`
+                : t`Updating ${agent.label} to v${update.targetVersion}`
+          }
         >
           {update.updatePhase === "queued" ? (
             <Clock className="size-3 shrink-0 text-muted/70" aria-hidden="true" />
@@ -137,7 +132,7 @@ function SortableProviderRow(props: {
         <Button
           size="sm"
           variant="ghost"
-          className="h-5 min-h-5 shrink-0 gap-1.5 px-1.5 py-0 text-[10px] text-muted hover:text-foreground"
+          className="h-6 min-h-6 shrink-0 gap-1.5 px-1.5 py-0 text-[11px] text-muted hover:text-foreground"
           aria-label={t`Update ${agent.label} to ${updateLabel}`}
           isDisabled={isBulkUpdating}
           onPress={() => onUpdate(agent.kind)}
@@ -208,9 +203,7 @@ export function ModelOrderSection() {
   const outdatedCount = updates.outdatedKinds.length;
   const updateAllProgress = updates.updateAllProgress;
   const updateAllProgressAriaLabel = updateAllProgress
-    ? updateAllProgress.phase === "probing"
-      ? t`Probing ${updateAllProgress.agentLabel} (${updateAllProgress.current} of ${updateAllProgress.total})`
-      : t`Updating ${updateAllProgress.agentLabel} (${updateAllProgress.current} of ${updateAllProgress.total})`
+    ? t`Updating providers (${updateAllProgress.completed} of ${updateAllProgress.total} complete)`
     : "";
 
   function handleDragEnd(event: DragEndEvent) {
@@ -278,7 +271,7 @@ export function ModelOrderSection() {
                   </span>
                   <span className="truncate">
                     <Trans>
-                      Updating ({updateAllProgress.current}/{updateAllProgress.total})
+                      Updating ({updateAllProgress.completed}/{updateAllProgress.total})
                     </Trans>
                   </span>
                 </>

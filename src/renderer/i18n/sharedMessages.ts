@@ -11,6 +11,9 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "agent.updateQueueTimeout": msg({
+    message: "The update waited too long for another installation. Try again.",
+  }),
   "provider.signInDataUnavailable": msg({
     message: "The provider's sign-in data could not be read. Try again or update Poracode.",
   }),

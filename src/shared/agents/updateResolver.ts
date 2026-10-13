@@ -89,7 +89,7 @@ function looksLikePnpmGlobalPath(executablePath: string | undefined): boolean {
 function looksLikeBunGlobalPath(executablePath: string | undefined): boolean {
   if (!executablePath) return false;
   const normalized = normalizeCommandPath(executablePath);
-  return normalized.includes("/.bun/bin/");
+  return normalized.includes("/.bun/bin/") || normalized.includes("/.bun/install/global/");
 }
 
 export interface ResolveUpdateCommandInput {
@@ -97,6 +97,8 @@ export interface ResolveUpdateCommandInput {
   executablePath: string | undefined;
   envKind: "windows" | "wsl" | "posix";
   skipBuiltIn?: boolean;
+  /** Resolve only a package manager established by the installed path, without a speculative fallback. */
+  installedPackageManagerOnly?: boolean;
 }
 
 export function resolveSharedUpdateCommand(
@@ -105,7 +107,7 @@ export function resolveSharedUpdateCommand(
   const pkg = input.update;
   if (!pkg) return undefined;
 
-  if (!input.skipBuiltIn && pkg.builtIn) {
+  if (!input.skipBuiltIn && !input.installedPackageManagerOnly && pkg.builtIn) {
     return { binary: pkg.builtIn.binary, args: pkg.builtIn.args, strategy: "built-in" };
   }
 
@@ -142,6 +144,8 @@ export function resolveSharedUpdateCommand(
       strategy: "npm-global",
     };
   }
+
+  if (input.installedPackageManagerOnly) return undefined;
 
   // A provider that ships its own install script re-runs it non-interactively.
   // Preferred over the npm last-resort so an agent installed by its own

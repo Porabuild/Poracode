@@ -3,6 +3,7 @@ import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import type { AcpRegistryListResult, AgentStatus } from "@/shared/contracts";
+import { localizeCatalogMessage } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -233,7 +234,10 @@ export function useCombinedProviderRuntimeUpdates(
                 ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
               });
               if (!result.ok) {
-                throw new Error(result.output?.trim() || t`Unable to update ${status.label}.`);
+                throw new Error(
+                  localizeCatalogMessage(result.output?.trim() ?? "") ||
+                    t`Unable to update ${status.label}.`,
+                );
               }
             } else {
               const target = scopeEnvForStatus(status);

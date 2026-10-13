@@ -592,6 +592,30 @@ describe("SupervisorClient.call", () => {
     expect((error as Error).message).toMatch(/timed out/);
   });
 
+  it("keeps a queued binary update request alive beyond the ordinary ten-minute deadline", async () => {
+    vi.useFakeTimers();
+    const { client, child } = makeClient();
+    const getId = captureSentId(child);
+    let settled = false;
+    const promise = client.call("updateAgentBinary", { agentKind: "test-agent", envKind: "posix" });
+    void promise.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    await vi.advanceTimersByTimeAsync(12 * 60_000);
+    expect(settled).toBe(false);
+    child.emit("message", {
+      replyTo: getId(),
+      ok: true,
+      data: { ok: true, strategy: "npm-global" },
+    });
+    await expect(promise).resolves.toEqual({ ok: true, strategy: "npm-global" });
+  });
+
   it("clears the timeout once resolved (no late rejection)", async () => {
     vi.useFakeTimers();
     const { client, child } = makeClient();

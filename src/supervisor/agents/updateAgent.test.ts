@@ -300,6 +300,90 @@ describe("resolveUpdateCommand", () => {
 });
 
 describe("runUpdateCommandWithFallback", () => {
+  it("serializes package-manager self-updates and fallback commands", async () => {
+    const selfUpdatingAdapter: AgentAdapter = {
+      ...makeAdapter("test-a"),
+      update: {
+        builtIn: { binary: "test-a", args: ["update"] },
+        npm: "test-agent-a",
+      },
+    };
+    const packageAdapter: AgentAdapter = {
+      ...makeAdapter("test-b"),
+      update: { npm: "test-agent-b" },
+    };
+    let finishSelfUpdate!: () => void;
+    let finishFallback!: () => void;
+    readAgentCommandOutputMock.mockImplementation(async (_location, binary, args) => {
+      if (binary === "test-a") {
+        await new Promise<void>((resolve) => {
+          finishSelfUpdate = resolve;
+        });
+        return { ok: false, stdout: "self-update failed", stderr: "" };
+      }
+      if (args.includes("test-agent-a@latest")) {
+        await new Promise<void>((resolve) => {
+          finishFallback = resolve;
+        });
+      }
+      return { ok: true, stdout: "updated", stderr: "" };
+    });
+    const first = runUpdateCommandWithFallback(
+      selfUpdatingAdapter,
+      makeStatus({
+        kind: "test-a",
+        executablePath: "/usr/local/lib/node_modules/test-agent-a/bin.js",
+      }),
+      NATIVE_POSIX,
+    );
+    await vi.waitFor(() => expect(readAgentCommandOutputMock).toHaveBeenCalledTimes(1));
+    const second = runUpdateCommandWithFallback(
+      packageAdapter,
+      makeStatus({ kind: "test-b" }),
+      NATIVE_POSIX,
+    );
+    finishSelfUpdate();
+    await vi.waitFor(() => expect(readAgentCommandOutputMock).toHaveBeenCalledTimes(3));
+    expect(readAgentCommandOutputMock.mock.calls[1]?.[2]).toEqual([
+      "install",
+      "-g",
+      "test-agent-b@latest",
+    ]);
+    finishFallback();
+    expect(await first).toMatchObject({ ok: true, strategy: "npm-global" });
+    expect(await second).toMatchObject({ ok: true, strategy: "npm-global" });
+    expect(readAgentCommandOutputMock.mock.calls[2]?.[2]).toEqual([
+      "install",
+      "-g",
+      "test-agent-a@latest",
+    ]);
+  });
+
+  it("runs native self-updaters concurrently even when they advertise an npm fallback", async () => {
+    const adapters = ["test-a", "test-b"].map((kind) => ({
+      ...makeAdapter(kind),
+      update: { builtIn: { binary: kind, args: ["update"] }, npm: kind },
+    }));
+    const finishes: Array<() => void> = [];
+    readAgentCommandOutputMock.mockImplementation(async () => {
+      await new Promise<void>((resolve) => finishes.push(resolve));
+      return { ok: true, stdout: "updated", stderr: "" };
+    });
+    const results = adapters.map((adapter) =>
+      runUpdateCommandWithFallback(
+        adapter,
+        makeStatus({ kind: adapter.kind, executablePath: `/Users/me/.local/bin/${adapter.kind}` }),
+        NATIVE_POSIX,
+      ),
+    );
+    await vi.waitFor(() => expect(finishes).toHaveLength(2));
+    finishes.forEach((finish) => finish());
+    expect(await Promise.all(results)).toEqual([
+      { ok: true, strategy: "built-in", output: "updated" },
+      { ok: true, strategy: "built-in", output: "updated" },
+    ]);
+  });
+
   it("uses the package-manager fallback when a successful built-in update is not verified", async () => {
     readAgentCommandOutputMock
       .mockResolvedValueOnce({ ok: true, stdout: "Run npm install -g", stderr: "" })
