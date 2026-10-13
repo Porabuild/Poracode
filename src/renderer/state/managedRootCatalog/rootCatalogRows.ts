@@ -67,11 +67,18 @@ export function normalizeRootCatalogProject(project: Project): Project {
   return project;
 }
 
-/** A saved draft has no host runtime yet; its pending launch owns local progress and errors. */
+/**
+ * A saved draft has no host runtime yet; its pending launch owns local
+ * progress and errors. Any pending launch proves the point — the catalog
+ * event for the just-created row can land before the create command's own
+ * response marks creation, and the host's inactive snapshot must not erase
+ * the local launching/working status (or the creating-worktree surface that
+ * keys off it) in that window.
+ */
 function carryPendingRootLaunchRuntime(existing: Thread, incoming: Thread): Thread {
   const pending = peekPendingManagedRootLaunch(existing.id);
   if (
-    !(pending?.metadataCreated || pending?.metadataCreationUncertain) ||
+    !pending ||
     incoming.status !== "inactive" ||
     incoming.archived ||
     incoming.sessionRef ||

@@ -682,6 +682,12 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
     setupRunsOnHost: false,
     startThread: async (launch) => {
       const thread = createDraftThread(launch);
+      // Paint the first prompt before host persistence, exactly like the
+      // worktree-provisioning path: a slow create round trip must not leave
+      // the new pane empty while its first turn is already starting.
+      const userMessageItemId =
+        launch.userMessageItemId ??
+        appendOptimisticInitialUserMessage(thread, launch.prompt, launch.segments);
       // Launch inline, never via the view-consumed launch queue — the launch
       // must not depend on which pane is mounted (see the worktree path above).
       try {
@@ -695,7 +701,7 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
           projectLocation: resolveProjectLocation(launch.project.location, launch.worktreePath),
           prompt: launch.prompt,
           ...(launch.segments ? { segments: launch.segments } : {}),
-          ...(launch.userMessageItemId ? { userMessageItemId: launch.userMessageItemId } : {}),
+          ...(userMessageItemId ? { userMessageItemId } : {}),
           ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
           initialSize: DEFAULT_TERMINAL_SIZE,
         });

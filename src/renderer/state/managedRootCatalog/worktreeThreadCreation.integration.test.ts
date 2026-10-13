@@ -143,6 +143,39 @@ describe("worktree thread creation over the real host authority", () => {
     expect(useAppStore.getState().provisioningWorktreeThreadIds[draft.threadId]).toBeUndefined();
   });
 
+  it("paints the first prompt before host persistence for a non-worktree launch", async () => {
+    const project = await fixtureProject();
+    const plainDraft = {
+      threadId: "plain-thread",
+      agentKind: "example",
+      config: { model: "example/model" },
+      prompt: "Answer in the main checkout",
+      presentationMode: "gui" as const,
+    };
+
+    const launch = startThreadFromDraft(project, plainDraft);
+
+    // Same tick: no host round trip has completed, yet the prompt is already
+    // in the transcript the pane renders.
+    const paintedIds = useAppStore.getState().runtimeItemIdsByThread["plain-thread"] ?? [];
+    const painted =
+      useAppStore.getState().runtimeItemsByIdByThread["plain-thread"]?.[paintedIds[0]!];
+
+    await launch;
+
+    expect(paintedIds).toHaveLength(1);
+    expect(painted?.type).toBe("user_message");
+
+    expect(supervisorTrace.startThreadCalls).toBe(1);
+    expect(supervisorTrace.lastStartThreadPayload).toMatchObject({
+      threadId: "plain-thread",
+      prompt: "Answer in the main checkout",
+      userMessageItemId: paintedIds[0],
+    });
+    // The launch reuses the painted item instead of appending a second copy.
+    expect(useAppStore.getState().runtimeItemIdsByThread["plain-thread"]).toEqual(paintedIds);
+  });
+
   it("replays metadata creation without replacing a later title or launching an agent", async () => {
     await activate();
     const command = {

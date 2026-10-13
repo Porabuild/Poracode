@@ -555,7 +555,7 @@ export function ChatPane(props: ChatPaneProps) {
                   <ChatWorktreeProvisioningFooter />
                 ) : isConnecting ? (
                   <ChatConnectingFooter />
-                ) : isHydrating ? (
+                ) : isHydrating && !showWorkingTimer ? (
                   <ChatConnectingFooter />
                 ) : showTailLoader && tailTurn ? (
                   <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
