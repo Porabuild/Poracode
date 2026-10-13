@@ -17,7 +17,7 @@ import {
 import { guiChatFontCssVars } from "../../chatFontVars";
 import { getChildTimelineEntriesStoreSelector } from "../../chatPaneSelectors";
 import type { TurnTiming } from "../../ChatTurnElapsed";
-import { buildSubAgentProgressParts } from "./subAgentProgressMeta";
+import { buildSubAgentProgressParts, splitAgentTitleMeta } from "./subAgentProgressMeta";
 import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
 import { WorkflowOverlayBody } from "./WorkflowOverlayBody";
 import { parseWorkflowInfo } from "./workflowDisplay";
@@ -252,13 +252,8 @@ function resolveSubAgentHeader(
   isCrossagent: boolean,
   crossagentLabel: string,
 ): { title: string; description?: string } {
-  const separator = " — ";
-  const separatorIndex = fullTitle.indexOf(separator);
-  if (separatorIndex > 0) {
-    const title = fullTitle.slice(0, separatorIndex).trim();
-    const description = fullTitle.slice(separatorIndex + separator.length).trim();
-    if (title && description) return { title, description };
-  }
+  const split = splitAgentTitleMeta(fullTitle);
+  if (split.meta) return { title: split.title, description: split.meta };
 
   if (isCrossagent && payload?.name.includes(" · ")) {
     return { title: crossagentLabel, description: payload.name };

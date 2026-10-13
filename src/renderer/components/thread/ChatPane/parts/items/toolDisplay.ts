@@ -399,7 +399,7 @@ function formatAgentTitle(
   return subagent ? i18n._(msg`Agent: ${subagent}`) : i18n._(msg`Agent`);
 }
 
-function readSubAgentType(args: Record<string, unknown> | undefined): string | undefined {
+export function readSubAgentType(args: Record<string, unknown> | undefined): string | undefined {
   return readStr(args, "subagent_type", "agent_type", "agentType");
 }
 
