@@ -30,7 +30,7 @@ import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
 import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
+import { threadImageReadinessFor } from "../threadImageReadiness";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
@@ -126,11 +126,11 @@ export function ChatPane(props: ChatPaneProps) {
         )
       : undefined,
   );
-  const imageReadinessFor = useRemoteServersStore((state) => state.imageReadinessFor);
-  const desktopImageReadiness =
-    remoteImageServer && thread.remoteServerId && !isRemoteSession()
-      ? imageReadinessFor(thread.remoteServerId)
-      : undefined;
+  const contentImageReadiness = threadImageReadinessFor(
+    thread,
+    managedImageSession,
+    browserImageReadiness,
+  );
   const isRemoteThread = thread.remoteServerId !== undefined;
   const hasValidRemoteServerId =
     typeof thread.remoteServerId === "string" && thread.remoteServerId.length > 0;
@@ -202,17 +202,6 @@ export function ChatPane(props: ChatPaneProps) {
   }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
-    const contentImageReadiness = isRemoteSession()
-      ? isRemoteThread
-        ? hasValidRemoteServerId
-          ? (environmentImageReadinessFor(thread.remoteServerId!) ?? browserImageReadiness)
-          : undefined
-        : browserImageReadiness
-      : isRemoteThread
-        ? desktopImageReadiness
-        : isManagedThread
-          ? managedImageSession?.readiness
-          : undefined;
     const contentActions: ChatPaneActions = {
       threadId,
       // Image custody is independent of project/file actions, including Home.
@@ -296,8 +285,7 @@ export function ChatPane(props: ChatPaneProps) {
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
     thread.remoteServerId,
-    browserImageReadiness,
-    desktopImageReadiness,
+    contentImageReadiness,
     isManagedThread,
     isRemoteThread,
     managedImageSession,

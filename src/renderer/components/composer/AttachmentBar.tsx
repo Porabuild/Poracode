@@ -10,6 +10,7 @@ import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
 import { useRemoteImagePathUrl } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
+import { useImageViewportPriority } from "@/renderer/components/common/useImageViewportPriority";
 
 /**
  * Enabled-MCP indicator, parameterized by a {@link ComposerMcpServerDescriptor}
@@ -130,15 +131,25 @@ function AttachmentImage(props: {
 }) {
   const { attachment, imageUrlForPath, readiness, className, alt } = props;
   const usesHostPath = attachment.isImage && attachment.previewUrl === undefined;
+  const activeReadiness = usesHostPath ? readiness : undefined;
+  const { viewportRef, priority } = useImageViewportPriority(activeReadiness !== undefined);
   const url = useRemoteImagePathUrl(
     usesHostPath ? attachment.path : undefined,
-    usesHostPath ? readiness : undefined,
-    attachmentImageUrl(attachment, imageUrlForPath),
+    activeReadiness,
+    activeReadiness ? "" : attachmentImageUrl(attachment, imageUrlForPath),
+    priority,
   );
   return url ? (
-    <img className={className} src={url} alt={alt} decoding="async" draggable={false} />
+    <img
+      ref={viewportRef}
+      className={className}
+      src={url}
+      alt={alt}
+      decoding="async"
+      draggable={false}
+    />
   ) : (
-    <Skeleton className={className} role="img" aria-label={alt} />
+    <Skeleton ref={viewportRef} className={className} role="img" aria-label={alt} />
   );
 }
 

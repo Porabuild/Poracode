@@ -26,11 +26,12 @@ import {
  *   from an effect, keeping `getSnapshot` pure.
  *
  * Bounds and lifecycle, all pinned by tests:
- * - Real LRU by coordinate count and unique resource bytes: a request/subscription moves
- *   the entry to the most-recently-used position, and eviction takes the
- *   least-recently-used evictable entry.
+ * - LRU by coordinate count and unique resource bytes within each priority.
+ *   Foreground requests/subscriptions refresh recency; background gallery
+ *   enumeration never displaces admitted work merely to enqueue more keys.
  * - Fetch concurrency is bounded (`maxConcurrentFetches`): excess keys wait in
- *   a FIFO queue, so the transient retained model is
+ *   a FIFO queue within each priority, with mounted consumers first, so the
+ *   transient retained model is
  *   `maxBytes` (unique encoded resources, including comparison pins) +
  *   `maxConcurrentFetches x per-fetch cap` (in-flight byte arrays) + one
  *   bounded comparison slice + queue metadata. A queued entry retains no bytes.
@@ -41,8 +42,10 @@ import {
  * - An eviction or a failure latches the key for the retry window and
  *   notifies once, so a visible-but-over-budget or failing image cannot drive
  *   a blind refetch loop; the latch expiry notifies and allows exactly one
- *   retry. A single image larger than the aggregate byte budget is latched
- *   permanently ("oversized"): it can never fit, so it is never refetched.
+ *   retry. Foreground demand can bypass a background eviction's latch, while
+ *   genuine failures retain their backoff. A single image larger than the
+ *   aggregate byte budget is latched permanently ("oversized"): it can never
+ *   fit, so it is never refetched.
  * - Eviction and dispose revoke every object URL and abort in-flight fetches;
  *   a late completion from a replaced/evicted generation is dropped and its
  *   object URL (if any) revoked.
@@ -60,6 +63,9 @@ export const ENVIRONMENT_IMAGE_CACHE_MAX_BYTES = 64 * 1024 * 1024;
 export const ENVIRONMENT_IMAGE_RETRY_WINDOW_MS = 15_000;
 /** Concurrent authenticated image fetches; queued keys retain no bytes. */
 export const ENVIRONMENT_IMAGE_MAX_CONCURRENT_FETCHES = 4;
+
+/** Instance-local scheduling; persisted references and wire formats stay valid. */
+export type EnvironmentImagePriority = "foreground" | "background";
 
 /** Missing-key snapshots are cached to keep `getSnapshot` identity stable. */
 const MISSING_SNAPSHOT_LIMIT = 256;
@@ -104,6 +110,7 @@ type ImageEntryStatus = "queued" | "pending" | "ready" | "failed" | "oversized";
 
 interface ImageCacheEntry {
   requestPath: string;
+  priority: EnvironmentImagePriority;
   status: ImageEntryStatus;
   controller: AbortController | undefined;
   resource: EnvironmentImageBlobResource | undefined;
@@ -115,6 +122,7 @@ interface ImageCacheEntry {
 
 interface EvictionLatch {
   readonly requestPath: string;
+  readonly priority: EnvironmentImagePriority;
   readonly retryAtMs: number;
   readonly retryTimer: ReturnType<typeof setTimeout>;
 }
@@ -130,6 +138,7 @@ export class RemoteEnvironmentImageCache {
   private readonly entries = new Map<string, ImageCacheEntry>();
   private readonly latches = new Map<string, EvictionLatch>();
   private readonly listeners = new Map<string, Set<() => void>>();
+  private readonly foregroundSubscriptions = new Map<string, number>();
   private readonly missingSnapshots = new Map<string, RemoteEnvironmentImageResolution>();
   /** Includes evicted/aborted jobs until their fetch and admission finally settle. */
   private readonly jobs = new Set<AbortController>();
@@ -160,15 +169,22 @@ export class RemoteEnvironmentImageCache {
    * Side-effecting request entry point: starts (or retries) the fetch for a
    * host-held reference and returns the current snapshot.
    */
-  imageRefResolution(ref: RemoteImageRefValue): RemoteEnvironmentImageResolution {
-    return this.requestResolution(environmentImageRefKey(ref), remoteImageRefPath(ref));
+  imageRefResolution(
+    ref: RemoteImageRefValue,
+    priority: EnvironmentImagePriority = "foreground",
+  ): RemoteEnvironmentImageResolution {
+    return this.requestResolution(environmentImageRefKey(ref), remoteImageRefPath(ref), priority);
   }
 
   /** Side-effecting request entry point for an absolute host path. */
-  localImageResolution(absolutePath: string): RemoteEnvironmentImageResolution {
+  localImageResolution(
+    absolutePath: string,
+    priority: EnvironmentImagePriority = "foreground",
+  ): RemoteEnvironmentImageResolution {
     return this.requestResolution(
       environmentLocalImageKey(absolutePath),
       localImageRequestPath(absolutePath),
+      priority,
     );
   }
 
@@ -195,6 +211,7 @@ export class RemoteEnvironmentImageCache {
     const controller = new AbortController();
     const entry: ImageCacheEntry = {
       requestPath: localImageRequestPath(absolutePath),
+      priority: "foreground",
       status: "pending",
       controller,
       resource: undefined,
@@ -222,15 +239,36 @@ export class RemoteEnvironmentImageCache {
    * Keyed subscription for one resolution key. Listeners fire on the state
    * transitions above and never on a repeat resolution of unchanged state.
    */
-  subscribeImageKey(key: string, listener: () => void): () => void {
-    this.touch(key);
+  subscribeImageKey(
+    key: string,
+    listener: () => void,
+    priority: EnvironmentImagePriority = "foreground",
+  ): () => void {
+    if (priority === "foreground") {
+      this.foregroundSubscriptions.set(key, (this.foregroundSubscriptions.get(key) ?? 0) + 1);
+      const entry = this.entries.get(key);
+      if (entry) entry.priority = priority;
+      this.touch(key);
+    }
     let listeners = this.listeners.get(key);
     if (!listeners) {
       listeners = new Set();
       this.listeners.set(key, listeners);
     }
     listeners.add(listener);
+    let subscribed = true;
     return () => {
+      if (!subscribed) return;
+      subscribed = false;
+      if (priority === "foreground") {
+        const count = (this.foregroundSubscriptions.get(key) ?? 1) - 1;
+        if (count > 0) this.foregroundSubscriptions.set(key, count);
+        else {
+          this.foregroundSubscriptions.delete(key);
+          const entry = this.entries.get(key);
+          if (entry) entry.priority = "background";
+        }
+      }
       const current = this.listeners.get(key);
       if (!current) return;
       current.delete(listener);
@@ -249,20 +287,41 @@ export class RemoteEnvironmentImageCache {
     for (const latch of this.latches.values()) clearTimeout(latch.retryTimer);
     this.latches.clear();
     this.listeners.clear();
+    this.foregroundSubscriptions.clear();
     this.missingSnapshots.clear();
   }
 
-  private requestResolution(key: string, requestPath: string): RemoteEnvironmentImageResolution {
+  private requestResolution(
+    key: string,
+    requestPath: string,
+    requestedPriority: EnvironmentImagePriority,
+  ): RemoteEnvironmentImageResolution {
     if (this.disposed) return this.missingSnapshot(key);
-    this.touch(key);
+    const priority = this.foregroundSubscriptions.has(key) ? "foreground" : requestedPriority;
+    if (priority === "foreground") this.touch(key);
     const latch = this.latches.get(key);
     if (latch) {
-      if (Date.now() < latch.retryAtMs) return this.missingSnapshot(key);
+      if (
+        Date.now() < latch.retryAtMs &&
+        !(priority === "foreground" && latch.priority === "background")
+      )
+        return this.missingSnapshot(key);
       this.clearLatch(key);
     }
     const entry = this.entries.get(key);
-    if (entry) return this.requestEntry(key, entry);
-    return this.startOrQueue(key, requestPath).snapshot;
+    if (entry) {
+      if (priority === "foreground") entry.priority = priority;
+      return this.requestEntry(key, entry);
+    }
+    // A gallery can enumerate more coordinates than fit in the cache. Refuse
+    // speculative work at capacity instead of evicting and aborting the images
+    // that enumeration just requested. A mounted row can still request any key.
+    if (
+      priority === "background" &&
+      (this.entries.size >= this.maxEntries || this.blobs.totalBytes >= this.maxBytes)
+    )
+      return this.missingSnapshot(key);
+    return this.startOrQueue(key, requestPath, priority).snapshot;
   }
 
   /** Retry policy for an existing entry: only a lapsed failure is restarted. */
@@ -279,9 +338,14 @@ export class RemoteEnvironmentImageCache {
     return entry.snapshot;
   }
 
-  private startOrQueue(key: string, requestPath: string): ImageCacheEntry {
+  private startOrQueue(
+    key: string,
+    requestPath: string,
+    priority: EnvironmentImagePriority,
+  ): ImageCacheEntry {
     const entry: ImageCacheEntry = {
       requestPath,
+      priority,
       status: "queued",
       controller: undefined,
       resource: undefined,
@@ -296,18 +360,22 @@ export class RemoteEnvironmentImageCache {
     return entry;
   }
 
-  /** Starts queued work while a fetch slot is free, oldest queue entry first. */
+  /** Mounted consumers go first; FIFO order is preserved within each priority. */
   private pump(): void {
     if (this.disposed) return;
     while (!this.disposed && this.jobs.size < this.maxConcurrentFetches) {
-      let started = false;
+      let candidate: [string, ImageCacheEntry] | undefined;
       for (const [key, entry] of this.entries) {
         if (entry.status !== "queued") continue;
-        this.startFetch(key, entry, entry.requestPath);
-        started = true;
-        break;
+        candidate ??= [key, entry];
+        if (entry.priority === "foreground") {
+          candidate = [key, entry];
+          break;
+        }
       }
-      if (!started) return;
+      if (!candidate) return;
+      const [key, entry] = candidate;
+      this.startFetch(key, entry, entry.requestPath);
     }
   }
 
@@ -378,6 +446,15 @@ export class RemoteEnvironmentImageCache {
     entry.resource = resource;
     entry.controller = undefined;
     entry.snapshot = snapshotFor(key, resource.url, false);
+    // A speculative response whose actual bytes do not fit must not displace
+    // images already in use. Foreground requests retain the ordinary LRU gate.
+    if (entry.priority === "background" && this.blobs.totalBytes > this.maxBytes) {
+      this.entries.delete(key);
+      this.release(entry);
+      this.setLatch(key, entry.requestPath, "background");
+      this.notify(key);
+      return;
+    }
     this.touch(key);
     this.trim();
     if (this.isCurrent(key, entry)) this.notify(key);
@@ -445,7 +522,12 @@ export class RemoteEnvironmentImageCache {
       this.entries.delete(key);
       this.release(entry);
       if (this.disposed) return;
-      if (latched) this.setLatch(key, entry.requestPath);
+      if (latched)
+        this.setLatch(
+          key,
+          entry.requestPath,
+          entry.status === "failed" ? "foreground" : entry.priority,
+        );
       this.notify(key);
     }
   }
@@ -453,19 +535,23 @@ export class RemoteEnvironmentImageCache {
   /**
    * Least-recently-used eviction candidate. Permanently-latched oversized
    * entries are never evicted (they hold no bytes and can never refetch);
-   * every other entry, including an in-flight one, is fair game in LRU order.
+   * background entries yield to mounted consumers. Each priority remains LRU.
    */
   private evictionCandidate(): [string, ImageCacheEntry] | undefined {
+    let foreground: [string, ImageCacheEntry] | undefined;
     for (const [key, entry] of this.entries) {
-      if (entry.status !== "oversized") return [key, entry];
+      if (entry.status === "oversized") continue;
+      if (entry.priority === "background") return [key, entry];
+      foreground ??= [key, entry];
     }
-    return undefined;
+    return foreground;
   }
 
-  private setLatch(key: string, requestPath: string): void {
+  private setLatch(key: string, requestPath: string, priority: EnvironmentImagePriority): void {
     this.clearLatch(key);
     const latch: EvictionLatch = {
       requestPath,
+      priority,
       retryAtMs: Date.now() + this.retryWindowMs,
       retryTimer: setTimeout(() => {
         this.latches.delete(key);

@@ -70,9 +70,13 @@ export const AssistantMessage = memo(function AssistantMessage({
       (payload?.content ?? [])
         .filter((b) => b.kind === "image")
         .map((b) =>
-          imageViewSourceFromImageBlock(b, actions?.remoteImageRefUrl, {
-            pendingAsPlaceholder: actions?.remoteImageReadiness !== undefined,
-          }),
+          imageViewSourceFromImageBlock(
+            b,
+            actions?.remoteImageReadiness?.resolveRef ?? actions?.remoteImageRefUrl,
+            {
+              pendingAsPlaceholder: actions?.remoteImageReadiness !== undefined,
+            },
+          ),
         )
         .filter((s): s is NonNullable<typeof s> => s !== null),
     [actions?.remoteImageRefUrl, actions?.remoteImageReadiness, payload?.content],

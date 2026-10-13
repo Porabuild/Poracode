@@ -3,13 +3,12 @@ import {
   environmentImageRefKey,
   environmentLocalImageKey,
 } from "@/shared/remote/clientEnvironmentImages";
-import { isRemoteSession } from "@/renderer/bridge";
 import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
 import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
+import { threadImageReadinessFor } from "./threadImageReadiness";
 import { i18n as i18nSingleton } from "@/renderer/i18n/i18n";
 import {
   openImageLightbox,
@@ -158,19 +157,11 @@ export function useThreadGalleryImages(
     // Re-resolve the readiness surface at effect time: it is bound to the live
     // session, and a real environment-client rebuild is picked up by the
     // subscription itself (which rebinds mounted listeners).
-    const readiness = isRemoteSession()
-      ? remoteServerId !== undefined
-        ? typeof remoteServerId === "string" && remoteServerId.length > 0
-          ? (environmentImageReadinessFor(remoteServerId) ?? browserImageReadiness)
-          : undefined
-        : browserImageReadiness
-      : remoteServerId !== undefined
-        ? remoteServerRecord
-          ? imageReadinessFor(remoteServerId)
-          : undefined
-        : isManagedThread
-          ? managedImageSession?.readiness
-          : undefined;
+    const readiness = threadImageReadinessFor(
+      useAppStore.getState().threads.find((candidate) => candidate.id === threadId),
+      managedImageSession,
+      browserImageReadiness,
+    );
     if (!readiness) return;
     const refs = pendingRefsRef.current;
     const paths = pendingPathsRef.current;
@@ -179,13 +170,15 @@ export function useThreadGalleryImages(
       setReadinessRevision((revision) => revision + 1);
     };
     const unsubscribes = [
-      ...readyRefsRef.current.map((ref) => readiness.subscribeRef(ref, onTransition)),
-      ...readyPathsRef.current.map((path) => readiness.subscribePath(path, onTransition)),
-      ...refs.map((ref) => readiness.subscribeRef(ref, onTransition)),
-      ...paths.map((path) => readiness.subscribePath(path, onTransition)),
+      ...readyRefsRef.current.map((ref) => readiness.subscribeRef(ref, onTransition, "background")),
+      ...readyPathsRef.current.map((path) =>
+        readiness.subscribePath(path, onTransition, "background"),
+      ),
+      ...refs.map((ref) => readiness.subscribeRef(ref, onTransition, "background")),
+      ...paths.map((path) => readiness.subscribePath(path, onTransition, "background")),
     ];
-    for (const ref of refs) readiness.requestRef(ref);
-    for (const path of paths) readiness.requestPath(path);
+    for (const ref of refs) readiness.requestRef(ref, "background");
+    for (const path of paths) readiness.requestPath(path, "background");
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
@@ -194,6 +187,7 @@ export function useThreadGalleryImages(
     remoteServerId,
     pendingKey,
     readinessKey,
+    readinessRevision,
     browserImageReadiness,
     imageReadinessFor,
     remoteServerRecord,

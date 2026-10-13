@@ -3,6 +3,7 @@ import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { useRemoteImageRefUrl } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 import { ImageCard } from "./ImageCard";
 import type { ImageViewSource } from "./imageViewSource";
+import { useImageViewportPriority } from "@/renderer/components/common/useImageViewportPriority";
 
 /**
  * `ImageCard` with keyed environment readiness (R3). When the source is a
@@ -18,7 +19,10 @@ export function RemoteImageCard(props: {
 }) {
   const readiness = useChatPaneActions()?.remoteImageReadiness;
   const ref: RemoteImageRefValue | undefined = props.source.remoteRef;
-  const url = useRemoteImageRefUrl(ref, readiness, props.source.src);
+  const { viewportRef, priority } = useImageViewportPriority(
+    ref !== undefined && readiness !== undefined,
+  );
+  const url = useRemoteImageRefUrl(ref, readiness, props.source.src, priority);
   const source: ImageViewSource =
     url === props.source.src
       ? props.source
@@ -26,6 +30,7 @@ export function RemoteImageCard(props: {
   return (
     <ImageCard
       source={source}
+      viewportRef={viewportRef}
       {...(props.className !== undefined ? { className: props.className } : {})}
       {...(props.imageClassName !== undefined ? { imageClassName: props.imageClassName } : {})}
       {...(props.isBlock !== undefined ? { isBlock: props.isBlock } : {})}

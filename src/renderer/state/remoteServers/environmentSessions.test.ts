@@ -492,6 +492,37 @@ describe("environmentSessions", () => {
       `http://127.0.0.1:49153/api/environments/${ENVIRONMENT_ID}/proxy/`,
     );
   });
+
+  it("preserves background image demand across an environment client rebuild", () => {
+    const h = setup([parentRecord(), environmentRecord()]);
+    const readiness = environmentImageReadinessFor(CHILD_KEY)!;
+    const listener = vi.fn<() => void>();
+    const leaveRef = readiness.subscribeRef(IMAGE_REF, listener, "background");
+    const leavePath = readiness.subscribePath("/tmp/gallery.png", listener, "background");
+    readiness.requestRef(IMAGE_REF, "background");
+    readiness.requestPath("/tmp/gallery.png", "background");
+    const first = h.environmentClients[0]!.client;
+    expect(first.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background");
+    expect(first.localImageResolution).toHaveBeenCalledWith("/tmp/gallery.png", "background");
+    expect(first.subscribeImageKey).toHaveBeenCalledWith(
+      environmentImageRefKey(IMAGE_REF),
+      listener,
+      "background",
+    );
+
+    h.state.servers = [parentRecord(), environmentRecord({ accessToken: "repaired-child" })];
+    readiness.resolveRef(IMAGE_REF);
+    const replacement = h.environmentClients[1]!.client;
+    expect(replacement.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background");
+    expect(replacement.localImageResolution).toHaveBeenCalledWith("/tmp/gallery.png", "background");
+    expect(replacement.subscribeImageKey).toHaveBeenCalledWith(
+      environmentImageRefKey(IMAGE_REF),
+      listener,
+      "background",
+    );
+    leaveRef();
+    leavePath();
+  });
 });
 
 describe("persisted parent session lifecycle", () => {

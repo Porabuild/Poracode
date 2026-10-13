@@ -1,7 +1,7 @@
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Copy, Download, Maximize2 } from "lucide-react";
-import { memo, useState, type ReactNode } from "react";
+import { memo, useState, type ReactNode, type Ref } from "react";
 import { fetchImageBytes, toClipboardPngBytes } from "@/renderer/utils/imageActions";
 import { readBridge } from "@/renderer/bridge";
 import { openImageLightbox } from "@/renderer/components/composer/ImageLightbox";
@@ -19,6 +19,7 @@ interface ImageCardProps {
   className?: string;
   imageClassName?: string;
   isBlock?: boolean;
+  viewportRef?: Ref<HTMLSpanElement>;
 }
 
 /**
@@ -30,6 +31,7 @@ export const ImageCard = memo(function ImageCard({
   className,
   imageClassName,
   isBlock = false,
+  viewportRef,
 }: ImageCardProps) {
   const { t } = useLingui();
   const imageAlt = source.alt || t`Image`;
@@ -74,6 +76,7 @@ export const ImageCard = memo(function ImageCard({
 
   return (
     <span
+      ref={viewportRef}
       className={`poracode-image-card relative self-start ${isBlock ? "flex w-fit" : "inline-flex"} max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]${className ? ` ${className}` : ""}`}
       data-poracode-image-card="true"
     >
