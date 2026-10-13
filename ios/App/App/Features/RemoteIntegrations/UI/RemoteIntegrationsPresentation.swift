@@ -19,6 +19,10 @@ enum RemoteIntegrationsPresentation {
     case .running: RemoteIntegrationsStrings.running
     case .succeeded: RemoteIntegrationsStrings.succeeded
     case .failed: RemoteIntegrationsStrings.failed
+    case .waiting: RemoteAutomationsStrings.waiting
+    case .cancelled: RemoteAutomationsStrings.cancelled
+    case .skipped: RemoteAutomationsStrings.skipped
+    case .interrupted: RemoteAutomationsStrings.interrupted
     }
   }
 
@@ -27,6 +31,9 @@ enum RemoteIntegrationsPresentation {
     case .running: RemoteIntegrationsStrings.running
     case .succeeded: RemoteIntegrationsStrings.succeeded
     case .failed: RemoteIntegrationsStrings.failed
+    case .waiting: RemoteAutomationsStrings.waiting
+    case .cancelled: RemoteAutomationsStrings.cancelled
+    case .skipped: RemoteAutomationsStrings.skipped
     case .interrupted: RemoteIntegrationsStrings.interrupted
     }
   }
@@ -34,12 +41,16 @@ enum RemoteIntegrationsPresentation {
   static func recurrence(_ recurrence: RemoteIntegrationsScheduleRecurrence) -> String {
     switch recurrence {
     case .hourly(let minute): return RemoteIntegrationsStrings.minuteValue(minute)
-    case .weekly(let days, let time):
+    case .weekly(let days, let time, let zone):
       let symbols = Calendar.current.shortWeekdaySymbols
       let labels = days.compactMap { symbols.indices.contains($0) ? symbols[$0] : nil }
-      return labels.isEmpty ? time : "\(labels.joined(separator: ", ")) · \(time)"
+      return (labels.isEmpty ? time : "\(labels.joined(separator: ", ")) · \(time)") + (zone.map { " · \($0)" } ?? "")
     case .once(let runAt):
       return formattedDate(runAt) ?? RemoteIntegrationsStrings.once
+    case .interval(let every, let unit):
+      let label = unit == "minutes" ? RemoteAutomationsStrings.minutes : unit == "hours" ? RemoteAutomationsStrings.hours : RemoteAutomationsStrings.days
+      return "\(RemoteAutomationsStrings.every) \(every) \(label.lowercased())"
+    case .cron(let expression, let zone): return "\(expression) · \(zone)"
     }
   }
 

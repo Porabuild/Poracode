@@ -1,5 +1,5 @@
 // Focused regression for the managed `clientProcedureInvoke` ingress at hop
-// 17: the renderer-supplied envelope's declared version is asserted BEFORE any
+// 18: the renderer-supplied envelope's declared version is asserted BEFORE any
 // payload parse or dispatch (missing/previous/future/malformed all reject
 // typed with zero handler and supervisor effects), shape/name/args validation
 // keeps the existing patterns, a valid current-version envelope dispatches
@@ -68,7 +68,7 @@ function expectZeroEffects(): void {
   expect(callSupervisor).not.toHaveBeenCalled();
 }
 
-describe("managed clientProcedureInvoke ingress (hop 17 envelope)", () => {
+describe("managed clientProcedureInvoke ingress (hop 18 envelope)", () => {
   beforeEach(() => {
     electron.handlers.clear();
     getUpdateStatus.mockClear();
@@ -125,18 +125,18 @@ describe("managed clientProcedureInvoke ingress (hop 17 envelope)", () => {
 
   it("rejects a future envelope typed with zero effects", async () => {
     const caught = await catchIngress({
-      ipcProcedureMapVersion: 18,
+      ipcProcedureMapVersion: 19,
       name: "getUpdateStatus",
       args: [],
     });
     expect(caught).toBeInstanceOf(IpcProcedureMapVersionError);
-    expect((caught as IpcProcedureMapVersionError).peerVersion).toBe(18);
+    expect((caught as IpcProcedureMapVersionError).peerVersion).toBe(19);
     expectZeroEffects();
   });
 
   it("rejects a malformed version declaration typed with zero effects", async () => {
     const caught = await catchIngress({
-      ipcProcedureMapVersion: "17",
+      ipcProcedureMapVersion: "18",
       name: "getUpdateStatus",
       args: [],
     });
@@ -157,7 +157,7 @@ describe("managed clientProcedureInvoke ingress (hop 17 envelope)", () => {
 
   it("rejects an unknown name at the current version as a shape error with zero effects", async () => {
     const caught = await catchIngress({
-      ipcProcedureMapVersion: 17,
+      ipcProcedureMapVersion: 18,
       name: "noSuchProcedure",
       args: [],
     });
@@ -168,7 +168,7 @@ describe("managed clientProcedureInvoke ingress (hop 17 envelope)", () => {
 
   it("rejects non-array args at the current version as a shape error with zero effects", async () => {
     await expect(
-      invokeIngress({ ipcProcedureMapVersion: 17, name: "getUpdateStatus", args: "nope" }),
+      invokeIngress({ ipcProcedureMapVersion: 18, name: "getUpdateStatus", args: "nope" }),
     ).rejects.toThrow("Invalid client procedure request.");
     expectZeroEffects();
   });

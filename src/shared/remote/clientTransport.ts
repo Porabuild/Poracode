@@ -282,7 +282,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     if (this.accessToken) {
       headers.authorization = `Bearer ${this.accessToken}`;
       // Fence 1 (remote 13): the current TS producer declares the writer
-      // generation on every authenticated non-GET request — including the
+      // generation on every authenticated request — including the
       // post-refresh retry, which rebuilds headers through this same block.
       // The compiled constant is the only source: a caller-supplied stale
       // value is replaced here (this producer is the only thing that may
@@ -290,9 +290,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
       // consulted — the host classifies by route/procedure scope, not client
       // intent. Auth-free calls (pairing/refresh exchange before a token
       // exists) carry no header, mirroring the host's auth-free exemptions.
-      if (method !== "GET") {
-        headers[REMOTE_PROTOCOL_VERSION_HEADER] = REMOTE_PROTOCOL_VERSION_HEADER_VALUE;
-      }
+      headers[REMOTE_PROTOCOL_VERSION_HEADER] = REMOTE_PROTOCOL_VERSION_HEADER_VALUE;
     }
     const cached = method === "GET" ? this.etagCache.get(path) : undefined;
     if (cached) {

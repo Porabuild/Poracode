@@ -108,7 +108,7 @@ per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
 version is 13. The inventory describes:
 
-- 97 HTTP routes;
+- 100 HTTP routes;
 - 130 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
@@ -118,7 +118,7 @@ extra, or stale generated artifacts, including a hand-edited manifest.
 
 The generated inventory carries separate compatibility identities:
 
-- wire `protocolVersion` (currently 13);
+- wire `protocolVersion` (currently 14);
 - generator and binding-format versions (binding format currently 2); and
 - hashes of the source contract and manifest.
 

@@ -48,6 +48,7 @@ const RUNTIME_DEPS = [
   "@sentry/electron",
   "@sentry/node",
   "better-sqlite3",
+  "cron-parser",
   "json5",
   "jsonc-parser",
   "micromatch",

@@ -771,6 +771,10 @@ msgstr "~/.config/devin/config.json"
 msgid "≈{0}% by reset"
 msgstr "재설정 시 ≈{0}%"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "0 9 * * 1-5"
+msgstr "0 9 * * 1-5"
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 #~ msgid "1 project"
 #~ msgstr "프로젝트 1개"
@@ -824,6 +828,10 @@ msgstr "화면이 잠기면 데스크톱 제어가 모두 중단되므로 컴퓨
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "메시지 삭제를 확인하지 못했습니다. 새로고침하여 이 대화를 다시 동기화하세요."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "A missed run was skipped."
+msgstr "놓친 실행을 건너뛰었습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
@@ -1350,6 +1358,10 @@ msgstr "agy CLI"
 msgid "AI agent orchestrator — manage coding agents via Terminal and Native ACP."
 msgstr "AI 에이전트 오케스트레이터 — 터미널 및 기본 ACP를 통해 코딩 에이전트를 관리합니다."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "AI completion check"
+msgstr "AI 완료 확인"
+
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "AI git 작업"
@@ -1371,6 +1383,10 @@ msgstr "AI 심사"
 msgid "AI providers"
 msgstr "AI 공급자"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "AI stop condition"
+msgstr "AI 중지 조건"
+
 #: src/mobile/views/MoreView.tsx
 #~ msgid "AI, agents, and archived threads on the paired desktop"
 #~ msgstr "페어링된 데스크톱의 AI, 에이전트 및 보관된 스레드"
@@ -1383,6 +1399,7 @@ msgstr "스레드에 응답이 필요할 때 알림"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -1535,6 +1552,10 @@ msgstr "예상 작업 트리 소유자에는 브랜치가 필요합니다"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "An MCP server with this name already exists."
 msgstr "이 이름의 MCP 서버가 이미 있습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another automation is already using this conversation."
+msgstr "다른 자동화가 이미 이 대화를 사용 중입니다."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
@@ -1691,6 +1712,10 @@ msgstr "모두 보관"
 msgid "Archive done threads"
 msgstr "완료된 스레드 보관"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Archive result"
+msgstr "결과 보관"
+
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #: src/renderer/components/providers/devin/sessionArchiveControl.tsx
@@ -1713,6 +1738,10 @@ msgstr "스레드 보관"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Archive Thread"
 msgstr "아카이브 스레드"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Archived"
+msgstr "보관됨"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Archived at {archivedTime}"
@@ -1815,6 +1844,12 @@ msgstr "브라우저 선택 항목을 첨부했습니다."
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Attempt"
 msgstr "시도"
+
+#. placeholder {0}: run.attempt ?? 1
+#. placeholder {1}: run.iteration ?? 1
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Attempt {0} · Iteration {1}"
+msgstr "시도 {0} · 반복 {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -1970,6 +2005,10 @@ msgstr "자동화가 일시 중지되었습니다: 이 PR의 브랜치를 체크
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
 #~ msgstr "자동화가 일시 중지되었습니다: 이 PR의 브랜치를 체크아웃할 수 없습니다. 모드를 다시 선택해 재시도하세요."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Automation sections"
+msgstr "자동화 섹션"
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Autopilot"
@@ -2414,6 +2453,10 @@ msgstr "브랜치 보호 규칙 우회(관리자 병합)"
 #~ msgid "Cached only"
 #~ msgstr "캐시만 있음"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Calculated on desktop after saving"
+msgstr "저장 후 데스크톱에서 계산됨"
+
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "카메라 접근이 차단됨"
@@ -2496,6 +2539,10 @@ msgstr "선택기 취소"
 msgid "Cancel removing project"
 msgstr "프로젝트 제거 취소"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Cancel run"
+msgstr "실행 취소"
+
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
 msgstr "음성 연결 취소"
@@ -2514,6 +2561,7 @@ msgstr "취소됨"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Cancelled"
 msgstr "취소됨"
 
@@ -2569,6 +2617,10 @@ msgstr "단축키 변경"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "사용자 변경"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Changed files"
+msgstr "변경된 파일"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -2765,6 +2817,10 @@ msgstr "프로젝트 아이콘 이미지 선택"
 msgid "Choose a saved credential to sign out."
 msgstr "로그아웃할 저장된 인증 정보를 선택하세요."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Choose an available conversation in this project."
+msgstr "이 프로젝트에서 사용 가능한 대화를 선택하세요."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose an image inside the project folder."
 msgstr "프로젝트 폴더 내의 이미지를 선택하세요."
@@ -2835,6 +2891,10 @@ msgstr "새 클라우드 채팅의 작업 영역을 선택하세요. 기존 클�
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "첨부할 스레드를 선택하세요."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Choose what happens after a scheduled time was missed."
+msgstr "예약된 시간을 놓쳤을 때 수행할 작업을 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3021,6 +3081,7 @@ msgstr "복제 중…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "닫기"
@@ -3549,6 +3610,22 @@ msgstr "완료"
 msgid "Completed"
 msgstr "완료됨"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Completion condition not confirmed"
+msgstr "완료 조건이 확인되지 않음"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Completion condition reached"
+msgstr "완료 조건 충족"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Completion evaluation failed: {detail}"
+msgstr "완료 평가 실패: {detail}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Completion evaluation is unavailable."
+msgstr "완료 평가를 사용할 수 없습니다."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -3615,6 +3692,19 @@ msgstr "컴퓨터 사용이 활성화되었습니다 — 에이전트는 데스�
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Computing changes…"
 #~ msgstr "변경 사항 계산 중…"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Confidence"
+msgstr "신뢰도"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Confidence percent"
+msgstr "신뢰도 백분율"
+
+#. placeholder {0}: new Intl.NumberFormat(i18n.locale, { style: "percent" }).format( evaluation.confidence, )
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Confidence: {0}"
+msgstr "신뢰도: {0}"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -3867,6 +3957,10 @@ msgstr "다음에서 계속..."
 #~ msgid "Continue on the desktop address"
 #~ msgstr "데스크톱 주소에서 계속"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Continue one conversation until a stop condition or limit is reached."
+msgstr "중지 조건이나 제한에 도달할 때까지 하나의 대화를 계속합니다."
+
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Continue with incomplete history"
 msgstr "불완전한 기록으로 계속"
@@ -3887,6 +3981,10 @@ msgstr "외부 Chrome 브라우저를 제어합니다."
 msgid "Control desktop apps in the background and complete visual workflows."
 msgstr "데스크톱 앱을 백그라운드에서 조작하고 시각적 워크플로를 완료합니다."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Control how each scheduled run continues and stops."
+msgstr "예약된 각 실행이 계속되고 중지되는 방식을 제어합니다."
+
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
 msgstr "데스크톱을 제어합니다."
@@ -3901,6 +3999,7 @@ msgstr "@file 멘션 검색에 표시되는 파일을 제어합니다. 프로젝
 
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Conversation"
 msgstr "대화"
 
@@ -4333,6 +4432,20 @@ msgstr "자격 증명이 구성되었습니다."
 msgid "Credits"
 msgstr "크레딧"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Cron"
+msgstr "Cron"
+
+#. placeholder {0}: task.recurrence.expression
+#. placeholder {1}: task.recurrence.timeZone
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Cron {0} ({1})"
+msgstr "Cron {0} ({1})"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Cron expression"
+msgstr "Cron 식"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent"
@@ -4606,9 +4719,9 @@ msgstr "날짜"
 msgid "Date and time"
 msgstr "날짜 및 시간"
 
-#: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Days"
-#~ msgstr "요일"
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Days"
+msgstr "요일"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Decline"
@@ -4839,6 +4952,10 @@ msgstr "작업 트리 {0} 삭제"
 #~ msgid "Delete:"
 #~ msgstr "삭제:"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Deleted schedule"
+msgstr "삭제된 일정"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Deleting"
 msgstr "삭제 중"
@@ -4850,6 +4967,10 @@ msgstr "거부"
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Deny and tell the agent what to do differently…"
 msgstr "거부하고 에이전트에게 다르게 해야 할 일을 알려주세요…"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Describe the result that completes this heartbeat."
+msgstr "이 하트비트를 완료하는 결과를 설명하세요."
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "Describe the task to run with multiple agents…"
@@ -4879,6 +5000,10 @@ msgstr "데스크톱 엔드포인트"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Desktop is unreachable."
 #~ msgstr "데스크톱에 연결할 수 없습니다."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Desktop local time"
+msgstr "데스크톱 현지 시간"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
@@ -5104,6 +5229,10 @@ msgstr "프로젝트 비활성화"
 #: src/renderer/components/composer/composerMcpServers.ts
 #~ msgid "Disable Subagents"
 #~ msgstr "하위 에이전트 비활성화"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Disable the automation after retries are exhausted."
+msgstr "재시도 횟수를 모두 소진하면 자동화를 비활성화합니다."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
@@ -5653,6 +5782,10 @@ msgstr "100k에서 1m 사이의 크기를 입력하세요."
 msgid "Enter a size like 512k or 1m."
 msgstr "512k 또는 1m과 같은 크기를 입력하세요."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Enter a stop condition and a confidence between 0% and 100%."
+msgstr "중지 조건과 0%에서 100% 사이의 신뢰도를 입력하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Enter a theme name and valid hex colors in both palettes."
 msgstr "테마 이름과 두 팔레트의 유효한 16진수 색상을 입력하세요."
@@ -5672,6 +5805,10 @@ msgstr "유효한 HTTP 또는 HTTPS URL을 입력하세요."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid project name."
 msgstr "유효한 프로젝트 이름을 입력하세요."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Enter a valid schedule"
+msgstr "올바른 일정을 입력하세요"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Enter a valid SSH target and port."
@@ -5770,9 +5907,29 @@ msgstr "오류 · 에이전트에 오류가 발생했습니다."
 msgid "Errors"
 msgstr "오류"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Evaluate the result after every iteration."
+msgstr "각 반복 후 결과를 평가합니다."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
 msgstr "이벤트"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Every"
+msgstr "간격"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every {every} days"
+msgstr "{every}일마다"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every {every} hours"
+msgstr "{every}시간마다"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every {every} minutes"
+msgstr "{every}분마다"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
@@ -5800,6 +5957,14 @@ msgstr "동기화에서 제외"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "패턴 제외"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Execution"
+msgstr "실행"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Execution mode"
+msgstr "실행 모드"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Existing or edited native entry; left unchanged"
@@ -5978,6 +6143,10 @@ msgstr "실험은 프로젝트를 호스팅하는 머신에서 실행됩니다. 
 msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
 msgstr "과거 위임에서 기록된 명시적 선택으로, 위의 라우팅 순서에 반영됩니다. 태그를 편집하거나 항목을 제거하여 조정하세요."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Exponential backoff"
+msgstr "지수 백오프"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCP 서버 내보내기"
@@ -6022,7 +6191,8 @@ msgstr "실패"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
-#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Failed"
 msgstr "실패"
 
@@ -6252,6 +6422,10 @@ msgstr "diff에서 찾기"
 msgid "Find in terminal"
 msgstr "터미널에서 찾기"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Finding status"
+msgstr "발견 항목 상태"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "리뷰를 마무리하세요"
@@ -6360,6 +6534,10 @@ msgstr "에이전트에서 수정"
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Fixed"
 msgstr "수정됨"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Fixed delay"
+msgstr "고정 지연"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Flat list"
@@ -6851,6 +7029,26 @@ msgstr "보내지 않은 초안이 있습니다"
 msgid "Headers"
 msgstr "헤더"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeat"
+msgstr "하트비트"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Heartbeat automations require a native chat conversation."
+msgstr "하트비트 자동화에는 네이티브 채팅 대화가 필요합니다."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeat continues this conversation in the selected project."
+msgstr "하트비트는 선택한 프로젝트에서 이 대화를 계속합니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Heartbeat execution is unavailable."
+msgstr "하트비트 실행을 사용할 수 없습니다."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Heartbeats can continue making changes while you're away. Set hard limits below."
+msgstr "자리를 비운 동안에도 하트비트가 계속 변경할 수 있습니다. 아래에서 엄격한 제한을 설정하세요."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "일정 생성을 도와주세요. 누락된 세부 정보를 물어본 다음 Poracode 일정 제어를 사용하여 만들어 주세요."
@@ -7042,6 +7240,10 @@ msgstr "host.com, 별칭 또는 user@host.com"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hourly"
 msgstr "매시간"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Hours"
+msgstr "시간"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "HTTP (streamable)"
@@ -7257,6 +7459,14 @@ msgstr "비활성"
 msgid "Include in sync"
 msgstr "동기화에 포함"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Includes the first attempt."
+msgstr "첫 번째 시도를 포함합니다."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Info"
+msgstr "정보"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Information"
 msgstr "정보"
@@ -7274,6 +7484,14 @@ msgstr "물려받은"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Inheriting the global setting (currently {0})."
 msgstr "전역 설정 상속(현재 {0})"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Initial retry delay"
+msgstr "초기 재시도 지연"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Initial retry delay in seconds"
+msgstr "초기 재시도 지연(초)"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
@@ -7586,13 +7804,25 @@ msgstr "내부 명령 및 에이전트"
 #~ msgid "Interrupt"
 #~ msgstr "중단"
 
-#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Interrupted"
 msgstr "중단됨"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니다."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval"
+msgstr "간격"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval amount"
+msgstr "간격 값"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Interval unit"
+msgstr "간격 단위"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
@@ -7772,6 +8002,10 @@ msgstr "학습된 선택"
 msgid "Leave a comment"
 msgstr "댓글 남기기"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Leave blank for no run limit."
+msgstr "실행 횟수를 제한하지 않으려면 비워 두세요."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "비워 두면 저장소의 기본 브랜치를 사용합니다."
@@ -7879,6 +8113,10 @@ msgstr "실시간 음성을 사용하려면 이 제공업체의 구독 계정으
 msgid "Load installed fonts"
 msgstr "설치된 글꼴 불러오기"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Load older results"
+msgstr "이전 결과 불러오기"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7962,6 +8200,10 @@ msgstr "레지스트리 로드 중..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Loading remote access…"
 msgstr "원격 액세스 로드 중…"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Loading results"
+msgstr "결과 불러오는 중"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Loading scheduled tasks"
@@ -8276,6 +8518,14 @@ msgstr "완료로 표시"
 msgid "Mark as not done"
 msgstr "완료되지 않음으로 표시"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Mark as read"
+msgstr "읽음으로 표시"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Mark as unread"
+msgstr "읽지 않음으로 표시"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Mark done"
 msgstr "완료로 표시"
@@ -8351,10 +8601,30 @@ msgstr "최대화"
 msgid "Maximize browser"
 msgstr "브라우저 최대화"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum attempts"
+msgstr "최대 시도 횟수"
+
 #. placeholder {0}: property.maxLength
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Maximum characters: {0}"
 msgstr "최대 문자 수: {0}"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum iterations"
+msgstr "최대 반복 횟수"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum retry delay"
+msgstr "최대 재시도 지연"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Maximum retry delay in seconds"
+msgstr "최대 재시도 지연(초)"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Maximum retry delay must be at least the initial delay."
+msgstr "최대 재시도 대기 시간은 초기 대기 시간 이상이어야 합니다."
 
 #. placeholder {0}: property.maxItems
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
@@ -8665,6 +8935,18 @@ msgstr "최솟값: {0}"
 msgid "Minute"
 msgstr "분"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minute, hour, day of month, month, and weekday."
+msgstr "분, 시, 일, 월, 요일."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "minutes"
+msgstr "분"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minutes"
+msgstr "분"
+
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Mirrored desktop browser tab"
 #~ msgstr "미러링된 데스크톱 브라우저 탭"
@@ -8672,6 +8954,10 @@ msgstr "분"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Mirroring is unavailable."
 #~ msgstr "미러링을 사용할 수 없습니다."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Missed runs"
+msgstr "놓친 실행"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Mobile push notifications"
@@ -9239,6 +9525,10 @@ msgstr "다음 일치 항목"
 msgid "Next recently viewed chat"
 msgstr "최근 본 다음 채팅"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Next run"
+msgstr "다음 실행"
+
 #. placeholder {0}: dateTimeFormatter.format(new Date(task.nextRunAt))
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Next run {0}"
@@ -9316,6 +9606,10 @@ msgstr "설치된 에이전트가 없습니다."
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "아직 추적된 AI 커밋, PR, 충돌 해결이 없습니다."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No archived results."
+msgstr "보관된 결과가 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
@@ -9426,6 +9720,10 @@ msgstr "{0}에 대한 차이점이 없습니다."
 msgid "No diff for {visiblePath}"
 msgstr "{visiblePath}에는 차이가 없습니다."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No eligible conversations in this project."
+msgstr "이 프로젝트에 적합한 대화가 없습니다."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "No external skills were found in this scope."
 msgstr "이 범위에서 외부 스킬을 찾지 못했습니다."
@@ -9491,6 +9789,10 @@ msgstr "아직 학습된 선택이 없습니다."
 msgid "No Lightcode data was found."
 msgstr "Lightcode 데이터를 찾을 수 없습니다."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No limit"
+msgstr "제한 없음"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "이 필터와 일치하는 마켓플레이스 스킬이 없습니다."
@@ -9510,6 +9812,10 @@ msgstr "일치하는 에이전트가 없습니다."
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "No matching pull requests."
 msgstr "일치하는 풀 리퀘스트가 없습니다."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No matching results."
+msgstr "일치하는 결과가 없습니다."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
@@ -9666,6 +9972,14 @@ msgstr "저장소를 찾을 수 없습니다."
 msgid "No results"
 msgstr "결과 없음"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No results yet."
+msgstr "아직 결과가 없습니다."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "No retries"
+msgstr "재시도 없음"
+
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "No rules were listed for this session."
 msgstr "이 세션에 대해 나열된 규칙이 없습니다."
@@ -9722,6 +10036,11 @@ msgstr "이 기기에서 아직 상태가 보고되지 않았습니다."
 #~ msgid "No steps reported"
 #~ msgstr "보고된 단계 없음"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "No summary was provided."
+msgstr "제공된 요약이 없습니다."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
 #~ msgstr "이 원격 머신에 지원되는 에이전트가 설치되어 있지 않습니다. 스레드를 시작하기 전에 원격으로 에이전트를 설치하고 로그인하세요."
@@ -9756,6 +10075,10 @@ msgstr "태그 없음 — 이 항목은 더 이상 태그 친화도에 영향을
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
 msgstr "아직 스레드가 없습니다."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "No upcoming run"
+msgstr "예정된 실행 없음"
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "No usage data yet."
@@ -10065,6 +10388,10 @@ msgstr "GitHub에서 커밋 열기"
 msgid "Open conflict resolver in"
 msgstr "충돌 해결 도구 열기 위치:"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Open conversation"
+msgstr "대화 열기"
+
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Open Crossagent: {0}"
@@ -10272,6 +10599,10 @@ msgstr "터미널 열기"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Open terminal in worktree"
 msgstr "worktree에서 터미널 열기"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Open the conversation to continue this run."
+msgstr "이 실행을 계속하려면 대화를 여세요."
 
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Open the effort picker"
@@ -11329,6 +11660,10 @@ msgid "Project name"
 msgstr "프로젝트 이름"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Project no longer exists."
+msgstr "프로젝트가 더 이상 존재하지 않습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Project not found."
 msgstr "프로젝트를 찾을 수 없습니다."
 
@@ -12321,6 +12656,10 @@ msgstr "요청 세부정보"
 msgid "requested changes"
 msgstr "변경을 요청했습니다"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Required confidence before stopping."
+msgstr "중지에 필요한 신뢰도입니다."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "필수 검토, 대화 또는 상태 확인이 충족되지 않았습니다."
@@ -12433,11 +12772,16 @@ msgstr "작업 트리 기본 폴더 복원"
 msgid "Restore or delete"
 msgstr "복원 또는 삭제"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Restore result"
+msgstr "결과 복원"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
 msgstr "스레드 복원"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
 msgstr "결과"
 
@@ -12472,6 +12816,7 @@ msgstr "대기 중인 후속 메시지 재개"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
@@ -12484,6 +12829,10 @@ msgstr "다시 시도"
 msgid "Retry {serverName}"
 msgstr "{serverName} 확인 재시도"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Retry cancelled"
+msgstr "재시도가 취소됨"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Retry check"
 msgstr "확인 재시도"
@@ -12492,9 +12841,26 @@ msgstr "확인 재시도"
 msgid "Retry cleanup"
 msgstr "정리 다시 시도"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry delay"
+msgstr "재시도 지연"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry delay in seconds"
+msgstr "재시도 지연(초)"
+
 #: src/mobile/components.tsx
 #~ msgid "Retry now"
 #~ msgstr "지금 다시 시도"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry policy"
+msgstr "재시도 정책"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Retry scheduled"
+msgstr "재시도가 예약됨"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 msgid "Retry session controls"
@@ -12503,6 +12869,10 @@ msgstr "세션 컨트롤 재시도"
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Retry session settings"
 #~ msgstr "세션 설정 재시도"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Retry when a run fails before it completes."
+msgstr "완료되기 전에 실행이 실패하면 다시 시도합니다."
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
@@ -12716,6 +13086,10 @@ msgstr "{loginCommandDisplay}을 실행하여 로그인합니다."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "{0}에서 새 스레드를 실행합니다."
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Run a schedule to see its results here."
+msgstr "예약 작업을 실행하면 여기에 결과가 표시됩니다."
+
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
 msgstr "별도의 CODEX_HOME에서 두 번째 Codex 계정을 실행합니다. 각 프로필은 개별적으로 로그인하고 자체 세션을 유지합니다."
@@ -12724,6 +13098,10 @@ msgstr "별도의 CODEX_HOME에서 두 번째 Codex 계정을 실행합니다. �
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
 msgstr "실행 작업"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Run again"
+msgstr "다시 실행"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -12749,6 +13127,10 @@ msgstr "실험 실행"
 msgid "Run in a separate worktree"
 msgstr "별도의 작업 트리에서 실행"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run limits and retries"
+msgstr "제한 및 재시도"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Run local transcription on the GPU when available."
@@ -12758,9 +13140,18 @@ msgstr "가능한 경우 GPU에서 로컬 전사를 실행합니다."
 msgid "Run now"
 msgstr "지금 실행"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run once after reopening"
+msgstr "다시 연 후 한 번 실행"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Run one prompt with multiple agents, then compare their work."
 msgstr "하나의 프롬프트를 여러 에이전트로 실행한 다음 결과를 비교합니다."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Run result"
+msgstr "실행 결과"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Run standalone tasks on this device without a project."
@@ -12773,6 +13164,10 @@ msgstr "이 기기에서 독립 실행형 작업을 실행합니다. 기기가 �
 #: src/renderer/commands/registry.ts
 msgid "Run Terminal Command"
 msgstr "터미널 명령 실행"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Run the latest missed run"
+msgstr "가장 최근에 놓친 실행 수행"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Run this schedule automatically at the times above."
@@ -12795,7 +13190,8 @@ msgid "running"
 msgstr "실행 중"
 
 #: src/renderer/utils/prStatus.ts
-#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Running"
 msgstr "실행 중"
 
@@ -13014,6 +13410,14 @@ msgstr "일정 이름"
 msgid "Schedule status"
 msgstr "일정 상태"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scheduled retry was cancelled."
+msgstr "예약된 재시도가 취소되었습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Scheduled task was deleted before retrying."
+msgstr "다시 시도하기 전에 예약된 작업이 삭제되었습니다."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Scheduled tasks"
 msgstr "예약 작업"
@@ -13028,6 +13432,7 @@ msgstr "이 데스크톱의 예약 작업"
 
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarShortcuts.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Schedules"
@@ -13198,6 +13603,10 @@ msgstr "검색 결과"
 msgid "Search runtime items…"
 msgstr "런타임 항목 검색…"
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Search schedule results"
+msgstr "예약된 작업 결과 검색"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Search scheduled tasks"
 msgstr "예약 작업 검색"
@@ -13265,6 +13674,10 @@ msgstr "검색 중…"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 msgid "Secondary text"
 msgstr "보조 텍스트"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "seconds"
+msgstr "초"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
@@ -13933,6 +14346,10 @@ msgstr "{env} 로그아웃 중입니다. 감지된 에이전트는 완료되면 
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "로그아웃합니다. 감지된 에이전트는 완료되면 새로 고쳐집니다."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Single pass"
+msgstr "단일 실행"
+
 #: src/renderer/components/providers/claude/ContextWindowSettings.tsx
 msgid "Sizes shown for 1M Claude models. Choose any size from 100k to 1M; new chats default to 1M when available."
 msgstr "1M Claude 모델에 표시되는 크기입니다. 100k에서 1M 사이의 크기를 선택하세요. 새 채팅은 가능한 경우 기본적으로 1M을 사용합니다."
@@ -14015,8 +14432,13 @@ msgstr "스킬 마켓플레이스"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Skip missed runs"
+msgstr "놓친 실행 건너뛰기"
+
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Skipped"
 msgstr "건너뜀"
 
@@ -14214,6 +14636,10 @@ msgstr "사용량을 보려면 {appName}을(를) 시작하세요"
 msgid "Start a dev server on your desktop, then tap refresh."
 msgstr "데스크톱에서 개발 서버를 시작한 다음 새로고침을 탭하세요."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Start a new conversation for each run."
+msgstr "실행할 때마다 새 대화를 시작합니다."
+
 #: src/renderer/commands/registry.ts
 msgid "Start a new thread as panel instead of page"
 msgstr "새 스레드를 페이지가 아닌 패널로 시작"
@@ -14410,6 +14836,10 @@ msgstr "{0} 중지"
 msgid "Stop forwarding"
 msgstr "전달 중지"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop on error"
+msgstr "오류 발생 시 중지"
+
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Stop response"
 msgstr "응답 중지"
@@ -14427,9 +14857,17 @@ msgstr "작업 중지"
 msgid "Stop the project's running threads before changing its folder."
 msgstr "폴더를 변경하기 전에 프로젝트에서 실행 중인 스레드를 중지하세요."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop the run when this total time is reached."
+msgstr "총 시간이 이 값에 도달하면 실행을 중지합니다."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "음성 입력 중지"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Stop when"
+msgstr "중지 조건"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -14526,7 +14964,7 @@ msgid "Submit review"
 msgstr "리뷰 제출"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
-#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Succeeded"
 msgstr "성공"
 
@@ -14955,6 +15393,22 @@ msgstr "앱"
 msgid "The app's data is not ready for these settings. Restart or update the app and try again."
 msgstr "앱 데이터가 아직 이 설정을 사용할 준비가 되지 않았습니다. 앱을 다시 시작하거나 업데이트한 후 다시 시도하세요."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation conversation exited before the turn completed."
+msgstr "턴이 완료되기 전에 자동화 대화가 종료되었습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation exceeded its time limit."
+msgstr "자동화가 시간 제한을 초과했습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation needs a reply before it can continue."
+msgstr "자동화를 계속하려면 답변이 필요합니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The automation needs approval before it can continue."
+msgstr "자동화를 계속하려면 승인이 필요합니다."
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "the base branch"
 #~ msgstr "기준 브랜치"
@@ -14974,6 +15428,18 @@ msgstr "체크포인트를 복원할 수 없습니다."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "선택한 폴더"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "The completion check failed; the schedule was paused."
+msgstr "완료 확인에 실패하여 예약 작업이 일시 중지되었습니다."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "The conversation is no longer available. This saved result is still accessible."
+msgstr "대화를 더 이상 사용할 수 없지만 저장된 결과는 계속 확인할 수 있습니다."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "The conversation was already working."
+msgstr "대화가 이미 작업 중이었습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "The custom theme limit has been reached. Delete a theme before adding another."
@@ -15052,6 +15518,10 @@ msgstr "실험 상태를 확인하지 못했습니다."
 msgid "The experiment state is too large to load or change safely."
 msgstr "실험 상태가 너무 커서 안전하게 불러오거나 변경할 수 없습니다."
 
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "The finding is no longer available."
+msgstr "발견 항목을 더 이상 사용할 수 없습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
 msgstr "GitHub 계정 \"{login}\"은(는) {host}에 속하며 이 프로젝트의 GitHub 원격 저장소와 일치하지 않습니다."
@@ -15064,6 +15534,30 @@ msgstr "{0} 전역 WSL 범위"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The goal can't do that in its current state."
 msgstr "현재 목표 상태에서는 이 작업을 할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation belongs to a different project."
+msgstr "하트비트 대화가 다른 프로젝트에 속해 있습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation cannot be resumed."
+msgstr "하트비트 대화를 재개할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation is archived."
+msgstr "하트비트 대화가 보관되었습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation is currently busy."
+msgstr "하트비트 대화가 현재 사용 중입니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation no longer exists."
+msgstr "하트비트 대화가 더 이상 존재하지 않습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The heartbeat conversation uses a different agent."
+msgstr "하트비트 대화가 다른 에이전트를 사용합니다."
 
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
@@ -15189,6 +15683,22 @@ msgstr "대체 메시지를 보낼 수 없습니다."
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "디스크에 있는 저장소 위치입니다. 폴더를 옮겼다면 업데이트하세요."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "The result will appear when this run finishes."
+msgstr "이 실행이 완료되면 결과가 표시됩니다."
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "The run could not be cancelled."
+msgstr "실행을 취소할 수 없습니다."
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "The run was interrupted."
+msgstr "실행이 중단되었습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The scheduled automation failed."
+msgstr "예약된 자동화에 실패했습니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "The selected file does not contain valid MCP server configurations."
@@ -15385,6 +15895,10 @@ msgstr "이 서버는 플러그인에서 제공됩니다. 플러그인에서 켜
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "생각 중"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "This agent cannot run completion checks. Choose another agent or remove the stop condition."
+msgstr "이 에이전트는 완료 확인을 지원하지 않습니다. 다른 에이전트를 선택하거나 중지 조건을 삭제하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This agent does not support importing sessions."
@@ -15649,8 +16163,12 @@ msgid "This removes the environment from the host. The server's child workspace 
 msgstr "호스트에서 환경이 제거됩니다. 서버의 자식 작업 공간은 삭제되지 않습니다."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-msgid "This removes the schedule and its latest result from this device."
-msgstr "이 기기에서 일정과 최신 결과를 삭제합니다."
+msgid "This removes the schedule and all its saved run results."
+msgstr "일정과 저장된 모든 실행 결과가 삭제됩니다."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "This removes the schedule and its latest result from this device."
+#~ msgstr "이 기기에서 일정과 최신 결과를 삭제합니다."
 
 #. placeholder {0}: pendingDelete.branch.name
 #. placeholder {1}: pendingDelete.threadCount
@@ -15873,6 +16391,22 @@ msgstr "완료로 표시된 스레드 중 며칠 동안 건드리지 않은 스�
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Time"
 msgstr "시간"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Time limit"
+msgstr "시간 제한"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Time limit in minutes"
+msgstr "시간 제한(분)"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
+msgid "Time limit reached"
+msgstr "제한 시간에 도달함"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Time zone"
+msgstr "시간대"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Timed out"
@@ -16429,6 +16963,10 @@ msgstr "사용할 수 없음"
 msgid "Unavailable — using default"
 msgstr "사용 불가 — 기본 글꼴 사용"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
+msgid "Unavailable conversation"
+msgstr "사용할 수 없는 대화"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -16561,6 +17099,10 @@ msgstr "고정 해제"
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 msgid "Unpin workflow"
 msgstr "워크플로 고정 해제"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "Unread"
+msgstr "읽지 않음"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewTouchMenus.tsx
@@ -16880,6 +17422,18 @@ msgstr "#rgb 또는 #rrggbb 색상을 사용하세요. 선택적 색상을 비�
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "+를 사용해 직접 페어링하거나 SSH를 통해 원격 컴퓨터에 연결하세요."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Use 2 to 6 attempts and delays between 1 and 3600 seconds."
+msgstr "시도 횟수는 2~6회, 대기 시간은 1~3600초로 설정하세요."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Use a run limit between 1 and 100, or leave it empty."
+msgstr "실행 횟수 제한을 1~100회로 설정하거나 비워 두세요."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Use a time limit between 1 and 1440 minutes."
+msgstr "제한 시간을 1~1440분으로 설정하세요."
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"
 msgstr "기존 폴더 사용"
@@ -17072,6 +17626,11 @@ msgstr "원문 보기"
 msgid "View rendered"
 msgstr "렌더링 보기"
 
+#. placeholder {0}: props.scheduleName
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "View result for {0}"
+msgstr "{0}의 결과 보기"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "View skill"
 #~ msgstr "스킬 보기"
@@ -17186,6 +17745,12 @@ msgstr "{methodName} 인증을 기다리는 중입니다. 감지된 에이전트
 msgid "waiting for agent to stop"
 msgstr "에이전트가 중지되기를 기다리는 중"
 
+#: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Waiting for approval"
+msgstr "승인 대기 중"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"
 msgstr "워크플로가 에이전트를 생성하기를 기다리는 중…"
@@ -17220,6 +17785,7 @@ msgstr "WSL 셸 환경 준비 중…"
 
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
 msgstr "경고"
 
@@ -17634,6 +18200,10 @@ msgstr "WSL 기본 폴더"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL: {distro}"
 msgstr "WSL: {distro}"
+
+#: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
+msgid "You’re all caught up."
+msgstr "모두 확인했습니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Your local changes are stashed and will be re-applied when you commit or abort this merge."

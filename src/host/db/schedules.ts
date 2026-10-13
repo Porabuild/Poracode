@@ -1,7 +1,10 @@
+import { canonicalScheduleTimeZone } from "@/shared/scheduleTimeZones";
 import {
   scheduledTaskConfigSchema,
   scheduledTaskSchema,
   scheduleRecurrenceSchema,
+  resolveScheduleAutomation,
+  scheduleAutomationSchema,
   type ScheduledTask,
   type ScheduledTaskRunStatus,
 } from "@/shared/contracts";
@@ -16,6 +19,8 @@ interface ScheduledTaskRow {
   agent_kind: string;
   config: string;
   recurrence: string;
+  automation: string | null;
+  iteration_count: number;
   enabled: number;
   project_id: string | null;
   next_run_at: string | null;
@@ -29,6 +34,7 @@ interface ScheduledTaskRow {
 }
 
 function fromRow(row: ScheduledTaskRow): ScheduledTask {
+  const recurrence = scheduleRecurrenceSchema.parse(JSON.parse(row.recurrence));
   return scheduledTaskSchema.parse({
     id: row.id,
     name: row.name,
@@ -37,7 +43,14 @@ function fromRow(row: ScheduledTaskRow): ScheduledTask {
     config: scheduledTaskConfigSchema.parse(
       projectPersistedSelectionBinding(JSON.parse(row.config)),
     ),
-    recurrence: scheduleRecurrenceSchema.parse(JSON.parse(row.recurrence)),
+    recurrence:
+      (recurrence.kind === "weekly" || recurrence.kind === "cron") && recurrence.timeZone
+        ? { ...recurrence, timeZone: canonicalScheduleTimeZone(recurrence.timeZone) }
+        : recurrence,
+    automation: row.automation
+      ? scheduleAutomationSchema.parse(JSON.parse(row.automation))
+      : resolveScheduleAutomation(undefined),
+    iterationCount: row.iteration_count,
     enabled: row.enabled === 1,
     projectId: row.project_id,
     nextRunAt: row.next_run_at,
@@ -79,8 +92,8 @@ export function dbUpsertSchedule(task: ScheduledTask): void {
           `INSERT INTO scheduled_tasks (
         id, name, prompt, agent_kind, config, recurrence, enabled, project_id,
         next_run_at, last_run_at, last_completed_at, last_status,
-        last_result, last_error, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        last_result, last_error, created_at, updated_at, automation, iteration_count
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         prompt = excluded.prompt,
@@ -95,7 +108,9 @@ export function dbUpsertSchedule(task: ScheduledTask): void {
         last_status = excluded.last_status,
         last_result = excluded.last_result,
         last_error = excluded.last_error,
-        updated_at = excluded.updated_at`,
+        updated_at = excluded.updated_at,
+        automation = excluded.automation,
+        iteration_count = excluded.iteration_count`,
         )
         .run(
           parsed.id,
@@ -114,6 +129,8 @@ export function dbUpsertSchedule(task: ScheduledTask): void {
           parsed.lastError,
           parsed.createdAt,
           parsed.updatedAt,
+          JSON.stringify(resolveScheduleAutomation(parsed.automation)),
+          parsed.iterationCount ?? 0,
         );
     })
     .immediate();
@@ -134,6 +151,7 @@ export function dbDeleteSchedule(id: string): void {
  * resurrected.
  */
 export interface ScheduleRuntimePatch {
+  iterationCount?: number;
   enabled?: boolean;
   nextRunAt?: string | null;
   lastRunAt?: string | null;
@@ -146,6 +164,7 @@ export interface ScheduleRuntimePatch {
 
 const scheduleRuntimePatchSchema = scheduledTaskSchema
   .pick({
+    iterationCount: true,
     enabled: true,
     nextRunAt: true,
     lastRunAt: true,
@@ -160,6 +179,7 @@ const scheduleRuntimePatchSchema = scheduledTaskSchema
   .strict();
 
 const SCHEDULE_RUNTIME_PATCH_COLUMNS: readonly (keyof ScheduleRuntimePatch)[] = [
+  "iterationCount",
   "enabled",
   "nextRunAt",
   "lastRunAt",
@@ -170,6 +190,7 @@ const SCHEDULE_RUNTIME_PATCH_COLUMNS: readonly (keyof ScheduleRuntimePatch)[] = 
 ];
 
 const SCHEDULE_RUNTIME_COLUMN_NAMES: Record<string, string> = {
+  iterationCount: "iteration_count",
   enabled: "enabled",
   nextRunAt: "next_run_at",
   lastRunAt: "last_run_at",
@@ -192,7 +213,7 @@ export function dbPatchScheduleRuntime(id: string, patch: ScheduleRuntimePatch):
     const value = parsed[field];
     if (value === undefined) continue;
     assignments.push(`${SCHEDULE_RUNTIME_COLUMN_NAMES[field]} = ?`);
-    values.push(field === "enabled" ? (value ? 1 : 0) : (value as string | null));
+    values.push(field === "enabled" ? (value ? 1 : 0) : (value as string | number | null));
   }
   getSqlite()
     .prepare(`UPDATE scheduled_tasks SET ${assignments.join(", ")} WHERE id = ?`)

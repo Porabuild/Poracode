@@ -132,6 +132,9 @@ internal fun RemoteIntegrationsDestinationContent(
 ) {
     RemoteIntegrationsScreen(
         composition = remoteIntegrations,
+        completionAgentKinds = (state.hostReplay.agentWindowsStatuses + state.hostReplay.agentWslStatuses + state.hostReplay.agentMergedStatuses.values)
+            .filter { it.capabilities["supportsTextOnlyOneShot"] == kotlinx.serialization.json.JsonPrimitive(true) }
+            .map { it.kind }.toSet(),
         scheduleThreads = session.unifiedThreads().filter {
             it.connectionId == state.hostCatalog.selectedConnectionId
         }.map {
@@ -140,6 +143,10 @@ internal fun RemoteIntegrationsDestinationContent(
                 presentedId = it.id,
                 title = it.thread.title,
                 model = it.thread.config.model,
+                projectId = it.thread.projectId,
+                agentKind = it.thread.agentKind,
+                archived = it.thread.archived == true,
+                gui = it.thread.presentationMode != "terminal",
             )
         },
         onOpenThread = { presentedId ->

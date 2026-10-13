@@ -70,6 +70,11 @@ export function initDatabase(
   sqlite.pragma("synchronous = NORMAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
+  // SQLite lower() handles ASCII only; schedule search uses the same deterministic
+  // Unicode normalization for persisted text and the user's query.
+  sqlite.function("schedule_search_text", { deterministic: true }, (value: unknown) =>
+    typeof value === "string" ? value.normalize("NFKC").toLowerCase() : "",
+  );
 
   // Read-then-write transactions use BEGIN IMMEDIATE to reserve SQLite's
   // single writer before taking a snapshot.

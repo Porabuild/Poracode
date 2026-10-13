@@ -14,7 +14,7 @@ object ProtocolConstants {
      * declare their compiled version; host admission and old-writer retirement
      * must be qualified together before shipping. Wire generations must still match.
      */
-    const val REMOTE_PROTOCOL_VERSION = 13
+    const val REMOTE_PROTOCOL_VERSION = 14
     const val COMMAND_ID_HEADER = "x-poracode-command-id"
 
     /**

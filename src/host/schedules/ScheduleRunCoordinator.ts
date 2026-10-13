@@ -1,69 +1,82 @@
-import { randomUUID } from "node:crypto";
+import { resolveProjectLocation } from "@/shared/worktree";
 import { isDeepStrictEqual } from "node:util";
+import { isThreadSessionAbsenceRefusal } from "@/shared/threadSessionRefusal";
+import { resolveUnrestrictedThreadPermissions } from "../threads/threadLaunchConfig";
+import { randomUUID } from "node:crypto";
 import type {
   AgentStatusesResponse,
   Project,
   ProjectLocation,
   RemoteThreadCommand,
+  RuntimeEvent,
+  ScheduleCompletionPolicy,
+  ScheduleCompletionEvaluationInput,
+  ScheduleCompletionEvaluationResult,
+  ScheduleRunResult,
+  ScheduleRunStatus,
   ScheduledTask,
   ScheduledTaskRun,
+  SendThreadInputPayload,
   StartThreadPayload,
   Thread,
   ThreadConfig,
   ThreadStatus,
 } from "@/shared/contracts";
+import {
+  DEFAULT_TERMINAL_SIZE,
+  isThreadTurnActive,
+  resolveMcpLaunchSnapshot,
+  resolveScheduleAutomation,
+} from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
+import { toErrorMessage } from "@/shared/errorMessage";
 import { msg } from "@/shared/messages";
-import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { ScheduleRunPatch } from "@/host/db/scheduleRuns";
-import { resolveUnrestrictedThreadPermissions } from "../threads/threadLaunchConfig";
+import type { PersistedRuntimeItem } from "../db/runtimeItems";
+import type { ScheduleRunPatch } from "../db/scheduleRuns";
+import { buildScheduleRunResult, collectScheduleRunItems } from "./scheduleRunResults";
+import {
+  ScheduleRunPersistenceError,
+  type ScheduleRunContext,
+  type ScheduleTaskExecutionOutcome,
+} from "./types";
 
-/**
- * A `thread-state` transition ends the run only once the turn fully settles.
- * `needs_approval`/`needs_reply` are mid-turn pauses (they can resume under
- * auto-approval), so — matching {@link isThreadTurnActive} — they are NOT
- * treated as terminal here; that avoids settling a run while its thread keeps
- * working.
- */
 const TERMINAL_STATUSES: ReadonlySet<ThreadStatus> = new Set<ThreadStatus>([
   "idle",
   "finished",
   "inactive",
   "error",
 ]);
-
 export interface ScheduleRunCoordinatorDeps {
-  /** Launch the child session in the supervisor (main → supervisor request). */
-  startThread(payload: StartThreadPayload): Promise<unknown>;
-  /** Cached agent detection for the given WSL distros (supervisor request). */
-  getAgentStatuses(wslDistros: string[]): Promise<AgentStatusesResponse>;
-  /**
-   * Fresh, synchronous execution admission against the authoritative
-   * `scheduled_tasks` row (see `dbAdmitScheduleExecution`). Runs once before
-   * Home-project creation and again after the awaited permission lookup,
-   * immediately before thread/run persistence, publication, and launch.
-   * Required — isolated tests supply it explicitly.
-   */
   admitScheduleExecution(task: ScheduledTask): void;
-  /** Mirror a thread command to the renderer store; false when no window is up. */
+  publishThreadsChanged?(threadIds: readonly string[]): void;
+  onError?(error: unknown): void;
+  onRunStatus?(
+    scheduleId: string,
+    status: "running" | "waiting-for-approval",
+    error: string | null,
+  ): void;
+  cancelCompletionEvaluation?(runId: string): Promise<void>;
+  startThread(payload: StartThreadPayload): Promise<unknown>;
+  sendThreadInput?(payload: SendThreadInputPayload): Promise<void>;
+  interruptThread?(threadId: string): Promise<void>;
+  evaluateCompletion?(
+    payload: ScheduleCompletionEvaluationInput,
+  ): Promise<ScheduleCompletionEvaluationResult>;
+  getAgentStatuses(wslDistros: string[]): Promise<AgentStatusesResponse>;
   sendThreadCommand(command: RemoteThreadCommand): boolean;
-  /** Resolve (creating if absent) the persisted home-scope project row. */
   ensureHomeProject(): Project;
-  /** Resolve a persisted project row by id, or null when it no longer exists. */
   getProject(projectId: string): Project | null;
-  /** Current global MCP settings; optional for isolated tests/embedders. */
+  getThread?(threadId: string): Thread | null;
+  getThreadRuntimeItemCursor(threadId: string): number | Promise<number>;
+  getThreadRuntimeItemsAfter(
+    threadId: string,
+    cursor: number,
+  ): PersistedRuntimeItem[] | Promise<PersistedRuntimeItem[]>;
   getSharedSettings(): SharedSettings;
   upsertThread(thread: Thread, sortOrder: number): void;
   deleteThread(threadId: string): void;
   threadExists(threadId: string): boolean;
-  /**
-   * Publish a bounded thread invalidation for the run's row. The coordinator
-   * writes the thread row directly (bypassing the renderer funnel), so remote
-   * membership only learns about it from this callback. Optional for legacy
-   * embedders without a remote listener.
-   */
-  publishThreadsChanged?(threadIds: readonly string[]): void;
   insertRun(run: ScheduledTaskRun): void;
   updateRun(id: string, patch: ScheduleRunPatch): void;
   now?: () => number;
@@ -72,139 +85,742 @@ export interface ScheduleRunCoordinatorDeps {
 
 interface PendingRun {
   runId: string;
+  runRecord: ScheduledTaskRun;
+  persisted: boolean;
+  signal: AbortSignal | undefined;
+  threadId: string;
+  task: ScheduledTask;
+  projectLocation: ProjectLocation;
+  runtimeItemCursor: number;
   sawActive: boolean;
-  resolve: (summary: string) => void;
-  reject: (error: Error) => void;
+  turnId: string | null;
+  phase: "preparing" | "resuming" | "dispatching" | "collecting" | "evaluating";
+  reject: (error: unknown) => void;
+  timer: ReturnType<typeof setTimeout>;
+  settling: boolean;
+  completionOverride: CompletionInput | null;
+  waiting: boolean;
+  resolveSettlementOverride: ((completion: CompletionInput) => void) | null;
+  resolve: (outcome: ScheduleTaskExecutionOutcome) => void;
 }
 
-/**
- * Runs a scheduled task as a REAL GUI thread (persisted, sidebar-visible)
- * instead of a headless one-shot prompt, and records a run-history row linked
- * to that thread.
- *
- * Start ordering mirrors the proven remote-start path: persist the
- * thread row first, mirror it to the renderer (`launchRuntime: false`,
- * `focus: false`), then call the supervisor's `startThread`. The returned
- * promise settles when the thread's turn ends (observed via `thread-state`),
- * so the caller's `ScheduleService.settle` keeps working unchanged.
- */
+interface CompletionInput {
+  status: Exclude<ScheduleRunStatus, "running">;
+  error: string | null;
+  stopReason: string | null;
+}
+
+/** Executes scheduled turns as persisted GUI conversations and records typed results. */
 export class ScheduleRunCoordinator {
-  private readonly pending = new Map<string, PendingRun>();
+  private readonly pendingByThread = new Map<string, PendingRun>();
+  private readonly pendingByRunId = new Map<string, PendingRun>();
+
   private readonly launches = new Set<Promise<void>>();
-  private readonly completions = new Set<PromiseWithResolvers<string>>();
+  private readonly settlements = new Set<Promise<void>>();
+  private readonly failedSettlements = new Map<
+    string,
+    { pending: PendingRun; patch: ScheduleRunPatch; outcome: ScheduleTaskExecutionOutcome }
+  >();
   private disposed = false;
   private disposal: Promise<void> | null = null;
 
   constructor(private readonly deps: ScheduleRunCoordinatorDeps) {}
 
-  /** Stop new work, interrupt tracked runs, and join launch continuations only. */
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
     this.disposed = true;
-    const barrier = Promise.withResolvers<void>();
-    this.disposal = barrier.promise;
-    const errors: unknown[] = [];
-    const error = new Error("Scheduled run interrupted because the host is shutting down.");
-    for (const run of this.pending.values()) {
-      try {
-        this.deps.updateRun(run.runId, { completedAt: this.nowIso(), status: "interrupted" });
-      } catch (failure) {
-        errors.push(failure);
-      }
+    for (const pending of this.pendingByThread.values()) {
+      if (this.failedSettlements.has(pending.runId)) continue;
+      this.interruptPending(pending);
+      this.complete(pending.threadId, {
+        status: "interrupted",
+        error: "Scheduled run interrupted because the host is shutting down.",
+        stopReason: "host-shutdown",
+      });
     }
-    this.pending.clear();
-    for (const completion of this.completions) completion.reject(error);
-    // Waiting for whole task-completion promises would deadlock shutdown while
-    // the supervisor is still running. Launch continuations must finish before
-    // DB close; active task promises were interrupted above.
-    void Promise.allSettled([...this.launches]).then(() => {
-      if (errors.length)
-        barrier.reject(new AggregateError(errors, "Unable to persist interrupted scheduled runs."));
-      else barrier.resolve();
-    });
-    return barrier.promise;
+    this.disposal = Promise.allSettled([...this.launches, ...this.settlements])
+      .then(() => {
+        this.retryFailedSettlements();
+      })
+      .catch((error: unknown) => {
+        // Keep custody, but let the data owner retry shutdown after a failed write.
+        this.disposal = null;
+        throw error;
+      });
+    return this.disposal;
   }
 
-  /** Wire into the supervisor event tap (main.ts `onEvent`). */
   observeSupervisorEvent(event: SupervisorEvent): void {
     if (this.disposed) return;
+    if (event.type === "thread-runtime-event") {
+      this.observeRuntimeEvent(event.event);
+      return;
+    }
+    if (event.type === "thread-runtime-events") {
+      for (const runtimeEvent of event.events) this.observeRuntimeEvent(runtimeEvent);
+      return;
+    }
+    if (event.type === "thread-runtime-events-multi") {
+      for (const batch of event.batches) {
+        for (const runtimeEvent of batch.events) this.observeRuntimeEvent(runtimeEvent);
+      }
+      return;
+    }
+    if (event.type === "thread-exited") {
+      if (!this.pendingByThread.has(event.threadId)) return;
+      this.complete(event.threadId, {
+        status: "interrupted",
+        error: msg("automation.run.exited"),
+        stopReason: "thread-exited",
+      });
+      return;
+    }
     if (event.type !== "thread-state") return;
-    const run = this.pending.get(event.threadId);
-    if (!run) return;
 
+    const pending = this.pendingByThread.get(event.threadId);
+    if (
+      !pending ||
+      pending.settling ||
+      pending.phase === "preparing" ||
+      pending.phase === "resuming"
+    )
+      return;
     if (event.status === "launching" || event.status === "working") {
-      run.sawActive = true;
+      pending.sawActive = true;
+      if (pending.waiting) {
+        pending.waiting = false;
+        this.deps.updateRun(pending.runId, { status: "running", error: null, result: null });
+        this.deps.onRunStatus?.(pending.task.id, "running", null);
+      }
       return;
     }
     if (event.status === "needs_approval" || event.status === "needs_reply") {
-      // Mid-turn pause — the turn is still active; wait for a terminal state.
+      pending.sawActive = true;
+      pending.waiting = true;
+      const replyRequired = event.status === "needs_reply";
+      const error = msg(
+        replyRequired ? "automation.run.replyRequired" : "automation.run.approvalRequired",
+      );
+      this.deps.updateRun(pending.runId, {
+        status: "waiting-for-approval",
+        error,
+        result: buildScheduleRunResult({
+          status: "waiting-for-approval",
+          summary: null,
+          changedFiles: [],
+          completedAt: this.nowIso(),
+          stopReason: replyRequired ? "reply-required" : "approval-required",
+        }),
+      });
+      this.deps.onRunStatus?.(pending.task.id, "waiting-for-approval", error);
       return;
     }
     if (!TERMINAL_STATUSES.has(event.status)) return;
-    // "inactive" before the run ever became active is a stale pre-launch echo.
-    if (event.status === "inactive" && !run.sawActive) return;
-
-    this.pending.delete(event.threadId);
-    const completedAt = this.nowIso();
+    if (event.status !== "error" && !pending.sawActive) return;
     if (event.status === "error") {
-      const error = event.errorMessage ?? "Scheduled run failed.";
-      this.deps.updateRun(run.runId, { completedAt, status: "failed", error });
-      run.reject(new Error(error));
+      this.complete(event.threadId, {
+        status: "failed",
+        error: event.errorMessage ?? msg("automation.run.failed"),
+        stopReason: "runtime-error",
+      });
       return;
     }
-    this.deps.updateRun(run.runId, { completedAt, status: "succeeded" });
-    // Final assistant text is not captured in main without heavy runtime-event
-    // plumbing, so the summary stays null and the schedule's quick-glance
-    // lastResult resolves to an empty string.
-    run.resolve("");
+    this.complete(event.threadId, {
+      status: "succeeded",
+      error: null,
+      stopReason: null,
+    });
   }
 
-  async runScheduleAsThread(task: ScheduledTask): Promise<string> {
+  handleSupervisorReset(): void {
+    for (const threadId of [...this.pendingByThread.keys()]) {
+      this.complete(threadId, {
+        status: "interrupted",
+        error: msg("automation.run.exited"),
+        stopReason: "supervisor-reset",
+      });
+    }
+  }
+
+  async runScheduleAsThread(
+    task: ScheduledTask,
+    context: ScheduleRunContext = {
+      scheduledFor: this.nowIso(),
+      trigger: "manual",
+      attempt: 1,
+      iteration: (task.iterationCount ?? 0) + 1,
+    },
+  ): Promise<ScheduleTaskExecutionOutcome> {
     this.assertOpen();
-    const completion = Promise.withResolvers<string>();
-    this.completions.add(completion);
-    void completion.promise.then(
-      () => this.completions.delete(completion),
-      () => this.completions.delete(completion),
-    );
-    const launch = Promise.withResolvers<void>();
-    this.launches.add(launch.promise);
-    const finishLaunch = () => {
-      this.launches.delete(launch.promise);
-      launch.resolve();
+    this.retryFailedSettlements();
+    // Current-master admission runs before even Home-project creation.
+    this.deps.admitScheduleExecution(task);
+    const automation = resolveScheduleAutomation(task.automation);
+    const threadId =
+      automation.mode.kind === "heartbeat"
+        ? automation.mode.targetThreadId
+        : (this.deps.newId ?? randomUUID)();
+    const runId = (this.deps.newId ?? randomUUID)();
+    const startedAt = this.nowIso();
+    const runRecord: ScheduledTaskRun = {
+      id: runId,
+      scheduleId: task.id,
+      threadId,
+      scheduledFor: context.scheduledFor,
+      trigger: context.trigger,
+      attempt: context.attempt,
+      iteration: context.iteration,
+      startedAt,
+      completedAt: null,
+      status: "running",
+      summary: null,
+      error: null,
+      result: null,
+      automationSnapshot: automation,
     };
-    void this.launchSchedule(task, completion).then(finishLaunch, (error: unknown) => {
-      completion.reject(error);
-      finishLaunch();
+    if (this.pendingByThread.has(threadId)) {
+      this.deps.insertRun(runRecord);
+      return this.finishUnstarted(
+        runId,
+        { status: "failed", error: msg("automation.run.targetInUse"), stopReason: "target-busy" },
+        automation.completionPolicy,
+      );
+    }
+    let project: Project;
+    try {
+      project = this.resolveProject(task);
+    } catch (error) {
+      this.deps.insertRun(runRecord);
+      return this.finishUnstarted(
+        runId,
+        { status: "failed", error: toErrorMessage(error), stopReason: "configuration-error" },
+        automation.completionPolicy,
+      );
+    }
+    if (automation.mode.kind === "heartbeat") {
+      try {
+        this.requireHeartbeatTarget(task, project, threadId);
+      } catch (error) {
+        this.deps.insertRun(runRecord);
+        return this.finishUnstarted(
+          runId,
+          { status: "failed", error: toErrorMessage(error), stopReason: "configuration-error" },
+          automation.completionPolicy,
+        );
+      }
+    }
+    const completion = Promise.withResolvers<ScheduleTaskExecutionOutcome>();
+    const pending: PendingRun = {
+      runId,
+      runRecord,
+      persisted: false,
+      signal: context.signal,
+      threadId,
+      task,
+      projectLocation: project.location,
+      runtimeItemCursor: -1,
+      sawActive: false,
+      turnId: null,
+      phase: "preparing",
+      settling: false,
+      resolveSettlementOverride: null,
+      completionOverride: null,
+      waiting: false,
+      resolve: completion.resolve,
+      reject: completion.reject,
+      timer: setTimeout(() => {
+        if (this.pendingByRunId.get(runId) !== pending) return;
+        this.interruptPending(pending);
+        this.complete(
+          threadId,
+          { status: "failed", error: msg("automation.run.timeLimit"), stopReason: "time-limit" },
+          pending,
+        );
+      }, automation.maxRuntimeSeconds * 1_000),
+    };
+    pending.timer.unref?.();
+    // Reserve synchronously: other schedules cannot claim the target during admission awaits.
+    this.pendingByThread.set(threadId, pending);
+    this.pendingByRunId.set(runId, pending);
+    const abortPreparation = () => {
+      if (pending.phase === "preparing" || pending.phase === "resuming") this.cancelRun(runId);
+    };
+    context.signal?.addEventListener("abort", abortPreparation, { once: true });
+    if (context.signal?.aborted) abortPreparation();
+    void completion.promise.then(
+      () => context.signal?.removeEventListener("abort", abortPreparation),
+      () => context.signal?.removeEventListener("abort", abortPreparation),
+    );
+    const launch = this.launchPending(pending, project).catch((error: unknown) => {
+      if (!pending.persisted) {
+        clearTimeout(pending.timer);
+        if (this.pendingByThread.get(threadId) === pending) this.pendingByThread.delete(threadId);
+        this.pendingByRunId.delete(runId);
+        pending.reject(error);
+        return;
+      }
+      this.complete(
+        threadId,
+        { status: "failed", error: toErrorMessage(error), stopReason: "launch-error" },
+        pending,
+      );
     });
+    this.launches.add(launch);
+    void launch.finally(() => this.launches.delete(launch));
     return completion.promise;
   }
 
-  private async launchSchedule(
-    task: ScheduledTask,
-    completion: PromiseWithResolvers<string>,
-  ): Promise<void> {
-    this.assertOpen();
-    // First admission: before any side effect — including creating the
-    // Home project row for a Home-scope task.
-    this.deps.admitScheduleExecution(task);
-    const project = this.resolveProject(task);
-    const threadId = (this.deps.newId ?? randomUUID)();
-    const nowIso = this.nowIso();
-
-    const config = await this.buildThreadConfig(task, project.location);
-    this.assertOpen();
-    // Second admission: the permission lookup above awaited, so the stored
-    // task may have changed since capture. Refuse immediately before the
-    // thread/run persistence, publication, and launch.
+  private async launchPending(pending: PendingRun, project: Project): Promise<void> {
+    const { task, threadId } = pending;
+    const automation = resolveScheduleAutomation(task.automation);
+    if (automation.mode.kind === "heartbeat") {
+      const target = this.requireHeartbeatTarget(task, project, threadId);
+      pending.projectLocation = resolveProjectLocation(project.location, target.worktreePath);
+    }
+    const config = await this.buildThreadConfig(task, pending.projectLocation);
+    if (!this.canDispatch(pending)) return;
+    if (automation.mode.kind === "heartbeat") {
+      this.requireHeartbeatTarget(task, project, threadId, pending.projectLocation);
+      pending.runtimeItemCursor = await this.deps.getThreadRuntimeItemCursor(threadId);
+      if (!this.canDispatch(pending)) return;
+      this.requireHeartbeatTarget(task, project, threadId, pending.projectLocation);
+    }
+    // Re-read execution-defining fields immediately before any thread write or launch.
     this.deps.admitScheduleExecution(task);
     const currentProject = this.deps.getProject(project.id);
     if (
       !currentProject ||
       !isDeepStrictEqual(currentProject.location, project.location) ||
       currentProject.remoteServerId !== project.remoteServerId
-    )
+    ) {
       throw new Error(msg("schedule.executionStale"));
+    }
+    this.deps.insertRun(pending.runRecord);
+    pending.persisted = true;
+    let freshThread = false;
+    try {
+      pending.phase = "dispatching";
+      if (automation.mode.kind === "heartbeat") {
+        await this.dispatchHeartbeat(pending, project, config);
+      } else {
+        freshThread = !this.deps.threadExists(threadId);
+        this.persistFreshThread(task, project, threadId, config, this.nowIso());
+        await this.deps.startThread(this.startPayload(task, project, threadId, config));
+      }
+    } catch (error) {
+      if (this.disposed || !this.canDispatch(pending)) return;
+      if (freshThread) {
+        this.deps.deleteThread(threadId);
+        this.deps.publishThreadsChanged?.([threadId]);
+        this.deps.sendThreadCommand({ kind: "delete", threadId });
+      }
+      throw error;
+    }
+  }
+
+  private canDispatch(pending: PendingRun): boolean {
+    return (
+      !this.disposed &&
+      !pending.settling &&
+      this.pendingByRunId.get(pending.runId) === pending &&
+      !(pending.signal?.aborted && (pending.phase === "preparing" || pending.phase === "resuming"))
+    );
+  }
+
+  private interruptPending(pending: PendingRun): void {
+    // An evaluator runs after the turn; interrupting then could stop a user's newer turn.
+    if (pending.phase === "evaluating") {
+      void this.deps.cancelCompletionEvaluation?.(pending.runId).catch((error: unknown) => {
+        try {
+          this.deps.onError?.(error);
+        } catch {
+          /* Reporting does not change ownership. */
+        }
+      });
+    } else if (pending.phase === "dispatching" || pending.phase === "resuming") {
+      void this.deps.interruptThread?.(pending.threadId).catch((error: unknown) => {
+        try {
+          this.deps.onError?.(error);
+        } catch {
+          /* Reporting does not change ownership. */
+        }
+      });
+    }
+  }
+
+  cancelRun(runId: string): boolean {
+    const pending = this.pendingByRunId.get(runId);
+    if (!pending) return false;
+    this.interruptPending(pending);
+    this.complete(pending.threadId, {
+      status: "cancelled",
+      error: null,
+      stopReason: "cancelled",
+    });
+    return true;
+  }
+
+  recordSkippedRun(task: ScheduledTask, context: ScheduleRunContext): ScheduledTaskRun {
+    const automation = resolveScheduleAutomation(task.automation);
+    const now = this.nowIso();
+    const result = buildScheduleRunResult({
+      status: "skipped",
+      summary: null,
+      changedFiles: [],
+      completedAt: now,
+      stopReason: "misfire-policy",
+    });
+    const run: ScheduledTaskRun = {
+      id: (this.deps.newId ?? randomUUID)(),
+      scheduleId: task.id,
+      threadId:
+        automation.mode.kind === "heartbeat"
+          ? automation.mode.targetThreadId
+          : `schedule:${task.id}`,
+      scheduledFor: context.scheduledFor,
+      trigger: context.trigger,
+      attempt: context.attempt,
+      iteration: context.iteration,
+      startedAt: now,
+      completedAt: now,
+      status: "skipped",
+      summary: null,
+      error: null,
+      result,
+      automationSnapshot: automation,
+    };
+    this.deps.insertRun(run);
+    return run;
+  }
+
+  private observeRuntimeEvent(event: RuntimeEvent): void {
+    const pending = this.pendingByThread.get(event.threadId);
+    if (
+      !pending ||
+      pending.settling ||
+      pending.phase === "preparing" ||
+      pending.phase === "resuming"
+    )
+      return;
+    if (event.type === "turn.started") {
+      pending.turnId ??= event.turnId;
+      pending.sawActive = true;
+      if (pending.waiting) {
+        pending.waiting = false;
+        this.deps.updateRun(pending.runId, { status: "running", error: null, result: null });
+        this.deps.onRunStatus?.(pending.task.id, "running", null);
+      }
+      return;
+    }
+    if (event.type === "error") {
+      this.complete(event.threadId, {
+        status: "failed",
+        error: event.message,
+        stopReason: "runtime-error",
+      });
+      return;
+    }
+    if (
+      event.type !== "turn.completed" ||
+      !pending.sawActive ||
+      (pending.turnId !== null && pending.turnId !== event.turnId)
+    )
+      return;
+    if (event.state === "completed") {
+      this.complete(event.threadId, {
+        status: "succeeded",
+        error: null,
+        stopReason: null,
+      });
+      return;
+    }
+    this.complete(event.threadId, {
+      status:
+        event.state === "cancelled"
+          ? "cancelled"
+          : event.state === "interrupted"
+            ? "interrupted"
+            : "failed",
+      error: event.state === "failed" ? msg("automation.run.failed") : null,
+      stopReason: event.state,
+    });
+  }
+
+  private complete(threadId: string, completion: CompletionInput, expected?: PendingRun): void {
+    const pending = this.pendingByThread.get(threadId);
+    if (!pending || (expected && expected !== pending)) return;
+    const settlement = this.finishPending(pending, completion).catch((error: unknown) => {
+      clearTimeout(pending.timer);
+      if (!this.failedSettlements.has(pending.runId)) this.releasePending(pending);
+      pending.reject(new ScheduleRunPersistenceError(toErrorMessage(error), { cause: error }));
+      try {
+        this.deps.onError?.(error);
+      } catch {
+        /* Reporting never changes run ownership. */
+      }
+    });
+    this.settlements.add(settlement);
+    void settlement.finally(() => this.settlements.delete(settlement));
+  }
+
+  private async finishPending(pending: PendingRun, completion: CompletionInput): Promise<void> {
+    const { threadId } = pending;
+    if (this.pendingByThread.get(threadId) !== pending) return;
+    if (pending.settling) {
+      if (completion.status === "cancelled" || completion.status === "interrupted") {
+        pending.completionOverride = completion;
+        pending.resolveSettlementOverride?.(completion);
+      }
+      return;
+    }
+    pending.settling = true;
+    pending.phase = "collecting";
+    clearTimeout(pending.timer);
+
+    let items: PersistedRuntimeItem[] = [];
+    try {
+      if (pending.persisted)
+        items = await this.deps.getThreadRuntimeItemsAfter(
+          pending.threadId,
+          pending.runtimeItemCursor,
+        );
+    } catch (error) {
+      if (completion.status === "succeeded")
+        completion = {
+          status: "failed",
+          error: toErrorMessage(error),
+          stopReason: "result-unavailable",
+        };
+    }
+    const { summary, changedFiles } = collectScheduleRunItems(items);
+    completion = pending.completionOverride ?? completion;
+    let status = completion.status;
+    let error = completion.error;
+    let stopReason = completion.stopReason;
+    let completionEvaluation: ScheduleRunResult["completionEvaluation"];
+    let stopMatched = false;
+    const completionPolicy = resolveScheduleAutomation(pending.task.automation).completionPolicy;
+    if (status === "succeeded" && completionPolicy.kind === "ai-evaluated") {
+      pending.phase = "evaluating";
+      try {
+        if (!this.deps.evaluateCompletion) {
+          throw new Error(msg("automation.run.completionUnavailable"));
+        }
+        const override = new Promise<{ kind: "override"; completion: CompletionInput }>(
+          (resolve) => {
+            pending.resolveSettlementOverride = (nextCompletion) =>
+              resolve({ kind: "override", completion: nextCompletion });
+          },
+        );
+        const evaluation = this.deps
+          .evaluateCompletion({
+            evaluationId: pending.runId,
+            projectLocation: pending.projectLocation,
+            agentKind: pending.task.agentKind,
+            config: pending.task.config,
+            condition: completionPolicy.stopWhen,
+            summary,
+            changedFiles,
+          })
+          .then((result) => ({ kind: "evaluation" as const, result }));
+        const settled = await Promise.race([evaluation, override]);
+        pending.resolveSettlementOverride = null;
+        if (settled.kind === "override") {
+          status = settled.completion.status;
+          error = settled.completion.error;
+          stopReason = settled.completion.stopReason;
+        } else {
+          completionEvaluation = {
+            ...settled.result,
+            condition: completionPolicy.stopWhen,
+            evaluatedAt: this.nowIso(),
+          };
+          stopMatched =
+            settled.result.stopMatched &&
+            settled.result.confidence >= completionPolicy.confidenceThreshold;
+          if (stopMatched) stopReason = "completion-condition";
+        }
+      } catch (evaluationError) {
+        pending.resolveSettlementOverride = null;
+        status = "failed";
+        error = msg("automation.run.completionFailed", {
+          detail: toErrorMessage(evaluationError),
+        });
+        stopReason = "completion-evaluation-error";
+      }
+    }
+
+    const completedAt = this.nowIso();
+    const result = buildScheduleRunResult({
+      status,
+      summary,
+      changedFiles,
+      completedAt,
+      stopReason,
+      ...(completionEvaluation ? { completionEvaluation } : {}),
+    });
+    const outcome: ScheduleTaskExecutionOutcome = {
+      runId: pending.runId,
+      status,
+      summary,
+      error,
+      result,
+      stopMatched,
+      completionPolicySnapshot: completionPolicy,
+    };
+    const patch = { completedAt, status, summary, error, result };
+    if (pending.persisted) {
+      this.failedSettlements.set(pending.runId, { pending, patch, outcome });
+      this.deps.updateRun(pending.runId, patch);
+      this.failedSettlements.delete(pending.runId);
+    }
+    this.resolveFinished(pending, outcome);
+  }
+
+  private releasePending(pending: PendingRun): void {
+    if (this.pendingByThread.get(pending.threadId) === pending)
+      this.pendingByThread.delete(pending.threadId);
+    this.pendingByRunId.delete(pending.runId);
+  }
+
+  private resolveFinished(pending: PendingRun, outcome: ScheduleTaskExecutionOutcome): void {
+    this.releasePending(pending);
+    if (this.disposed)
+      pending.reject(new Error("Scheduled run interrupted because the host is shutting down."));
+    else pending.resolve(outcome);
+  }
+
+  private retryFailedSettlements(): void {
+    const failures: unknown[] = [];
+    for (const [runId, settlement] of this.failedSettlements) {
+      try {
+        this.deps.updateRun(runId, settlement.patch);
+        this.failedSettlements.delete(runId);
+        this.resolveFinished(settlement.pending, settlement.outcome);
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    if (failures.length)
+      throw new ScheduleRunPersistenceError("Unable to persist scheduled run results.", {
+        cause: new AggregateError(failures),
+      });
+  }
+
+  private finishUnstarted(
+    runId: string,
+    completion: CompletionInput,
+    completionPolicySnapshot: ScheduleCompletionPolicy,
+  ): ScheduleTaskExecutionOutcome {
+    const completedAt = this.nowIso();
+    const result = buildScheduleRunResult({
+      status: completion.status,
+      summary: null,
+      changedFiles: [],
+      completedAt,
+      stopReason: completion.stopReason,
+    });
+    this.deps.updateRun(runId, {
+      completedAt,
+      status: completion.status,
+      error: completion.error,
+      result,
+    });
+    return {
+      runId,
+      status: completion.status,
+      summary: null,
+      error: completion.error,
+      result,
+      stopMatched: false,
+      completionPolicySnapshot,
+    };
+  }
+
+  private requireHeartbeatTarget(
+    task: ScheduledTask,
+    project: Project,
+    threadId: string,
+    expectedLocation?: ProjectLocation,
+  ): Thread {
+    const target = this.deps.getThread?.(threadId);
+    if (!target) throw new Error(msg("automation.heartbeat.missing"));
+    if (target.archived) throw new Error(msg("automation.heartbeat.archived"));
+    if (target.presentationMode !== "gui") {
+      throw new Error(msg("automation.heartbeat.nativeChatRequired"));
+    }
+    if (target.projectId !== project.id) {
+      throw new Error(msg("automation.heartbeat.differentProject"));
+    }
+    if (target.agentKind !== task.agentKind) {
+      throw new Error(msg("automation.heartbeat.differentAgent"));
+    }
+    if (isThreadTurnActive(target.status)) {
+      throw new Error(msg("automation.heartbeat.busy"));
+    }
+    const currentProject = this.deps.getProject(project.id);
+    if (
+      !currentProject ||
+      !isDeepStrictEqual(currentProject.location, project.location) ||
+      currentProject.remoteServerId !== project.remoteServerId ||
+      (expectedLocation &&
+        !isDeepStrictEqual(
+          resolveProjectLocation(project.location, target.worktreePath),
+          expectedLocation,
+        ))
+    ) {
+      throw new Error(msg("schedule.executionStale"));
+    }
+    return target;
+  }
+
+  private async dispatchHeartbeat(
+    pending: PendingRun,
+    project: Project,
+    config: ThreadConfig,
+  ): Promise<void> {
+    const { task, threadId } = pending;
+    if (!this.deps.sendThreadInput) {
+      throw new Error(msg("automation.heartbeat.unavailable"));
+    }
+    try {
+      await this.deps.sendThreadInput({ threadId, prompt: task.prompt, config });
+      return;
+    } catch (error) {
+      if (!isThreadSessionAbsenceRefusal(error)) throw error;
+    }
+
+    if (!this.canDispatch(pending)) return;
+    const target = this.requireHeartbeatTarget(task, project, threadId, pending.projectLocation);
+    if (!target.sessionRef) {
+      throw new Error(msg("automation.heartbeat.cannotResume"));
+    }
+    pending.phase = "resuming";
+    await this.deps.startThread({
+      ...this.startPayload(
+        task,
+        { ...project, location: pending.projectLocation },
+        threadId,
+        config,
+      ),
+      prompt: "",
+      ...(target.worktreePath ? { worktreePath: target.worktreePath } : {}),
+      sessionRef: target.sessionRef,
+    });
+    if (!this.canDispatch(pending)) return;
+    this.deps.admitScheduleExecution(task);
+    this.requireHeartbeatTarget(task, project, threadId, pending.projectLocation);
+    pending.phase = "dispatching";
+    await this.deps.sendThreadInput({ threadId, prompt: task.prompt, config });
+  }
+
+  private persistFreshThread(
+    task: ScheduledTask,
+    project: Project,
+    threadId: string,
+    config: ThreadConfig,
+    nowIso: string,
+  ): void {
     const thread: Thread = {
       id: threadId,
       projectId: project.id,
@@ -223,16 +839,8 @@ export class ScheduleRunCoordinator {
       updatedAt: nowIso,
       activeTurnStartedAt: nowIso,
     };
-
-    const existed = this.deps.threadExists(threadId);
-    // New rows sort to the top via a descending timestamp (same convention as
-    // the orchestrator bridge and the remote-access server).
     this.deps.upsertThread(thread, -Date.now());
     this.deps.publishThreadsChanged?.([threadId]);
-
-    // Mirror to the renderer; a forwarded title is authoritative and disables
-    // AI title generation (the schedule name is the thread title). `false` from
-    // sendThreadCommand (no window) is expected and must not fail the run.
     this.deps.sendThreadCommand({
       kind: "start",
       threadId,
@@ -245,27 +853,15 @@ export class ScheduleRunCoordinator {
       launchRuntime: false,
       focus: false,
     });
+  }
 
-    const run: ScheduledTaskRun = {
-      id: (this.deps.newId ?? randomUUID)(),
-      scheduleId: task.id,
-      threadId,
-      startedAt: nowIso,
-      completedAt: null,
-      status: "running",
-      summary: null,
-      error: null,
-    };
-    this.deps.insertRun(run);
-
-    this.pending.set(threadId, {
-      runId: run.id,
-      sawActive: false,
-      resolve: completion.resolve,
-      reject: completion.reject,
-    });
-
-    const startPayload: StartThreadPayload = {
+  private startPayload(
+    task: ScheduledTask,
+    project: Project,
+    threadId: string,
+    config: ThreadConfig,
+  ): StartThreadPayload {
+    return {
       threadId,
       projectLocation: project.location,
       agentKind: task.agentKind,
@@ -275,46 +871,12 @@ export class ScheduleRunCoordinator {
       presentationMode: "gui",
       ...resolveMcpLaunchSnapshot(this.deps.getSharedSettings(), project.mcpServers ?? []),
     };
-
-    try {
-      await this.deps.startThread(startPayload);
-    } catch (error) {
-      if (this.disposed) return;
-      this.pending.delete(threadId);
-      const message = error instanceof Error ? error.message : String(error);
-      this.deps.updateRun(run.id, {
-        completedAt: this.nowIso(),
-        status: "failed",
-        error: message,
-      });
-      // Roll back the fresh row (follow the orchestrator bridge): drop it from
-      // the DB and tell the renderer to forget it, but keep a pre-existing row.
-      if (!existed) {
-        this.deps.deleteThread(threadId);
-        this.deps.sendThreadCommand({ kind: "delete", threadId });
-        // The create invalidation already went out above; announce the rollback
-        // so a client cannot keep the transient row.
-        this.deps.publishThreadsChanged?.([threadId]);
-      }
-      throw error instanceof Error ? error : new Error(message);
-    }
   }
 
-  private assertOpen(): void {
-    if (this.disposed) throw new Error("Schedule coordinator is shutting down.");
-  }
-
-  /**
-   * Resolve the project the run's thread lives in. A null/absent `projectId`
-   * uses the built-in Home scope; a set id must still reference an existing
-   * project row — if the user deleted it, fail the run with a clear message so
-   * they notice and can edit the schedule (rather than silently reverting to
-   * Home).
-   */
   private resolveProject(task: ScheduledTask): Project {
     if (task.projectId == null) return this.deps.ensureHomeProject();
     const project = this.deps.getProject(task.projectId);
-    if (!project) throw new Error("Project no longer exists.");
+    if (!project) throw new Error(msg("automation.run.projectMissing"));
     return project;
   }
 
@@ -322,25 +884,18 @@ export class ScheduleRunCoordinator {
     task: ScheduledTask,
     location: ProjectLocation,
   ): Promise<ThreadConfig> {
-    // Preserve the schedule's actual controls exactly — an empty-string
-    // effort or a false fast/thinking is a real value, and a recognized
-    // selection binding rides along unchanged. The permission resolution is
-    // merged independently of the captured controls.
     return {
-      model: task.config.model,
-      ...(task.config.effort !== undefined ? { effort: task.config.effort } : {}),
-      ...(task.config.fast !== undefined ? { fast: task.config.fast } : {}),
-      ...(task.config.thinking !== undefined ? { thinking: task.config.thinking } : {}),
-      ...(task.config.contextSize !== undefined ? { contextSize: task.config.contextSize } : {}),
-      ...(task.config.selectionBinding !== undefined
-        ? { selectionBinding: task.config.selectionBinding }
-        : {}),
+      ...task.config,
       ...(await resolveUnrestrictedThreadPermissions(
         this.deps.getAgentStatuses,
         task.agentKind,
         location,
       )),
     };
+  }
+
+  private assertOpen(): void {
+    if (this.disposed) throw new Error("Schedule run coordinator is shutting down.");
   }
 
   private nowIso(): string {

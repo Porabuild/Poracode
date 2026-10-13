@@ -1,5 +1,10 @@
+import { isDeepStrictEqual } from "node:util";
+import {
+  resolveScheduleAutomation,
+  areSelectionBindingsEqual,
+  scheduledTaskConfigSchema,
+} from "@/shared/contracts";
 import type { ScheduledTask } from "@/shared/contracts";
-import { areSelectionBindingsEqual, scheduledTaskConfigSchema } from "@/shared/contracts";
 import type { SelectionBinding } from "@/shared/selectionBinding.schemas";
 import { msg } from "@/shared/messages";
 import { hasUnsupportedSelectionBinding } from "@/shared/persistedSelectionBinding";
@@ -47,6 +52,7 @@ interface AuthoritativeExecutionRow {
   config: string;
   project_id: string | null;
   prompt: string;
+  automation: string | null;
 }
 
 /**
@@ -65,7 +71,9 @@ export function dbAdmitScheduleExecution(captured: ScheduledTask): void {
   // callers must not introduce invalid metadata before Home creation.
   scheduledTaskConfigSchema.parse(captured.config);
   const row = getSqlite()
-    .prepare("SELECT agent_kind, config, project_id, prompt FROM scheduled_tasks WHERE id = ?")
+    .prepare(
+      "SELECT agent_kind, config, project_id, prompt, automation FROM scheduled_tasks WHERE id = ?",
+    )
     .get(captured.id) as AuthoritativeExecutionRow | undefined;
   if (!row) {
     throw new ScheduleExecutionAdmissionError("missing", msg("schedule.executionStale"));
@@ -90,6 +98,13 @@ function executionFieldsChanged(
   if (row.agent_kind !== captured.agentKind) return true;
   if ((row.project_id ?? null) !== (captured.projectId ?? null)) return true;
   if (row.prompt !== captured.prompt) return true;
+  if (
+    !isDeepStrictEqual(
+      resolveScheduleAutomation(captured.automation),
+      row.automation ? JSON.parse(row.automation) : resolveScheduleAutomation(undefined),
+    )
+  )
+    return true;
 
   const raw = isJsonObject(rawConfig) ? rawConfig : undefined;
   const actual: Record<string, unknown> | undefined = isJsonObject(captured.config)

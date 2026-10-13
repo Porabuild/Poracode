@@ -28,6 +28,10 @@ import {
   remotePushRegistrationSchema,
   remotePushUnregisterSchema,
   remoteScheduleCommandSchema,
+  remoteAutomationsSnapshotSchema,
+  remoteScheduleRunInboxQuerySchema,
+  remoteScheduleRunCommandSchema,
+  remoteScheduleRunCommandResponseSchema,
   remoteScheduleRunsQuerySchema,
   remoteScheduleRunsResponseSchema,
   remoteSchedulesResponseSchema,
@@ -190,6 +194,8 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "schedules-read",
+    // Schedule discriminators changed in v14; old authenticated readers must refuse typed.
+    requiresCurrentProtocol: true,
     method: "GET",
     path: "/api/schedules",
     auth: "bearer",
@@ -219,6 +225,8 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "schedule-runs-read",
+    // Schedule discriminators changed in v14; old authenticated readers must refuse typed.
+    requiresCurrentProtocol: true,
     method: "GET",
     path: "/api/schedules/runs",
     auth: "bearer",
@@ -231,6 +239,43 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
       status: 200,
       jsonSchema: remoteScheduleRunsResponseSchema,
     },
+  }),
+  defineRoute({
+    id: "automations-snapshot",
+    // Schedule discriminators changed in v14; old authenticated readers must refuse typed.
+    requiresCurrentProtocol: true,
+    method: "GET",
+    path: "/api/automations",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    queryParameters: ["filter", "limit", "cursor", "search"],
+    request: { bodyKind: "empty", querySchema: remoteScheduleRunInboxQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: remoteAutomationsSnapshotSchema },
+  }),
+  defineRoute({
+    id: "schedule-run-inbox",
+    // Schedule discriminators changed in v14; old authenticated readers must refuse typed.
+    requiresCurrentProtocol: true,
+    method: "GET",
+    path: "/api/schedules/inbox",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    queryParameters: ["filter", "limit", "cursor", "search"],
+    request: { bodyKind: "empty", querySchema: remoteScheduleRunInboxQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: remoteScheduleRunsResponseSchema },
+  }),
+  defineRoute({
+    id: "schedule-run-command",
+    requiresCurrentProtocol: true,
+    method: "POST",
+    path: "/api/schedules/runs/command",
+    auth: "bearer",
+    scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
+    request: { bodyKind: "json", jsonSchema: remoteScheduleRunCommandSchema },
+    response: { wireKind: "json", status: 200, jsonSchema: remoteScheduleRunCommandResponseSchema },
   }),
   defineRoute({
     id: "pr-watch-read",

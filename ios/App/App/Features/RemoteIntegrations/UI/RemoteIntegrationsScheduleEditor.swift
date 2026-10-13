@@ -7,21 +7,32 @@ struct RemoteIntegrationsScheduleEditor: View {
   let projects: [RemoteIntegrationsProjectOption]
   let agents: [AgentStatusRecord]
   let controller: RemoteIntegrationsSchedulesController
+  let threads: [RemoteThread]
 
   @State private var draft: RemoteIntegrationsScheduleDraft
   @State private var confirmingSave = false
   @State private var showValidationError = false
 
+  private var supportsCompletionCheck: Bool {
+    agents.first(where: { $0.kind == draft.agentKind })?.capabilities["supportsTextOnlyOneShot"]?.boolValue == true
+  }
+
+  private var canSave: Bool {
+    draft.isValid && draft.automation.completionIsAvailable(supported: supportsCompletionCheck)
+  }
+
   init(
     target: RemoteIntegrationsScheduleEditorTarget,
     projects: [RemoteIntegrationsProjectOption],
     agents: [AgentStatusRecord],
-    controller: RemoteIntegrationsSchedulesController
+    controller: RemoteIntegrationsSchedulesController,
+    threads: [RemoteThread] = []
   ) {
     self.target = target
     self.projects = projects
     self.agents = RemoteIntegrationsScheduleAgentCatalog.available(agents)
     self.controller = controller
+    self.threads = threads
     switch target {
     case .create:
       var value = RemoteIntegrationsScheduleDraft()
@@ -106,11 +117,17 @@ struct RemoteIntegrationsScheduleEditor: View {
             Text(RemoteIntegrationsStrings.hourly).tag(RemoteIntegrationsRecurrenceKind.hourly)
             Text(RemoteIntegrationsStrings.weekly).tag(RemoteIntegrationsRecurrenceKind.weekly)
             Text(RemoteIntegrationsStrings.once).tag(RemoteIntegrationsRecurrenceKind.once)
+            Text(RemoteAutomationsStrings.interval).tag(RemoteIntegrationsRecurrenceKind.interval)
+            Text(RemoteAutomationsStrings.cron).tag(RemoteIntegrationsRecurrenceKind.cron)
           }
           recurrenceControls
         }
 
-        if showValidationError {
+        RemoteIntegrationsAutomationControls(draft: $draft.automation, supportsCompletionCheck: supportsCompletionCheck, targets: threads.filter {
+          $0.agentKind == draft.agentKind && $0.projectId == (draft.projectId ?? "__lightcode_home__") && !$0.isArchived && ($0.presentationMode ?? "gui") == "gui"
+        })
+
+        if showValidationError || !draft.isValid {
           Section {
             Label(
               RemoteIntegrationsStrings.invalidFields,
@@ -128,10 +145,10 @@ struct RemoteIntegrationsScheduleEditor: View {
         }
         ToolbarItem(placement: .confirmationAction) {
           Button(RemoteIntegrationsStrings.save) {
-            showValidationError = !draft.isValid
-            confirmingSave = draft.isValid
+            showValidationError = !canSave
+            confirmingSave = canSave
           }
-          .disabled(controller.isMutating || !draft.isValid)
+          .disabled(controller.isMutating || !canSave)
         }
       }
       .interactiveDismissDisabled(controller.isMutating)
@@ -171,12 +188,26 @@ struct RemoteIntegrationsScheduleEditor: View {
         selection: $draft.weeklyTime,
         displayedComponents: .hourAndMinute
       )
+      TextField(RemoteAutomationsStrings.timeZone, text: $draft.timeZone)
+        .textInputAutocapitalization(.never).autocorrectionDisabled()
     case .once:
       DatePicker(
         RemoteIntegrationsStrings.runAt,
         selection: $draft.onceDate,
         displayedComponents: [.date, .hourAndMinute]
       )
+    case .interval:
+      Stepper(value: $draft.every, in: 1...999) { LabeledContent(RemoteAutomationsStrings.every, value: String(draft.every)) }
+      Picker(RemoteAutomationsStrings.interval, selection: $draft.intervalUnit) {
+        Text(RemoteAutomationsStrings.minutes).tag("minutes")
+        Text(RemoteAutomationsStrings.hours).tag("hours")
+        Text(RemoteAutomationsStrings.days).tag("days")
+      }
+    case .cron:
+      TextField(RemoteAutomationsStrings.cronExpression, text: $draft.cronExpression)
+        .font(.body.monospaced()).textInputAutocapitalization(.never).autocorrectionDisabled()
+      TextField(RemoteAutomationsStrings.timeZone, text: $draft.timeZone)
+        .textInputAutocapitalization(.never).autocorrectionDisabled()
     }
   }
 
@@ -236,7 +267,7 @@ struct RemoteIntegrationsScheduleEditor: View {
   }
 
   private func submit() {
-    guard let value = try? draft.value(), let lease = controller.lease else {
+    guard canSave, let value = try? draft.value(), let lease = controller.lease else {
       showValidationError = true
       return
     }

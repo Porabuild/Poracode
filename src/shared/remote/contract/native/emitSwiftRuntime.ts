@@ -1,3 +1,4 @@
+import { SWIFT_SCHEDULE_CASES, SWIFT_SCHEDULE_HELPERS } from "./emitScheduleSemantics";
 import type { NativeBindingIr } from "./types";
 
 const HEADER = ["// GENERATED FILE. Do not edit by hand.", "import Foundation"];
@@ -97,7 +98,9 @@ ${validators.join("\n")}
   private static func string(_ value: RemoteJSONValue?) -> String? { if case .string(let value)? = value { return value }; return nil }
   private static func bool(_ value: RemoteJSONValue?) -> Bool? { if case .bool(let value)? = value { return value }; return nil }
   private static func int(_ value: RemoteJSONValue?) -> Int64? { if case .int(let value)? = value { return value }; if case .double(let value)? = value, value.rounded(.towardZero) == value { return Int64(value) }; return nil }
+${SWIFT_SCHEDULE_HELPERS}
   public static func apply(_ ids: [String], to value: RemoteJSONValue, path: String) throws -> RemoteJSONValue { for id in ids { let item = object(value); switch id {
+${SWIFT_SCHEDULE_CASES}
     case "string.trim": break
     case "git.add-worktree.frozen-source": let owner = string(item?["ownerToken"]); let source = string(item?["sourceBranch"]); if owner != nil && source == nil { try fail(id, path) }; if source != nil && (bool(item?["createBranch"]) != true || string(item?["branch"]).map { RemoteECMAScriptTrim.trim($0).isEmpty } != false || string(item?["startPoint"])?.range(of: #"^(?:[0-9A-Fa-f]{40}|[0-9A-Fa-f]{64})$"#, options: .regularExpression) == nil) { try fail(id, path) }
     case "git.delete-branch.remote-cannot-have-owner": if string(item?["remote"]) != nil && string(item?["expectedOwnerToken"]) != nil { try fail(id, path) }

@@ -143,6 +143,12 @@ async function requestGeneratedRoute(
 function routeBody(routeId: string, generated: unknown): unknown {
   const body = generated as Record<string, unknown>;
   switch (routeId) {
+    case "schedule-run-command":
+      // The state command requires at least one triage field in addition to id.
+      return {
+        kind: "update-state",
+        payload: { id: "11111111-1111-4111-8111-111111111111", unread: false },
+      };
     case "browser-command":
       return { kind: "create-tab", url: "https://example.test/a?x=one&y=two" };
     case "push-register":

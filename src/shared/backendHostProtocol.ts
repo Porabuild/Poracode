@@ -13,6 +13,10 @@ import type {
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
+  AutomationsSnapshot,
+  ScheduleRunInboxQuery,
+  ScheduledTaskRun,
+  UpdateScheduleRunStatePayload,
 } from "./contracts";
 import type { GitStatePatch } from "./gitState";
 import type { UserNotification } from "./threadNotification";
@@ -236,6 +240,13 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
   setRemoteAccessAdvertisedUrl: { payload: { url: string }; result: RemoteAccessPairingInfo };
   revokeRemoteAccessSession: { payload: { sessionId: string }; result: { revoked: boolean } };
   publishRemoteGitSummaries: { payload: { summaries: RemoteGitSummaries }; result: void };
+  getAutomationsSnapshot: { payload: ScheduleRunInboxQuery; result: AutomationsSnapshot };
+  getScheduleRunInbox: { payload: ScheduleRunInboxQuery; result: ScheduledTaskRun[] };
+  updateScheduleRunState: {
+    payload: UpdateScheduleRunStatePayload;
+    result: ScheduledTaskRun | null;
+  };
+  cancelScheduleRun: { payload: { id: string }; result: boolean };
   getSchedules: { payload: Record<string, never>; result: ScheduledTask[] };
   createSchedule: { payload: ScheduledTaskInput; result: ScheduledTask };
   updateSchedule: { payload: { id: string; task: ScheduledTaskInput }; result: ScheduledTask };
@@ -277,6 +288,10 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   "setRemoteAccessAdvertisedUrl",
   "revokeRemoteAccessSession",
   "publishRemoteGitSummaries",
+  "getAutomationsSnapshot",
+  "getScheduleRunInbox",
+  "updateScheduleRunState",
+  "cancelScheduleRun",
   "getSchedules",
   "createSchedule",
   "updateSchedule",

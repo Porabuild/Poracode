@@ -53,9 +53,9 @@ describe("remote v3 native binding generator", () => {
       expect(second).toEqual(third);
       expect(first.manifest).toMatchObject({
         formatVersion: 5,
-        protocolVersion: 13,
+        protocolVersion: 14,
         bindingFormatVersion: 2,
-        generatorVersion: 4,
+        generatorVersion: 5,
         // Optional readonly workspace-grant fields change generated bindings
         // without advertising mutation support or changing wire versions.
         // Selection-binding integration: protocol 13 adds the strict
@@ -68,23 +68,21 @@ describe("remote v3 native binding generator", () => {
         // flat reorder command. Host-scoped usage adds two procedures and four roots.
         // Regenerate native authority from all combined schemas.
         // Optional context-reload facts also add one generated Swift chunk.
-        // The optional file-search entry filter adds one structural enum while
-        // preserving existing requests and all wire versions.
-        sourceHash: "sha256:2c2074b2b0068bae421686a6b95d224aa937631b924ab979b4aefbee4d26e15d",
-        manifestHash: "sha256:2705e8a5e2e7c27c9e8496676b1bc0a4e7174f1b04dc74f6e5cad7d1b49559f4",
+        sourceHash: "sha256:726c802c6370f036cff83e48b7a9ae6a8e0c8469a3b52f1014429eaaf37dc747",
+        manifestHash: "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40",
         counts: {
-          routes: 97,
+          routes: 100,
           procedures: 130,
           voidProcedureResults: 50,
           jsonProcedureResults: 80,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 435,
-          structuralTypes: 988,
-          semanticValidators: 18,
-          swiftFiles: 62,
-          kotlinFiles: 54,
+          schemaRoots: 441,
+          structuralTypes: 1030,
+          semanticValidators: 22,
+          swiftFiles: 63,
+          kotlinFiles: 56,
           stateMachines: 5,
         },
       });
@@ -323,7 +321,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(435);
+        expect(adapters).toHaveLength(441);
         expect(
           adapters
             .map((adapter) => adapter.id)

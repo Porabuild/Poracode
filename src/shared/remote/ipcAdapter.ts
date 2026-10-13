@@ -46,6 +46,10 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   // registry call the PWA remote bridge uses. Owner `desktop` routes the
   // device-local rows to the host this runtime is attached to (managed
   // loopback, attach desktop, or paired browser host) — one data plane.
+  getAutomationsSnapshot: "desktop",
+  getScheduleRunInbox: "desktop",
+  updateScheduleRunState: "desktop",
+  cancelScheduleRun: "desktop",
   getSchedules: "desktop",
   createSchedule: "desktop",
   updateSchedule: "desktop",
@@ -85,6 +89,10 @@ type RemoteIpcAdapterClient = Pick<
   | "resolveRequest"
   | "writeTerminal"
   | "resizeTerminal"
+  | "automationsSnapshot"
+  | "scheduleRunInbox"
+  | "updateScheduleRunState"
+  | "cancelScheduleRun"
   | "schedules"
   | "createSchedule"
   | "updateSchedule"
@@ -156,6 +164,16 @@ export function invokeRemoteIpcProcedure(
       return client.writeTerminal(payload as WriteTerminalPayload);
     case "resizeTerminal":
       return client.resizeTerminal(payload as ResizeTerminalPayload);
+    case "getAutomationsSnapshot":
+      return client.automationsSnapshot(payload as IpcProcedurePayload<"getAutomationsSnapshot">);
+    case "getScheduleRunInbox":
+      return client.scheduleRunInbox(payload as IpcProcedurePayload<"getScheduleRunInbox">);
+    case "updateScheduleRunState":
+      return client.updateScheduleRunState(
+        payload as IpcProcedurePayload<"updateScheduleRunState">,
+      );
+    case "cancelScheduleRun":
+      return client.cancelScheduleRun((payload as IpcProcedurePayload<"cancelScheduleRun">).id);
     case "getSchedules":
       return client.schedules();
     case "createSchedule":

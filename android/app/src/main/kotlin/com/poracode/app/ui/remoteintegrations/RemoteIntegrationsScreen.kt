@@ -43,6 +43,7 @@ import com.poracode.app.R
 fun RemoteIntegrationsScreen(
     composition: RemoteIntegrationsComposition,
     scheduleThreads: List<ScheduleRunThreadTarget>,
+    completionAgentKinds: Set<String>,
     onOpenThread: (String) -> Unit,
     initialSection: RemoteIntegrationsSection = RemoteIntegrationsSection.Update,
     onBack: () -> Unit,
@@ -110,7 +111,7 @@ fun RemoteIntegrationsScreen(
                         IntegrationNavigationRail(section) { sectionName = it.name }
                         VerticalDivider()
                         SectionContent(
-                            section, access, state, composition, scheduleThreads,
+                            section, access, state, composition, scheduleThreads, completionAgentKinds,
                             onOpenThread, Modifier.weight(1f),
                         )
                     }
@@ -118,7 +119,7 @@ fun RemoteIntegrationsScreen(
                     Column(Modifier.fillMaxSize()) {
                         IntegrationTabs(section) { sectionName = it.name }
                         SectionContent(
-                            section, access, state, composition, scheduleThreads,
+                            section, access, state, composition, scheduleThreads, completionAgentKinds,
                             onOpenThread, Modifier.weight(1f),
                         )
                     }
@@ -135,6 +136,7 @@ private fun SectionContent(
     state: com.poracode.app.session.remoteintegrations.RemoteIntegrationsState,
     composition: RemoteIntegrationsComposition,
     scheduleThreads: List<ScheduleRunThreadTarget>,
+    completionAgentKinds: Set<String>,
     onOpenThread: (String) -> Unit,
     modifier: Modifier,
 ) {
@@ -145,6 +147,7 @@ private fun SectionContent(
             access,
             composition,
             scheduleThreads,
+            completionAgentKinds,
             onOpenThread,
             modifier,
         )

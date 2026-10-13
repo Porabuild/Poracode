@@ -4,6 +4,7 @@ struct RemoteIntegrationsAgentConfig: Codable, Equatable, Sendable {
   let model: String
   let effort: String?
   let fast: Bool?
+  var preservedSelection: JSONValue? = nil
 
   init(model: String, effort: String? = nil, fast: Bool? = nil) {
     self.model = model
@@ -98,162 +99,6 @@ struct RemoteIntegrationsHostUpdateState: Codable, Equatable, Sendable {
   let status: RemoteIntegrationsHostUpdateStatus?
 }
 
-enum RemoteIntegrationsScheduleRecurrence: Codable, Equatable, Sendable {
-  case hourly(minute: Int)
-  case weekly(days: [Int], time: String)
-  case once(runAt: String)
-
-  private enum CodingKeys: String, CodingKey { case kind, minute, days, time, runAt }
-  private enum Kind: String, Codable { case hourly, weekly, once }
-
-  init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    switch try container.decode(Kind.self, forKey: .kind) {
-    case .hourly: self = .hourly(minute: try container.decode(Int.self, forKey: .minute))
-    case .weekly:
-      self = .weekly(
-        days: try container.decode([Int].self, forKey: .days),
-        time: try container.decode(String.self, forKey: .time)
-      )
-    case .once: self = .once(runAt: try container.decode(String.self, forKey: .runAt))
-    }
-  }
-
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    switch self {
-    case .hourly(let minute):
-      try container.encode(Kind.hourly, forKey: .kind)
-      try container.encode(minute, forKey: .minute)
-    case .weekly(let days, let time):
-      try container.encode(Kind.weekly, forKey: .kind)
-      try container.encode(days, forKey: .days)
-      try container.encode(time, forKey: .time)
-    case .once(let runAt):
-      try container.encode(Kind.once, forKey: .kind)
-      try container.encode(runAt, forKey: .runAt)
-    }
-  }
-}
-
-struct RemoteIntegrationsScheduledTaskInput: Codable, Equatable, Sendable {
-  let name: String
-  let prompt: String
-  let agentKind: String
-  let config: RemoteIntegrationsAgentConfig
-  let recurrence: RemoteIntegrationsScheduleRecurrence
-  let enabled: Bool
-  let projectId: String?
-}
-
-enum RemoteIntegrationsScheduleStatus: String, Codable, Equatable, Sendable {
-  case never
-  case running
-  case succeeded
-  case failed
-}
-
-enum RemoteIntegrationsScheduleRunStatus: String, Codable, Equatable, Sendable {
-  case running
-  case succeeded
-  case failed
-  case interrupted
-}
-
-struct RemoteIntegrationsScheduleRun: Decodable, Equatable, Identifiable, Sendable {
-  let id: String
-  let scheduleId: String
-  let threadId: String
-  let startedAt: String
-  let completedAt: String?
-  let status: RemoteIntegrationsScheduleRunStatus
-  let summary: String?
-  let hasError: Bool
-
-  private enum CodingKeys: String, CodingKey {
-    case id, scheduleId, threadId, startedAt, completedAt, status, summary, error
-  }
-
-  init(from decoder: Decoder) throws {
-    let values = try decoder.container(keyedBy: CodingKeys.self)
-    id = try values.decode(String.self, forKey: .id)
-    scheduleId = try values.decode(String.self, forKey: .scheduleId)
-    threadId = try values.decode(String.self, forKey: .threadId)
-    startedAt = try values.decode(String.self, forKey: .startedAt)
-    completedAt = try values.decodeIfPresent(String.self, forKey: .completedAt)
-    status = try values.decode(RemoteIntegrationsScheduleRunStatus.self, forKey: .status)
-    summary = try values.decodeIfPresent(String.self, forKey: .summary)
-    hasError = try values.decodeIfPresent(String.self, forKey: .error) != nil
-  }
-}
-
-struct RemoteIntegrationsScheduleRunsResponse: Decodable, Equatable, Sendable {
-  let runs: [RemoteIntegrationsScheduleRun]
-}
-
-struct RemoteIntegrationsScheduledTask: Codable, Equatable, Identifiable, Sendable {
-  let id: String
-  let name: String
-  let prompt: String
-  let agentKind: String
-  let config: RemoteIntegrationsAgentConfig
-  let recurrence: RemoteIntegrationsScheduleRecurrence
-  let enabled: Bool
-  let projectId: String?
-  let createdAt: String
-  let updatedAt: String
-  let nextRunAt: String?
-  let lastRunAt: String?
-  let lastCompletedAt: String?
-  let lastStatus: RemoteIntegrationsScheduleStatus
-
-  /// The same task with a different enabled flag, for Pause/Resume.
-  func input(enabled: Bool) -> RemoteIntegrationsScheduledTaskInput {
-    RemoteIntegrationsScheduledTaskInput(
-      name: name,
-      prompt: prompt,
-      agentKind: agentKind,
-      config: config,
-      recurrence: recurrence,
-      enabled: enabled,
-      projectId: projectId
-    )
-  }
-}
-
-enum RemoteIntegrationsScheduleCommand: Encodable, Equatable, Sendable {
-  case create(RemoteIntegrationsScheduledTaskInput)
-  case update(id: String, task: RemoteIntegrationsScheduledTaskInput)
-  case delete(id: String)
-  case run(id: String)
-
-  private enum CodingKeys: String, CodingKey { case kind, id, task }
-  private enum Kind: String, Encodable { case create, update, delete, run }
-
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    switch self {
-    case .create(let task):
-      try container.encode(Kind.create, forKey: .kind)
-      try container.encode(task, forKey: .task)
-    case .update(let id, let task):
-      try container.encode(Kind.update, forKey: .kind)
-      try container.encode(id, forKey: .id)
-      try container.encode(task, forKey: .task)
-    case .delete(let id):
-      try container.encode(Kind.delete, forKey: .kind)
-      try container.encode(id, forKey: .id)
-    case .run(let id):
-      try container.encode(Kind.run, forKey: .kind)
-      try container.encode(id, forKey: .id)
-    }
-  }
-}
-
-struct RemoteIntegrationsSchedulesResponse: Codable, Equatable, Sendable {
-  let schedules: [RemoteIntegrationsScheduledTask]
-  let schedule: RemoteIntegrationsScheduledTask?
-}
 
 struct RemoteIntegrationsPRWatchKey: Codable, Equatable, Hashable, Sendable {
   let projectId: String
@@ -332,4 +177,27 @@ struct RemoteIntegrationsPRWatchResponse: Codable, Equatable, Sendable {
 
 struct RemoteIntegrationsOKResponse: Codable, Equatable, Sendable {
   let ok: Bool
+}
+
+// Generated codecs validate this selection; keep its full validated JSON while
+// projecting only the controls shown by the native editor.
+extension RemoteIntegrationsAgentConfig {
+  init(from decoder: Decoder) throws {
+    let raw = try JSONValue(from: decoder)
+    guard let model = raw["model"]?.stringValue else {
+      throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Missing model"))
+    }
+    self.model = model
+    effort = raw["effort"]?.stringValue
+    fast = raw["fast"] == .bool(true) ? true : raw["fast"] == .bool(false) ? false : nil
+    preservedSelection = raw
+  }
+
+  func encode(to encoder: Encoder) throws {
+    if let preservedSelection { try preservedSelection.encode(to: encoder); return }
+    var raw: [String: JSONValue] = ["model": .string(model)]
+    if let effort { raw["effort"] = .string(effort) }
+    if let fast { raw["fast"] = .bool(fast) }
+    try JSONValue.object(raw).encode(to: encoder)
+  }
 }

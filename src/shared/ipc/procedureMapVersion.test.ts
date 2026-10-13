@@ -60,7 +60,12 @@ import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
 // Agent discovery cancellation: additive local supervisor name; older peers
 // reject unknown names explicitly. Existing payloads, remote allowlist and
 // persisted status shapes are unchanged, so hop 17 remains compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:a1568435299c182bd027f6745a4319a26e57861cde963a25f4079a5373f331c1`;
+// Schedule automation (remote14/hop18): run statuses and schedule payloads now
+// include automation policies and typed results. Old readers have closed enums,
+// so every client/host leg refuses the previous generation before dispatch.
+// Evaluation helpers are additive host-only names; they never enter the remote
+// procedure allowlist.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:0f84ec4fde26d69b097c0d89c0a191203993bd39ecde60962bf0c0eb80faacd0`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

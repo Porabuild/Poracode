@@ -2,6 +2,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project, ScheduledTask, ScheduledTaskRun } from "@/shared/contracts";
+import { DEFAULT_SCHEDULE_AUTOMATION } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const task: ScheduledTask = {
@@ -35,6 +36,23 @@ const run: ScheduledTaskRun = {
 
 const bridge = vi.hoisted(() => ({
   getSchedules: vi.fn<() => Promise<ScheduledTask[]>>(),
+  getAutomationsSnapshot:
+    vi.fn<
+      (
+        query: import("@/shared/contracts").ScheduleRunInboxQuery,
+      ) => Promise<import("@/shared/contracts").AutomationsSnapshot>
+    >(),
+  getScheduleRunInbox:
+    vi.fn<
+      (query: import("@/shared/contracts").ScheduleRunInboxQuery) => Promise<ScheduledTaskRun[]>
+    >(),
+  updateScheduleRunState:
+    vi.fn<
+      (
+        payload: import("@/shared/contracts").UpdateScheduleRunStatePayload,
+      ) => Promise<ScheduledTaskRun | null>
+    >(),
+  cancelScheduleRun: vi.fn<(payload: { id: string }) => Promise<boolean>>(),
   createSchedule: vi.fn<(input: unknown) => Promise<ScheduledTask>>(),
   updateSchedule: vi.fn<(input: { id: string; task: unknown }) => Promise<ScheduledTask>>(),
   deleteSchedule: vi.fn<() => Promise<void>>(),
@@ -172,6 +190,14 @@ describe("SchedulesView", () => {
       withClient: originalRemoteState.withClient,
     });
     bridge.getSchedules.mockReset().mockResolvedValue([task]);
+    bridge.getAutomationsSnapshot.mockReset().mockImplementation(async () => ({
+      schedules: await bridge.getSchedules(),
+      runs: [run],
+      unreadCount: 0,
+    }));
+    bridge.getScheduleRunInbox.mockReset().mockResolvedValue([]);
+    bridge.updateScheduleRunState.mockReset().mockResolvedValue(run);
+    bridge.cancelScheduleRun.mockReset().mockResolvedValue(true);
     bridge.createSchedule.mockReset().mockResolvedValue(task);
     bridge.updateSchedule.mockReset().mockImplementation(async ({ task: input }) => ({
       ...task,
@@ -194,6 +220,78 @@ describe("SchedulesView", () => {
       },
     ];
     appState.projects = [];
+  });
+
+  it("allows an unsupported AI heartbeat to be saved as a single pass", async () => {
+    bridge.getSchedules.mockResolvedValue([
+      {
+        ...task,
+        automation: {
+          ...DEFAULT_SCHEDULE_AUTOMATION,
+          mode: { kind: "heartbeat", targetThreadId: run.threadId },
+          completionPolicy: { kind: "ai-evaluated", stopWhen: "Done", confidenceThreshold: 0.9 },
+        },
+      },
+    ]);
+    render(<SchedulesView />);
+    await screen.findByText("Daily brief");
+    fireEvent.click(screen.getByRole("button", { name: "Edit schedule" }));
+    fireEvent.click(screen.getByLabelText("Execution mode"));
+    fireEvent.click(await screen.findByRole("option", { name: "Single pass" }));
+    const save = screen.getByRole("button", { name: "Save changes" });
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+    await waitFor(() =>
+      expect(bridge.updateSchedule).toHaveBeenCalledWith(
+        expect.objectContaining({
+          task: expect.objectContaining({
+            automation: expect.objectContaining({
+              mode: { kind: "new-thread" },
+              completionPolicy: { kind: "none" },
+            }),
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("discloses removal of all results and refreshes the inbox after deleting", async () => {
+    bridge.getAutomationsSnapshot.mockImplementation(async () => ({
+      schedules: await bridge.getSchedules(),
+      runs: bridge.deleteSchedule.mock.calls.length ? [] : [run],
+      unreadCount: bridge.deleteSchedule.mock.calls.length ? 0 : 1,
+    }));
+    render(<SchedulesView />);
+    await screen.findByText("Daily brief");
+    fireEvent.click(screen.getByRole("button", { name: "Delete schedule" }));
+    expect(
+      await screen.findByText("This removes the schedule and all its saved run results."),
+    ).toBeInTheDocument();
+    bridge.getSchedules.mockResolvedValue([]);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(bridge.getAutomationsSnapshot).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("button", { name: "Edit schedule" })).not.toBeInTheDocument();
+  });
+
+  it("identifies an explicitly different weekly time zone", async () => {
+    bridge.getSchedules.mockResolvedValue([
+      {
+        ...task,
+        recurrence: {
+          kind: "weekly",
+          days: [1, 2, 3, 4, 5],
+          time: "08:00",
+          timeZone:
+            Intl.DateTimeFormat().resolvedOptions().timeZone === "America/New_York"
+              ? "Europe/Malta"
+              : "America/New_York",
+        },
+      },
+    ]);
+    render(<SchedulesView />);
+    expect(
+      await screen.findByText(/Weekdays at .*\((America\/New_York|Europe\/Malta)\)/),
+    ).toBeInTheDocument();
   });
 
   it("excludes Cursor when its GUI SDK authentication is missing", async () => {
@@ -253,7 +351,7 @@ describe("SchedulesView", () => {
     expect(screen.getByRole("button", { name: "New schedule" })).toBeDisabled();
   });
 
-  it("keeps the one-shot capability gate for GUI agents", async () => {
+  it("allows structured GUI runs without requiring a one-shot helper", async () => {
     agentState.statuses = [
       makeStatus({
         capabilities: {
@@ -266,8 +364,8 @@ describe("SchedulesView", () => {
 
     render(<SchedulesView />);
 
-    expect(await screen.findByText("Connect an agent to create schedules.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "New schedule" })).toBeDisabled();
+    expect(await screen.findByText("Daily brief")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New schedule" })).toBeEnabled();
   });
 
   it("loads a device schedule and exposes run and pause actions", async () => {
@@ -352,23 +450,20 @@ describe("SchedulesView", () => {
     expect(bridge.createSchedule.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         name: "Daily brief",
-        recurrence: { kind: "weekly", days: [1, 2, 3, 4, 5], time: "08:00" },
+        recurrence: expect.objectContaining({
+          kind: "weekly",
+          days: [1, 2, 3, 4, 5],
+          time: "08:00",
+        }),
       }),
     );
   });
 
-  it("runs create-with-agent directly from the primary split button without opening the menu", async () => {
+  it("opens the editor from the primary split button", async () => {
     render(<SchedulesView />);
-
     fireEvent.click(await screen.findByRole("button", { name: "New schedule" }));
-
-    // The primary segment must act immediately, not reveal the dropdown menu.
-    expect(screen.queryByRole("menuitem", { name: "Create schedule" })).not.toBeInTheDocument();
-    await waitFor(() => expect(agentCreation.openDraft).toHaveBeenCalledWith("home"));
-    expect(agentCreation.setComposerSeed).toHaveBeenCalledWith(
-      "home",
-      expect.stringContaining("Poracode schedule controls"),
-    );
+    expect(await screen.findByLabelText("Schedule name")).toBeInTheDocument();
+    expect(agentCreation.openDraft).not.toHaveBeenCalled();
   });
 
   it("starts a home chat from the split-button dropdown", async () => {
@@ -445,6 +540,8 @@ describe("SchedulesView", () => {
     // that thread — not render as a dead "deleted thread" row.
     const runRow = await screen.findByLabelText("Succeeded");
     fireEvent.click(runRow.closest("button")!);
+    expect(await screen.findByText("Reviewed priorities for today.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open conversation" }));
     expect(nav.openThread).toHaveBeenCalledWith(mirroredThreadId);
   });
 
@@ -466,10 +563,12 @@ describe("SchedulesView", () => {
     const statusIcon = await screen.findByLabelText("Succeeded");
     fireEvent.click(statusIcon.closest("button")!);
 
+    expect(await screen.findByText("Reviewed priorities for today.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open conversation" }));
     await waitFor(() => expect(nav.openThread).toHaveBeenCalledWith(run.threadId));
   });
 
-  it("renders a deleted thread's run as non-interactive without its title", async () => {
+  it("opens saved details when the conversation was deleted", async () => {
     appState.threads = [];
     render(<SchedulesView />);
 
@@ -477,11 +576,10 @@ describe("SchedulesView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Previous runs" }));
     const statusIcon = await screen.findByLabelText("Succeeded");
 
-    // No thread to navigate to: the row keeps the time-only presentation and
-    // is not a button, so clicking it never routes anywhere.
-    expect(screen.queryByText("Daily brief run thread")).not.toBeInTheDocument();
-    expect(statusIcon.closest("button")).toBeNull();
-    fireEvent.click(statusIcon);
+    expect(statusIcon.closest("button")).not.toBeNull();
+    fireEvent.click(statusIcon.closest("button")!);
+    expect(await screen.findByText("Reviewed priorities for today.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open conversation" })).toBeDisabled();
     expect(nav.openThread).not.toHaveBeenCalled();
   });
 
@@ -516,6 +614,16 @@ describe("SchedulesView", () => {
     }));
     const withClient: RemoteServersState["withClient"] = async (_desktopId, invoke) =>
       invoke({
+        automationsSnapshot: vi.fn<() => Promise<import("@/shared/contracts").AutomationsSnapshot>>(
+          async () => ({
+            schedules: await schedulesMock(),
+            runs: [run],
+            unreadCount: 0,
+          }),
+        ),
+        scheduleRunInbox: vi.fn<() => Promise<ScheduledTaskRun[]>>(async () => []),
+        updateScheduleRunState: vi.fn<() => Promise<ScheduledTaskRun>>(async () => run),
+        cancelScheduleRun: vi.fn<() => Promise<boolean>>(async () => true),
         schedules: schedulesMock,
         runScheduleNow: runNowMock,
         scheduleRuns: vi.fn<() => Promise<ScheduledTaskRun[]>>(async () => [run]),

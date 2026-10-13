@@ -209,6 +209,12 @@ val RemoteRootCodecs.routeU2EAttachmentU2DUploadU2EQuery: RemoteRootCodec<Routea
 val RemoteRootCodecs.routeU2EAttachmentU2DUploadU2EResponse: RemoteRootCodec<ProcedurecloneRepoResult_6a0c18e639>
     get() = RemoteRootCodec("route.attachment-upload.response", serializer<ProcedurecloneRepoResult_6a0c18e639>(), schema_6a0c18e639dbb000)
 
+val RemoteRootCodecs.routeU2EAutomationsU2DSnapshotU2EQuery: RemoteRootCodec<RouteautomationsU2DSnapshotQuery_8cdebfa85e>
+    get() = RemoteRootCodec("route.automations-snapshot.query", serializer<RouteautomationsU2DSnapshotQuery_8cdebfa85e>(), schema_8cdebfa85eb53602)
+
+val RemoteRootCodecs.routeU2EAutomationsU2DSnapshotU2EResponse: RemoteRootCodec<RouteautomationsU2DSnapshotResponse_6d3a7935ec>
+    get() = RemoteRootCodec("route.automations-snapshot.response", serializer<RouteautomationsU2DSnapshotResponse_6d3a7935ec>(), schema_6d3a7935eccd662a)
+
 val RemoteRootCodecs.routeU2EBrowserU2DCommandU2ERequest: RemoteRootCodec<RoutebrowserU2DCommandRequest_80a9ff940d>
     get() = RemoteRootCodec("route.browser-command.request", serializer<RoutebrowserU2DCommandRequest_80a9ff940d>(), schema_80a9ff940d24dba8)
 
@@ -266,8 +272,8 @@ val RemoteRootCodecs.routeU2EEnvironmentU2DGetU2EPath: RemoteRootCodec<Routeenvi
 val RemoteRootCodecs.routeU2EEnvironmentU2DGetU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec>
     get() = RemoteRootCodec("route.environment-get.response", serializer<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec>(), schema_8428abfcec0a8b32)
 
-val RemoteRootCodecs.routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_61299a114d>
-    get() = RemoteRootCodec("route.environment-legacy.response", serializer<RouteenvironmentU2DLegacyResponse_61299a114d>(), schema_61299a114dcdb35c)
+val RemoteRootCodecs.routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_7cc98e2428>
+    get() = RemoteRootCodec("route.environment-legacy.response", serializer<RouteenvironmentU2DLegacyResponse_7cc98e2428>(), schema_7cc98e24285beaa2)
 
 val RemoteRootCodecs.routeU2EEnvironmentU2DListU2EResponse: RemoteRootCodec<RouteenvironmentU2DListResponse_700ee4302b>
     get() = RemoteRootCodec("route.environment-list.response", serializer<RouteenvironmentU2DListResponse_700ee4302b>(), schema_700ee4302bb616f0)
@@ -344,8 +350,8 @@ val RemoteRootCodecs.routeU2EEnvironmentU2DWebsocketU2DTicketU2EPath: RemoteRoot
 val RemoteRootCodecs.routeU2EEnvironmentU2DWebsocketU2DTicketU2EResponse: RemoteRootCodec<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>
     get() = RemoteRootCodec("route.environment-websocket-ticket.response", serializer<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053>(), schema_b9dfb5a053707da9)
 
-val RemoteRootCodecs.routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_61299a114d>
-    get() = RemoteRootCodec("route.environment.response", serializer<RouteenvironmentU2DLegacyResponse_61299a114d>(), schema_61299a114dcdb35c)
+val RemoteRootCodecs.routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_7cc98e2428>
+    get() = RemoteRootCodec("route.environment.response", serializer<RouteenvironmentU2DLegacyResponse_7cc98e2428>(), schema_7cc98e24285beaa2)
 
 val RemoteRootCodecs.routeU2EExperimentU2DCommandU2EPath: RemoteRootCodec<RouteexperimentU2DCommandPath_84af3e9751>
     get() = RemoteRootCodec("route.experiment-command.path", serializer<RouteexperimentU2DCommandPath_84af3e9751>(), schema_84af3e97516dc824)
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EPortU2DForwardU2EResponse: RemoteRootCodec<Routepor
 
 val RemoteRootCodecs.routeU2EPortU2DUnforwardU2ERequest: RemoteRootCodec<RouteportU2DEnterRequest_4067ad04bf>
     get() = RemoteRootCodec("route.port-unforward.request", serializer<RouteportU2DEnterRequest_4067ad04bf>(), schema_4067ad04bfbe200c)
-
-val RemoteRootCodecs.routeU2EPortU2DUnforwardU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35>
-    get() = RemoteRootCodec("route.port-unforward.response", serializer<RouteenvironmentU2DDeleteResponse_badd682f35>(), schema_badd682f3501e022)
-
-val RemoteRootCodecs.routeU2EPortsU2DReadU2EResponse: RemoteRootCodec<RouteportsU2DReadResponse_ea993e5b2d>
-    get() = RemoteRootCodec("route.ports-read.response", serializer<RouteportsU2DReadResponse_ea993e5b2d>(), schema_ea993e5b2d87f77f)

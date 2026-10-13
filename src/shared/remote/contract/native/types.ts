@@ -1,4 +1,4 @@
-import type { REMOTE_PROTOCOL_VERSION } from "../versions";
+import type { REMOTE_GENERATOR_VERSION, REMOTE_PROTOCOL_VERSION } from "../versions";
 
 export type NativeLanguage = "swift" | "kotlin";
 
@@ -55,7 +55,7 @@ export interface NativeBindingIr {
   /** Tracks the live wire protocol constant; never widened to `number`. */
   readonly protocolVersion: typeof REMOTE_PROTOCOL_VERSION;
   readonly bindingFormatVersion: 2;
-  readonly generatorVersion: 4;
+  readonly generatorVersion: typeof REMOTE_GENERATOR_VERSION;
   readonly manifestFormatVersion: 1;
   readonly sourceHash: string;
   readonly manifestHash: string;

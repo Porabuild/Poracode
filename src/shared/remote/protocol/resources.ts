@@ -9,6 +9,10 @@ import {
   projectDraftConfigSchema,
   projectSchema,
   scheduledTaskIdPayloadSchema,
+  scheduleRunInboxQuerySchema,
+  scheduleRunIdPayloadSchema,
+  updateScheduleRunStatePayloadSchema,
+  automationsSnapshotSchema,
   scheduledTaskInputSchema,
   scheduledTaskRunSchema,
   scheduledTaskSchema,
@@ -651,3 +655,15 @@ export const remoteThreadSnapshotSchema = z.object({
   updatedAt: z.string().min(1),
 });
 export type RemoteThreadSnapshot = z.infer<typeof remoteThreadSnapshotSchema>;
+
+export const remoteAutomationsSnapshotSchema = automationsSnapshotSchema;
+export const remoteScheduleRunInboxQuerySchema = scheduleRunInboxQuerySchema;
+export const remoteScheduleRunCommandSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("update-state"), payload: updateScheduleRunStatePayloadSchema }),
+  scheduleRunIdPayloadSchema.extend({ kind: z.literal("cancel") }),
+]);
+export type RemoteScheduleRunCommand = z.infer<typeof remoteScheduleRunCommandSchema>;
+export const remoteScheduleRunCommandResponseSchema = z.object({
+  run: scheduledTaskRunSchema.nullable().optional(),
+  cancelled: z.boolean().optional(),
+});

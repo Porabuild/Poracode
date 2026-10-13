@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   durableInstances: [] as Array<{
     startIngress: ReturnType<typeof vi.fn<() => Promise<void>>>;
     startBackgroundServices: ReturnType<typeof vi.fn<() => void>>;
+    handleSupervisorReset: ReturnType<typeof vi.fn<() => void>>;
   }>,
   settingsAccessOptions: [] as Array<Record<string, unknown>>,
   settingsAccesses: [] as Array<{
@@ -86,6 +87,7 @@ vi.mock("./BackendDurableServices", () => ({
     getSupervisorExtraEnv = () => ({});
     startBackgroundServices = vi.fn<() => void>(() => {});
     observeSupervisorEvent = () => {};
+    handleSupervisorReset = vi.fn<() => void>();
     dispose = () => {};
   },
 }));
@@ -295,12 +297,17 @@ describe("BackendDesktopServices supervisor reset", () => {
     services.handleSupervisorReset();
 
     expect(handleSupervisorReset).toHaveBeenCalledOnce();
+    expect(mocks.durableInstances.at(-1)?.handleSupervisorReset).toHaveBeenCalledOnce();
+    expect(
+      mocks.durableInstances.at(-1)!.handleSupervisorReset.mock.invocationCallOrder[0],
+    ).toBeLessThan(handleSupervisorReset.mock.invocationCallOrder[0]!);
   });
 
-  it("no-ops supervisor reset without desktop remote access", () => {
+  it("resets durable schedules without desktop remote access", () => {
     const services = new BackendDesktopServices(options(false));
 
     expect(() => services.handleSupervisorReset()).not.toThrow();
+    expect(mocks.durableInstances.at(-1)?.handleSupervisorReset).toHaveBeenCalledOnce();
     expect(mocks.createDesktopRemoteAccessController).not.toHaveBeenCalled();
   });
 });

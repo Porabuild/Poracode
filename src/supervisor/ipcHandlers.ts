@@ -179,6 +179,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     },
     gitInit: (payload) => git.init(payload.projectLocation),
     gitAddRemote: (payload) => git.addRemote(payload.projectLocation, payload.remote, payload.url),
+    evaluateScheduleCompletion: (payload) => generation.evaluateScheduleCompletion(payload),
+    cancelScheduleCompletionEvaluation: ({ id }) =>
+      generation.cancelScheduleCompletionEvaluation(id),
     generateCommitMessage: (payload) => generation.generateCommitMessage(payload),
     generateTitle: (payload) => generation.generateTitle(payload),
     generatePrSummary: (payload) => generation.generatePrSummary(payload),

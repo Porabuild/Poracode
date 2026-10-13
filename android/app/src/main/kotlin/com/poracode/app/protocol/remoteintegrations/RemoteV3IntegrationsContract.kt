@@ -23,6 +23,12 @@ import com.poracode.remote.v3.generated.routeU2ESchedulesU2DCommandU2EResponse
 import com.poracode.remote.v3.generated.routeU2ESchedulesU2DReadU2EResponse
 import com.poracode.remote.v3.generated.routeU2EScheduleU2DRunsU2DReadU2EQuery
 import com.poracode.remote.v3.generated.routeU2EScheduleU2DRunsU2DReadU2EResponse
+import com.poracode.remote.v3.generated.routeU2EAutomationsU2DSnapshotU2EQuery
+import com.poracode.remote.v3.generated.routeU2EAutomationsU2DSnapshotU2EResponse
+import com.poracode.remote.v3.generated.routeU2EScheduleU2DRunU2DInboxU2EQuery
+import com.poracode.remote.v3.generated.routeU2EScheduleU2DRunU2DInboxU2EResponse
+import com.poracode.remote.v3.generated.routeU2EScheduleU2DRunU2DCommandU2ERequest
+import com.poracode.remote.v3.generated.routeU2EScheduleU2DRunU2DCommandU2EResponse
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
@@ -30,6 +36,9 @@ enum class IntegrationRouteId(val wireId: String) {
     HostUpdate("host-update"),
     HostUpdateCheck("host-update-check"),
     HostUpdateInstall("host-update-install"),
+    AutomationsSnapshot("automations-snapshot"),
+    ScheduleInbox("schedule-run-inbox"),
+    ScheduleRunCommand("schedule-run-command"),
     SchedulesRead("schedules-read"),
     SchedulesCommand("schedules-command"),
     ScheduleRunsRead("schedule-runs-read"),
@@ -112,6 +121,13 @@ object RemoteV3IntegrationsContract {
         RemoteRootCodecs.routeU2EScheduleU2DRunsU2DReadU2EResponse,
         raw,
     )
+
+    fun automationsQuery(raw: String): JsonObject = canonicalObject(RemoteRootCodecs.routeU2EAutomationsU2DSnapshotU2EQuery, raw)
+    fun automationsResponse(raw: String): JsonObject = canonicalObject(RemoteRootCodecs.routeU2EAutomationsU2DSnapshotU2EResponse, raw)
+    fun inboxQuery(raw: String): JsonObject = canonicalObject(RemoteRootCodecs.routeU2EScheduleU2DRunU2DInboxU2EQuery, raw)
+    fun inboxResponse(raw: String): JsonObject = canonicalObject(RemoteRootCodecs.routeU2EScheduleU2DRunU2DInboxU2EResponse, raw)
+    fun runCommandRequest(raw: String): String = canonical(RemoteRootCodecs.routeU2EScheduleU2DRunU2DCommandU2ERequest, raw)
+    fun runCommandResponse(raw: String): JsonObject = canonicalObject(RemoteRootCodecs.routeU2EScheduleU2DRunU2DCommandU2EResponse, raw)
 
     fun prWatchReadQuery(raw: String): JsonObject = canonicalObject(
         RemoteRootCodecs.routeU2EPrU2DWatchU2DReadU2EQuery,

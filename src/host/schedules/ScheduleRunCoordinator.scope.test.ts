@@ -72,6 +72,8 @@ it.each(["relocated", "deleted"] as const)(
     const mirror = vi.fn<ScheduleRunCoordinatorDeps["sendThreadCommand"]>(() => false);
     const coordinator = new ScheduleRunCoordinator({
       startThread,
+      getThreadRuntimeItemCursor: () => -1,
+      getThreadRuntimeItemsAfter: () => [],
       admitScheduleExecution: dbAdmitScheduleExecution,
       getProject: dbGetProject,
       ensureHomeProject: () => project,

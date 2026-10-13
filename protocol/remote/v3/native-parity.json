@@ -1,7 +1,7 @@
 {
   "formatVersion": 2,
   "contract": "poracode.remote.native-parity",
-  "protocolVersion": 13,
+  "protocolVersion": 14,
   "entries": {
     "httpRoutes": [
       {
@@ -2754,7 +2754,7 @@
               "ios/App/App/Features/Terminal/TerminalRawKeyInput.swift",
               "screen:ios.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u2014 the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row — the standard mobile-terminal compromise."
           }
         },
         "android": {
@@ -2773,7 +2773,7 @@
               "android/app/src/main/kotlin/com/poracode/app/ui/terminal/TerminalKeyAccessory.kt",
               "screen:android.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u2014 the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row — the standard mobile-terminal compromise."
           }
         }
       },
@@ -3327,6 +3327,120 @@
             "disposition": "planned",
             "evidence": [],
             "note": "Desktop thread-opening optimization. Native adoption of this opt-in history route is pending; native clients retain complete compatible history responses."
+          }
+        }
+      },
+      {
+        "id": "automations-snapshot",
+        "scopes": ["session:read"],
+        "batch": "settings-integrations",
+        "note": "Native results inbox supports saved details, pagination, search and triage in the selected host lease.",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+              "ios/App/App/Features/RemoteIntegrations/RemoteIntegrationsAutomationsController.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsResultsView.swift"
+            ],
+            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/remoteintegrations/AutomationsController.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/AutomationResultsSheet.kt"
+            ],
+            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+          }
+        }
+      },
+      {
+        "id": "schedule-run-inbox",
+        "scopes": ["session:read"],
+        "batch": "settings-integrations",
+        "note": "Native results inbox supports saved details, pagination, search and triage in the selected host lease.",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+              "ios/App/App/Features/RemoteIntegrations/RemoteIntegrationsAutomationsController.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsResultsView.swift"
+            ],
+            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/remoteintegrations/AutomationsController.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/AutomationResultsSheet.kt"
+            ],
+            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+          }
+        }
+      },
+      {
+        "id": "schedule-run-command",
+        "scopes": ["session:operate"],
+        "batch": "settings-integrations",
+        "note": "Native results inbox supports saved details, pagination, search and triage in the selected host lease.",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RemoteIntegrations/RemoteIntegrationsRemoteAPI.swift",
+              "ios/App/App/Features/RemoteIntegrations/RemoteIntegrationsAutomationsController.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/RemoteIntegrations/UI/RemoteIntegrationsResultsView.swift"
+            ],
+            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/remoteintegrations/RemoteIntegrationsApiClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/remoteintegrations/AutomationsController.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/remoteintegrations/AutomationResultsSheet.kt"
+            ],
+            "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
         }
       }
@@ -9580,5 +9694,5 @@
       }
     ]
   },
-  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence \u2014 a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
+  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence — a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
 }

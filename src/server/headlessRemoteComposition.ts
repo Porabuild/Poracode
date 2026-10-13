@@ -336,6 +336,7 @@ export async function composeHeadlessRemoteHost(
       },
       onRuntimeGapAcknowledged: createRuntimeGapAcknowledgedHook(() => serverRef),
       onReset: () => {
+        durableServices?.handleSupervisorReset();
         // Match the desktop backend: a supervisor crash leaves durable rows
         // `working`, and without a renderer launch sweep those statuses stay
         // live. Clients then try to steer a session that no longer exists.

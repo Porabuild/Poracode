@@ -165,7 +165,7 @@ enum RemoteIntegrationsStrings {
   static var deleteScheduleMessage: String {
     text(
       "remoteIntegrations.schedule.deleteMessage",
-      "The schedule will be removed from the desktop."
+      "This removes the schedule and all its saved run results."
     )
   }
   static var filterAll: String {

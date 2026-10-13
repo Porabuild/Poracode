@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "contract": "poracode.remote",
-  "protocolVersion": 13,
+  "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:357a75ac296651aa4198fcca20b024532533a7a7cf3e20e8cc49749c05401c15",
-  "keyCount": 279,
+  "manifestHash": "sha256:198a0797f5b5aac0b9e7ded98f7407af7dffbbd9a8c57225e246d13fcf89995e",
+  "keyCount": 282,
   "counts": {
-    "route": 97,
+    "route": 100,
     "procedure": 130,
     "ws-client": 9,
     "ws-server": 11,
@@ -610,6 +610,10 @@
       "kind": "route",
       "id": "attachment-upload"
     },
+    "route:automations-snapshot": {
+      "kind": "route",
+      "id": "automations-snapshot"
+    },
     "route:browser-command": {
       "kind": "route",
       "id": "browser-command"
@@ -865,6 +869,14 @@
     "route:runtime-image": {
       "kind": "route",
       "id": "runtime-image"
+    },
+    "route:schedule-run-command": {
+      "kind": "route",
+      "id": "schedule-run-command"
+    },
+    "route:schedule-run-inbox": {
+      "kind": "route",
+      "id": "schedule-run-inbox"
     },
     "route:schedule-runs-read": {
       "kind": "route",

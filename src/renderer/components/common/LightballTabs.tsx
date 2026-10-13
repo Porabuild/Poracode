@@ -13,6 +13,22 @@ export interface LightballTab<K extends string> {
   disabled?: boolean;
 }
 
+function LightballTabCount(props: { value: number; active: boolean }) {
+  return (
+    <span
+      className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1.5 text-[10px] font-medium leading-none transition-colors ${
+        props.active ? "bg-foreground/[0.12] text-foreground" : "bg-foreground/[0.08] text-muted"
+      }`}
+    >
+      {props.value}
+    </span>
+  );
+}
+
+export function makeLightballCountTrailing(count: number) {
+  return (active: boolean) => <LightballTabCount value={count} active={active} />;
+}
+
 /**
  * Shared pill-shaped tabs with a flying-lightball indicator. Used by the
  * Chat | CLI presentation switcher and the PR Review tabs. Consumers pick the

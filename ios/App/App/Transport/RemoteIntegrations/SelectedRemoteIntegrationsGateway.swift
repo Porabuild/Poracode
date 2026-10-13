@@ -19,6 +19,9 @@ protocol RemoteIntegrationsGateway: Sendable {
     _ command: RemoteIntegrationsScheduleCommand,
     lease: RemoteIntegrationsHostLease
   ) async throws -> RemoteIntegrationsSchedulesResponse
+  func automations(_ input: JSONValue, lease: RemoteIntegrationsHostLease) async throws -> RemoteIntegrationsAutomationsResponse
+  func scheduleInbox(_ input: JSONValue, lease: RemoteIntegrationsHostLease) async throws -> RemoteIntegrationsScheduleRunsResponse
+  func scheduleRunCommand(_ input: JSONValue, lease: RemoteIntegrationsHostLease) async throws -> RemoteIntegrationsRunCommandResponse
   func prWatch(
     _ key: RemoteIntegrationsPRWatchKey,
     lease: RemoteIntegrationsHostLease
@@ -97,6 +100,24 @@ actor SelectedRemoteIntegrationsGateway: RemoteIntegrationsGateway {
   ) async throws -> RemoteIntegrationsSchedulesResponse {
     try await execute(lease: lease, scope: .sessionOperate) {
       try await $0.remoteIntegrationsScheduleCommand(command)
+    }
+  }
+
+  func automations(_ input: JSONValue, lease: RemoteIntegrationsHostLease) async throws -> RemoteIntegrationsAutomationsResponse {
+    try await execute(lease: lease, scope: .sessionRead) {
+      try await $0.remoteIntegrationsAutomations(input)
+    }
+  }
+
+  func scheduleInbox(_ input: JSONValue, lease: RemoteIntegrationsHostLease) async throws -> RemoteIntegrationsScheduleRunsResponse {
+    try await execute(lease: lease, scope: .sessionRead) {
+      try await $0.remoteIntegrationsScheduleInbox(input)
+    }
+  }
+
+  func scheduleRunCommand(_ input: JSONValue, lease: RemoteIntegrationsHostLease) async throws -> RemoteIntegrationsRunCommandResponse {
+    try await execute(lease: lease, scope: .sessionOperate) {
+      try await $0.remoteIntegrationsScheduleRunCommand(input)
     }
   }
 

@@ -133,6 +133,18 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   "runtime-image": [param("path", "JSON-string", false), param("ticket", "string", true)],
   "attachment-upload": [param("threadId", "string", false), param("name", "string", false)],
   "schedule-runs-read": [param("id", "string", false)],
+  "automations-snapshot": [
+    param("filter", "string", false),
+    param("limit", "int", true),
+    param("cursor", "string", true),
+    param("search", "string", true),
+  ],
+  "schedule-run-inbox": [
+    param("filter", "string", false),
+    param("limit", "int", true),
+    param("cursor", "string", true),
+    param("search", "string", true),
+  ],
   "pr-watch-read": [param("projectId", "string", false), param("prNumber", "int", false)],
   "thread-history": [
     param("projection", "string", true),

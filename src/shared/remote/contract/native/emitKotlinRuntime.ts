@@ -1,3 +1,4 @@
+import { KOTLIN_SCHEDULE_CASES, KOTLIN_SCHEDULE_HELPERS } from "./emitScheduleSemantics";
 import type { NativeBindingIr } from "./types";
 
 const HEADER = [
@@ -87,7 +88,9 @@ ${validators.join("\n")}
     private fun bool(value: JsonElement?): Boolean? = (value as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull
     private fun long(value: JsonElement?): Long? = (value as? JsonPrimitive)?.takeUnless { it.isString || it.booleanOrNull != null }?.doubleOrNull?.takeIf { it % 1.0 == 0.0 }?.toLong()
     private fun validUrl(value: String, schemes: Set<String>): Boolean = RemoteSchemaValidator.validUrl(RemoteECMAScriptTrim.trim(value), schemes)
+${KOTLIN_SCHEDULE_HELPERS}
     fun apply(ids: List<String>, value: JsonElement, path: String): JsonElement { for (id in ids) { val item = obj(value); val has: (String) -> Boolean = { item?.containsKey(it) == true }; when (id) {
+${KOTLIN_SCHEDULE_CASES}
         "string.trim" -> Unit
         "git.add-worktree.frozen-source" -> { val owner = str(item?.get("ownerToken")); val source = str(item?.get("sourceBranch")); if (owner != null && source == null) fail(id, path); if (source != null && (bool(item?.get("createBranch")) != true || str(item?.get("branch"))?.let(RemoteECMAScriptTrim::trim).isNullOrEmpty() || !Regex("^(?:[0-9A-Fa-f]{40}|[0-9A-Fa-f]{64})$").matches(str(item?.get("startPoint")) ?: ""))) fail(id, path) }
         "git.delete-branch.remote-cannot-have-owner" -> if (str(item?.get("remote")) != null && str(item?.get("expectedOwnerToken")) != null) fail(id, path)

@@ -77,7 +77,7 @@ describe("preload invokeProcedure envelope passthrough", () => {
       payload: { ipcProcedureMapVersion?: unknown };
     };
     expect(forwarded.payload).toBe(invocation);
-    expect(forwarded.payload.ipcProcedureMapVersion).toBe(17);
+    expect(forwarded.payload.ipcProcedureMapVersion).toBe(18);
   });
 
   it("never manufactures a version for a legacy positional call", async () => {

@@ -74,7 +74,7 @@ internal class RemoteHttpExecutor(
         if (authorized) {
             if (!token.isNullOrBlank()) {
                 requestBuilder.header("Authorization", "Bearer $token")
-                declareWriterProtocol(requestBuilder, method)
+                declareWriterProtocol(requestBuilder)
             }
         }
         environment.applyAuthority(requestBuilder)
@@ -180,7 +180,7 @@ internal class RemoteHttpExecutor(
         if (authorized) {
             accessToken()?.takeIf(String::isNotBlank)?.let {
                 requestBuilder.header("Authorization", "Bearer $it")
-                declareWriterProtocol(requestBuilder, method)
+                declareWriterProtocol(requestBuilder)
             }
         }
         environment.applyAuthority(requestBuilder)
@@ -203,13 +203,11 @@ internal class RemoteHttpExecutor(
     }
 
     companion object {
-        private fun declareWriterProtocol(builder: Request.Builder, method: String) {
-            if (method != "GET") {
-                builder.header(
+        private fun declareWriterProtocol(builder: Request.Builder) {
+            builder.header(
                     ProtocolConstants.PROTOCOL_VERSION_HEADER,
-                    ProtocolConstants.REMOTE_PROTOCOL_VERSION.toString(),
-                )
-            }
+                ProtocolConstants.REMOTE_PROTOCOL_VERSION.toString(),
+            )
         }
 
         private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()

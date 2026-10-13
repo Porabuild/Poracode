@@ -49,20 +49,26 @@ it("advances the actual historical schema-56 prefix without backfilling selectio
     .prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name")
     .all();
 
-  runDatabaseMigrations(db, 56);
+  // Inspect schema57 on its own: subsequent schedule migrations deliberately
+  // add schema objects, while the selection-binding boundary changes no rows.
+  DATABASE_MIGRATIONS.find((migration) => migration.version === 57)!.migrate();
+  db.prepare("UPDATE app_state SET value = '57' WHERE key = 'schema_version'").run();
 
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "58",
+    value: "57",
   });
   expect(db.prepare("SELECT * FROM threads ORDER BY id").all()).toStrictEqual(beforeThreads);
   expect(db.prepare("SELECT * FROM projects ORDER BY id").all()).toStrictEqual(beforeProjects);
   expect(
-    db
-      .prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name")
-      .all()
-      .filter((row) => (row as { name: string }).name !== "idx_runtime_items_thread_goal"),
+    db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY type, name").all(),
   ).toStrictEqual(beforeSchema);
   expect(describeMigrationRollbackPolicy().find((entry) => entry.version === 57)).toMatchObject({
     rollback: "forward-only",
   });
+  runDatabaseMigrations(db, 57);
+  expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
+    value: "59",
+  });
+  expect(db.prepare("SELECT * FROM threads ORDER BY id").all()).toStrictEqual(beforeThreads);
+  expect(db.prepare("SELECT * FROM projects ORDER BY id").all()).toStrictEqual(beforeProjects);
 });

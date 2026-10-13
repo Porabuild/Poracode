@@ -47,8 +47,12 @@ internal fun ScheduleEditorDialog(
     initial: ScheduleEditorDraft,
     onDismiss: () -> Unit,
     onConfirm: (ScheduleEditorDraft) -> Unit,
+    threads: List<ScheduleRunThreadTarget> = emptyList(),
+    completionAgentKinds: Set<String> = emptySet(),
 ) {
     var draft by remember(initial) { mutableStateOf(initial) }
+    val supportsCompletionCheck = draft.agentKind in completionAgentKinds
+    val canSave = draft.domain() != null && draft.automation.completionIsAvailable(supportsCompletionCheck)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(
@@ -60,48 +64,59 @@ internal fun ScheduleEditorDialog(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                EditorField(draft.name, { draft = draft.copy(name = it) }, R.string.remote_integrations_name)
-                EditorField(
+                ScheduleField(draft.name, { draft = draft.copy(name = it) }, R.string.remote_integrations_name)
+                ScheduleField(
                     draft.prompt,
                     { draft = draft.copy(prompt = it) },
                     R.string.remote_integrations_prompt,
                     minLines = 3,
                 )
-                EditorField(
+                ScheduleField(
                     draft.agentKind,
                     { draft = draft.copy(agentKind = it) },
                     R.string.remote_integrations_agent,
                 )
-                EditorField(draft.model, { draft = draft.copy(model = it) }, R.string.remote_integrations_model)
-                EditorField(
+                ScheduleField(draft.model, { draft = draft.copy(model = it) }, R.string.remote_integrations_model)
+                ScheduleField(
                     draft.effort,
                     { draft = draft.copy(effort = it) },
                     R.string.remote_integrations_effort_optional,
                 )
-                EditorField(
+                ScheduleField(
                     draft.projectId,
                     { draft = draft.copy(projectId = it) },
                     R.string.remote_integrations_project_optional,
                 )
                 Text(stringResource(R.string.remote_integrations_recurrence))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     RecurrenceChip("hourly", draft.recurrenceKind) {
                         draft = draft.copy(recurrenceKind = it)
                     }
                     RecurrenceChip("weekly", draft.recurrenceKind) {
                         draft = draft.copy(recurrenceKind = it)
                     }
-                    RecurrenceChip("once", draft.recurrenceKind) {
-                        draft = draft.copy(recurrenceKind = it)
-                    }
+                    RecurrenceChip("once", draft.recurrenceKind) { draft = draft.copy(recurrenceKind = it) }
+                    RecurrenceChip("interval", draft.recurrenceKind) { draft = draft.copy(recurrenceKind = it) }
+                    RecurrenceChip("cron", draft.recurrenceKind) { draft = draft.copy(recurrenceKind = it) }
                 }
                 when (draft.recurrenceKind) {
                     "hourly" -> MinuteStepper(draft.minute) { draft = draft.copy(minute = it) }
                     "weekly" -> {
                         WeekdaySelector(draft.days) { draft = draft.copy(days = it) }
                         TimeField(draft.time) { draft = draft.copy(time = it) }
+                        ScheduleField(draft.timeZone, { draft = draft.copy(timeZone = it) }, R.string.automations_time_zone)
                     }
-                    else -> RunAtField(draft.runAt) { draft = draft.copy(runAt = it) }
+                    "once" -> RunAtField(draft.runAt) { draft = draft.copy(runAt = it) }
+                    "interval" -> {
+                        ScheduleField(draft.every, { draft = draft.copy(every = it) }, R.string.automations_every)
+                        AutomationChoice(R.string.automations_interval, draft.intervalUnit, listOf(
+                            "minutes" to stringResource(R.string.automations_minutes), "hours" to stringResource(R.string.automations_hours), "days" to stringResource(R.string.automations_days),
+                        )) { draft = draft.copy(intervalUnit = it) }
+                    }
+                    "cron" -> {
+                        ScheduleField(draft.cronExpression, { draft = draft.copy(cronExpression = it) }, R.string.automations_cron_expression)
+                        ScheduleField(draft.timeZone, { draft = draft.copy(timeZone = it) }, R.string.automations_time_zone)
+                    }
                 }
                 ToggleRow(R.string.remote_integrations_enabled, draft.enabled) {
                     draft = draft.copy(enabled = it)
@@ -109,13 +124,16 @@ internal fun ScheduleEditorDialog(
                 ToggleRow(R.string.remote_integrations_fast_mode, draft.fast) {
                     draft = draft.copy(fast = it)
                 }
+                ScheduleAutomationControls(draft.automation, supportsCompletionCheck, threads.filter {
+                    it.agentKind == draft.agentKind && it.projectId == draft.projectId.ifBlank { "__lightcode_home__" } && !it.archived && it.gui
+                }) { draft = draft.copy(automation = it) }
                 if (draft.domain() == null) {
                     Text(stringResource(R.string.remote_integrations_invalid_schedule))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(draft) }, enabled = draft.domain() != null) {
+            TextButton(onClick = { onConfirm(draft) }, enabled = canSave) {
                 Text(stringResource(
                     if (draft.id == null) R.string.remote_integrations_create
                     else R.string.remote_integrations_save,
@@ -129,7 +147,7 @@ internal fun ScheduleEditorDialog(
 }
 
 @Composable
-private fun EditorField(
+internal fun ScheduleField(
     value: String,
     onValueChange: (String) -> Unit,
     label: Int,
@@ -150,6 +168,8 @@ private fun RecurrenceChip(kind: String, selected: String, onSelect: (String) ->
     val label = when (kind) {
         "hourly" -> R.string.remote_integrations_hourly
         "weekly" -> R.string.remote_integrations_weekly
+        "interval" -> R.string.automations_interval
+        "cron" -> R.string.automations_cron
         else -> R.string.remote_integrations_once
     }
     FilterChip(
@@ -160,14 +180,14 @@ private fun RecurrenceChip(kind: String, selected: String, onSelect: (String) ->
 }
 
 @Composable
-internal fun ToggleRow(label: Int, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun ToggleRow(label: Int, checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(stringResource(label))
-        Switch(checked, onCheckedChange)
+        Switch(checked, onCheckedChange, enabled = enabled)
     }
 }
 

@@ -39,6 +39,9 @@ import type {
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
+  ScheduleRunInboxQuery,
+  AutomationsSnapshot,
+  UpdateScheduleRunStatePayload,
   ScheduledTaskRun,
 } from "@/shared/contracts";
 import type {
@@ -603,6 +606,10 @@ export interface RemoteAccessServerOptions {
     delete(id: string): void;
     runNow(id: string): ScheduledTask;
     runs(id: string): ScheduledTaskRun[];
+    snapshot?(query: ScheduleRunInboxQuery): AutomationsSnapshot;
+    inbox?(query: ScheduleRunInboxQuery): ScheduledTaskRun[];
+    updateRunState?(payload: UpdateScheduleRunStatePayload): ScheduledTaskRun | null;
+    cancelRun?(id: string): boolean;
   };
   /** Persistent PR automation owned by the host process. */
   readonly prWatches?: {

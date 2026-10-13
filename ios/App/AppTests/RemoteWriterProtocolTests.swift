@@ -7,8 +7,8 @@ final class RemoteWriterProtocolTests: XCTestCase {
         super.tearDown()
     }
 
-    func testDeclarationUsesCompiledVersionForAuthorizedNonGETRequests() {
-        for method in ["POST", "DELETE", "PATCH", "PUT", "HEAD"] {
+    func testDeclarationUsesCompiledVersionForEveryAuthorizedMethod() {
+        for method in ["GET", "POST", "DELETE", "PATCH", "PUT", "HEAD"] {
             var request = URLRequest(url: URL(string: "https://fixture.test/api/settings")!)
             request.httpMethod = method
             request.setValue("Bearer fixture-token", forHTTPHeaderField: "Authorization")
@@ -22,7 +22,7 @@ final class RemoteWriterProtocolTests: XCTestCase {
         }
     }
 
-    func testGETDefaultGETAndUnauthenticatedPOSTDoNotAcquireADeclaration() {
+    func testAuthorizedGETDeclaresCurrentVersionAndAuthFreePOSTDoesNot() {
         let methods: [String?] = ["GET", nil, "POST"]
         for method in methods {
             var request = URLRequest(url: URL(string: "https://fixture.test/api/snapshot")!)
@@ -31,11 +31,11 @@ final class RemoteWriterProtocolTests: XCTestCase {
                 request.setValue("Bearer fixture-token", forHTTPHeaderField: "Authorization")
             }
             request.declareCurrentRemoteWriterProtocol()
-            XCTAssertNil(request.value(forHTTPHeaderField: ProtocolConstants.protocolVersionHeader))
+            XCTAssertEqual(request.value(forHTTPHeaderField: ProtocolConstants.protocolVersionHeader), method == "POST" ? nil : String(ProtocolConstants.remoteProtocolVersion))
         }
     }
 
-    func testActualAPIProducerDeclaresWritesAndReadPOSTsButNotReadsOrAuthFreeRequests() async throws {
+    func testActualAPIProducerDeclaresAuthenticatedReadsAndWrites() async throws {
         CapturingURLProtocol.reset()
         CapturingURLProtocol.responseStatus = 200
         CapturingURLProtocol.responseBody = Data("{}".utf8)
@@ -47,7 +47,7 @@ final class RemoteWriterProtocolTests: XCTestCase {
         let requests = [
             ("/api/settings", "POST", true, true),
             ("/api/auth/websocket-ticket", "POST", true, true),
-            ("/api/snapshot", "GET", true, false),
+            ("/api/snapshot", "GET", true, true),
             ("/oauth/token", "POST", false, false),
         ]
         for (path, method, authorized, declared) in requests {

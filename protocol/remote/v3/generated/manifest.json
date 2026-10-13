@@ -22,8 +22,8 @@
       "/.well-known/lightcode/environment"
     ],
     "endpointPathPolicy": "append-to-preserved-base-path",
-    "maximumAcceptedProtocolVersion": 13,
-    "minimumAcceptedProtocolVersion": 13,
+    "maximumAcceptedProtocolVersion": 14,
+    "minimumAcceptedProtocolVersion": 14,
     "pairingCredential": {
       "singleUse": true,
       "transport": "url-fragment-or-request-body"
@@ -619,6 +619,45 @@
       ],
       "scopes": [
         "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "automations-snapshot",
+      "method": "GET",
+      "path": "/api/automations",
+      "queryParameters": [
+        "filter",
+        "limit",
+        "cursor",
+        "search"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "schedule-run-inbox",
+      "method": "GET",
+      "path": "/api/schedules/inbox",
+      "queryParameters": [
+        "filter",
+        "limit",
+        "cursor",
+        "search"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "schedule-run-command",
+      "method": "POST",
+      "path": "/api/schedules/runs/command",
+      "scopes": [
+        "session:operate"
       ]
     },
     {
@@ -1740,7 +1779,7 @@
       "scope": "session:read"
     }
   ],
-  "protocolVersion": 13,
+  "protocolVersion": 14,
   "scopes": [
     "session:read",
     "session:operate",

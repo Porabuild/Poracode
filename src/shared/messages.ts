@@ -257,6 +257,29 @@ const messages = {
   "settings.dataNotPrepared":
     "The app's data is not ready for these settings. Restart or update the app and try again.",
   // ── Device schedules ──────────────────────────────────────
+  "automation.heartbeat.archived": "The heartbeat conversation is archived.",
+  "automation.heartbeat.busy": "The heartbeat conversation is currently busy.",
+  "automation.heartbeat.cannotResume": "The heartbeat conversation cannot be resumed.",
+  "automation.heartbeat.differentAgent": "The heartbeat conversation uses a different agent.",
+  "automation.heartbeat.differentProject":
+    "The heartbeat conversation belongs to a different project.",
+  "automation.heartbeat.missing": "The heartbeat conversation no longer exists.",
+  "automation.heartbeat.nativeChatRequired":
+    "Heartbeat automations require a native chat conversation.",
+  "automation.heartbeat.unavailable": "Heartbeat execution is unavailable.",
+  "automation.retry.cancelled": "Scheduled retry was cancelled.",
+  "automation.retry.taskDeleted": "Scheduled task was deleted before retrying.",
+
+  // ── App update ────────────────────────────────────────────
+  "automation.run.approvalRequired": "The automation needs approval before it can continue.",
+  "automation.run.completionFailed": "Completion evaluation failed: {detail}",
+  "automation.run.completionUnavailable": "Completion evaluation is unavailable.",
+  "automation.run.exited": "The automation conversation exited before the turn completed.",
+  "automation.run.failed": "The scheduled automation failed.",
+  "automation.run.projectMissing": "Project no longer exists.",
+  "automation.run.replyRequired": "The automation needs a reply before it can continue.",
+  "automation.run.targetInUse": "Another automation is already using this conversation.",
+  "automation.run.timeLimit": "The automation exceeded its time limit.",
   "schedule.executionStale":
     "This scheduled task changed or was removed before it could run. Review the schedule and try again.",
   "prWatch.retirementUnconfirmed":

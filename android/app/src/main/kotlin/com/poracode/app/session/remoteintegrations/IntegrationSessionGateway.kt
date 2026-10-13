@@ -1,6 +1,9 @@
 package com.poracode.app.session.remoteintegrations
 
 import com.poracode.app.model.RemoteClientException
+import kotlinx.serialization.json.JsonObject
+import com.poracode.app.model.remoteintegrations.AutomationsSnapshot
+import com.poracode.app.model.remoteintegrations.ScheduleRunCommandResult
 import com.poracode.app.model.remoteintegrations.HostUpdateState
 import com.poracode.app.model.remoteintegrations.PrWatch
 import com.poracode.app.model.remoteintegrations.PrWatchDraft
@@ -25,6 +28,9 @@ interface IntegrationSessionGateway {
         lease: IntegrationHostLease,
         command: ScheduleCommand,
     ): List<ScheduledTask>
+    suspend fun automations(lease: IntegrationHostLease, query: JsonObject): AutomationsSnapshot
+    suspend fun scheduleInbox(lease: IntegrationHostLease, query: JsonObject): List<ScheduleRun>
+    suspend fun scheduleRunCommand(lease: IntegrationHostLease, command: JsonObject): ScheduleRunCommandResult
     suspend fun prWatch(lease: IntegrationHostLease, key: PrWatchKey): PrWatch?
     suspend fun checkPrWatch(lease: IntegrationHostLease, key: PrWatchKey)
     suspend fun upsertPrWatch(lease: IntegrationHostLease, draft: PrWatchDraft): PrWatch
@@ -60,6 +66,13 @@ class GeneratedIntegrationSessionGateway(
 
     override suspend fun commandSchedule(lease: IntegrationHostLease, command: ScheduleCommand) =
         invoke(lease, IntegrationCapability.Operate, true) { commandSchedule(command) }
+
+    override suspend fun automations(lease: IntegrationHostLease, query: JsonObject) =
+        invoke(lease, IntegrationCapability.Read, false) { automations(query) }
+    override suspend fun scheduleInbox(lease: IntegrationHostLease, query: JsonObject) =
+        invoke(lease, IntegrationCapability.Read, false) { scheduleInbox(query) }
+    override suspend fun scheduleRunCommand(lease: IntegrationHostLease, command: JsonObject) =
+        invoke(lease, IntegrationCapability.Operate, true) { scheduleRunCommand(command) }
 
     override suspend fun prWatch(lease: IntegrationHostLease, key: PrWatchKey) =
         invoke(lease, IntegrationCapability.Read, false) { prWatch(key) }

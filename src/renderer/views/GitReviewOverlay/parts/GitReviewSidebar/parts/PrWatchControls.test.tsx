@@ -345,7 +345,8 @@ describe("PrWatchControls", () => {
 
     render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
     await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
-    const trigger = screen.getByRole("button", { name: "PR automation paused: Auto Fix" });
+    // Invocation alone does not mean React has committed the fetched watch.
+    const trigger = await screen.findByRole("button", { name: "PR automation paused: Auto Fix" });
     expect(trigger).toHaveClass("text-warning");
     fireEvent.click(trigger);
 
