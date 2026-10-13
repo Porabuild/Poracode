@@ -11,7 +11,7 @@ import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
-import { agentEnvForStatus } from "@/shared/machines";
+import { agentEnvForStatus, type AgentEnv } from "@/shared/machines";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { refreshDiscoveredAgent } from "@/renderer/actions/agentDiscoveryActions";
 import type { AgentStatus } from "@/shared/contracts";
@@ -49,6 +49,18 @@ function foundBadge(status: AgentStatus): { label: MessageDescriptor; toneClass:
     : { label: msg`Found`, toneClass: "text-warning" };
 }
 
+/** One card per agent kind; each machine it was found on is a sub-row. */
+interface AgentGroup {
+  kind: string;
+  statuses: AgentStatus[];
+}
+
+/** Native install first, then WSL distros alphabetically. */
+function compareEnvs(a: AgentEnv, b: AgentEnv): number {
+  if (a.kind !== b.kind) return a.kind === "native" ? -1 : 1;
+  return a.kind === "wsl" && b.kind === "wsl" ? a.distro.localeCompare(b.distro) : 0;
+}
+
 export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () => void }) {
   const { t } = useLingui();
   const headingId = useId();
@@ -72,15 +84,32 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
   const multiEnv = scope?.kind === "all" && scope.wslDistros.length > 0;
   const found = discovered.filter((status) => status.installed);
   const labels = new Map(getProviderManifests().map((manifest) => [manifest.kind, manifest.label]));
+  // One card per agent kind, in arrival order; machines inside a card are
+  // ordered deterministically (native first, then distros alphabetically).
+  const groups: AgentGroup[] = [];
+  const groupsByKind = new Map<string, AgentStatus[]>();
+  for (const status of found) {
+    const existing = groupsByKind.get(status.kind);
+    if (existing) {
+      existing.push(status);
+    } else {
+      const statuses = [status];
+      groupsByKind.set(status.kind, statuses);
+      groups.push({ kind: status.kind, statuses });
+    }
+  }
+  for (const group of groups) {
+    group.statuses.sort((a, b) => compareEnvs(agentEnvForStatus(a), agentEnvForStatus(b)));
+  }
 
-  const refreshRow = (status: AgentStatus, key: string) => {
-    if (pendingRefresh.has(key)) return;
-    setPendingRefresh((prev) => new Set(prev).add(key));
-    void refreshDiscoveredAgent(status).finally(() =>
+  const refreshGroup = (group: AgentGroup) => {
+    if (pendingRefresh.has(group.kind)) return;
+    setPendingRefresh((prev) => new Set(prev).add(group.kind));
+    void refreshDiscoveredAgent(group.statuses).finally(() =>
       setPendingRefresh((prev) => {
-        if (!prev.has(key)) return prev;
+        if (!prev.has(group.kind)) return prev;
         const next = new Set(prev);
-        next.delete(key);
+        next.delete(group.kind);
         return next;
       }),
     );
@@ -146,8 +175,14 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
         <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
           <WelcomeBackdrop className="min-h-full">
             {/* `my-auto` centers the column while it fits and keeps the top
-                reachable once the found list overflows the window. */}
-            <div className="my-auto flex w-full max-w-md flex-col items-center text-center">
+                reachable once the found list overflows the window. The column
+                stays narrow while scanning and widens for the results grid so
+                agent cards use the side space instead of one long list. */}
+            <div
+              className={`my-auto flex w-full flex-col items-center text-center ${
+                found.length > 0 ? "max-w-3xl" : "max-w-md"
+              }`}
+            >
               <AgentDiscoveryRadar foundCount={found.length} scanning={scanning} />
               <h1 id={headingId} className="mt-6 text-2xl font-semibold tracking-tight">
                 {scanning ? (
@@ -174,55 +209,76 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                   ) : null}
                 </>
               ) : null}
-              {found.length > 0 ? (
-                <ul className="mt-8 flex w-full max-w-sm flex-col gap-2 text-left">
-                  {found.map((status) => {
-                    const badge = foundBadge(status);
-                    const manifestLabel = labels.get(status.kind);
-                    const label = manifestLabel ? t(manifestLabel) : status.label;
-                    const key = rowKey(status);
-                    const envCaption = multiEnv
-                      ? localEnvLabel(agentEnvForStatus(status))
-                      : undefined;
-                    const refreshing = pendingRefresh.has(key);
+              {groups.length > 0 ? (
+                <ul className="mt-8 grid w-full grid-cols-1 items-start gap-2 text-left sm:grid-cols-2">
+                  {groups.map((group) => {
+                    const first = group.statuses[0]!;
+                    const manifestLabel = labels.get(group.kind);
+                    const label = manifestLabel ? t(manifestLabel) : first.label;
+                    const refreshing = pendingRefresh.has(group.kind);
                     return (
-                      <li key={key} className="agent-discovery-row">
-                        <ProviderIcon
-                          kind={status.kind}
-                          tone="active"
-                          className="size-6 shrink-0"
-                          {...(status.icon ? { icon: status.icon } : {})}
-                          fallbackLabel={label}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium leading-tight">
+                      <li key={group.kind} className="agent-discovery-row">
+                        <div className="flex items-center gap-3">
+                          <ProviderIcon
+                            kind={group.kind}
+                            tone="active"
+                            className="size-6 shrink-0"
+                            {...(first.icon ? { icon: first.icon } : {})}
+                            fallbackLabel={label}
+                          />
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">
                             {label}
                           </span>
-                          {envCaption ? (
-                            <span className="mt-0.5 block truncate text-xs text-muted">
-                              {envCaption}
+                          {multiEnv ? null : (
+                            <span
+                              className={`agent-discovery-row__status shrink-0 text-xs font-medium ${foundBadge(first).toneClass}`}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="size-1.5 shrink-0 rounded-full bg-current"
+                              />
+                              {t(foundBadge(first).label)}
                             </span>
-                          ) : null}
-                        </span>
-                        <span
-                          className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="size-1.5 shrink-0 rounded-full bg-current"
-                          />
-                          {t(badge.label)}
-                        </span>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="ghost"
-                          aria-label={t`Refresh ${label}`}
-                          isDisabled={refreshing}
-                          onPress={() => refreshRow(status, key)}
-                        >
-                          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                        </Button>
+                          )}
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="ghost"
+                            aria-label={t`Refresh ${label}`}
+                            isDisabled={refreshing}
+                            onPress={() => refreshGroup(group)}
+                          >
+                            <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                          </Button>
+                        </div>
+                        {/* In a multi-env scan each machine with the agent gets
+                            a secondary row carrying that machine's status. */}
+                        {multiEnv ? (
+                          <ul className="mt-2 flex flex-col gap-0.5 border-t border-border/10 pt-2">
+                            {group.statuses.map((status) => {
+                              const badge = foundBadge(status);
+                              return (
+                                <li
+                                  key={rowKey(status)}
+                                  className="agent-discovery-env-row flex items-center gap-2 py-0.5 pl-9"
+                                >
+                                  <span className="min-w-0 flex-1 truncate text-xs text-muted">
+                                    {localEnvLabel(agentEnvForStatus(status))}
+                                  </span>
+                                  <span
+                                    className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className="size-1.5 shrink-0 rounded-full bg-current"
+                                    />
+                                    {t(badge.label)}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : null}
                       </li>
                     );
                   })}
@@ -234,7 +290,7 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                 ) : found.length > 0 ? (
                   <Check className="size-3.5 text-success" aria-hidden="true" />
                 ) : null}
-                {renderStatusLine(scanning, discovered.length, found.length, wslDistro)}
+                {renderStatusLine(scanning, discovered.length, groups.length, wslDistro)}
               </div>
               <div className="mt-6 flex items-center gap-2">
                 {scanning ? (

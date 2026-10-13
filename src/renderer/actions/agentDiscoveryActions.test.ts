@@ -129,7 +129,7 @@ describe("app-owned agent discovery", () => {
       envKind: "wsl",
       envDistro: "Ubuntu",
     });
-    await refreshDiscoveredAgent(wslStatus);
+    await refreshDiscoveredAgent([wslStatus]);
     expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith([], {
       agentKinds: ["codex"],
       envs: [{ kind: "wsl", distro: "Ubuntu" }],
@@ -145,14 +145,40 @@ describe("app-owned agent discovery", () => {
       authState: "missing",
       capabilities: {},
     });
-    await refreshDiscoveredAgent(nativeStatus);
+    await refreshDiscoveredAgent([nativeStatus]);
     expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith([], {
       agentKinds: ["claude"],
       envs: [{ kind: "native" }],
     });
   });
 
-  it("swallows a failed per-row refresh (the row simply stays as it was)", async () => {
+  it("re-probes every environment where the agent was found in one call", async () => {
+    bridge.refreshAgentStatuses.mockResolvedValue(empty);
+    const parse = (env?: { envKind: string; envDistro: string }) =>
+      agentStatusSchema.parse({
+        kind: "claude",
+        label: "Claude Code",
+        installed: true,
+        authState: "authenticated",
+        capabilities: {},
+        ...env,
+      });
+    await refreshDiscoveredAgent([
+      parse(),
+      parse({ envKind: "wsl", envDistro: "Ubuntu" }),
+      parse({ envKind: "wsl", envDistro: "Debian" }),
+    ]);
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith([], {
+      agentKinds: ["claude"],
+      envs: [
+        { kind: "native" },
+        { kind: "wsl", distro: "Ubuntu" },
+        { kind: "wsl", distro: "Debian" },
+      ],
+    });
+  });
+
+  it("swallows a failed refresh (the card simply stays as it was)", async () => {
     bridge.refreshAgentStatuses.mockRejectedValue(new Error("supervisor gone"));
     const status = agentStatusSchema.parse({
       kind: "codex",
@@ -161,6 +187,11 @@ describe("app-owned agent discovery", () => {
       authState: "authenticated",
       capabilities: {},
     });
-    await expect(refreshDiscoveredAgent(status)).resolves.toBeUndefined();
+    await expect(refreshDiscoveredAgent([status])).resolves.toBeUndefined();
+  });
+
+  it("ignores a refresh with no statuses", async () => {
+    await refreshDiscoveredAgent([]);
+    expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
   });
 });

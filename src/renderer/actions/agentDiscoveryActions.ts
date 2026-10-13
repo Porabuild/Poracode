@@ -43,15 +43,26 @@ export function refreshAgentDiscovery(wslDistros: string[]): void {
 }
 
 /**
- * Re-probe one discovered agent in its own environment (the row's refresh
- * button). The scan session is untouched; the refreshed status streams back
- * as `agent-detected` / `agent-status-updated` events and updates the row.
+ * Re-probe one discovered agent in every environment where it was found (the
+ * card's refresh button). The scan session is untouched; refreshed statuses
+ * stream back as `agent-detected` / `agent-status-updated` events and update
+ * the card's machine rows.
  */
-export async function refreshDiscoveredAgent(status: AgentStatus): Promise<void> {
+export async function refreshDiscoveredAgent(statuses: readonly AgentStatus[]): Promise<void> {
+  const first = statuses[0];
+  if (!first) return;
+  const envs = [
+    ...new Map(
+      statuses.map((status) => {
+        const env = agentEnvForStatus(status);
+        return [JSON.stringify(env), env] as const;
+      }),
+    ).values(),
+  ];
   await readBridge()
     .refreshAgentStatuses(currentWslDistros(), {
-      agentKinds: [status.kind],
-      envs: [agentEnvForStatus(status)],
+      agentKinds: [first.kind],
+      envs,
     })
     .then(() => undefined)
     .catch(() => undefined);
