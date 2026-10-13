@@ -1,5 +1,5 @@
 import type { AgentStatus } from "@/shared/contracts";
-import { agentEnvForStatus } from "@/shared/machines";
+import { agentEnvForStatus, agentEnvKey, type AgentEnv } from "@/shared/machines";
 import { readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
@@ -43,29 +43,76 @@ export function refreshAgentDiscovery(wslDistros: string[]): void {
 }
 
 /**
- * Re-probe one discovered agent in every environment where it was found (the
- * card's refresh button). The scan session is untouched; refreshed statuses
- * stream back as `agent-detected` / `agent-status-updated` events and update
- * the card's machine rows.
+ * Re-probe one discovered agent — every kind on its card (the base agent and
+ * its profiles) in the environments where that kind was found (the card's
+ * refresh button). The supervisor probes the agentKinds × envs cross-product
+ * of one scoped call, so kinds share a call only when they were found in the
+ * same environments. Batches run sequentially: a cold-cache full detection
+ * warms the cache for later batches. `groupKind` is included even for a
+ * profile-only card. Streamed updates refresh existing rows; scoped results
+ * recover missing rows when the refresh supersedes their discovery events.
  */
-export async function refreshDiscoveredAgent(statuses: readonly AgentStatus[]): Promise<void> {
-  const first = statuses[0];
-  if (!first) return;
-  const envs = [
-    ...new Map(
-      statuses.map((status) => {
-        const env = agentEnvForStatus(status);
-        return [JSON.stringify(env), env] as const;
-      }),
-    ).values(),
-  ];
-  await readBridge()
-    .refreshAgentStatuses(currentWslDistros(), {
-      agentKinds: [first.kind],
-      envs,
-    })
-    .then(() => undefined)
-    .catch(() => undefined);
+export async function refreshDiscoveredAgent(
+  statuses: readonly AgentStatus[],
+  groupKind?: string,
+): Promise<void> {
+  if (statuses.length === 0) return;
+  const { inFirstLaunchDiscovery, discoveryScope } = useAgentStatusesStore.getState();
+  const discoveryRun = run;
+  const envsByKind = new Map<string, Map<string, AgentEnv>>();
+  const addEnv = (kind: string, status: AgentStatus) => {
+    const env = agentEnvForStatus(status);
+    const envs = envsByKind.get(kind) ?? new Map<string, AgentEnv>();
+    envs.set(agentEnvKey(env), env);
+    envsByKind.set(kind, envs);
+  };
+  for (const status of statuses) addEnv(status.kind, status);
+  if (groupKind && !envsByKind.has(groupKind)) {
+    for (const status of statuses) addEnv(groupKind, status);
+  }
+  const batches = new Map<string, { kinds: string[]; envs: Map<string, AgentEnv> }>();
+  for (const [kind, envs] of envsByKind) {
+    const key = JSON.stringify([...envs.keys()].sort());
+    const batch = batches.get(key);
+    if (batch) batch.kinds.push(kind);
+    else batches.set(key, { kinds: [kind], envs });
+  }
+  for (const { kinds, envs } of batches.values()) {
+    // The response filters WSL rows by this list, even for explicit scopes.
+    const wslDistros = new Set(currentWslDistros());
+    for (const env of envs.values()) {
+      if (env.kind === "wsl") wslDistros.add(env.distro);
+    }
+    await readBridge()
+      .refreshAgentStatuses([...wslDistros], {
+        agentKinds: kinds,
+        envs: [...envs.values()],
+      })
+      .then((response) => {
+        const store = useAgentStatusesStore.getState();
+        if (
+          !inFirstLaunchDiscovery ||
+          !store.inFirstLaunchDiscovery ||
+          run !== discoveryRun ||
+          store.discoveryScope !== discoveryScope
+        )
+          return;
+        for (const status of [...response.windows, ...response.wsl]) {
+          const envKey = agentEnvKey(agentEnvForStatus(status));
+          if (!kinds.includes(status.kind) || !envs.has(envKey)) continue;
+          // Existing rows receive streamed updates. A late response must not
+          // overwrite a newer event, or append unrelated cached agents.
+          const alreadyListed = useAgentStatusesStore
+            .getState()
+            .discoveredAgents.some(
+              (entry) =>
+                entry.kind === status.kind && agentEnvKey(agentEnvForStatus(entry)) === envKey,
+            );
+          if (!alreadyListed) store.pushDiscoveredAgent(status);
+        }
+      })
+      .catch(() => undefined);
+  }
 }
 
 export function cancelAgentDiscovery(): void {

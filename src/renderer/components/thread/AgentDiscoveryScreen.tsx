@@ -11,10 +11,16 @@ import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
-import { agentEnvForStatus, type AgentEnv } from "@/shared/machines";
+import { agentEnvForStatus } from "@/shared/machines";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { refreshDiscoveredAgent } from "@/renderer/actions/agentDiscoveryActions";
 import type { AgentStatus } from "@/shared/contracts";
+import {
+  discoveryCardRows,
+  groupDiscoveredAgents,
+  profileRowLabel,
+  type AgentDiscoveryGroup,
+} from "./agentDiscoveryGroups";
 import { AgentDiscoveryRadar } from "./AgentDiscoveryRadar";
 import { useDiscoveryCardMotion } from "./useDiscoveryCardMotion";
 import "./agentDiscovery.css";
@@ -50,18 +56,6 @@ function foundBadge(status: AgentStatus): { label: MessageDescriptor; toneClass:
     : { label: msg`Found`, toneClass: "text-warning" };
 }
 
-/** One card per agent kind; each machine it was found on is a sub-row. */
-interface AgentGroup {
-  kind: string;
-  statuses: AgentStatus[];
-}
-
-/** Native install first, then WSL distros alphabetically. */
-function compareEnvs(a: AgentEnv, b: AgentEnv): number {
-  if (a.kind !== b.kind) return a.kind === "native" ? -1 : 1;
-  return a.kind === "wsl" && b.kind === "wsl" ? a.distro.localeCompare(b.distro) : 0;
-}
-
 export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () => void }) {
   const { t } = useLingui();
   const headingId = useId();
@@ -92,28 +86,16 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
   const multiEnv = scope?.kind === "all" && scope.wslDistros.length > 0;
   const found = discovered.filter((status) => status.installed);
   const labels = new Map(getProviderManifests().map((manifest) => [manifest.kind, manifest.label]));
-  // One card per agent kind, in arrival order; machines inside a card are
-  // ordered deterministically (native first, then distros alphabetically).
-  const groups: AgentGroup[] = [];
-  const groupsByKind = new Map<string, AgentStatus[]>();
-  for (const status of found) {
-    const existing = groupsByKind.get(status.kind);
-    if (existing) {
-      existing.push(status);
-    } else {
-      const statuses = [status];
-      groupsByKind.set(status.kind, statuses);
-      groups.push({ kind: status.kind, statuses });
-    }
-  }
-  for (const group of groups) {
-    group.statuses.sort((a, b) => compareEnvs(agentEnvForStatus(a), agentEnvForStatus(b)));
-  }
+  // One card per agent, in arrival order. Profiles nest in their base agent's
+  // card (they are another account of the same CLI, not another agent);
+  // statuses inside a card are ordered deterministically (base agent first,
+  // then profiles, native before WSL distros).
+  const groups = groupDiscoveredAgents(found);
 
-  const refreshGroup = (group: AgentGroup) => {
+  const refreshGroup = (group: AgentDiscoveryGroup) => {
     if (pendingRefresh.has(group.kind)) return;
     setPendingRefresh((prev) => new Set(prev).add(group.kind));
-    void refreshDiscoveredAgent(group.statuses).finally(() =>
+    void refreshDiscoveredAgent(group.statuses, group.kind).finally(() =>
       setPendingRefresh((prev) => {
         if (!prev.has(group.kind)) return prev;
         const next = new Set(prev);
@@ -188,7 +170,7 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
             />
           )}
           <div className="flex shrink-0 flex-col items-center px-6 pt-2 text-center">
-            <AgentDiscoveryRadar foundCount={found.length} scanning={scanning} />
+            <AgentDiscoveryRadar foundCount={groups.length} scanning={scanning} />
             <h1 id={headingId} className="mt-6 text-2xl font-semibold tracking-tight">
               <span key={phaseKey} className={`inline-block ${phaseClass}`}>
                 {scanning ? (
@@ -225,10 +207,18 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                 className="relative mx-auto grid w-full max-w-3xl grid-cols-1 items-start gap-2 px-6 pb-4 text-left sm:grid-cols-2"
               >
                 {groups.map((group) => {
-                  const first = group.statuses[0]!;
+                  const rows = discoveryCardRows(group, multiEnv);
                   const manifestLabel = labels.get(group.kind);
-                  const label = manifestLabel ? t(manifestLabel) : first.label;
+                  const label = manifestLabel ? t(manifestLabel) : rows.header.label;
                   const refreshing = pendingRefresh.has(group.kind);
+                  const hasProfiles = group.statuses.some((status) => status.kind !== group.kind);
+                  // Secondary rows carry what the header cannot: each machine
+                  // in a multi-env scan, and each profile (its sign-in state
+                  // is its own). In a single-env scan the header badge covers
+                  // the base agent, so only profiles get a row; with no base
+                  // status found, the profiles are the rows instead.
+                  const showDetail = rows.detail.length > 0;
+                  const headerBadge = !multiEnv && rows.base ? foundBadge(rows.base) : undefined;
                   return (
                     // An unpaired last card (a lone result, or the odd one
                     // out) keeps one column's width but centers under the
@@ -236,6 +226,9 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                     <li
                       key={group.kind}
                       data-motion-key={group.kind}
+                      // Accounts can arrive without changing the agent count.
+                      // Announce header badges as well as nested profile rows.
+                      aria-live="polite"
                       className="agent-discovery-row sm:odd:last:col-span-2 sm:odd:last:w-[calc(50%-0.25rem)] sm:odd:last:justify-self-center"
                     >
                       <div className="flex items-center gap-3">
@@ -243,23 +236,23 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                           kind={group.kind}
                           tone="active"
                           className="size-6 shrink-0"
-                          {...(first.icon ? { icon: first.icon } : {})}
+                          {...(rows.header.icon ? { icon: rows.header.icon } : {})}
                           fallbackLabel={label}
                         />
                         <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">
                           {label}
                         </span>
-                        {multiEnv ? null : (
+                        {headerBadge ? (
                           <span
-                            className={`agent-discovery-row__status shrink-0 text-xs font-medium ${foundBadge(first).toneClass}`}
+                            className={`agent-discovery-row__status shrink-0 text-xs font-medium ${headerBadge.toneClass}`}
                           >
                             <span
                               aria-hidden="true"
                               className="size-1.5 shrink-0 rounded-full bg-current"
                             />
-                            {t(foundBadge(first).label)}
+                            {t(headerBadge.label)}
                           </span>
-                        )}
+                        ) : null}
                         <Button
                           isIconOnly
                           size="sm"
@@ -271,34 +264,60 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                           <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
                         </Button>
                       </div>
-                      {/* In a multi-env scan each machine with the agent gets
-                            a secondary row carrying that machine's status. */}
-                      {multiEnv ? (
-                        <ul className="mt-2 flex flex-col gap-0.5 border-t border-border/10 pt-2">
-                          {group.statuses.map((status) => {
-                            const badge = foundBadge(status);
-                            return (
-                              <li
-                                key={rowKey(status)}
-                                className="agent-discovery-env-row flex items-center gap-2 py-0.5 pl-9"
-                              >
+                      {/* Each profile and, in a multi-env scan, each machine
+                            with the agent gets a secondary row carrying its
+                            own status. */}
+                      <ul
+                        className={`flex flex-col gap-0.5 ${showDetail ? "mt-2 border-t border-border/10 pt-2" : ""}`}
+                      >
+                        {rows.detail.map((status) => {
+                          const badge = foundBadge(status);
+                          const isProfile = status.kind !== group.kind;
+                          // Beside profile rows, a bare env label would not
+                          // read as the base account — name it. Without
+                          // profiles the env alone stays the row label.
+                          const namePart = isProfile
+                            ? profileRowLabel(status, label)
+                            : hasProfiles
+                              ? status.label
+                              : undefined;
+                          const envPart = multiEnv
+                            ? localEnvLabel(agentEnvForStatus(status))
+                            : undefined;
+                          return (
+                            <li
+                              key={rowKey(status)}
+                              className="agent-discovery-env-row flex items-center gap-2 py-0.5 pl-9"
+                            >
+                              {namePart ? (
                                 <span className="min-w-0 flex-1 truncate text-xs text-muted">
-                                  {localEnvLabel(agentEnvForStatus(status))}
+                                  {namePart}
                                 </span>
+                              ) : null}
+                              {envPart ? (
                                 <span
-                                  className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
+                                  className={
+                                    namePart
+                                      ? "min-w-0 shrink truncate text-xs text-muted"
+                                      : "min-w-0 flex-1 truncate text-xs text-muted"
+                                  }
                                 >
-                                  <span
-                                    aria-hidden="true"
-                                    className="size-1.5 shrink-0 rounded-full bg-current"
-                                  />
-                                  {t(badge.label)}
+                                  {namePart ? `· ${envPart}` : envPart}
                                 </span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : null}
+                              ) : null}
+                              <span
+                                className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className="size-1.5 shrink-0 rounded-full bg-current"
+                                />
+                                {t(badge.label)}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </li>
                   );
                 })}

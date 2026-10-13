@@ -4,6 +4,7 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { createPortal } from "react-dom";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { cancelAgentDiscovery } from "@/renderer/actions/agentDiscoveryActions";
+import { countDiscoveredAgentGroups } from "./agentDiscoveryGroups";
 import { AgentDiscoveryScreen } from "./AgentDiscoveryScreen";
 
 /** One owner for discovery, including its background indicator across pages. */
@@ -11,9 +12,9 @@ export function AgentDiscoveryOverlay() {
   const { t } = useLingui();
   const active = useAgentStatusesStore((s) => s.inFirstLaunchDiscovery);
   const hidden = useAgentStatusesStore((s) => s.discoveryHidden);
-  const foundCount = useAgentStatusesStore(
-    (s) => s.discoveredAgents.filter((agent) => agent.installed).length,
-  );
+  // Profiles and extra environments nest in their agent's card, so the pill
+  // counts cards (agents), matching the discovery screen's status line.
+  const foundCount = useAgentStatusesStore((s) => countDiscoveredAgentGroups(s.discoveredAgents));
   const setHidden = useAgentStatusesStore((s) => s.setDiscoveryHidden);
   if (!active) return null;
   if (!hidden)
