@@ -93,8 +93,8 @@ msgstr "{0, plural, one {# проект} few {# проекта} many {# прое
 
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "{0, plural, one {# provider ready} other {# providers ready}}"
-msgstr "{0, plural, one {# провайдер готов} few {# провайдера готовы} many {# провайдеров готовы} other {# провайдера готовы}}"
+#~ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
+#~ msgstr "{0, plural, one {# провайдер готов} few {# провайдера готовы} many {# провайдеров готовы} other {# провайдера готовы}}"
 
 #. placeholder {0}: props.entry.skills.length
 #. placeholder {0}: props.skills.length
@@ -468,6 +468,10 @@ msgstr "{agentLead} требуется ваш ввод, чтобы продол�
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# комментарий или ревью} few {# комментария и ревью} many {# комментариев и ревью} other {# комментария и ревью}}"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+#~ msgid "{count, plural, one {# agent found} other {# agents found}}"
+#~ msgstr "{count, plural, one {Найден # агент} few {Найдено # агента} many {Найдено # агентов} other {Найдено # агентов}}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -495,6 +499,11 @@ msgstr "{envOrAgentLabel} требует аутентификации."
 msgid "{filteredCount} / {totalCount} matches"
 msgstr "Совпадений: {filteredCount} / {totalCount}"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "{foundCount, plural, one {# agent found} other {# agents found}}"
+msgstr "{foundCount, plural, one {Найден # агент} few {Найдено # агента} many {Найдено # агентов} other {Найдено # агентов}}"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "{head}, or {tail}"
 msgstr "{head} или {tail}"
@@ -520,8 +529,8 @@ msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}
 msgstr "{imported, plural, one {Импортирована # сессия.} few {Импортировано # сессии.} many {Импортировано # сессий.} other {Импортировано # сессии.}}"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
-msgstr "{installedCount, plural, one {# агент готов} few {# агента готовы} many {# агентов готовы} other {# агента готовы}}"
+#~ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
+#~ msgstr "{installedCount, plural, one {# агент готов} few {# агента готовы} many {# агентов готовы} other {# агента готовы}}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{judgeLabel} is comparing the anonymized diffs…"
@@ -2456,6 +2465,10 @@ msgstr "Этот выбор модели нельзя использовать �
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Cancel"
 msgstr "Отмена"
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Cancel agent discovery"
+msgstr "Отменить поиск агентов"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -4900,7 +4913,6 @@ msgstr "Найти агентов на этом компьютере"
 #~ msgid "Detect from project files"
 #~ msgstr "Определить по файлам проекта"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "Обнаружено"
@@ -5178,9 +5190,17 @@ msgstr "Соединение разорвано — отправьте сооб�
 msgid "Discover"
 msgstr "Обзор"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Discovering agents…"
+msgstr "Поиск агентов…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "Поиск агентов для кодирования…"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Discovery complete"
+msgstr "Поиск завершён"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
@@ -5251,6 +5271,7 @@ msgstr "готово"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -6445,6 +6466,10 @@ msgstr "Вперёд"
 msgid "Forward a port"
 msgstr "Перенаправить порт"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Found"
+msgstr "Найден"
+
 #. placeholder {0}: importableRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
@@ -6819,6 +6844,7 @@ msgstr "HEX-цвет"
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
 msgstr "Скрытые возобновляемые треды проверяются каждые 5 минут и выгружаются по достижении этого времени простоя."
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
@@ -9580,8 +9606,8 @@ msgid "No providers connected yet."
 msgstr "Пока нет подключённых провайдеров."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "No providers ready yet"
-msgstr "Готовых провайдеров пока нет"
+#~ msgid "No providers ready yet"
+#~ msgstr "Готовых провайдеров пока нет"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "No pull requests found."
@@ -9766,8 +9792,8 @@ msgid "Not detected on this machine yet."
 msgstr "На этом компьютере ещё не обнаружено."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Not found"
-msgstr "Не найдено"
+#~ msgid "Not found"
+#~ msgstr "Не найдено"
 
 #: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11346,8 +11372,8 @@ msgid "provider"
 msgstr "провайдер"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Provider"
-msgstr "Провайдер"
+#~ msgid "Provider"
+#~ msgstr "Провайдер"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -11765,6 +11791,7 @@ msgid "Refresh {0} authentication"
 msgstr "Обновить аутентификацию {0}"
 
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
 msgstr "Обновить {label}"
 
@@ -13178,8 +13205,8 @@ msgid "Search…"
 msgstr "Поиск…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Searching..."
-msgstr "Поиск..."
+#~ msgid "Searching..."
+#~ msgstr "Поиск..."
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
@@ -13531,6 +13558,10 @@ msgstr "Показывать подтверждение перед безвоз�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "Показывать домашнюю область без проекта для сессий агентов на уровне OS."
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Show agent discovery"
+msgstr "Показать поиск агентов"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -14605,7 +14636,6 @@ msgstr "Синхронизация…"
 msgid "Syncs with Cloud"
 msgstr "Синхронизируется с Cloud"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -17098,8 +17128,8 @@ msgid "Warming up shell environment…"
 msgstr "Подготовка окружения оболочки…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Warming up shell environments..."
-msgstr "Подготовка окружений оболочки..."
+#~ msgid "Warming up shell environments..."
+#~ msgstr "Подготовка окружений оболочки..."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"

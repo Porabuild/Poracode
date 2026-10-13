@@ -1,24 +1,19 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, AgentStatusesResponse, Project } from "@/shared/contracts";
+import type { AgentStatus, Project } from "@/shared/contracts";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
   wslAgentStatuses: [] as AgentStatus[],
+  inFirstLaunchDiscovery: false,
 };
 
-const resetDiscoveredAgentsMock = vi.fn<() => void>();
-const beginFirstLaunchDiscoveryMock = vi.fn<(scope?: unknown) => void>();
-const hydrateFromCacheMock =
-  vi.fn<(cached: { windows: AgentStatus[]; wsl: AgentStatus[] }) => void>();
-const emptyStatusesResponse: AgentStatusesResponse = {
-  windows: [],
-  wsl: [],
-  fromCache: false,
-};
-const refreshAgentStatusesMock = vi.fn<(wslDistros?: string[]) => Promise<AgentStatusesResponse>>();
+const refreshAgentDiscoveryMock = vi.fn<(distros: string[]) => void>();
+vi.mock("@/renderer/actions/agentDiscoveryActions", () => ({
+  refreshAgentDiscovery: (distros: string[]) => refreshAgentDiscoveryMock(distros),
+}));
 
 const appState = {
   projects: [] as Project[],
@@ -29,27 +24,10 @@ const bridgeState = {
   remote: false,
 };
 
-vi.mock("@/renderer/state/agentStatusesStore", () => {
-  const useAgentStatusesStore = (
-    selector: (state: {
-      agentStatuses: AgentStatus[];
-      wslAgentStatuses: AgentStatus[];
-      beginFirstLaunchDiscovery: (scope?: unknown) => void;
-      resetDiscoveredAgents: () => void;
-    }) => unknown,
-  ) =>
-    selector({
-      ...statusesState,
-      beginFirstLaunchDiscovery: beginFirstLaunchDiscoveryMock,
-      resetDiscoveredAgents: resetDiscoveredAgentsMock,
-    });
-  useAgentStatusesStore.getState = () => ({
-    beginFirstLaunchDiscovery: beginFirstLaunchDiscoveryMock,
-    resetDiscoveredAgents: resetDiscoveredAgentsMock,
-    hydrateFromCache: hydrateFromCacheMock,
-  });
-  return { useAgentStatusesStore };
-});
+vi.mock("@/renderer/state/agentStatusesStore", () => ({
+  useAgentStatusesStore: (selector: (state: typeof statusesState) => unknown) =>
+    selector(statusesState),
+}));
 
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: (selector: (state: typeof appState) => unknown) => selector(appState),
@@ -117,22 +95,8 @@ vi.mock("@/renderer/bridge", () => ({
   isRemoteSession: () => bridgeState.remote,
   isWindows: () => false,
   readBridge: () => ({
-    refreshAgentStatuses: refreshAgentStatusesMock,
     openExternal: vi.fn<() => Promise<void>>(async () => undefined),
   }),
-}));
-
-vi.mock("@/renderer/components/thread/AgentDiscoveryScreen", () => ({
-  AgentDiscoveryScreen: (props: { onCancel?: () => void }) => (
-    <div>
-      Discovering coding agents…
-      {props.onCancel ? (
-        <button type="button" onClick={props.onCancel}>
-          Cancel
-        </button>
-      ) : null}
-    </div>
-  ),
 }));
 
 vi.mock("./parts/GeneralSettings", () => ({
@@ -241,11 +205,7 @@ describe("SettingsOverlay", () => {
     appState.openSchedules.mockReset();
     bridgeState.remote = false;
     useRemoteServersStore.setState({ servers: [], runtime: {} });
-    beginFirstLaunchDiscoveryMock.mockReset();
-    resetDiscoveredAgentsMock.mockReset();
-    hydrateFromCacheMock.mockReset();
-    refreshAgentStatusesMock.mockReset();
-    refreshAgentStatusesMock.mockResolvedValue(emptyStatusesResponse);
+    refreshAgentDiscoveryMock.mockReset();
     usePanelStore.setState({ settingsSection: null });
   });
 
@@ -634,90 +594,19 @@ describe("SettingsOverlay", () => {
     expect(factoryButton.querySelector(".text-warning")).not.toBeNull();
   });
 
-  it("refreshes agent probing from the agents sidebar and shows the discovery overlay", async () => {
-    vi.useFakeTimers();
-    statusesState.agentStatuses = [
-      makeStatus("claude", {
-        label: "Claude Code",
-        envKind: "posix",
-      }),
-    ];
+  it("starts app-owned discovery with the project WSL environments", () => {
     appState.projects = [
       {
         id: "project-1",
         name: "demo",
         disabled: false,
         createdAt: new Date(0).toISOString(),
-        location: {
-          kind: "wsl",
-          distro: "Ubuntu",
-          linuxPath: "/home/demo/project",
-          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
-        },
+        location: { kind: "wsl", distro: "Ubuntu", linuxPath: "/home/demo/project", uncPath: "" },
       },
     ];
-
-    let resolveRefresh: ((value: AgentStatusesResponse) => void) | undefined;
-    const refreshed: AgentStatusesResponse = {
-      windows: statusesState.agentStatuses,
-      wsl: [],
-      fromCache: false,
-    };
-    refreshAgentStatusesMock.mockReturnValueOnce(
-      new Promise<AgentStatusesResponse>((resolve) => {
-        resolveRefresh = resolve;
-      }),
-    );
-
-    try {
-      render(<SettingsOverlay onClose={() => undefined} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
-
-      expect(beginFirstLaunchDiscoveryMock).toHaveBeenCalledWith({
-        kind: "all",
-        wslDistros: ["Ubuntu"],
-      });
-      expect(resetDiscoveredAgentsMock).not.toHaveBeenCalled();
-      expect(refreshAgentStatusesMock).toHaveBeenCalledWith(["Ubuntu"]);
-      expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
-
-      await act(async () => {
-        resolveRefresh?.(refreshed);
-        await vi.advanceTimersByTimeAsync(0);
-      });
-
-      expect(hydrateFromCacheMock).toHaveBeenCalledWith({
-        windows: refreshed.windows,
-        wsl: refreshed.wsl,
-      });
-
-      await act(() => vi.advanceTimersByTimeAsync(999));
-      expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
-      expect(resetDiscoveredAgentsMock).not.toHaveBeenCalled();
-
-      await act(() => vi.advanceTimersByTimeAsync(1));
-      expect(screen.queryByText("Discovering coding agents…")).not.toBeInTheDocument();
-      expect(resetDiscoveredAgentsMock).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("cancels the visible agent refresh overlay", () => {
-    refreshAgentStatusesMock.mockReturnValueOnce(
-      new Promise<AgentStatusesResponse>(() => undefined),
-    );
-
     render(<SettingsOverlay onClose={() => undefined} />);
-
     fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
-    expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(screen.queryByText("Discovering coding agents…")).not.toBeInTheDocument();
-    expect(resetDiscoveredAgentsMock).toHaveBeenCalledTimes(1);
+    expect(refreshAgentDiscoveryMock).toHaveBeenCalledExactlyOnceWith(["Ubuntu"]);
   });
 
   it("searches across individual settings, not just sections", () => {

@@ -1,261 +1,322 @@
 import { Button } from "@heroui/react";
-import { X } from "lucide-react";
+import { Check, EyeOff, RefreshCw, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
+import { WelcomeBackdrop } from "@/renderer/components/common/WelcomeBackdrop";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
+import { agentEnvForStatus, type AgentEnv } from "@/shared/machines";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import type { AgentStatus, ProjectLocation } from "@/shared/contracts";
-import type { CSSProperties, ReactNode } from "react";
+import { refreshDiscoveredAgent } from "@/renderer/actions/agentDiscoveryActions";
+import type { AgentStatus } from "@/shared/contracts";
+import { AgentDiscoveryRadar } from "./AgentDiscoveryRadar";
+import "./agentDiscovery.css";
+
+/** Collision-free row key for (kind, env) without embedding separators. */
+function rowKey(status: AgentStatus): string {
+  return JSON.stringify([status.kind, status.envKind ?? null, status.envDistro ?? null]);
+}
 
 function renderStatusLine(
-  scopedCount: number,
-  installedCount: number,
+  scanning: boolean,
+  discoveredCount: number,
+  foundCount: number,
   wslDistro: string | undefined,
 ): ReactNode {
-  if (scopedCount === 0) {
+  if (scanning && discoveredCount === 0) {
     return wslDistro ? (
       <Trans>Warming up WSL shell environment…</Trans>
     ) : (
       <Trans>Warming up shell environment…</Trans>
     );
   }
-  if (installedCount === 0) return <Trans>No agents installed yet</Trans>;
-  return <Plural value={installedCount} one="# agent ready" other="# agents ready" />;
+  if (foundCount === 0) return <Trans>No agents installed yet</Trans>;
+  return <Plural value={foundCount} one="# agent found" other="# agents found" />;
 }
 
-function renderCombinedStatusLine(discovered: readonly AgentStatus[]): ReactNode {
-  if (discovered.length === 0) return <Trans>Warming up shell environments...</Trans>;
-  const readyKinds = new Set(
-    discovered.filter((status) => isReadyCountable(status)).map((status) => status.kind),
-  );
-  if (readyKinds.size === 0) return <Trans>No providers ready yet</Trans>;
-  return <Plural value={readyKinds.size} one="# provider ready" other="# providers ready" />;
-}
-
-/** Installed, not awaiting sign-in, and carrying a model catalog the probe verified. */
-function isVerifiedUsable(status: AgentStatus): boolean {
-  return (
-    status.installed && status.authState !== "missing" && status.capabilities.models.length > 0
-  );
-}
-
-function readyBadge(status: AgentStatus): { label: MessageDescriptor; toneClass: string } | null {
-  if (!status.installed) return null;
-  if (status.authState === "missing") {
+function foundBadge(status: AgentStatus): { label: MessageDescriptor; toneClass: string } {
+  if (status.authState === "missing")
     return { label: msg`Sign in needed`, toneClass: "text-warning" };
-  }
-  // An install whose probe reached no verdict carries no model catalog, so it
-  // must not read as launchable: detection found it, but could not verify it
-  // works.
-  if (!isVerifiedUsable(status)) {
-    return { label: msg`Detected`, toneClass: "text-warning" };
-  }
-  return { label: msg`Ready`, toneClass: "text-success" };
+  const usable = status.installed && status.capabilities.models.length > 0;
+  return usable
+    ? { label: msg`Ready`, toneClass: "text-success" }
+    : { label: msg`Found`, toneClass: "text-warning" };
 }
 
-function statusRank(status: AgentStatus): number {
-  if (!status.installed) return 0;
-  return isVerifiedUsable(status) ? 2 : 1;
+/** One card per agent kind; each machine it was found on is a sub-row. */
+interface AgentGroup {
+  kind: string;
+  statuses: AgentStatus[];
 }
 
-/** "Ready"-countable: installed and either awaiting sign-in or verified usable. */
-function isReadyCountable(status: AgentStatus): boolean {
-  return status.installed && (status.authState === "missing" || isVerifiedUsable(status));
+/** Native install first, then WSL distros alphabetically. */
+function compareEnvs(a: AgentEnv, b: AgentEnv): number {
+  if (a.kind !== b.kind) return a.kind === "native" ? -1 : 1;
+  return a.kind === "wsl" && b.kind === "wsl" ? a.distro.localeCompare(b.distro) : 0;
 }
 
-interface ScanTarget {
-  key: string;
-  label: string;
-  matches(status: AgentStatus): boolean;
-}
-
-function statusForTarget(
-  statuses: readonly AgentStatus[],
-  target: ScanTarget | undefined,
-): AgentStatus | undefined {
-  const matching = target ? statuses.filter((status) => target.matches(status)) : statuses;
-  return matching.toSorted((left, right) => statusRank(right) - statusRank(left))[0];
-}
-
-function statusLabel(status: AgentStatus | undefined): {
-  label: MessageDescriptor;
-  toneClass: string;
-} {
-  if (!status) return { label: msg`Searching...`, toneClass: "text-muted/60" };
-  const badge = readyBadge(status);
-  if (badge) return badge;
-  return { label: msg`Not found`, toneClass: "text-muted/55" };
-}
-
-export function AgentDiscoveryScreen(props: {
-  location?: ProjectLocation;
-  onCancel?: () => void;
-  wslDistros?: string[];
-}) {
+export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () => void }) {
   const { t } = useLingui();
-  // `discoveredAgents` is already scoped by `pushDiscoveredAgent` to the active
-  // discovery scope, so no additional location filtering is needed here.
+  const headingId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const discovered = useAgentStatusesStore((s) => s.discoveredAgents);
-  const discoveryScope = useAgentStatusesStore((s) => s.discoveryScope);
-  const byKind = new Map<AgentStatus["kind"], AgentStatus>();
-  const statusesByKind = new Map<AgentStatus["kind"], AgentStatus[]>();
-  for (const status of discovered) {
-    const current = byKind.get(status.kind);
-    if (!current || statusRank(status) >= statusRank(current)) {
-      byKind.set(status.kind, status);
-    }
-    statusesByKind.set(status.kind, [...(statusesByKind.get(status.kind) ?? []), status]);
-  }
-  const installedCount = discovered.reduce((n, s) => n + (isReadyCountable(s) ? 1 : 0), 0);
-  const wslDistro = props.location?.kind === "wsl" ? props.location.distro : undefined;
-  const scanTargets: ScanTarget[] =
-    wslDistro !== undefined
+  const scanning = useAgentStatusesStore((s) => s.discoveryScanning);
+  const scope = useAgentStatusesStore((s) => s.discoveryScope);
+  const [pendingRefresh, setPendingRefresh] = useState<ReadonlySet<string>>(new Set());
+  const wslDistro = scope?.kind === "wsl" ? scope.distro : undefined;
+  const wslDistros = scope?.kind === "all" ? scope.wslDistros : [];
+  const scanLabels = wslDistro
+    ? []
+    : wslDistros.length > 0
       ? [
-          {
-            key: `wsl:${wslDistro}`,
-            label: localEnvLabel({ kind: "wsl", distro: wslDistro }),
-            matches: (status) => status.envKind === "wsl" && status.envDistro === wslDistro,
-          },
+          localEnvLabel({ kind: "native" }),
+          ...wslDistros.map((distro) => localEnvLabel({ kind: "wsl", distro })),
         ]
-      : props.wslDistros !== undefined
-        ? [
-            {
-              key: "native",
-              label: localEnvLabel({ kind: "native" }),
-              matches: (status) => status.envKind !== "wsl",
-            },
-            ...props.wslDistros.map((distro) => ({
-              key: `wsl:${distro}`,
-              label: localEnvLabel({ kind: "wsl", distro }),
-              matches: (status: AgentStatus) =>
-                status.envKind === "wsl" && status.envDistro === distro,
-            })),
-          ]
-        : discoveryScope?.kind === "all"
-          ? [
-              {
-                key: "native",
-                label: localEnvLabel({ kind: "native" }),
-                matches: (status) => status.envKind !== "wsl",
-              },
-              ...discoveryScope.wslDistros.map((distro) => ({
-                key: `wsl:${distro}`,
-                label: localEnvLabel({ kind: "wsl", distro }),
-                matches: (status: AgentStatus) =>
-                  status.envKind === "wsl" && status.envDistro === distro,
-              })),
-            ]
-          : [];
-  const providers = getProviderManifests();
-  const useMatrixLayout = scanTargets.length > 1;
-  const statusTargets: ScanTarget[] =
-    scanTargets.length > 0
-      ? scanTargets
-      : [
-          {
-            key: "system",
-            label: t`System`,
-            matches: () => true,
-          },
-        ];
-  const matrixGridStyle = {
-    "--agent-target-count": statusTargets.length,
-  } as CSSProperties;
+      : [];
+  // Only a scan spanning several environments labels each row's machine —
+  // repeating the one env under every row of a single-env scan is noise.
+  const multiEnv = scope?.kind === "all" && scope.wslDistros.length > 0;
+  const found = discovered.filter((status) => status.installed);
+  const labels = new Map(getProviderManifests().map((manifest) => [manifest.kind, manifest.label]));
+  // One card per agent kind, in arrival order; machines inside a card are
+  // ordered deterministically (native first, then distros alphabetically).
+  const groups: AgentGroup[] = [];
+  const groupsByKind = new Map<string, AgentStatus[]>();
+  for (const status of found) {
+    const existing = groupsByKind.get(status.kind);
+    if (existing) {
+      existing.push(status);
+    } else {
+      const statuses = [status];
+      groupsByKind.set(status.kind, statuses);
+      groups.push({ kind: status.kind, statuses });
+    }
+  }
+  for (const group of groups) {
+    group.statuses.sort((a, b) => compareEnvs(agentEnvForStatus(a), agentEnvForStatus(b)));
+  }
 
-  return (
-    <div className="agent-discovery-screen flex h-full min-h-0 flex-col items-center gap-6 overflow-y-auto px-6 py-6 text-center">
-      <div className="flex shrink-0 flex-col items-center gap-3">
-        <PixelLoader size="lg" className="text-foreground" />
-        <h1 className="text-xl font-semibold tracking-tight">
-          <Trans>Discovering coding agents…</Trans>
-        </h1>
-        <p className="max-w-sm text-sm text-muted">
-          {wslDistro
-            ? t`Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
-            : scanTargets.length > 1
-              ? t`Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds.`
-              : t`Scanning your system for installed CLIs. This usually takes a couple of seconds.`}
-        </p>
-        {scanTargets.length > 1 ? (
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            {scanTargets.map((target) => (
-              <span
-                key={target.key}
-                className="rounded border border-border/70 bg-surface/60 px-2 py-0.5 text-[0.6875rem] font-medium text-muted"
-              >
-                {target.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
+  const refreshGroup = (group: AgentGroup) => {
+    if (pendingRefresh.has(group.kind)) return;
+    setPendingRefresh((prev) => new Set(prev).add(group.kind));
+    void refreshDiscoveredAgent(group.statuses).finally(() =>
+      setPendingRefresh((prev) => {
+        if (!prev.has(group.kind)) return prev;
+        const next = new Set(prev);
+        next.delete(group.kind);
+        return next;
+      }),
+    );
+  };
 
-      <div className="flex w-full min-h-0 max-w-[42rem] flex-col overflow-hidden rounded border border-border/60 bg-background/25 text-left">
-        <div
-          className="grid shrink-0 grid-cols-[minmax(11rem,1fr)_repeat(var(--agent-target-count),minmax(7rem,8rem))] border-b border-border/60 px-3 py-2 text-[0.6875rem] font-medium uppercase text-muted/70"
-          style={matrixGridStyle}
-        >
-          <div>
-            <Trans>Provider</Trans>
+  // This full-window surface has two actions. Keep the covered app inert and
+  // restore its previous focus when the shared OverlayShell exits.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const previous = document.activeElement;
+    const siblings = [...document.body.children].filter(
+      (el): el is HTMLElement => el instanceof HTMLElement && el !== root,
+    );
+    const previousInert = siblings.map((el) => el.inert);
+    siblings.forEach((el) => {
+      el.inert = true;
+    });
+    const controls = () => [...root.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
+    (controls()[0] ?? root).focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const buttons = controls();
+      const current = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      event.preventDefault();
+      (
+        buttons[(current + (event.shiftKey ? buttons.length - 1 : 1)) % buttons.length] ?? root
+      ).focus();
+    };
+    root.addEventListener("keydown", onKeyDown);
+    return () => {
+      root.removeEventListener("keydown", onKeyDown);
+      siblings.forEach((el, index) => {
+        el.inert = previousInert[index] ?? false;
+      });
+      if (previous instanceof HTMLElement && previous.isConnected)
+        previous.focus({ preventScroll: true });
+      if (document.activeElement === document.body)
+        document
+          .querySelector<HTMLButtonElement>("[data-agent-discovery-indicator] button")
+          ?.focus({ preventScroll: true });
+    };
+  }, []);
+
+  return createPortal(
+    <div
+      ref={rootRef}
+      className="fixed inset-0 z-[60]"
+      tabIndex={-1}
+      role="region"
+      aria-labelledby={headingId}
+    >
+      <OverlayShell open instantEnter onExited={props.onHide}>
+        {/* The backdrop covers the whole surface, drag strip included, so no
+            bare window band shows at the top. Content is a fixed column: the
+            hero is pinned on top, only the results grid scrolls, and status
+            plus actions stay pinned at the bottom — the logo never shifts as
+            agents arrive. */}
+        <WelcomeBackdrop className="min-h-0 flex-1" contentClassName="min-h-0 flex-col">
+          {/* Bare drag strip — no title bar; the heading below carries the
+              name. Keeps the frameless window draggable and clears macOS
+              traffic lights, matching the welcome overlay's chrome-free
+              surface. */}
+          {isBrowserClientRuntime() ? null : (
+            <div
+              className="agent-discovery-dragstrip shrink-0"
+              style={{ height: "env(titlebar-area-height, 32px)" }}
+            />
+          )}
+          <div className="flex shrink-0 flex-col items-center px-6 pt-2 text-center">
+            <AgentDiscoveryRadar foundCount={found.length} scanning={scanning} />
+            <h1 id={headingId} className="mt-6 text-2xl font-semibold tracking-tight">
+              {scanning ? (
+                <Trans>Discovering coding agents…</Trans>
+              ) : (
+                <Trans>Discovery complete</Trans>
+              )}
+            </h1>
+            {scanning ? (
+              <>
+                <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
+                  {wslDistro
+                    ? t`Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
+                    : scanLabels.length > 1
+                      ? t`Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds.`
+                      : t`Scanning your system for installed CLIs. This usually takes a couple of seconds.`}
+                </p>
+                {scanLabels.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs text-muted">
+                    {scanLabels.map((label) => (
+                      <span key={label}>{label}</span>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
           </div>
-          {statusTargets.map((target) => (
-            <div key={target.key} className="text-center">
-              {/* The per-system label (e.g. "Windows", "WSL: …") only disambiguates
-                  when there are multiple environment columns. With a single column —
-                  always the case on macOS/Linux — it is redundant noise, so omit it. */}
-              {useMatrixLayout ? target.label : null}
-            </div>
-          ))}
-        </div>
-        <div className="min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
-          {providers.map(({ kind, label }) => {
-            const statuses = statusesByKind.get(kind) ?? [];
-            return (
-              <div
-                key={kind}
-                className="grid min-h-14 grid-cols-[minmax(11rem,1fr)_repeat(var(--agent-target-count),minmax(7rem,8rem))] items-center border-b border-border/40 px-3 py-2 last:border-b-0"
-                style={matrixGridStyle}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <ProviderIcon kind={kind} className="agent-discovery-item__icon size-7" />
-                  <div className="truncate text-sm font-medium">{t(label)}</div>
-                </div>
-                {statusTargets.map((target) => {
-                  const rowStatus = statusForTarget(statuses, target);
-                  const labelInfo = statusLabel(rowStatus);
+          {/* Only this region scrolls; hero and footer stay pinned. */}
+          <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
+            {groups.length > 0 ? (
+              <ul className="mx-auto grid w-full max-w-3xl grid-cols-1 items-start gap-2 px-6 pb-4 text-left sm:grid-cols-2">
+                {groups.map((group) => {
+                  const first = group.statuses[0]!;
+                  const manifestLabel = labels.get(group.kind);
+                  const label = manifestLabel ? t(manifestLabel) : first.label;
+                  const refreshing = pendingRefresh.has(group.kind);
                   return (
-                    <div
-                      key={target.key}
-                      className={`text-center text-xs font-medium ${labelInfo.toneClass}`}
-                    >
-                      {t(labelInfo.label)}
-                    </div>
+                    <li key={group.kind} className="agent-discovery-row">
+                      <div className="flex items-center gap-3">
+                        <ProviderIcon
+                          kind={group.kind}
+                          tone="active"
+                          className="size-6 shrink-0"
+                          {...(first.icon ? { icon: first.icon } : {})}
+                          fallbackLabel={label}
+                        />
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">
+                          {label}
+                        </span>
+                        {multiEnv ? null : (
+                          <span
+                            className={`agent-discovery-row__status shrink-0 text-xs font-medium ${foundBadge(first).toneClass}`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="size-1.5 shrink-0 rounded-full bg-current"
+                            />
+                            {t(foundBadge(first).label)}
+                          </span>
+                        )}
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="ghost"
+                          aria-label={t`Refresh ${label}`}
+                          isDisabled={refreshing}
+                          onPress={() => refreshGroup(group)}
+                        >
+                          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                        </Button>
+                      </div>
+                      {/* In a multi-env scan each machine with the agent gets
+                            a secondary row carrying that machine's status. */}
+                      {multiEnv ? (
+                        <ul className="mt-2 flex flex-col gap-0.5 border-t border-border/10 pt-2">
+                          {group.statuses.map((status) => {
+                            const badge = foundBadge(status);
+                            return (
+                              <li
+                                key={rowKey(status)}
+                                className="agent-discovery-env-row flex items-center gap-2 py-0.5 pl-9"
+                              >
+                                <span className="min-w-0 flex-1 truncate text-xs text-muted">
+                                  {localEnvLabel(agentEnvForStatus(status))}
+                                </span>
+                                <span
+                                  className={`agent-discovery-row__status shrink-0 text-xs font-medium ${badge.toneClass}`}
+                                >
+                                  <span
+                                    aria-hidden="true"
+                                    className="size-1.5 shrink-0 rounded-full bg-current"
+                                  />
+                                  {t(badge.label)}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </li>
                   );
                 })}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="shrink-0 text-xs text-muted/70" aria-live="polite">
-        {useMatrixLayout
-          ? renderCombinedStatusLine(discovered)
-          : renderStatusLine(discovered.length, installedCount, wslDistro)}
-      </div>
-
-      {props.onCancel ? (
-        <div className="shrink-0">
-          <Button size="sm" variant="tertiary" onPress={props.onCancel}>
-            <X className="size-3.5" />
-            <Trans>Cancel</Trans>
-          </Button>
-        </div>
-      ) : null}
-    </div>
+              </ul>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 flex-col items-center gap-4 px-6 pb-6 pt-3">
+            <div className="flex items-center gap-2 text-xs text-muted" aria-live="polite">
+              {scanning ? (
+                <span className="agent-discovery-screen__activity" aria-hidden="true" />
+              ) : found.length > 0 ? (
+                <Check className="size-3.5 text-success" aria-hidden="true" />
+              ) : null}
+              {renderStatusLine(scanning, discovered.length, groups.length, wslDistro)}
+            </div>
+            <div className="flex items-center gap-2">
+              {scanning ? (
+                <>
+                  <Button size="sm" variant="secondary" onPress={props.onHide}>
+                    <EyeOff className="size-3.5" />
+                    <Trans>Hide</Trans>
+                  </Button>
+                  <Button size="sm" variant="tertiary" onPress={props.onCancel}>
+                    <X className="size-3.5" />
+                    <Trans>Cancel</Trans>
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" variant="secondary" onPress={props.onHide}>
+                  <Check className="size-3.5" />
+                  <Trans>Done</Trans>
+                </Button>
+              )}
+            </div>
+          </div>
+        </WelcomeBackdrop>
+      </OverlayShell>
+    </div>,
+    document.body,
   );
 }

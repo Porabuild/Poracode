@@ -93,8 +93,8 @@ msgstr "{0, plural, one {# dự án} other {# dự án}}"
 
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "{0, plural, one {# provider ready} other {# providers ready}}"
-msgstr "{0, plural, one {# nhà cung cấp đã sẵn sàng} other {# nhà cung cấp đã sẵn sàng}}"
+#~ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
+#~ msgstr "{0, plural, one {# nhà cung cấp đã sẵn sàng} other {# nhà cung cấp đã sẵn sàng}}"
 
 #. placeholder {0}: props.entry.skills.length
 #. placeholder {0}: props.skills.length
@@ -468,6 +468,10 @@ msgstr "{agentLead} cần bạn nhập thông tin để tiếp tục."
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# bình luận hoặc đánh giá} other {# bình luận và đánh giá}}"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+#~ msgid "{count, plural, one {# agent found} other {# agents found}}"
+#~ msgstr "{count, plural, one {# tác nhân đã tìm thấy} other {# tác nhân đã tìm thấy}}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -495,6 +499,11 @@ msgstr "{envOrAgentLabel} cần xác thực."
 msgid "{filteredCount} / {totalCount} matches"
 msgstr "{filteredCount} / {totalCount} trùng khớp"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "{foundCount, plural, one {# agent found} other {# agents found}}"
+msgstr "{foundCount, plural, one {# tác nhân đã tìm thấy} other {# tác nhân đã tìm thấy}}"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "{head}, or {tail}"
 msgstr "{head}, hoặc {tail}"
@@ -520,8 +529,8 @@ msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}
 msgstr "{imported, plural, one {Đã nhập # phiên.} other {Đã nhập # phiên.}}"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
-msgstr "{installedCount, plural, one {# tác nhân đã sẵn sàng} other {# tác nhân đã sẵn sàng}}"
+#~ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
+#~ msgstr "{installedCount, plural, one {# tác nhân đã sẵn sàng} other {# tác nhân đã sẵn sàng}}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{judgeLabel} is comparing the anonymized diffs…"
@@ -2456,6 +2465,10 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Cancel"
 msgstr "Hủy bỏ"
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Cancel agent discovery"
+msgstr "Hủy tìm tác nhân"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -4900,7 +4913,6 @@ msgstr "Phát hiện agent trên máy này"
 #~ msgid "Detect from project files"
 #~ msgstr "Phát hiện từ tệp dự án"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "Đã phát hiện"
@@ -5178,9 +5190,17 @@ msgstr "Đã ngắt kết nối — gửi tin nhắn để kết nối lại"
 msgid "Discover"
 msgstr "Khám phá"
 
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Discovering agents…"
+msgstr "Đang tìm tác nhân…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "Đang khám phá các tác nhân lập trình…"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Discovery complete"
+msgstr "Đã khám phá xong"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
@@ -5251,6 +5271,7 @@ msgstr "xong"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -6445,6 +6466,10 @@ msgstr "Chuyển tiếp"
 msgid "Forward a port"
 msgstr "Chuyển tiếp một cổng"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Found"
+msgstr "Đã tìm thấy"
+
 #. placeholder {0}: importableRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
@@ -6819,6 +6844,7 @@ msgstr "Màu hex"
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
 msgstr "Các chủ đề tiếp tục ẩn sẽ được quét 5 phút một lần và được dỡ bỏ sau độ tuổi nhàn rỗi này."
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
@@ -9580,8 +9606,8 @@ msgid "No providers connected yet."
 msgstr "Chưa có nhà cung cấp nào được kết nối."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "No providers ready yet"
-msgstr "Chưa có nhà cung cấp nào sẵn sàng"
+#~ msgid "No providers ready yet"
+#~ msgstr "Chưa có nhà cung cấp nào sẵn sàng"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "No pull requests found."
@@ -9766,8 +9792,8 @@ msgid "Not detected on this machine yet."
 msgstr "Chưa được phát hiện trên máy này."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Not found"
-msgstr "Không tìm thấy"
+#~ msgid "Not found"
+#~ msgstr "Không tìm thấy"
 
 #: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11346,8 +11372,8 @@ msgid "provider"
 msgstr "nhà cung cấp"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Provider"
-msgstr "nhà cung cấp"
+#~ msgid "Provider"
+#~ msgstr "nhà cung cấp"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "Provider conversation was not restored"
@@ -11765,6 +11791,7 @@ msgid "Refresh {0} authentication"
 msgstr "Làm mới xác thực {0}"
 
 #: src/renderer/components/providers/UsageProviderCardView.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
 msgstr "Làm mới {label}"
 
@@ -13178,8 +13205,8 @@ msgid "Search…"
 msgstr "Tìm kiếm…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Searching..."
-msgstr "Đang tìm kiếm..."
+#~ msgid "Searching..."
+#~ msgstr "Đang tìm kiếm..."
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Searching…"
@@ -13531,6 +13558,10 @@ msgstr "Hiển thị xác nhận trước khi xóa vĩnh viễn một luồng."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "Hiển thị phạm vi Trang chủ không có dự án cho các phiên tác nhân cấp hệ điều hành."
+
+#: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
+msgid "Show agent discovery"
+msgstr "Hiện quá trình tìm tác nhân"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -14605,7 +14636,6 @@ msgstr "Đang đồng bộ…"
 msgid "Syncs with Cloud"
 msgstr "Đồng bộ với Cloud"
 
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/i18n/locales.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "System"
@@ -17098,8 +17128,8 @@ msgid "Warming up shell environment…"
 msgstr "Đang khởi động môi trường shell…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Warming up shell environments..."
-msgstr "Đang khởi động các môi trường shell..."
+#~ msgid "Warming up shell environments..."
+#~ msgstr "Đang khởi động các môi trường shell..."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"

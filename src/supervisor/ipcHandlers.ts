@@ -58,6 +58,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     manageAgentCredentials: (payload) => registry.manageAgentCredentials(payload),
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
+    cancelAgentDiscovery: () => registry.cancelAgentDiscovery(),
     refreshAgentStatuses: (payload) =>
       withUsageReconciliation(registry.refreshAgentStatuses(payload)),
     getProviderUsage: (payload) => usage.getProviderUsage(payload),

@@ -32,6 +32,15 @@ interface AgentStatusesStore {
    * launches where the cache is loaded eagerly.
    */
   inFirstLaunchDiscovery: boolean;
+  /**
+   * True while the scan is streaming. The overlay keeps its results open when
+   * the scan completes (rows stay refreshable) until the user dismisses it;
+   * cancel/hydrate still end the session outright.
+   */
+  discoveryScanning: boolean;
+  /** Session-only visibility; hiding the artwork does not stop detection. */
+  discoveryHidden: boolean;
+  setDiscoveryHidden: (hidden: boolean) => void;
   discoveryScope: AgentDiscoveryScope | undefined;
   /** Statuses streamed from `agent-detected` events during first-launch scan. */
   discoveredAgents: AgentStatus[];
@@ -157,13 +166,16 @@ function buildStatusUpdatePatch(
   const currentList = isWsl ? prev.wslAgentStatuses : prev.agentStatuses;
   const currentLoaded = isWsl ? prev.wslLoaded : prev.windowsLoaded;
   const equal = statusesEqual(currentList, incoming);
-  const endsDiscovery =
-    prev.inFirstLaunchDiscovery &&
+  // The terminal bulk event completes the scan but no longer dismisses the
+  // overlay: its rows stay open (and individually refreshable) until the user
+  // hides or cancels the session.
+  const scanCompletes =
+    prev.discoveryScanning &&
     (isWsl
       ? prev.discoveryScope?.kind === "wsl"
       : prev.discoveryScope?.kind === undefined || prev.discoveryScope.kind === "native");
-  const discoveryPatch: Partial<AgentStatusesStore> = endsDiscovery
-    ? { inFirstLaunchDiscovery: false, discoveryScope: undefined }
+  const discoveryPatch: Partial<AgentStatusesStore> = scanCompletes
+    ? { discoveryScanning: false }
     : {};
   if (equal && currentLoaded) {
     return discoveryPatch;
@@ -187,6 +199,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       windowsLoaded: false,
       wslLoaded: false,
       inFirstLaunchDiscovery: false,
+      discoveryScanning: false,
+      discoveryHidden: false,
+      setDiscoveryHidden: (discoveryHidden) => set({ discoveryHidden }),
       discoveryScope: undefined,
       discoveredAgents: [],
       setAgentStatuses: (incoming) =>
@@ -200,6 +215,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           windowsLoaded: true,
           wslLoaded: true,
           inFirstLaunchDiscovery: false,
+          discoveryScanning: false,
           discoveryScope: undefined,
         })),
       beginFirstLaunchDiscovery: (scope) =>
@@ -210,6 +226,8 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           }
           return {
             inFirstLaunchDiscovery: true,
+            discoveryScanning: true,
+            discoveryHidden: false,
             discoveryScope: nextScope,
             discoveredAgents: [],
             ...(nextScope.kind === "wsl" ? { wslLoaded: false } : {}),
@@ -219,26 +237,39 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
         set((prev) =>
           prev.discoveredAgents.length === 0 &&
           !prev.inFirstLaunchDiscovery &&
+          !prev.discoveryScanning &&
           prev.discoveryScope === undefined
             ? prev
-            : { discoveredAgents: [], inFirstLaunchDiscovery: false, discoveryScope: undefined },
+            : {
+                discoveredAgents: [],
+                inFirstLaunchDiscovery: false,
+                discoveryScanning: false,
+                discoveryScope: undefined,
+                discoveryHidden: false,
+              },
         ),
       pushDiscoveredAgent: (status) =>
         set((prev) => {
-          if (!isStatusInDiscoveryScope(status, prev.discoveryScope)) {
-            return prev;
-          }
           if (
-            prev.discoveredAgents.some(
-              (existing) =>
-                existing.kind === status.kind &&
-                existing.envKind === status.envKind &&
-                existing.envDistro === status.envDistro,
-            )
+            !prev.inFirstLaunchDiscovery ||
+            !isStatusInDiscoveryScope(status, prev.discoveryScope)
           ) {
             return prev;
           }
-          return { discoveredAgents: [...prev.discoveredAgents, status] };
+          // Upsert: a scoped per-row refresh (or a progressive probe result)
+          // re-emits an already-listed agent with fresher data — replace its
+          // row in place instead of dropping the update.
+          const idx = prev.discoveredAgents.findIndex(
+            (existing) =>
+              existing.kind === status.kind &&
+              existing.envKind === status.envKind &&
+              existing.envDistro === status.envDistro,
+          );
+          if (idx === -1) return { discoveredAgents: [...prev.discoveredAgents, status] };
+          if (prev.discoveredAgents[idx] === status) return prev;
+          const discoveredAgents = prev.discoveredAgents.slice();
+          discoveredAgents[idx] = status;
+          return { discoveredAgents };
         }),
       mergeAgentStatus: (status) =>
         set((prev) => {
@@ -246,20 +277,27 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
             entry.kind === status.kind &&
             entry.envKind === status.envKind &&
             entry.envDistro === status.envDistro;
+          // Keep a listed discovery row current as probe updates stream in
+          // (the row set itself is owned by the scan — never appended here).
+          const discoveredIdx = prev.discoveredAgents.findIndex(matches);
+          const discoveredAgents =
+            discoveredIdx === -1
+              ? prev.discoveredAgents
+              : prev.discoveredAgents.map((entry, i) => (i === discoveredIdx ? status : entry));
           if (status.envKind === "wsl") {
             const idx = prev.wslAgentStatuses.findIndex(matches);
             const next =
               idx === -1
                 ? [...prev.wslAgentStatuses, status]
                 : prev.wslAgentStatuses.map((entry, i) => (i === idx ? status : entry));
-            return { wslAgentStatuses: next, wslLoaded: true };
+            return { wslAgentStatuses: next, wslLoaded: true, discoveredAgents };
           }
           const idx = prev.agentStatuses.findIndex(matches);
           const next =
             idx === -1
               ? [...prev.agentStatuses, status]
               : prev.agentStatuses.map((entry, i) => (i === idx ? status : entry));
-          return { agentStatuses: next, windowsLoaded: true };
+          return { agentStatuses: next, windowsLoaded: true, discoveredAgents };
         }),
       removeAgentStatus: (kind) =>
         set((prev) => {

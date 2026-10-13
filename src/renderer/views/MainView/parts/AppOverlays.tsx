@@ -1,6 +1,7 @@
 import { Suspense, useState } from "react";
 import { AlertDialog } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
+import { AgentDiscoveryOverlay } from "@/renderer/components/thread/AgentDiscoveryOverlay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
@@ -111,6 +112,7 @@ export function AppOverlays() {
     <>
       <WelcomeOverlay />
       <WhatsNewOverlay />
+      <AgentDiscoveryOverlay />
       <OverlayShell open={settingsOpen} onExited={() => usePanelStore.getState().closeSettings()}>
         <Suspense fallback={<OverlayLoader />}>
           <DeferredSettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />

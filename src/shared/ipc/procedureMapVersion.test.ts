@@ -57,7 +57,10 @@ import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
 // checked envelope. Older peers loud-reject unknown names; no existing name,
 // transport or payload changed. Local filesystem import stays outside the remote
 // allowlist, so hop 17 remains compatible after this explicit map review.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:b0d05092a26c7af2de7c2e6b04d4e6f4f2f42a1a4e89f52d9d7f8f16103b6f0d`;
+// Agent discovery cancellation: additive local supervisor name; older peers
+// reject unknown names explicitly. Existing payloads, remote allowlist and
+// persisted status shapes are unchanged, so hop 17 remains compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:a1568435299c182bd027f6745a4319a26e57861cde963a25f4079a5373f331c1`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

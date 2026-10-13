@@ -1499,7 +1499,7 @@ describe("ThreadDraftView", () => {
     expect(menuProps.readOnlyMcp).not.toBe(true);
   });
 
-  it("shows the discovery reveal for a WSL project while its distro is probing", () => {
+  it("keeps the draft loading while app-level WSL discovery is running", () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useAgentStatusesStore.getState().beginFirstLaunchDiscovery({ kind: "wsl", distro: "Ubuntu" });
 
@@ -1512,8 +1512,7 @@ describe("ThreadDraftView", () => {
       />,
     );
 
-    expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
-    expect(screen.getByText(/Scanning Ubuntu/)).toBeInTheDocument();
+    expect(screen.getByText("Detecting agents…")).toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
   });
 

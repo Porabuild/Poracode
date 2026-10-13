@@ -69,11 +69,6 @@ import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
 import type { SaveClipboardImage } from "../composer/useAttachments";
-import { AgentDiscoveryScreen } from "./AgentDiscoveryScreen";
-import {
-  isDiscoveryActiveForLocation,
-  useAgentStatusesStore,
-} from "@/renderer/state/agentStatusesStore";
 import {
   ThreadDraftCompactHeader,
   ThreadDraftDropIndicators,
@@ -223,9 +218,6 @@ export function ThreadDraftView(props: {
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
   const sharedSettingsHydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
-  const showAgentDiscovery = useAgentStatusesStore((s) =>
-    isDiscoveryActiveForLocation(s, project.location),
-  );
   const isHomeScope = isHomeProject(project);
   const scopeLabel = isHomeScope ? HOME_PROJECT_NAME : undefined;
   const remoteConnection = useRemoteServersStore((state) => {
@@ -1286,13 +1278,8 @@ export function ThreadDraftView(props: {
 
   if (!selectedAgent) {
     if (props.isDetectingAgents) {
-      // First-launch fancy reveal: tiles fade in as `agent-detected` events
-      // arrive. Subsequent reloads (cache present, but the user opted out of
-      // every agent or none are installed) fall back to the lightweight
-      // pixel loader.
-      if (showAgentDiscovery) {
-        return <AgentDiscoveryScreen location={project.location} />;
-      }
+      // The app-level discovery overlay owns the animated scan. A hidden scan
+      // leaves this lightweight loading state usable below its progress pill.
       return (
         <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
           <PixelLoader size="md" />

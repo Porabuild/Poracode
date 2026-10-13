@@ -425,6 +425,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledWith({
       envKind: process.platform === "win32" ? "windows" : "posix",
       agentSettings: initialSettings,
+      signal: expect.any(AbortSignal),
     });
     expect(detectInstall).toHaveBeenCalledWith(
       expect.objectContaining({

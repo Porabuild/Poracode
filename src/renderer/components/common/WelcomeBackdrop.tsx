@@ -14,6 +14,10 @@ import { WELCOME_BACKGROUND_CODE } from "@/renderer/views/welcomeBackgroundCode"
 export function WelcomeBackdrop(props: {
   readonly children: ReactNode;
   readonly className?: string;
+  /** Layout override for the content wrapper; defaults to the centered
+      welcome column. Surfaces with their own region layout (fixed header,
+      scrolling body, pinned footer) pass their flex direction here. */
+  readonly contentClassName?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
@@ -58,7 +62,9 @@ export function WelcomeBackdrop(props: {
       </pre>
       {/* flex-1, not min-h-full: a percentage height would not resolve against
           the backdrop's min-height-only box. */}
-      <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-12">
+      <div
+        className={`relative z-10 flex flex-1 ${props.contentClassName ?? "items-center justify-center px-6 py-12"}`}
+      >
         {props.children}
       </div>
     </div>

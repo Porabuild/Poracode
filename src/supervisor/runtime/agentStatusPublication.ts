@@ -35,6 +35,7 @@ function targetKey(target: Pick<AgentStatus, "kind" | "envKind" | "envDistro">):
  * native/WSL sweep or while a newer scoped request is queued.
  */
 export class AgentStatusPublication {
+  private readonly retired = new WeakSet<AgentStatusPublicationTicket>();
   private epoch = 0;
   private sequence = 0;
   private readonly owners = new Map<string, number>();
@@ -52,6 +53,27 @@ export class AgentStatusPublication {
     return { epoch: this.epoch, id, targets: byKey };
   }
 
+  /** Retire only this job; accepted rows and newer owners remain intact. */
+  retire(ticket: AgentStatusPublicationTicket): void {
+    // Retire after removing owned targets; owns() checks this marker.
+    for (const [key, target] of ticket.targets) {
+      if (this.owns(ticket, target)) {
+        this.owners.delete(key);
+        this.completed.delete(key);
+      }
+    }
+    this.retired.add(ticket);
+  }
+
+  /** Restore an older scoped job only where a cancelled successor left no owner. */
+  resumeUnclaimed(ticket: AgentStatusPublicationTicket): AgentStatusPublicationTicket {
+    const available = [...ticket.targets].filter(
+      ([key, target]) => !this.owners.has(key) || this.owns(ticket, target),
+    );
+    const hasUnclaimed = available.some(([key]) => !this.owners.has(key));
+    return hasUnclaimed ? this.begin(available.map(([, target]) => target)) : ticket;
+  }
+
   invalidate(): void {
     this.epoch++;
     this.owners.clear();
@@ -64,12 +86,16 @@ export class AgentStatusPublication {
   owns(ticket: AgentStatusPublicationTicket, target: AgentStatusTarget): boolean {
     const key = targetKey(target);
     return (
-      ticket.epoch === this.epoch && ticket.targets.has(key) && this.owners.get(key) === ticket.id
+      !this.retired.has(ticket) &&
+      ticket.epoch === this.epoch &&
+      ticket.targets.has(key) &&
+      this.owners.get(key) === ticket.id
     );
   }
 
   isActive(ticket: AgentStatusPublicationTicket): boolean {
     return (
+      !this.retired.has(ticket) &&
       ticket.epoch === this.epoch &&
       (ticket.targets.size === 0 ||
         [...ticket.targets.values()].some((target) => this.owns(ticket, target)))
