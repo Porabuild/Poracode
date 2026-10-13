@@ -8,11 +8,12 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { app } from "electron";
+import { app, session as electronSession } from "electron";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { ShellStateStore } from "./backend/BackendStateStore";
 import type { BackendHostClient } from "./backend/BackendHostClient";
 import { BrowserPanelManager, BrowserMcpIngress } from "./browser";
+import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import { RemoteBrowserGateway } from "@/host/remote/RemoteBrowserGateway";
 import { ComputerUseDesktopOverlay } from "./computer-use";
 import {
@@ -85,6 +86,7 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
       isExtracted: () =>
         desktopApp.browserExtractWindow !== null && !desktopApp.browserExtractWindow.isDestroyed(),
       focusExtractedWindow: focusBrowserExtractWindow,
+      browserSession: electronSession.fromPartition(BROWSER_SESSION_PARTITION),
     },
   );
   desktopApp.browserPanelManager = panelManager;

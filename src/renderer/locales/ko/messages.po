@@ -799,6 +799,10 @@ msgstr "3000"
 msgid "30d"
 msgstr "30일"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "4K"
+msgstr "4K"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7일"
@@ -1017,6 +1021,10 @@ msgstr "추가"
 msgid "Add a local project"
 msgstr "로컬 프로젝트 추가"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Add a password or import one from another browser."
+msgstr "암호를 추가하거나 다른 브라우저에서 가져오세요."
+
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Add a project"
@@ -1125,6 +1133,10 @@ msgstr "모델 추가"
 msgid "Add one manually or import from another agent."
 msgstr "직접 추가하거나 다른 에이전트에서 가져오세요."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Add password"
+msgstr "암호 추가"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
 msgstr "패턴 추가"
@@ -1219,6 +1231,10 @@ msgstr "레거시 채택"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt legacy connection"
 msgstr "레거시 연결 채택"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Advanced"
+msgstr "고급"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
@@ -2149,11 +2165,12 @@ msgstr "파랑"
 msgid "Bold"
 msgstr "굵게"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmark this page"
 msgstr "이 페이지 북마크"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Bookmarks"
 msgstr "북마크"
 
@@ -2247,6 +2264,10 @@ msgstr "{0}의 모든 런타임을 최신 상태로 업데이트"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "이 패널로 되돌리거나 실행 중인 창으로 이동하세요."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Bring saved passwords and cookies over from an installed browser."
+msgstr "설치된 브라우저에서 저장된 암호와 쿠키를 가져옵니다."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "커밋되지 않은 변경 사항 가져오기"
@@ -2319,7 +2340,7 @@ msgstr "브라우저가 별도의 창에서 열려 있습니다"
 msgid "Browser MCP enabled for this thread"
 msgstr "이 스레드에 대해 브라우저 MCP가 활성화되었습니다."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Browser menu"
 msgstr "브라우저 메뉴"
 
@@ -2455,6 +2476,8 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -2471,6 +2494,10 @@ msgstr "취소"
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 msgid "Cancel agent discovery"
 msgstr "에이전트 검색 취소"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Cancel download"
+msgstr "다운로드 취소"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -2514,6 +2541,7 @@ msgstr "취소됨"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Cancelled"
 msgstr "취소됨"
 
@@ -2786,6 +2814,10 @@ msgstr "후보를 두 개 이상 선택하고 프롬프트를 입력하세요."
 msgid "Choose color for {label}"
 msgstr "{label} 색상 선택"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Choose data to bring over to the built-in browser."
+msgstr "내장 브라우저로 가져올 데이터를 선택하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose how Poracode performs manual merges and automatic PR merges."
@@ -2937,21 +2969,33 @@ msgstr "모두 지우기"
 msgid "Clear archived threads from {dateLabel}"
 msgstr "{dateLabel}의 보관된 스레드 지우기"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear browsing data"
+msgstr "인터넷 사용 기록 삭제"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Clear browsing history"
 msgstr "방문 기록 지우기"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Clear Browsing History"
 msgstr "검색 기록 지우기"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-msgid "Clear Cache"
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear cache"
 msgstr "캐시 지우기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-msgid "Clear Cookies"
+#~ msgid "Clear Cache"
+#~ msgstr "캐시 지우기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear cookies"
 msgstr "쿠키 지우기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#~ msgid "Clear Cookies"
+#~ msgstr "쿠키 지우기"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Clear day"
@@ -3069,6 +3113,10 @@ msgstr "Crossagents 닫기"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Close Crossagents panel"
 msgstr "Crossagents 패널 닫기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Close device toolbar"
+msgstr "기기 툴바 닫기"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -3207,6 +3255,10 @@ msgstr "탭 닫기"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Close tab switcher"
 #~ msgstr "탭 전환기 닫기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Close the source browser before importing. On macOS, allow access to its Safe Storage key when Keychain asks."
+msgstr "가져오기 전에 원본 브라우저를 닫으세요. macOS에서 키체인이 요청하면 Safe Storage 키에 대한 접근을 허용하세요."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Close thread"
@@ -3546,6 +3598,7 @@ msgstr "완료"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Completed"
 msgstr "완료됨"
 
@@ -3904,6 +3957,10 @@ msgstr "@file 멘션 검색에 표시되는 파일을 제어합니다. 프로젝
 msgid "Conversation"
 msgstr "대화"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Cookies"
+msgstr "쿠키"
+
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -3947,7 +4004,7 @@ msgstr "모든 Lightcode 데이터를 Poracode로 복사합니다. Poracode가 �
 msgid "Copy code"
 msgstr "코드 복사"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Copy Current URL"
 msgstr "현재 URL 복사"
 
@@ -3994,6 +4051,10 @@ msgstr "페어링 링크 복사"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy pairing token"
 msgstr "페어링 토큰 복사"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Copy password"
+msgstr "암호 복사"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -4679,6 +4740,7 @@ msgstr "다른 AI 에이전트에게 작업을 위임합니다."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
@@ -4759,6 +4821,14 @@ msgstr "파일 삭제"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete run"
 msgstr "실행 삭제"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Delete saved password"
+msgstr "저장된 암호 삭제"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Delete saved password?"
+msgstr "저장된 암호를 삭제할까요?"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
@@ -4959,6 +5029,10 @@ msgstr "개발"
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "개발 전용 재정의. PORACODE DEV 빌드에서만 볼 수 있습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Device preset"
+msgstr "기기 프리셋"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
@@ -5044,6 +5118,10 @@ msgstr "Devin이 수정된 명령어를 제안하며, 실행 전에 검토할 �
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Devin's own login (default)"
 msgstr "Devin 자체 로그인(기본값)"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Dimensions:"
+msgstr "크기:"
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -5290,9 +5368,26 @@ msgstr "완료({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "완료 ({remainingSeconds}초)"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Download failed"
+msgstr "다운로드 실패"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Download history"
+msgstr "다운로드 기록"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Download image"
 msgstr "이미지 다운로드"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Download progress"
+msgstr "다운로드 진행률"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Downloading"
+msgstr "다운로드 중"
 
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -5318,6 +5413,14 @@ msgstr "음성 모델 다운로드 중..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Downloading… {0}%"
 msgstr "다운로드 중… {0}%"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Downloads"
+msgstr "다운로드"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Downloads from the built-in browser are saved in this history."
+msgstr "내장 브라우저에서 다운로드한 항목은 이 기록에 저장됩니다."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -5435,6 +5538,10 @@ msgstr "목표 편집"
 msgid "Edit MCP server"
 msgstr "MCP 서버 편집"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Edit password"
+msgstr "암호 편집"
+
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "프로필 편집"
@@ -5443,6 +5550,10 @@ msgstr "프로필 편집"
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Edit queued follow-up"
 msgstr "대기 중인 후속 메시지 편집"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Edit saved password"
+msgstr "저장된 암호 편집"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -6207,6 +6318,10 @@ msgstr "{projectName}에 대한 파일"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨겨집니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Files you download appear here"
+msgstr "다운로드한 파일이 여기에 표시됩니다"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Fill in all required workflow inputs."
 msgstr "필수 워크플로 입력을 모두 작성하세요."
@@ -6247,6 +6362,11 @@ msgstr "채팅에서 찾기"
 #: src/renderer/components/find/GitFindBar.tsx
 msgid "Find in diff"
 msgstr "diff에서 찾기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Find in page"
+msgstr "페이지에서 찾기"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Find in terminal"
@@ -6516,6 +6636,10 @@ msgstr "빈도"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Friday at 4:00 PM"
 msgstr "금요일 오후 4:00"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "From"
+msgstr "출처"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
@@ -6839,7 +6963,7 @@ msgstr "핸들"
 msgid "Handle"
 msgstr "핸들"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Hard Reload"
 msgstr "강제 새로고침"
 
@@ -6913,6 +7037,10 @@ msgstr "모든 공급자의 모델 선택기에서 사용하지 않는 모델을
 msgid "Hide panel"
 msgstr "패널 숨기기"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Hide password"
+msgstr "암호 숨기기"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Hide runtime debug panel"
 msgstr "런타임 디버그 패널 숨기기"
@@ -6944,7 +7072,7 @@ msgstr "터미널 숨기기"
 msgid "High"
 msgstr "높음"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "기록"
 
@@ -7047,6 +7175,10 @@ msgstr "매시간"
 msgid "HTTP (streamable)"
 msgstr "HTTP(스트리밍 가능)"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "https://example.com"
+msgstr "https://example.com"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
@@ -7058,6 +7190,10 @@ msgstr "https://github.com/owner/repo.git"
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "색상"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "I understand that protected browser data may be skipped."
+msgstr "보호된 브라우저 데이터가 건너뛰어질 수 있음을 이해합니다."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Icon color"
@@ -7123,6 +7259,7 @@ msgid "Images"
 msgstr "이미지"
 
 #. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Import"
 msgstr "가져오기"
@@ -7135,9 +7272,22 @@ msgstr "다시 가져오기"
 msgid "Import and restart"
 msgstr "가져오고 다시 시작"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Import browser data"
+msgstr "브라우저 데이터 가져오기"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "가져오기 충돌"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import cookies"
+msgstr "쿠키 가져오기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Import cookies and passwords"
+msgstr "쿠키 및 암호 가져오기"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -7156,6 +7306,10 @@ msgstr "외부 에이전트 스킬 가져오기"
 msgid "Import external skills"
 msgstr "외부 스킬 가져오기"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import from your browser"
+msgstr "브라우저에서 가져오기"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import Lightcode data"
 msgstr "Lightcode 데이터 가져오기"
@@ -7172,6 +7326,10 @@ msgstr "MCP 서버 가져오기"
 msgid "Import method"
 msgstr "가져오기 방법"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import passwords"
+msgstr "암호 가져오기"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import selected"
 msgstr "선택 항목 가져오기"
@@ -7179,6 +7337,10 @@ msgstr "선택 항목 가져오기"
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
 msgid "Import sessions"
 msgstr "세션 가져오기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import source"
+msgstr "가져오기 원본"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 msgid "Import theme"
@@ -7219,9 +7381,20 @@ msgstr "스킬 {0}개를 가져왔습니다."
 msgid "Imported 1 skill."
 msgstr "스킬 1개를 가져왔습니다."
 
+#. placeholder {0}: credential.source
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Imported from {0}"
+msgstr "{0}에서 가져옴"
+
 #: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
 msgid "Imported from an existing CLI session — text only, tool calls are not shown."
 msgstr "기존 CLI 세션에서 가져왔습니다 — 텍스트만 표시되며 도구 호출은 표시되지 않습니다."
+
+#. placeholder {0}: result.passwordsImported
+#. placeholder {1}: result.cookiesImported
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Imported passwords: {0}. Imported cookies: {1}."
+msgstr "가져온 암호: {0}. 가져온 쿠키: {1}."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Imported session"
@@ -7586,6 +7759,7 @@ msgstr "내부 명령 및 에이전트"
 #~ msgid "Interrupt"
 #~ msgstr "중단"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Interrupted"
 msgstr "중단됨"
@@ -7597,6 +7771,26 @@ msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "잘못된 구성 — 유지되지만 비활성화됨"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPad Air"
+msgstr "iPad Air"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPad Mini"
+msgstr "iPad Mini"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone 15 Pro"
+msgstr "iPhone 15 Pro"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone 15 Pro Max"
+msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone SE"
+msgstr "iPhone SE"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
@@ -7714,6 +7908,14 @@ msgstr "AI가 생성하는 커밋 메시지와 풀 요청 요약에 사용할 �
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "작성기 받아쓰기를 기록할 때 음성 모델이 예상해야 하는 언어입니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Laptop"
+msgstr "Laptop"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Laptop L"
+msgstr "Laptop L"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
@@ -8024,6 +8226,10 @@ msgstr "{branch}에서 가져오기 전에 로컬 변경 사항을 숨겨야 합
 msgid "Local chat history was reverted. The provider may still use the removed messages."
 msgstr "로컬 채팅 기록을 되돌렸습니다. 제공업체는 삭제된 메시지를 계속 사용할 수 있습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Local password protection"
+msgstr "로컬 암호 보호"
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -8113,6 +8319,10 @@ msgstr "최장 연속 기록"
 msgid "Longest task"
 msgstr "최장 작업"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Looking for browser profiles…"
+msgstr "브라우저 프로필을 찾는 중…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "개발 서버를 찾는 중…"
@@ -8160,6 +8370,10 @@ msgstr "MCP 서버 관리"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
 #~ msgstr "OpenCode의 기본 플러그인 관리자로 패키지를 관리합니다. 변경 사항은 터미널 플러그인을 포함하여 선택한 환경 전체에 적용됩니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Manage passwords"
+msgstr "암호 관리"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
@@ -9154,8 +9368,8 @@ msgstr "새 일정"
 #~ msgid "New session title"
 #~ msgstr "새 세션 제목"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "새 탭"
 
@@ -9426,6 +9640,10 @@ msgstr "{0}에 대한 차이점이 없습니다."
 msgid "No diff for {visiblePath}"
 msgstr "{visiblePath}에는 차이가 없습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "No downloads match your search"
+msgstr "검색과 일치하는 다운로드가 없습니다"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "No external skills were found in this scope."
 msgstr "이 범위에서 외부 스킬을 찾지 못했습니다."
@@ -9451,7 +9669,7 @@ msgstr "GitHub CLI 계정을 찾을 수 없습니다. <0>gh auth login</0>으로
 #~ msgid "No goal for this thread."
 #~ msgstr "이 스레드에는 목표가 없습니다."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "No history yet"
 msgstr "아직 기록이 없습니다"
 
@@ -9576,6 +9794,10 @@ msgstr "설치된 플러그인 패키지가 없습니다."
 msgid "No paired devices yet."
 msgstr "아직 페어링된 기기가 없습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "No passwords match your search"
+msgstr "검색과 일치하는 암호가 없습니다"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "패턴이 없습니다."
@@ -9678,6 +9900,10 @@ msgstr "아직 실행이 없습니다."
 msgid "No runtime items yet for this thread."
 msgstr "이 스레드에는 아직 런타임 항목이 없습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "No saved passwords"
+msgstr "저장된 암호가 없습니다"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "아직 연결된 서버가 없습니다."
@@ -9730,6 +9956,10 @@ msgstr "이 기기에서 아직 상태가 보고되지 않았습니다."
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "지원되는 에이전트가 감지되지 않았습니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "No supported browser profiles were found on this device."
+msgstr "이 기기에서 지원되는 브라우저 프로필을 찾지 못했습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "No tags — the entry stops influencing tag affinity."
@@ -10073,6 +10303,10 @@ msgstr "Crossagent 열기: {0}"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
 msgstr "대화상자 열기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Open downloaded file"
+msgstr "다운로드한 파일 열기"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open experiment"
@@ -10596,9 +10830,35 @@ msgstr "이 프로필 전용 사용자 설정으로 Devin에 전달됩니다. �
 #~ msgid "Passphrase (optional)"
 #~ msgstr "암호 문구(선택 사항)"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Password"
-#~ msgstr "암호"
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password"
+msgstr "암호"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password copied."
+msgstr "암호를 복사했습니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Password manager"
+msgstr "암호 관리자"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password manager section"
+msgstr "암호 관리자 섹션"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Passwords"
+msgstr "암호"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Passwords and autofill"
+msgstr "암호 및 자동 완성"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Passwords are encrypted in Poracode's local credential store. Password values are requested only when you reveal, copy, or edit them."
+msgstr "암호는 Poracode의 로컬 자격 증명 저장소에 암호화됩니다. 암호 값은 표시하거나 복사하거나 편집할 때만 요청됩니다."
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
@@ -10666,6 +10926,10 @@ msgstr "일시 중지"
 #~ msgid "Pause {0}"
 #~ msgstr "{0} 일시 중지"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Pause download"
+msgstr "다운로드 일시 중지"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "목표 일시 중지"
@@ -10673,6 +10937,7 @@ msgstr "목표 일시 중지"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "일시중지됨"
@@ -10830,6 +11095,10 @@ msgstr "고정됨"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Pinned task routes"
 msgstr "고정된 작업 경로"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Pixel 8"
+msgstr "Pixel 8"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -11200,6 +11469,10 @@ msgstr "이전 세션용이며 새 스레드에서는 다시 로그인하세요.
 msgid "Previous tab"
 msgstr "이전 탭"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Print"
+msgstr "인쇄"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "개인정보 처리방침"
@@ -11393,6 +11666,10 @@ msgstr "프롬프트"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "제안된 계획"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Protected browser data"
+msgstr "보호된 브라우저 데이터"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -12030,6 +12307,7 @@ msgid "Remove action"
 msgstr "작업 제거"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Remove bookmark"
 msgstr "북마크 삭제"
@@ -12071,6 +12349,10 @@ msgstr "Cursor SDK API 키 제거"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "환경 변수 제거"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Remove from download history"
+msgstr "다운로드 기록에서 제거"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Remove from favorites"
@@ -12350,6 +12632,10 @@ msgstr "사이드바 프로스트를 기본값으로 재설정"
 msgid "Reset to default"
 msgstr "기본값으로 재설정"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Reset zoom"
+msgstr "확대/축소 재설정"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "브라우저 서랍 크기 조정"
@@ -12393,6 +12679,18 @@ msgstr "분할 크기 조정"
 msgid "Resize terminal panel"
 msgstr "터미널 패널 크기 조정"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport"
+msgstr "뷰포트 크기 조절"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport height"
+msgstr "뷰포트 높이 조절"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport width"
+msgstr "뷰포트 너비 조절"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useConflictResolver.ts
 msgid "Resolve conflicts in this worktree. First inspect Git status and the active operation; the file list below may be stale. Compare both sides and the base, preserving intended behavior and unrelated edits. During rebase, verify what ours/theirs refer to. Handle rename/delete, binary, and generated-file conflicts using repository conventions. If intent is ambiguous, ask before discarding changes. Validate the resolution with appropriate checks, then stage only resolved paths. Do not commit, continue or abort the operation, or push. Report resolutions, checks, and remaining conflicts.\n"
 "\n"
@@ -12412,6 +12710,10 @@ msgstr "리베이스 또는 병합 중 병합 충돌을 해결합니다."
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Resolving…"
 msgstr "처리 중…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Responsive"
+msgstr "반응형"
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Restart Poracode"
@@ -12448,6 +12750,10 @@ msgstr "재개"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Resume {label}"
 #~ msgstr "{label} 재개"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Resume download"
+msgstr "다운로드 재개"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -12533,6 +12839,10 @@ msgstr "파일 탐색기에 표시"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Reveal in file tree"
 msgstr "파일 트리에 표시"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Reveal password"
+msgstr "암호 표시"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -12668,6 +12978,10 @@ msgstr "오른쪽 패널"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "마우스 오른쪽 버튼을 클릭해 링 전환"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Rotate viewport"
+msgstr "뷰포트 회전"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -12859,6 +13173,10 @@ msgstr "Devin과 같은 로그인"
 msgid "Same provider order on all machines"
 msgstr "모든 기기에서 동일한 프로바이더 순서"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Samsung Galaxy S24 Ultra"
+msgstr "Samsung Galaxy S24 Ultra"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "채도와 밝기"
@@ -12873,6 +13191,7 @@ msgstr "채도와 밝기"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12953,6 +13272,10 @@ msgstr "저장된 자격 증명은 모든 기기에서 공유됩니다."
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Saved font"
 msgstr "저장된 글꼴"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Saved password actions"
+msgstr "저장된 비밀번호 작업"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
@@ -13129,6 +13452,10 @@ msgstr "브랜치 검색..."
 msgid "Search categories"
 msgstr "검색 카테고리"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Search downloads"
+msgstr "다운로드 검색"
+
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "파일 검색"
@@ -13165,6 +13492,10 @@ msgstr "모델 검색..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "주소 검색 또는 입력"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Search passwords"
+msgstr "암호 검색"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins"
@@ -13514,7 +13845,7 @@ msgstr "이 세션 시작 시 확정됨 — 플러그인을 변경하려면 새 
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -13626,11 +13957,11 @@ msgstr "에이전트 검색 표시"
 msgid "Show all"
 msgstr "모두 표시"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "북마크 막대 표시"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show Bookmark Bar"
 msgstr "북마크바 표시"
 
@@ -13652,6 +13983,10 @@ msgstr "작성기 표시"
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "컨텍스트 사용 세부정보 표시"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Show device toolbar"
+msgstr "기기 툴바 표시"
 
 #: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
 msgid "Show docks above the composer"
@@ -13682,6 +14017,10 @@ msgstr "이미지 보기"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "파일 탐색기에 표시"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Show in folder"
+msgstr "폴더에서 보기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
@@ -14047,9 +14386,18 @@ msgstr "솔루션 {0}"
 #~ msgid "Solution {ordinal}"
 #~ msgstr "솔루션 {ordinal}"
 
+#. placeholder {0}: result.protectedItemsSkipped
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Some browser data was skipped. Protected items skipped: {0}."
+msgstr "일부 브라우저 데이터를 건너뛰었습니다. 건너뛴 보호된 항목: {0}."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "일부 검사가 실패했거나 보류 중입니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Some Chromium browsers protect cookies and passwords with App-Bound Encryption. Poracode does not bypass that protection. Data the operating system does not make available will be skipped."
+msgstr "일부 Chromium 브라우저는 App-Bound Encryption으로 쿠키와 암호를 보호합니다. Poracode는 이 보호를 우회하지 않습니다. 운영 체제에서 제공하지 않는 데이터는 건너뜁니다."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Some contributions could not be loaded"
@@ -14580,6 +14928,14 @@ msgstr "고속 모드 지원"
 msgid "Surface"
 msgstr "표면"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Surface Duo"
+msgstr "Surface Duo"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Surface Pro 7"
+msgstr "Surface Pro 7"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "메모와 할 일 바꾸기"
@@ -14735,7 +15091,7 @@ msgstr "Tailscale HTTPS"
 msgid "Tailscale URL"
 msgstr "Tailscale URL"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Take Screenshot"
 msgstr "스크린샷 찍기"
 
@@ -15648,6 +16004,11 @@ msgstr "이렇게 하면 체크포인트 스냅샷을 사용할 수 있을 때 �
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
 msgstr "호스트에서 환경이 제거됩니다. 서버의 자식 작업 공간은 삭제되지 않습니다."
 
+#. placeholder {0}: pendingDelete?.origin
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "This removes the saved password for <0>{0}</0> from Poracode."
+msgstr "Poracode에서 <0>{0}</0>의 저장된 암호를 삭제합니다."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This removes the schedule and its latest result from this device."
 msgstr "이 기기에서 일정과 최신 결과를 삭제합니다."
@@ -16134,6 +16495,10 @@ msgstr "페어링 토큰을 복사할 수 없습니다."
 msgid "Unable to copy Tailscale URL."
 msgstr "Tailscale URL을 복사할 수 없습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to copy the password."
+msgstr "암호를 복사할 수 없습니다."
+
 #: src/renderer/actions/experimentActions.ts
 msgid "Unable to create the candidate worktree."
 msgstr "후보 워크트리를 만들 수 없습니다."
@@ -16147,6 +16512,10 @@ msgstr "풀 리퀘스트를 생성할 수 없습니다: {0}"
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "WSL 작업 트리 디렉터리 \"{path}\"을(를) 생성할 수 없습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to delete the saved password."
+msgstr "저장된 암호를 삭제할 수 없습니다."
+
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to delete the worktree."
 #~ msgstr "worktree를 삭제할 수 없습니다."
@@ -16154,6 +16523,18 @@ msgstr "WSL 작업 트리 디렉터리 \"{path}\"을(를) 생성할 수 없습�
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "실험의 소스 브랜치를 확인할 수 없습니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to edit the saved password."
+msgstr "저장된 암호를 편집할 수 없습니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Unable to find browser data to import."
+msgstr "가져올 브라우저 데이터를 찾을 수 없습니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Unable to import browser data."
+msgstr "브라우저 데이터를 가져올 수 없습니다."
 
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -16171,9 +16552,17 @@ msgstr "{0}을(를) 설치할 수 없습니다."
 msgid "Unable to load diff."
 msgstr "diff를 불러올 수 없습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Unable to load downloads."
+msgstr "다운로드를 불러올 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
 msgstr "원격 액세스 페어링을 로드할 수 없습니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to load saved passwords."
+msgstr "저장된 암호를 불러올 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to load thread."
@@ -16214,6 +16603,10 @@ msgstr "편집기에서 파일을 열 수 없습니다"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "해당 데스크톱과 페어링할 수 없습니다."
+
+#: src/renderer/actions/browserActions.ts
+msgid "Unable to print this page."
+msgstr "이 페이지를 인쇄할 수 없습니다."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Unable to probe the SSH host."
@@ -16299,6 +16692,10 @@ msgstr "실험 후보 커밋을 확인할 수 없습니다"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "SSH 연결을 복원할 수 없습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to reveal the password."
+msgstr "암호를 표시할 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to revoke remote session."
 msgstr "원격 세션을 해지할 수 없습니다."
@@ -16319,6 +16716,10 @@ msgstr "이미지를 저장할 수 없습니다."
 #: src/renderer/commands/registry.ts
 msgid "Unable to save the file"
 msgstr "파일을 저장할 수 없습니다"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to save the password."
+msgstr "암호를 저장할 수 없습니다."
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -16403,6 +16804,10 @@ msgstr "원격 액세스를 업데이트할 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update Tailscale HTTPS."
 msgstr "Tailscale HTTPS를 업데이트할 수 없습니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Unable to update the download."
+msgstr "다운로드를 업데이트할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update the public URL."
@@ -16994,6 +17399,10 @@ msgstr "새 대화형 터미널 패널 세션에 사용됩니다."
 msgid "user@host"
 msgstr "user@host"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Username"
+msgstr "사용자 이름"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
 msgstr "이 머신에서는 Devin 자체 로그인을 사용합니다. Devin 기본 페이지에서 로그인/로그아웃하세요 — 그것이 유일한 전역 로그인으로 유지됩니다."
@@ -17091,6 +17500,18 @@ msgstr "읽기 전용 — 이 연결로는 프로젝트를 관리할 수 없습�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"
 msgstr "뷰어"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport height"
+msgstr "뷰포트 높이"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport scale"
+msgstr "뷰포트 배율"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport width"
+msgstr "뷰포트 너비"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Violet"
@@ -17250,10 +17671,15 @@ msgid "Web server"
 msgstr "웹 서버"
 
 #. External link to the product website
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Website"
 msgstr "웹사이트"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Website origin"
+msgstr "웹사이트 출처"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
@@ -17659,10 +18085,16 @@ msgstr "스태시에 저장된 로컬 변경 사항이 다시 적용되었습니
 msgid "z.ai"
 msgstr "z.ai"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Zoom"
+msgstr "확대/축소"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "확대"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "축소"

@@ -36,6 +36,19 @@ export class BackendStateStore {
     this.pendingWrites.add(write);
   }
 
+  /** Credential custody is acknowledged only after the owning backend commits it. */
+  setDurable(key: string, value: string): Promise<void> {
+    if (this.closed) return Promise.reject(new Error("Shell state store is closed."));
+    const write = this.database
+      .callDatabase("dbSetState", { key, value })
+      .then(() => {
+        this.values.set(key, value);
+      })
+      .finally(() => this.pendingWrites.delete(write));
+    this.pendingWrites.add(write);
+    return write;
+  }
+
   /** Drain saves before BackendHost disposal; later window-close events cannot enqueue more. */
   async close(): Promise<void> {
     this.closed = true;
@@ -46,4 +59,5 @@ export class BackendStateStore {
 export interface ShellStateStore {
   get(key: string): string | null;
   set(key: string, value: string): void;
+  setDurable?(key: string, value: string): Promise<void>;
 }

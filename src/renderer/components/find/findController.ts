@@ -1,4 +1,7 @@
 import { useAppStore } from "@/renderer/state/appStore";
+import { useBrowserFindStore } from "@/renderer/state/browserFindStore";
+import { hasClientCapability } from "@/renderer/clientRuntime";
+import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
@@ -13,7 +16,7 @@ import {
 import { openEditorFind } from "./editorFindBridge";
 import { openTerminalFind } from "./terminalFindBridge";
 
-export type FindTarget = "editor" | "terminal" | "settings" | "git" | "tree" | "chat";
+export type FindTarget = "browser" | "editor" | "terminal" | "settings" | "git" | "tree" | "chat";
 
 /**
  * Decide which surface a Find (Ctrl+F) press should target. Focus wins first
@@ -32,7 +35,7 @@ export function resolveFindTarget(target?: EventTarget | null): FindTarget | nul
   if (scope === "git" || scope === "settings" || scope === "tree" || scope === "chat") {
     return scope;
   }
-  if (element?.closest("[data-poracode-browser]")) return null;
+  if (element?.closest("[data-poracode-browser]")) return "browser";
 
   const panel = usePanelStore.getState();
   // Blocking modals trap their own input — leave Ctrl+F to them.
@@ -55,6 +58,13 @@ export function openFindForActiveSurface(originTarget?: EventTarget | null): voi
   const target = resolveFindTarget(originTarget);
   if (!target) return;
   switch (target) {
+    case "browser": {
+      if (!hasClientCapability("nativeBrowserWebContents")) return;
+      const browser = useBrowserPanelStore.getState();
+      const tab = browser.tabs.find((candidate) => candidate.tabId === browser.activeTabId);
+      if (tab && !tab.internalPage) useBrowserFindStore.getState().open(tab.tabId);
+      return;
+    }
     case "editor":
       openEditorFind();
       return;

@@ -1,16 +1,25 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import type { BrowserTabInfo } from "@/shared/ipc";
+import type { BrowserPrintResult, BrowserTabInfo } from "@/shared/ipc";
+import { toast } from "@heroui/react";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import {
   activateBrowserTab,
   editBrowserPresentation,
   runBrowserNavigation,
+  printBrowserTab,
 } from "./browserActions";
 
-const { activate } = vi.hoisted(() => ({
+const { activate, print } = vi.hoisted(() => ({
   activate: vi.fn<(input: { tabId: string }) => Promise<void>>(),
+  print: vi.fn<(input: { tabId: string }) => Promise<BrowserPrintResult>>(),
 }));
-vi.mock("@/renderer/bridge", () => ({ readBridge: () => ({ browserActivateTab: activate }) }));
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => ({ browserActivateTab: activate, browserPrint: print }),
+}));
+vi.mock("@heroui/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@heroui/react")>()),
+  toast: { danger: vi.fn<(message: string) => void>() },
+}));
 const tabs = ["a", "b", "c"].map((tabId): BrowserTabInfo => ({
   tabId,
   url: "about:blank",
@@ -22,6 +31,8 @@ const tabs = ["a", "b", "c"].map((tabId): BrowserTabInfo => ({
 }));
 beforeEach(() => {
   activate.mockReset().mockResolvedValue();
+  print.mockReset().mockResolvedValue({ ok: true });
+  vi.mocked(toast.danger).mockClear();
   useBrowserPanelStore.getState().resetOwner();
   useBrowserPanelStore.setState({
     activationIntent: null,
@@ -30,6 +41,24 @@ beforeEach(() => {
   });
   useBrowserPanelStore.getState().setState({ tabs, activeTabId: "a" });
 });
+
+it("reports native print failures and transport errors", async () => {
+  print.mockResolvedValueOnce({ ok: false, error: "Printer unavailable" });
+  await printBrowserTab("a");
+  expect(toast.danger).toHaveBeenCalledWith("Unable to print this page.");
+  print.mockRejectedValueOnce(new Error("Disconnected"));
+  await printBrowserTab("a");
+  expect(toast.danger).toHaveBeenCalledTimes(2);
+});
+
+it.each(["Print job canceled", "Print job cancelled"])(
+  "keeps a user's print cancellation quiet: %s",
+  async (error) => {
+    print.mockResolvedValueOnce({ ok: false, error });
+    await printBrowserTab("a");
+    expect(toast.danger).not.toHaveBeenCalled();
+  },
+);
 
 it("switches resident tabs immediately and keeps the latest selection across stale events and acknowledgments", async () => {
   let accept!: () => void;
