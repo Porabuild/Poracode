@@ -49,6 +49,7 @@ import { resolvePoracodeChannel } from "@/shared/channel";
 import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
 import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
 import { installManagedLoopbackCertificatePin } from "../remote/managedLoopbackCertificatePin";
+import { consumeManagedLoopbackBootstrap } from "../backend/managedLoopbackBootstrapPrewarm";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
@@ -249,7 +250,10 @@ export function createLocalIpcHandlers(
       options.setGlobalShortcutsSuspended?.(payload.suspended),
     getRemoteAccessPairing: () => callService("getRemoteAccessPairing", {}),
     getManagedLoopbackBootstrap: async (_payload, sender?: WebContents) => {
-      const bootstrap = await callService("getManagedLoopbackBootstrap", {});
+      const request = () => callService("getManagedLoopbackBootstrap", {});
+      const bootstrap = sender
+        ? await consumeManagedLoopbackBootstrap(sender, request)
+        : await request();
       // Main-native TLS authority: install the exact loopback origin/leaf pin
       // from the authenticated backend bootstrap before the renderer attaches.
       // A null answer (server not serving/disposed) clears any previous pin.

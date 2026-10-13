@@ -2,10 +2,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { dialog } from "electron";
+import { dialog, type WebContents } from "electron";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { createLocalIpcHandlers } from "./localHandlers";
+import { prewarmManagedLoopbackBootstrap } from "../backend/managedLoopbackBootstrapPrewarm";
 
 vi.mock("electron", () => ({
   app: { getPath: vi.fn<() => string>(() => "/tmp"), isPackaged: false },
@@ -86,6 +87,20 @@ afterEach(() => {
     rmSync(tempDir, { recursive: true, force: true });
     tempDir = undefined;
   }
+});
+
+describe("managed loopback bootstrap IPC", () => {
+  it("delivers the sender's prewarmed credential through the existing handler", async () => {
+    const sender = { session: {} } as WebContents;
+    const bootstrap = {
+      endpoint: "http://127.0.0.1:49152/",
+      pairingUrl: "http://127.0.0.1:49152/#token=fixture",
+    };
+    prewarmManagedLoopbackBootstrap(sender, async () => bootstrap);
+    await expect(
+      Reflect.apply(handlers.getManagedLoopbackBootstrap, handlers, [{}, sender]),
+    ).resolves.toBe(bootstrap);
+  });
 });
 
 describe("attachment IPC handlers stay off the event loop", () => {

@@ -100,6 +100,8 @@ export interface CreateMainWindowOptions {
   devServerUrl?: string;
   openDevTools?: boolean;
   showOnReady?: boolean;
+  /** Start window-specific host preparation before each renderer navigation. */
+  beforeLoad?(window: BrowserWindow): void;
 }
 
 export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
@@ -213,6 +215,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   });
 
   const loadRenderer = () => {
+    options.beforeLoad?.(window);
     if (options.isDev) {
       void window.loadURL(options.devServerUrl as string);
     } else {

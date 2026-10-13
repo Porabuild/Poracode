@@ -148,6 +148,40 @@ function fixture(
 }
 
 describe("usage synchronous read scopes", () => {
+  it("keeps refreshing on the host interval after the sidebar's startup read", async () => {
+    const f = fixture(4, { restrictedDefaults: true });
+    const ids = f.ids.slice(0, -1);
+    const collectors = f.collect.slice(0, -1);
+    f.now.mockReturnValue(NOW + 600_000);
+    await f.service.getProviderUsage({});
+    await vi.waitFor(() => {
+      expect(f.emit).toHaveBeenLastCalledWith({
+        type: "provider-usage-all",
+        snapshots: [...ids.map((id) => snapshot(id, NOW + 600_000)), snapshot(f.ids.at(-1)!)],
+      });
+    });
+    expect(collectors.every((spy) => spy.mock.calls.length === 1)).toBe(true);
+
+    f.service.startAutoRefresh();
+    f.service.startAutoRefresh();
+    expect(vi.getTimerCount()).toBe(1);
+    f.now.mockReturnValue(NOW + 900_000);
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(collectors.every((spy) => spy.mock.calls.length === 2)).toBe(true);
+    f.now.mockReturnValue(NOW + 1_200_000);
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(collectors.every((spy) => spy.mock.calls.length === 3)).toBe(true);
+    expect(f.emit).toHaveBeenLastCalledWith({
+      type: "provider-usage-all",
+      snapshots: [...ids.map((id) => snapshot(id, NOW + 1_200_000)), snapshot(f.ids.at(-1)!)],
+    });
+    f.service.stop();
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(collectors.every((spy) => spy.mock.calls.length === 3)).toBe(true);
+    expect(f.collect.at(-1)).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it.each([3, 8])("bounds a targeted cached read with %i profile collectors", async (count) => {
     const f = fixture(count);
     const id = f.ids[0]!;

@@ -170,6 +170,41 @@ describe("createMainWindow", () => {
     ]);
   });
 
+  it("starts host preparation before loading the renderer and repeats it on crash reload", async () => {
+    const { createMainWindow } = await import("./createMainWindow");
+    const beforeLoad = vi.fn<(window: import("electron").BrowserWindow) => void>((window) => {
+      expect(vi.mocked(window.loadFile).mock.calls.length).toBe(beforeLoad.mock.calls.length - 1);
+    });
+    const window = createMainWindow({
+      state: { get: dbGetState, set: dbSetState },
+      title: "Poracode",
+      isDev: false,
+      channel: "stable",
+      preloadPath: "/tmp/preload.cjs",
+      rendererHtmlPath: "/tmp/index.html",
+      appVersion: "1.2.1",
+      posthogEnableDev: false,
+      posthogEnabled: false,
+      posthogHost: "",
+      posthogKey: "",
+      sentryEnabled: false,
+      windowChromeHeight: 32,
+      browserUserAgent: "Poracode",
+      appearance: "dark",
+      sidebarTranslucency: false,
+      onClosed: () => {},
+      beforeLoad,
+    });
+    expect(beforeLoad).toHaveBeenCalledExactlyOnceWith(window);
+    expect(window.loadFile).toHaveBeenCalledExactlyOnceWith("/tmp/index.html");
+    webContentsHandlers["render-process-gone"]?.(
+      {} as never,
+      { reason: "crashed", exitCode: 1 } as never,
+    );
+    expect(beforeLoad).toHaveBeenCalledTimes(2);
+    expect(window.loadFile).toHaveBeenCalledTimes(2);
+  });
+
   it("persists the last resize when destruction bypasses close without reading a dead window", async () => {
     vi.useFakeTimers();
     const { createMainWindow } = await import("./createMainWindow");
