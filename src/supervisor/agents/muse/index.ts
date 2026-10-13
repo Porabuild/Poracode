@@ -1,4 +1,5 @@
 import { museNativeMcpConfig } from "./nativeMcp";
+import { buildMuseTerminalMcpForLocation } from "./mcpSupport";
 import type { AgentCapability } from "@/shared/contracts";
 import {
   assertOneShotControlsMapped,
@@ -72,6 +73,8 @@ export function createMuseAdapter(): AgentAdapter {
     // `muse login` opens a browser for Meta OAuth; BROWSER=/bin/true keeps the
     // WSL flow from trying to `xdg-open` inside the distro and hanging the PTY.
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
+    // Neither MSP nor terminal MCP config can apply a stdio server cwd.
+    mcpRequiresStdioCwdProxy: true,
     ...inheritBaseSpawnEnv(museDetectionSpec),
 
     async detectInstall(ctx) {
@@ -80,24 +83,34 @@ export function createMuseAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt) {
+    async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       // Muse mints its own session UUID; snapshot existing sessions so
       // discoverSessionRef can identify the new one. Returning no sessionRef
       // enables that discovery path.
       snapshotMusePreSpawnSessions(location);
-      const args = buildMuseArgs(config, prompt);
-      return { binary: "muse", args };
+      const mcp = await buildMuseTerminalMcpForLocation(location, launchOptions?.mcpServers ?? []);
+      const args = buildMuseArgs(config, prompt, mcp.args);
+      return {
+        binary: mcp.binary,
+        args,
+        ...(Object.keys(mcp.env).length > 0 ? { env: mcp.env } : {}),
+      };
     },
 
-    buildResumeArgv(_location, config, _prompt, sessionRef) {
+    async buildResumeArgv(location, config, _prompt, sessionRef, launchOptions) {
       const id = sessionRef.providerSessionId;
+      const mcp = await buildMuseTerminalMcpForLocation(location, launchOptions?.mcpServers ?? []);
       // Degenerate/legacy ref: resume the most recent session in this workspace.
       // Verified benign on real 1.0.2 with an empty store: `resume --last`
       // exits 0 with `no retained sessions found for this workspace`.
       const args = id
-        ? buildMuseResumeArgs(id, config)
-        : ["resume", "--last", ...buildMuseArgs(config)];
-      return { binary: "muse", args };
+        ? buildMuseResumeArgs(id, config, mcp.args)
+        : ["resume", "--last", ...buildMuseArgs(config, undefined, mcp.args)];
+      return {
+        binary: mcp.binary,
+        args,
+        ...(Object.keys(mcp.env).length > 0 ? { env: mcp.env } : {}),
+      };
     },
 
     createInitialSessionRef() {

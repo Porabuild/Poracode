@@ -1,9 +1,34 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ProjectLocation, ResolvedMcpServer, ThreadConfig } from "@/shared/contracts";
+
+const detectAgentInstallMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
+const readAgentCommandOutputMock = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<{ ok: boolean; stdout: string; stderr: string }>>(),
+);
+const resolveAgentBinaryPathMock = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => string | undefined>(),
+);
+const prepareAgentLocationEnvironmentMock = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
+);
+
+vi.mock("../binaryResolver", () => ({ resolveAgentBinaryPath: resolveAgentBinaryPathMock }));
+
+vi.mock("../base", async () => {
+  const actual = await vi.importActual<typeof import("../base")>("../base");
+  return {
+    ...actual,
+    detectAgentInstall: detectAgentInstallMock,
+    readAgentCommandOutput: readAgentCommandOutputMock,
+    prepareAgentLocationEnvironment: prepareAgentLocationEnvironmentMock,
+  };
+});
+
 import { createKnownSessionRef } from "../base";
+import { museDefaultCapabilities } from "./detection";
 import { createMuseAdapter } from "./index";
 import {
   discoverMuseSessionRef,
@@ -51,6 +76,10 @@ describe("createMuseAdapter shape", () => {
 
   it("neutralizes the browser for the WSL OAuth flow", () => {
     expect(adapter.spawnEnv?.wsl).toEqual({ BROWSER: "/bin/true" });
+  });
+
+  it("uses the stdio launcher to preserve an MCP server working directory", () => {
+    expect(adapter.mcpRequiresStdioCwdProxy).toBe(true);
   });
 
   it("builds a `muse logout` command so the Settings logout button can drive it", async () => {
@@ -107,6 +136,177 @@ describe("createMuseAdapter launch / resume argv", () => {
       "--yolo",
     ]);
   });
+
+  it.each(["old", "failed", "rejected"])(
+    "withholds -c MCP settings after an %s launch probe",
+    async (outcome) => {
+      if (outcome === "rejected")
+        readAgentCommandOutputMock.mockRejectedValueOnce(new Error("spawn failed"));
+      else
+        readAgentCommandOutputMock.mockResolvedValueOnce({
+          ok: outcome === "old",
+          stdout: "muse --help",
+          stderr: "",
+        });
+      const unprobed = createMuseAdapter();
+      const mcpServers: ResolvedMcpServer[] = [
+        {
+          id: "app-controls",
+          name: "poracode",
+          timeoutMs: 30_000,
+          transport: {
+            type: "http",
+            url: "http://127.0.0.1:1234/mcp?threadId=t1",
+            headers: { Authorization: "Bearer [REDACTED]" },
+          },
+        },
+      ];
+      const launched = await unprobed.buildLaunchArgv(location, config, "hi", undefined, {
+        mcpServers,
+      });
+      expect(launched.args).not.toContain("-c");
+      expect(launched.args.some((arg) => arg.startsWith("mcpServers."))).toBe(false);
+      expect(launched.env).toBeUndefined();
+    },
+  );
+
+  it("delivers launch MCP servers as -c settings with env-carried secrets", async () => {
+    readAgentCommandOutputMock.mockResolvedValue({
+      ok: true,
+      stdout: "-c, --config <KEY=VALUE>",
+      stderr: "",
+    });
+    const probed = createMuseAdapter();
+    const mcpServers: ResolvedMcpServer[] = [
+      {
+        id: "app-controls",
+        name: "poracode",
+        timeoutMs: 30_000,
+        transport: {
+          type: "http",
+          url: "http://127.0.0.1:1234/mcp?threadId=t1",
+          headers: { Authorization: "Bearer launch-token" },
+        },
+      },
+    ];
+    const launched = await probed.buildLaunchArgv(location, config, "hi", undefined, {
+      mcpServers,
+    });
+    const flagIndex = launched.args.findIndex((arg) => arg.startsWith("mcpServers.poracode="));
+    expect(flagIndex).toBeGreaterThan(0);
+    // Option section only: the positional prompt stays last.
+    expect(launched.args.at(-1)).toBe("hi");
+    expect(launched.args.join(" ")).not.toContain("launch-token");
+    expect(Object.values(launched.env ?? {})).toContain("Bearer launch-token");
+
+    const resumed = await probed.buildResumeArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef("966713f1-794f-480e-aa37-713e8387fe8e"),
+      { mcpServers },
+    );
+    expect(resumed.args.slice(0, 2)).toEqual(["resume", "966713f1-794f-480e-aa37-713e8387fe8e"]);
+    expect(resumed.args.some((arg) => arg.startsWith("mcpServers.poracode="))).toBe(true);
+    expect(Object.values(resumed.env ?? {})).toContain("Bearer launch-token");
+    expect(readAgentCommandOutputMock).toHaveBeenCalledWith(location, "muse", ["--help"], {
+      timeoutMs: 8_000,
+      env: { MUSE_NO_AUTO_UPDATE: "1" },
+    });
+  });
+
+  it("probes and launches the same resolved binary instead of a different shell binary", async () => {
+    resolveAgentBinaryPathMock
+      .mockReturnValueOnce("/selected/muse")
+      .mockReturnValueOnce("/selected/muse");
+    readAgentCommandOutputMock.mockResolvedValue({ ok: true, stdout: "muse --help", stderr: "" });
+    const probed = createMuseAdapter();
+    const mcpServers: ResolvedMcpServer[] = [
+      {
+        id: "proof",
+        name: "proof",
+        timeoutMs: 30_000,
+        transport: { type: "http", url: "http://localhost/mcp", headers: {} },
+      },
+    ];
+    const launched = await probed.buildLaunchArgv(location, config, "hi", undefined, {
+      mcpServers,
+    });
+    const resumed = await probed.buildResumeArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef("session-id"),
+      { mcpServers },
+    );
+    expect(launched.binary).toBe("/selected/muse");
+    expect(resumed.binary).toBe("/selected/muse");
+    expect(launched.args).not.toContain("-c");
+    expect(resumed.args).not.toContain("-c");
+    expect(readAgentCommandOutputMock).toHaveBeenCalledWith(
+      location,
+      "/selected/muse",
+      ["--help"],
+      expect.anything(),
+    );
+    expect(prepareAgentLocationEnvironmentMock).toHaveBeenCalledWith(location);
+  });
+
+  it.each([true, false])(
+    "probes each execution target regardless of detection order (native first: %s)",
+    async (nativeFirst) => {
+      const targets: ProjectLocation[] = [
+        { kind: "windows", path: "C:\\repo" },
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+        },
+      ];
+      readAgentCommandOutputMock.mockImplementation(async (target) => ({
+        ok: true,
+        stdout: (target as ProjectLocation).kind === "wsl" ? "--config <KEY=VALUE>" : "muse --help",
+        stderr: "",
+      }));
+      const probed = createMuseAdapter();
+      for (const target of nativeFirst ? targets : targets.toReversed()) {
+        detectAgentInstallMock.mockResolvedValueOnce({
+          capabilities: {
+            ...museDefaultCapabilities,
+            mcpScope: { terminal: target.kind === "wsl" ? "launch" : "none", gui: "none" },
+          },
+        });
+        await probed.detectInstall(
+          target.kind === "wsl"
+            ? { envKind: "wsl", wslDistro: target.distro }
+            : { envKind: target.kind },
+        );
+      }
+      const mcpServers: ResolvedMcpServer[] = [
+        {
+          id: "app-controls",
+          name: "poracode",
+          timeoutMs: 30_000,
+          transport: { type: "http", url: "http://localhost/mcp", headers: {} },
+        },
+      ];
+      for (const target of targets) {
+        const launched = await probed.buildLaunchArgv(target, config, "hi", undefined, {
+          mcpServers,
+        });
+        const resumed = await probed.buildResumeArgv(
+          target,
+          config,
+          "",
+          createKnownSessionRef("session-id"),
+          { mcpServers },
+        );
+        expect(launched.args.includes("-c")).toBe(target.kind === "wsl");
+        expect(resumed.args.includes("-c")).toBe(target.kind === "wsl");
+      }
+    },
+  );
 
   it("chunks direct input with a paste-safe Enter delay", () => {
     expect(adapter.buildDirectInput?.("hello")).toEqual(["hello", "@wait:200", "\x1b[13;1u"]);

@@ -30,6 +30,7 @@ import {
   museDefaultCapabilities,
   museDetectionSpec,
   museHasStoredCredentials,
+  museHelpSupportsConfigFlag,
   parseMuseHelpEfforts,
   parseMuseHelpModelIds,
   parseMuseSkillCommands,
@@ -185,6 +186,7 @@ describe("museDetectionSpec", () => {
       authMethods: [{ id: "muse-terminal-login", name: "Login", type: "terminal" }],
       // `muse logout` exists independently of the help probe.
       authLogoutSupported: true,
+      mcpScope: { terminal: "none", gui: "none" },
     });
   });
 
@@ -212,6 +214,50 @@ describe("museDetectionSpec", () => {
     expect(result?.models?.map((m) => m.id)).toContain("muse-spark-1.4");
     expect(result?.efforts).toContain("max");
   });
+
+  it("keeps terminal MCP off for help without the per-run --config flag", async () => {
+    readAgentCommandOutputMock.mockResolvedValueOnce({
+      ok: true,
+      stdout: DOCUMENTED_MUSE_HELP,
+      stderr: "",
+    });
+    const result = await museDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "/usr/bin/muse",
+    });
+    expect(result?.mcpScope).toEqual({ terminal: "none", gui: "none" });
+  });
+
+  it("enables terminal launch MCP when help advertises --config KEY=VALUE", async () => {
+    readAgentCommandOutputMock.mockResolvedValueOnce({
+      ok: true,
+      stdout: `${DOCUMENTED_MUSE_HELP}\n  -c, --config <KEY=VALUE>\n          Set one setting for this run (repeatable; values are JSON).`,
+      stderr: "",
+    });
+    const result = await museDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "/usr/bin/muse",
+    });
+    expect(result?.mcpScope).toEqual({ terminal: "launch", gui: "none" });
+  });
+
+  it.each([true, false, undefined])(
+    "advertises GUI MCP only for a granted sessionMcp capability (%s)",
+    async (sessionMcpSupported) => {
+      probeMuseModelCatalogMock.mockResolvedValueOnce({
+        models: [],
+        source: "bundledCatalog",
+        providerId: "meta",
+        profileId: null,
+        ...(sessionMcpSupported === undefined ? {} : { sessionMcpSupported }),
+      });
+      const result = await museDetectionSpec.capabilitiesProbe?.({
+        location: { kind: "posix", path: "/tmp" },
+        executablePath: "/usr/bin/muse",
+      });
+      expect(result?.mcpScope?.gui).toBe(sessionMcpSupported === true ? "launch" : "none");
+    },
+  );
 
   it("uses the live catalog as the authoritative model list", async () => {
     probeMuseModelCatalogMock.mockResolvedValueOnce({
@@ -258,10 +304,11 @@ describe("museDetectionSpec", () => {
       location: { kind: "posix", path: "/tmp" },
       executablePath: "/usr/bin/muse",
     });
-    // Empty help output parses to nothing and the empty catalog adds nothing.
+    // Empty probes retain the static models and disable per-launch MCP.
     expect(result).toEqual({
       authMethods: [{ id: "muse-terminal-login", name: "Login", type: "terminal" }],
       authLogoutSupported: true,
+      mcpScope: { terminal: "none", gui: "none" },
     });
   });
 });
@@ -312,6 +359,20 @@ describe("museDefaultCapabilities", () => {
     expect(museDefaultCapabilities.supportsDirectInput).toBe(true);
     expect(museDefaultCapabilities.supportsOneShot).toBe(true);
     expect(museDefaultCapabilities.modes).toEqual(["agent"]);
+  });
+
+  it("keeps terminal MCP off until --config support is probed", () => {
+    // Unprobed binaries advertise neither per-run flags nor session MCP.
+    // Each presentation is enabled only by its own support probe.
+    expect(museDefaultCapabilities.mcpScope).toEqual({ terminal: "none", gui: "none" });
+  });
+
+  it("recognizes only the exact per-run --config setting flag in help", () => {
+    expect(museHelpSupportsConfigFlag(DOCUMENTED_MUSE_HELP)).toBe(false);
+    expect(
+      museHelpSupportsConfigFlag("  -c, --config <KEY=VALUE>\n          Set one setting"),
+    ).toBe(true);
+    expect(museHelpSupportsConfigFlag("  --config-dir <DIR>\n  --configure")).toBe(false);
   });
 });
 

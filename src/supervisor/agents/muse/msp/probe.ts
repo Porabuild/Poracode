@@ -19,6 +19,7 @@ export interface MuseProbedCatalog {
   source: string;
   providerId: string;
   profileId: string | null;
+  sessionMcpSupported?: boolean;
 }
 
 export interface ProbeMuseModelCatalogOptions {
@@ -147,6 +148,7 @@ export async function probeMuseModelCatalog(
       const init = await client!.initialize(
         options.clientName ?? "poracode_probe",
         options.clientVersion ?? "1.0.0",
+        ["sessionMcp"],
       );
       // The pin is advisory (schema is additive-open): warn on drift so a
       // silently incompatible host is visible in logs, but keep probing.
@@ -160,10 +162,11 @@ export async function probeMuseModelCatalog(
             `pinned version ${MSP_SCHEMA_VERSION}.`,
         );
       }
-      return await readSettledMuseCatalog(client!, {
+      const catalog = await readSettledMuseCatalog(client!, {
         ...(options.signal ? { signal: options.signal } : {}),
         settleMs: options.settleMs ?? MUSE_CATALOG_SETTLE_MS,
       });
+      return { ...catalog, sessionMcpSupported: init.grantedCapabilities.includes("sessionMcp") };
     })();
 
     const abortPromise = options.signal

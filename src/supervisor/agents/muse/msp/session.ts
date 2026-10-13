@@ -66,6 +66,7 @@ import {
   type MuseGoalCommand,
 } from "./localCommands";
 import { buildMuseTurnInput } from "./turnInput";
+import { buildMuseMspMcpServers } from "../mcpLaunch";
 import { msg } from "@/shared/messages";
 import { isFullBypassApprovalPolicy } from "@/shared/agents/unrestrictedPermissions";
 
@@ -168,6 +169,10 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private pendingCompact: { turnId: string; timer: NodeJS.Timeout } | undefined;
   private usageEpoch = 0;
   private usageScopeFresh = false;
+  /** MSP `config.mcpServers` for this launch; undefined when the set is empty. */
+  private readonly sessionMcpServers;
+  /** Whether the host granted `sessionMcp` at initialize. */
+  private sessionMcpGranted = false;
   private constructor(
     private readonly input: CreateStructuredSessionInput,
     private readonly child: ChildProcess,
@@ -179,6 +184,8 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       ...(input.agentSettings ? { agentSettings: input.agentSettings } : {}),
     };
     this.currentConfig = input.config;
+    const mcpServers = buildMuseMspMcpServers(input.mcpServers ?? []);
+    this.sessionMcpServers = Object.keys(mcpServers).length > 0 ? mcpServers : undefined;
     this.mapper = createMuseMspItemMapperState(input.threadId);
     this.planAggregator = createPlanAggregator(input.threadId, "muse-plan");
     this.approvalDecisions = new MuseMspApprovalDecisions(
@@ -227,12 +234,20 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
 
   async activate(): Promise<void> {
     if (this.disposed) throw new Error("Muse MSP session was disposed before activation.");
-    const result = await this.client.initialize("poracode", "1.0.0");
+    // Per-session MCP config sits behind the grantable `sessionMcp`
+    // capability; hosts that predate it simply never grant it, and the
+    // session then starts without an MCP config instead of failing.
+    const result = await this.client.initialize(
+      "poracode",
+      "1.0.0",
+      this.sessionMcpServers ? ["sessionMcp"] : undefined,
+    );
     if (result.schema.version !== MSP_SCHEMA_VERSION) {
       throw new Error(
         `Muse MSP schema version ${result.schema.version} is incompatible with supported version ${MSP_SCHEMA_VERSION}.`,
       );
     }
+    this.sessionMcpGranted = result.grantedCapabilities.includes("sessionMcp");
     this.activated = true;
   }
 
@@ -240,6 +255,12 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     if (!this.activated) throw new Error("Muse MSP session is not initialized.");
     this.currentConfig = config;
     const resumeId = sessionRef?.providerSessionId;
+    // Session MCP servers live only in this host process's session runtime,
+    // so a resume on a fresh host must supply the same config again.
+    const sessionConfig =
+      this.sessionMcpGranted && this.sessionMcpServers
+        ? { config: { mcpServers: this.sessionMcpServers } }
+        : {};
     const result = resumeId
       ? await this.client.request("session/resume", {
           commandId: mintMspCommandId(),
@@ -247,6 +268,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           // Snapshot, not items: no transcript replay, but the folded view
           // state carries the retained goal/todo blocks (see below).
           history: "snapshot",
+          ...sessionConfig,
         })
       : await this.client.request("session/start", {
           commandId: mintMspCommandId(),
@@ -254,6 +276,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           modelId: config.model,
           ...(await this.resolveModelProviderId(config.model)),
           approvalMode: toMspApprovalMode(config.approvalPolicy),
+          ...sessionConfig,
         });
     const session = recordOf(result["session"]);
     const sessionId = stringValue(session?.["sessionId"]);

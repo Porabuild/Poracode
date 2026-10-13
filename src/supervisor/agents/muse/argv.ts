@@ -50,10 +50,15 @@ export function buildMuseConfigFlags(config: ThreadConfig): string[] {
 
 /**
  * Argv for interactive `muse` (TUI / PTY). Optional trailing prompt is the
- * CLI's documented positional launch prompt.
+ * CLI's documented positional launch prompt. `optionArgs` (launch MCP `-c`
+ * settings) stay in the option section, ahead of the positional prompt.
  */
-export function buildMuseArgs(config: ThreadConfig, prompt?: string): string[] {
-  const args = buildMuseConfigFlags(config);
+export function buildMuseArgs(
+  config: ThreadConfig,
+  prompt?: string,
+  optionArgs: readonly string[] = [],
+): string[] {
+  const args = [...buildMuseConfigFlags(config), ...optionArgs];
   if (prompt && prompt.trim().length > 0) {
     args.push(prompt);
   }
@@ -65,6 +70,10 @@ export function buildMuseArgs(config: ThreadConfig, prompt?: string): string[] {
  * they stay with the resumed session — real 1.0.2 help confirms root options
  * may appear on either side of `resume`).
  */
-export function buildMuseResumeArgs(sessionRef: string, config: ThreadConfig): string[] {
-  return ["resume", sessionRef, ...buildMuseConfigFlags(config)];
+export function buildMuseResumeArgs(
+  sessionRef: string,
+  config: ThreadConfig,
+  optionArgs: readonly string[] = [],
+): string[] {
+  return ["resume", sessionRef, ...buildMuseConfigFlags(config), ...optionArgs];
 }

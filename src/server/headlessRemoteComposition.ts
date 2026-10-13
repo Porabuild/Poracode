@@ -105,6 +105,10 @@ export async function composeHeadlessRemoteHost(
   // starts, so the event callback always sees the completed composition.
   let serverRef: RemoteAccessServer | null = null;
   let durableServices: BackendDurableServices | null = null;
+  // A lazy supervisor launch during composition waits until both ingress
+  // owners exist instead of reading their still-empty extra env.
+  const supervisorLaunchServicesReady = Promise.withResolvers<void>();
+  void supervisorLaunchServicesReady.promise.catch(() => undefined);
   let pushCoordinator: PushCoordinator | null = null;
   let threadNotifications: ThreadNotificationPublisher | null = null;
 
@@ -300,6 +304,14 @@ export async function composeHeadlessRemoteHost(
             ...durableServices?.getSupervisorExtraEnv(),
           };
         },
+        // Settle every MCP ingress before each fork, not only in `start()`:
+        // a supervisor call can lazy-launch the child from any composition
+        // path, and its env is frozen for that child's lifetime.
+        prepareLaunch: async () => {
+          await supervisorLaunchServicesReady.promise;
+          await hostServicesRef?.start();
+          await durableServices?.startIngress();
+        },
         ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
       },
       onEvent: (event) => {
@@ -487,6 +499,7 @@ export async function composeHeadlessRemoteHost(
         serverRef?.publishSupervisorEvent({ type: "remote-git-state", patch });
       },
     });
+    supervisorLaunchServicesReady.resolve();
     const scheduleService = durableServices.scheduleService;
     const prWatchService = durableServices.prWatchService;
     const gitStateService = durableServices.gitStateService;
@@ -734,6 +747,7 @@ export async function composeHeadlessRemoteHost(
       mdnsAdvertiser.start();
     }
   } catch (error) {
+    supervisorLaunchServicesReady.reject(error);
     try {
       await dispose();
     } catch (shutdownError) {

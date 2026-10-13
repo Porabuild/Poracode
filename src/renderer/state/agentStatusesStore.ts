@@ -316,9 +316,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 55,
-      // v55 mirrors supervisor STATUS_CACHE_VERSION=59: refresh accepted-model
-      // Fast availability and permission ordering, retaining current catalogs.
+      version: 56,
+      // v56 mirrors supervisor STATUS_CACHE_VERSION=60: advertise Muse's
+      // launch-scoped MCP wiring in both presentations.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

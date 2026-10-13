@@ -201,6 +201,12 @@ async function initialize(
   if (backendHost) throw new Error("Backend host is already initialized.");
   const { baseDir, dbPath, supervisor } = request.payload;
   configureSecretStorageKey(supervisor.secretStorageKey);
+  // Desktop services can only be built on the constructed host, so a
+  // supervisor launch that races initialization (for example the first
+  // managed-loopback command) waits for this barrier instead of forking
+  // before the app-controls ingress owner exists.
+  const desktopServicesReady = Promise.withResolvers<void>();
+  void desktopServicesReady.promise.catch(() => undefined);
   backendHost = new BackendHostCore({
     baseDir,
     dbPath,
@@ -218,6 +224,13 @@ async function initialize(
         ...supervisorExtraEnv,
         ...desktopServices?.getSupervisorExtraEnv(),
       }),
+      // Every supervisor fork (including lazy loopback/remote first calls and
+      // crash respawns) settles the app-controls ingress before its env is
+      // resolved, not only the explicit main-process start operation.
+      prepareLaunch: async () => {
+        await desktopServicesReady.promise;
+        await desktopServices?.prepareSupervisor();
+      },
       reportError,
     },
     onEvent: (event) => {
@@ -258,16 +271,22 @@ async function initialize(
       desktopServices?.handleRuntimeGapAcknowledged(threadId);
     },
   });
-  environments = await composeBackendEnvironments(request.payload, backendHost);
-  desktopServices = new BackendDesktopServices({
-    initialize: request.payload,
-    host: backendHost,
-    ...(environments ? { environments: environments.runtimeService } : {}),
-    requestNative,
-    reportError,
-    emitNativeEvent: (event) =>
-      send({ version: BACKEND_HOST_PROTOCOL_VERSION, kind: "native-event", event }),
-  });
+  try {
+    environments = await composeBackendEnvironments(request.payload, backendHost);
+    desktopServices = new BackendDesktopServices({
+      initialize: request.payload,
+      host: backendHost,
+      ...(environments ? { environments: environments.runtimeService } : {}),
+      requestNative,
+      reportError,
+      emitNativeEvent: (event) =>
+        send({ version: BACKEND_HOST_PROTOCOL_VERSION, kind: "native-event", event }),
+    });
+  } catch (error) {
+    desktopServicesReady.reject(error);
+    throw error;
+  }
+  desktopServicesReady.resolve();
   if (!acceptingRequests) throw new Error("Backend host is shutting down.");
   return null;
 }
@@ -320,11 +339,6 @@ async function executeRequest(
       await desktopServices?.startBackgroundServices();
       return null;
     case "call-supervisor": {
-      // SupervisorClient.call autostarts the child on first use; it must not
-      // spawn before the ingress is up or it would start without the
-      // app-controls MCP env. Same single-flight gate as start/restart —
-      // after the first success this await is a resolved promise.
-      await desktopServices?.prepareSupervisor();
       const supervisorRequest = request.payload;
       // A2 removed the relay whose terminal-bootstrap interest window this
       // request origin used to widen; terminal delivery is `terminal-watch`-
