@@ -4325,6 +4325,7 @@ msgstr "Creating PR…"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"
 msgstr "Creating worktree…"
 
@@ -17490,7 +17491,9 @@ msgstr "Worktree threads are marked done as soon as Poracode sees their pull req
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
+#. placeholder {0}: thread.worktreeBranch ?? thread.title
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
 msgid "Worktree: {0}"
 msgstr "Worktree: {0}"

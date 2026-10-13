@@ -1,11 +1,12 @@
 import { forwardRef, type ReactNode } from "react";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Experiment, Project, Thread } from "@/shared/contracts";
 import { openFilesPanel } from "@/renderer/actions/panelActions";
 import { openTerminal } from "@/renderer/actions/terminalActions";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { SortableThreadItem } from "./SortableThreadItem";
 
 type MockContextMenuItem = {
@@ -205,6 +206,7 @@ const project: Project = {
 describe("SortableThreadItem", () => {
   beforeEach(() => {
     layoutMock.compact = false;
+    useAppStore.setState({ threads: [], provisioningWorktreeThreadIds: {} });
     sortableRefMock.mockClear();
     sortableHandleRefMock.mockClear();
     sortableOptionsMock.mockClear();
@@ -527,6 +529,86 @@ describe("SortableThreadItem", () => {
 
     expect(openFilesPanel).toHaveBeenCalledWith("project-1");
     expect(openTerminal).toHaveBeenCalledWith("project-1");
+  });
+
+  it.each([
+    { layout: "desktop flat", compact: false, flat: true },
+    { layout: "desktop grouped", compact: false, flat: false },
+    { layout: "compact flat", compact: true, flat: true },
+  ])("shows a disabled worktree marker during creation in $layout rows", ({ compact, flat }) => {
+    layoutMock.compact = compact;
+    const thread = makeThread({ status: "launching", worktreeBranch: "feature/pending" });
+    useAppStore.setState({
+      threads: [thread],
+      provisioningWorktreeThreadIds: { [thread.id]: true },
+    });
+    const renderThread = (rowThread: Thread) => (
+      <SortableThreadItem
+        thread={rowThread}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge
+        showWorktreeFilesButton
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+        {...(flat ? { projectTag: <span>{project.name}</span> } : {})}
+      />
+    );
+    const { rerender } = render(renderThread(thread));
+
+    const badge = screen.getByRole("button", { name: "Worktree: feature/pending" });
+    expect(badge).toBeDisabled();
+    expect(badge).toHaveAttribute("aria-disabled", "true");
+    expect(badge).toHaveAttribute("data-pending", "true");
+    expect(badge.querySelector(".lucide-git-fork")).toBeInTheDocument();
+    expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Git status for Project" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Files for Project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Terminal for Project" })).not.toBeInTheDocument();
+
+    act(() => {
+      useAppStore
+        .getState()
+        .setThreadWorktree(thread.id, "C:\\repo\\pending", thread.worktreeBranch);
+      rerender(renderThread(useAppStore.getState().threads[0]!));
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Worktree: feature/pending" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Git status for feature/pending" })).toBeEnabled();
+    expect(screen.queryByTestId("sync-badge")?.textContent).toBe(
+      compact ? undefined : "project-1:C:\\repo\\pending",
+    );
+  });
+
+  it("keeps failed worktree creation from falling back to main-branch controls", () => {
+    useAppStore.setState({ provisioningWorktreeThreadIds: { "thread-1": true } });
+    render(
+      <SortableThreadItem
+        thread={makeThread({ status: "error", worktreeBranch: "feature/failed" })}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    const badge = screen.getByRole("button", { name: "Worktree: feature/failed" });
+    expect(badge).toBeDisabled();
+    expect(badge).not.toHaveAttribute("data-pending");
+    expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Git status for Project" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Files for Project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Terminal for Project" })).not.toBeInTheDocument();
   });
 
   it("keeps the flat-list row metadata while renaming only its title", () => {

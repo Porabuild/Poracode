@@ -1,8 +1,11 @@
-import { Archive, CircleCheck, FolderOpen, Star, Trash2 } from "lucide-react";
+import { Archive, CircleCheck, FolderOpen, GitFork, Star, Trash2 } from "lucide-react";
+import { Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { Thread } from "@/shared/contracts";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePrState } from "@/renderer/state/gitSelectors";
+import { Button } from "@/renderer/components/common/Button";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { GitBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/GitBadge";
 import { SyncBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/SyncBadge";
@@ -73,9 +76,13 @@ function ThreadItemPanelActions(props: ThreadItemSuffixProps & { mobileControls?
     props;
   const { t } = useLingui();
   const worktreePath = showWorktreeBadge ? thread.worktreePath : undefined;
+  const isProvisioningWorktree = useAppStore(
+    (s) => s.provisioningWorktreeThreadIds[thread.id] === true,
+  );
   // Flat main-branch rows mirror the project header's files/terminal launchers
   // because there is no project header in the cross-project list.
-  const showProjectPanelButtons = !thread.worktreePath && !!showProjectBadge;
+  const showProjectPanelButtons =
+    !thread.worktreePath && !isProvisioningWorktree && !!showProjectBadge;
 
   const isWorktreeFilesActive = useIsWorktreeFilesPanelActive(worktreePath);
   const isWorktreeTerminalActive = useIsWorktreeTerminalActive(worktreePath);
@@ -155,8 +162,36 @@ function ThreadItemStatusBadges(props: ThreadItemSuffixProps & { mobileControls?
   const worktreePath = showWorktreeBadge ? thread.worktreePath : undefined;
   const prState = usePrState(thread.worktreePath);
   const isGitActive = useIsWorktreeGitPanelActive(worktreePath);
+  const isProvisioningWorktree = useAppStore(
+    (s) => s.provisioningWorktreeThreadIds[thread.id] === true,
+  );
   const showDoneButton =
     !isExperimentCandidate && !thread.done && !!thread.worktreePath && prState === "merged";
+
+  if (isProvisioningWorktree && !thread.worktreePath) {
+    const label = t`Worktree: ${thread.worktreeBranch ?? thread.title}`;
+    const isCreating = thread.status === "launching";
+    return (
+      <Tooltip delay={150}>
+        <Tooltip.Trigger tabIndex={-1} role="none">
+          <Button
+            isIconOnly
+            isDisabled
+            isPending={isCreating}
+            size="sm"
+            variant="ghost"
+            aria-label={label}
+            className="size-[18px] min-w-0 p-[3px] text-muted/60"
+          >
+            <GitFork className="size-3" />
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right">
+          {isCreating ? t`Creating worktree…` : label}
+        </Tooltip.Content>
+      </Tooltip>
+    );
+  }
 
   return (
     <>
