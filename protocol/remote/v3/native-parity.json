@@ -2470,7 +2470,7 @@
         "id": "thread-command",
         "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
-        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them.",
+        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them. Metadata-only create is used by the managed desktop before worktree preparation; native and paired clients retain their existing start flow. Generated create codecs do not claim native UI adoption.",
         "ios": {
           "wire": {
             "disposition": "implemented",

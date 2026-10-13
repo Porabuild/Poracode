@@ -12,6 +12,7 @@ export function generateTitleAsync(
   projectLocation: ProjectLocation,
   agentStatuses: readonly AgentStatus[],
   prompt: string,
+  expectedTitle: string = makeThreadTitle(prompt),
 ): void {
   const request = requestGeneratedTitle(projectLocation, agentStatuses, prompt);
   if (!request) return;
@@ -25,7 +26,7 @@ export function generateTitleAsync(
       // dropped. The dispatched action routes the rename to the host-owned
       // durable catalog; a raw slice write is renderer memory only and
       // reverts on restart.
-      if (thread && thread.title === makeThreadTitle(prompt)) {
+      if (thread && thread.title === expectedTitle) {
         renameThread(threadId, title);
       }
     })

@@ -1,7 +1,11 @@
 import { msg } from "@lingui/core/macro";
-import type { RemoteThreadCommand, StartThreadResult } from "@/shared/contracts";
+import {
+  DEFAULT_TERMINAL_SIZE,
+  type RemoteThreadCommand,
+  type StartThreadResult,
+} from "@/shared/contracts";
 import type { RemoteProjectCommand, RemoteProjectCommandResponse } from "@/shared/remote";
-import type { StartRemoteNewThreadInput } from "@/shared/remote/client";
+import type { ManagedRootLaunchReplay } from "./rootCatalogStore";
 import {
   sendClientProjectCommand,
   sendClientThreadCommand,
@@ -111,13 +115,33 @@ export async function sendManagedRootThreadCommand(
   await sendClientThreadCommand(requireManagedRootClient(), command, options);
 }
 
-/** Create + launch one root thread host-side, returning the host's result. */
+/** Launch a root row's first runtime, creating metadata if it is still unsaved. */
 export async function startManagedRootThread(
-  input: StartRemoteNewThreadInput,
+  input: ManagedRootLaunchReplay,
   options: { readonly commandId?: string } = {},
 ): Promise<StartThreadResult> {
   const client = requireManagedRootClient();
   const threadId = input.threadId ?? crypto.randomUUID();
+  if (input.projectLocation) {
+    // Metadata was acknowledged before workspace preparation. Keep the exact
+    // launch body and receipt identity without recreating its title or row.
+    return client.startThread(
+      {
+        threadId,
+        projectLocation: input.projectLocation,
+        agentKind: input.agentKind,
+        ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
+        config: input.config,
+        prompt: input.prompt,
+        ...(input.segments ? { segments: input.segments } : {}),
+        ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
+        ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
+        ...(input.clientContext ? { clientContext: input.clientContext } : {}),
+        initialSize: input.initialSize ?? DEFAULT_TERMINAL_SIZE,
+      },
+      options,
+    );
+  }
   // ONE explicit per-episode command id over the existing SDK launch entry: the
   // host binds the receipt to the principal, the route and the exact body, so
   // an identical retry replays the recorded outcome instead of launching a

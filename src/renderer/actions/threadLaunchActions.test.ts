@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { RemoteClientError } from "@/shared/remote/client";
+import { makeThreadTitle } from "@/shared/threadTitle";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 
 function deferred<T>() {
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => {
     projects: [] as Project[],
     threads: [] as Thread[],
     provisioningWorktreeThreadIds: {} as Record<string, true>,
+    finishWorktreeProvisioning: vi.fn<(threadId: string) => void>(),
     createThread: vi.fn<(input: unknown) => Thread>(),
     queueThreadLaunch:
       vi.fn<
@@ -206,14 +208,20 @@ describe("startThreadFromDraft host transport", () => {
     mocks.appState.projects = [];
     mocks.appState.threads = [];
     mocks.appState.provisioningWorktreeThreadIds = {};
+    mocks.appState.finishWorktreeProvisioning.mockImplementation((threadId) => {
+      delete mocks.appState.provisioningWorktreeThreadIds[threadId];
+    });
     mocks.appState.createThread.mockImplementation((input) => {
       const values = input as Partial<Thread> & {
         threadId?: string;
         worktreeProvisioning?: boolean;
+        prompt?: string;
       };
       const thread = {
         id: values.threadId ?? "local-thread",
         projectId: values.projectId ?? localProject.id,
+        agentKind: values.agentKind ?? "example",
+        title: makeThreadTitle(values.prompt ?? ""),
         archived: false,
         config: values.config ?? {},
         ...(values.presentationMode ? { presentationMode: values.presentationMode } : {}),
@@ -327,6 +335,7 @@ describe("startThreadFromDraft host transport", () => {
       "local-thread",
       "C:\\shared-worktrees\\feature",
       "feature",
+      { preserveProvisioning: true },
     );
     expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
     expect(mocks.bridge.startThread).toHaveBeenCalledWith(
@@ -346,6 +355,41 @@ describe("startThreadFromDraft host transport", () => {
       localProject,
       "C:\\shared-worktrees\\feature",
       "pnpm install",
+    );
+  });
+
+  it("starts title generation while the worktree is still provisioning", async () => {
+    const worktree = deferred<{ path: string }>();
+    const started = deferred<{ threadId: string }>();
+    mocks.createWorktree.mockReturnValue(worktree.promise);
+    mocks.bridge.startThread.mockReturnValue(started.promise);
+
+    const launch = startThreadFromDraft(localProject, {
+      agentKind: "example",
+      config: { model: "example/model" },
+      prompt: "build it",
+      presentationMode: "gui",
+      worktreeBranch: "feature",
+      worktreeIsNewBranch: true,
+    });
+
+    expect(mocks.appState.createThread).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(mocks.createWorktree).toHaveBeenCalledTimes(1));
+    expect(mocks.generateTitleAsync).toHaveBeenCalledTimes(1);
+    expect(mocks.bridge.startThread).not.toHaveBeenCalled();
+
+    worktree.resolve({ path: "C:\\shared-worktrees\\feature" });
+    await vi.waitFor(() => expect(mocks.bridge.startThread).toHaveBeenCalledTimes(1));
+    expect(mocks.generateTitleAsync).toHaveBeenCalledTimes(1);
+
+    started.resolve({ threadId: "local-thread" });
+    await launch;
+    expect(mocks.generateTitleAsync).toHaveBeenCalledExactlyOnceWith(
+      "local-thread",
+      localProject.location,
+      [],
+      "build it",
+      "build it",
     );
   });
 
@@ -445,6 +489,24 @@ describe("startThreadFromDraft host transport", () => {
         initialSize: expect.objectContaining({ cols: expect.any(Number) }),
       }),
     );
+  });
+
+  it("starts a non-worktree title before its agent launch is confirmed", async () => {
+    const started = deferred<{ threadId: string }>();
+    mocks.bridge.startThread.mockReturnValue(started.promise);
+    const launch = startThreadFromDraft(localProject, {
+      agentKind: "example",
+      config: { model: "example/model" },
+      prompt: "build it",
+      presentationMode: "gui",
+    });
+
+    await vi.waitFor(() => expect(mocks.bridge.startThread).toHaveBeenCalledTimes(1));
+    expect(mocks.generateTitleAsync).toHaveBeenCalledTimes(1);
+
+    started.resolve({ threadId: "local-thread" });
+    await launch;
+    expect(mocks.generateTitleAsync).toHaveBeenCalledTimes(1);
   });
 
   it("tags a Home thread with the active workspace at creation", async () => {
@@ -672,6 +734,7 @@ describe("startThreadFromDraft host transport", () => {
       "local-thread",
       "C:\\shared-worktrees\\feature",
       "feature",
+      { preserveProvisioning: true },
     );
     expect(mocks.appState.updateThreadRuntime).toHaveBeenCalledWith("local-thread", {
       status: "inactive",

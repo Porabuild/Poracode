@@ -15717,6 +15717,10 @@ msgstr "线程"
 msgid "Thread actions"
 msgstr "线程操作"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "线程已存在。"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "线程上下文使用"

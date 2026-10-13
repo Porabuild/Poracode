@@ -15718,6 +15718,10 @@ msgstr "Тред"
 msgid "Thread actions"
 msgstr "Действия потока"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "Тред уже існує."
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Використання контексту треда"

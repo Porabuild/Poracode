@@ -25,6 +25,8 @@ import {
 import {
   dropPendingManagedRootLaunch,
   pinManagedRootThread,
+  peekPendingManagedRootLaunch,
+  trackPendingManagedRootThreadRemoval,
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -631,14 +633,16 @@ export async function setThreadWorktree(
   threadId: string,
   worktreePath: string,
   worktreeBranch?: string,
-  options?: { isNewWorktree?: boolean },
+  options?: { isNewWorktree?: boolean; preserveProvisioning?: boolean },
 ): Promise<void> {
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId);
   if (!thread) return;
 
   const apply = () => {
-    useAppStore.getState().setThreadWorktree(threadId, worktreePath, worktreeBranch);
+    useAppStore.getState().setThreadWorktree(threadId, worktreePath, worktreeBranch, {
+      ...(options?.preserveProvisioning ? { preserveProvisioning: true } : {}),
+    });
   };
 
   const owner = remoteOwner(thread);
@@ -704,18 +708,27 @@ function deleteThreadOnly(
 ): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId) ?? record;
-  if (store.provisioningWorktreeThreadIds[threadId] === true) {
+  const rootOwner = thread ? managedRootOwner(thread) : undefined;
+  const pendingLaunch = peekPendingManagedRootLaunch(threadId);
+  const persistedProvisioning =
+    store.provisioningWorktreeThreadIds[threadId] === true &&
+    rootOwner !== undefined &&
+    (pendingLaunch?.metadataCreated === true || pendingLaunch?.metadataCreationUncertain === true);
+  if (store.provisioningWorktreeThreadIds[threadId] === true && !persistedProvisioning) {
     store.deleteThread(threadId);
     completion?.resolve();
     return;
   }
-  const rootOwner = thread ? managedRootOwner(thread) : undefined;
+  const removal = persistedProvisioning ? Promise.withResolvers<boolean>() : undefined;
+  if (removal) trackPendingManagedRootThreadRemoval(threadId, removal.promise);
   const confirmRemoteDelete = () => {
     // A successful explicit delete is authoritative resolution of any
     // retained uncertain launch episode. Keep the marker until command
     // success so a refused or ambiguous delete can still replay the exact
     // original launch operation.
     if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
+    if (persistedProvisioning) useAppStore.getState().deleteThread(threadId);
+    removal?.resolve(true);
     void readBridge()
       .closeSideChatPanel?.(threadId)
       .catch((error: unknown) => toast.danger(friendlyError(error)));
@@ -728,7 +741,10 @@ function deleteThreadOnly(
       (remoteThreadId) => ({ kind: "delete", threadId: remoteThreadId }),
       () => useAppStore.getState().archiveThread(threadId),
       confirmRemoteDelete,
-      completion?.reject,
+      (error) => {
+        removal?.resolve(false);
+        completion?.reject(error);
+      },
     )
   )
     return;
@@ -736,6 +752,7 @@ function deleteThreadOnly(
   // bypasses command echo. Retire any locally retained uncertain launch just
   // as the successful user-command path does.
   if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
+  removal?.resolve(true);
   store.deleteThread(threadId);
   void readBridge()
     .closeSideChatPanel?.(threadId)
