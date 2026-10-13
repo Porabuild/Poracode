@@ -10834,7 +10834,7 @@ msgstr "Przekazywana Devinowi jako konfiguracja użytkownika tylko dla tego prof
 msgid "Password"
 msgstr "Hasło"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "Skopiowano hasło."
 
@@ -16495,7 +16495,7 @@ msgstr "Nie można skopiować tokenu parowania."
 msgid "Unable to copy Tailscale URL."
 msgstr "Nie można skopiować URL Tailscale."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "Nie udało się skopiować hasła."
 
@@ -16692,7 +16692,7 @@ msgstr "Nie można ustalić commita kandydata eksperymentu"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "Nie można przywrócić połączenia SSH."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "Nie udało się wyświetlić hasła."
 

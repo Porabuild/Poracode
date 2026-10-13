@@ -296,7 +296,10 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
                 tabId={tab.tabId}
                 initialSrc={tab.url}
                 {...(tab.deviceEmulation ? { emulation: tab.deviceEmulation } : {})}
-                visible={visible && !menuPreviewDataUrl && tab.tabId === activeTabId}
+                visible={visible && tab.tabId === activeTabId}
+                {...(menuPreviewDataUrl && tab.tabId === activeTabId
+                  ? { previewDataUrl: menuPreviewDataUrl }
+                  : {})}
               />
             ))
         ) : (
@@ -312,7 +315,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           </div>
         ) : null}
         {nativeBrowserWebContents ? <BrowserFindBar /> : null}
-        {menuPreviewDataUrl ? (
+        {menuPreviewDataUrl && !nativeBrowserWebContents ? (
           <img
             src={menuPreviewDataUrl}
             alt=""

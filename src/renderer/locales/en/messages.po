@@ -10843,7 +10843,7 @@ msgstr "Passed to Devin as its user config for this profile only. It does not is
 msgid "Password"
 msgstr "Password"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "Password copied."
 
@@ -16504,7 +16504,7 @@ msgstr "Unable to copy pairing token."
 msgid "Unable to copy Tailscale URL."
 msgstr "Unable to copy Tailscale URL."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "Unable to copy the password."
 
@@ -16701,7 +16701,7 @@ msgstr "Unable to resolve the experiment candidate commit"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "Unable to restore the SSH connection."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "Unable to reveal the password."
 

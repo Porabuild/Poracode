@@ -10833,7 +10833,7 @@ msgstr "Passée à Devin comme configuration utilisateur pour ce profil uniqueme
 msgid "Password"
 msgstr "Mot de passe"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "Mot de passe copié."
 
@@ -16494,7 +16494,7 @@ msgstr "Impossible de copier le jeton d'association."
 msgid "Unable to copy Tailscale URL."
 msgstr "Impossible de copier l'URL Tailscale."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "Impossible de copier le mot de passe."
 
@@ -16691,7 +16691,7 @@ msgstr "Impossible de résoudre le commit du candidat de l'expérience"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "Impossible de rétablir la connexion SSH."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "Impossible d’afficher le mot de passe."
 

@@ -10834,7 +10834,7 @@ msgstr "Được truyền cho Devin làm cấu hình người dùng chỉ dành 
 msgid "Password"
 msgstr "Mật khẩu"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "Đã sao chép mật khẩu."
 
@@ -16495,7 +16495,7 @@ msgstr "Không thể sao chép token ghép đôi."
 msgid "Unable to copy Tailscale URL."
 msgstr "Không thể sao chép URL Tailscale."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "Không thể sao chép mật khẩu."
 
@@ -16692,7 +16692,7 @@ msgstr "Không thể xác định commit của ứng viên thử nghiệm"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "Không thể khôi phục kết nối SSH."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "Không thể hiển thị mật khẩu."
 

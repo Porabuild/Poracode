@@ -10834,7 +10834,7 @@ msgstr "이 프로필 전용 사용자 설정으로 Devin에 전달됩니다. �
 msgid "Password"
 msgstr "암호"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "암호를 복사했습니다."
 
@@ -16495,7 +16495,7 @@ msgstr "페어링 토큰을 복사할 수 없습니다."
 msgid "Unable to copy Tailscale URL."
 msgstr "Tailscale URL을 복사할 수 없습니다."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "암호를 복사할 수 없습니다."
 
@@ -16692,7 +16692,7 @@ msgstr "실험 후보 커밋을 확인할 수 없습니다"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "SSH 연결을 복원할 수 없습니다."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "암호를 표시할 수 없습니다."
 

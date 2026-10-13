@@ -48,7 +48,21 @@ vi.mock("./hooks/useElementPicker", () => ({
 }));
 
 vi.mock("./parts/BrowserToolbar", () => ({
-  BrowserToolbar: () => <div data-testid="browser-toolbar" />,
+  BrowserToolbar: ({
+    onMenuPreviewChange,
+  }: {
+    onMenuPreviewChange: (url: string | null) => void;
+  }) => (
+    <div data-testid="browser-toolbar">
+      <button
+        type="button"
+        data-testid="browser-preview"
+        onClick={() => onMenuPreviewChange("data:image/png;base64,fixture")}
+      >
+        Preview
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("./parts/BrowserTabStrip", () => ({
@@ -123,6 +137,40 @@ describe("BrowserPanel", () => {
   it("renders the empty state when there are no tabs", () => {
     const { getByText } = render(<BrowserPanel visible />);
     expect(getByText("No browser tab open")).toBeTruthy();
+  });
+
+  it("keeps an emulated preview in the guest viewport without replacing the webview", () => {
+    useBrowserPanelStore.getState().setState({
+      activeTabId: "tab-1",
+      tabs: [
+        {
+          tabId: "tab-1",
+          url: "https://example.com",
+          title: "Example",
+          loading: false,
+          canGoBack: false,
+          canGoForward: false,
+          deviceEmulation: {
+            width: 800,
+            height: 600,
+            scale: 0.75,
+            deviceScaleFactor: 1,
+            mobile: false,
+            touch: false,
+          },
+        },
+      ],
+    });
+    const { container, getByTestId } = render(<BrowserPanel visible />);
+    const guest = container.querySelector("webview")!;
+    const viewport = guest.parentElement!;
+    expect(viewport).toHaveStyle({ width: "600px", height: "450px", margin: "24px auto" });
+    fireEvent.click(getByTestId("browser-preview"));
+    expect(container.querySelector("webview")).toBe(guest);
+    expect(guest).toHaveStyle({ visibility: "hidden" });
+    expect(viewport.querySelector("img")).toBeTruthy();
+    expect(viewport).toHaveStyle({ width: "600px", height: "450px", margin: "24px auto" });
+    expect(viewport.parentElement).toHaveStyle({ display: "block" });
   });
 
   it("retains the exact native webview while closing is pending or refused", async () => {

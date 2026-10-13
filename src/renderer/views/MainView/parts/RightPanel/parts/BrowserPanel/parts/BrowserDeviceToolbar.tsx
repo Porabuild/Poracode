@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Input, TextField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { RotateCw, X } from "lucide-react";
@@ -6,6 +6,7 @@ import { readBridge } from "@/renderer/bridge";
 import { Select } from "@/renderer/components/common";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import type { BrowserDeviceEmulation, BrowserTabInfo } from "@/shared/ipc";
+import { browserDeviceEmulationEqual } from "@/shared/browserDeviceEmulation";
 
 interface DevicePreset extends Omit<BrowserDeviceEmulation, "preset" | "scale"> {
   id: string;
@@ -25,6 +26,16 @@ export function BrowserDeviceToolbar() {
 function ActiveBrowserDeviceToolbar({ tab }: { tab: BrowserTabInfo }) {
   const { t } = useLingui();
   const emulation = tab.deviceEmulation!;
+  const desiredEmulation = useRef<{
+    value: BrowserDeviceEmulation | null;
+    settled: boolean;
+  } | null>(null);
+  useEffect(() => {
+    const desired = desiredEmulation.current;
+    if (desired?.settled && browserDeviceEmulationEqual(desired.value ?? undefined, emulation)) {
+      desiredEmulation.current = null;
+    }
+  }, [emulation]);
   const [widthState, setWidthState] = useState<{ value: number; text: string } | null>(null);
   const [heightState, setHeightState] = useState<{ value: number; text: string } | null>(null);
   const widthDraft =
@@ -159,19 +170,42 @@ function ActiveBrowserDeviceToolbar({ tab }: { tab: BrowserTabInfo }) {
   }));
 
   function update(nextEmulation: BrowserDeviceEmulation | null) {
+    const desired = { value: nextEmulation, settled: false };
+    desiredEmulation.current = desired;
     readBridge()
       .browserSetDeviceEmulation({ tabId: tab.tabId, emulation: nextEmulation })
-      .catch(() => {});
+      .then(() => {
+        if (desiredEmulation.current !== desired) return;
+        desired.settled = true;
+        const current = useBrowserPanelStore
+          .getState()
+          .tabs.find((candidate) => candidate.tabId === tab.tabId)?.deviceEmulation;
+        if (browserDeviceEmulationEqual(desired.value ?? undefined, current))
+          desiredEmulation.current = null;
+      })
+      .catch(() => {
+        if (desiredEmulation.current === desired) desiredEmulation.current = null;
+      });
+  }
+
+  function currentEmulation() {
+    return (
+      desiredEmulation.current?.value ??
+      useBrowserPanelStore.getState().tabs.find((candidate) => candidate.tabId === tab.tabId)
+        ?.deviceEmulation ??
+      emulation
+    );
   }
 
   function selectPreset(id: string) {
     const preset = presets.find((candidate) => candidate.id === id);
     if (!preset) return;
+    const current = currentEmulation();
     update({
-      width: preset.width,
-      height: preset.height,
+      width: preset.id === "Responsive" ? current.width : preset.width,
+      height: preset.id === "Responsive" ? current.height : preset.height,
       deviceScaleFactor: preset.deviceScaleFactor,
-      scale: emulation.scale,
+      scale: current.scale,
       mobile: preset.mobile,
       touch: preset.touch,
       preset: preset.id,
@@ -185,7 +219,7 @@ function ActiveBrowserDeviceToolbar({ tab }: { tab: BrowserTabInfo }) {
       else setHeightDraft(String(emulation.height));
       return;
     }
-    update({ ...emulation, [dimension]: value, preset: "Responsive" });
+    update({ ...currentEmulation(), [dimension]: value, preset: "Responsive" });
   }
 
   return (
@@ -243,7 +277,10 @@ function ActiveBrowserDeviceToolbar({ tab }: { tab: BrowserTabInfo }) {
         variant="tertiary"
         className="size-6 min-w-0 shrink-0 p-0"
         aria-label={t`Rotate viewport`}
-        onPress={() => update({ ...emulation, width: emulation.height, height: emulation.width })}
+        onPress={() => {
+          const current = currentEmulation();
+          update({ ...current, width: current.height, height: current.width });
+        }}
       >
         <RotateCw className="size-3.5" />
       </Button>
@@ -252,7 +289,7 @@ function ActiveBrowserDeviceToolbar({ tab }: { tab: BrowserTabInfo }) {
         className="w-20 shrink-0"
         options={scaleOptions}
         value={String(emulation.scale)}
-        onChange={(value) => update({ ...emulation, scale: Number(value) })}
+        onChange={(value) => update({ ...currentEmulation(), scale: Number(value) })}
       />
       <div className="min-w-0 flex-1" />
       <Button

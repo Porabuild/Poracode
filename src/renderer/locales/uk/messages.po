@@ -10834,7 +10834,7 @@ msgstr "Передається Devin як користувацька конфі�
 msgid "Password"
 msgstr "Пароль"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "Пароль скопійовано."
 
@@ -16495,7 +16495,7 @@ msgstr "Не вдалося скопіювати токен підключенн
 msgid "Unable to copy Tailscale URL."
 msgstr "Не вдалося скопіювати URL Tailscale."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "Не вдалося скопіювати пароль."
 
@@ -16692,7 +16692,7 @@ msgstr "Не вдалося визначити коміт кандидата е�
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "Не вдалося відновити SSH-підключення."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "Не вдалося показати пароль."
 

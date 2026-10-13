@@ -102,6 +102,7 @@ export class BrowserPanelManager {
   private readonly downloads: BrowserDownloadManager | null;
   private readonly importer: ChromiumImportService | null;
   private readonly internalPages = new Map<string, BrowserInternalPage>();
+  private readonly navigationOwners = new Map<string, object>();
   private restored = false;
   private automationActive = false;
   private readonly automationSessions = new Set<string>();
@@ -236,6 +237,7 @@ export class BrowserPanelManager {
     }
     this.tabs = [];
     this.internalPages.clear();
+    this.navigationOwners.clear();
     this.activeTabId = null;
     this.hosts.clear();
   }
@@ -361,8 +363,8 @@ export class BrowserPanelManager {
    */
   async ensureTabReady(tabId: string): Promise<void> {
     this.markAutomationActivity();
-    const tab = this.findTab(tabId);
-    if (!tab || this.internalPages.has(tabId) || tab.isAttached()) return;
+    const tab = this.getTab(tabId);
+    if (!tab || tab.isAttached()) return;
     await this.awaitAttach(tab);
   }
 
@@ -520,8 +522,8 @@ export class BrowserPanelManager {
   }
 
   attachWebContents(tabId: string, webContentsId: number): void {
-    const tab = this.findTab(tabId);
-    if (!tab || this.internalPages.has(tabId)) return;
+    const tab = this.getTab(tabId);
+    if (!tab) return;
     // Reject a host window's own WebContents by id first, before resolving it.
     for (const host of this.hosts) {
       if (host.webContents.id === webContentsId) return;
@@ -636,6 +638,7 @@ export class BrowserPanelManager {
     const [tab] = this.tabs.splice(idx, 1);
     if (!tab) return;
     this.internalPages.delete(tabId);
+    this.navigationOwners.delete(tabId);
     await tab.destroy();
     this.tabGroups.removeTab(tabId);
     if (this.activeTabId === tabId) {
@@ -651,13 +654,32 @@ export class BrowserPanelManager {
     if (!t) throw new Error(`No browser tab: ${tabId}`);
     const internalPage = internalPageForUrl(url);
     if (internalPage) {
+      this.navigationOwners.delete(tabId);
       this.internalPages.set(tabId, internalPage);
       this.emitState();
       this.schedulePersist();
       return;
     }
+    const previousPage = this.internalPages.get(tabId);
+    const owner = {};
+    this.navigationOwners.set(tabId, owner);
     this.internalPages.delete(tabId);
-    await t.loadURL(url);
+    try {
+      await t.loadURL(url);
+      if (previousPage && this.navigationOwners.get(tabId) === owner && this.findTab(tabId) === t) {
+        this.emitState();
+        this.schedulePersist();
+      }
+    } catch (error) {
+      if (previousPage && this.navigationOwners.get(tabId) === owner && this.findTab(tabId) === t) {
+        this.internalPages.set(tabId, previousPage);
+        this.emitState();
+        this.schedulePersist();
+      }
+      throw error;
+    } finally {
+      if (this.navigationOwners.get(tabId) === owner) this.navigationOwners.delete(tabId);
+    }
   }
 
   async openInternalPage(page: BrowserInternalPage): Promise<BrowserTabInfo> {
@@ -673,8 +695,8 @@ export class BrowserPanelManager {
   }
 
   async back(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
-    if (!t || this.internalPages.has(tabId) || !t.isAttached()) return;
+    const t = this.getTab(tabId);
+    if (!t || !t.isAttached()) return;
     const wc = t.webContents;
     if (wc.navigationHistory.canGoBack()) {
       wc.navigationHistory.goBack();
@@ -682,8 +704,8 @@ export class BrowserPanelManager {
   }
 
   async forward(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
-    if (!t || this.internalPages.has(tabId) || !t.isAttached()) return;
+    const t = this.getTab(tabId);
+    if (!t || !t.isAttached()) return;
     const wc = t.webContents;
     if (wc.navigationHistory.canGoForward()) {
       wc.navigationHistory.goForward();
@@ -691,20 +713,20 @@ export class BrowserPanelManager {
   }
 
   async reload(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
-    if (!t || this.internalPages.has(tabId) || !t.isAttached()) return;
+    const t = this.getTab(tabId);
+    if (!t || !t.isAttached()) return;
     t.webContents.reload();
   }
 
   async hardReload(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
-    if (!t || this.internalPages.has(tabId)) return;
+    const t = this.getTab(tabId);
+    if (!t) return;
     t.hardReload();
   }
 
   async toggleDevTools(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
-    if (!t || this.internalPages.has(tabId)) return;
+    const t = this.getTab(tabId);
+    if (!t) return;
     t.toggleDevTools();
   }
 
@@ -713,32 +735,28 @@ export class BrowserPanelManager {
     text: string,
     options: { forward: boolean; findNext: boolean; matchCase: boolean },
   ): void {
-    if (this.internalPages.has(tabId)) return;
-    this.findTab(tabId)?.findInPage(text, options);
+    this.getTab(tabId)?.findInPage(text, options);
   }
 
   stopFindInPage(
     tabId: string,
     action: "clearSelection" | "keepSelection" | "activateSelection",
   ): void {
-    if (this.internalPages.has(tabId)) return;
-    this.findTab(tabId)?.stopFindInPage(action);
+    this.getTab(tabId)?.stopFindInPage(action);
   }
 
   async print(tabId: string): Promise<BrowserPrintResult> {
-    const tab = this.findTab(tabId);
-    if (!tab || this.internalPages.has(tabId)) return { ok: false };
+    const tab = this.getTab(tabId);
+    if (!tab) return { ok: false };
     return await tab.print();
   }
 
   setZoomFactor(tabId: string, zoomFactor: number): void {
-    if (this.internalPages.has(tabId)) return;
-    this.findTab(tabId)?.setZoomFactor(zoomFactor);
+    this.getTab(tabId)?.setZoomFactor(zoomFactor);
   }
 
   setDeviceEmulation(tabId: string, emulation: BrowserDeviceEmulation | null): void {
-    if (this.internalPages.has(tabId)) return;
-    this.findTab(tabId)?.setDeviceEmulation(emulation);
+    this.getTab(tabId)?.setDeviceEmulation(emulation);
   }
 
   getDownloads(): BrowserDownloadInfo[] {
@@ -850,8 +868,8 @@ export class BrowserPanelManager {
   }
 
   async capturePng(tabId: string): Promise<Buffer | null> {
-    const t = this.findTab(tabId);
-    if (!t || this.internalPages.has(tabId) || !t.isAttached()) return null;
+    const t = this.getTab(tabId);
+    if (!t || !t.isAttached()) return null;
     return await t.capturePng();
   }
 
@@ -919,8 +937,7 @@ export class BrowserPanelManager {
   }
 
   getActiveTab(): BrowserTab | null {
-    if (!this.activeTabId || this.internalPages.has(this.activeTabId)) return null;
-    return this.findTab(this.activeTabId) ?? null;
+    return this.activeTabId ? this.getTab(this.activeTabId) : null;
   }
 
   getTab(tabId: string): BrowserTab | null {
@@ -932,8 +949,8 @@ export class BrowserPanelManager {
     threadId: string;
     tabId: string;
   }): Promise<BrowserStartPickerResult> {
-    const tab = this.findTab(payload.tabId);
-    if (!tab || this.internalPages.has(payload.tabId)) {
+    const tab = this.getTab(payload.tabId);
+    if (!tab) {
       return { ok: false, error: `No browser tab: ${payload.tabId}` };
     }
     if (!tab.isAttached()) {

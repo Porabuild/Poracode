@@ -10833,7 +10833,7 @@ msgstr "作为该配置文件专属的用户配置传递给 Devin。它不会隔
 msgid "Password"
 msgstr "密码"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "密码已复制。"
 
@@ -16494,7 +16494,7 @@ msgstr "无法复制配对令牌。"
 msgid "Unable to copy Tailscale URL."
 msgstr "无法复制 Tailscale URL。"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "无法复制密码。"
 
@@ -16691,7 +16691,7 @@ msgstr "无法解析实验候选项的提交"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "无法恢复 SSH 连接。"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "无法显示密码。"
 

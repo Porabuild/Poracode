@@ -31,6 +31,26 @@ interface PersistedBrowserCredential extends BrowserCredentialInfo {
   sealedPassword: string;
 }
 
+interface CredentialIndex {
+  byId: Map<string, PersistedBrowserCredential>;
+  byLogin: Map<string, PersistedBrowserCredential>;
+}
+
+function credentialLoginKey(origin: string, username: string): string {
+  return JSON.stringify([origin, username]);
+}
+
+function indexCredentials(credentials: PersistedBrowserCredential[]): CredentialIndex {
+  const byId = new Map<string, PersistedBrowserCredential>();
+  const byLogin = new Map<string, PersistedBrowserCredential>();
+  for (const credential of credentials) {
+    const key = credentialLoginKey(credential.origin, credential.username);
+    if (!byId.has(credential.id)) byId.set(credential.id, credential);
+    if (!byLogin.has(key)) byLogin.set(key, credential);
+  }
+  return { byId, byLogin };
+}
+
 /** Normalize a page URL to the exact HTTP(S) origin used for credential matching. */
 export function normalizeBrowserCredentialOrigin(value: string): string {
   const url = new URL(value);
@@ -89,10 +109,11 @@ export class BrowserCredentialStore {
   upsertMany(inputs: readonly BrowserCredentialInput[]): Promise<BrowserCredentialBatchResult> {
     return this.mutate(async (credentials) => {
       const saved: BrowserCredentialInfo[] = [];
+      const index = indexCredentials(credentials);
       let failed = 0;
       for (const input of inputs) {
         try {
-          saved.push(upsertCredential(credentials, input));
+          saved.push(upsertCredential(credentials, input, index));
         } catch {
           failed += 1;
         }
@@ -167,20 +188,35 @@ export class BrowserCredentialStore {
 function upsertCredential(
   credentials: PersistedBrowserCredential[],
   input: BrowserCredentialInput,
+  index?: CredentialIndex,
 ): BrowserCredentialInfo {
   const origin = normalizeBrowserCredentialOrigin(input.origin);
+  const key = credentialLoginKey(origin, input.username);
   const now = Date.now();
   const existing = input.id
-    ? credentials.find((credential) => credential.id === input.id)
-    : credentials.find(
-        (credential) => credential.origin === origin && credential.username === input.username,
-      );
+    ? index
+      ? index.byId.get(input.id)
+      : credentials.find((credential) => credential.id === input.id)
+    : index
+      ? index.byLogin.get(key)
+      : credentials.find(
+          (credential) => credential.origin === origin && credential.username === input.username,
+        );
+  const sealedPassword = sealPassword(input.password);
   if (existing) {
+    const previousKey = credentialLoginKey(existing.origin, existing.username);
     existing.origin = origin;
     existing.username = input.username;
-    existing.sealedPassword = sealPassword(input.password);
+    existing.sealedPassword = sealedPassword;
     existing.updatedAt = now;
     if (input.source !== undefined) existing.source = input.source;
+    if (index && previousKey !== key) {
+      // An explicit-ID edit can move the first matching entry between logins.
+      // Rebuild in array order to preserve the existing first-match contract.
+      const rebuilt = indexCredentials(credentials);
+      index.byId = rebuilt.byId;
+      index.byLogin = rebuilt.byLogin;
+    }
     return toMetadata(existing);
   }
 
@@ -188,12 +224,16 @@ function upsertCredential(
     id: `credential-${randomUUID()}`,
     origin,
     username: input.username,
-    sealedPassword: sealPassword(input.password),
+    sealedPassword,
     createdAt: now,
     updatedAt: now,
     ...(input.source !== undefined ? { source: input.source } : {}),
   };
   credentials.push(credential);
+  if (index) {
+    index.byId.set(credential.id, credential);
+    if (!index.byLogin.has(key)) index.byLogin.set(key, credential);
+  }
   return toMetadata(credential);
 }
 

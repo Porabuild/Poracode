@@ -30,7 +30,7 @@ describe("BrowserPasswordsPage", () => {
       password: "secret-value",
     });
     bridge.browserDeleteCredential.mockReset().mockResolvedValue(undefined);
-    useBrowserCredentialsStore.setState({ credentials: [], revision: 0 });
+    useBrowserCredentialsStore.setState({ credentials: [], revision: 0, deletingId: null });
     useBrowserImportStore.setState({ open: false });
   });
 
@@ -103,5 +103,22 @@ describe("BrowserPasswordsPage", () => {
     await waitFor(() =>
       expect(bridge.browserDeleteCredential).toHaveBeenCalledWith({ id: credential.id }),
     );
+  });
+
+  it("keeps a new draft when an earlier Edit request resolves", async () => {
+    const password = Promise.withResolvers<{ password: string }>();
+    bridge.browserGetCredentialPassword.mockReturnValueOnce(password.promise);
+    render(<BrowserPasswordsPage />);
+    await screen.findByText("https://example.com");
+    fireEvent.click(screen.getByRole("button", { name: "Saved password actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit saved password" }));
+    await waitFor(() => expect(bridge.browserGetCredentialPassword).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole("button", { name: "Add password" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add password" });
+    fireEvent.change(within(dialog).getByLabelText("Username"), { target: { value: "new-draft" } });
+    await act(async () => password.resolve({ password: "older-secret" }));
+    expect(screen.getByRole("dialog", { name: "Add password" })).toBe(dialog);
+    expect(within(dialog).getByLabelText("Username")).toHaveValue("new-draft");
+    expect(within(dialog).getByLabelText("Password")).toHaveValue("");
   });
 });

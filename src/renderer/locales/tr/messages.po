@@ -10834,7 +10834,7 @@ msgstr "Yalnızca bu profil için kullanıcı yapılandırması olarak Devin'e a
 msgid "Password"
 msgstr "Parola"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "Parola kopyalandı."
 
@@ -16495,7 +16495,7 @@ msgstr "Eşleştirme token'ı kopyalanamadı."
 msgid "Unable to copy Tailscale URL."
 msgstr "Tailscale URL'si kopyalanamadı."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "Parola kopyalanamadı."
 
@@ -16692,7 +16692,7 @@ msgstr "Deney adayının commit'i çözümlenemedi"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "SSH bağlantısı geri yüklenemedi."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "Parola gösterilemedi."
 

@@ -2,10 +2,11 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { copyFile, lstat, mkdtemp, readFile, readdir, realpath, rm } from "node:fs/promises";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import type { BrowserImportResult, BrowserImportSourceInfo } from "@/shared/ipc";
+import { relativePathInside } from "@/shared/pathContainment";
 import type { BrowserCredentialInput, BrowserCredentialStore } from "./BrowserCredentialStore";
 
 import {
@@ -679,8 +680,7 @@ async function isSafeDiscoveredDirectory(
 }
 
 function isPathInside(parent: string, child: string): boolean {
-  const childRelative = relative(resolve(parent), resolve(child));
-  return childRelative !== "" && childRelative !== ".." && !childRelative.startsWith(`..${sep}`);
+  return relativePathInside(resolve(parent), resolve(child)) !== undefined;
 }
 
 function isChromiumProfileDirectory(name: string): boolean {

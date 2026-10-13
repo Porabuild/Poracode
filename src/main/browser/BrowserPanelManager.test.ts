@@ -14,6 +14,7 @@ const stateStore = { get: () => null, set: () => {} };
 const browserTabHarness = vi.hoisted(() => ({
   attach: vi.fn<(webContents: unknown) => void>(),
   whenAttached: vi.fn<() => Promise<void>>(() => Promise.resolve()),
+  loadURL: vi.fn<(url: string) => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 vi.mock("electron", () => ({
@@ -101,6 +102,9 @@ vi.mock("./BrowserTab", () => ({
     whenAttached = browserTabHarness.whenAttached;
 
     async loadURL(url: string) {
+      await browserTabHarness.loadURL(url);
+      if (url.startsWith("javascript:")) throw new Error("Navigation blocked");
+      if (this.url === url) return;
       this.url = url;
       this.options.onUpdate(this.snapshot());
     }
@@ -356,6 +360,58 @@ describe("BrowserPanelManager", () => {
     expect(resolveWebContentsById).toHaveBeenCalledWith(99);
     expect(browserTabHarness.attach).toHaveBeenCalledWith(guestWebContents);
   });
+
+  it("publishes a same-URL return from an internal page after a blocked attempt", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0",
+      stateStore,
+    );
+    const tab = await manager.createTab({ url: "https://example.com/" }, { awaitAttach: false });
+    const states: ReturnType<typeof manager.snapshot>[] = [];
+    manager.addEventListener((event) => {
+      if (event.type === "state") states.push(event.state);
+    });
+    await manager.navigate(tab.tabId, "poracode://passwords");
+    await expect(manager.navigate(tab.tabId, "javascript:alert(1)")).rejects.toThrow(
+      "Navigation blocked",
+    );
+    expect(manager.snapshot().tabs[0]?.internalPage).toBe("passwords");
+    await manager.navigate(tab.tabId, "https://example.com/");
+    expect(states.at(-1)?.tabs[0]?.internalPage).toBeUndefined();
+    expect(states.at(-1)?.tabs[0]?.url).toBe("https://example.com/");
+    expect(states).toHaveLength(3);
+  });
+
+  it.each([false, true])(
+    "does not restore an older page after navigation or close: %s",
+    async (close) => {
+      const { BrowserPanelManager } = await import("./BrowserPanelManager");
+      const manager = new BrowserPanelManager(
+        { settingsPath: "settings.json" } as never,
+        "Mozilla/5.0",
+        stateStore,
+      );
+      const tab = await manager.createTab({ url: "https://example.com/" }, { awaitAttach: false });
+      await manager.navigate(tab.tabId, "poracode://passwords");
+      const navigation = Promise.withResolvers<void>();
+      browserTabHarness.loadURL.mockReturnValueOnce(navigation.promise);
+      const older = manager.navigate(tab.tabId, "https://other.test/");
+      if (close) await manager.closeTab(tab.tabId);
+      else await manager.navigate(tab.tabId, "poracode://downloads");
+      navigation.reject(new Error("ERR_ABORTED"));
+      await expect(older).rejects.toThrow("ERR_ABORTED");
+      expect(manager.snapshot().tabs.map((entry) => entry.internalPage)).toEqual(
+        close ? [] : ["downloads"],
+      );
+      expect(
+        (manager as unknown as { internalPages: Map<string, unknown> }).internalPages.get(
+          tab.tabId,
+        ),
+      ).toBe(close ? undefined : "downloads");
+    },
+  );
 
   it.each([
     ["poracode://downloads", "downloads"],

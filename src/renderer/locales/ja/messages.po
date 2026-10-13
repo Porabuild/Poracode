@@ -10832,7 +10832,7 @@ msgstr "このプロファイル専用のユーザー設定として Devin に�
 msgid "Password"
 msgstr "パスワード"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Password copied."
 msgstr "パスワードをコピーしました。"
 
@@ -16493,7 +16493,7 @@ msgstr "ペアリングトークンをコピーできません。"
 msgid "Unable to copy Tailscale URL."
 msgstr "Tailscale URL をコピーできませんでした。"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to copy the password."
 msgstr "パスワードをコピーできませんでした。"
 
@@ -16690,7 +16690,7 @@ msgstr "実験候補のコミットを解決できません"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "SSH 接続を復元できません。"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Unable to reveal the password."
 msgstr "パスワードを表示できませんでした。"
 

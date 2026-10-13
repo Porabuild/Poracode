@@ -56,13 +56,80 @@ describe("BrowserDeviceToolbar", () => {
     fireEvent.click(getByRole("button", { name: "Rotate viewport" }));
     expect(bridge.browserSetDeviceEmulation).toHaveBeenLastCalledWith({
       tabId: "tab-1",
-      emulation: { ...emulation, width: 970, height: 833 },
+      emulation: { ...emulation, width: 970, height: 500 },
     });
 
     fireEvent.click(getByRole("button", { name: "Close device toolbar" }));
     expect(bridge.browserSetDeviceEmulation).toHaveBeenLastCalledWith({
       tabId: "tab-1",
       emulation: null,
+    });
+  });
+
+  it("keeps the latest dimensions while an earlier host update arrives", () => {
+    const { getByRole } = render(<BrowserDeviceToolbar />);
+    const width = getByRole("spinbutton", { name: "Viewport width" });
+    fireEvent.change(width, { target: { value: "500" } });
+    fireEvent.blur(width);
+    fireEvent.click(getByRole("button", { name: "Rotate viewport" }));
+    act(() => {
+      useBrowserPanelStore.setState((state) => ({
+        tabs: state.tabs.map((tab) => ({ ...tab, deviceEmulation: { ...emulation, width: 500 } })),
+      }));
+    });
+    fireEvent.click(getByRole("button", { name: "Rotate viewport" }));
+    expect(bridge.browserSetDeviceEmulation).toHaveBeenLastCalledWith({
+      tabId: "tab-1",
+      emulation: { ...emulation, width: 500, height: 970 },
+    });
+  });
+
+  it("does not treat an older matching shape as the latest acknowledgment", async () => {
+    const latest = Promise.withResolvers<void>();
+    bridge.browserSetDeviceEmulation
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockReturnValueOnce(latest.promise);
+    const { getByRole } = render(<BrowserDeviceToolbar />);
+    const width = getByRole("spinbutton", { name: "Viewport width" });
+    fireEvent.change(width, { target: { value: "500" } });
+    fireEvent.blur(width);
+    fireEvent.click(getByRole("button", { name: "Rotate viewport" }));
+    fireEvent.click(getByRole("button", { name: "Rotate viewport" }));
+    for (const next of [
+      { ...emulation, width: 500 },
+      { ...emulation, width: 970, height: 500 },
+    ]) {
+      act(() =>
+        useBrowserPanelStore.setState((state) => ({
+          tabs: state.tabs.map((tab) => ({ ...tab, deviceEmulation: next })),
+        })),
+      );
+    }
+    fireEvent.click(getByRole("button", { name: "Rotate viewport" }));
+    expect(bridge.browserSetDeviceEmulation).toHaveBeenLastCalledWith({
+      tabId: "tab-1",
+      emulation: { ...emulation, width: 970, height: 500 },
+    });
+    await act(async () => latest.resolve());
+  });
+
+  it("keeps the edited dimensions when switching to Responsive before the host echo", async () => {
+    useBrowserPanelStore.setState((state) => ({
+      tabs: state.tabs.map((tab) => ({
+        ...tab,
+        deviceEmulation: { ...emulation, width: 1024, height: 768, preset: "Laptop" },
+      })),
+    }));
+    const { getByRole, findByRole } = render(<BrowserDeviceToolbar />);
+    const width = getByRole("spinbutton", { name: "Viewport width" });
+    fireEvent.change(width, { target: { value: "500" } });
+    fireEvent.blur(width);
+    fireEvent.click(getByRole("button", { name: /Device preset$/ }));
+    fireEvent.click(await findByRole("option", { name: "Responsive" }));
+    expect(bridge.browserSetDeviceEmulation).toHaveBeenLastCalledWith({
+      tabId: "tab-1",
+      emulation: { ...emulation, width: 500, height: 768 },
     });
   });
 

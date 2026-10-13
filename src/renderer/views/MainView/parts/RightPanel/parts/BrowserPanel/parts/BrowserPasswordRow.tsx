@@ -1,19 +1,70 @@
-import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
+import { useState } from "react";
+import { Button, Dropdown, Label, Tooltip, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Copy, Eye, EyeOff, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import type { BrowserCredentialInfo } from "@/shared/ipc";
+import { readBridge } from "@/renderer/bridge";
+import {
+  browserCredentialById,
+  useBrowserCredentialsStore,
+} from "@/renderer/state/browserCredentialsStore";
 
 export function BrowserPasswordRow(props: {
-  credential: BrowserCredentialInfo;
-  revealedPassword?: string;
-  isBusy: boolean;
-  onReveal: () => void;
-  onCopy: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  credentialId: string;
+  onEdit: (credentialId: string) => Promise<void>;
+  onDelete: (credentialId: string) => void;
 }) {
   const { t } = useLingui();
-  const { credential, revealedPassword, isBusy } = props;
+  const credential = useBrowserCredentialsStore((state) =>
+    browserCredentialById(state.credentials, props.credentialId),
+  );
+  const revision = useBrowserCredentialsStore((state) => state.revision);
+  const deleting = useBrowserCredentialsStore((state) => state.deletingId === props.credentialId);
+  const [busy, setBusy] = useState(false);
+  const [revealed, setRevealed] = useState<{ revision: number; password: string } | null>(null);
+  const revealedPassword = revealed?.revision === revision ? revealed.password : undefined;
+  const isBusy = busy || deleting;
+
+  async function revealPassword() {
+    if (revealedPassword !== undefined) {
+      setRevealed(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await readBridge().browserGetCredentialPassword({ id: props.credentialId });
+      if (useBrowserCredentialsStore.getState().revision === revision) {
+        setRevealed({ revision, password: result.password });
+      }
+    } catch {
+      toast.danger(t`Unable to reveal the password.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyPassword() {
+    setBusy(true);
+    try {
+      const result = await readBridge().browserGetCredentialPassword({ id: props.credentialId });
+      await navigator.clipboard.writeText(result.password);
+      toast.success(t`Password copied.`);
+    } catch {
+      toast.danger(t`Unable to copy the password.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function editCredential() {
+    setBusy(true);
+    try {
+      await props.onEdit(props.credentialId);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!credential) return null;
   const revealLabel = revealedPassword === undefined ? t`Reveal password` : t`Hide password`;
 
   return (
@@ -47,8 +98,8 @@ export function BrowserPasswordRow(props: {
             <Dropdown.Menu
               aria-label={t`Saved password actions`}
               onAction={(key) => {
-                if (key === "edit") props.onEdit();
-                else if (key === "delete") props.onDelete();
+                if (key === "edit") void editCredential();
+                else if (key === "delete") props.onDelete(props.credentialId);
               }}
             >
               <Dropdown.Item id="edit" textValue={t`Edit saved password`}>
@@ -82,7 +133,7 @@ export function BrowserPasswordRow(props: {
               className="size-7 min-w-7 rounded-full text-muted"
               isDisabled={isBusy}
               aria-label={revealLabel}
-              onPress={props.onReveal}
+              onPress={() => void revealPassword()}
             >
               {revealedPassword === undefined ? (
                 <Eye className="size-3.5" />
@@ -102,7 +153,7 @@ export function BrowserPasswordRow(props: {
               className="size-7 min-w-7 rounded-full text-muted"
               isDisabled={isBusy}
               aria-label={t`Copy password`}
-              onPress={props.onCopy}
+              onPress={() => void copyPassword()}
             >
               <Copy className="size-3.5" />
             </Button>

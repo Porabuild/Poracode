@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as secretStorage from "@/shared/secretStorage";
 
 const state = new Map<string, string>();
 const writes: string[] = [];
@@ -16,6 +17,7 @@ describe("BrowserCredentialStore", () => {
   beforeEach(() => {
     state.clear();
     writes.length = 0;
+    vi.restoreAllMocks();
   });
 
   it("normalizes HTTP(S) origins and rejects other protocols", () => {
@@ -129,6 +131,60 @@ describe("BrowserCredentialStore", () => {
       source: "chrome:Default",
     });
     expect(store.get(original.id)?.password).toBe("new");
+  });
+
+  it("indexes repeated imports and retains first-match order after explicit-ID edits", async () => {
+    const store = new BrowserCredentialStore(stateStore);
+    const first = await store.upsert({
+      origin: "https://a.test",
+      username: "a",
+      password: "first",
+    });
+    const second = await store.upsert({
+      origin: "https://b.test",
+      username: "b",
+      password: "second",
+    });
+    writes.length = 0;
+    const result = await store.upsertMany([
+      { id: first.id, origin: "https://b.test", username: "b", password: "moved" },
+      { origin: "https://b.test/login", username: "b", password: "replacement" },
+      { origin: "https://a.test", username: "a", password: "new" },
+      { origin: "https://a.test/login", username: "a", password: "newest" },
+    ]);
+    expect(result.failed).toBe(0);
+    expect(result.saved[1]?.id).toBe(first.id);
+    expect(result.saved[2]?.id).toBe(result.saved[3]?.id);
+    expect(store.get(first.id)?.password).toBe("replacement");
+    expect(store.get(second.id)?.password).toBe("second");
+    expect(store.list()).toHaveLength(3);
+    expect(writes).toHaveLength(1);
+  });
+
+  it("keeps existing metadata intact if sealing one batch edit fails", async () => {
+    const store = new BrowserCredentialStore(stateStore);
+    const first = await store.upsert({ origin: "https://a.test", username: "a", password: "old" });
+    const encrypt = secretStorage.encryptSecret;
+    vi.spyOn(secretStorage, "encryptSecret").mockImplementation((baseDir, value) => {
+      if (value.endsWith("encryption-failure-fixture")) throw new Error("Sealing failed");
+      return encrypt(baseDir, value);
+    });
+    const result = await store.upsertMany([
+      {
+        id: first.id,
+        origin: "https://moved.test",
+        username: "moved",
+        password: "encryption-failure-fixture",
+      },
+      { origin: "https://b.test", username: "b", password: "new" },
+    ]);
+    expect(result.failed).toBe(1);
+    expect(store.get(first.id)).toMatchObject({
+      origin: "https://a.test",
+      username: "a",
+      password: "old",
+    });
+    expect(new BrowserCredentialStore(stateStore).get(first.id)?.origin).toBe("https://a.test");
   });
 
   it("filters metadata by exact origin instead of parent or subdomains", async () => {

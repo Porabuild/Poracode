@@ -9,6 +9,7 @@ export function BrowserTabWebview(props: {
   initialSrc: string;
   visible: boolean;
   emulation?: BrowserDeviceEmulation;
+  previewDataUrl?: string;
 }) {
   const { t } = useLingui();
   const ref = useRef<HTMLWebViewElement | null>(null);
@@ -166,9 +167,20 @@ export function BrowserTabWebview(props: {
           // element attribute is serialized as a string.
           allowpopups={"true" as unknown as boolean}
           className="absolute inset-0 size-full"
-          style={{ pointerEvents: resizeDraft ? "none" : "auto" }}
+          style={{
+            pointerEvents: resizeDraft ? "none" : "auto",
+            visibility: props.previewDataUrl ? "hidden" : "visible",
+          }}
         />
-        {props.emulation ? (
+        {props.previewDataUrl ? (
+          <img
+            src={props.previewDataUrl}
+            alt=""
+            draggable={false}
+            className="pointer-events-none absolute inset-0 size-full object-cover object-left-top"
+          />
+        ) : null}
+        {props.emulation && !props.previewDataUrl ? (
           <>
             <button
               type="button"
