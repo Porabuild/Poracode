@@ -46,7 +46,6 @@ jobs:
           for name in \
             VERCEL_ORG_ID \
             VERCEL_PROJECT_ID \
-            PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS \
             PORACODE_MOBILE_APPLE_TEAM_ID; do
             if [ -z "${!name}" ]; then
               echo "Missing required landing-site configuration: $name" >&2
@@ -56,6 +55,12 @@ jobs:
           if [ -z "$VERCEL_TOKEN" ]; then
             echo "Missing mobile-web secret: VERCEL_TOKEN" >&2
             exit 1
+          fi
+          # Optional until Play App Signing exists: without the fingerprint
+          # secret, assetlinks.json serves [] and Android verified links stay
+          # disabled. Warn on every deploy instead of blocking the website.
+          if [ -z "$PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS" ]; then
+            echo "::warning title=Android App Links unconfigured::PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS is not set in the mobile-web environment; assetlinks.json will serve [] and Android verified links stay disabled until the Play signing fingerprint secret is added."
           fi
       - name: Install Vercel CLI
         run: npm install --global vercel@59.10.0
@@ -81,8 +86,12 @@ jobs:
         env:
           CANONICAL_ORIGIN: https://poracode.com
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
         run: |
           set -euo pipefail
+          if [ -z "$PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS" ]; then
+            echo "::warning title=Android App Links unconfigured::PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS is not set in the mobile-web environment; accepting the empty assetlinks.json until the Play signing fingerprint secret is added."
+          fi
           verify_documents() {
             local origin="$1"
             local suffix="$2"
@@ -97,15 +106,32 @@ jobs:
               "$origin/.well-known/apple-app-site-association$suffix" \
               --output "$association"
 
-            jq -e '
-              length > 0 and
-              (.[0].relation | index("delegate_permission/common.handle_all_urls") != null) and
-              .[0].target.namespace == "android_app" and
-              .[0].target.package_name == "com.lightcodeapp.mobile" and
-              (.[0].target.sha256_cert_fingerprints | length) > 0 and
-              all(.[0].target.sha256_cert_fingerprints[];
-                test("^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$"))
-            ' "$assetlinks" >/dev/null
+            # Strict once the fingerprint secret exists. Until then the
+            # route serves [], which is accepted alongside a valid document
+            # so the website can deploy while the warning above stays visible.
+            if [ -n "$PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS" ]; then
+              jq -e '
+                length > 0 and
+                (.[0].relation | index("delegate_permission/common.handle_all_urls") != null) and
+                .[0].target.namespace == "android_app" and
+                .[0].target.package_name == "com.lightcodeapp.mobile" and
+                (.[0].target.sha256_cert_fingerprints | length) > 0 and
+                all(.[0].target.sha256_cert_fingerprints[];
+                  test("^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$"))
+              ' "$assetlinks" >/dev/null
+            else
+              jq -e '
+                . == [] or (
+                  length > 0 and
+                  (.[0].relation | index("delegate_permission/common.handle_all_urls") != null) and
+                  .[0].target.namespace == "android_app" and
+                  .[0].target.package_name == "com.lightcodeapp.mobile" and
+                  (.[0].target.sha256_cert_fingerprints | length) > 0 and
+                  all(.[0].target.sha256_cert_fingerprints[];
+                    test("^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$"))
+                )
+              ' "$assetlinks" >/dev/null
+            fi
             jq -e '
               (.applinks.details | length) > 0 and
               all(.applinks.details[].appIDs[]; endswith(".com.lightcodeapp.mobile")) and

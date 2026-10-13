@@ -195,3 +195,103 @@ void test("each portable Swift contract suite is required, isolated, and cannot 
     await rm(temporary, { recursive: true, force: true });
   }
 });
+
+void test("website deploy tolerates a missing Play fingerprint but warns and stays strict once set", async () => {
+  const { jobs } = await load("deploy-website");
+  const validate = jobs.web.steps.find((step) => step.name === "Validate Vercel configuration");
+  assert.ok(validate);
+  const configured = {
+    VERCEL_ORG_ID: "team",
+    VERCEL_PROJECT_ID: "project",
+    VERCEL_TOKEN: "token",
+    PORACODE_MOBILE_APPLE_TEAM_ID: "TEAMID",
+    PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS:
+      "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
+  };
+  const runValidate = (overrides) =>
+    spawnSync("bash", ["-c", validate.run], {
+      env: { PATH: process.env.PATH, ...configured, ...overrides },
+      encoding: "utf8",
+    });
+  assert.equal(runValidate({}).status, 0);
+  const unconfigured = runValidate({ PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: "" });
+  assert.equal(unconfigured.status, 0, unconfigured.stderr);
+  assert.match(unconfigured.stdout, /::warning title=Android App Links unconfigured::/);
+  for (const name of ["VERCEL_ORG_ID", "VERCEL_PROJECT_ID", "PORACODE_MOBILE_APPLE_TEAM_ID"]) {
+    assert.equal(runValidate({ [name]: "" }).status, 1, name);
+  }
+  assert.equal(runValidate({ VERCEL_TOKEN: "" }).status, 1, "VERCEL_TOKEN");
+
+  const verify = jobs.web.steps.find(
+    (step) => step.name === "Verify native app-link association documents",
+  );
+  assert.ok(verify);
+  assert.equal(
+    verify.env.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS,
+    "${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}",
+  );
+  const mockCurl = `curl() {
+  local out="" url=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --output) out="$2"; shift 2;;
+      http*) url="$1"; shift;;
+      *) shift;;
+    esac
+  done
+  case "$url" in
+    *assetlinks*) printf '%s' "$FIXTURE_ASSETLINKS" > "$out";;
+    *) printf '%s' "$FIXTURE_AASA" > "$out";;
+  esac
+};\n`;
+  const validAssetLinks = JSON.stringify([
+    {
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: {
+        namespace: "android_app",
+        package_name: "com.lightcodeapp.mobile",
+        sha256_cert_fingerprints: [configured.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS],
+      },
+    },
+  ]);
+  const validAasa = JSON.stringify({
+    applinks: {
+      details: [
+        {
+          appIDs: ["TEAMID.com.lightcodeapp.mobile"],
+          components: [{ "/": "/" }, { "/": "/pair*" }, { "/": "/app*" }],
+        },
+      ],
+    },
+  });
+  await mkdir(new URL("../tmp/", import.meta.url), { recursive: true });
+  const temporary = await mkdtemp(
+    resolve(fileURLToPath(new URL("../tmp/", import.meta.url)), "website-gate-"),
+  );
+  try {
+    const runVerify = (fingerprints, assetLinks) =>
+      spawnSync("bash", ["-c", mockCurl + verify.run], {
+        env: {
+          PATH: process.env.PATH,
+          RUNNER_TEMP: temporary,
+          GITHUB_SHA: "test",
+          DEPLOYMENT_URL: "https://deployment.example",
+          CANONICAL_ORIGIN: "https://poracode.com",
+          PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: fingerprints,
+          FIXTURE_ASSETLINKS: assetLinks,
+          FIXTURE_AASA: validAasa,
+        },
+        encoding: "utf8",
+      });
+    const fingerprint = configured.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS;
+    assert.equal(runVerify(fingerprint, validAssetLinks).status, 0);
+    assert.notEqual(runVerify(fingerprint, "[]").status, 0, "configured secret must stay strict");
+    const degraded = runVerify("", "[]");
+    assert.equal(degraded.status, 0, degraded.stderr);
+    assert.match(degraded.stdout, /::warning title=Android App Links unconfigured::/);
+    assert.equal(runVerify("", validAssetLinks).status, 0, "a valid live document must not fail");
+    assert.notEqual(runVerify("", '[{"target":{}}]').status, 0, "malformed document must fail");
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
