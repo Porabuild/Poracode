@@ -126,9 +126,10 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
       headers: { authorization: `Bearer ${token}` },
     });
     expect(svgResponse.status).toBe(200);
-    expect(dbGetThreadRuntimeItem).toHaveBeenCalledWith("thread-1", "item-1", {
+    expect(dbGetThreadRuntimeItemCommitted).toHaveBeenCalledWith("thread-1", "item-1", {
       includeStreams: false,
     });
+    expect(dbGetThreadRuntimeItem).not.toHaveBeenCalled();
     expect(svgResponse.headers.get("content-type")).toBe("image/svg+xml");
     expect(svgResponse.headers.get("content-security-policy")).toBe("sandbox");
     expect(svgResponse.headers.get("x-content-type-options")).toBe("nosniff");
@@ -150,7 +151,7 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
     expect(pngResponse.headers.get("content-security-policy")).toBe("sandbox");
   });
 
-  it("waits for the canonical image fence before publishing hardened bytes", async () => {
+  it("waits for a live image's canonical commit before publishing hardened bytes", async () => {
     const server = createServer();
     const info = await server.start();
     const token = await issueToken(info);
@@ -158,6 +159,7 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
     const fenced = new Promise<unknown>((resolve) => {
       release = resolve;
     });
+    dbGetThreadRuntimeItemCommitted.mockReturnValue(null);
     dbGetThreadRuntimeItem.mockReturnValueOnce(fenced);
     const url = new URL("/api/threads/thread-1/items/live-image/image", info.httpBaseUrl);
     url.searchParams.set("path", JSON.stringify(["images", 0]));
@@ -173,7 +175,9 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
         }),
       );
       expect(responded).toBe(false);
-      expect(dbGetThreadRuntimeItemCommitted).not.toHaveBeenCalled();
+      expect(dbGetThreadRuntimeItemCommitted).toHaveBeenCalledWith("thread-1", "live-image", {
+        includeStreams: false,
+      });
     } finally {
       release({ payload: { images: [SVG_TEXT] } });
       await response;

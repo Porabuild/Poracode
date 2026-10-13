@@ -266,6 +266,13 @@ export class RuntimeThreadAccessScheduler {
     );
   }
 
+  /** Includes queued and executing mutations; read-only fences do not affect committed rows. */
+  hasPendingMutation(threadId: string): boolean {
+    return (this.queues.get(threadId) ?? []).some(
+      (entry) => entry.kind === "mutation" && !entry.settled,
+    );
+  }
+
   /** Whether the token still holds its thread (between grant and settle). */
   isFenceActive(token: RuntimeFenceToken): boolean {
     const entry = this.findFence(token);

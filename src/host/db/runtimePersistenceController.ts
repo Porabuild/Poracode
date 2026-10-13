@@ -909,6 +909,14 @@ export class RuntimePersistenceController {
     return this.queue.hasPending(threadId);
   }
 
+  /** Committed item reads may bypass read-only fences only while that item is unchanged. */
+  canReadCommittedItem(threadId: string, itemId: string): boolean {
+    return (
+      !this.queue.hasPendingItemWrite(threadId, itemId) &&
+      !this.fenceControl.hasPendingMutation(threadId)
+    );
+  }
+
   pendingThreadIds(): string[] {
     return this.queue.pendingThreadIds();
   }

@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
+import { runtimeRequestItemId } from "./runtimeRequestItemId";
 import { recordUsageSpentFromRuntimeEvents } from "@/host/profile/usageLedger";
 import { getSqlite } from "./connection";
 import { withRuntimeBusyTimeout } from "./runtimeBusyTimeout";
@@ -368,11 +369,6 @@ function applyRuntimeEventsInTransaction(
   // Same transaction: a usage failure rolls back the items above, and a
   // retry re-applies idempotently (cumulative counter / sample dedupe).
   recordUsageSpentFromRuntimeEvents(threadId, events);
-}
-
-/** Item id for a persisted open request, keyed by its request id. */
-export function runtimeRequestItemId(requestId: string): string {
-  return `${RUNTIME_REQUEST_ITEM_TYPE}:${requestId}`;
 }
 
 export function mergePayload(prev: unknown, next: unknown): unknown {
