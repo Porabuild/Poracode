@@ -34,8 +34,8 @@ export function refreshAgentDiscovery(wslDistros: string[]): void {
       setTimeout(() => {
         if (run === current) {
           baseline = undefined;
-          // The scan is over but its rows stay open — refreshed one by one or
-          // dismissed with Done; nothing here auto-hides the overlay.
+          // Completion leaves the rows open while the screen's Done countdown
+          // runs, with individual refreshes and immediate dismissal available.
           useAgentStatusesStore.setState({ discoveryScanning: false });
         }
       }, 1000);
@@ -57,7 +57,12 @@ export async function refreshDiscoveredAgent(
   groupKind?: string,
 ): Promise<void> {
   if (statuses.length === 0) return;
-  const { inFirstLaunchDiscovery, discoveryScope } = useAgentStatusesStore.getState();
+  const { inFirstLaunchDiscovery, discoveryScope, discoveryAutoHideCancelled } =
+    useAgentStatusesStore.getState();
+  // Manual refresh means the user is still reviewing the discovery results.
+  if (inFirstLaunchDiscovery && !discoveryAutoHideCancelled) {
+    useAgentStatusesStore.setState({ discoveryAutoHideCancelled: true });
+  }
   const discoveryRun = run;
   const envsByKind = new Map<string, Map<string, AgentEnv>>();
   const addEnv = (kind: string, status: AgentStatus) => {

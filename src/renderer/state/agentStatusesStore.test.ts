@@ -38,6 +38,7 @@ function reset() {
     wslLoaded: false,
     inFirstLaunchDiscovery: false,
     discoveryScanning: false,
+    discoveryAutoHideCancelled: false,
     discoveryScope: undefined,
     discoveredAgents: [],
   });
@@ -46,6 +47,14 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
+  it("does not persist manual discovery refresh cancellation", () => {
+    useAgentStatusesStore.setState({ discoveryAutoHideCancelled: true });
+    const persisted = useAgentStatusesStore.persist.getOptions().partialize!(
+      useAgentStatusesStore.getState(),
+    );
+    expect(persisted).not.toHaveProperty("discoveryAutoHideCancelled");
+  });
+
   it.each([36, 37, 43])(
     "invalidates v%i catalogs that omitted confirmed empty effort ladders",
     async (version) => {

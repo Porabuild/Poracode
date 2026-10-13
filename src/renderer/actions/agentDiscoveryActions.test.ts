@@ -34,6 +34,7 @@ beforeEach(() => {
     wslLoaded: false,
     inFirstLaunchDiscovery: false,
     discoveryScanning: false,
+    discoveryAutoHideCancelled: false,
     discoveryScope: undefined,
     discoveredAgents: [],
     discoveryHidden: false,

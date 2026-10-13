@@ -5272,7 +5272,7 @@ msgstr "완료"
 
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
-#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -5285,6 +5285,10 @@ msgstr "완료 · 귀하의 의견을 기다리는 중"
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Done ({doneCount})"
 msgstr "완료({doneCount})"
+
+#: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+msgid "Done ({remainingSeconds}s)"
+msgstr "완료 ({remainingSeconds}초)"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Download image"
