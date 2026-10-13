@@ -65,23 +65,27 @@ export const MINIMAX_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
 ];
 
 /** Canonical Kimi Code membership environment, per https://www.kimi.com/code/docs/en/third-party-tools/claude-code.html. */
-const KIMI_CODE_MODEL_ID = "k3[1m]";
-const KIMI_K3_EFFORTS = ["low", "high", "max", "ultracode"] as const;
+const KIMI_K3_MODEL_ID = "k3[1m]";
+// Kimi upgraded this stable alias in place; saved model IDs remain valid.
+// https://www.kimi.ai/help/kimi-code/models
+const KIMI_K28_MODEL_ID = "kimi-for-coding";
+const KIMI_HIGHSPEED_MODEL_ID = "kimi-for-coding-highspeed";
+const KIMI_TIERED_EFFORTS = ["low", "high", "max", "ultracode"] as const;
 const KIMI_CODE_MODELS = [
-  { id: KIMI_CODE_MODEL_ID, label: "Kimi K3 (1M)" },
-  { id: "kimi-for-coding", label: "Kimi K2.7 Code" },
-  { id: "kimi-for-coding-highspeed", label: "Kimi K2.7 Code HighSpeed" },
+  { id: KIMI_K3_MODEL_ID, label: "Kimi K3 (1M)" },
+  { id: KIMI_K28_MODEL_ID, label: "Kimi K2.8 Preview" },
+  { id: KIMI_HIGHSPEED_MODEL_ID, label: "Kimi K2.7 Code HighSpeed" },
 ] as const;
 
 export const KIMI_CODE_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "ANTHROPIC_BASE_URL", value: "https://api.kimi.com/coding/", sensitive: false },
   { key: "ANTHROPIC_API_KEY", value: "", sensitive: true },
-  { key: "ANTHROPIC_MODEL", value: KIMI_CODE_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_FABLE_MODEL", value: KIMI_CODE_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: KIMI_CODE_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: KIMI_CODE_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: KIMI_CODE_MODEL_ID, sensitive: false },
-  { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: KIMI_CODE_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_MODEL", value: KIMI_K28_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_FABLE_MODEL", value: KIMI_K3_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: KIMI_K28_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: KIMI_K28_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: KIMI_HIGHSPEED_MODEL_ID, sensitive: false },
+  { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: KIMI_K28_MODEL_ID, sensitive: false },
   { key: "CLAUDE_CODE_EFFORT_LEVEL", value: "high", sensitive: false },
   { key: "CLAUDE_CODE_AUTO_COMPACT_WINDOW", value: "1048576", sensitive: false },
   { key: "CLAUDE_CODE_MAX_CONTEXT_TOKENS", value: "1048576", sensitive: false },
@@ -195,13 +199,13 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
     label: msg`Kimi Code`,
     envRows: KIMI_CODE_PRESET_ROWS,
     models: KIMI_CODE_MODELS,
-    efforts: KIMI_K3_EFFORTS,
+    efforts: KIMI_TIERED_EFFORTS,
     defaultEffort: "high",
     modelEfforts: {
-      [KIMI_CODE_MODEL_ID]: KIMI_K3_EFFORTS,
-      // These aliases can resolve to K2.7 Code, whose thinking must stay on.
-      "kimi-for-coding": ["high"],
-      "kimi-for-coding-highspeed": ["high"],
+      [KIMI_K3_MODEL_ID]: KIMI_TIERED_EFFORTS,
+      [KIMI_K28_MODEL_ID]: KIMI_TIERED_EFFORTS,
+      // HighSpeed still serves K2.7 Code, whose thinking must stay on.
+      [KIMI_HIGHSPEED_MODEL_ID]: ["high"],
     },
     removeEnvKeys: ["ANTHROPIC_AUTH_TOKEN"],
     credentialAliases: { ANTHROPIC_API_KEY: ["ANTHROPIC_AUTH_TOKEN"] },
