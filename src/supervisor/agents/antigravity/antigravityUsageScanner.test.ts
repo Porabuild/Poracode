@@ -44,6 +44,7 @@ function deps(overrides: Partial<AntigravityUsageScannerDeps>): AntigravityUsage
   return {
     scanLanguageServer: async () => undefined,
     resolveAcpCredentials: async () => undefined,
+    confirmAcpCredentials: async () => {},
     invalidateAcpCredentials: async () => {},
     collectCloudUsage: async () => SNAPSHOT,
     ...overrides,
@@ -94,6 +95,9 @@ describe("scanAntigravityUsage", () => {
     const invalidateAcpCredentials = vi.fn<AntigravityUsageScannerDeps["invalidateAcpCredentials"]>(
       async () => {},
     );
+    const confirmAcpCredentials = vi.fn<AntigravityUsageScannerDeps["confirmAcpCredentials"]>(
+      async () => {},
+    );
     await scanAntigravityUsage(
       NOW,
       [],
@@ -107,22 +111,32 @@ describe("scanAntigravityUsage", () => {
           fetchedAt: NOW,
         }),
         invalidateAcpCredentials,
+        confirmAcpCredentials,
       }),
     );
     expect(invalidateAcpCredentials).toHaveBeenCalledExactlyOnceWith(HOST, CREDENTIALS);
+    expect(confirmAcpCredentials).not.toHaveBeenCalled();
   });
 
-  it("keeps the cached credentials while Cloud Code answers", async () => {
+  it("keeps and confirms the cached credentials while Cloud Code answers", async () => {
     const invalidateAcpCredentials = vi.fn<AntigravityUsageScannerDeps["invalidateAcpCredentials"]>(
+      async () => {},
+    );
+    const confirmAcpCredentials = vi.fn<AntigravityUsageScannerDeps["confirmAcpCredentials"]>(
       async () => {},
     );
     await scanAntigravityUsage(
       NOW,
       [],
       HOST,
-      deps({ resolveAcpCredentials: async () => CREDENTIALS, invalidateAcpCredentials }),
+      deps({
+        resolveAcpCredentials: async () => CREDENTIALS,
+        invalidateAcpCredentials,
+        confirmAcpCredentials,
+      }),
     );
     expect(invalidateAcpCredentials).not.toHaveBeenCalled();
+    expect(confirmAcpCredentials).toHaveBeenCalledExactlyOnceWith(HOST, CREDENTIALS);
   });
 
   it("loads and invalidates durable credentials through the default scanner path", async () => {

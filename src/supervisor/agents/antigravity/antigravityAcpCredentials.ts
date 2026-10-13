@@ -24,8 +24,14 @@ export interface AntigravityAcpCredentials {
   clientId: string;
   clientSecret: string;
   refreshToken: string;
-  /** Non-secret source identity, present only on a granted macOS Keychain read. */
+  /**
+   * Last confirmed non-secret identity of the macOS Keychain source item.
+   * `agy_acp_server` delete+adds that item on every start, so a newer
+   * fingerprint alone means a recreated item, not a different account.
+   */
   keychainFingerprint?: string;
+  /** True when read from the macOS Keychain item, rather than a file source. */
+  fromKeychain?: boolean;
 }
 
 interface AntigravityAcpCredentialFile {
@@ -119,9 +125,11 @@ export async function resolveAntigravityAcpCredentials(
   if (keychainCredentials) {
     const after = await deps.readKeychainFingerprint?.().catch(() => undefined);
     // The item may be replaced while its password dialog is open. Never bind
-    // the previous account's token to the replacement's identity.
+    // the previous account's token to the replacement's identity; the grant
+    // stays unbound until the credential cache confirms it against the API.
     return {
       ...keychainCredentials,
+      fromKeychain: true,
       ...(before && before === after ? { keychainFingerprint: before } : {}),
     };
   }

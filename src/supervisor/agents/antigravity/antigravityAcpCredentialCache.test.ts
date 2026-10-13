@@ -152,7 +152,35 @@ describe("Antigravity ACP credential cache", () => {
     await expect(cache.resolve()).resolves.toEqual(CREDENTIALS);
   });
 
-  it("reimports a replaced Keychain item instead of reusing another account after restart", async () => {
+  it("reuses a saved grant when the Keychain item was recreated, without rereading the password", async () => {
+    await createCache(async () => CREDENTIALS).resolve();
+    // agy_acp_server delete+adds its item on every start, so the recreated
+    // item carries fresh creation/modification dates (and a reset ACL that
+    // no longer trusts the reader). Rereading the password would re-prompt.
+    readKeychainFingerprint.mockResolvedValue("recreated-source");
+    const resolveCredentials = vi.fn<ResolveCredentials>(async () => undefined);
+    await expect(createCache(resolveCredentials).resolve()).resolves.toEqual(CREDENTIALS);
+    expect(resolveCredentials).not.toHaveBeenCalled();
+  });
+
+  it("adopts the recreated item fingerprint once the reused grant is confirmed", async () => {
+    await createCache(async () => CREDENTIALS).resolve();
+    readKeychainFingerprint.mockResolvedValue("recreated-source");
+    const resolveCredentials = vi.fn<ResolveCredentials>(async () => undefined);
+    const restarted = createCache(resolveCredentials);
+    const restored = await restarted.resolve();
+    await restarted.confirm(restored!);
+    const saved = JSON.parse(getUsageSecret(cacheDir, "antigravity", "acp-credentials-v1")!) as {
+      keychainFingerprint?: string;
+    };
+    expect(saved.keychainFingerprint).toBe("recreated-source");
+    const adopted = { ...CREDENTIALS, keychainFingerprint: "recreated-source" };
+    await expect(restarted.resolve()).resolves.toEqual(adopted);
+    await expect(createCache(resolveCredentials).resolve()).resolves.toEqual(adopted);
+    expect(resolveCredentials).not.toHaveBeenCalled();
+  });
+
+  it("reimports after a reused grant is rejected, e.g. an account switch replaced the item", async () => {
     await createCache(async () => CREDENTIALS).resolve();
     const replacement = {
       ...CREDENTIALS,
@@ -161,8 +189,20 @@ describe("Antigravity ACP credential cache", () => {
     };
     readKeychainFingerprint.mockResolvedValue(replacement.keychainFingerprint);
     const resolveCredentials = vi.fn<ResolveCredentials>(async () => replacement);
-    await expect(createCache(resolveCredentials).resolve()).resolves.toEqual(replacement);
+    const restarted = createCache(resolveCredentials);
+    const reused = await restarted.resolve();
+    expect(reused).toEqual(CREDENTIALS);
+    await restarted.invalidate(reused!);
+    await expect(restarted.resolve()).resolves.toEqual(replacement);
     expect(resolveCredentials).toHaveBeenCalledOnce();
+  });
+
+  it("never persists file credentials on confirm", async () => {
+    const { keychainFingerprint: _fingerprint, ...fileCredentials } = CREDENTIALS;
+    const cache = createCache(async () => fileCredentials);
+    const resolved = await cache.resolve();
+    await cache.confirm(resolved!);
+    expect(store.setSecret).not.toHaveBeenCalled();
   });
 
   it("does not restore a grant when its Keychain source was removed", async () => {
