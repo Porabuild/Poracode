@@ -1,3 +1,4 @@
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { create } from "zustand";
 import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -174,10 +175,11 @@ interface PanelState {
   settingsOpen: boolean;
   /** When the overlay is opened deep-linked to a section (e.g. "usage"); else null. */
   settingsSection: string | null;
+  /** Optional setting row to scroll to after opening a deep-linked section. */
+  settingsAnchor: string | null;
   projectSettingsId: string | null;
   threadSortMode: ThreadSortMode;
   threadListLayout: ThreadListLayout;
-  threadSearchOpen: boolean;
   /** Whether the "Start from scratch" create-project modal is open. */
   createProjectModalOpen: boolean;
   /** Whether the "Clone a repository" modal is open. */
@@ -217,13 +219,11 @@ interface PanelState {
   setBrowserOverlayDrawerWidth: (v: number) => void;
   openBrowserPanel: () => void;
   openSettings: () => void;
-  openSettingsSection: (section: string) => void;
+  openSettingsSection: (section: string, anchor?: string) => void;
   clearSettingsSection: () => void;
   closeSettings: () => void;
   openProjectSettings: (projectId: string) => void;
   closeProjectSettings: () => void;
-  openThreadSearch: () => void;
-  closeThreadSearch: () => void;
   openCreateProjectModal: () => void;
   closeCreateProjectModal: () => void;
   openCloneProjectModal: () => void;
@@ -359,10 +359,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
   ),
   settingsOpen: false,
   settingsSection: null,
+  settingsAnchor: null,
   projectSettingsId: null,
   threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
   threadListLayout: sanitizeThreadListLayout(initialPersisted?.threadListLayout),
-  threadSearchOpen: false,
   createProjectModalOpen: false,
   cloneProjectModalOpen: false,
   mobileUtilityPage: null,
@@ -632,23 +632,43 @@ export const usePanelStore = create<PanelState>()((set) => ({
   setThreadListLayout: (layout) =>
     set((state) => (state.threadListLayout === layout ? {} : { threadListLayout: layout })),
   openSettings: () =>
-    set((state) =>
-      isCompactLayoutViewport()
-        ? state.mobileUtilityPage === "settings" && state.settingsSection === null
-          ? {}
-          : { settingsOpen: false, settingsSection: null, mobileUtilityPage: "settings" as const }
-        : state.settingsOpen && state.settingsSection === null
-          ? {}
-          : { settingsOpen: true, settingsSection: null },
-    ),
-  openSettingsSection: (section) =>
-    set(
-      isCompactLayoutViewport()
-        ? { settingsOpen: false, settingsSection: section, mobileUtilityPage: "settings" as const }
-        : { settingsOpen: true, settingsSection: section },
-    ),
+    set((state) => {
+      const compact = isCompactLayoutViewport();
+      if (
+        state.settingsSection === null &&
+        state.settingsAnchor === null &&
+        (compact ? state.mobileUtilityPage === "settings" : state.settingsOpen)
+      )
+        return {};
+      return {
+        settingsOpen: !compact,
+        settingsSection: null,
+        settingsAnchor: null,
+        ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
+      };
+    }),
+  openSettingsSection: (section, anchor) =>
+    set((state) => {
+      const compact = isCompactLayoutViewport();
+      if (
+        state.settingsSection === section &&
+        state.settingsAnchor === (anchor ?? null) &&
+        (compact ? state.mobileUtilityPage === "settings" : state.settingsOpen)
+      )
+        return {};
+      return {
+        settingsOpen: !compact,
+        settingsSection: section,
+        settingsAnchor: anchor ?? null,
+        ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
+      };
+    }),
   clearSettingsSection: () =>
-    set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
+    set((state) =>
+      state.settingsSection === null && state.settingsAnchor === null
+        ? {}
+        : { settingsSection: null, settingsAnchor: null },
+    ),
   closeSettings: () =>
     set((state) => ({
       ...(state.settingsOpen ? { settingsOpen: false } : {}),
@@ -673,10 +693,6 @@ export const usePanelStore = create<PanelState>()((set) => ({
       ...(state.projectSettingsId !== null ? { projectSettingsId: null } : {}),
       ...(state.mobileUtilityPage === "projectSettings" ? { mobileUtilityPage: null } : {}),
     })),
-  openThreadSearch: () =>
-    set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
-  closeThreadSearch: () =>
-    set((state) => (state.threadSearchOpen ? { threadSearchOpen: false } : {})),
   openCreateProjectModal: () =>
     set((state) => (state.createProjectModalOpen ? {} : { createProjectModalOpen: true })),
   closeCreateProjectModal: () =>
@@ -781,7 +797,7 @@ export function selectAnyObstructingOverlayOpen(): boolean {
     p.gitOverlayOpen ||
     p.prReviewContext !== null ||
     p.githubActionsContext !== null ||
-    p.threadSearchOpen
+    useCommandPaletteStore.getState().isOpen
   ) {
     return true;
   }

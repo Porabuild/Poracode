@@ -36,6 +36,7 @@ import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/enviro
 import {
   DEFAULT_KEYBINDINGS,
   keybindingsFileSchema,
+  migrateThreadSearchCommand,
   type KeybindingsConfig,
   type KeybindingsFile,
 } from "@/shared/keybindings";
@@ -77,7 +78,13 @@ function getBrowserKeybindings(): KeybindingsConfig {
   let file = DEFAULT_KEYBINDINGS;
   try {
     const stored = window.localStorage.getItem(BROWSER_KEYBINDINGS_STORAGE_KEY);
-    if (stored) file = keybindingsFileSchema.parse(JSON.parse(stored));
+    if (stored) {
+      const parsed = keybindingsFileSchema.parse(JSON.parse(stored));
+      file = migrateThreadSearchCommand(parsed);
+      if (file !== parsed) {
+        window.localStorage.setItem(BROWSER_KEYBINDINGS_STORAGE_KEY, JSON.stringify(file));
+      }
+    }
   } catch {
     // Keep the defaults when browser storage is unavailable or malformed.
   }

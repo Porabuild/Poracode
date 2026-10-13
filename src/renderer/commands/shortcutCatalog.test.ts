@@ -361,10 +361,11 @@ describe("shortcut catalog", () => {
       translate,
     );
 
-    // `terminal.toggle` (group "Terminal") and `thread.search.open` (group
-    // "Thread", no `when`) categorize purely off their group token.
+    // `terminal.toggle` is terminal-scoped by its group, while the unified
+    // search command is global and the legacy thread-search alias stays hidden.
     expect(rows.find((row) => row.id === "terminal.toggle")?.contexts).toContain("terminal");
-    expect(rows.find((row) => row.id === "thread.search.open")?.contexts).toContain("thread");
+    expect(rows.find((row) => row.id === "palette.open")?.contexts).toContain("global");
+    expect(rows.find((row) => row.id === "thread.search.open")).toBeUndefined();
   });
 
   it("does not show conflicting shortcuts inside a context", () => {

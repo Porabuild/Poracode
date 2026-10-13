@@ -12,6 +12,7 @@
  */
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -76,6 +77,7 @@ export function installDevBridge(): void {
       update: useUpdateStore,
       app: useAppStore,
       agentStatuses: useAgentStatusesStore,
+      commandPalette: useCommandPaletteStore,
       panel: usePanelStore,
       sidebarUi: useSidebarUiStore,
       sharedSettings: useSharedSettings,
@@ -95,6 +97,7 @@ export function installDevBridge(): void {
     /** Reset transient driven state to a clean baseline — call before teardown. */
     reset: () => {
       clearFolderSelectionFixture();
+      useCommandPaletteStore.getState().close();
       const app = useAppStore.getState();
       useAppStore.setState({
         draftContents: {},
@@ -117,7 +120,8 @@ export function installDevBridge(): void {
         notesPanelOpen: false,
         settingsOpen: false,
         projectSettingsId: null,
-        threadSearchOpen: false,
+        settingsSection: null,
+        settingsAnchor: null,
         createProjectModalOpen: false,
         cloneProjectModalOpen: false,
         gitOverlayOpen: false,

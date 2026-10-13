@@ -959,6 +959,7 @@ msgstr "Hành động dành cho nút loại bỏ nhanh trên các chuỗi thanh 
 msgid "Action name"
 msgstr "Tên hành động"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
@@ -1378,6 +1379,7 @@ msgstr "Nhà cung cấp AI"
 msgid "Alerts when threads need you"
 msgstr "Cảnh báo khi luồng cần bạn"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -3170,7 +3172,7 @@ msgstr "Đóng chi tiết lượt chạy"
 msgid "Close scanner"
 msgstr "Đóng trình quét"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Close search"
 msgstr "Đóng tìm kiếm"
 
@@ -3375,8 +3377,6 @@ msgstr "Thu gọn cảnh báo"
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "Các mục chủ/số tên phân tách bằng dấu phẩy, ví dụ acme/website, acme/api. Danh sách được gửi tới Devin chính xác như đã nhập."
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Lệnh"
@@ -6151,9 +6151,19 @@ msgstr "Các thay đổi về tập tin sẽ xuất hiện ở đây."
 msgid "File is too large to preview."
 msgstr "Tệp quá lớn để xem trước."
 
+#. placeholder {0}: activeProject.name
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File names in {0}"
+msgstr "Tên tệp trong {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "Tệp không còn tồn tại trên đĩa."
+
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "File search unavailable"
+msgstr "Không thể tìm kiếm tệp"
 
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
@@ -6167,6 +6177,7 @@ msgstr "Tệp quá lớn để hiển thị ({0, plural, one {# dòng đã thay 
 msgid "File uses an unsupported encoding."
 msgstr "Tệp sử dụng mã hóa không được hỗ trợ."
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -6199,6 +6210,10 @@ msgstr "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Fill in all required workflow inputs."
 msgstr "Điền tất cả đầu vào workflow bắt buộc."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Filter"
+msgstr "Lọc"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
@@ -8840,6 +8855,11 @@ msgstr "Di chuyển ngăn"
 msgid "Move panel"
 msgstr "Di chuyển bảng điều khiển"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "Di chuyển luồng {0}"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "Chuyển sang cây làm việc sạch"
@@ -8967,6 +8987,10 @@ msgstr "Hỗ trợ bản địa"
 #: src/renderer/utils/projectIcons.ts
 msgid "Nature & weather"
 msgstr "Thiên nhiên và thời tiết"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Navigate"
+msgstr "Điều hướng"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
@@ -9339,8 +9363,8 @@ msgid "No checks reported for this PR."
 msgstr "Không có kiểm tra nào được báo cáo cho PR này."
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "Không tìm thấy lệnh nào"
+#~ msgid "No commands found"
+#~ msgstr "Không tìm thấy lệnh nào"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -9496,8 +9520,8 @@ msgstr "Không có lịch phù hợp."
 #~ msgstr "Không có tác vụ phù hợp."
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No matching threads"
-msgstr "Không có luồng nào phù hợp"
+#~ msgid "No matching threads"
+#~ msgstr "Không có luồng nào phù hợp"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -9635,6 +9659,7 @@ msgstr "Không có kho lưu trữ"
 msgid "No repositories found."
 msgstr "Không tìm thấy kho lưu trữ nào."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9716,8 +9741,8 @@ msgstr "Không có thẻ — mục này sẽ không còn ảnh hưởng đến �
 #~ msgstr "Chưa chọn luồng"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "Không có luồng nào"
+#~ msgid "No threads"
+#~ msgstr "Không có luồng nào"
 
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "No threads in this project"
@@ -9959,6 +9984,7 @@ msgstr "Chỉ khi không tập trung"
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Chỉ có thể khởi chạy thủ công các quy trình có trình kích hoạt workflow_dispatch."
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -10027,8 +10053,8 @@ msgid "Open check"
 msgstr "Mở kiểm tra"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "Mở bảng lệnh"
+#~ msgid "Open Command Palette"
+#~ msgstr "Mở bảng lệnh"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -12432,6 +12458,7 @@ msgid "Resume queued follow-ups"
 msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -13070,6 +13097,8 @@ msgstr "Chưa cài SDK"
 #~ msgid "SDK package path (optional)"
 #~ msgstr "Đường dẫn gói SDK (không bắt buộc)"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -13095,6 +13124,10 @@ msgstr "Tìm kiếm tác nhân..."
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Search branches..."
 msgstr "Tìm kiếm nhánh..."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search categories"
+msgstr "Danh mục tìm kiếm"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
@@ -13157,6 +13190,10 @@ msgstr "Tìm kiếm kho lưu trữ"
 msgid "Search repositories…"
 msgstr "Tìm kiếm kho lưu trữ…"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Search results"
+msgstr "Kết quả tìm kiếm"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Tìm kiếm các mục thời gian chạy…"
@@ -13194,20 +13231,28 @@ msgid "Search the current view"
 msgstr "Tìm kiếm trong chế độ xem hiện tại"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "Search threads"
-msgstr "Tìm kiếm luồng"
+#~ msgid "Search threads"
+#~ msgstr "Tìm kiếm luồng"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "Tìm kiếm luồng"
+#~ msgid "Search Threads"
+#~ msgstr "Tìm kiếm luồng"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search threads, commands, settings, and files…"
+msgstr "Tìm luồng, lệnh, cài đặt và tệp…"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "Tìm trong tiêu đề, tin nhắn và thư mục"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "Search…"
-msgstr "Tìm kiếm…"
+#~ msgid "Search…"
+#~ msgstr "Tìm kiếm…"
+
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Searching files…"
+msgstr "Đang tìm tệp…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -13258,6 +13303,10 @@ msgstr "Chọn một tập tin để bắt đầu chỉnh sửa."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Select a project to scan project MCP servers."
 #~ msgstr "Chọn một dự án để quét các máy chủ MCP của dự án."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Select a project to search files"
+msgstr "Chọn dự án để tìm kiếm tệp"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select a repository."
@@ -13461,6 +13510,8 @@ msgstr "Được cố định khi phiên này bắt đầu — hãy tạo luồn
 #~ msgid "Setting"
 #~ msgstr "Cài đặt"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -13642,6 +13693,7 @@ msgstr "Hiển thị ít hơn"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "Hiện máy chủ MCP từ {providerLabel}"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
@@ -13726,6 +13778,10 @@ msgstr "Hiển thị nút nhập bằng giọng nói"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Đang hiển thị {0, plural, other {# skill}}"
+
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
+msgstr "Hiển thị {CATEGORY_RESULT_LIMIT} kết quả đầu tiên. Hãy thu hẹp tìm kiếm."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -15802,10 +15858,10 @@ msgstr "Không tìm thấy luồng"
 msgid "Thread todo dock"
 msgstr "Dock việc cần làm của luồng"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "luồng"
 
@@ -15992,6 +16048,10 @@ msgstr "Trình kích hoạt:"
 #~ msgid "Try a different search or project filter."
 #~ msgstr "Thử cụm tìm kiếm hoặc bộ lọc dự án khác."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Try different keywords or choose a category."
+msgstr "Thử từ khóa khác hoặc chọn một danh mục."
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Try now"
 msgstr "Dùng thử"
@@ -16019,8 +16079,8 @@ msgid "Type"
 msgstr "Loại"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "Nhập lệnh"
+#~ msgid "Type a command"
+#~ msgstr "Nhập lệnh"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
@@ -16029,6 +16089,10 @@ msgstr "Nhập lệnh"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "Nhập vào trang (chạm vào trường trước)"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "Nhập để tìm kiếm tệp"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

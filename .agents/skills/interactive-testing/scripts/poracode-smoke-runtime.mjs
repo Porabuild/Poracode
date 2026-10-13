@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import {
   assertWithin,
@@ -173,6 +173,14 @@ export async function verifySmokeRuntime(runtime, root) {
 }
 
 export function smokeElectronLaunch(runtime, userDataDir, env) {
+  // Chromium writes caches during startup, while a seeded legacy host root
+  // must stay stable through its integrity-checked promotion.
+  if (env?.PORACODE_BASE_DIR) {
+    const profile = relative(resolve(env.PORACODE_BASE_DIR), resolve(userDataDir));
+    if (!profile || (profile !== ".." && !profile.startsWith(`..${sep}`) && !isAbsolute(profile))) {
+      throw new Error("Smoke Chromium userData must be outside the host data root.");
+    }
+  }
   const require = createRequire(join(runtime.appRoot, "package.json"));
   const electronRoot = dirname(require.resolve("electron/package.json"));
   const electronPath = join(
@@ -196,7 +204,7 @@ export function smokeElectronLaunch(runtime, userDataDir, env) {
     args,
     options: {
       cwd: runtime.appRoot,
-      env: smokeRuntimeEnvironment(env),
+      env: smokeRuntimeEnvironment({ ...env, PORACODE_CDP_USER_DATA_DIR: userDataDir }),
       detached: process.platform !== "win32",
       windowsHide: process.platform === "win32",
       stdio: "inherit",

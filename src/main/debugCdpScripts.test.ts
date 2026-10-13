@@ -70,12 +70,18 @@ describe("managed CDP scripts", () => {
   });
 
   it("sets Electron userData before the isolated Windows identity is resolved", async () => {
-    const [runnerSource, devLaunchSource] = await Promise.all([
+    const [runnerSource, devLaunchSource, runtimeSource] = await Promise.all([
       readFile(runnerScript, "utf8"),
       readFile(join(repoRoot, "scripts/dev-launch.mjs"), "utf8"),
+      readFile(
+        join(repoRoot, ".agents/skills/interactive-testing/scripts/poracode-smoke-runtime.mjs"),
+        "utf8",
+      ),
     ]);
 
-    expect(runnerSource).toContain('PORACODE_CDP_USER_DATA_DIR: join(dataDir, "userData")');
+    expect(runnerSource).toContain('const userDataDir = join(root, "userData")');
+    expect(runnerSource).toContain("smokeElectronLaunch(runtime, userDataDir");
+    expect(runtimeSource).toContain("PORACODE_CDP_USER_DATA_DIR: userDataDir");
     expect(devLaunchSource).toContain("`--user-data-dir=${cdpUserDataDir}`");
     expect(devLaunchSource).toContain("const app = spawn(electronPath");
     expect(devLaunchSource).toContain('windowsHide: process.platform === "win32"');

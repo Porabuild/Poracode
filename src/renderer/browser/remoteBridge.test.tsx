@@ -212,6 +212,59 @@ describe("remote bridge", () => {
     });
   });
 
+  it("migrates saved browser thread-search chords and removals into editable Search bindings", async () => {
+    const storageKey = "poracode.browser.keybindings.v1";
+    const custom = {
+      command: "thread.search.open",
+      key: "Ctrl+Alt+G",
+      mac: "Meta+Alt+G",
+      windows: "Ctrl+Shift+G",
+      linux: "Ctrl+Alt+Shift+G",
+      when: "hasProject",
+      args: { source: "custom" },
+    };
+    const unrelated = { command: "settings.open", key: "Ctrl+Alt+," };
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        version: 1,
+        keybindings: [custom, { command: "thread.search.open" }, unrelated],
+      }),
+    );
+    try {
+      installRemoteBridge();
+      const migrated = {
+        version: 1 as const,
+        keybindings: [
+          { ...custom, command: "palette.open" },
+          { command: "palette.open" },
+          unrelated,
+        ],
+      };
+      await expect(window.poracode.getKeybindings()).resolves.toMatchObject({ file: migrated });
+      expect(JSON.parse(window.localStorage.getItem(storageKey)!)).toEqual(migrated);
+      await window.poracode.setKeybindings({ version: 1, keybindings: [unrelated] });
+      await expect(window.poracode.getKeybindings()).resolves.toMatchObject({
+        file: { version: 1, keybindings: [unrelated] },
+      });
+    } finally {
+      window.localStorage.removeItem(storageKey);
+    }
+  });
+
+  it("preserves an unknown future browser keymap instead of migrating its bytes", async () => {
+    const storageKey = "poracode.browser.keybindings.v1";
+    const future = JSON.stringify({ version: 2, keybindings: [{ command: "thread.search.open" }] });
+    window.localStorage.setItem(storageKey, future);
+    try {
+      installRemoteBridge();
+      await window.poracode.getKeybindings();
+      expect(window.localStorage.getItem(storageKey)).toBe(future);
+    } finally {
+      window.localStorage.removeItem(storageKey);
+    }
+  });
+
   it("defers startup schedule reads until the paired client is ready", async () => {
     const schedules = vi.fn<RemoteDesktopClient["schedules"]>(async () => []);
     installRemoteBridge();

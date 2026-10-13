@@ -964,6 +964,7 @@ msgstr "Action for the quick-remove button on sidebar threads."
 msgid "Action name"
 msgstr "Action name"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
@@ -1383,6 +1384,7 @@ msgstr "AI providers"
 msgid "Alerts when threads need you"
 msgstr "Alerts when threads need you"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -3179,7 +3181,7 @@ msgstr "Close run details"
 msgid "Close scanner"
 msgstr "Close scanner"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+#: src/renderer/commands/CommandPalette.tsx
 msgid "Close search"
 msgstr "Close search"
 
@@ -3384,8 +3386,6 @@ msgstr "Collapse warning"
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 
-#. Accessible label for the command palette search input
-#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Command"
@@ -6160,9 +6160,19 @@ msgstr "File changes will appear here."
 msgid "File is too large to preview."
 msgstr "File is too large to preview."
 
+#. placeholder {0}: activeProject.name
+#: src/renderer/commands/CommandPalette.tsx
+msgid "File names in {0}"
+msgstr "File names in {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "File no longer exists on disk."
+
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "File search unavailable"
+msgstr "File search unavailable"
 
 #. placeholder {0}: entry.insertions + entry.deletions
 #. placeholder {0}: file.insertions + file.deletions
@@ -6176,6 +6186,7 @@ msgstr "File too large to display ({0, plural, one {# line changed} other {# lin
 msgid "File uses an unsupported encoding."
 msgstr "File uses an unsupported encoding."
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -6208,6 +6219,10 @@ msgstr "Files matching these globs are hidden from the @file mention search."
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Fill in all required workflow inputs."
 msgstr "Fill in all required workflow inputs."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Filter"
+msgstr "Filter"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "Filter by project"
@@ -8849,6 +8864,11 @@ msgstr "Move pane"
 msgid "Move panel"
 msgstr "Move panel"
 
+#. placeholder {0}: props.thread.title
+#: src/renderer/commands/EverythingSearchResultRow.tsx
+msgid "Move thread {0}"
+msgstr "Move thread {0}"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "Move to clean worktree"
@@ -8976,6 +8996,10 @@ msgstr "Native support"
 #: src/renderer/utils/projectIcons.ts
 msgid "Nature & weather"
 msgstr "Nature & weather"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Navigate"
+msgstr "Navigate"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Navigate, inspect, and test pages with the in-app Browser MCP."
@@ -9348,8 +9372,8 @@ msgid "No checks reported for this PR."
 msgstr "No checks reported for this PR."
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "No commands found"
-msgstr "No commands found"
+#~ msgid "No commands found"
+#~ msgstr "No commands found"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "No commits found."
@@ -9505,8 +9529,8 @@ msgstr "No matching schedules."
 #~ msgstr "No matching tasks."
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No matching threads"
-msgstr "No matching threads"
+#~ msgid "No matching threads"
+#~ msgstr "No matching threads"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -9644,6 +9668,7 @@ msgstr "No repositories"
 msgid "No repositories found."
 msgstr "No repositories found."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -9725,8 +9750,8 @@ msgstr "No tags — the entry stops influencing tag affinity."
 #~ msgstr "No thread selected"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "No threads"
-msgstr "No threads"
+#~ msgid "No threads"
+#~ msgstr "No threads"
 
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "No threads in this project"
@@ -9968,6 +9993,7 @@ msgstr "Only when unfocused"
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Only workflows with a workflow_dispatch trigger can be started manually."
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -10036,8 +10062,8 @@ msgid "Open check"
 msgstr "Open check"
 
 #: src/renderer/commands/registry.ts
-msgid "Open Command Palette"
-msgstr "Open Command Palette"
+#~ msgid "Open Command Palette"
+#~ msgstr "Open Command Palette"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "Open commit on GitHub"
@@ -12441,6 +12467,7 @@ msgid "Resume queued follow-ups"
 msgstr "Resume queued follow-ups"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -13079,6 +13106,8 @@ msgstr "SDK not installed"
 #~ msgid "SDK package path (optional)"
 #~ msgstr "SDK package path (optional)"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/registry.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -13104,6 +13133,10 @@ msgstr "Search agents..."
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Search branches..."
 msgstr "Search branches..."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search categories"
+msgstr "Search categories"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
@@ -13166,6 +13199,10 @@ msgstr "Search repositories"
 msgid "Search repositories…"
 msgstr "Search repositories…"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Search results"
+msgstr "Search results"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Search runtime items…"
@@ -13203,20 +13240,28 @@ msgid "Search the current view"
 msgstr "Search the current view"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "Search threads"
-msgstr "Search threads"
+#~ msgid "Search threads"
+#~ msgstr "Search threads"
 
 #: src/renderer/commands/registry.ts
-msgid "Search Threads"
-msgstr "Search Threads"
+#~ msgid "Search Threads"
+#~ msgstr "Search Threads"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Search threads, commands, settings, and files…"
+msgstr "Search threads, commands, settings, and files…"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "Search titles, messages and folders"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-msgid "Search…"
-msgstr "Search…"
+#~ msgid "Search…"
+#~ msgstr "Search…"
+
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Searching files…"
+msgstr "Searching files…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -13267,6 +13312,10 @@ msgstr "Select a file to start editing."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Select a project to scan project MCP servers."
 #~ msgstr "Select a project to scan project MCP servers."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Select a project to search files"
+msgstr "Select a project to search files"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select a repository."
@@ -13470,6 +13519,8 @@ msgstr "Set when this session started — start a new thread to change plugins"
 #~ msgid "Setting"
 #~ msgstr "Setting"
 
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -13651,6 +13702,7 @@ msgstr "Show less"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "Show MCP servers from {providerLabel}"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
@@ -13735,6 +13787,10 @@ msgstr "Show voice input button"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Showing {0, plural, one {# skill} other {# skills}}"
+
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
+msgstr "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -15811,10 +15867,10 @@ msgstr "Thread not found"
 msgid "Thread todo dock"
 msgstr "Thread todo dock"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Threads"
 msgstr "Threads"
 
@@ -16001,6 +16057,10 @@ msgstr "Triggers:"
 #~ msgid "Try a different search or project filter."
 #~ msgstr "Try a different search or project filter."
 
+#: src/renderer/commands/EverythingSearchResults.tsx
+msgid "Try different keywords or choose a category."
+msgstr "Try different keywords or choose a category."
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Try now"
 msgstr "Try now"
@@ -16028,8 +16088,8 @@ msgid "Type"
 msgstr "Type"
 
 #: src/renderer/commands/CommandPalette.tsx
-msgid "Type a command"
-msgstr "Type a command"
+#~ msgid "Type a command"
+#~ msgstr "Type a command"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
@@ -16038,6 +16098,10 @@ msgstr "Type a command"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page (tap a field first)"
 #~ msgstr "Type into the page (tap a field first)"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type to search files"
+msgstr "Type to search files"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label

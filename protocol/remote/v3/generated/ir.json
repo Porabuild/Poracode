@@ -20302,6 +20302,13 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": true,
         "properties": {
+          "entryType": {
+            "enum": [
+              "file",
+              "directory"
+            ],
+            "type": "string"
+          },
           "limit": {
             "default": 50,
             "maximum": 200,
@@ -55778,7 +55785,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:320e15cc00a3024d073adca717e3d528e085a6959efe63ff8aca7ad4eac4d4cf",
+  "sourceHash": "sha256:2c2074b2b0068bae421686a6b95d224aa937631b924ab979b4aefbee4d26e15d",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

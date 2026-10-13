@@ -6,6 +6,7 @@ import {
   type KeybindingsConfig,
   type KeybindingsFile,
   keybindingsFileSchema,
+  migrateThreadSearchCommand,
   serializeDefaultKeybindings,
   TOGGLE_FAST_DEFAULT,
   TOGGLE_FAST_LEGACY_DEFAULT,
@@ -18,7 +19,9 @@ export function readKeybindingsFile(keybindingsPath: string): KeybindingsConfig 
 
   const raw = readFileSync(keybindingsPath, "utf8");
   const parsed = keybindingsFileSchema.parse(JSON.parse(raw));
-  const migrated = migrateToggleFastOffFind(backfillNewDefaults(parsed));
+  const migrated = migrateThreadSearchCommand(
+    migrateToggleFastOffFind(backfillNewDefaults(parsed)),
+  );
   if (migrated !== parsed) {
     writeFileAtomic(keybindingsPath, `${JSON.stringify(migrated, null, 2)}\n`, {
       encoding: "utf8",

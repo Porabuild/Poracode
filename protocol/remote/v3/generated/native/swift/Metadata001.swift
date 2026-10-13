@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 13
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 4
-  public static let sourceHash = "sha256:320e15cc00a3024d073adca717e3d528e085a6959efe63ff8aca7ad4eac4d4cf"
+  public static let sourceHash = "sha256:2c2074b2b0068bae421686a6b95d224aa937631b924ab979b4aefbee4d26e15d"
   public static let manifestHash = "sha256:2705e8a5e2e7c27c9e8496676b1bc0a4e7174f1b04dc74f6e5cad7d1b49559f4"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -231,7 +231,7 @@ public enum RemoteContractMetadata {
     .init(name: "rollbackThreadConversation", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurerollbackThreadConversationRequest_536f7d46d8", resultType: "RemoteUnit"),
     .init(name: "scanSkills", scope: "session:read", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedurescanSkillsRequest_eb5b966723", resultType: "ProcedurescanSkillsResult_f958c6e1fa"),
     .init(name: "searchProjectFiles", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduresearchProjectFilesRequest_c4ad1400e2", resultType: "ProceduresearchProjectFilesResult_2465ffaaf2"),
-    .init(name: "searchProjectTree", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduresearchProjectFilesRequest_c4ad1400e2", resultType: "ProceduresearchProjectTreeResult_ed3d977334"),
+    .init(name: "searchProjectTree", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduresearchProjectTreeRequest_956459f749", resultType: "ProceduresearchProjectTreeResult_ed3d977334"),
     .init(name: "setSkillEnabled", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "omitted", requestType: "ProceduresetSkillEnabledRequest_38462ff398", resultType: "RemoteUnit"),
     .init(name: "stageThreadInput", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurestageThreadInputRequest_d4db039cba", resultType: "RemoteUnit"),
     .init(name: "startThread", scope: "session:operate", owner: "projectLocation", resultKind: "json", requestType: "ProcedureensureThreadRunningRequest_4d961f4317", resultType: "ProcedurecancelExtractContextRequest_09b78d9c1d"),

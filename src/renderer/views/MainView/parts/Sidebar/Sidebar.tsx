@@ -1,3 +1,4 @@
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import { ChevronRight, Globe, House, PanelLeft, Plus, Search, Settings2 } from "lucide-react";
 import { startTransition, useEffect, useState } from "react";
@@ -207,12 +208,12 @@ export function Sidebar() {
   // lights up for every other section.
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
   const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
-  const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
+  const searchOpen = useCommandPaletteStore((s) => s.isOpen);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOnScreen = useIsPanelTabVisible("browser");
   const browserVisible = browserPanelOpen && browserOnScreen;
   const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
-  const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
+  const openSearch = useCommandPaletteStore((s) => s.open);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
   );
@@ -316,8 +317,8 @@ export function Sidebar() {
               iconOnly
               icon={<Search className="size-3.5" />}
               label={t`Search`}
-              isActive={threadSearchOpen}
-              onPress={openThreadSearch}
+              isActive={searchOpen}
+              onPress={openSearch}
             />
             {browserPanelAvailable ? (
               <SidebarButton

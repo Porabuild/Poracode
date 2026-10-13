@@ -53,10 +53,8 @@ import {
 } from "@/renderer/components/thread/SideChat/sideChatOwnershipActions";
 import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
-import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
-import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
 import { UserMessageActionsSheet } from "@/renderer/components/thread/ChatPane/UserMessageActionsSheet";
 import { isBrowserClientRuntime, readElectronHostBridge } from "@/renderer/clientRuntime";
 
@@ -488,7 +486,6 @@ function MainApp() {
       ) : (
         <MainView storeHydrated={storeHydrated} runtimeSnapshotsReady={runtimeSnapshotsReady} />
       )}
-      {chatSidebarSurface ? null : <DeferredCommandPalette />}
       <ImageLightboxHost />
       {BrowserRuntimeServices ? (
         <Suspense>
@@ -498,21 +495,4 @@ function MainApp() {
       <UserMessageActionsSheet />
     </AppProvider>
   );
-}
-
-function DeferredCommandPalette() {
-  const open = useCommandPaletteStore((state) => state.isOpen);
-  const [enabled, setEnabled] = useState(open);
-  // Latch on first open so the lazy chunk stays mounted afterwards.
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (prevOpen !== open) {
-    setPrevOpen(open);
-    if (open) setEnabled(true);
-  }
-
-  return enabled ? (
-    <Suspense>
-      <PrewarmedCommandPalette />
-    </Suspense>
-  ) : null;
 }

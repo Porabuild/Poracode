@@ -17,6 +17,7 @@ import { finalizeManualOutcomes, recordManualGate } from "./smoke-gate-outcomes.
 import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
 import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 import { mockLiveVoiceGate } from "./smoke-live-voice.mjs";
+import { runEverythingSearchScenario } from "./smoke-everything-search.mjs";
 import { runSettingsScenario } from "./smoke-settings.mjs";
 import { mockQuickComposerGate } from "./smoke-quick-composer.mjs";
 import { mockSideChatGate } from "./smoke-side-chat.mjs";
@@ -226,8 +227,10 @@ async function runSmoke(plan) {
     if (plan.automated.includes("github-actions")) {
       await runScenario(report, "github-actions", () => githubActionsScenario(client));
     }
-    if (plan.automated.includes("thread-search")) {
-      await runScenario(report, "thread-search", () => threadSearchScenario(client));
+    if (plan.automated.includes("everything-search")) {
+      await runScenario(report, "everything-search", () =>
+        runEverythingSearchScenario({ client, evaluate, waitForValue, screenshot, outDir }),
+      );
     }
     if (plan.automated.includes("browser")) {
       await runScenario(report, "browser", () => browserScenario(client));
@@ -1211,33 +1214,6 @@ async function controlGeometryScenario(client) {
 
 function isPillGeometry(geometry) {
   return geometry !== null && geometry.radius >= geometry.height / 2;
-}
-
-async function threadSearchScenario(client) {
-  await evaluate(
-    client,
-    `window.__poracodeDev.stores.panel.setState({ threadSearchOpen: true }); new Promise((resolve) => setTimeout(resolve, 80))`,
-    true,
-  );
-  const state = await waitForValue(
-    () =>
-      evaluate(
-        client,
-        `(() => ({
-          dialog: Boolean(document.querySelector('[role="dialog"]')),
-          searchInput: Boolean(document.querySelector('input[placeholder]')),
-          crash: /renderer crash|rendered more hooks/i.test(document.body.innerText),
-        }))()`,
-      ),
-    (candidate) => candidate.dialog && candidate.searchInput,
-    "thread search overlay",
-  );
-  assert(state.dialog && state.searchInput, "thread search overlay did not render");
-  assert(!state.crash, "thread search rendered a crash screen");
-  const screenshotPath = join(outDir, "smoke-03-thread-search.png");
-  await screenshot(client, screenshotPath);
-  await evaluate(client, "window.__poracodeDev.stores.panel.setState({ threadSearchOpen: false })");
-  return { ...state, screenshotPath };
 }
 
 async function browserScenario(client) {

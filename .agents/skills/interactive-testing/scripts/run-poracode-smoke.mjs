@@ -46,6 +46,7 @@ const root = resolve(
 );
 const outDir = resolve(String(args.outDir ?? join(root, "artifacts")));
 const dataDir = join(root, "data");
+const userDataDir = join(root, "userData");
 const homeDir = join(root, "home");
 const localAppDataDir = join(root, "local-app-data");
 const roamingAppDataDir = join(root, "roaming-app-data");
@@ -255,7 +256,6 @@ try {
       PORACODE_DEV_APP_URL: appUrl,
       PORACODE_CDP_PORT: String(port),
       PORACODE_BASE_DIR: dataDir,
-      PORACODE_CDP_USER_DATA_DIR: join(dataDir, "userData"),
       PORACODE_SMOKE_OUT_DIR: outDir,
       PORACODE_DEV_SERVER_REQUIRE_FREE: "1",
       PORACODE_DISABLE_DEVTOOLS: "1",
@@ -271,7 +271,7 @@ try {
     await persistSession();
     await waitForSmokeRenderer(rendererProcess, appUrl, startupTimeoutSeconds * 1000);
     if (stopRequested) break sessionLaunch;
-    const launch = smokeElectronLaunch(runtime, join(dataDir, "userData"), {
+    const launch = smokeElectronLaunch(runtime, userDataDir, {
       ...appEnv,
       VITE_DEV_SERVER_URL: appUrl,
     });
