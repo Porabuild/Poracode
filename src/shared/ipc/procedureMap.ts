@@ -139,7 +139,7 @@ export class IpcProcedureMapVersionError extends Error {
  * Gate for a peer-declared procedure-map version. Absent, malformed, or
  * negative declarations count as version 0 (legacy peer) and reject typed.
  * The runtime exchange point (renderer ⇄ main bootstrap, renderer ⇄
- * standalone owner attach) is recorded in `.agents/docs/versioning.md`; this
+ * standalone owner attach) is recorded in `docs/versioning-history.md`; this
  * guard is the single rejection primitive every exchange site must call.
  */
 export function assertIpcProcedureMapVersion(peerVersion: unknown): void {

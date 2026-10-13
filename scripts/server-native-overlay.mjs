@@ -12,7 +12,7 @@ import { dirname, isAbsolute, join, normalize, sep } from "node:path";
  * imports it, and the D1 launcher invokes the copy extracted from the very
  * tarball it verified. Do not create a second copy.
  *
- * Overlay format (docs/.agents/docs/versioning.md):
+ * Overlay format (.agents/docs/versioning.md):
  * - node-pty `node-pty/overlay.json` formatVersion 2 carries one staged target
  *   per machine shape; formatVersion 1 (single host-shaped target) still
  *   applies.

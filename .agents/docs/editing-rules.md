@@ -4,17 +4,16 @@
 
 React Compiler is enabled in the renderer via Vite 8, `@vitejs/plugin-react`, `@rolldown/plugin-babel`, and `babel-plugin-react-compiler`. It processes all `src/renderer/**/*.tsx` files.
 
-- **Do not** add `useMemo`, `useCallback`, or `React.memo` by default. React Compiler is the default memoization strategy; manual memoization is an escape hatch for cases the compiler cannot optimize.
-- Keep `babel-plugin-react-compiler` pinned to an **exact version** unless explicitly updating and revalidating.
+- Do not add `useMemo`, `useCallback`, or `React.memo` by default. React Compiler is the default memoization strategy; manual memoization is an escape hatch for cases the compiler cannot optimize, never a substitute for narrow store subscriptions — the lever for render cost is the selector shape.
+- Keep `babel-plugin-react-compiler` pinned to an exact version unless explicitly updating and revalidating.
 
 ## React Hooks
 
 - `useEffect` is for real side effects and external synchronization only. Prefer `useEffectEvent` and `startTransition` when they fit the interaction.
-- Components connect to Zustand stores directly — avoid prop drilling through intermediate components.
 
 ## Store Subscriptions & Render Isolation
 
-The renderer's performance story depends on narrow, primitive-returning Zustand selectors. When you add a new component or store, follow these rules. The goal: editing/streaming one entity (thread A, file A, PR A, tab A) must **not** re-render siblings (thread B, file B, PR B, tab B).
+The renderer's performance depends on narrow, primitive-returning Zustand selectors. The goal: editing or streaming one entity (thread A, file A, PR A, tab A) must not re-render its siblings. This section is the single source for these rules; other docs link here.
 
 ### 1. Never subscribe to whole objects or arrays when you only need a field
 
@@ -112,7 +111,7 @@ const storeThreads = useAppStore.getState().threads;
 const hasValidPanes = view.panes.some((id) => storeThreads.some((t) => t.id === id));
 ```
 
-### 7. Split GOD components into narrowly-subscribed subcomponents
+### 7. Split God components into narrowly-subscribed subcomponents
 
 A component that renders a tab strip, a file tree, or a PR card often ends up subscribing to "everything it might render" at the top. Every keystroke in one tab re-renders all tabs.
 
@@ -128,7 +127,7 @@ The row component's props are the **identifier** (`path`, `key`, `id`) and maybe
 
 When a new cross-cutting UI domain appears (tree expansion, panel visibility, editor tabs), give it its **own** Zustand store. One-store-per-app leads to broad subscriptions and eventually to God-state.
 
-The renderer currently runs ~20 such domain stores (`src/renderer/state/*Store.ts`; see the full table in `architecture.md` → State Management). A new store is cheap; broadening an existing one is expensive.
+Existing stores are `src/renderer/state/*Store.ts` (see [Architecture → State Management](architecture.md#state-management)). A new store is cheap; broadening an existing one is expensive.
 
 ### 9. Cache-invalidation keys for lazy async work
 
@@ -147,16 +146,7 @@ useEffect(() => {
 
 ### 10. No prop-drilling of store state
 
-If a child needs a store value, the child reads it via a hook. Do not pass `selectedPath`, `openTabs`, `prData`, etc. through three layers of props — every intermediate component re-renders on unrelated changes. Pass only the identifier + stable callbacks.
-
-### Anti-patterns to refuse
-
-- Broad `useStore((s) => s)` or `useStore((s) => s.someBigObject)` subscriptions.
-- Computing `isSelected` / `isActive` inline inside a parent `.map()` and passing as a prop — moves the re-render cascade into every row.
-- `useMemo` / `useCallback` / `React.memo` as a substitute for narrow subscriptions. React Compiler handles memoization; the lever is the selector shape.
-- Callback hell: passing 6+ handler props to a row. Let the row call the store action directly.
-- Fresh `[]` / `{}` returned from a selector — always use a module-level sentinel.
-- Setters that always `set()` without comparing to the previous value.
+If a child needs a store value, the child reads it via a hook. Do not pass `selectedPath`, `openTabs`, `prData`, etc. through three layers of props — every intermediate component re-renders on unrelated changes. Pass only the identifier and stable callbacks; a row that needs to stage, close, or toggle calls the store action directly instead of receiving a stack of handler props.
 
 ## Renderer Philosophy
 
@@ -166,22 +156,13 @@ If a child needs a store value, the child reads it via a hook. Do not pass `sele
 
 ## Vite Configuration
 
-- Use Vite 8 Rolldown-native config (e.g. `rolldownOptions`) over older Rollup-first patterns.
-- Manual chunks are defined for xterm, git-diff, monaco, shiki, ui (HeroUI + React Aria), framework (React + Zustand + Zod), and vendor.
+Use Vite 8 Rolldown-native config (e.g. `rolldownOptions`) over older Rollup-first patterns. Chunking and lazy loading: [UI Patterns → Module Loading](ui-patterns.md#module-loading).
 
 ## Cleanup
 
 - Always fix all tests broken by your changes — never leave failing tests behind.
 - Remove all dead code introduced by your changes: unused imports, unreachable functions, orphaned types, stale test helpers, and dead modules/files.
 
-## Linting & Formatting
+## Tooling
 
-- **Linter**: oxlint (Rust-based, with plugins: import, react, jsx-a11y, node, vitest). Config: `.oxlintrc.json`.
-- **Formatter**: oxfmt (Rust-based, LF line endings). Config: `.oxfmtrc.json`.
-- These are not ESLint/Prettier. Use `pnpm run lint` and `pnpm run fmt`.
-
-## TypeScript
-
-- Target: ES2024, strict mode, bundler module resolution.
-- `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` are enabled.
-- Typecheck: `tsc` (TypeScript 7, native Go implementation).
+Lint and format with oxlint and oxfmt, not ESLint/Prettier (`.oxlintrc.json`, `.oxfmtrc.json`). Compiler settings, including `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`, are in `tsconfig.json`.
