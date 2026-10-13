@@ -80,11 +80,14 @@ export function ChatScrollControls(props: {
   threadId: string;
   tailLoaderVisible: boolean;
   initialScrollSettled: boolean;
+  /** The owning virtualizer already completed its measured initial scroll. */
+  initialLayoutReady?: boolean;
   initialScrollRevealDelayMs: number;
   virtualScrollToBottomRef: React.RefObject<(() => void) | null>;
   onInitialScrollSettled: () => void;
 }) {
   const { t } = useLingui();
+  const initialLayoutReady = props.initialLayoutReady ?? false;
   const readerFollow = useContext(ChatReaderFollowContext);
   const {
     ref,
@@ -600,6 +603,23 @@ export function ChatScrollControls(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scroll reset is keyed to thread changes; the helper reads refs/state setters only.
   }, [threadId]);
 
+  const revealMeasuredInitialLayout = useEffectEvent(() => {
+    const el = scrollRef.current;
+    if (!el || el.clientHeight <= 0) return;
+    // LegendList's onLoad follows both row measurement and initial scrolling.
+    // Its ready signal replaces the fallback's extra reconciliation frames.
+    cancelScheduledInitialSettle();
+    cancelScheduledPin();
+    userScrollIntentUntilRef.current = 0;
+    pinHoldoffUntilRef.current = 0;
+    writeBottomPin(el);
+    onInitialScrollSettled();
+  });
+  useLayoutEffect(() => {
+    if (!initialLayoutReady || initialScrollSettled || initialScrollRevealDelayMs > 0) return;
+    revealMeasuredInitialLayout();
+  }, [initialLayoutReady, initialScrollSettled, initialScrollRevealDelayMs, threadId]);
+
   useEffect(() => {
     if (initialScrollSettled) return;
     const watchdog = window.setTimeout(forceInitialScrollReveal, INITIAL_SCROLL_REVEAL_WATCHDOG_MS);
@@ -816,10 +836,17 @@ export function ChatScrollControls(props: {
   useLayoutEffect(() => {
     const becameSettled = initialScrollSettled && !previousInitialScrollSettledRef.current;
     previousInitialScrollSettledRef.current = initialScrollSettled;
-    // The delayed PWA path already force-pinned immediately before revealing.
+    // Measured readiness already owns the pending reveal. A second settle
+    // here would re-arm the frames that its layout effect just cancelled.
+    if (initialLayoutReady && !initialScrollSettled && initialScrollRevealDelayMs === 0) return;
+    // Both measured readiness and the delayed reveal already pinned the DOM.
     // Re-running scrollToEnd because the reveal state changed would let
     // LegendList apply another deferred anchor offset to the visible viewport.
-    if (becameSettled && initialScrollRevealDelayMs > 0) return;
+    if (becameSettled && (initialScrollRevealDelayMs > 0 || initialLayoutReady)) {
+      cancelScheduledInitialSettle();
+      cancelScheduledPin();
+      return;
+    }
     syncPinnedContentChange(becameSettled);
     // The submit signal can arrive before the optimistic user row is mounted.
     // Keying this settle to the tail entry as well re-pins after that row
@@ -827,7 +854,7 @@ export function ChatScrollControls(props: {
     // untouched because syncPinnedContentChange only follows an active sticky
     // bottom anchor.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pinning is keyed to tail/loader visibility changes; the effect event reads latest layout refs.
-  }, [tailEntryId, tailLoaderVisible, initialScrollSettled]);
+  }, [tailEntryId, tailLoaderVisible, initialScrollSettled, initialLayoutReady]);
 
   // When a panel/divider drag ends, the coalesced in-drag syncs above skipped
   // the full settle pass. Run it once now so the final bottom-pin / scroll-down

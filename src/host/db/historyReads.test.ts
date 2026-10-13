@@ -1,7 +1,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as streamHeadRead from "./runtimeStreamHeadRead";
 import { serializedWireByteLength } from "@/shared/remote/catalogReadContract";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { dbReadThreadHistoryPagePhase1, dbReadThreadHistoryPhase2 } from "./historyReads";
@@ -130,6 +131,42 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history reads (phase 1/2)", () => 
       [...older.items].reverse().map((item) => item.id),
     );
     expect(phaseOlder.moreBeyondWindow).toBe(older.nextCursor !== null);
+  });
+
+  it("does not size-probe discarded scan candidates or the lookahead row", async () => {
+    await dbReplaceThreadRuntimeItems(
+      "thread-1",
+      Array.from({ length: 80 }, (_, index) => ({
+        id: `assistant-${index}`,
+        type: "assistant_message",
+        state: "completed" as const,
+        streams: { assistant_text: "Saved reply" },
+      })),
+    );
+    const probe = vi.spyOn(streamHeadRead, "measureRuntimeStreamHeadStorage");
+    try {
+      const page = phase1Meta("thread-1", { limit: 50, targetTimelineEntryCount: 10 });
+      expect(page.rows.map((row) => row.itemId)).toEqual(
+        Array.from({ length: 10 }, (_, index) => `assistant-${79 - index}`),
+      );
+      expect(page.moreBeyondWindow).toBe(true);
+      expect(probe).toHaveBeenCalledExactlyOnceWith(
+        getSqlite(),
+        "thread-1",
+        page.rows.map((row) => row.itemId),
+      );
+      const items = dbReadThreadHistoryPhase2(
+        "thread-1",
+        page.rows.map((row) => row.itemId),
+      );
+      for (const [index, item] of items.entries()) {
+        expect(page.rows[index]!.boundWireBytes).toBeGreaterThanOrEqual(
+          serializedWireByteLength(JSON.stringify(item)),
+        );
+      }
+    } finally {
+      probe.mockRestore();
+    }
   });
 
   it("selects the exact legacy timeline-entry window on the target path", async () => {

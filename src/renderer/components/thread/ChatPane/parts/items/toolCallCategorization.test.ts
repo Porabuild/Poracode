@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import * as commandSummary from "./commandSummary";
 import {
+  analyzeEditToolGroup,
   categorizeItem,
   categorizeToolName,
   categorizeVerbPrefix,
@@ -8,10 +10,48 @@ import {
   isEditOnlyToolGroup,
   isToolGroupItem,
   segmentToolGroupRows,
+  summarizeToolCalls,
   summarizeSameFileEditGroup,
 } from "./toolCallCategorization";
 
 describe("categorizeItem", () => {
+  it("parses a completed deferred command once across group analysis and remounts", () => {
+    const item: RuntimeChatItem = {
+      id: "saved-command",
+      type: "command_execution",
+      state: "completed",
+      payload: { command: "rg history src" },
+      streams: {},
+      detailsDeferred: true,
+    };
+    const parse = vi.spyOn(commandSummary, "commandIntentDisplay");
+    try {
+      expect(analyzeEditToolGroup([item]).editOnly).toBe(false);
+      expect(segmentToolGroupRows([item])).toEqual([{ kind: "item", item }]);
+      expect(summarizeToolCalls([item])[0]?.category).toBe("searched");
+      expect(categorizeItem(item)).toBe("searched");
+      expect(parse).toHaveBeenCalledExactlyOnceWith("rg history src");
+      const patched = { ...item, payload: { command: "pnpm run test" } };
+      expect(categorizeItem(patched)).toBe("executed");
+      expect(parse).toHaveBeenCalledTimes(2);
+    } finally {
+      parse.mockRestore();
+    }
+  });
+
+  it("keeps running command classification live", () => {
+    const item: RuntimeChatItem = {
+      id: "running-command",
+      type: "command_execution",
+      state: "started",
+      payload: { command: "rg history src" },
+      streams: {},
+    };
+    expect(categorizeItem(item)).toBe("searched");
+    item.payload = { command: "pnpm run test" };
+    expect(categorizeItem(item)).toBe("executed");
+  });
+
   it("maps reasoning items to the thought category and keeps them groupable", () => {
     const item = {
       id: "reasoning-1",

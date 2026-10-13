@@ -20,7 +20,8 @@ import {
   releaseThreadRuntimeItems,
   retainThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
-import { retainRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
+import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
+import { useInitialTimelineLayout } from "./parts/useInitialTimelineLayout";
 import {
   finalizeFileCheckpoint,
   hydrateFileCheckpoints,
@@ -146,6 +147,7 @@ export function ChatPane(props: ChatPaneProps) {
     threadId: string;
     hasVisibleHistory: boolean;
   } | null>(null);
+  const initialTimelineLayout = useInitialTimelineLayout(threadId);
 
   const scrollControlsRef = useRef<ChatScrollControlsHandle>(null);
   const [readerFollow] = useState(createChatReaderFollowSignal);
@@ -310,7 +312,7 @@ export function ChatPane(props: ChatPaneProps) {
       return () => releaseThreadRuntimeItems(threadId);
     }
 
-    const reader = retainRuntimeThreadReader(threadId);
+    const reader = adoptRuntimeThreadReader(threadId);
     return () => reader.release();
   }, [isRemoteThread, threadId]);
 
@@ -502,6 +504,14 @@ export function ChatPane(props: ChatPaneProps) {
               threadId={threadId}
               entries={timelineEntries}
               isTurnActive={isLive}
+              {...(isManagedThread
+                ? {
+                    onInitialLayoutReady: () => {
+                      if (timelineEntries.length > 0 && (scrollRef.current?.clientHeight ?? 0) > 0)
+                        initialTimelineLayout.markReady();
+                    },
+                  }
+                : {})}
               setScrollContainer={setScrollContainer}
               scrollContentRef={contentRef}
               onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
@@ -608,6 +618,7 @@ export function ChatPane(props: ChatPaneProps) {
                 isWorktreeProvisioning || isConnecting || isHydrating || showTailLoader
               }
               initialScrollSettled={isInitialScrollSettled}
+              initialLayoutReady={initialTimelineLayout.ready}
               initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
               virtualScrollToBottomRef={virtualScrollToBottomRef}
               onInitialScrollSettled={() => {

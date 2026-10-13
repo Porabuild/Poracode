@@ -13,6 +13,8 @@ import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -59,6 +61,13 @@ import {
 
 let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
+let cancelPendingThreadOpen: (() => void) | null = null;
+
+function nextThreadOpenRequest(): number {
+  cancelPendingThreadOpen?.();
+  cancelPendingThreadOpen = null;
+  return ++openThreadRequestId;
+}
 
 /**
  * Routes one thread content intent to whoever owns the row:
@@ -183,7 +192,7 @@ function resolveNewThreadProjectId(): string | undefined {
 }
 
 export function openNewThread(projectId?: string): void {
-  openThreadRequestId += 1;
+  nextThreadOpenRequest();
   const targetProjectId = projectId ?? resolveNewThreadProjectId();
   startTransition(() => {
     if (!targetProjectId) {
@@ -202,7 +211,7 @@ export function openNewThread(projectId?: string): void {
 }
 
 export function openNewThreadSideBySide(projectId: string): void {
-  openThreadRequestId += 1;
+  nextThreadOpenRequest();
   startTransition(() => {
     useAppStore.getState().openDraftSideBySide(projectId);
   });
@@ -213,7 +222,7 @@ export function openNewThreadInWorktree(input: {
   worktreePath: string;
   worktreeBranch: string;
 }): void {
-  openThreadRequestId += 1;
+  nextThreadOpenRequest();
   startTransition(() => {
     const store = useAppStore.getState();
     store.setPendingDraftWorktreeSelection(input.projectId, {
@@ -237,6 +246,7 @@ export function openThread(
   threadId: string,
   options?: { focusComposer?: boolean; standalone?: boolean; switchWorkspace?: boolean },
 ): void {
+  const requestId = nextThreadOpenRequest();
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
   if (thread && options?.switchWorkspace) {
@@ -267,7 +277,6 @@ export function openThread(
     return;
   }
   const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
-  const requestId = ++openThreadRequestId;
 
   // Phase 1 (urgent): flip the optimistic active-thread id in its own cheap
   // commit so the sidebar row highlights immediately. This does not touch
@@ -283,12 +292,12 @@ export function openThread(
   const applyOpen = () => {
     // Superseded by a newer openThread — that call owns the pending id and will
     // clear it, so leave it untouched here.
-    if (requestId !== openThreadRequestId) return;
+    if (requestId !== openThreadRequestId) return false;
     // The user navigated somewhere else (Home/Draft/another pane) during the
     // frame; honor that instead of clobbering it, and drop the stale highlight.
     if (useAppStore.getState().view !== viewAtSchedule) {
       useAppStore.getState().setPendingActiveThread(null);
-      return;
+      return false;
     }
 
     startTransition(() => {
@@ -315,11 +324,50 @@ export function openThread(
     if (threadRuntimeReopenEnabled && thread?.status === "inactive") {
       reopenStoredThread(threadId);
     }
+    return true;
   };
 
-  // The mounted pane owns history hydration after its live-interest lease is
-  // ready. Preloading here delays navigation and makes that lease perform a
-  // second baseline recovery because the preload had no live coverage.
+  // As in 1.8.2, prepare the first chunk before replacing the current pane.
+  // Retain its live stream too, so the mounted reader adopts this baseline
+  // across the interest grace period instead of starting a second recovery.
+  if (thread?.presentationMode === "gui" && !hasHydratedThreadRuntimeItems(threadId)) {
+    let unsubscribe = () => {};
+    let active = true;
+    let opened = false;
+    const retire = () => {
+      active = false;
+      unsubscribe();
+      if (cancelPendingThreadOpen === cancel) cancelPendingThreadOpen = null;
+    };
+    const reader = prepareRuntimeThreadReader(threadId, retire);
+    const cancel = () => {
+      if (!active) return;
+      retire();
+      reader.release();
+      if (requestId === openThreadRequestId) {
+        useAppStore.getState().setPendingActiveThread(null);
+      }
+    };
+    cancelPendingThreadOpen = cancel;
+    unsubscribe = useAppStore.subscribe((state, previous) => {
+      const departed = opened
+        ? state.view.kind !== "thread" || !state.view.panes.includes(threadId)
+        : state.view !== viewAtSchedule;
+      if (
+        departed ||
+        (state.threads !== previous.threads &&
+          !state.threads.some((candidate) => candidate.id === threadId))
+      )
+        cancel();
+    });
+    const finishOpen = () => {
+      if (!active) return;
+      opened = true;
+      if (!applyOpen()) return cancel();
+    };
+    void reader.ready.then(finishOpen, finishOpen);
+    return;
+  }
   // Defer the heavy pane swap one frame so the urgent highlight commit paints
   // first. requestAnimationFrame alone is not enough: Chromium parks rAF
   // entirely for occluded windows, which would stall the open until the window

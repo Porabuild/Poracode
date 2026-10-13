@@ -5,6 +5,7 @@ import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { isDraftPaneId } from "@/shared/paneId";
 import { normalizeStoredThreadStatus } from "@/renderer/state/slices/helpers";
 import { useAppStore } from "@/renderer/state/appStore";
+import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
 import {
   forgetPendingCatalogEdit,
   projectPendingCatalogEdit,
@@ -220,16 +221,56 @@ describe("threadActions", () => {
     });
   });
 
-  it("opens a persisted GUI pane without waiting for or prefetching history", async () => {
-    const thread = makeThread({ presentationMode: "gui", status: "idle" });
+  it("prepares the first GUI chunk before replacing the pane or reconnecting the agent", async () => {
+    let finishRead = () => {};
+    hydrateThreadRuntimeItems.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
+    });
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));
     openThread(thread.id);
     expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
     await waitFor(() =>
+      expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id),
+    );
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toBeUndefined();
+    finishRead();
+    await waitFor(() =>
       expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] }),
     );
-    expect(hydrateThreadRuntimeItems).not.toHaveBeenCalled();
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
+  });
+
+  it("retires a prepared navigation after pane adoption without releasing the pane's reader", async () => {
+    const thread = makeThread({ presentationMode: "gui", status: "idle" });
+    useAppStore.setState({ threads: [thread] });
+    openThread(thread.id);
+    await waitFor(() =>
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] }),
+    );
+    const reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
+    const release = vi.spyOn(reader, "release");
+    const setPending = vi.spyOn(useAppStore.getState(), "setPendingActiveThread");
+    try {
+      openNewThread();
+      expect(release).not.toHaveBeenCalled();
+      expect(setPending).not.toHaveBeenCalled();
+    } finally {
+      setPending.mockRestore();
+      release.mockRestore();
+      reader.release();
+    }
   });
 
   it("allows a thread open to opt out of composer focus", async () => {
@@ -293,7 +334,58 @@ describe("threadActions", () => {
     });
   });
 
-  it("opens grouped GUI panes without prefetching their histories", async () => {
+  it("releases a stalled first history read immediately when navigation leaves", async () => {
+    let finishRead = () => {};
+    const release = vi.fn<() => void>();
+    const ready = new Promise<void>((resolve) => {
+      finishRead = resolve;
+    });
+    const prepare = vi
+      .spyOn(runtimeInterestHydration, "prepareRuntimeThreadReader")
+      .mockReturnValueOnce({ ready, release });
+    const thread = makeThread({ presentationMode: "gui", status: "idle" });
+    useAppStore.setState({ threads: [thread] });
+    try {
+      openThread(thread.id);
+      expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+      useAppStore.getState().openHome();
+      expect(release).toHaveBeenCalledOnce();
+      expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+      finishRead();
+      await ready;
+      await Promise.resolve();
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    } finally {
+      prepare.mockRestore();
+    }
+  });
+
+  it("cancels a first history read when its target is removed", async () => {
+    const release = vi.fn<() => void>();
+    let finishRead = () => {};
+    const ready = new Promise<void>((resolve) => {
+      finishRead = resolve;
+    });
+    const prepare = vi
+      .spyOn(runtimeInterestHydration, "prepareRuntimeThreadReader")
+      .mockReturnValueOnce({ ready, release });
+    const thread = makeThread({ presentationMode: "gui", status: "idle" });
+    useAppStore.setState({ threads: [thread] });
+    try {
+      openThread(thread.id);
+      useAppStore.setState({ threads: [] });
+      expect(release).toHaveBeenCalledOnce();
+      expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+      finishRead();
+      await ready;
+      await Promise.resolve();
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    } finally {
+      prepare.mockRestore();
+    }
+  });
+
+  it("prepares the selected grouped GUI pane without waiting for its siblings", async () => {
     const firstThread = makeThread({
       id: "thread-group-a",
       groupId: "group-1",
@@ -318,9 +410,10 @@ describe("threadActions", () => {
         activeGroupId: "group-1",
       });
     });
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(firstThread.id);
   });
 
-  it("opens an experiment candidate without hydrating or mounting its siblings", async () => {
+  it("prepares an experiment candidate without hydrating or mounting its siblings", async () => {
     const firstThread = makeThread({
       id: "thread-experiment-a",
       groupId: "experiment-1",
@@ -341,7 +434,7 @@ describe("threadActions", () => {
         panes: [firstThread.id],
       });
     });
-    expect(hydrateThreadRuntimeItems).not.toHaveBeenCalled();
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(firstThread.id);
   });
 
   it("queues terminal reconnects as launching when reopening", () => {

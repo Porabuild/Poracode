@@ -63,7 +63,7 @@ it("fills the first window without decoding completed command bodies and retriev
   const client = readManagedLoopbackActivation()!.client;
   const page = await readManagedRootHistoryPage(id);
   expect(page.historyProjection).toBe("details-v1");
-  expect(page.runtimeItems.length).toBeGreaterThanOrEqual(40);
+  expect(page.runtimeItems.length).toBeGreaterThanOrEqual(20);
   expect(page.runtimeItems.at(-1)).toMatchObject({
     id: "command",
     streams: {},
@@ -221,7 +221,7 @@ it("paints a cached window while HTTP is pending and retires stale preview rows 
     held.resolve();
     await pending;
     expect(hasHydratedThreadRuntimeItems(id)).toBe(true);
-    expect(useAppStore.getState().runtimeItemIdsByThread[id]?.[0]).toBe("item-40");
+    expect(useAppStore.getState().runtimeItemIdsByThread[id]?.[0]).toBe("item-60");
     expect(useAppStore.getState().runtimeItemIdsByThread[id]).not.toContain("cached-0");
   } finally {
     held.resolve();

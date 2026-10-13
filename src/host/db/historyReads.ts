@@ -190,11 +190,10 @@ function historyMetadataColumns(compactDetails: boolean): string {
 class HistoryTimelineClassifier {
   private readonly childParentIds: ReadonlySet<string>;
   private readonly projectionInputs = new Map<string, RuntimePayloadProjectionInput>();
-  private readonly projectionProbed = new Set<string>();
   private readonly payloadById = new Map<string, unknown>();
   private readonly reasoningContentById = new Map<string, boolean>();
   private readonly tailSizeById = new Map<string, HistoryTailSize>();
-  private readonly headSizeById = new Map<string, RuntimeStreamHeadStorageSize | undefined>();
+  private readonly headSizeById = new Map<string, RuntimeStreamHeadStorageSize>();
 
   constructor(
     private readonly sqlite: InstanceType<typeof Database>,
@@ -230,35 +229,38 @@ class HistoryTimelineClassifier {
     };
   }
 
-  /** Loads size bounds and narrow classification probes for a fresh batch. */
-  ensure(rows: readonly HistoryMetadataSqlRow[]): void {
+  /** Classification alone decides which candidates belong to the window. */
+  ensureClassification(rows: readonly HistoryMetadataSqlRow[]): void {
+    this.ensurePayloadProbes(rows);
+    this.ensureReasoningProbes(rows);
+  }
+
+  /** Charge only selected rows; lookahead and discarded candidates are never materialized. */
+  ensureSizes(rows: readonly HistoryMetadataSqlRow[]): void {
     if (rows.length === 0) return;
-    const fresh = rows.filter((row) => !this.projectionProbed.has(row.item_id));
-    for (const [id, input] of readRuntimePayloadProjectionInputs(this.sqlite, this.threadId, fresh))
+    for (const [id, input] of readRuntimePayloadProjectionInputs(this.sqlite, this.threadId, rows))
       this.projectionInputs.set(id, input);
-    for (const row of fresh) this.projectionProbed.add(row.item_id);
     const streamedRows = this.compactDetails
       ? rows.filter((row) => !hasDeferredHistoryStreams(row.type, row.state))
       : rows;
     this.ensureHeadBytes(streamedRows);
     this.ensureTailBytes(streamedRows);
-    this.ensurePayloadProbes(rows);
-    this.ensureReasoningProbes(rows);
   }
 
   private ensureHeadBytes(rows: readonly HistoryMetadataSqlRow[]): void {
-    const missing = rows
-      .map((row) => row.item_id)
-      .filter((itemId) => !this.headSizeById.has(itemId));
-    const sizes = measureRuntimeStreamHeadStorage(this.sqlite, this.threadId, missing);
-    for (const itemId of missing) this.headSizeById.set(itemId, sizes.get(itemId));
+    const sizes = measureRuntimeStreamHeadStorage(
+      this.sqlite,
+      this.threadId,
+      rows.map((row) => row.item_id),
+    );
+    for (const [itemId, size] of sizes) this.headSizeById.set(itemId, size);
   }
 
   private ensureTailBytes(rows: readonly HistoryMetadataSqlRow[]): void {
-    const missing = rows
-      .map((row) => row.item_id)
-      .filter((itemId) => !this.tailSizeById.has(itemId));
-    for (const chunk of chunkValues([...new Set(missing)], HISTORY_PROBE_BATCH)) {
+    for (const chunk of chunkValues(
+      rows.map((row) => row.item_id),
+      HISTORY_PROBE_BATCH,
+    )) {
       if (chunk.length === 0) continue;
       // `tail_bytes` keeps the historical stored-bytes term (upper-bound
       // packing and the SQL-shape guard); `tail_escaped_*` are the exact
@@ -290,15 +292,6 @@ class HistoryTimelineClassifier {
           escapedBytes: Number(row.tail_escaped_bytes),
           escapedCodePoints: Number(row.tail_escaped_code_points),
         });
-      }
-      for (const itemId of chunk) {
-        if (!this.tailSizeById.has(itemId)) {
-          this.tailSizeById.set(itemId, {
-            storedBytes: 0,
-            escapedBytes: 0,
-            escapedCodePoints: 0,
-          });
-        }
       }
     }
   }
@@ -491,7 +484,8 @@ export function dbReadThreadHistoryItemMetadata(
       .get(threadId, itemId) as HistoryMetadataSqlRow | undefined;
     if (!row) return null;
     const classifier = new HistoryTimelineClassifier(sqlite, threadId);
-    classifier.ensure([row]);
+    classifier.ensureClassification([row]);
+    classifier.ensureSizes([row]);
     return classifier.metadata(row);
   });
 }
@@ -537,7 +531,7 @@ function readHistoryPhase1InSnapshot(
         ? readTailRows.all(threadId, rowLimit)
         : readOlderRows.all(threadId, cursor, rowLimit)
     ) as HistoryMetadataSqlRow[];
-    classifier.ensure(rows);
+    classifier.ensureClassification(rows);
     return rows;
   };
 
@@ -552,6 +546,7 @@ function readHistoryPhase1InSnapshot(
       : {}),
   });
 
+  classifier.ensureSizes(selection.rows);
   return {
     rows: selection.rows.map((row) => classifier.metadata(row)),
     moreBeyondWindow: selection.hasMore,

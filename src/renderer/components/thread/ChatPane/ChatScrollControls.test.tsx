@@ -27,6 +27,7 @@ function Harness({
   controlsRef,
   virtualScrollToBottom,
   initialScrollSettled = true,
+  initialLayoutReady = false,
   initialScrollRevealDelayMs = 0,
   tailEntryId,
   onInitialScrollSettled,
@@ -36,6 +37,7 @@ function Harness({
   controlsRef: React.RefObject<ChatScrollControlsHandle | null>;
   virtualScrollToBottom: () => void;
   initialScrollSettled?: boolean;
+  initialLayoutReady?: boolean;
   initialScrollRevealDelayMs?: number;
   tailEntryId?: string | null;
   onInitialScrollSettled?: () => void;
@@ -55,6 +57,7 @@ function Harness({
         threadId="thread-1"
         tailLoaderVisible={false}
         initialScrollSettled={initialScrollSettled}
+        initialLayoutReady={initialLayoutReady}
         initialScrollRevealDelayMs={initialScrollRevealDelayMs}
         virtualScrollToBottomRef={virtualScrollToBottomRef}
         onInitialScrollSettled={onInitialScrollSettled ?? (() => undefined)}
@@ -190,6 +193,70 @@ describe("ChatScrollControls", () => {
     expect(controlsRef.current?.isThreadOpenSettling()).toBe(false);
   });
 
+  it("reveals measured initial history without another scroll reconciliation or animation-frame wait", () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => frames.delete(handle));
+    const scrollEl = document.createElement("div");
+    let scrollTop = 0;
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, 800);
+        },
+      },
+    });
+    const onInitialScrollSettled = vi.fn<() => void>();
+    const reconcile = vi.fn<() => void>();
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    const { rerender } = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={reconcile}
+        initialScrollSettled={false}
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    reconcile.mockClear();
+    rerender(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={reconcile}
+        initialScrollSettled={false}
+        initialLayoutReady
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+    expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+    expect(scrollTop).toBe(800);
+    rerender(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={reconcile}
+        initialScrollSettled
+        initialLayoutReady
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+    act(() => {
+      for (const callback of frames.values()) callback(performance.now());
+    });
+    expect(reconcile).not.toHaveBeenCalled();
+    expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+  });
+
   it("reveals the initial transcript only after a post-reconcile animation frame", () => {
     const animationFrames = new Map<number, FrameRequestCallback>();
     let nextAnimationFrameHandle = 0;
@@ -321,6 +388,7 @@ describe("ChatScrollControls", () => {
         virtualScrollToBottom={virtualScrollToBottom}
         initialScrollSettled={false}
         initialScrollRevealDelayMs={50}
+        initialLayoutReady
         onInitialScrollSettled={onInitialScrollSettled}
       />,
     );
