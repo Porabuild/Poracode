@@ -15718,6 +15718,10 @@ msgstr "스레드"
 msgid "Thread actions"
 msgstr "스레드 작업"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "스레드가 이미 존재합니다."
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "스레드 컨텍스트 사용량"

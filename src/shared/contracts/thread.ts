@@ -732,6 +732,24 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     threadId: z.string().min(1),
     workspaceId: z.string().min(1).nullable(),
   }),
+  /** Save a new thread before workspace preparation, without starting an agent. */
+  threadSchema
+    .pick({
+      projectId: true,
+      workspaceId: true,
+      title: true,
+      agentKind: true,
+      agentInstanceId: true,
+      config: true,
+      presentationMode: true,
+      worktreePath: true,
+      worktreeBranch: true,
+      groupId: true,
+      groupName: true,
+      prNumber: true,
+      parentThreadId: true,
+    })
+    .extend({ kind: z.literal("create"), threadId: z.string().min(1) }),
 ]);
 export type RemoteThreadCommand = z.infer<typeof remoteThreadCommandSchema>;
 

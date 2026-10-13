@@ -12,7 +12,7 @@ import { applyProjectStateSnapshot } from "@/renderer/state/projectStateSync";
 import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
 import { reuseRemoteRows } from "@/renderer/state/remoteServers/rowReuse";
 import { removePaneFromView } from "@/renderer/state/slices/helpers";
-import { dropPendingManagedRootLaunch } from "./rootCatalogStore";
+import { dropPendingManagedRootLaunch, peekPendingManagedRootLaunch } from "./rootCatalogStore";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 import { carryActiveTurnTiming } from "../activeTurnTiming";
@@ -65,6 +65,27 @@ export function normalizeRootCatalogThread(thread: Thread): Thread {
 
 export function normalizeRootCatalogProject(project: Project): Project {
   return project;
+}
+
+/** A saved draft has no host runtime yet; its pending launch owns local progress and errors. */
+function carryPendingRootLaunchRuntime(existing: Thread, incoming: Thread): Thread {
+  const pending = peekPendingManagedRootLaunch(existing.id);
+  if (
+    !(pending?.metadataCreated || pending?.metadataCreationUncertain) ||
+    incoming.status !== "inactive" ||
+    incoming.archived ||
+    incoming.sessionRef ||
+    incoming.canResumeWithConfig
+  ) {
+    return incoming;
+  }
+  return {
+    ...incoming,
+    status: existing.status,
+    attention: existing.attention,
+    ...(existing.errorMessage ? { errorMessage: existing.errorMessage } : {}),
+    ...(existing.activeTurnStartedAt ? { activeTurnStartedAt: existing.activeTurnStartedAt } : {}),
+  };
 }
 
 /**
@@ -135,7 +156,10 @@ export function applyRootCatalogThreadRows(
       if (!existing.archived && incoming.archived) archivedNow.add(existing.id);
       changed = true;
       return preservePendingThreadConfig(
-        carryVolatileSessionConfigOptions(existing, carryActiveTurnTiming(existing, incoming)),
+        carryVolatileSessionConfigOptions(
+          existing,
+          carryActiveTurnTiming(existing, carryPendingRootLaunchRuntime(existing, incoming)),
+        ),
         state.pendingThreadConfigByThreadId[existing.id],
       );
     });

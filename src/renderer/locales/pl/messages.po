@@ -15718,6 +15718,10 @@ msgstr "Wątek"
 msgid "Thread actions"
 msgstr "Akcje wątku"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "Wątek już istnieje."
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Użycie kontekstu wątku"

@@ -15718,6 +15718,10 @@ msgstr "luồng"
 msgid "Thread actions"
 msgstr "Hành động luồng"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "Luồng đã tồn tại."
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Mức sử dụng bối cảnh luồng"

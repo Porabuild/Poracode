@@ -6,6 +6,31 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class WebSocketClientMessageU2DOptionU2D1U2DType_fe79d48b8a {
+    @SerialName("ping") PING,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D1_1709690cf0(
+    @SerialName("id") val id: RemoteField<String> = RemoteField.Missing,
+    @SerialName("sentAt") val sentAt: RemoteField<Double> = RemoteField.Missing,
+    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D1U2DType_fe79d48b8a,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("id", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("sentAt", "Double", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D1U2DType_fe79d48b8a", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D2U2DType_3f5bcd72f9 {
+    @SerialName("browser-watch") BROWSERU2DWATCH,
+}
+
+@Serializable
 data class WebSocketClientMessageU2DOptionU2D2_2b7b34c95b(
     @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D2U2DType_3f5bcd72f9,
 ) {

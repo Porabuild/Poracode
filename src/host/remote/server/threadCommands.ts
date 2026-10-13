@@ -49,6 +49,7 @@ import type { RemoteServerContext } from "./context";
 import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle";
 import { sortOrderForThread } from "./snapshots";
 import { applyThreadMetadataCommand, threadMetadataClosesSession } from "./threadMetadataCommands";
+import { createRemoteThread } from "./threadCreation";
 
 export { runRemoteProcedure } from "./threadProcedure";
 export { applyRemoteThreadSwitch, retargetRemoteThreadForSwitch } from "./threadSwitch";
@@ -154,6 +155,9 @@ export async function applyRemoteThreadCommand(
   onCatalogCommitted?: CatalogIntentCommittedSignal,
 ): Promise<boolean> {
   switch (command.kind) {
+    case "create":
+      createRemoteThread(command, onCatalogCommitted);
+      return false;
     case "prepare-worktree":
       await prepareHostWorktree(ctx, {
         projectId: command.projectId,

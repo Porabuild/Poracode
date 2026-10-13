@@ -137,6 +137,7 @@ export interface ThreadSlice {
     worktreeBranch?: string,
     options?: { preserveProvisioning?: boolean },
   ) => void;
+  finishWorktreeProvisioning: (threadId: string) => void;
   updateThreadConfig: (threadId: string, config: ThreadConfig) => void;
   updateThreadRuntime: (
     threadId: string,
@@ -610,6 +611,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ? state.provisioningWorktreeThreadIds
           : provisioningWorktreeThreadIds,
       };
+    }),
+  finishWorktreeProvisioning: (threadId) =>
+    set((state) => {
+      if (!state.provisioningWorktreeThreadIds[threadId]) return {};
+      const { [threadId]: _finished, ...provisioningWorktreeThreadIds } =
+        state.provisioningWorktreeThreadIds;
+      return { provisioningWorktreeThreadIds };
     }),
   updateThreadConfig: (threadId, config) =>
     set((state) => {

@@ -15717,6 +15717,10 @@ msgstr "Fil de discussion"
 msgid "Thread actions"
 msgstr "Actions du fil"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "Le fil de discussion existe déjà."
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Utilisation du contexte du fil de discussion"

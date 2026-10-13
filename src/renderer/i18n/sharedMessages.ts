@@ -45,6 +45,7 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
     message:
       "The project moved or was removed before the thread could launch. Review the project and try again.",
   }),
+  "thread.alreadyExists": msg({ message: "Thread already exists." }),
   "prWatch.retirementUnconfirmed": msg({
     message:
       'Could not confirm that the Auto Fix thread "{id}" was stopped. Poracode keeps it recorded and will retry stopping it.',

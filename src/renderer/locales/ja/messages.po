@@ -15716,6 +15716,10 @@ msgstr "スレッド"
 msgid "Thread actions"
 msgstr "スレッドアクション"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "スレッドはすでに存在します。"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "スレッドコンテキストの使用量"

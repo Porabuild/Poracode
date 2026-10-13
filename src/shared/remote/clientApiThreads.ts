@@ -451,7 +451,10 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
     return pages.reverse().flat();
   }
 
-  async startThread(input: StartRemoteThreadInput): Promise<StartThreadResult> {
+  async startThread(
+    input: StartRemoteThreadInput,
+    options: { readonly commandId?: string } = {},
+  ): Promise<StartThreadResult> {
     const result = await this.requestJson("/api/threads/start", {
       method: "POST",
       mutation: true,
@@ -462,9 +465,11 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         // item id the start is a fresh attempt and mints a fresh command id —
         // a per-thread stable id would replay a stale completion (or conflict)
         // when the same thread is resumed or switched again later.
-        [REMOTE_COMMAND_ID_HEADER]: input.userMessageItemId
-          ? `thread-start-item:${input.userMessageItemId}`
-          : crypto.randomUUID(),
+        [REMOTE_COMMAND_ID_HEADER]:
+          options.commandId ??
+          (input.userMessageItemId
+            ? `thread-start-item:${input.userMessageItemId}`
+            : crypto.randomUUID()),
       },
       body: {
         ...(input.threadId ? { threadId: input.threadId } : {}),

@@ -22,7 +22,7 @@ export type RemoteProjectCatalogCommand = Extract<
  */
 export type RemoteThreadCatalogCommand = Extract<
   RemoteThreadCommand,
-  { kind: "reorder" | "reorder-flat" | "set-workspace" }
+  { kind: "create" | "reorder" | "reorder-flat" | "set-workspace" }
 >;
 
 export function isRemoteProjectCatalogCommand(
@@ -39,6 +39,7 @@ export function isRemoteThreadCatalogCommand(
   command: RemoteThreadCommand,
 ): command is RemoteThreadCatalogCommand {
   return (
+    command.kind === "create" ||
     command.kind === "reorder" ||
     command.kind === "reorder-flat" ||
     command.kind === "set-workspace"

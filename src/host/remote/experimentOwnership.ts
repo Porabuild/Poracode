@@ -217,6 +217,7 @@ export function assertRemoteThreadCommandExperimentSafe(command: RemoteThreadCom
         command.groupId,
       );
       return;
+    case "create":
     case "start":
     case "set-worktree":
     case "archive":

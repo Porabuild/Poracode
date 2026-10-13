@@ -15718,6 +15718,10 @@ msgstr "Konu"
 msgid "Thread actions"
 msgstr "İş parçacığı işlemleri"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Thread already exists."
+msgstr "Konu zaten mevcut."
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Konu içeriği kullanımı"
