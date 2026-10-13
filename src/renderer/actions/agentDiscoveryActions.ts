@@ -57,7 +57,12 @@ export async function refreshDiscoveredAgent(
   groupKind?: string,
 ): Promise<void> {
   if (statuses.length === 0) return;
-  const { inFirstLaunchDiscovery, discoveryScope } = useAgentStatusesStore.getState();
+  const { inFirstLaunchDiscovery, discoveryScope, discoveryAutoHideCancelled } =
+    useAgentStatusesStore.getState();
+  // Manual refresh means the user is still reviewing the discovery results.
+  if (inFirstLaunchDiscovery && !discoveryAutoHideCancelled) {
+    useAgentStatusesStore.setState({ discoveryAutoHideCancelled: true });
+  }
   const discoveryRun = run;
   const envsByKind = new Map<string, Map<string, AgentEnv>>();
   const addEnv = (kind: string, status: AgentStatus) => {

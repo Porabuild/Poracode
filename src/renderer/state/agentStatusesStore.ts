@@ -38,6 +38,8 @@ interface AgentStatusesStore {
    * dismisses it; cancel/hydrate still end the session outright.
    */
   discoveryScanning: boolean;
+  /** A manual row refresh keeps results open for the rest of this discovery session. */
+  discoveryAutoHideCancelled: boolean;
   /** Session-only visibility; hiding the artwork does not stop detection. */
   discoveryHidden: boolean;
   setDiscoveryHidden: (hidden: boolean) => void;
@@ -200,6 +202,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       wslLoaded: false,
       inFirstLaunchDiscovery: false,
       discoveryScanning: false,
+      discoveryAutoHideCancelled: false,
       discoveryHidden: false,
       setDiscoveryHidden: (discoveryHidden) => set({ discoveryHidden }),
       discoveryScope: undefined,
@@ -216,6 +219,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           wslLoaded: true,
           inFirstLaunchDiscovery: false,
           discoveryScanning: false,
+          discoveryAutoHideCancelled: false,
           discoveryScope: undefined,
         })),
       beginFirstLaunchDiscovery: (scope) =>
@@ -227,6 +231,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           return {
             inFirstLaunchDiscovery: true,
             discoveryScanning: true,
+            discoveryAutoHideCancelled: false,
             discoveryHidden: false,
             discoveryScope: nextScope,
             discoveredAgents: [],
@@ -238,12 +243,14 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           prev.discoveredAgents.length === 0 &&
           !prev.inFirstLaunchDiscovery &&
           !prev.discoveryScanning &&
+          !prev.discoveryAutoHideCancelled &&
           prev.discoveryScope === undefined
             ? prev
             : {
                 discoveredAgents: [],
                 inFirstLaunchDiscovery: false,
                 discoveryScanning: false,
+                discoveryAutoHideCancelled: false,
                 discoveryScope: undefined,
                 discoveryHidden: false,
               },
@@ -317,6 +324,8 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     {
       name: "poracode-agent-statuses-v1",
       version: 56,
+      // Discovery interaction flags are excluded by partialize and do not
+      // change the persisted format.
       // v56 mirrors supervisor STATUS_CACHE_VERSION=60: advertise Muse's
       // launch-scoped MCP wiring in both presentations.
       migrate: (persisted) => {
