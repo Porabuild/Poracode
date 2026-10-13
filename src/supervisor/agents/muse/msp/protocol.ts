@@ -33,6 +33,8 @@
  * github.com/meta-models/muse-code-sdk/tree/main/schema/msp/transcripts.
  */
 
+// Approval deduplication and named subagent rows use existing MSP/canonical fields;
+// v1 payloads and previously persisted rows remain valid without a version bump.
 export const MSP_SCHEMA_VERSION = 1;
 export const MSP_SCHEMA_FINGERPRINT =
   "sha256:eae467ab60cb9a5d5af4de616830f065e59375c987fd59269c8cc33ed2a1137f";

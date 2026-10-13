@@ -12,6 +12,7 @@ import {
 } from "../../goalRuntime";
 import { mapMuseGoalMetadata } from "./goal";
 import { mintMspCommandId } from "./uuidv7";
+import { museSubagentPayload, type MuseSubagentIdentity } from "./subagentMapping";
 
 export type MuseMspItem = Record<string, unknown>;
 
@@ -22,8 +23,8 @@ export interface MuseMspItemMapperState {
   readonly itemAliases: Map<string, string>;
   readonly streamedItemIds: Set<string>;
   readonly reasoningFields: Map<string, string>;
-  /** Agent id → declared type from `subagent_spawn`, so companion calls (`subagent_wait`, …) can name the agent they continue. */
-  readonly subagentTypes: Map<string, string>;
+  /** Identities returned by spawn, retained so later companion calls use the same name. */
+  readonly subagents: Map<string, MuseSubagentIdentity>;
   goalItemId?: string | undefined;
   goalObjective?: string | undefined;
   goalCreatedAt?: number | undefined;
@@ -37,7 +38,7 @@ export function createMuseMspItemMapperState(threadId: string): MuseMspItemMappe
     itemAliases: new Map(),
     streamedItemIds: new Set(),
     reasoningFields: new Map(),
-    subagentTypes: new Map(),
+    subagents: new Map(),
   };
 }
 
@@ -68,58 +69,6 @@ export function completeOpenMuseMspItems(state: MuseMspItemMapperState): Runtime
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-/**
- * Muse runs sub-agents through its `subagent_*` tool family: `subagent_spawn`
- * launches one, and `subagent_wait` / `subagent_status` / `subagent_read_result`
- * / `subagent_send_message` / `subagent_cancel` continue it by id. Mark those
- * tool calls as sub-agent rows so the composer and thread panel render them as
- * agents instead of plain tool rows; companion calls continue the spawned
- * agent's row (same surface Claude's `SendMessage` resume uses) and are named
- * from the type recorded at spawn when their own args don't carry one.
- *
- * Full child transcripts are not carried on these tool calls — for a richer
- * overlay later, `muse export --session <id>` (documented as stitching in
- * subagent transcripts that finish independently) is the known source.
- */
-function museSubagentPayload(
-  state: MuseMspItemMapperState,
-  name: string,
-  args: unknown,
-  status: ToolCallPayload["status"],
-): Partial<ToolCallPayload> {
-  if (!name.startsWith("subagent_")) return {};
-  const action = name.slice("subagent_".length);
-  const record =
-    args && typeof args === "object" && !Array.isArray(args)
-      ? (args as Record<string, unknown>)
-      : undefined;
-  const agentId =
-    stringValue(record?.["id"]) ??
-    stringValue(record?.["subagentId"]) ??
-    stringValue(record?.["agentId"]) ??
-    stringValue(record?.["subagent"]);
-  const type =
-    stringValue(record?.["agent"]) ??
-    stringValue(record?.["agentType"]) ??
-    stringValue(record?.["type"]) ??
-    (agentId ? state.subagentTypes.get(agentId) : undefined);
-  if (action === "spawn" && agentId && type) {
-    state.subagentTypes.set(agentId, type);
-  }
-  const subAgentStatus =
-    status === "running"
-      ? ("running" as const)
-      : status === "error"
-        ? ("failed" as const)
-        : ("completed" as const);
-  return {
-    isSubAgent: true,
-    ...(action === "spawn" ? {} : { isSubAgentResume: true }),
-    ...(type ? { subAgentType: type } : {}),
-    subAgentStatus,
-  };
 }
 
 function numberValue(value: unknown): number | undefined {
@@ -320,7 +269,13 @@ export function mapMuseMspItem(
       args,
       status,
       ...(result ? { result } : {}),
-      ...museSubagentPayload(state, name, args, status),
+      ...museSubagentPayload(
+        state.subagents,
+        name,
+        args,
+        name === "subagent_spawn" ? parseJsonArgs(result) : {},
+        status,
+      ),
     };
 
     return emitItemLifecycle(
