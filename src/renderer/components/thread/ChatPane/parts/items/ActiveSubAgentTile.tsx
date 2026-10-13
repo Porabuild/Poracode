@@ -3,6 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
@@ -223,7 +224,7 @@ function ActiveSubAgentRow({
   placement?: ThreadDocksPlacement;
 }) {
   const { t } = useLingui();
-  const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
+  const item = useThreadRuntimeItem(threadId, itemId);
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, itemId)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
   const dismiss = useThreadSubAgentDockStore((s) => s.dismiss);

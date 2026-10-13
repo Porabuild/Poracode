@@ -19,6 +19,7 @@ import {
 import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import { RuntimeEventQueue, type RuntimeEventQueueBatch } from "@/renderer/state/runtimeEventQueue";
+import { drainRuntimeEventQueue } from "@/renderer/state/runtimeEventDrain";
 import {
   isAgentStatusSupervisorEvent,
   type AgentStatusSupervisorEvent,
@@ -247,9 +248,7 @@ export function createSupervisorEventReducer(
   let removeReadBarrierListener: (() => void) | null = null;
 
   const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
-  /** A3 cooperative flush budget, measured per drained slice. The value is an
-   * initial estimate: it keeps one rAF/background task well inside a frame
-   * while still draining bursts in one pass; tune from A0 measurements. */
+  /** Cooperative budget for extraction, reduction, subscribers and retention. */
   const RUNTIME_FLUSH_BUDGET_MS = 4;
 
   const isForegroundRuntimeThread = (threadId: string): boolean => {
@@ -275,30 +274,30 @@ export function createSupervisorEventReducer(
   ): void => {
     const stats = { drainedThreads: 0, drainedEvents: 0 };
     const runFlush = (): void => {
-      const store = useAppStore.getState();
-      const threadMetadata = store.threads;
-      const { batches, hasMore } = queue.drainBudgeted(
+      const result = drainRuntimeEventQueue(
+        queue,
         (threadId) => !isRuntimeHistoryReadHeld(threadId) && shouldFlush(threadId),
+        (batches, sliceStats) => {
+          const store = useAppStore.getState();
+          const threadMetadata = store.threads;
+          const applyBatches = (): void => {
+            store.applyRuntimeEventBatches(batches);
+          };
+          if (config.wrapApply) config.wrapApply(applyBatches, sliceStats);
+          else applyBatches();
+          noteAppliedHistoryBatches(batches, threadMetadata);
+          evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
+          boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
+          config.afterApply?.(batches, {
+            threadMetadata,
+            ...sliceStats,
+          });
+        },
         budgeted ? RUNTIME_FLUSH_BUDGET_MS : Number.POSITIVE_INFINITY,
       );
-      stats.drainedThreads = batches.length;
-      stats.drainedEvents = batches.reduce((total, batch) => total + batch.events.length, 0);
-      if (batches.length > 0) {
-        const applyBatches = (): void => {
-          store.applyRuntimeEventBatches(batches);
-        };
-        if (config.wrapApply) config.wrapApply(applyBatches, stats);
-        else applyBatches();
-        noteAppliedHistoryBatches(batches, threadMetadata);
-        evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-        boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
-        config.afterApply?.(batches, {
-          threadMetadata,
-          drainedThreads: stats.drainedThreads,
-          drainedEvents: stats.drainedEvents,
-        });
-      }
-      if (hasMore && budgeted) {
+      stats.drainedThreads = result.drainedThreads;
+      stats.drainedEvents = result.drainedEvents;
+      if (result.hasMore && budgeted) {
         // A3: yield between safe ordered units instead of draining the whole
         // burst in one task. Order is preserved because each unit is a
         // contiguous run of one thread's queue.

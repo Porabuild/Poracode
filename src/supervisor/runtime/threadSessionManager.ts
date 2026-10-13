@@ -254,6 +254,10 @@ export class ThreadSessionManager {
     });
     this.structuredTurnQueue = new StructuredTurnQueue({
       emit: options.emit,
+      emitTurnContinuation: (threadId, events) => {
+        for (const event of events) this.enqueueRuntimeEvent(threadId, event);
+        this.runtimeEventRouter.flushThread(threadId);
+      },
       sessions: this.sessions,
       beginFailureEpisode: (session) => this.structuredFailureReporter.beginEpisode(session),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),

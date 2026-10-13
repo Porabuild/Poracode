@@ -86,6 +86,11 @@ export class RuntimeEventRouter {
    */
   releaseThread(threadId: string): void {
     this.drainChildren(threadId);
+    this.flushThread(threadId);
+  }
+
+  /** Flush admitted events within host credit, retaining private child history. */
+  flushThread(threadId: string): void {
     this.runtimeEvents.releaseThread(threadId);
   }
 

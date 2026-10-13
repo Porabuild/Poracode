@@ -473,7 +473,7 @@ describe("ThreadSessionManager steer capability", () => {
       "steer me",
       { model: `${AGENT_KIND}/model` },
       undefined,
-      undefined,
+      { userMessageItemId: expect.stringMatching(/^user-/) },
     );
     expect(structuredSession.interruptTurn).not.toHaveBeenCalled();
     expect(structuredSession.startTurn).not.toHaveBeenCalled();
