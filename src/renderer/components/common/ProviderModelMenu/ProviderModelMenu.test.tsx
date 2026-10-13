@@ -413,6 +413,33 @@ describe("ProviderModelMenu", () => {
     expect(await screen.findByRole("option", { name: /Opus/u })).toHaveTextContent("· 2x");
   });
 
+  it("truncates the muted row hint instead of collapsing the model name", async () => {
+    const provider = makeProvider(1);
+    provider.capabilities.models = [
+      {
+        id: "pair",
+        label: "Fusion · Claude Opus 5.5 · SWE-2",
+      },
+    ];
+
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="codex"
+        currentModel="pair"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const row = await screen.findByRole("option", { name: /Fusion/u });
+    const hint = within(row).getByText("· Claude Opus 5.5 · SWE-2");
+    // The hint absorbs the overflow; a shrink-0 hint squeezed the name to "F…".
+    expect(hint).toHaveClass("min-w-0", "truncate");
+    expect(hint).not.toHaveClass("shrink-0");
+  });
+
   it("shows each fast-capable model's saved Fast preference", async () => {
     const provider = makeProvider(2);
     provider.capabilities.fastModels = ["model-1", "model-2"];

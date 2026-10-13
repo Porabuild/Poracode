@@ -90,7 +90,11 @@ function devinFastCapableAcceptedVariants(
   return negotiated.filter((model) => fastFamilyVariantIds.has(model.id)).map((model) => model.id);
 }
 
-/** Accepted IDs receive catalog pricing without changing native controls. */
+/**
+ * Accepted IDs receive catalog pricing without changing native controls.
+ * Composite pairs are excluded: their label already names both models, and
+ * the two-stream (lead + sidekick) price collapses the picker row's name.
+ */
 function devinCatalogIdentityIndex(
   families: readonly DevinModelFamily[],
 ): Map<string, CatalogIdentity> {
@@ -99,7 +103,7 @@ function devinCatalogIdentityIndex(
     for (const variant of family.variants) {
       if (index.has(variant.id)) continue;
       index.set(variant.id, {
-        ...(variant.cost ? { description: variant.cost } : {}),
+        ...(variant.cost && variant.composite === undefined ? { description: variant.cost } : {}),
       });
     }
   }

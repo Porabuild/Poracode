@@ -118,7 +118,12 @@ export function ModelMenuRow(props: ModelMenuRowProps) {
         />
       ) : null}
       {mutedHint ? (
-        <span className="shrink-0 text-[10px] leading-none text-muted/60">· {mutedHint}</span>
+        // Truncatable, never shrink-0: a long hint (e.g. a paired model's
+        // component names) must absorb the overflow instead of collapsing
+        // the model name to "F…".
+        <span className="min-w-0 truncate text-[10px] leading-none text-muted/60">
+          · {mutedHint}
+        </span>
       ) : null}
     </>
   );
