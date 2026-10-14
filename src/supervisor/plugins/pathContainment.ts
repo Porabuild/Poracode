@@ -1,5 +1,8 @@
 import { realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
+import { relativePathInside } from "@/shared/pathContainment";
+
+export { relativePathInside } from "@/shared/pathContainment";
 
 /**
  * Filesystem containment used to enforce the Agent Plugins package boundary.
@@ -19,15 +22,6 @@ export function normalizeWindowsNamespacePath(path: string): string {
   else if (normalized.startsWith("//?/UNC/")) normalized = `//${normalized.slice(8)}`;
   else if (normalized.startsWith("//?/")) normalized = normalized.slice(4);
   return normalized;
-}
-
-/** Lexical containment. Returns the relative path when `target` is under `root`. */
-export function relativePathInside(root: string, target: string): string | undefined {
-  const candidate = relative(root, target);
-  if (!candidate || isAbsolute(candidate) || candidate.split(/[\\/]/u)[0] === "..") {
-    return undefined;
-  }
-  return candidate;
 }
 
 /**

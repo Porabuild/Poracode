@@ -87,8 +87,11 @@ function toNumber(value: unknown, fallback = 0): number {
 }
 
 function toRemoteState(state: BrowserState): RemoteBrowserState {
+  // App-owned management pages have no WebContents to mirror. Keep the v3
+  // catalog web-only; a remote viewer can explicitly select a remaining web tab.
+  const tabs = state.tabs.filter((tab) => !tab.internalPage);
   return {
-    tabs: state.tabs.map((tab) => ({
+    tabs: tabs.map((tab) => ({
       tabId: tab.tabId,
       url: tab.url,
       title: tab.title,
@@ -97,7 +100,7 @@ function toRemoteState(state: BrowserState): RemoteBrowserState {
       canGoForward: tab.canGoForward,
       ...(tab.faviconUrl ? { faviconUrl: tab.faviconUrl } : {}),
     })),
-    activeTabId: state.activeTabId,
+    activeTabId: tabs.some((tab) => tab.tabId === state.activeTabId) ? state.activeTabId : null,
   };
 }
 

@@ -53,7 +53,29 @@ export function buildPickerScript(tabId: string, commitOrigin: string): string {
     if (done) return;
     done = true;
     teardown();
-    resolve(result);
+    if (result.kind !== "picked") {
+      resolve(result);
+      return;
+    }
+    if (document.hidden) {
+      resolve({ kind: "cancelled" });
+      return;
+    }
+    // The first animation callback runs before paint. Allow that frame to
+    // remove the highlight before main captures the guest's painted bitmap.
+    let frame = 0;
+    function finish(commit) {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", onVisibility);
+      resolve(commit);
+    }
+    function onVisibility() {
+      if (document.hidden) finish({ kind: "cancelled" });
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => finish(result));
+    });
   }
 
   function isAutoLikeClass(c) {

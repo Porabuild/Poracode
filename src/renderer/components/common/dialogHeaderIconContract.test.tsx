@@ -149,12 +149,12 @@ describe("dialog Header producer admission", () => {
       issues.push(...audit.issues.map((issue) => `${path}:${issue}`));
     }
     expect(issues).toEqual([]);
-    // Master adds the unmarked CustomThemeEditor modal; retain the exact producer inventory.
-    expect(sites).toHaveLength(36);
-    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(31);
+    // Include the browser import and credential editor modals in the exact producer inventory.
+    expect(sites).toHaveLength(38);
+    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(33);
     expect(sites.filter((site) => site.family === "AlertDialog")).toHaveLength(5);
     expect(sites.filter((site) => site.marked)).toHaveLength(6);
-    expect(sites.filter((site) => !site.marked)).toHaveLength(30);
+    expect(sites.filter((site) => !site.marked)).toHaveLength(32);
   });
 
   it.each([

@@ -799,6 +799,10 @@ msgstr "3000"
 msgid "30d"
 msgstr "30 T"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "4K"
+msgstr "4K"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7 T"
@@ -1017,6 +1021,10 @@ msgstr "Hinzufügen"
 msgid "Add a local project"
 msgstr "Lokales Projekt hinzufügen"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Add a password or import one from another browser."
+msgstr "Passwort hinzufügen oder eines aus einem anderen Browser importieren."
+
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Add a project"
@@ -1125,6 +1133,10 @@ msgstr "Modell hinzufügen"
 msgid "Add one manually or import from another agent."
 msgstr "Fügen Sie einen manuell hinzu oder importieren Sie ihn aus einem anderen Agenten."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Add password"
+msgstr "Passwort hinzufügen"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
 msgstr "Muster hinzufügen"
@@ -1219,6 +1231,10 @@ msgstr "Legacy übernehmen"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt legacy connection"
 msgstr "Legacy-Verbindung übernehmen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Advanced"
+msgstr "Erweitert"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
@@ -2149,11 +2165,12 @@ msgstr "Blau"
 msgid "Bold"
 msgstr "Fett"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmark this page"
 msgstr "Diese Seite als Lesezeichen speichern"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Bookmarks"
 msgstr "Lesezeichen"
 
@@ -2247,6 +2264,10 @@ msgstr "Alle {0}-Laufzeiten auf den neuesten Stand bringen"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Holen Sie ihn zurück in dieses Panel oder wechseln Sie zum Fenster, in dem er läuft."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Bring saved passwords and cookies over from an installed browser."
+msgstr "Gespeicherte Passwörter und Cookies aus einem installierten Browser übernehmen."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "Nicht festgeschriebene Änderungen mitbringen"
@@ -2319,7 +2340,7 @@ msgstr "Browser ist in einem separaten Fenster geöffnet"
 msgid "Browser MCP enabled for this thread"
 msgstr "Browser-MCP für diesen Thread aktiviert"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Browser menu"
 msgstr "Browser-Menü"
 
@@ -2455,6 +2476,8 @@ msgstr "Diese Modellauswahl kann in dieser Oberfläche nicht verwendet werden"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -2471,6 +2494,10 @@ msgstr "Abbrechen"
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 msgid "Cancel agent discovery"
 msgstr "Agentensuche abbrechen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Cancel download"
+msgstr "Download abbrechen"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -2514,6 +2541,7 @@ msgstr "abgebrochen"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Cancelled"
 msgstr "Abgebrochen"
 
@@ -2786,6 +2814,10 @@ msgstr "Wählen Sie mindestens zwei Kandidaten aus und geben Sie einen Prompt ei
 msgid "Choose color for {label}"
 msgstr "Farbe für {label} auswählen"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Choose data to bring over to the built-in browser."
+msgstr "Daten für die Übernahme in den integrierten Browser auswählen."
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose how Poracode performs manual merges and automatic PR merges."
@@ -2937,21 +2969,33 @@ msgstr "Alle löschen"
 msgid "Clear archived threads from {dateLabel}"
 msgstr "Archivierte Threads vom {dateLabel} löschen"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear browsing data"
+msgstr "Browserdaten löschen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Clear browsing history"
 msgstr "Browserverlauf löschen"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Clear Browsing History"
 msgstr "Browserverlauf löschen"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-msgid "Clear Cache"
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear cache"
 msgstr "Cache leeren"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-msgid "Clear Cookies"
+#~ msgid "Clear Cache"
+#~ msgstr "Cache leeren"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear cookies"
 msgstr "Cookies löschen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#~ msgid "Clear Cookies"
+#~ msgstr "Cookies löschen"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Clear day"
@@ -3069,6 +3113,10 @@ msgstr "Crossagents schließen"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Close Crossagents panel"
 msgstr "Crossagents-Bereich schließen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Close device toolbar"
+msgstr "Geräteleiste schließen"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -3207,6 +3255,10 @@ msgstr "Tab schließen"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Close tab switcher"
 #~ msgstr "Tab-Umschalter schließen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Close the source browser before importing. On macOS, allow access to its Safe Storage key when Keychain asks."
+msgstr "Schließe den Quellbrowser vor dem Import. Erlaube unter macOS den Zugriff auf seinen Safe-Storage-Schlüssel, wenn der Schlüsselbund danach fragt."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Close thread"
@@ -3546,6 +3598,7 @@ msgstr "abgeschlossen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Completed"
 msgstr "Abgeschlossen"
 
@@ -3904,6 +3957,10 @@ msgstr "Steuern Sie, welche Dateien in der @file-Erwähnungssuche angezeigt werd
 msgid "Conversation"
 msgstr "Gespräch"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Cookies"
+msgstr "Cookies"
+
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -3947,7 +4004,7 @@ msgstr "Alle Lightcode-Daten in Poracode kopieren. Poracode wird neu gestartet u
 msgid "Copy code"
 msgstr "Code kopieren"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Copy Current URL"
 msgstr "Aktuelle URL kopieren"
 
@@ -3994,6 +4051,10 @@ msgstr "Kopplungslink kopieren"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy pairing token"
 msgstr "Kopplungstoken kopieren"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Copy password"
+msgstr "Passwort kopieren"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -4679,6 +4740,7 @@ msgstr "Delegieren Sie Aufgaben an andere KI-Agenten."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
@@ -4759,6 +4821,14 @@ msgstr "Datei löschen"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete run"
 msgstr "Ausführung löschen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Delete saved password"
+msgstr "Gespeichertes Passwort löschen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Delete saved password?"
+msgstr "Gespeichertes Passwort löschen?"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
@@ -4959,6 +5029,10 @@ msgstr "Entwicklung"
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "Überschreibungen nur für die Entwicklung. Nur im PORACODE DEV-Build sichtbar."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Device preset"
+msgstr "Gerätevoreinstellung"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
@@ -5044,6 +5118,10 @@ msgstr "Devin schlägt einen überarbeiteten Befehl vor; Sie prüfen ihn, bevor 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Devin's own login (default)"
 msgstr "Devins eigener Login (Standard)"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Dimensions:"
+msgstr "Abmessungen:"
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -5290,9 +5368,26 @@ msgstr "Fertig ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Fertig ({remainingSeconds}s)"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Download failed"
+msgstr "Download fehlgeschlagen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Download history"
+msgstr "Downloadverlauf"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Download image"
 msgstr "Bild herunterladen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Download progress"
+msgstr "Downloadfortschritt"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Downloading"
+msgstr "Wird heruntergeladen"
 
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -5318,6 +5413,14 @@ msgstr "Sprachmodell wird heruntergeladen..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Downloading… {0}%"
 msgstr "Wird heruntergeladen… {0} %"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Downloads"
+msgstr "Downloads"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Downloads from the built-in browser are saved in this history."
+msgstr "Downloads aus dem integrierten Browser werden in diesem Verlauf gespeichert."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -5435,6 +5538,10 @@ msgstr "Ziel bearbeiten"
 msgid "Edit MCP server"
 msgstr "MCP-Server bearbeiten"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Edit password"
+msgstr "Passwort bearbeiten"
+
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "Profil bearbeiten"
@@ -5443,6 +5550,10 @@ msgstr "Profil bearbeiten"
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Edit queued follow-up"
 msgstr "Folgenachricht in der Warteschlange bearbeiten"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Edit saved password"
+msgstr "Gespeichertes Passwort bearbeiten"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -6207,6 +6318,10 @@ msgstr "Dateien für {projectName}"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Dateien, die mit diesen Globs übereinstimmen, werden bei der @file-Erwähnungssuche ausgeblendet."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Files you download appear here"
+msgstr "Heruntergeladene Dateien werden hier angezeigt"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Fill in all required workflow inputs."
 msgstr "Fülle alle erforderlichen Workflow-Eingaben aus."
@@ -6247,6 +6362,11 @@ msgstr "Im Chat suchen"
 #: src/renderer/components/find/GitFindBar.tsx
 msgid "Find in diff"
 msgstr "Im Diff suchen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Find in page"
+msgstr "Auf Seite suchen"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Find in terminal"
@@ -6516,6 +6636,10 @@ msgstr "Häufigkeit"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Friday at 4:00 PM"
 msgstr "Freitag um 16:00 Uhr"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "From"
+msgstr "Von"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
@@ -6839,7 +6963,7 @@ msgstr "handle"
 msgid "Handle"
 msgstr "Handle"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Hard Reload"
 msgstr "Hart neu laden"
 
@@ -6913,6 +7037,10 @@ msgstr "Blenden Sie Modelle, die Sie nicht verwenden, bei allen Anbietern in der
 msgid "Hide panel"
 msgstr "Panel ausblenden"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Hide password"
+msgstr "Passwort ausblenden"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Hide runtime debug panel"
 msgstr "Laufzeit-Debug-Panel ausblenden"
@@ -6944,7 +7072,7 @@ msgstr "Terminal ausblenden"
 msgid "High"
 msgstr "Hoch"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Verlauf"
 
@@ -7047,6 +7175,10 @@ msgstr "Stündlich"
 msgid "HTTP (streamable)"
 msgstr "HTTP (streamfähig)"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "https://example.com"
+msgstr "https://example.com"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
@@ -7058,6 +7190,10 @@ msgstr "https://github.com/owner/repo.git"
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "Farbton"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "I understand that protected browser data may be skipped."
+msgstr "Ich verstehe, dass geschützte Browserdaten möglicherweise übersprungen werden."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Icon color"
@@ -7123,6 +7259,7 @@ msgid "Images"
 msgstr "Bilder"
 
 #. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Import"
 msgstr "Import"
@@ -7135,9 +7272,22 @@ msgstr "Erneut importieren"
 msgid "Import and restart"
 msgstr "Importieren und neu starten"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Import browser data"
+msgstr "Browserdaten importieren"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "Importkonflikt"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import cookies"
+msgstr "Cookies importieren"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Import cookies and passwords"
+msgstr "Cookies und Passwörter importieren"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -7156,6 +7306,10 @@ msgstr "Externe Agent-Skills importieren"
 msgid "Import external skills"
 msgstr "Externe Skills importieren"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import from your browser"
+msgstr "Aus deinem Browser importieren"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import Lightcode data"
 msgstr "Lightcode-Daten importieren"
@@ -7172,6 +7326,10 @@ msgstr "MCP-Server importieren"
 msgid "Import method"
 msgstr "Importmethode"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import passwords"
+msgstr "Passwörter importieren"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import selected"
 msgstr "Ausgewählte importieren"
@@ -7179,6 +7337,10 @@ msgstr "Ausgewählte importieren"
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
 msgid "Import sessions"
 msgstr "Sitzungen importieren"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import source"
+msgstr "Importquelle"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 msgid "Import theme"
@@ -7219,9 +7381,20 @@ msgstr "{0} Skills importiert."
 msgid "Imported 1 skill."
 msgstr "1 Skill importiert."
 
+#. placeholder {0}: credential.source
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Imported from {0}"
+msgstr "Importiert aus {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
 msgid "Imported from an existing CLI session — text only, tool calls are not shown."
 msgstr "Aus einer bestehenden CLI-Sitzung importiert — nur Text, Tool-Aufrufe werden nicht angezeigt."
+
+#. placeholder {0}: result.passwordsImported
+#. placeholder {1}: result.cookiesImported
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Imported passwords: {0}. Imported cookies: {1}."
+msgstr "Importierte Passwörter: {0}. Importierte Cookies: {1}."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Imported session"
@@ -7586,6 +7759,7 @@ msgstr "Interne Befehle und Agenten"
 #~ msgid "Interrupt"
 #~ msgstr "Unterbrechen"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Interrupted"
 msgstr "Unterbrochen"
@@ -7597,6 +7771,26 @@ msgstr "Unterbrochen: Agentensitzung wurde vorzeitig beendet."
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "Ungültige Konfiguration — erhalten, aber deaktiviert"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPad Air"
+msgstr "iPad Air"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPad Mini"
+msgstr "iPad Mini"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone 15 Pro"
+msgstr "iPhone 15 Pro"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone 15 Pro Max"
+msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone SE"
+msgstr "iPhone SE"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
@@ -7714,6 +7908,14 @@ msgstr "Sprache für KI-generierte Commit-Nachrichten und PR-Zusammenfassungen. 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "Sprache, die das Sprachmodell beim Transkribieren des Diktats im Eingabefeld erwarten sollte."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Laptop"
+msgstr "Laptop"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Laptop L"
+msgstr "Laptop L"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
@@ -8024,6 +8226,10 @@ msgstr "Lokale Änderungen müssen vor dem Pull von {branch} gestasht werden"
 msgid "Local chat history was reverted. The provider may still use the removed messages."
 msgstr "Der lokale Chatverlauf wurde zurückgesetzt. Der Anbieter verwendet möglicherweise weiterhin die entfernten Nachrichten."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Local password protection"
+msgstr "Lokaler Passwortschutz"
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -8113,6 +8319,10 @@ msgstr "Längste Serie"
 msgid "Longest task"
 msgstr "Längste Aufgabe"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Looking for browser profiles…"
+msgstr "Browserprofile werden gesucht…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "Suche nach Dev-Servern…"
@@ -8160,6 +8370,10 @@ msgstr "MCP-Server verwalten"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
 #~ msgstr "Verwalte Pakete mit der nativen Plugin-Verwaltung von OpenCode. Änderungen gelten global in der gewählten Umgebung, einschließlich Terminal-Plugins."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Manage passwords"
+msgstr "Passwörter verwalten"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
@@ -9154,8 +9368,8 @@ msgstr "Neuer Zeitplan"
 #~ msgid "New session title"
 #~ msgstr "Neuer Sitzungstitel"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "Neuer Tab"
 
@@ -9426,6 +9640,10 @@ msgstr "Für {0} ist kein Unterschied verfügbar."
 msgid "No diff for {visiblePath}"
 msgstr "Kein Unterschied für {visiblePath}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "No downloads match your search"
+msgstr "Keine Downloads entsprechen der Suche"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "No external skills were found in this scope."
 msgstr "In diesem Geltungsbereich wurden keine externen Skills gefunden."
@@ -9451,7 +9669,7 @@ msgstr "Keine GitHub-CLI-Konten gefunden. Melden Sie sich mit <0>gh auth login</
 #~ msgid "No goal for this thread."
 #~ msgstr "Kein Ziel für diesen Thread."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "No history yet"
 msgstr "Noch kein Verlauf"
 
@@ -9576,6 +9794,10 @@ msgstr "Keine Plugin-Pakete installiert."
 msgid "No paired devices yet."
 msgstr "Noch keine gekoppelten Geräte."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "No passwords match your search"
+msgstr "Keine Passwörter entsprechen der Suche"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "Keine Muster."
@@ -9678,6 +9900,10 @@ msgstr "Noch keine Ausführungen."
 msgid "No runtime items yet for this thread."
 msgstr "Für diesen Thread gibt es noch keine Laufzeitelemente."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "No saved passwords"
+msgstr "Keine gespeicherten Passwörter"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "Noch keine Server verbunden."
@@ -9730,6 +9956,10 @@ msgstr "Dieser Computer hat noch keinen Status gemeldet."
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Keine unterstützten Agenten erkannt"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "No supported browser profiles were found on this device."
+msgstr "Auf diesem Gerät wurden keine unterstützten Browserprofile gefunden."
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "No tags — the entry stops influencing tag affinity."
@@ -10073,6 +10303,10 @@ msgstr "Crossagent öffnen: {0}"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
 msgstr "Dialog öffnen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Open downloaded file"
+msgstr "Heruntergeladene Datei öffnen"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open experiment"
@@ -10596,9 +10830,35 @@ msgstr "Wird Devin als Benutzerkonfiguration nur für dieses Profil übergeben. 
 #~ msgid "Passphrase (optional)"
 #~ msgstr "Passphrase (optional)"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Password"
-#~ msgstr "Passwort"
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password"
+msgstr "Passwort"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Password copied."
+msgstr "Passwort kopiert."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Password manager"
+msgstr "Passwortmanager"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password manager section"
+msgstr "Passwortmanager-Bereich"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Passwords"
+msgstr "Passwörter"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Passwords and autofill"
+msgstr "Passwörter und automatisches Ausfüllen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Passwords are encrypted in Poracode's local credential store. Password values are requested only when you reveal, copy, or edit them."
+msgstr "Passwörter werden im lokalen Anmeldedatenspeicher von Poracode verschlüsselt. Passwortwerte werden nur beim Einblenden, Kopieren oder Bearbeiten angefordert."
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
@@ -10666,6 +10926,10 @@ msgstr "Pausieren"
 #~ msgid "Pause {0}"
 #~ msgstr "{0} pausieren"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Pause download"
+msgstr "Download pausieren"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "Ziel pausieren"
@@ -10673,6 +10937,7 @@ msgstr "Ziel pausieren"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "Angehalten"
@@ -10830,6 +11095,10 @@ msgstr "Angepinnt"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Pinned task routes"
 msgstr "Angeheftete Aufgabenrouten"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Pixel 8"
+msgstr "Pixel 8"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -11200,6 +11469,10 @@ msgstr "Frühere Sitzungen; für neue Threads erneut anmelden."
 msgid "Previous tab"
 msgstr "Vorheriger Tab"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Print"
+msgstr "Drucken"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "Datenschutzrichtlinie"
@@ -11393,6 +11666,10 @@ msgstr "Prompts"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "Vorgeschlagener Plan"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Protected browser data"
+msgstr "Geschützte Browserdaten"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -12030,6 +12307,7 @@ msgid "Remove action"
 msgstr "Aktion entfernen"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Remove bookmark"
 msgstr "Lesezeichen entfernen"
@@ -12071,6 +12349,10 @@ msgstr "Cursor-SDK-API-Schlüssel entfernen"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Umgebungsvariable entfernen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Remove from download history"
+msgstr "Aus Downloadverlauf entfernen"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Remove from favorites"
@@ -12350,6 +12632,10 @@ msgstr "Mattierung der Seitenleiste auf Standard zurücksetzen"
 msgid "Reset to default"
 msgstr "Auf Standard zurücksetzen"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Reset zoom"
+msgstr "Zoom zurücksetzen"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Größe der Browser-Schublade ändern"
@@ -12393,6 +12679,18 @@ msgstr "Größe der Teilung ändern"
 msgid "Resize terminal panel"
 msgstr "Größe des Terminal-Panels ändern"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport"
+msgstr "Größe des Ansichtsbereichs ändern"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport height"
+msgstr "Höhe des Ansichtsbereichs ändern"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport width"
+msgstr "Breite des Ansichtsbereichs ändern"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useConflictResolver.ts
 msgid "Resolve conflicts in this worktree. First inspect Git status and the active operation; the file list below may be stale. Compare both sides and the base, preserving intended behavior and unrelated edits. During rebase, verify what ours/theirs refer to. Handle rename/delete, binary, and generated-file conflicts using repository conventions. If intent is ambiguous, ask before discarding changes. Validate the resolution with appropriate checks, then stage only resolved paths. Do not commit, continue or abort the operation, or push. Report resolutions, checks, and remaining conflicts.\n"
 "\n"
@@ -12412,6 +12710,10 @@ msgstr "Löst Zusammenführungskonflikte während des Rebasierens oder Zusammenf
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Resolving…"
 msgstr "Wird entschieden…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Responsive"
+msgstr "Responsiv"
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Restart Poracode"
@@ -12448,6 +12750,10 @@ msgstr "Fortsetzen"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Resume {label}"
 #~ msgstr "{label} fortsetzen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Resume download"
+msgstr "Download fortsetzen"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -12533,6 +12839,10 @@ msgstr "Im Datei-Explorer anzeigen"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Reveal in file tree"
 msgstr "Im Dateibaum anzeigen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Reveal password"
+msgstr "Passwort einblenden"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -12668,6 +12978,10 @@ msgstr "Rechtes Panel"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "Rechtsklicken, um den Ring zu wechseln"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Rotate viewport"
+msgstr "Ansichtsbereich drehen"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -12859,6 +13173,10 @@ msgstr "Derselbe Login wie Devin"
 msgid "Same provider order on all machines"
 msgstr "Gleiche Provider-Reihenfolge auf allen Computern"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Samsung Galaxy S24 Ultra"
+msgstr "Samsung Galaxy S24 Ultra"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "Sättigung und Helligkeit"
@@ -12873,6 +13191,7 @@ msgstr "Sättigung und Helligkeit"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -12953,6 +13272,10 @@ msgstr "Gespeicherte Zugangsdaten gelten für alle Computer."
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Saved font"
 msgstr "Gespeicherte Schriftart"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Saved password actions"
+msgstr "Aktionen für gespeicherte Passwörter"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
@@ -13129,6 +13452,10 @@ msgstr "Branches durchsuchen..."
 msgid "Search categories"
 msgstr "Suchkategorien"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Search downloads"
+msgstr "Downloads durchsuchen"
+
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Dateien durchsuchen"
@@ -13165,6 +13492,10 @@ msgstr "Modelle suchen..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Adresse suchen oder eingeben"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Search passwords"
+msgstr "Passwörter durchsuchen"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins"
@@ -13514,7 +13845,7 @@ msgstr "Beim Start dieser Sitzung festgelegt — starte einen neuen Thread, um P
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -13626,11 +13957,11 @@ msgstr "Agentensuche anzeigen"
 msgid "Show all"
 msgstr "Alle anzeigen"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "Lesezeichenleiste anzeigen"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show Bookmark Bar"
 msgstr "Lesezeichenleiste anzeigen"
 
@@ -13652,6 +13983,10 @@ msgstr "Composer anzeigen"
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "Details zur Kontextverwendung anzeigen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Show device toolbar"
+msgstr "Geräteleiste anzeigen"
 
 #: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
 msgid "Show docks above the composer"
@@ -13682,6 +14017,10 @@ msgstr "Bilder anzeigen"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "Im Datei-Explorer anzeigen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Show in folder"
+msgstr "Im Ordner anzeigen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
@@ -14047,9 +14386,18 @@ msgstr "Lösung {0}"
 #~ msgid "Solution {ordinal}"
 #~ msgstr "Lösung {ordinal}"
 
+#. placeholder {0}: result.protectedItemsSkipped
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Some browser data was skipped. Protected items skipped: {0}."
+msgstr "Einige Browserdaten wurden übersprungen. Übersprungene geschützte Elemente: {0}."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Einige Prüfungen schlagen fehl oder stehen noch aus."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Some Chromium browsers protect cookies and passwords with App-Bound Encryption. Poracode does not bypass that protection. Data the operating system does not make available will be skipped."
+msgstr "Einige Chromium-Browser schützen Cookies und Passwörter mit App-Bound-Verschlüsselung. Poracode umgeht diesen Schutz nicht. Daten, die vom Betriebssystem nicht bereitgestellt werden, werden übersprungen."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Some contributions could not be loaded"
@@ -14580,6 +14928,14 @@ msgstr "Unterstützt Schnellmodus"
 msgid "Surface"
 msgstr "Oberfläche"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Surface Duo"
+msgstr "Surface Duo"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Surface Pro 7"
+msgstr "Surface Pro 7"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Notizen und Aufgaben tauschen"
@@ -14735,7 +15091,7 @@ msgstr "Tailscale HTTPS"
 msgid "Tailscale URL"
 msgstr "Tailscale-URL"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Take Screenshot"
 msgstr "Screenshot aufnehmen"
 
@@ -15648,6 +16004,11 @@ msgstr "Dadurch werden spätere Nachrichten entfernt und Dateien wiederhergestel
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
 msgstr "Dadurch wird die Umgebung vom Host entfernt. Der untergeordnete Arbeitsbereich des Servers wird nicht gelöscht."
 
+#. placeholder {0}: pendingDelete?.origin
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "This removes the saved password for <0>{0}</0> from Poracode."
+msgstr "Dadurch wird das gespeicherte Passwort für <0>{0}</0> aus Poracode entfernt."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This removes the schedule and its latest result from this device."
 msgstr "Dadurch werden der Zeitplan und sein letztes Ergebnis von diesem Gerät entfernt."
@@ -16134,6 +16495,10 @@ msgstr "Kopplungstoken kann nicht kopiert werden."
 msgid "Unable to copy Tailscale URL."
 msgstr "Tailscale-URL konnte nicht kopiert werden."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Unable to copy the password."
+msgstr "Das Passwort konnte nicht kopiert werden."
+
 #: src/renderer/actions/experimentActions.ts
 msgid "Unable to create the candidate worktree."
 msgstr "Der Kandidaten-Worktree konnte nicht erstellt werden."
@@ -16147,6 +16512,10 @@ msgstr "Pull Request konnte nicht erstellt werden: {0}"
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "Das WSL-Worktree-Verzeichnis „{path}“ kann nicht erstellt werden."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to delete the saved password."
+msgstr "Das gespeicherte Passwort konnte nicht gelöscht werden."
+
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to delete the worktree."
 #~ msgstr "Der Worktree kann nicht gelöscht werden."
@@ -16154,6 +16523,18 @@ msgstr "Das WSL-Worktree-Verzeichnis „{path}“ kann nicht erstellt werden."
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "Der Quell-Branch des Experiments konnte nicht ermittelt werden."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to edit the saved password."
+msgstr "Das gespeicherte Passwort konnte nicht bearbeitet werden."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Unable to find browser data to import."
+msgstr "Es konnten keine Browserdaten zum Importieren gefunden werden."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Unable to import browser data."
+msgstr "Browserdaten konnten nicht importiert werden."
 
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -16171,9 +16552,17 @@ msgstr "{0} konnte nicht installiert werden."
 msgid "Unable to load diff."
 msgstr "Diff konnte nicht geladen werden."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Unable to load downloads."
+msgstr "Downloads konnten nicht geladen werden."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
 msgstr "Remotezugriff-Kopplung konnte nicht geladen werden."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to load saved passwords."
+msgstr "Gespeicherte Passwörter konnten nicht geladen werden."
 
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to load thread."
@@ -16214,6 +16603,10 @@ msgstr "Datei konnte nicht im Editor geöffnet werden"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Kopplung mit diesem Desktop nicht möglich."
+
+#: src/renderer/actions/browserActions.ts
+msgid "Unable to print this page."
+msgstr "Diese Seite konnte nicht gedruckt werden."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Unable to probe the SSH host."
@@ -16299,6 +16692,10 @@ msgstr "Commit des Experimentkandidaten konnte nicht aufgelöst werden"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "Die SSH-Verbindung konnte nicht wiederhergestellt werden."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Unable to reveal the password."
+msgstr "Das Passwort konnte nicht eingeblendet werden."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to revoke remote session."
 msgstr "Remote-Sitzung konnte nicht widerrufen werden."
@@ -16319,6 +16716,10 @@ msgstr "Bild konnte nicht gespeichert werden."
 #: src/renderer/commands/registry.ts
 msgid "Unable to save the file"
 msgstr "Datei konnte nicht gespeichert werden"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to save the password."
+msgstr "Das Passwort konnte nicht gespeichert werden."
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -16403,6 +16804,10 @@ msgstr "Remotezugriff kann nicht aktualisiert werden."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update Tailscale HTTPS."
 msgstr "Tailscale HTTPS konnte nicht aktualisiert werden."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Unable to update the download."
+msgstr "Der Download konnte nicht aktualisiert werden."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update the public URL."
@@ -16994,6 +17399,10 @@ msgstr "Wird für neue interaktive Sitzungen im Terminal-Panel verwendet."
 msgid "user@host"
 msgstr "user@host"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Username"
+msgstr "Benutzername"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
 msgstr "Verwendet Devis eigenen Login auf dieser Maschine. Melden Sie sich auf der Devin-Basisseite an oder ab — er bleibt der einzige globale Login."
@@ -17091,6 +17500,18 @@ msgstr "Nur Lesezugriff – diese Verbindung kann keine Projekte verwalten."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"
 msgstr "Betrachter"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport height"
+msgstr "Höhe des Ansichtsbereichs"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport scale"
+msgstr "Skalierung des Ansichtsbereichs"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport width"
+msgstr "Breite des Ansichtsbereichs"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Violet"
@@ -17250,10 +17671,15 @@ msgid "Web server"
 msgstr "Webserver"
 
 #. External link to the product website
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Website"
 msgstr "Website"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Website origin"
+msgstr "Website-Ursprung"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
@@ -17659,10 +18085,16 @@ msgstr "Ihre im Stash gesicherten lokalen Änderungen wurden erneut angewendet."
 msgid "z.ai"
 msgstr "z.ai"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Zoom"
+msgstr "Zoom"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "Vergrößern"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "Verkleinern"
