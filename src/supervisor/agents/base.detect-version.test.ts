@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AgentCapability } from "@/shared/contracts";
 
 const execFileAsyncMock = vi.hoisted(() =>
@@ -122,6 +125,36 @@ describe("detectAgentInstall version probe", () => {
       ["--version"],
       expect.anything(),
     );
+  });
+
+  it("detects an already-resolved Windows executable without a second PATH lookup", async () => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    const root = mkdtempSync(join(tmpdir(), "resolved-agent-"));
+    const binary = join(root, "fixture agent.exe");
+    writeFileSync(binary, "fixture");
+    execFileAsyncMock.mockResolvedValue({ stdout: "v2.0.28\n" });
+
+    try {
+      const status = await detectAgentInstall({ envKind: "windows" }, { ...spec, binary });
+      expect(status).toMatchObject({ installed: true, executablePath: binary, version: "2.0.28" });
+      expect(execFileAsyncMock).toHaveBeenCalledExactlyOnceWith(
+        binary,
+        ["--version"],
+        expect.anything(),
+      );
+      expect(
+        spawnSyncMock.mock.calls.filter(([command]) => String(command).endsWith("where.exe")),
+      ).toHaveLength(0);
+
+      rmSync(binary);
+      execFileAsyncMock.mockClear();
+      const missing = await detectAgentInstall({ envKind: "windows" }, { ...spec, binary });
+      expect(missing.installed).toBe(false);
+      expect(missing.executablePath).toBeUndefined();
+      expect(execFileAsyncMock).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("extracts the full semver from a v-prefixed version string", async () => {

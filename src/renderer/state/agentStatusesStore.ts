@@ -323,11 +323,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 56,
+      version: 57,
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v56 mirrors supervisor STATUS_CACHE_VERSION=60: advertise Muse's
-      // launch-scoped MCP wiring in both presentations.
+      // v57 mirrors supervisor STATUS_CACHE_VERSION=61: re-detect Windows
+      // providers incorrectly cached as missing after absolute-path lookup.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

@@ -568,6 +568,11 @@ async function resolveDetectedBinary(
     primeAgentBinaryPath(ctx.wslDistro, binary, path);
     return path;
   }
+  // `where.exe` rejects absolute paths as invalid search patterns. Providers
+  // may already have resolved and validated their executable before detection.
+  if (process.platform === "win32" && win32.isAbsolute(binary)) {
+    return existsSync(binary) ? binary : undefined;
+  }
   return resolveExecutablePathAsync(binary);
 }
 

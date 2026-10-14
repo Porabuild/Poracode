@@ -146,7 +146,9 @@ const execFileAsync = promisify(execFile);
 // and orders permissions least to most permissive, preserving v58 catalogs.
 // v60 advertises Muse's launch-scoped MCP wiring in both presentations, so
 // cached Muse statuses that hid every MCP toggle must be re-probed.
-export const STATUS_CACHE_VERSION = 60;
+// v61 re-detects native Windows providers whose resolved absolute executable
+// was incorrectly passed back through PATH lookup and cached as missing.
+export const STATUS_CACHE_VERSION = 61;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
