@@ -133,11 +133,11 @@ describe("ScheduleService", () => {
     restarted.start();
 
     expect(onStartupInterrupted).toHaveBeenCalledWith(task.id);
-    expect(store.get(task.id)?.lastStatus).toBe("failed");
+    expect(store.get(task.id)?.lastStatus).toBe("interrupted");
     restarted.dispose();
   });
 
-  it("does not invoke the interrupted hook for tasks that were not running", () => {
+  it("sweeps orphan run rows even when the latest task was not running", () => {
     const store = memoryStore();
     const now = new Date(2026, 6, 6, 9, 0).getTime();
     const seed = new ScheduleService({
@@ -156,7 +156,7 @@ describe("ScheduleService", () => {
     });
     service.start();
 
-    expect(onStartupInterrupted).not.toHaveBeenCalled();
+    expect(onStartupInterrupted).toHaveBeenCalledTimes(1);
     service.dispose();
   });
 
@@ -253,7 +253,7 @@ describe("ScheduleService", () => {
     expect(patchRuntime).toHaveBeenCalledTimes(1);
     expect(patchRuntime).toHaveBeenCalledWith(
       task.id,
-      expect.objectContaining({ enabled: true, lastStatus: "failed", lastError: null }),
+      expect.objectContaining({ enabled: true, lastStatus: "interrupted", lastError: null }),
     );
     // The captured execution config passes through untouched.
     expect(store.get(task.id)?.config).toEqual(input.config);

@@ -407,6 +407,7 @@ export class BackendDesktopServices {
    * cannot shadow the fresh supervisor's live reads.
    */
   handleSupervisorReset(): void {
+    this.durable.handleSupervisorReset();
     this.remote?.handleSupervisorReset();
   }
 
@@ -567,6 +568,20 @@ export class BackendDesktopServices {
       case "publishRemoteGitSummaries":
         this.remote?.updateGitSummaries((payload as { summaries: never }).summaries);
         return undefined as BackendServiceResult<Name>;
+      case "getAutomationsSnapshot":
+        return this.durable.scheduleService.snapshot(
+          payload as never,
+        ) as BackendServiceResult<Name>;
+      case "getScheduleRunInbox":
+        return this.durable.scheduleService.inbox(payload as never) as BackendServiceResult<Name>;
+      case "updateScheduleRunState":
+        return this.durable.scheduleService.updateRunState(
+          payload as never,
+        ) as BackendServiceResult<Name>;
+      case "cancelScheduleRun":
+        return this.durable.scheduleService.cancelRun(
+          (payload as { id: string }).id,
+        ) as BackendServiceResult<Name>;
       case "getSchedules":
         return this.durable.scheduleService.list() as BackendServiceResult<Name>;
       case "createSchedule":

@@ -4,21 +4,21 @@ import { IPC_PROCEDURE_MAP_VERSION, IpcProcedureMapVersionError } from "./proced
 import { createClientProcedureInvocation, parseClientProcedureInvocation } from "./invocation";
 
 /**
- * Hop-17 checked invocation envelope: the version is minted in the RENDERER
+ * Hop-18 checked invocation envelope: the version is minted in the RENDERER
  * bundle by `createClientProcedureInvocation` (its own compiled constant —
  * never a parameter, never manufactured by preload for a legacy positional
  * call), forwarded unchanged through preload, and asserted by main before any
- * parse/dispatch (see `clientHostHop.ts` version 17).
+ * parse/dispatch (see `clientHostHop.ts` version 18).
  */
 describe("client procedure invocation envelope", () => {
   it("stamps the bundle's own compiled hop constant, never a parameter", () => {
     const invocation = createClientProcedureInvocation("focusWindow", []);
     expect(IPC_PROCEDURE_MAP_VERSION).toBe(CLIENT_HOST_HOP_VERSION);
-    // The settled hop-17 lane: the factory's compiled constant is 17. A bump
+    // The reviewed hop-18 lane: the factory's compiled constant is 18. A bump
     // must revisit this lane's admission tests, not silently re-version them.
-    expect(IPC_PROCEDURE_MAP_VERSION).toBe(17);
+    expect(IPC_PROCEDURE_MAP_VERSION).toBe(18);
     expect(invocation).toEqual({
-      ipcProcedureMapVersion: 17,
+      ipcProcedureMapVersion: 18,
       name: "focusWindow",
       args: [],
     });

@@ -793,6 +793,12 @@
 		SA100000000000000000000A /* DevinSessionActionPanelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB100000000000000000000A /* DevinSessionActionPanelsTests.swift */; };
 		SA100000000000000000000B /* RichChatSessionActionLeafCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB100000000000000000000B /* RichChatSessionActionLeafCatalog.swift */; };
 		SA100000000000000000000C /* RemoteThreadSessionRefDecodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SB100000000000000000000C /* RemoteThreadSessionRefDecodeTests.swift */; };
+		454A5D82C12A5FD8B8F6A56E /* RemoteIntegrationsScheduleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE7FBBA045D151318C404E8B /* RemoteIntegrationsScheduleModels.swift */; };
+		BA8DF3E238A057C3BD899A4A /* RemoteIntegrationsAutomationDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECC36E4CACE15290897F56DE /* RemoteIntegrationsAutomationDraft.swift */; };
+		03FA1B2A76285B7DACCB4FDE /* RemoteIntegrationsAutomationsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B172D0CA1419545C826F9DD0 /* RemoteIntegrationsAutomationsController.swift */; };
+		4E35F63E9415525CB5F63ABB /* RemoteIntegrationsAutomationControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 047381CABB1D5C6D850AF88D /* RemoteIntegrationsAutomationControls.swift */; };
+		F59C59B966415536907BB351 /* RemoteIntegrationsResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CFB191224C513AB141FE45 /* RemoteIntegrationsResultsView.swift */; };
+		753A20BBFFD6539792EC1503 /* RemoteAutomationsStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5470EF50475F5C1B87C156EC /* RemoteAutomationsStrings.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1623,6 +1629,12 @@
 		SB100000000000000000000A /* DevinSessionActionPanelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevinSessionActionPanelsTests.swift; sourceTree = "<group>"; };
 		SB100000000000000000000B /* RichChatSessionActionLeafCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatSessionActionLeafCatalog.swift; sourceTree = "<group>"; };
 		SB100000000000000000000C /* RemoteThreadSessionRefDecodeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteThreadSessionRefDecodeTests.swift; sourceTree = "<group>"; };
+		DE7FBBA045D151318C404E8B /* RemoteIntegrationsScheduleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteIntegrationsScheduleModels.swift; sourceTree = "<group>"; };
+		ECC36E4CACE15290897F56DE /* RemoteIntegrationsAutomationDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteIntegrationsAutomationDraft.swift; sourceTree = "<group>"; };
+		B172D0CA1419545C826F9DD0 /* RemoteIntegrationsAutomationsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteIntegrationsAutomationsController.swift; sourceTree = "<group>"; };
+		047381CABB1D5C6D850AF88D /* RemoteIntegrationsAutomationControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteIntegrationsAutomationControls.swift; sourceTree = "<group>"; };
+		36CFB191224C513AB141FE45 /* RemoteIntegrationsResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteIntegrationsResultsView.swift; sourceTree = "<group>"; };
+		5470EF50475F5C1B87C156EC /* RemoteAutomationsStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteAutomationsStrings.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -2346,6 +2358,9 @@
 				425BEDAD0C744718AEA8006A /* RemoteIntegrationsComposition.swift */,
 				818BD0B1C1154426B4171971 /* RemoteIntegrationsDrafts.swift */,
 				704A5256B59A41A19AC1DEFB /* RemoteIntegrationsModels.swift */,
+				B172D0CA1419545C826F9DD0 /* RemoteIntegrationsAutomationsController.swift */,
+				ECC36E4CACE15290897F56DE /* RemoteIntegrationsAutomationDraft.swift */,
+				DE7FBBA045D151318C404E8B /* RemoteIntegrationsScheduleModels.swift */,
 				C324C916411F462B99FB8E67 /* RemoteIntegrationsPRWatchController.swift */,
 				D5F37D318F5346CBAD955D25 /* RemoteIntegrationsRoute.swift */,
 				42158C11BE06443185B299F2 /* RemoteIntegrationsSchedulesController.swift */,
@@ -2361,6 +2376,9 @@
 				105B51D48CE3414BAA2A1ECE /* RemoteIntegrationsPRWatchesView.swift */,
 				48CEBDA10F7C441089B678E1 /* RemoteIntegrationsPresentation.swift */,
 				93DC815305734E01A9892DC1 /* RemoteIntegrationsScheduleEditor.swift */,
+				5470EF50475F5C1B87C156EC /* RemoteAutomationsStrings.swift */,
+				36CFB191224C513AB141FE45 /* RemoteIntegrationsResultsView.swift */,
+				047381CABB1D5C6D850AF88D /* RemoteIntegrationsAutomationControls.swift */,
 				DAD893EB18E44A56A5DD3B8F /* RemoteIntegrationsSchedulesView.swift */,
 				SR2000000000000000000001 /* RemoteIntegrationsScheduleRunsView.swift */,
 				E2D7FB770D7D401B9553DE75 /* RemoteIntegrationsScreen.swift */,
@@ -3781,6 +3799,12 @@
 				88E045F4E93E4891914CE502 /* RemoteIntegrationsComposition.swift in Sources */,
 				446A73EC5E6E4055B35ABD30 /* RemoteIntegrationsDrafts.swift in Sources */,
 				F6B6D96419744531B91BFD76 /* RemoteIntegrationsModels.swift in Sources */,
+				753A20BBFFD6539792EC1503 /* RemoteAutomationsStrings.swift in Sources */,
+				F59C59B966415536907BB351 /* RemoteIntegrationsResultsView.swift in Sources */,
+				4E35F63E9415525CB5F63ABB /* RemoteIntegrationsAutomationControls.swift in Sources */,
+				03FA1B2A76285B7DACCB4FDE /* RemoteIntegrationsAutomationsController.swift in Sources */,
+				BA8DF3E238A057C3BD899A4A /* RemoteIntegrationsAutomationDraft.swift in Sources */,
+				454A5D82C12A5FD8B8F6A56E /* RemoteIntegrationsScheduleModels.swift in Sources */,
 				9CD3B418E0184D4BA9D14D5B /* RemoteIntegrationsPRWatchController.swift in Sources */,
 				B915066D994A4A359D240960 /* RemoteIntegrationsRoute.swift in Sources */,
 				B746473086E24A7691657CC2 /* RemoteIntegrationsSchedulesController.swift in Sources */,

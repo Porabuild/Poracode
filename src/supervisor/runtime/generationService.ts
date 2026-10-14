@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type {
   AgentKind,
+  ScheduleCompletionEvaluationInput,
+  ScheduleCompletionEvaluationResult,
   ExtractContextPayload,
   ExtractContextResult,
   GenerateCommitMessagePayload,
@@ -12,6 +14,7 @@ import type {
   JudgeExperimentPayload,
   JudgeExperimentResult,
 } from "@/shared/contracts";
+import { evaluateScheduleCompletion } from "../scheduleCompletionEvaluator";
 import { generateCommitMessage } from "../commitMessageGenerator";
 import {
   extractContext as extractContextFn,
@@ -43,6 +46,7 @@ export interface GenerationServiceDeps {
  * `SupervisorRuntime`; the runtime keeps thin delegates.
  */
 export class GenerationService {
+  private readonly scheduleEvaluationAbortControllers = new Map<string, AbortController>();
   private readonly extractionAbortControllers = new Map<string, AbortController>();
   private readonly judgeAbortControllers = new Map<string, AbortController>();
 
@@ -54,6 +58,27 @@ export class GenerationService {
       throw new Error(`Unsupported agent adapter: ${kind}`);
     }
     return adapter;
+  }
+
+  async evaluateScheduleCompletion(
+    payload: ScheduleCompletionEvaluationInput,
+  ): Promise<ScheduleCompletionEvaluationResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    const controller = new AbortController();
+    const id = payload.evaluationId ?? randomUUID();
+    this.scheduleEvaluationAbortControllers.set(id, controller);
+    try {
+      return await this.withHelperLease("schedule-completion", () =>
+        evaluateScheduleCompletion(payload, adapter, controller.signal),
+      );
+    } finally {
+      if (this.scheduleEvaluationAbortControllers.get(id) === controller)
+        this.scheduleEvaluationAbortControllers.delete(id);
+    }
+  }
+
+  cancelScheduleCompletionEvaluation(id: string): void {
+    this.scheduleEvaluationAbortControllers.get(id)?.abort();
   }
 
   async generateCommitMessage(

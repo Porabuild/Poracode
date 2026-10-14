@@ -1,6 +1,8 @@
 package com.poracode.app.transport.remoteintegrations
 
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.remoteintegrations.AutomationsSnapshot
+import com.poracode.app.model.remoteintegrations.ScheduleRunCommandResult
 import com.poracode.app.model.remoteintegrations.AgentConfiguration
 import com.poracode.app.model.remoteintegrations.HostUpdateState
 import com.poracode.app.model.remoteintegrations.HostUpdateStatus
@@ -13,6 +15,8 @@ import com.poracode.app.model.remoteintegrations.ScheduleRunStatus
 import com.poracode.app.model.remoteintegrations.ScheduleHistoryStatus
 import com.poracode.app.model.remoteintegrations.ScheduleRun
 import com.poracode.app.model.remoteintegrations.ScheduledTask
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -42,14 +46,32 @@ internal object RemoteIntegrationAdapters {
                 completedAt = item.optionalString("completedAt"),
                 status = when (item.requiredString("status")) {
                     "running" -> ScheduleHistoryStatus.Running
+                    "waiting-for-approval" -> ScheduleHistoryStatus.Waiting
+                    "cancelled" -> ScheduleHistoryStatus.Cancelled
+                    "skipped" -> ScheduleHistoryStatus.Skipped
                     "succeeded" -> ScheduleHistoryStatus.Succeeded
                     "failed" -> ScheduleHistoryStatus.Failed
                     "interrupted" -> ScheduleHistoryStatus.Interrupted
                     else -> invalid()
                 },
                 hasError = item.optionalString("error") != null,
+                summary = item.optionalString("summary"),
+                attempt = (item["attempt"] as? JsonPrimitive)?.longOrNull?.toInt() ?: 1,
+                iteration = (item["iteration"] as? JsonPrimitive)?.longOrNull?.toInt() ?: 1,
+                result = item.objOrNull("result"),
             )
         }
+    }
+
+    fun automations(value: JsonObject): AutomationsSnapshot = protect {
+        AutomationsSnapshot(schedules(value), scheduleRuns(value), value.requiredLong("unreadCount").toInt())
+    }
+
+    fun runCommand(value: JsonObject): ScheduleRunCommandResult = protect {
+        val run = value.objOrNull("run")?.let { item ->
+            scheduleRuns(buildJsonObject { put("runs", JsonArray(listOf(item))) }).single()
+        }
+        ScheduleRunCommandResult(run, value.optionalBoolean("cancelled"))
     }
 
     fun prWatch(value: JsonObject): PrWatch? = protect {
@@ -79,12 +101,17 @@ internal object RemoteIntegrationAdapters {
             recurrence = recurrence(value.requiredObject("recurrence")),
             enabled = value.requiredBoolean("enabled"),
             projectId = value.optionalString("projectId"),
+            automation = value.objOrNull("automation"),
         ),
         nextRunAt = value.optionalString("nextRunAt"),
         lastRunAt = value.optionalString("lastRunAt"),
         lastStatus = when (value.requiredString("lastStatus")) {
             "never" -> ScheduleRunStatus.Never
             "running" -> ScheduleRunStatus.Running
+            "waiting-for-approval" -> ScheduleRunStatus.Waiting
+            "cancelled" -> ScheduleRunStatus.Cancelled
+            "interrupted" -> ScheduleRunStatus.Interrupted
+            "skipped" -> ScheduleRunStatus.Skipped
             "succeeded" -> ScheduleRunStatus.Succeeded
             "failed" -> ScheduleRunStatus.Failed
             else -> invalid()
@@ -99,8 +126,11 @@ internal object RemoteIntegrationAdapters {
                 ((it as JsonPrimitive).longOrNull ?: error("invalid")).toInt()
             }.toSet(),
             value.requiredString("time"),
+            value.optionalString("timeZone"),
         )
         "once" -> ScheduleRecurrence.Once(value.requiredString("runAt"))
+        "interval" -> ScheduleRecurrence.Interval(value.requiredLong("every").toInt(), value.requiredString("unit"))
+        "cron" -> ScheduleRecurrence.Cron(value.requiredString("expression"), value.requiredString("timeZone"))
         else -> invalid()
     }
 
@@ -122,6 +152,7 @@ internal object RemoteIntegrationAdapters {
         model = value.requiredString("model"),
         effort = value.optionalString("effort"),
         fast = value.optionalBoolean("fast"),
+        preservedSelection = value,
     )
 
     private inline fun <T> protect(block: () -> T): T = try {

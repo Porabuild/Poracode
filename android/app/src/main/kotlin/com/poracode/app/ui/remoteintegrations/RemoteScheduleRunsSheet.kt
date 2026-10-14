@@ -22,6 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -47,13 +50,14 @@ internal fun RemoteScheduleRunsSheet(
     onOpenThread: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var selected by remember { mutableStateOf<ScheduleRun?>(null) }
     val state by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     LaunchedEffect(task.id) {
         do {
             controller.load(task.id)
             val running = controller.state.value.runs.any {
-                it.status == ScheduleHistoryStatus.Running
+                it.status == ScheduleHistoryStatus.Running || it.status == ScheduleHistoryStatus.Waiting
             }
             if (running) delay(2_000)
         } while (running)
@@ -76,7 +80,11 @@ internal fun RemoteScheduleRunsSheet(
                     Text(stringResource(R.string.remote_integrations_close))
                 }
             }
-            when {
+            val selectedRun = selected
+            if (selectedRun != null) {
+                TextButton(onClick = { selected = null }) { Text(stringResource(R.string.remote_integrations_run_history)) }
+                ScheduleResultDetails(selectedRun, threads.firstOrNull { it.threadId == selectedRun.threadId }, onOpenThread)
+            } else when {
                 state.loading && state.runs.isEmpty() -> IntegrationLoading()
                 state.failure != null -> IntegrationFailureView(state.failure) {
                     scope.launch { controller.load(task.id) }
@@ -90,7 +98,7 @@ internal fun RemoteScheduleRunsSheet(
                     items(state.runs, key = ScheduleRun::id) { run ->
                         val thread = threads.firstOrNull { it.threadId == run.threadId }
                         ScheduleRunRow(run, thread) {
-                            thread?.let { onOpenThread(it.presentedId) }
+                            selected = run
                         }
                     }
                 }
@@ -106,7 +114,7 @@ private fun ScheduleRunRow(
     onOpenThread: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().clickable(enabled = thread != null, onClick = onOpenThread)
+        Modifier.fillMaxWidth().clickable(onClick = onOpenThread)
             .padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -146,26 +154,29 @@ private fun ScheduleRunRow(
 }
 
 @Composable
-private fun historyStatusLabel(status: ScheduleHistoryStatus): String = stringResource(
+internal fun historyStatusLabel(status: ScheduleHistoryStatus): String = stringResource(
     when (status) {
         ScheduleHistoryStatus.Running -> R.string.remote_integrations_status_running
         ScheduleHistoryStatus.Succeeded -> R.string.remote_integrations_status_succeeded
         ScheduleHistoryStatus.Failed -> R.string.remote_integrations_status_failed
         ScheduleHistoryStatus.Interrupted -> R.string.remote_integrations_status_interrupted
+        ScheduleHistoryStatus.Waiting -> R.string.automations_waiting
+        ScheduleHistoryStatus.Cancelled -> R.string.automations_cancelled
+        ScheduleHistoryStatus.Skipped -> R.string.automations_skipped
     },
 )
 
 private fun ScheduleHistoryStatus.icon(): ImageVector = when (this) {
-    ScheduleHistoryStatus.Running -> Icons.Outlined.HourglassTop
+    ScheduleHistoryStatus.Running, ScheduleHistoryStatus.Waiting -> Icons.Outlined.HourglassTop
     ScheduleHistoryStatus.Succeeded -> Icons.Outlined.CheckCircle
     ScheduleHistoryStatus.Failed -> Icons.Outlined.Error
-    ScheduleHistoryStatus.Interrupted -> Icons.Outlined.PauseCircle
+    ScheduleHistoryStatus.Interrupted, ScheduleHistoryStatus.Cancelled, ScheduleHistoryStatus.Skipped -> Icons.Outlined.PauseCircle
 }
 
 @Composable
 private fun ScheduleHistoryStatus.color() = when (this) {
-    ScheduleHistoryStatus.Running -> MaterialTheme.colorScheme.primary
+    ScheduleHistoryStatus.Running, ScheduleHistoryStatus.Waiting -> MaterialTheme.colorScheme.primary
     ScheduleHistoryStatus.Succeeded -> MaterialTheme.colorScheme.tertiary
     ScheduleHistoryStatus.Failed -> MaterialTheme.colorScheme.error
-    ScheduleHistoryStatus.Interrupted -> MaterialTheme.colorScheme.onSurfaceVariant
+    ScheduleHistoryStatus.Interrupted, ScheduleHistoryStatus.Cancelled, ScheduleHistoryStatus.Skipped -> MaterialTheme.colorScheme.onSurfaceVariant
 }

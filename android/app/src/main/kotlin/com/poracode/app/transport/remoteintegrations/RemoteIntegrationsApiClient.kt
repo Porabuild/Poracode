@@ -1,5 +1,8 @@
 package com.poracode.app.transport.remoteintegrations
 
+import kotlinx.serialization.json.JsonObject
+import com.poracode.app.model.remoteintegrations.AutomationsSnapshot
+import com.poracode.app.model.remoteintegrations.ScheduleRunCommandResult
 import com.poracode.app.model.remoteintegrations.HostUpdateState
 import com.poracode.app.model.remoteintegrations.PrWatch
 import com.poracode.app.model.remoteintegrations.PrWatchDraft
@@ -104,6 +107,24 @@ class RemoteIntegrationsApiClient private constructor(
                 jsonMutation(IntegrationRouteId.SchedulesCommand, canonical),
             ),
         )
+    }
+
+    override suspend fun automations(query: JsonObject): AutomationsSnapshot {
+        val canonical = RemoteV3IntegrationsContract.automationsQuery(query.toString())
+        val raw = http.requestText(RemoteV3IntegrationsContract.route(IntegrationRouteId.AutomationsSnapshot).path,
+            query = canonical.map { (key, value) -> key to value.jsonPrimitive.content })
+        return RemoteIntegrationAdapters.automations(RemoteV3IntegrationsContract.automationsResponse(raw))
+    }
+    override suspend fun scheduleInbox(query: JsonObject): List<ScheduleRun> {
+        val canonical = RemoteV3IntegrationsContract.inboxQuery(query.toString())
+        val raw = http.requestText(RemoteV3IntegrationsContract.route(IntegrationRouteId.ScheduleInbox).path,
+            query = canonical.map { (key, value) -> key to value.jsonPrimitive.content })
+        return RemoteIntegrationAdapters.scheduleRuns(RemoteV3IntegrationsContract.inboxResponse(raw))
+    }
+    override suspend fun scheduleRunCommand(command: JsonObject): ScheduleRunCommandResult {
+        val body = RemoteV3IntegrationsContract.runCommandRequest(command.toString())
+        return RemoteIntegrationAdapters.runCommand(RemoteV3IntegrationsContract.runCommandResponse(
+            jsonMutation(IntegrationRouteId.ScheduleRunCommand, body)))
     }
 
     override suspend fun prWatch(key: PrWatchKey): PrWatch? {

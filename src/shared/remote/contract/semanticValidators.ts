@@ -1,3 +1,9 @@
+import {
+  scheduleAutomationSchema,
+  scheduleTimeZoneSchema,
+  scheduleCronExpressionSchema,
+  updateScheduleRunStatePayloadSchema,
+} from "../../contracts/schedule";
 import { z } from "zod";
 import { omittedCallEnvelopeSchema, omittedResultSchema } from "../../ipc/resultCodec";
 import {
@@ -198,6 +204,34 @@ const PORTABLE_CUSTOM_VALIDATORS: ReadonlyArray<{
   readonly validator: SemanticValidator;
 }> = [
   ...REGISTERED,
+  {
+    schema: scheduleAutomationSchema,
+    validator: {
+      id: "schedule.automation",
+      reason: "completion conditions require heartbeat and retry ceilings cover initial delays",
+    },
+  },
+  {
+    schema: scheduleTimeZoneSchema,
+    validator: {
+      id: "schedule.time-zone",
+      reason: "time zone must be a recognized IANA identifier",
+    },
+  },
+  {
+    schema: scheduleCronExpressionSchema,
+    validator: {
+      id: "schedule.cron",
+      reason: "cron contains five numeric fields with valid ranges and steps",
+    },
+  },
+  {
+    schema: updateScheduleRunStatePayloadSchema,
+    validator: {
+      id: "schedule.run-state",
+      reason: "at least one run state field must be supplied",
+    },
+  },
   {
     schema: objectProperty(mcpHttpTransportSchema, "url"),
     validator: {

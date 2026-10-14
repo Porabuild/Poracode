@@ -1,6 +1,6 @@
 import { buildRemoteV3AuthorityInput, manifestHashOf, sourceHashOf } from "../hashes";
 import { compareUnicodeCodePoints } from "../unicodeOrder";
-import { REMOTE_PROTOCOL_VERSION } from "../versions";
+import { REMOTE_PROTOCOL_VERSION, REMOTE_GENERATOR_VERSION } from "../versions";
 import type {
   JsonSchema,
   NativeBindingIr,
@@ -21,6 +21,10 @@ const PORTABLE_VALIDATORS = new Set([
   "push.registration.platform-fields",
   "push.routing.identifier-no-controls",
   "push.web.endpoint-https",
+  "schedule.automation",
+  "schedule.time-zone",
+  "schedule.cron",
+  "schedule.run-state",
   "string.trim",
   "terminal.cursor.baseline-chunk-utf16",
   "terminal.cursor.output-data-utf16",
@@ -217,7 +221,7 @@ export function parseNativeBindingIr(raw: unknown, manifest: unknown): NativeBin
     throw new Error(`unsupported protocol version ${String(item.protocolVersion)}`);
   if (item.bindingFormatVersion !== 2)
     throw new Error(`unsupported binding format ${String(item.bindingFormatVersion)}`);
-  if (item.generatorVersion !== 4)
+  if (item.generatorVersion !== REMOTE_GENERATOR_VERSION)
     throw new Error(`unsupported generator version ${String(item.generatorVersion)}`);
   if (item.manifestFormatVersion !== 1)
     throw new Error(`unsupported manifest format ${String(item.manifestFormatVersion)}`);
@@ -310,7 +314,7 @@ export function parseNativeBindingIr(raw: unknown, manifest: unknown): NativeBin
     contract: "poracode.remote",
     protocolVersion: REMOTE_PROTOCOL_VERSION,
     bindingFormatVersion: 2,
-    generatorVersion: 4,
+    generatorVersion: REMOTE_GENERATOR_VERSION,
     manifestFormatVersion: 1,
     sourceHash,
     manifestHash,

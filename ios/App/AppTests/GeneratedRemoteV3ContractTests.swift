@@ -62,7 +62,16 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
       GeneratedRemoteV3Contract.isCompatible(
         withNativeBundleManifest: try JSONSerialization.data(withJSONObject: object)
       ))
-    XCTAssertEqual(GeneratedRemoteV3Contract.expectedGeneratorVersion, 4)
+    XCTAssertEqual(GeneratedRemoteV3Contract.expectedGeneratorVersion, 5)
+  }
+
+  func testGenerator4ManifestIsRefusedAfterScheduleSemanticChanges() throws {
+    var object = try object(manifestData())
+    object["generatorVersion"] = 4
+    XCTAssertFalse(
+      GeneratedRemoteV3Contract.isCompatible(
+        withNativeBundleManifest: try JSONSerialization.data(withJSONObject: object)
+      ))
   }
 
   func testFormat4ManifestIsRefusedByFormat5Reader() throws {

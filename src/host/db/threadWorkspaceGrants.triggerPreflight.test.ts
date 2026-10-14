@@ -30,7 +30,7 @@ afterEach(() => {
   delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
 });
 
-function fixture(version: 54 | 55 | 56) {
+function fixture(version: 54 | 55 | 56 | 59) {
   const path = join(directory, "state.sqlite");
   const sqlite = createSchema53PayloadOriginDatabase(path);
   handles.push(sqlite);
@@ -118,7 +118,7 @@ describe("workspace custody trigger preflight", () => {
   it.each(["migrate", "validate"] as const)(
     "refuses an extra persistent trigger during latest %s startup",
     (schemaMode) => {
-      const { sqlite, path } = fixture(56);
+      const { sqlite, path } = fixture(59);
       sqlite.exec("UPDATE threads SET archived = 1, archived_at = NULL WHERE id = 'thread-1'");
       seedUnresolved(sqlite);
       sqlite.exec(staleJournalCleanup);
@@ -136,6 +136,9 @@ describe("workspace custody trigger preflight", () => {
     [56, "threads"],
     [56, "PROJECTS"],
     [56, "Thread_Workspace_Grant_Operations"],
+    [59, "threads"],
+    [59, "PROJECTS"],
+    [59, "Thread_Workspace_Grant_Operations"],
   ] as const)("closes schema%s persistent trigger inventory on %s", (version, table) => {
     const { sqlite } = fixture(version);
     sqlite.exec(
@@ -143,7 +146,11 @@ describe("workspace custody trigger preflight", () => {
     );
     const before = evidence(sqlite);
     const check =
-      version === 56 ? assertRequiredDatabaseSchema : createThreadWorkspaceGrantsSchema56;
+      version === 59
+        ? assertRequiredDatabaseSchema
+        : version === 56
+          ? assertThreadWorkspaceGrantsSchema56
+          : createThreadWorkspaceGrantsSchema56;
     expect(() => check(sqlite)).toThrow(/custody.*unexpected_authority_trigger/);
     expect(() => repairSafeSchemaDrift(sqlite)).toThrow(/custody.*unexpected_authority_trigger/);
     expect(evidence(sqlite)).toEqual(before);
@@ -164,7 +171,7 @@ describe("workspace custody trigger preflight", () => {
   });
 
   it("permits TEMP fault injection and unrelated persistent triggers", () => {
-    const { sqlite } = fixture(56);
+    const { sqlite } = fixture(59);
     sqlite.exec(`CREATE TEMP TRIGGER transient_failure BEFORE UPDATE ON thread_workspace_grant_operations
       WHEN NEW.state = 'committed' BEGIN SELECT RAISE(ABORT, 'transient failure'); END;
       CREATE TRIGGER unrelated_trigger AFTER UPDATE ON app_state BEGIN SELECT 1; END;`);

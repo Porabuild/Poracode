@@ -75,7 +75,7 @@ function rawRequest(
 const VALID_NOTES = { doc: null, todos: [], updatedAt: "2026-10-09T00:00:00.000Z" };
 
 /**
- * Fence 1 (remote 13): per-request writer-generation admission on the real
+ * Fence 1 (remote 14): per-request generation admission on the real
  * HTTP dispatcher. Direct declared routes and non-read generic procedures
  * refuse any missing/old/future/malformed/duplicate generation AFTER bearer
  * authentication and scope authorization but BEFORE payload parsing, audit,
@@ -83,7 +83,7 @@ const VALID_NOTES = { doc: null, todos: [], updatedAt: "2026-10-09T00:00:00.000Z
  * clients; a raw (non-TS-client) request is never synthesized into a current
  * one by the host.
  */
-describe.skipIf(!sqliteAvailable)("remote13 writer-generation admission", () => {
+describe.skipIf(!sqliteAvailable)("remote14 writer-generation admission", () => {
   let dir: string;
   let info: RemoteAccessServerInfo;
   let token: string;
@@ -119,6 +119,24 @@ describe.skipIf(!sqliteAvailable)("remote13 writer-generation admission", () => 
       port: 0,
       audit,
       callSupervisor,
+      schedules: {
+        list: () => [],
+        runs: () => [],
+        create: () => {
+          throw new Error("unexpected schedule mutation");
+        },
+        update: () => {
+          throw new Error("unexpected schedule mutation");
+        },
+        delete: () => {
+          throw new Error("unexpected schedule mutation");
+        },
+        runNow: () => {
+          throw new Error("unexpected schedule mutation");
+        },
+        inbox: () => [],
+        snapshot: () => ({ schedules: [], runs: [], unreadCount: 0 }),
+      },
     });
     servers.push(server);
     info = await server.start();
@@ -171,8 +189,8 @@ describe.skipIf(!sqliteAvailable)("remote13 writer-generation admission", () => 
 
   it("refuses old, future, and malformed generations with the same typed 409", async () => {
     // A trailing-space value never reaches the fence: the HTTP parser strips
-    // surrounding whitespace, so "13 " is exactly "13" on the wire.
-    for (const version of ["12", "14", "abc", "013", "13.0"]) {
+    // surrounding whitespace, so "14 " is exactly "14" on the wire.
+    for (const version of ["13", "15", "abc", "014", "14.0"]) {
       const response = await post("/api/projects/project-1/notes", VALID_NOTES, {
         [REMOTE_PROTOCOL_VERSION_HEADER]: version,
       });
@@ -182,6 +200,37 @@ describe.skipIf(!sqliteAvailable)("remote13 writer-generation admission", () => 
       });
     }
     expect(dbGetProjectNotes("project-1")).toBeNull();
+  });
+
+  it("refuses pre-upgrade schedule readers before serving extended status enums", async () => {
+    for (const path of [
+      "/api/schedules",
+      "/api/schedules/runs?id=11111111-1111-4111-8111-111111111111",
+      "/api/automations",
+      "/api/schedules/inbox",
+    ]) {
+      for (const generation of [null, "13"]) {
+        const response = await fetch(new URL(path, info.httpBaseUrl), {
+          headers: {
+            authorization: `Bearer ${token}`,
+            ...(generation ? { [REMOTE_PROTOCOL_VERSION_HEADER]: generation } : {}),
+          },
+        });
+        expect({ path, status: response.status }).toEqual({ path, status: 409 });
+        await expect(response.json()).resolves.toMatchObject({
+          error: { code: "protocol_version_mismatch" },
+        });
+      }
+      const current = await fetch(new URL(path, info.httpBaseUrl), {
+        headers: {
+          authorization: `Bearer ${token}`,
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
+      });
+      expect({ path, status: current.status }).toEqual({ path, status: 200 });
+    }
+    expect(callSupervisor).not.toHaveBeenCalled();
+    expect(auditEvents).toHaveLength(auditBaseline);
   });
 
   it("rejects exact duplicate generation header lines", async () => {
@@ -336,11 +385,12 @@ describe.skipIf(!sqliteAvailable)("remote13 writer-generation admission", () => 
 
   it("declares the generation flag only on bearer-gated non-procedure routes", () => {
     const declared = REMOTE_HTTP_ROUTES.filter((route) => route.requiresCurrentProtocol === true);
-    // Registry-classification completeness guard: the frozen contract pins 47
-    // direct writer routes (46 POST + 1 DELETE), all bearer-gated with
+    // Registry-classification completeness guard: the contract pins 48 direct
+    // writer routes and four schedule reads with extended closed enums. All are bearer-gated with
     // dispatcher-owned scope resolution, so the dispatcher's post-auth check
     // ordering holds for every declared route.
-    expect(declared).toHaveLength(47);
+    expect(declared).toHaveLength(52);
+    expect(declared.filter((route) => route.method === "GET")).toHaveLength(4);
     expect(declared.filter((route) => route.method === "DELETE")).toHaveLength(1);
     for (const route of declared) {
       expect(route.auth).toBe("bearer");

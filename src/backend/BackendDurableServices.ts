@@ -6,11 +6,15 @@ import {
   dbGetProjectNotes,
   dbGetProjects,
   dbGetThread,
+  dbGetThreadRuntimeItemCursor,
+  dbGetThreadRuntimeItemsAfter,
+  dbPatchScheduleRuntime,
   dbGetThreads,
   dbInsertScheduleRun,
   dbInterruptScheduleRuns,
   dbListThreadIds,
   dbUpdateScheduleRun,
+  dbGetScheduleRun,
   dbUpsertThread,
   onThreadsDeleted,
 } from "@/host/db";
@@ -126,6 +130,21 @@ export class BackendDurableServices {
     this.scheduleCoordinator = new ScheduleRunCoordinator({
       admitScheduleExecution: dbAdmitScheduleExecution,
       startThread: (payload) => supervisor.call("startThread", payload),
+      sendThreadInput: (payload) => supervisor.call("sendThreadInput", payload),
+      interruptThread: (threadId) => supervisor.call("interruptThread", { threadId }),
+      evaluateCompletion: (payload) => supervisor.call("evaluateScheduleCompletion", payload),
+      cancelCompletionEvaluation: (id) =>
+        supervisor.call("cancelScheduleCompletionEvaluation", { id }),
+      getThread: dbGetThread,
+      getThreadRuntimeItemCursor: dbGetThreadRuntimeItemCursor,
+      getThreadRuntimeItemsAfter: dbGetThreadRuntimeItemsAfter,
+      onRunStatus: (scheduleId, lastStatus, lastError) =>
+        dbPatchScheduleRuntime(scheduleId, {
+          lastStatus,
+          lastError,
+          updatedAt: new Date().toISOString(),
+        }),
+      ...(options.reportError ? { onError: options.reportError } : {}),
       getAgentStatuses: (wslDistros) => supervisor.call("getAgentStatuses", { wslDistros }),
       sendThreadCommand: options.sendThreadCommand,
       // A scheduled run may create the Home project row; publish the project
@@ -143,7 +162,30 @@ export class BackendDurableServices {
       updateRun: dbUpdateScheduleRun,
     });
     this.scheduleService = createDeviceScheduleService({
-      runTask: (task) => this.scheduleCoordinator.runScheduleAsThread(task),
+      runTask: (task, context) => this.scheduleCoordinator.runScheduleAsThread(task, context),
+      cancelRun: (id) => this.scheduleCoordinator.cancelRun(id),
+      recordSkipped: (task, context) => {
+        this.scheduleCoordinator.recordSkippedRun(task, context);
+      },
+      onRetryingRun: (id) => {
+        const result = dbGetScheduleRun(id)?.result;
+        if (result)
+          dbUpdateScheduleRun(id, {
+            result: { ...result, unread: false, archivedAt: null, stopReason: "retry-pending" },
+          });
+      },
+      onRetryWaitFinished: (id, continuing) => {
+        const result = dbGetScheduleRun(id)?.result;
+        if (result)
+          dbUpdateScheduleRun(id, {
+            result: {
+              ...result,
+              unread: !continuing,
+              archivedAt: continuing ? new Date().toISOString() : null,
+              stopReason: continuing ? "retry-attempt" : "retry-cancelled",
+            },
+          });
+      },
       ...(options.reportError
         ? { onError: (_scheduleId: string, error: unknown) => options.reportError?.(error) }
         : {}),
@@ -323,6 +365,10 @@ export class BackendDurableServices {
         this.options.reportError?.(error);
       },
     );
+  }
+
+  handleSupervisorReset(): void {
+    this.scheduleCoordinator.handleSupervisorReset();
   }
 
   observeSupervisorEvent(event: SupervisorEvent): boolean {

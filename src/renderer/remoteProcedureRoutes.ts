@@ -97,6 +97,13 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   closeThreadConfirmed:
     "local-shell: host-owned confirmed-retirement close for destructive housekeeping; the renderer never issues it and no remote route exists",
 
+  // The schedule coordinator invokes these helpers on its own supervisor.
+  // Remote clients control schedules through the schedule registry routes.
+  evaluateScheduleCompletion:
+    "local-shell: host-owned schedule completion evaluation; the renderer never issues it and no remote route exists",
+  cancelScheduleCompletionEvaluation:
+    "local-shell: host-owned cancellation of a schedule evaluation; the renderer never issues it and no remote route exists",
+
   // R1: host-custody thread/project deletion — the renderer's real deletes ride
   // the thread-command / project-command registry routes, which own
   // notifications and housekeeping; the raw DB row deletes stay preload-only.

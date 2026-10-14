@@ -7,6 +7,15 @@ description: Inspect and drive Poracode itself — the Terminal panel, other thr
 
 Use Poracode's `poracode` MCP when the task is about the running app rather than the code in front of you: what a Terminal pane is printing, what another thread is doing, the project's git or pull-request state, or the user's schedules and settings. Prefer ordinary file and shell work for anything that is really a code change.
 
+Schedule results are persistent: use `list_schedule_run_inbox` with `filter`, optional
+`search`, and a `cursor` from the last row (`startedAt|id`) to review older results.
+Use `mark_schedule_run_read`, `mark_schedule_run_unread`, `archive_schedule_run`,
+and `restore_schedule_run` to triage them. `cancel_schedule_run` also cancels
+pending retry delays; a thread cannot cancel its own active run.
+`create_schedule` and `update_schedule` accept `automation` for heartbeat mode,
+bounded retries, missed-run handling, run limits, and an optional completion
+condition. Heartbeats require a same-project, same-agent GUI conversation.
+
 ## Workflow
 
 1. Start from the narrowest tool that answers the question. `list_terminals` and `read_terminal` for the Terminal panel, `list_threads` / `read_thread` for other work, `git_status` / `git_diff` for the working tree, `gh_list_prs` for review state.

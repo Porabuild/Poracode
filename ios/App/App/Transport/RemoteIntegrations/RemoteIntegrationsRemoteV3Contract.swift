@@ -18,6 +18,9 @@ enum RemoteIntegrationsRemoteV3Contract {
     route("host-update", "GET", "/api/host-update", .projectsManage, 200, "empty"),
     route("host-update-check", "POST", "/api/host-update/check", .projectsManage, 200, "empty"),
     route("host-update-install", "POST", "/api/host-update/install", .projectsManage, 202, "empty"),
+    route("automations-snapshot", "GET", "/api/automations", .sessionRead, 200, "empty"),
+    route("schedule-run-inbox", "GET", "/api/schedules/inbox", .sessionRead, 200, "empty"),
+    route("schedule-run-command", "POST", "/api/schedules/runs/command", .sessionOperate, 200, "json"),
     route("schedules-read", "GET", "/api/schedules", .sessionRead, 200, "empty"),
     route("schedules-command", "POST", "/api/schedules/command", .sessionOperate, 200, "json"),
     route("schedule-runs-read", "GET", "/api/schedules/runs", .sessionRead, 200, "empty"),
@@ -97,6 +100,32 @@ enum RemoteIntegrationsRemoteV3Contract {
       codec: RemoteRootCodecs.routeU2EScheduleU2DRunsU2DReadU2EResponse,
       boundary: "schedule runs response"
     )
+  }
+
+  static func automationQuery(_ input: JSONValue, snapshot: Bool) throws -> [URLQueryItem] {
+    let data = try JSONDecoding.encoder.encode(input)
+    let canonicalData = snapshot
+      ? try canonical(data, codec: RemoteRootCodecs.routeU2EAutomationsU2DSnapshotU2EQuery, boundary: "automation query")
+      : try canonical(data, codec: RemoteRootCodecs.routeU2EScheduleU2DRunU2DInboxU2EQuery, boundary: "inbox query")
+    let value = try JSONDecoding.decode(JSONValue.self, from: canonicalData)
+    return (value.objectValue ?? [:]).sorted { $0.key < $1.key }.compactMap { key, value in
+      if let string = value.stringValue { return URLQueryItem(name: key, value: string) }
+      if let number = value.scheduleInt { return URLQueryItem(name: key, value: String(number)) }
+      return nil
+    }
+  }
+
+  static func automationsResponse(_ data: Data) throws -> Data {
+    try canonical(data, codec: RemoteRootCodecs.routeU2EAutomationsU2DSnapshotU2EResponse, boundary: "automations response")
+  }
+  static func scheduleInboxResponse(_ data: Data) throws -> Data {
+    try canonical(data, codec: RemoteRootCodecs.routeU2EScheduleU2DRunU2DInboxU2EResponse, boundary: "inbox response")
+  }
+  static func scheduleRunCommandRequest(_ data: Data) throws -> Data {
+    try canonical(data, codec: RemoteRootCodecs.routeU2EScheduleU2DRunU2DCommandU2ERequest, boundary: "run command")
+  }
+  static func scheduleRunCommandResponse(_ data: Data) throws -> Data {
+    try canonical(data, codec: RemoteRootCodecs.routeU2EScheduleU2DRunU2DCommandU2EResponse, boundary: "run command response")
   }
 
   static func prWatchReadQuery(_ key: RemoteIntegrationsPRWatchKey) throws -> [URLQueryItem] {

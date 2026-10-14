@@ -20,6 +20,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,12 +52,19 @@ internal fun RemoteSchedulesPane(
     access: RemoteIntegrationsAccess,
     composition: RemoteIntegrationsComposition,
     threads: List<ScheduleRunThreadTarget>,
+    completionAgentKinds: Set<String>,
     onOpenThread: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var editor by remember { mutableStateOf<ScheduleEditorDraft?>(null) }
-    var confirmation by remember { mutableStateOf<ScheduleConfirmation?>(null) }
-    var history by remember { mutableStateOf<ScheduledTask?>(null) }
+    val hostLease by composition.hostLease.collectAsStateWithLifecycle()
+    var showResults by remember(hostLease?.key) { mutableStateOf(false) }
+    val automations by composition.automations.state.collectAsStateWithLifecycle()
+    LaunchedEffect(access.canRead, hostLease?.key) {
+        if (access.canRead) while (true) { composition.automations.load(); delay(15_000) }
+    }
+    var editor by remember(hostLease?.key) { mutableStateOf<ScheduleEditorDraft?>(null) }
+    var confirmation by remember(hostLease?.key) { mutableStateOf<ScheduleConfirmation?>(null) }
+    var history by remember(hostLease?.key) { mutableStateOf<ScheduledTask?>(null) }
     val loading = IntegrationSlot.Schedules in state.loading
     LazyColumn(
         modifier.fillMaxSize(),
@@ -80,6 +90,11 @@ internal fun RemoteSchedulesPane(
                         Icon(Icons.Outlined.Add, stringResource(R.string.remote_integrations_create_schedule))
                     }
                 }
+            }
+        }
+        item {
+            TextButton(enabled = access.canRead, onClick = { showResults = true }) {
+                Text("${stringResource(R.string.automations_results)} (${automations.unreadCount})")
             }
         }
         if (loading && state.schedules.isEmpty()) item { IntegrationLoading() }
@@ -109,9 +124,12 @@ internal fun RemoteSchedulesPane(
         }
     }
 
+    if (showResults) AutomationResultsSheet(composition.automations, threads, access.canOperate, onOpenThread) { showResults = false }
     editor?.let { draft ->
         ScheduleEditorDialog(
             initial = draft,
+            threads = threads,
+            completionAgentKinds = completionAgentKinds,
             onDismiss = { editor = null },
             onConfirm = { completed ->
                 editor = null
@@ -215,6 +233,8 @@ private fun scheduleRecurrenceLabel(recurrence: ScheduleRecurrence): String = wh
         recurrence.days.sorted().joinToString(),
         recurrence.time,
     )
+    is ScheduleRecurrence.Interval -> "${stringResource(R.string.automations_every)} ${recurrence.every} ${when(recurrence.unit) { "minutes" -> stringResource(R.string.automations_minutes); "hours" -> stringResource(R.string.automations_hours); else -> stringResource(R.string.automations_days) }}"
+    is ScheduleRecurrence.Cron -> "${recurrence.expression} · ${recurrence.timeZone}"
     is ScheduleRecurrence.Once -> stringResource(
         R.string.remote_integrations_recurrence_once_value,
         recurrence.runAt,
@@ -228,5 +248,9 @@ private fun scheduleStatusLabel(status: ScheduleRunStatus): String = stringResou
         ScheduleRunStatus.Running -> R.string.remote_integrations_status_running
         ScheduleRunStatus.Succeeded -> R.string.remote_integrations_status_succeeded
         ScheduleRunStatus.Failed -> R.string.remote_integrations_status_failed
+        ScheduleRunStatus.Waiting -> R.string.automations_waiting
+        ScheduleRunStatus.Cancelled -> R.string.automations_cancelled
+        ScheduleRunStatus.Interrupted -> R.string.automations_interrupted
+        ScheduleRunStatus.Skipped -> R.string.automations_skipped
     },
 )

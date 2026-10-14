@@ -15,6 +15,8 @@ enum RemoteIntegrationsRecurrenceKind: String, CaseIterable, Identifiable, Senda
   case hourly
   case weekly
   case once
+  case interval
+  case cron
 
   var id: Self { self }
 }
@@ -33,10 +35,20 @@ struct RemoteIntegrationsScheduleDraft: Equatable, Sendable {
   var weeklyDays: Set<Int> = [1]
   var weeklyTime = Date()
   var onceDate = Date().addingTimeInterval(3600)
+  var timeZone = ""
+  var every = 1
+  var intervalUnit = "hours"
+  var cronExpression = "0 9 * * *"
+  var automation = RemoteIntegrationsAutomationDraft()
+  var originalConfig: RemoteIntegrationsAgentConfig?
+  var originalAgentKind: String?
 
   init() {}
 
   init(_ task: RemoteIntegrationsScheduledTask) {
+    originalAgentKind = task.agentKind
+    originalConfig = task.config
+    automation = RemoteIntegrationsAutomationDraft(task.automation)
     name = task.name
     prompt = task.prompt
     agentKind = task.agentKind
@@ -49,13 +61,22 @@ struct RemoteIntegrationsScheduleDraft: Equatable, Sendable {
     case .hourly(let minute):
       recurrenceKind = .hourly
       self.minute = minute
-    case .weekly(let days, let time):
+    case .weekly(let days, let time, let zone):
       recurrenceKind = .weekly
+      timeZone = zone ?? ""
       weeklyDays = Set(days)
       weeklyTime = Self.localTimeDate(time) ?? weeklyTime
     case .once(let runAt):
       recurrenceKind = .once
       onceDate = Self.isoDate(runAt) ?? onceDate
+    case .interval(let every, let unit):
+      recurrenceKind = .interval
+      self.every = every
+      intervalUnit = unit
+    case .cron(let expression, let zone):
+      recurrenceKind = .cron
+      cronExpression = expression
+      timeZone = zone
     }
   }
 
@@ -83,24 +104,30 @@ struct RemoteIntegrationsScheduleDraft: Equatable, Sendable {
       guard !days.isEmpty, days.allSatisfy({ (0...6).contains($0) }) else {
         throw RemoteIntegrationsDraftError.recurrence
       }
-      recurrence = .weekly(days: days, time: Self.localTimeString(weeklyTime))
+      recurrence = .weekly(days: days, time: Self.localTimeString(weeklyTime), timeZone: Self.nonempty(timeZone))
     case .once:
       recurrence = .once(runAt: Self.isoString(onceDate))
+    case .interval:
+      recurrence = .interval(every: every, unit: intervalUnit)
+    case .cron:
+      recurrence = .cron(expression: cronExpression, timeZone: timeZone)
     }
 
-    return RemoteIntegrationsScheduledTaskInput(
+    let config = originalConfig.flatMap { original in
+      originalAgentKind == cleanAgent && original.model == cleanModel && (original.effort ?? "") == (Self.nonempty(effort) ?? "") && (original.fast ?? false) == fast ? original : nil
+    } ?? RemoteIntegrationsAgentConfig(model: cleanModel, effort: Self.nonempty(effort), fast: fast ? true : nil)
+    let input = RemoteIntegrationsScheduledTaskInput(
       name: cleanName,
       prompt: cleanPrompt,
       agentKind: cleanAgent,
-      config: RemoteIntegrationsAgentConfig(
-        model: cleanModel,
-        effort: Self.nonempty(effort),
-        fast: fast ? true : nil
-      ),
+      config: config,
       recurrence: recurrence,
       enabled: enabled,
-      projectId: Self.nonempty(projectId)
+      projectId: Self.nonempty(projectId),
+      automation: automation.value
     )
+    _ = try RemoteIntegrationsRemoteV3Contract.schedulesCommandRequest(JSONDecoding.encoder.encode(RemoteIntegrationsScheduleCommand.create(input)))
+    return input
   }
 
   var isValid: Bool { (try? value()) != nil }

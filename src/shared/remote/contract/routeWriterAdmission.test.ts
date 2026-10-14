@@ -14,6 +14,11 @@ import { REMOTE_HTTP_ROUTES } from "./routes";
  * deliberately not claimed here.
  */
 const DECLARED_WRITER_ROUTES = [
+  "automations-snapshot",
+  "schedule-runs-read",
+  "schedule-run-inbox",
+  "schedule-run-command",
+  "schedules-read",
   "attachment-upload",
   "browser-command",
   "environment-adopt-legacy",
@@ -83,13 +88,13 @@ const READ_CLASS_POST_ROUTES = [
 ] as const;
 
 describe("route writer-generation admission declarations", () => {
-  it("declares exactly the 47 direct writer routes", () => {
+  it("declares the direct writers and reads with new closed schedule variants", () => {
     const declared = REMOTE_HTTP_ROUTES.filter((route) => route.requiresCurrentProtocol);
-    expect(declared).toHaveLength(47);
-    expect(declared.map((route) => route.id).sort()).toEqual([...DECLARED_WRITER_ROUTES]);
+    expect(declared).toHaveLength(52);
+    expect(declared.map((route) => route.id).sort()).toEqual([...DECLARED_WRITER_ROUTES].sort());
   });
 
-  it("declares the flag only on bearer non-GET routes", () => {
+  it("declares the flag on bearer writers and incompatible schedule reads", () => {
     for (const route of REMOTE_HTTP_ROUTES) {
       if (!route.requiresCurrentProtocol) continue;
       // The compared object carries the id so a failure names the route.
@@ -98,7 +103,16 @@ describe("route writer-generation admission declarations", () => {
         method: route.method,
         auth: "bearer",
       });
-      expect(route.method === "POST" || route.method === "DELETE").toBe(true);
+      const admitted =
+        route.method === "GET"
+          ? [
+              "schedules-read",
+              "schedule-runs-read",
+              "automations-snapshot",
+              "schedule-run-inbox",
+            ].includes(route.id)
+          : route.method === "POST" || route.method === "DELETE";
+      expect({ id: route.id, admitted }).toEqual({ id: route.id, admitted: true });
     }
   });
 
@@ -124,7 +138,15 @@ describe("route writer-generation admission declarations", () => {
   it("sweeps every non-GET route into the declared or documented-exempt set", () => {
     const nonGet = REMOTE_HTTP_ROUTES.filter((route) => route.method !== "GET");
     const classified = [
-      ...DECLARED_WRITER_ROUTES,
+      ...DECLARED_WRITER_ROUTES.filter(
+        (id) =>
+          ![
+            "schedules-read",
+            "schedule-runs-read",
+            "automations-snapshot",
+            "schedule-run-inbox",
+          ].includes(id),
+      ),
       ...READ_CLASS_POST_ROUTES,
       // Auth-free credential mint (pairing-token), admitted before any bearer
       // session exists.

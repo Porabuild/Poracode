@@ -19,7 +19,9 @@ import { gitStatePatchSchema } from "../../gitState";
 // yet, so no old-writer refusal is qualified today. Reads, the WS
 // declaration/query surface, and auth-free or ticket/read-class POSTs stay
 // open to old clients.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 13;
+// v14 adds automation recurrence/status discriminators and run-result controls.
+// Exact-match pairing prevents old closed-enum clients from partially decoding schedules.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 /**

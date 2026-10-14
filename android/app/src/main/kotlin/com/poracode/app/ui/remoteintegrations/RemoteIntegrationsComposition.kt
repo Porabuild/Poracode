@@ -9,6 +9,7 @@ import com.poracode.app.session.remoteintegrations.IntegrationHostBinding
 import com.poracode.app.session.remoteintegrations.IntegrationHostLease
 import com.poracode.app.session.remoteintegrations.IntegrationHostLeaseSource
 import com.poracode.app.session.remoteintegrations.RemoteIntegrationsController
+import com.poracode.app.session.remoteintegrations.AutomationsController
 import com.poracode.app.session.remoteintegrations.ScheduleRunsController
 import com.poracode.app.storage.MultiHostCredentialRepository
 import com.poracode.app.transport.RemoteWebSocketClient
@@ -55,6 +56,7 @@ class RemoteIntegrationsComposition(
     )
     private val gateway = GeneratedIntegrationSessionGateway(hostLease, provider)
     val controller = RemoteIntegrationsController(hostLease, gateway)
+    val automations = AutomationsController(hostLease, gateway)
     val scheduleRuns = ScheduleRunsController(hostLease, gateway)
     private val observation = runtimeScope.launch {
         appState.collect { state ->
@@ -64,6 +66,7 @@ class RemoteIntegrationsComposition(
             if (previous != hostLease.value?.key) {
                 controller.onLeaseChanged()
                 scheduleRuns.clear()
+                automations.clear()
             }
         }
     }

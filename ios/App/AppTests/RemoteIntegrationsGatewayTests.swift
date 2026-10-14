@@ -35,6 +35,15 @@ final class RemoteIntegrationsGatewayTests: XCTestCase {
         lease: lease
       )
     }
+    await assertGatewayError(.http(statusCode: 403, code: "missing_scope", missingScope: "session:read")) {
+      _ = try await gateway.automations(.object([:]), lease: lease)
+    }
+    await assertGatewayError(.http(statusCode: 403, code: "missing_scope", missingScope: "session:read")) {
+      _ = try await gateway.scheduleInbox(.object([:]), lease: lease)
+    }
+    await assertGatewayError(.http(statusCode: 403, code: "missing_scope", missingScope: "session:operate")) {
+      _ = try await gateway.scheduleRunCommand(.object(["kind": .string("cancel"), "id": .string(RemoteIntegrationsFixtures.scheduleID)]), lease: lease)
+    }
     let calls = await api.callCount
     XCTAssertEqual(calls, 0)
   }
@@ -170,6 +179,9 @@ private actor RemoteIntegrationsAPIFake: RemoteIntegrationsRemoteAPI {
   func remoteIntegrationsScheduleCommand(
     _ command: RemoteIntegrationsScheduleCommand
   ) throws -> RemoteIntegrationsSchedulesResponse { try respond(Self.schedules) }
+  func remoteIntegrationsAutomations(_ input: JSONValue) async throws -> RemoteIntegrationsAutomationsResponse { throw RemoteIntegrationsGatewayError.invalidResponse }
+  func remoteIntegrationsScheduleInbox(_ input: JSONValue) async throws -> RemoteIntegrationsScheduleRunsResponse { throw RemoteIntegrationsGatewayError.invalidResponse }
+  func remoteIntegrationsScheduleRunCommand(_ input: JSONValue) async throws -> RemoteIntegrationsRunCommandResponse { throw RemoteIntegrationsGatewayError.invalidResponse }
   func remoteIntegrationsPRWatch(
     _ key: RemoteIntegrationsPRWatchKey
   ) throws -> RemoteIntegrationsPRWatchResponse { try respond(.init(watch: nil)) }

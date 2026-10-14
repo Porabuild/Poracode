@@ -1,5 +1,6 @@
 package com.poracode.app.ui.remoteintegrations
 
+import kotlinx.serialization.json.put
 import com.poracode.app.model.remoteintegrations.AgentConfiguration
 import com.poracode.app.model.remoteintegrations.PrWatchDraft
 import com.poracode.app.model.remoteintegrations.PrWatchKey
@@ -16,6 +17,10 @@ data class ScheduleRunThreadTarget(
     val presentedId: String,
     val title: String,
     val model: String,
+    val projectId: String? = null,
+    val agentKind: String? = null,
+    val archived: Boolean = false,
+    val gui: Boolean = true,
 )
 
 data class RemoteIntegrationsAccess(
@@ -61,27 +66,40 @@ data class ScheduleEditorDraft(
     val runAt: String = "",
     val enabled: Boolean = true,
     val projectId: String = "",
+    val timeZone: String = "",
+    val every: String = "1",
+    val intervalUnit: String = "hours",
+    val cronExpression: String = "0 9 * * *",
+    val automation: ScheduleAutomationDraft = ScheduleAutomationDraft(),
+    val originalConfiguration: AgentConfiguration? = null,
+    val originalAgentKind: String? = null,
 ) {
     fun domain(): ScheduleDraft? {
         val recurrence = when (recurrenceKind) {
             "hourly" -> minute.toIntOrNull()?.let(ScheduleRecurrence::Hourly)
             "weekly" -> {
                 val parsed = days.split(',').mapNotNull { it.trim().toIntOrNull() }.toSet()
-                ScheduleRecurrence.Weekly(parsed, time.trim())
+                ScheduleRecurrence.Weekly(parsed, time.trim(), timeZone.trim().ifEmpty { null })
             }
             "once" -> ScheduleRecurrence.Once(runAt.trim())
+            "interval" -> every.toIntOrNull()?.let { ScheduleRecurrence.Interval(it, intervalUnit) }
+            "cron" -> ScheduleRecurrence.Cron(cronExpression, timeZone)
             else -> null
         } ?: return null
         val draft = ScheduleDraft(
             name,
             prompt,
             agentKind,
-            AgentConfiguration(model, effort.trim().ifEmpty { null }, fast),
+            originalConfiguration?.takeIf { originalAgentKind == agentKind && it.model == model && it.effort.orEmpty() == effort && (it.fast == true) == fast } ?: AgentConfiguration(model, effort.trim().ifEmpty { null }, fast),
             recurrence,
             enabled,
             projectId.trim().ifEmpty { null },
+            automation.value() ?: return null,
         )
-        return draft.takeIf { it.isValid }
+        return draft.takeIf { it.isValid && runCatching {
+            com.poracode.app.protocol.remoteintegrations.RemoteV3IntegrationsContract.scheduleCommandRequest(
+                kotlinx.serialization.json.buildJsonObject { put("kind", "create"); put("task", it.wireObject()) }.toString())
+        }.isSuccess }
     }
 
     companion object {
@@ -99,6 +117,8 @@ data class ScheduleEditorDraft(
                     is ScheduleRecurrence.Hourly -> "hourly"
                     is ScheduleRecurrence.Weekly -> "weekly"
                     is ScheduleRecurrence.Once -> "once"
+                    is ScheduleRecurrence.Interval -> "interval"
+                    is ScheduleRecurrence.Cron -> "cron"
                 },
                 minute = (recurrence as? ScheduleRecurrence.Hourly)?.minute?.toString() ?: "0",
                 days = (recurrence as? ScheduleRecurrence.Weekly)?.days?.sorted()?.joinToString()
@@ -107,6 +127,13 @@ data class ScheduleEditorDraft(
                 runAt = (recurrence as? ScheduleRecurrence.Once)?.runAt.orEmpty(),
                 enabled = task.draft.enabled,
                 projectId = task.draft.projectId.orEmpty(),
+                timeZone = (recurrence as? ScheduleRecurrence.Weekly)?.timeZone ?: (recurrence as? ScheduleRecurrence.Cron)?.timeZone.orEmpty(),
+                every = (recurrence as? ScheduleRecurrence.Interval)?.every?.toString() ?: "1",
+                intervalUnit = (recurrence as? ScheduleRecurrence.Interval)?.unit ?: "hours",
+                cronExpression = (recurrence as? ScheduleRecurrence.Cron)?.expression ?: "0 9 * * *",
+                automation = ScheduleAutomationDraft.from(task.draft.automation),
+                originalConfiguration = task.draft.configuration,
+                originalAgentKind = task.draft.agentKind,
             )
         }
     }

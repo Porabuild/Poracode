@@ -35,6 +35,8 @@ import {
   remoteHostUpdateStateSchema,
   remoteSettingsSchema,
   remoteSchedulesResponseSchema,
+  remoteAutomationsSnapshotSchema,
+  remoteScheduleRunCommandResponseSchema,
   remoteScheduleRunsResponseSchema,
   remoteShellSnapshotSchema,
   remoteThreadListPageSchema,
@@ -72,6 +74,9 @@ import {
   type ScheduledTask,
   type ScheduledTaskInput,
   type ScheduledTaskRun,
+  type ScheduleRunInboxQuery,
+  type AutomationsSnapshot,
+  type UpdateScheduleRunStatePayload,
 } from "@/shared/contracts";
 import { RemoteClientAuth } from "./clientAuth";
 import { RemoteClientError } from "./clientErrors";
@@ -450,6 +455,58 @@ export abstract class RemoteClientHostApi extends RemoteClientAuth {
       "schedule runs",
     );
     return result.runs;
+  }
+
+  async automationsSnapshot(query: ScheduleRunInboxQuery): Promise<AutomationsSnapshot> {
+    return parseResponse(
+      remoteAutomationsSnapshotSchema,
+      await this.requestJson(`/api/automations?${this.scheduleInboxQuery(query)}`),
+      "automation results",
+    );
+  }
+
+  async scheduleRunInbox(query: ScheduleRunInboxQuery): Promise<ScheduledTaskRun[]> {
+    const result = parseResponse(
+      remoteScheduleRunsResponseSchema,
+      await this.requestJson(`/api/schedules/inbox?${this.scheduleInboxQuery(query)}`),
+      "run inbox",
+    );
+    return result.runs;
+  }
+
+  async updateScheduleRunState(
+    payload: UpdateScheduleRunStatePayload,
+  ): Promise<ScheduledTaskRun | null> {
+    const result = parseResponse(
+      remoteScheduleRunCommandResponseSchema,
+      await this.requestJson("/api/schedules/runs/command", {
+        method: "POST",
+        body: { kind: "update-state", payload },
+      }),
+      "run state",
+    );
+    return result.run ?? null;
+  }
+
+  async cancelScheduleRun(id: string): Promise<boolean> {
+    const result = parseResponse(
+      remoteScheduleRunCommandResponseSchema,
+      await this.requestJson("/api/schedules/runs/command", {
+        method: "POST",
+        body: { kind: "cancel", id },
+      }),
+      "run cancellation",
+    );
+    return result.cancelled ?? false;
+  }
+
+  private scheduleInboxQuery(query: ScheduleRunInboxQuery): string {
+    return new URLSearchParams({
+      filter: query.filter,
+      ...(query.limit ? { limit: String(query.limit) } : {}),
+      ...(query.cursor ? { cursor: query.cursor } : {}),
+      ...(query.search ? { search: query.search } : {}),
+    }).toString();
   }
 
   async getPrWatch(input: PrWatchKey): Promise<PrWatch | null> {

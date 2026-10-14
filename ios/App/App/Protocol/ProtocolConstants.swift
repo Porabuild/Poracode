@@ -15,7 +15,7 @@ enum ProtocolConstants {
   /// past this bound loses replay coverage, so every buffer pairs the cap
   /// with an overflow flag that forces an authoritative refresh/resync.
   static let maxBufferedEnvelopes = 512
-    static let remoteProtocolVersion = 13
+    static let remoteProtocolVersion = 14
     static let commandIdHeader = "x-poracode-command-id"
     /// Per-request writer-generation admission, mirroring
     /// `REMOTE_PROTOCOL_VERSION_HEADER` / `_VALUE` in

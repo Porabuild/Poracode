@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { REMOTE_HTTP_ROUTES } from "@/shared/remote/contract";
-import { REMOTE_OPERATOR_SCOPES, REMOTE_VIEWER_SCOPES } from "@/shared/remote";
+import {
+  REMOTE_OPERATOR_SCOPES,
+  REMOTE_VIEWER_SCOPES,
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -198,13 +203,13 @@ function splitBearerRoutes() {
  * viewer boundary) fails this suite until someone confirms the viewer preset
  * is supposed to deny it.
  */
-// The environment parent media mint/release/renew routes add three operator-only entries.
-const EXPECTED_MUTATING_ROUTE_COUNT = 56;
+// Run triage/cancellation adds one operator-only route.
+const EXPECTED_MUTATING_ROUTE_COUNT = 57;
 // 21 pre-B4 + the three additive B4 read routes (project-list,
 // catalog-membership, thread-turns) + B1 thread-runtime-gap + the experiment
 // state read, plus file-media mint/release/renew (owned read grants only), all
-// session:read and non-mutating.
-const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 31;
+// session:read and non-mutating, plus the automation snapshot and result inbox.
+const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 33;
 
 /** The split must be an exact, disjoint partition of the bearer registry:
  * the partition itself is derived, so a route can only ever land in one
@@ -272,7 +277,11 @@ describe("RemoteAccessServer scope presets (Gate 6 item 4.3)", () => {
     for (const route of viewerReadableRoutes) {
       const response = await fetch(new URL(routePath(route.path), info.httpBaseUrl), {
         method: route.method,
-        headers: { authorization: `Bearer ${viewer}`, "content-type": "application/json" },
+        headers: {
+          authorization: `Bearer ${viewer}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
         ...(route.method === "POST" ? { body: "{}" } : {}),
       });
       // The scope gate must admit the token; whatever the handler then answers

@@ -214,7 +214,7 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
     XCTAssertTrue(source.contains("RichChatThreadView("))
   }
 
-  func testScheduleViewPollsOnlyWhileARunIsActive() throws {
+  func testScheduleViewPollsActiveRunsQuicklyAndOtherSchedulesPeriodically() throws {
     let source = try String(
       contentsOf: URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -226,7 +226,7 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
     )
 
     XCTAssertTrue(source.contains(".task(id: pollingIdentity)"))
-    XCTAssertTrue(source.contains("Task.sleep(for: .seconds(2))"))
+    XCTAssertTrue(source.contains("Task.sleep(for: .seconds(pollingIdentity.intervalSeconds))"))
     XCTAssertTrue(source.contains("guard pollingIdentity.shouldPoll"))
 
     XCTAssertTrue(
@@ -245,6 +245,13 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
         isMutating: true
       ).shouldPoll
     )
+    let idle = RemoteIntegrationsSchedulePollingIdentity(lease: remoteIntegrationsLease(), isPresentationActive: true, hasRunningSchedule: false, isMutating: false)
+    XCTAssertTrue(idle.shouldPoll)
+    XCTAssertEqual(idle.intervalSeconds, 15)
+    let running = RemoteIntegrationsSchedulePollingIdentity(lease: remoteIntegrationsLease(), isPresentationActive: true, hasRunningSchedule: true, isMutating: false)
+    XCTAssertEqual(running.intervalSeconds, 2)
+    XCTAssertFalse(RemoteIntegrationsSchedulePollingIdentity(lease: nil, isPresentationActive: true, hasRunningSchedule: false, isMutating: false).shouldPoll)
+    XCTAssertFalse(RemoteIntegrationsSchedulePollingIdentity(lease: remoteIntegrationsLease(), isPresentationActive: false, hasRunningSchedule: true, isMutating: false).shouldPoll)
   }
 
   func testSchedulePrimaryActionUsesTheSharedTrailingCircleMenu() throws {
@@ -261,7 +268,7 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
     XCTAssertTrue(source.contains("PoracodeBottomActionDock(placement: .trailing)"))
     XCTAssertTrue(source.contains("PoracodeCircleMenu"))
     XCTAssertTrue(source.contains("native-e2e.schedules.create"))
-    XCTAssertFalse(source.contains("ToolbarItem(placement: .topBarTrailing)"))
+    XCTAssertTrue(source.contains("native-e2e.schedules.results"))
   }
 
   func testAppCompositionUsesExactSelectedHostGenerationScopesAndSnapshotProjects() {

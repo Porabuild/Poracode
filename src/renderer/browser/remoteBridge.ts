@@ -320,6 +320,14 @@ const remoteBridgeOverrides = {
   updateSchedule: ({ id, task }: { id: string; task: ScheduledTaskInput }) =>
     withClient((client) => client.updateSchedule(id, task)),
   deleteSchedule: ({ id }: { id: string }) => withClient((client) => client.deleteSchedule(id)),
+  getAutomationsSnapshot: (payload: import("@/shared/contracts").ScheduleRunInboxQuery) =>
+    withClient((client) => client.automationsSnapshot(payload)),
+  getScheduleRunInbox: (payload: import("@/shared/contracts").ScheduleRunInboxQuery) =>
+    withClient((client) => client.scheduleRunInbox(payload)),
+  updateScheduleRunState: (payload: import("@/shared/contracts").UpdateScheduleRunStatePayload) =>
+    withClient((client) => client.updateScheduleRunState(payload)),
+  cancelScheduleRun: ({ id }: { id: string }) =>
+    withClient((client) => client.cancelScheduleRun(id)),
   runScheduleNow: ({ id }: { id: string }) => withClient((client) => client.runScheduleNow(id)),
 
   // Shared settings persist per device via the store's localStorage fallback.

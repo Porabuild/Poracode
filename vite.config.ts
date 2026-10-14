@@ -47,6 +47,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "@xterm/addon-unicode11",
   "@xterm/addon-webgl",
   "@xterm/xterm",
+  "cron-parser",
   "lucide-react",
   "qrcode",
   "react",

@@ -24,7 +24,7 @@ struct RemoteIntegrationsScheduleRunsView: View {
     .presentationCornerRadius(28)
     .task(id: schedule.id) {
       await controller.load(scheduleID: schedule.id)
-      while !Task.isCancelled, controller.runs.contains(where: { $0.status == .running }) {
+      while !Task.isCancelled, controller.runs.contains(where: { $0.status == .running || $0.status == .waiting }) {
         do {
           try await Task.sleep(for: .seconds(2))
         } catch {
@@ -61,20 +61,9 @@ struct RemoteIntegrationsScheduleRunsView: View {
 
   @ViewBuilder
   private func runRow(_ run: RemoteIntegrationsScheduleRun) -> some View {
-    if let thread = session.richChatThread(id: run.threadId) {
-      NavigationLink {
-        RichChatThreadView(
-          session: session,
-          threadID: thread.id,
-          title: thread.title
-        )
-      } label: {
-        rowLabel(run, thread: thread)
-      }
-    } else {
-      rowLabel(run, thread: nil)
-        .foregroundStyle(.secondary)
-    }
+    NavigationLink {
+      RemoteIntegrationsResultDetails(session: session, run: run, controller: nil)
+    } label: { rowLabel(run, thread: session.richChatThread(id: run.threadId)) }
   }
 
   private func rowLabel(
@@ -110,19 +99,19 @@ struct RemoteIntegrationsScheduleRunsView: View {
 
   private func statusImage(_ status: RemoteIntegrationsScheduleRunStatus) -> String {
     switch status {
-    case .running: "progress.indicator"
+    case .running, .waiting: "progress.indicator"
     case .succeeded: "checkmark.circle.fill"
     case .failed: "xmark.circle.fill"
-    case .interrupted: "pause.circle.fill"
+    case .interrupted, .cancelled, .skipped: "pause.circle.fill"
     }
   }
 
   private func statusColor(_ status: RemoteIntegrationsScheduleRunStatus) -> Color {
     switch status {
-    case .running: .accentColor
+    case .running, .waiting: .accentColor
     case .succeeded: .green
     case .failed: .red
-    case .interrupted: .secondary
+    case .interrupted, .cancelled, .skipped: .secondary
     }
   }
 }

@@ -243,6 +243,38 @@ export function dbReadThreadRuntimeItems(threadId: string): PersistedRuntimeItem
   });
 }
 
+/** Capture the committed pre-turn position, including buffered prior turns. */
+export function dbGetThreadRuntimeItemCursor(threadId: string): Promise<number> {
+  return readThreadWithFence(threadId, () => {
+    const row = getSqlite()
+      .prepare(
+        "SELECT COALESCE(MAX(position), -1) AS position FROM thread_runtime_items WHERE thread_id = ?",
+      )
+      .get(threadId) as { position: number };
+    return row.position;
+  });
+}
+
+/** Read only bounded result evidence through the same fence and stream decoder as history. */
+export function dbGetThreadRuntimeItemsAfter(
+  threadId: string,
+  cursor: number,
+): Promise<PersistedRuntimeItem[]> {
+  return readThreadWithFence(threadId, () => {
+    const sqlite = getSqlite();
+    return readRuntimeSnapshot(sqlite, () => {
+      const rows = sqlite
+        .prepare(
+          `SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items
+         WHERE thread_id = ? AND position > ? AND type IN ('assistant_message', 'file_change')
+         ORDER BY position DESC LIMIT 500`,
+        )
+        .all(threadId, cursor) as PersistedRuntimeItemRow[];
+      return mapRuntimeItemRows(sqlite, threadId, rows.reverse());
+    });
+  });
+}
+
 export { dbGetThreadRuntimeItemCommitted, type RuntimeItemReadOptions } from "./runtimeItemRead";
 
 /** Fenced single-item read for consumers of newly published runtime references. */

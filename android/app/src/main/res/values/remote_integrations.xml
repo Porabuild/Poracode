@@ -44,7 +44,7 @@
     <string name="remote_integrations_run_now">Run now</string>
     <string name="remote_integrations_delete_schedule">Delete schedule</string>
     <string name="remote_integrations_delete_schedule_title">Delete schedule?</string>
-    <string name="remote_integrations_delete_schedule_message">Delete “%1$s”? This cannot be undone.</string>
+    <string name="remote_integrations_delete_schedule_message">This removes the schedule and all its saved run results.</string>
     <string name="remote_integrations_run_schedule_title">Run schedule now?</string>
     <string name="remote_integrations_run_schedule_message">Run “%1$s” once now?</string>
     <string name="remote_integrations_delete">Delete</string>

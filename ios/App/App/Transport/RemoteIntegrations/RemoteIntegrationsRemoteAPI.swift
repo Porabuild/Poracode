@@ -10,6 +10,9 @@ protocol RemoteIntegrationsRemoteAPI: Sendable {
   func remoteIntegrationsScheduleCommand(
     _ command: RemoteIntegrationsScheduleCommand
   ) async throws -> RemoteIntegrationsSchedulesResponse
+  func remoteIntegrationsAutomations(_ input: JSONValue) async throws -> RemoteIntegrationsAutomationsResponse
+  func remoteIntegrationsScheduleInbox(_ input: JSONValue) async throws -> RemoteIntegrationsScheduleRunsResponse
+  func remoteIntegrationsScheduleRunCommand(_ input: JSONValue) async throws -> RemoteIntegrationsRunCommandResponse
   func remoteIntegrationsPRWatch(
     _ key: RemoteIntegrationsPRWatchKey
   ) async throws -> RemoteIntegrationsPRWatchResponse
@@ -93,6 +96,21 @@ extension RemoteAPIClient: RemoteIntegrationsRemoteAPI {
       throw RemoteIntegrationsRemoteMutationError.ambiguousOutcome
     }
     return response
+  }
+
+  func remoteIntegrationsAutomations(_ input: JSONValue) async throws -> RemoteIntegrationsAutomationsResponse {
+    let data = try await requestData(path: remoteIntegrationsPath(for: "automations-snapshot"), queryItems: RemoteIntegrationsRemoteV3Contract.automationQuery(input, snapshot: true))
+    return try remoteIntegrationsDecode(RemoteIntegrationsAutomationsResponse.self, RemoteIntegrationsRemoteV3Contract.automationsResponse(data))
+  }
+
+  func remoteIntegrationsScheduleInbox(_ input: JSONValue) async throws -> RemoteIntegrationsScheduleRunsResponse {
+    let data = try await requestData(path: remoteIntegrationsPath(for: "schedule-run-inbox"), queryItems: RemoteIntegrationsRemoteV3Contract.automationQuery(input, snapshot: false))
+    return try remoteIntegrationsDecode(RemoteIntegrationsScheduleRunsResponse.self, RemoteIntegrationsRemoteV3Contract.scheduleInboxResponse(data))
+  }
+
+  func remoteIntegrationsScheduleRunCommand(_ input: JSONValue) async throws -> RemoteIntegrationsRunCommandResponse {
+    let body = try RemoteIntegrationsRemoteV3Contract.scheduleRunCommandRequest(JSONDecoding.encoder.encode(input))
+    return try await remoteIntegrationsMutate(route: "schedule-run-command", method: "POST", body: body, canonicalize: RemoteIntegrationsRemoteV3Contract.scheduleRunCommandResponse)
   }
 
   func remoteIntegrationsPRWatch(

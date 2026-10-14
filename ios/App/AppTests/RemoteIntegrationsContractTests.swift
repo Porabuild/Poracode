@@ -3,13 +3,13 @@ import XCTest
 @testable import App
 
 final class RemoteIntegrationsContractTests: XCTestCase {
-  func testElevenRoutesMatchGeneratedMetadataExactly() {
+  func testFourteenRoutesMatchGeneratedMetadataExactly() {
     let routes = RemoteIntegrationsRemoteV3Contract.routes
-    XCTAssertEqual(routes.count, 11)
-    XCTAssertEqual(Set(routes.map(\.id)).count, 11)
+    XCTAssertEqual(routes.count, 14)
+    XCTAssertEqual(Set(routes.map(\.id)).count, 14)
     XCTAssertEqual(routes.filter { $0.scope == .projectsManage }.count, 3)
-    XCTAssertEqual(routes.filter { $0.scope == .sessionRead }.count, 3)
-    XCTAssertEqual(routes.filter { $0.scope == .sessionOperate }.count, 5)
+    XCTAssertEqual(routes.filter { $0.scope == .sessionRead }.count, 5)
+    XCTAssertEqual(routes.filter { $0.scope == .sessionOperate }.count, 6)
     XCTAssertEqual(
       routes.first { $0.id == "host-update-install" }?.status,
       202

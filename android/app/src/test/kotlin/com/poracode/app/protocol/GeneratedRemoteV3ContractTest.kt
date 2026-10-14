@@ -16,11 +16,21 @@ import org.junit.Test
 class GeneratedRemoteV3ContractTest {
     @Test
     fun generator3ManifestIsRefusedAfterUnicodeLengthCorrection() {
-        assertEquals(4, GeneratedRemoteV3Contract.GENERATOR_VERSION)
+        assertEquals(5, GeneratedRemoteV3Contract.GENERATOR_VERSION)
         assertFalse(GeneratedRemoteV3Contract.isCompatibleWithNativeBundleManifest(
             protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
             bindingFormatVersion = GeneratedRemoteV3Contract.BINDING_FORMAT_VERSION,
             generatorVersion = 3,
+            formatVersion = GeneratedRemoteV3Contract.NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION,
+        ))
+    }
+
+    @Test
+    fun generator4ManifestIsRefusedAfterScheduleSemanticChanges() {
+        assertFalse(GeneratedRemoteV3Contract.isCompatibleWithNativeBundleManifest(
+            protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+            bindingFormatVersion = GeneratedRemoteV3Contract.BINDING_FORMAT_VERSION,
+            generatorVersion = 4,
             formatVersion = GeneratedRemoteV3Contract.NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION,
         ))
     }

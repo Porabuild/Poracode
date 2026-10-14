@@ -45,7 +45,9 @@
  * hops. Inventory of renderer→host constants: this, remote protocol, engine,
  * host-control (≤4).
  */
-export const CLIENT_HOST_HOP_VERSION = 17 as const;
+// Version 18 adds automation results and new closed schedule recurrence/status variants.
+// An older renderer must reject the changed response vocabulary before dispatch.
+export const CLIENT_HOST_HOP_VERSION = 18 as const;
 /** The previous artifact hop, kept as an old reader for pre-upgrade regressions. */
-export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 16 as const;
+export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 17 as const;
 export const PREVIOUS_IPC_PROCEDURE_MAP_VERSION = 1 as const;

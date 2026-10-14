@@ -1,5 +1,8 @@
 package com.poracode.app.transport.remoteintegrations
 
+import kotlinx.serialization.json.JsonObject
+import com.poracode.app.model.remoteintegrations.AutomationsSnapshot
+import com.poracode.app.model.remoteintegrations.ScheduleRunCommandResult
 import com.poracode.app.model.remoteintegrations.HostUpdateState
 import com.poracode.app.model.remoteintegrations.PrWatch
 import com.poracode.app.model.remoteintegrations.PrWatchDraft
@@ -23,6 +26,9 @@ interface RemoteIntegrationsGateway {
     suspend fun schedules(): List<ScheduledTask>
     suspend fun scheduleRuns(id: String): List<ScheduleRun>
     suspend fun commandSchedule(command: ScheduleCommand): List<ScheduledTask>
+    suspend fun automations(query: JsonObject): AutomationsSnapshot
+    suspend fun scheduleInbox(query: JsonObject): List<ScheduleRun>
+    suspend fun scheduleRunCommand(command: JsonObject): ScheduleRunCommandResult
     suspend fun prWatch(key: PrWatchKey): PrWatch?
     suspend fun checkPrWatch(key: PrWatchKey)
     suspend fun upsertPrWatch(draft: PrWatchDraft): PrWatch

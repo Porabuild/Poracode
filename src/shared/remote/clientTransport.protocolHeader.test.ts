@@ -44,14 +44,14 @@ function recordingFetch(handler: (path: string, headers: Record<string, string>)
 
 /**
  * Fence 1 (remote 13), TS producer side: the current client declares the
- * writer generation on every authenticated non-GET request — including the
+ * writer generation on every authenticated request — including the
  * post-refresh retry — from its compiled constant alone. Auth-free calls
  * carry no header, a caller-supplied stale value is replaced only by this
  * producer, and the transport-level mutation hint is never consulted (the
  * host classifies by route/procedure scope, not client intent).
  */
 describe("RemoteClientTransport writer generation header (remote 13)", () => {
-  it("attaches the exact current generation to an authenticated non-GET request", async () => {
+  it("attaches the exact current generation to an authenticated request", async () => {
     const { fetch, seen } = recordingFetch(() => jsonResponse(200, { ok: true }));
     const client = new RemoteDesktopClient(endpoint, "lc_access", fetch);
     await expect(
@@ -66,14 +66,16 @@ describe("RemoteClientTransport writer generation header (remote 13)", () => {
     );
     // The constant itself is the settled wire contract.
     expect(REMOTE_PROTOCOL_VERSION_HEADER).toBe("x-poracode-protocol-version");
-    expect(REMOTE_PROTOCOL_VERSION_HEADER_VALUE).toBe("13");
+    expect(REMOTE_PROTOCOL_VERSION_HEADER_VALUE).toBe("14");
   });
 
-  it("does not attach the generation to GET requests", async () => {
+  it("attaches the generation to authenticated GET requests", async () => {
     const { fetch, seen } = recordingFetch(() => jsonResponse(200, { ok: true }));
     const client = new RemoteDesktopClient(endpoint, "lc_access", fetch);
     await expect(requestJsonFull(client, "/api/snapshot", {})).resolves.toEqual({ ok: true });
-    expect(seen[0]!.headers[REMOTE_PROTOCOL_VERSION_HEADER]).toBeUndefined();
+    expect(seen[0]!.headers[REMOTE_PROTOCOL_VERSION_HEADER]).toBe(
+      REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    );
   });
 
   it("never forces the generation onto an auth-free request", async () => {
@@ -144,7 +146,7 @@ describe("RemoteClientTransport writer generation header (remote 13)", () => {
       }),
     ).resolves.toEqual({ ok: true });
     // This producer is the only upgrade path: the wire carries exactly one
-    // current generation value for the authenticated non-GET request.
+    // current generation value for the authenticated request.
     expect(seen[0]!.headers[REMOTE_PROTOCOL_VERSION_HEADER]).toBe(
       REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
     );

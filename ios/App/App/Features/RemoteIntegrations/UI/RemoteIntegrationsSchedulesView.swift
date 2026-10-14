@@ -37,6 +37,7 @@ struct RemoteIntegrationsSchedulesView: View {
   @State private var query = ""
   @State private var editor: RemoteIntegrationsScheduleEditorTarget?
   @State private var confirmation: RemoteIntegrationsScheduleConfirmation?
+  @State private var showResults = false
   @State private var runsSchedule: RemoteIntegrationsScheduledTask?
 
   var body: some View {
@@ -53,17 +54,14 @@ struct RemoteIntegrationsSchedulesView: View {
       guard isPresentationActive else { return }
       composition.activate(selection)
       await composition.schedules.load()
+      await composition.automations.load()
     }
     .task(id: pollingIdentity) {
       guard pollingIdentity.shouldPoll else { return }
-      while !Task.isCancelled, hasRunningSchedule {
-        do {
-          try await Task.sleep(for: .seconds(2))
-        } catch {
-          return
-        }
-        guard pollingIdentity.shouldPoll else { return }
+      while !Task.isCancelled {
+        do { try await Task.sleep(for: .seconds(pollingIdentity.intervalSeconds)) } catch { return }
         await composition.schedules.load()
+        if !showResults { await composition.automations.load() }
       }
     }
     .refreshable { await composition.schedules.load() }
@@ -98,12 +96,26 @@ struct RemoteIntegrationsSchedulesView: View {
         .accessibilityIdentifier("native-e2e.schedules.create")
       }
     }
+    .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        Button { showResults = true } label: {
+          Label("\(RemoteAutomationsStrings.results) (\(composition.automations.unreadCount))", systemImage: "tray")
+        }.accessibilityIdentifier("native-e2e.schedules.results")
+      }
+    }
+    .onChange(of: selection?.lease) { _, _ in
+      showResults = false; editor = nil; runsSchedule = nil; confirmation = nil
+    }
+    .sheet(isPresented: $showResults) {
+      RemoteIntegrationsResultsView(session: session, controller: composition.automations, canOperate: composition.gate(.sessionOperate) == nil)
+    }
     .sheet(item: $editor) { target in
       RemoteIntegrationsScheduleEditor(
         target: target,
         projects: projects,
         agents: agents,
-        controller: composition.schedules
+        controller: composition.schedules,
+        threads: session.snapshot?.threads ?? []
       )
     }
     .sheet(item: $runsSchedule) { schedule in
@@ -250,7 +262,7 @@ struct RemoteIntegrationsSchedulesView: View {
   }
 
   private var hasRunningSchedule: Bool {
-    composition.schedules.schedules.contains { $0.lastStatus == .running }
+    composition.schedules.schedules.contains { $0.lastStatus == .running || $0.lastStatus == .waiting }
   }
 
   private var pollingIdentity: RemoteIntegrationsSchedulePollingIdentity {
@@ -339,8 +351,10 @@ struct RemoteIntegrationsSchedulePollingIdentity: Hashable {
   let isMutating: Bool
 
   var shouldPoll: Bool {
-    lease != nil && isPresentationActive && hasRunningSchedule && !isMutating
+    lease != nil && isPresentationActive && !isMutating
   }
+
+  var intervalSeconds: Int { hasRunningSchedule ? 2 : 15 }
 }
 
 struct RemoteIntegrationsSchedulePreset: Identifiable, Equatable {

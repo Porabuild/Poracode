@@ -8,7 +8,6 @@ import { buildRemoteProtocolManifest, buildRemoteV3IrDocument } from "../generat
 import { emitKotlinBindings } from "./emitKotlin";
 import { emitSwiftBindings } from "./emitSwift";
 import { rootAdapters } from "./emitterCommon";
-import { buildNativeBindingOutput } from "./generate";
 import { buildNativeSchemaGraph, collectNativeSchemaRoots } from "./schemaGraph";
 import type { JsonSchema, NativeBindingIr, NativeSchemaGraph, NativeSchemaRoot } from "./types";
 import { parseNativeBindingIr } from "./validate";
@@ -167,16 +166,12 @@ interface HarnessCodecCase {
 
 function authoritativeInput(): {
   readonly ir: NativeBindingIr;
-  readonly graph: NativeSchemaGraph;
-  readonly files: Readonly<Record<string, string>>;
 } {
   const rawIr = buildRemoteV3IrDocument();
   const manifest = buildRemoteProtocolManifest();
   const ir = parseNativeBindingIr(rawIr, manifest);
   return {
     ir,
-    graph: buildNativeSchemaGraph(collectNativeSchemaRoots(ir)),
-    files: buildNativeBindingOutput(rawIr, manifest).files,
   };
 }
 
@@ -238,6 +233,31 @@ function syntheticRoots(): NativeSchemaRoot[] {
   const semantic = (id: string, schema: JsonSchema): NativeSchemaRoot =>
     root(`semantic.${id}`, { ...schema, "x-poracode-semanticValidators": [id] });
   return [
+    semantic("schedule.time-zone", { type: "string" }),
+    semantic("schedule.cron", { type: "string" }),
+    semantic("schedule.automation", {
+      type: "object",
+      properties: {
+        mode: { type: "object", properties: { kind: { type: "string" } } },
+        retryPolicy: {
+          type: "object",
+          properties: {
+            kind: { type: "string" },
+            initialDelaySeconds: { type: "integer" },
+            maxDelaySeconds: { type: "integer" },
+          },
+        },
+        completionPolicy: { type: "object", properties: { kind: { type: "string" } } },
+      },
+    }),
+    semantic("schedule.run-state", {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        unread: { type: "boolean" },
+        archived: { type: "boolean" },
+      },
+    }),
     {
       id: "synthetic.ambiguous",
       preferredName: "SyntheticAmbiguousUnion",
@@ -637,6 +657,72 @@ function mutationCases(wsFixtures: readonly string[]): HarnessCodecCase[] {
       id: "synthetic.literal-enum",
       positives: [{ raw: json("alpha") }, { raw: json("beta") }],
       negatives: [json("gamma")],
+    },
+    {
+      id: "synthetic.semantic.schedule.time-zone",
+      positives: [
+        "UTC",
+        "utc",
+        "america/new_york",
+        "us/pacific",
+        "ICELAND",
+        "zulu",
+        "+01",
+        "+0100",
+        "+01:00",
+        "-00:00",
+        "+23:59",
+      ].map((value) => ({ raw: json(value) })),
+      negatives: ["Europe/Nowhere", "constructor", "+24:00", "+1", "+01:1", "GMT+01:00"].map(json),
+    },
+    {
+      id: "synthetic.semantic.schedule.cron",
+      positives: ["0 9 * * *", "*/5 1-3 * 1,2 0", "\u00a00 9 * * *\u00a0"].map((value) => ({
+        raw: json(value),
+      })),
+      negatives: [
+        "0 9 * *",
+        "60 9 * * *",
+        "0 9 * * * *",
+        "0 9 * JAN MON",
+        "*/0 9 * * *",
+        "\u001c0 9 * * *",
+      ].map(json),
+    },
+    {
+      id: "synthetic.semantic.schedule.automation",
+      positives: [
+        {
+          raw: json({
+            mode: { kind: "new-thread" },
+            retryPolicy: { kind: "none" },
+            completionPolicy: { kind: "none" },
+          }),
+        },
+        {
+          raw: json({
+            mode: { kind: "heartbeat" },
+            retryPolicy: { kind: "exponential", initialDelaySeconds: 10, maxDelaySeconds: 10 },
+            completionPolicy: { kind: "ai-evaluated" },
+          }),
+        },
+      ],
+      negatives: [
+        json({ mode: { kind: "new-thread" }, completionPolicy: { kind: "ai-evaluated" } }),
+        json({
+          mode: { kind: "heartbeat" },
+          completionPolicy: { kind: "none" },
+          retryPolicy: { kind: "exponential", initialDelaySeconds: 10, maxDelaySeconds: 5 },
+        }),
+      ],
+    },
+    {
+      id: "synthetic.semantic.schedule.run-state",
+      positives: [
+        { raw: json({ id: "run", unread: false }) },
+        { raw: json({ id: "run", archived: false }) },
+      ],
+      negatives: [json({ id: "run" })],
     },
     {
       id: "synthetic.semantic.git.add-worktree.frozen-source",
@@ -1109,7 +1195,11 @@ ${nullableFixtures.map((fixture) => `    try roundTrip(${types.nullable}.self, $
 }
 
 function prepareHarness(): {
-  readonly input: ReturnType<typeof authoritativeInput>;
+  readonly input: {
+    readonly ir: NativeBindingIr;
+    readonly graph: NativeSchemaGraph;
+    readonly files: Readonly<Record<string, string>>;
+  };
   readonly types: HarnessTypes;
   readonly wsFixtures: readonly string[];
   readonly cases: readonly HarnessCodecCase[];

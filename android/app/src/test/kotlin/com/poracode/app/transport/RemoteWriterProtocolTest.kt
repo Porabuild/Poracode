@@ -44,10 +44,10 @@ class RemoteWriterProtocolTest {
     }
 
     @Test
-    fun readsAndAuthFreeRequestsDoNotAcquireADeclaration() = runBlocking {
+    fun authenticatedReadsDeclareGenerationAndAuthFreeRequestsDoNot() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         client.requestText("/api/snapshot")
-        assertNull(server.takeRequest().getHeader(ProtocolConstants.PROTOCOL_VERSION_HEADER))
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION.toString(), server.takeRequest().getHeader(ProtocolConstants.PROTOCOL_VERSION_HEADER))
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         client.requestText("/oauth/token", method = "POST", authorized = false)
         val exchange = server.takeRequest()

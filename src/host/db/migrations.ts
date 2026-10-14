@@ -4,6 +4,7 @@ import {
   assertThreadWorkspaceGrantsPreflight,
   createThreadWorkspaceGrantsSchema56,
 } from "./threadWorkspaceGrantsSchema56";
+import { migrateScheduleAutomation } from "./scheduleAutomationMigration";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
@@ -922,6 +923,13 @@ export const DATABASE_MIGRATIONS = [
     rollback: "rollback-compatible",
     migrate: createRuntimeGoalIndex,
   },
+  {
+    version: 59,
+    name: "schedule automation policies and run inbox",
+    // New recurrence/status meanings cannot be served by older schedule readers.
+    rollback: "forward-only",
+    migrate: migrateScheduleAutomation,
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1211,6 +1219,8 @@ const REQUIRED_COLUMNS = {
   ],
   thread_runtime_item_stream_head_blocks: ["head_id", "seq", "chars", "data"],
   scheduled_tasks: [
+    "automation",
+    "iteration_count",
     "id",
     "name",
     "prompt",
@@ -1227,6 +1237,24 @@ const REQUIRED_COLUMNS = {
     "last_error",
     "created_at",
     "updated_at",
+  ],
+  scheduled_task_runs: [
+    "id",
+    "schedule_id",
+    "thread_id",
+    "scheduled_for",
+    "trigger",
+    "attempt",
+    "iteration",
+    "started_at",
+    "completed_at",
+    "status",
+    "summary",
+    "error",
+    "result",
+    "automation_snapshot",
+    "unread",
+    "archived_at",
   ],
   pr_watches: [
     "project_id",

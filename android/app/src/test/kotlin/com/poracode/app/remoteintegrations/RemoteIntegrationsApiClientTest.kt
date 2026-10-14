@@ -8,6 +8,9 @@ import com.poracode.app.model.remoteintegrations.ScheduleRecurrence
 import com.poracode.app.transport.ForegroundNetworkGate
 import com.poracode.app.transport.remoteintegrations.RemoteIntegrationsApiClient
 import com.poracode.app.transport.remoteintegrations.ScheduleCommand
+import com.poracode.app.transport.remoteintegrations.RemoteIntegrationAdapters
+import com.poracode.app.ui.remoteintegrations.ScheduleAutomationDraft
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.remoteintegrations.IntegrationRouteId
 import com.poracode.app.protocol.remoteintegrations.RemoteV3IntegrationsContract
 import kotlinx.coroutines.CancellationException
@@ -16,6 +19,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -26,12 +31,64 @@ import org.junit.Test
 
 class RemoteIntegrationsApiClientTest {
     @Test
+    fun pausingSchedulePreservesCompleteSelectionAndAutomation() {
+        val raw = Json.parseToJsonElement("""
+            {"id":"995f9ee6-83de-44da-a90a-4f4e3425bbac","name":"Check progress","prompt":"Read progress","agentKind":"codex","enabled":true,"projectId":null,
+             "config":{"model":"member","effort":"","fast":false,"thinking":false,"contextSize":"default","selectionBinding":{"version":1,"kind":"family-member","owner":{"agentKind":"codex","presentationMode":"gui"},"model":"member","inertValues":{"fast":false}}},
+             "recurrence":{"kind":"cron","expression":"0 9 * * 1-5","timeZone":"US/Pacific"},"nextRunAt":null,"lastRunAt":null,"lastStatus":"never","lastError":null,
+             "automation":{"version":1,"mode":{"kind":"heartbeat","targetThreadId":"target"},"maxRuntimeSeconds":3600,"maxIterations":4,"stopOnError":false,"misfirePolicy":"run-latest",
+               "retryPolicy":{"kind":"exponential","maxAttempts":3,"initialDelaySeconds":10,"maxDelaySeconds":60},"completionPolicy":{"kind":"ai-evaluated","stopWhen":"Progress is complete","confidenceThreshold":0.9}}}
+        """).jsonObject
+        val response = JsonObject(mapOf("schedules" to JsonArray(listOf(raw))))
+        val task = RemoteIntegrationAdapters.schedules(response).single()
+        val paused = task.draft.copy(enabled = false, name = "Updated name").wireObject()
+        assertEquals(raw["config"], paused["config"])
+        assertEquals(raw["recurrence"], paused["recurrence"])
+        assertEquals(raw["automation"], paused["automation"])
+        assertEquals(raw["automation"], ScheduleAutomationDraft.from(task.draft.automation).value())
+    }
+
+    @Test
+    fun automationReadsAndTriageUseCurrentProtocolAndBoundedQuery() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setBody("""{"schedules":[],"runs":[],"unreadCount":0}"""))
+        server.enqueue(MockResponse().setBody("""{"runs":[]}"""))
+        server.enqueue(MockResponse().setBody("""{"run":null,"cancelled":true}"""))
+        server.start()
+        try {
+            val api = client(server)
+            val id = "995f9ee6-83de-44da-a90a-4f4e3425bbac"
+            val query = Json.parseToJsonElement("""{"filter":"unread","limit":50,"cursor":"2026-10-13T12:00:00.000Z|$id","search":"Résumé"}""").jsonObject
+            api.automations(query)
+            api.scheduleInbox(query)
+            val command = Json.parseToJsonElement("""{"kind":"cancel","id":"$id"}""").jsonObject
+            assertEquals(true, api.scheduleRunCommand(command).cancelled)
+            for (path in listOf("/prefix/api/automations", "/prefix/api/schedules/inbox")) {
+                val request = server.takeRequest()
+                assertEquals("GET", request.method)
+                assertEquals(path, request.requestUrl!!.encodedPath)
+                assertEquals("Résumé", request.requestUrl!!.queryParameter("search"))
+                assertEquals("50", request.requestUrl!!.queryParameter("limit"))
+                assertEquals("2026-10-13T12:00:00.000Z|$id", request.requestUrl!!.queryParameter("cursor"))
+                assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION.toString(), request.getHeader("X-Poracode-Protocol-Version"))
+            }
+            val mutation = server.takeRequest()
+            assertEquals("/prefix/api/schedules/runs/command", mutation.requestUrl!!.encodedPath)
+            assertEquals(command, Json.parseToJsonElement(mutation.body.readUtf8()))
+            assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION.toString(), mutation.getHeader("X-Poracode-Protocol-Version"))
+        } finally { server.shutdown() }
+    }
+
+    @Test
     fun generatedMetadataPinsEveryRouteAndScope() {
         val expected = mapOf(
             IntegrationRouteId.HostUpdate to "projects:manage",
             IntegrationRouteId.HostUpdateCheck to "projects:manage",
             IntegrationRouteId.HostUpdateInstall to "projects:manage",
             IntegrationRouteId.SchedulesRead to "session:read",
+            IntegrationRouteId.AutomationsSnapshot to "session:read",
+            IntegrationRouteId.ScheduleInbox to "session:read",
+            IntegrationRouteId.ScheduleRunCommand to "session:operate",
             IntegrationRouteId.SchedulesCommand to "session:operate",
             IntegrationRouteId.ScheduleRunsRead to "session:read",
             IntegrationRouteId.PrWatchRead to "session:read",

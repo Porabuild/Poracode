@@ -13,12 +13,14 @@ import {
   remotePushRegistrationSchema,
   remotePushUnregisterSchema,
   remoteScheduleCommandSchema,
+  remoteScheduleRunCommandSchema,
 } from "@/shared/remote";
 import {
   prWatchAgentSyncSchema,
   prWatchInputSchema,
   prWatchKeySchema,
   scheduledTaskIdPayloadSchema,
+  scheduleRunInboxQuerySchema,
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { dbGetProject } from "@/host/db";
@@ -70,6 +72,9 @@ type WorkspaceRouteId =
   | "schedules-read"
   | "schedules-command"
   | "schedule-runs-read"
+  | "automations-snapshot"
+  | "schedule-run-inbox"
+  | "schedule-run-command"
   | "pr-watch-read"
   | "pr-watch-check"
   | "pr-watch-agent-sync"
@@ -327,6 +332,48 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
           ? schedules.update(command.id, command.task)
           : schedules.runNow(command.id);
     writeJson(res, 200, { schedule, schedules: schedules.list() });
+  },
+
+  "automations-snapshot": ({ ctx, res, url }) => {
+    const schedules = ctx.requireSchedulesGateway();
+    if (!schedules.snapshot)
+      throw new RemoteHttpError(
+        "automations_unavailable",
+        "Automation results are unavailable on this host.",
+        503,
+      );
+    writeJson(res, 200, schedules.snapshot(inboxQuery(url)));
+  },
+  "schedule-run-inbox": ({ ctx, res, url }) => {
+    const schedules = ctx.requireSchedulesGateway();
+    if (!schedules.inbox)
+      throw new RemoteHttpError(
+        "automations_unavailable",
+        "Automation results are unavailable on this host.",
+        503,
+      );
+    writeJson(res, 200, { runs: schedules.inbox(inboxQuery(url)) });
+  },
+  "schedule-run-command": async ({ ctx, req, res }) => {
+    const schedules = ctx.requireSchedulesGateway();
+    const command = remoteScheduleRunCommandSchema.parse(await readJsonBody(req));
+    if (command.kind === "cancel") {
+      if (!schedules.cancelRun)
+        throw new RemoteHttpError(
+          "automations_unavailable",
+          "Run cancellation is unavailable on this host.",
+          503,
+        );
+      writeJson(res, 200, { cancelled: schedules.cancelRun(command.id) });
+    } else {
+      if (!schedules.updateRunState)
+        throw new RemoteHttpError(
+          "automations_unavailable",
+          "Run state updates are unavailable on this host.",
+          503,
+        );
+      writeJson(res, 200, { run: schedules.updateRunState(command.payload) });
+    }
   },
 
   "pr-watch-read": ({ ctx, res, url }) => {
@@ -596,3 +643,15 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     writeJson(res, 200, { ok: true });
   },
 };
+
+function inboxQuery(url: URL) {
+  const limit = url.searchParams.get("limit");
+  const cursor = url.searchParams.get("cursor");
+  const search = url.searchParams.get("search");
+  return scheduleRunInboxQuerySchema.parse({
+    filter: url.searchParams.get("filter") ?? "unread",
+    ...(limit ? { limit: Number(limit) } : {}),
+    ...(cursor ? { cursor } : {}),
+    ...(search ? { search } : {}),
+  });
+}

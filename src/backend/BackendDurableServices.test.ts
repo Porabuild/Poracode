@@ -54,6 +54,10 @@ vi.mock("@/host/db", () => ({
   dbGetProjects: vi.fn<() => never[]>(() => []),
   dbGetState: vi.fn<() => string | null>(() => null),
   dbGetThread: vi.fn<() => undefined>(),
+  dbGetScheduleRun: vi.fn<() => null>(() => null),
+  dbGetThreadRuntimeItemCursor: vi.fn<() => Promise<number>>(async () => -1),
+  dbGetThreadRuntimeItemsAfter: vi.fn<() => Promise<never[]>>(async () => []),
+  dbPatchScheduleRuntime: vi.fn<() => void>(),
   dbGetThreads: vi.fn<() => never[]>(() => []),
   dbInsertScheduleRun: vi.fn<() => undefined>(),
   dbInterruptScheduleRuns: vi.fn<() => undefined>(),
@@ -385,7 +389,7 @@ describe("BackendDurableServices host-local invalidation", () => {
         attention: "none",
         canResumeWithConfig: false,
       });
-      await expect(completion).resolves.toBe("");
+      await expect(completion).resolves.toMatchObject({ status: "succeeded", summary: null });
     } finally {
       await durable.dispose();
     }
