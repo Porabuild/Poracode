@@ -9,7 +9,7 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function subagentId(record: Record<string, unknown>): string | undefined {
+export function museSubagentId(record: Record<string, unknown>): string | undefined {
   return (
     stringValue(record["subagent_id"]) ??
     stringValue(record["id"]) ??
@@ -17,6 +17,10 @@ function subagentId(record: Record<string, unknown>): string | undefined {
     stringValue(record["agentId"]) ??
     stringValue(record["subagent"])
   );
+}
+
+export function museSubagentResultStatus(errorKind: unknown): "completed" | "failed" | "cancelled" {
+  return errorKind === "cancelled" ? "cancelled" : errorKind ? "failed" : "completed";
 }
 
 /** Normalize native tool identities without teaching shared UI Muse's argument names. */
@@ -30,7 +34,7 @@ export function museSubagentPayload(
   if (!name.startsWith("subagent_")) return {};
   const spawning = name === "subagent_spawn";
   // Spawn assigns the id in its result, while companion calls take it as an arg.
-  const agentId = subagentId(args) ?? (spawning ? subagentId(result) : undefined);
+  const agentId = museSubagentId(args) ?? (spawning ? museSubagentId(result) : undefined);
   const previous = agentId ? subagents.get(agentId) : undefined;
   const title =
     stringValue(args["task_name"]) ??

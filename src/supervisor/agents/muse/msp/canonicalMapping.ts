@@ -21,6 +21,7 @@ export interface MuseMspItemMapperState {
   readonly startedItemIds: Set<string>;
   readonly itemKinds: Map<string, string>;
   readonly itemAliases: Map<string, string>;
+  readonly optimisticUserItemIds: Set<string>;
   readonly streamedItemIds: Set<string>;
   readonly reasoningFields: Map<string, string>;
   /** Identities returned by spawn, retained so later companion calls use the same name. */
@@ -36,6 +37,7 @@ export function createMuseMspItemMapperState(threadId: string): MuseMspItemMappe
     startedItemIds: new Set(),
     itemKinds: new Map(),
     itemAliases: new Map(),
+    optimisticUserItemIds: new Set(),
     streamedItemIds: new Set(),
     reasoningFields: new Map(),
     subagents: new Map(),
@@ -45,9 +47,11 @@ export function createMuseMspItemMapperState(threadId: string): MuseMspItemMappe
 export function aliasMuseMspItem(
   state: MuseMspItemMapperState,
   providerItemId: string,
-  optimisticId: string,
+  canonicalId: string,
+  options: { optimisticUserMessage?: boolean } = {},
 ): void {
-  state.itemAliases.set(providerItemId, optimisticId);
+  state.itemAliases.set(providerItemId, canonicalId);
+  if (options.optimisticUserMessage !== false) state.optimisticUserItemIds.add(providerItemId);
 }
 
 export function completeOpenMuseMspItems(state: MuseMspItemMapperState): RuntimeEvent[] {
@@ -62,6 +66,7 @@ export function completeOpenMuseMspItems(state: MuseMspItemMapperState): Runtime
   state.startedItemIds.clear();
   state.itemKinds.clear();
   state.itemAliases.clear();
+  state.optimisticUserItemIds.clear();
   state.streamedItemIds.clear();
   state.reasoningFields.clear();
   return events;
@@ -69,6 +74,13 @@ export function completeOpenMuseMspItems(state: MuseMspItemMapperState): Runtime
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+export function museItemText(item: Record<string, unknown>): string {
+  const summary = Array.isArray(item["summary"])
+    ? item["summary"].filter((part): part is string => typeof part === "string").join("\n\n")
+    : "";
+  return stringValue(item["text"]) ?? summary;
 }
 
 function numberValue(value: unknown): number | undefined {
@@ -203,7 +215,7 @@ export function mapMuseMspItem(
 
   if (kind === "userMessage") {
     const text = stringValue(item["text"]) ?? "";
-    const hasOptimisticAlias = state.itemAliases.has(rawId);
+    const hasOptimisticAlias = state.optimisticUserItemIds.has(rawId);
 
     if (!hasOptimisticAlias && !state.startedItemIds.has(itemId)) {
       state.startedItemIds.add(itemId);
@@ -228,10 +240,7 @@ export function mapMuseMspItem(
   }
 
   if (kind === "reasoning") {
-    const summary = Array.isArray(item["summary"])
-      ? item["summary"].filter((part): part is string => typeof part === "string")
-      : [];
-    const text = stringValue(item["text"]) ?? summary.join("\n\n");
+    const text = museItemText(item);
     const lifecycle = emitItemLifecycle(state, itemId, "reasoning", {}, phase);
     if (text && !state.streamedItemIds.has(itemId)) {
       const delta: RuntimeEvent = {
@@ -332,67 +341,63 @@ export function mapMuseMspItem(
   );
 }
 
+export function readMuseMspDelta(
+  params: Record<string, unknown>,
+): { rawId: string; field: string; delta: string } | undefined {
+  const rawId = stringValue(params["itemId"]) ?? stringValue(params["id"]);
+  const field = stringValue(params["field"]) ?? "text";
+  const delta = stringValue(params["delta"]);
+  return rawId && delta ? { rawId, field, delta } : undefined;
+}
+
 export function mapMuseMspDelta(
   state: MuseMspItemMapperState,
   params: Record<string, unknown>,
 ): RuntimeEvent[] {
-  const rawId = stringValue(params["itemId"]) ?? stringValue(params["id"]);
-  if (!rawId) return [];
+  const parsed = readMuseMspDelta(params);
+  if (!parsed) return [];
+  const { rawId, field, delta } = parsed;
   const itemId = state.itemAliases.get(rawId) ?? rawId;
-  const field = stringValue(params["field"]) ?? "text";
-  const delta = stringValue(params["delta"]);
-  if (!delta) return [];
+  const normalized = normalizeMuseMspDelta(
+    state.itemKinds.get(itemId),
+    field,
+    state.reasoningFields.get(itemId),
+    delta,
+  );
+  if (!normalized) return [];
+  state.streamedItemIds.add(itemId);
+  if (normalized.stream === "reasoning_text") state.reasoningFields.set(itemId, field);
+  return [{ type: "content.delta", threadId: state.threadId, itemId, ...normalized }];
+}
 
-  if (field === "output") {
-    state.streamedItemIds.add(itemId);
-    return [
-      {
-        type: "content.delta",
-        threadId: state.threadId,
-        itemId,
-        stream: "command_output",
-        delta,
-      },
-    ];
-  }
-
+/** Shared by live event mapping and cached child transcript replay. */
+export function normalizeMuseMspDelta(
+  kind: string | undefined,
+  field: string,
+  previousField: string | undefined,
+  delta: string,
+): { stream: "command_output" | "reasoning_text" | "assistant_text"; delta: string } | undefined {
+  if (field === "output") return { stream: "command_output", delta };
   if (
-    state.itemKinds.get(itemId) === "reasoning" ||
+    kind === "reasoning" ||
     field === "reasoning" ||
     field === "thought" ||
     field.startsWith("summary.")
   ) {
-    const previousField = state.reasoningFields.get(itemId);
-    state.reasoningFields.set(itemId, field);
-    state.streamedItemIds.add(itemId);
-    return [
-      {
-        type: "content.delta",
-        threadId: state.threadId,
-        itemId,
-        stream: "reasoning_text",
-        delta:
-          previousField && previousField !== field && field.startsWith("summary.")
-            ? `\n\n${delta}`
-            : delta,
-      },
-    ];
+    return {
+      stream: "reasoning_text",
+      delta:
+        previousField && previousField !== field && field.startsWith("summary.")
+          ? `\n\n${delta}`
+          : delta,
+    };
   }
 
   if (field === "text") {
-    state.streamedItemIds.add(itemId);
-    return [
-      {
-        type: "content.delta",
-        threadId: state.threadId,
-        itemId,
-        stream: "assistant_text",
-        delta,
-      },
-    ];
+    return { stream: "assistant_text", delta };
   }
 
-  return [];
+  return undefined;
 }
 
 export function isNewMuseGoal(goal: ProviderGoalState, state: MuseMspItemMapperState): boolean {
