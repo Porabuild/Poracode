@@ -83,10 +83,24 @@ jobs:
         env:
           CANONICAL_ORIGIN: https://poracode.com
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
           PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+          fetch_document() {
+            local url="$1" output="$2" origin_kind="$3"
+            local curl_options=(--fail-with-body --silent --show-error --output "$output")
+            if [ "$origin_kind" = deployment ]; then
+              # The immutable URL is protected by Vercel SSO. Use the existing
+              # deployment credentials; the canonical App Links origin below
+              # must still be readable without authentication.
+              vercel curl "$url" --token="$VERCEL_TOKEN" -- "${curl_options[@]}"
+            else
+              curl "$url" "${curl_options[@]}"
+            fi
+          }
+
           verify_documents() {
             local origin="$1"
             local suffix="$2"
@@ -94,12 +108,8 @@ jobs:
             local assetlinks="$RUNNER_TEMP/assetlinks-$label.json"
             local association="$RUNNER_TEMP/apple-app-site-association-$label.json"
 
-            curl --fail-with-body --silent --show-error \
-              "$origin/.well-known/assetlinks.json$suffix" \
-              --output "$assetlinks"
-            curl --fail-with-body --silent --show-error \
-              "$origin/.well-known/apple-app-site-association$suffix" \
-              --output "$association"
+            fetch_document "$origin/.well-known/assetlinks.json$suffix" "$assetlinks" "$label"
+            fetch_document "$origin/.well-known/apple-app-site-association$suffix" "$association" "$label"
 
             # An unconfigured Android release must publish no trusted signer.
             # Configured platforms must match the actual production identities.

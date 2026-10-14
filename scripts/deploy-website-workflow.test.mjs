@@ -88,6 +88,12 @@ curl() {
     esac
   done
   case "$url" in "$CANONICAL_ORIGIN/"*) origin="canonical" ;; esac
+  if [ "$origin" = deployment ]; then
+    [ "\${AUTHENTICATED_DEPLOYMENT_REQUEST:-}" = 1 ] || return 22
+  else
+    [ "\${AUTHENTICATED_DEPLOYMENT_REQUEST:-}" != 1 ] || return 23
+  fi
+  [ "\${REQUEST_FAILURE:-}" != "$origin" ] || return 22
   local file=""
   case "$url" in
     *assetlinks.json*) file="assetlinks.json" ;;
@@ -95,6 +101,18 @@ curl() {
     *) return 1 ;;
   esac
   cp "$FIXTURE_DIR/$origin/$file" "$output"
+}
+vercel() {
+  [ "$1" = curl ] || return 1
+  shift
+  local url="$1"
+  shift
+  [ -n "$VERCEL_TOKEN" ] && [ "$1" = "--token=$VERCEL_TOKEN" ] || return 1
+  shift
+  [ "$1" = -- ] || return 1
+  shift
+  case "$url" in "$DEPLOYMENT_URL/.well-known/"*) ;; *) return 1 ;; esac
+  AUTHENTICATED_DEPLOYMENT_REQUEST=1 curl "$url" "$@"
 }
 `;
 
@@ -117,6 +135,7 @@ void test("website configuration permits an unconfigured Android signer and stil
   for (const key of [
     "PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS",
     "PORACODE_MOBILE_APPLE_TEAM_ID",
+    "VERCEL_TOKEN",
   ]) {
     const build = workflow.jobs.web.steps.find((step) => step.name === "Build");
     assert.equal(verification.env[key], build.env[key]);
@@ -127,6 +146,18 @@ void test("website deployment verifies the generated routes on both deployment a
   const configuredAndroid = (await routeDocuments(fingerprint)).android;
   const cases = [
     { name: "unconfigured Android trusts no signer", fingerprints: "", pass: true },
+    {
+      name: "deployment authentication failure fails qualification",
+      fingerprints: "",
+      requestFailure: "deployment",
+      status: 22,
+    },
+    {
+      name: "canonical origin must remain publicly readable",
+      fingerprints: "",
+      requestFailure: "canonical",
+      status: 22,
+    },
     { name: "configured Android signer matches", fingerprints: fingerprint, pass: true },
     {
       name: "signer rotation accepts comma/newline configuration",
@@ -234,12 +265,14 @@ void test("website deployment verifies the generated routes on both deployment a
           RUNNER_TEMP: dir,
           CANONICAL_ORIGIN: "https://canonical.example",
           DEPLOYMENT_URL: "https://deployment.example",
+          VERCEL_TOKEN: "qa-fixture-token",
+          REQUEST_FAILURE: fixture.requestFailure ?? "",
           GITHUB_SHA: "qa-commit",
           PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: fixture.fingerprints,
           PORACODE_MOBILE_APPLE_TEAM_ID: teamId,
         },
       });
-      assert.equal(result.status, fixture.pass ? 0 : 1, result.stderr);
+      assert.equal(result.status, fixture.status ?? (fixture.pass ? 0 : 1), result.stderr);
       if (fixture.error) assert.ok(result.stderr.includes(fixture.error), result.stderr);
     });
   }
