@@ -93,10 +93,6 @@ internal val schema_1be5ac91cc4357cb: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("baseBranch", "baseCommit", "candidates", "createdAt", "id", "projectId", "prompt", "status", "title", "updatedAt"), properties = mapOf("baseBranch" to schema_36fea325bf1aca70, "baseCommit" to schema_bb2e0e6d90c93ccf, "candidates" to schema_6c24d6b835735b69, "createdAt" to schema_36fea325bf1aca70, "crown" to schema_208e24a5c5aa618a, "id" to schema_36fea325bf1aca70, "projectId" to schema_36fea325bf1aca70, "prompt" to schema_7f6bd58bd8881ec0, "segments" to schema_4392338ffc80bed7, "status" to schema_c5efb303b347362f, "title" to schema_36fea325bf1aca70, "updatedAt" to schema_36fea325bf1aca70, "winnerThreadId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_1be81c6a503dcc12: RemoteSchema by lazy {
-    RemoteSchema(unionKind = "oneOf", options = listOf(schema_c1c28d96f8919389, schema_c509074a7669b10b), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_1c2020f9fb873cc1: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("updatedAt", "windows", "wsl"), properties = mapOf("updatedAt" to schema_36fea325bf1aca70, "windows" to schema_d1f98eeba770316a, "wsl" to schema_d1f98eeba770316a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -305,10 +301,6 @@ internal val schema_24dedf2b27c7ed4e: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("history"), properties = mapOf("history" to schema_c042d97856b6c5aa), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_2510935169cc9921: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("completedTurns", "contextUsage", "runtimeItems", "snapshotSeq", "thread", "updatedAt"), properties = mapOf("backgroundTasks" to schema_17dfab19afcacd90, "completedTurns" to schema_4c20b501501c0ba4, "completedTurnsNextCursor" to schema_df704162f3d15808, "contextUsage" to schema_e47ad2358cf0df53, "followUpQueue" to schema_91dcfb42aac98166, "historyProjection" to schema_72a4409660da2b12, "reads" to schema_4659e6d395f41e16, "runtimeItems" to schema_5d3ac76d9a521e1d, "runtimeNextCursor" to schema_60e901bdbc3f78cd, "runtimeNotice" to schema_1468dfe9a2db9c9d, "runtimeResumeCursor" to schema_36fea325bf1aca70, "snapshotSeq" to schema_56aa0e45cbdce0d0, "terminalScrollback" to schema_bf0b727f7b1c6d07, "terminalSize" to schema_55ee222c096690dc, "thread" to schema_c84f860f0ebf373b, "updatedAt" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_2556bf4896893601: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("authentication"), JsonPrimitive("tool-restrictions"), JsonPrimitive("sensitive-values")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -447,4 +439,12 @@ internal val schema_2a8bc62fab6ac143: RemoteSchema by lazy {
 
 internal val schema_2b430316258b9c31: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("items", "nextCursor"), properties = mapOf("historyProjection" to schema_72a4409660da2b12, "items" to schema_5d3ac76d9a521e1d, "nextCursor" to schema_60e901bdbc3f78cd, "reads" to schema_4659e6d395f41e16, "runtimeNotice" to schema_1468dfe9a2db9c9d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_2b4ffb830b606cf1: RemoteSchema by lazy {
+    RemoteSchema(unionKind = "anyOf", options = listOf(schema_feeb8bb50144d96d, schema_bf0b727f7b1c6d07), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_2b7595c3da8bc0e9: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("kind", "name", "parentPath"), properties = mapOf("kind" to schema_1f4518886240126e, "name" to schema_36fea325bf1aca70, "parentPath" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

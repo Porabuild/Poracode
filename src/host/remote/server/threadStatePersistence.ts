@@ -14,7 +14,7 @@ import { sortOrderForThread } from "./snapshots";
 
 type ThreadStateEvent = Extract<SupervisorEvent, { type: "thread-state" }>;
 
-function deriveTurnTiming(
+export function deriveThreadTurnTiming(
   thread: Thread,
   nextStatus: Thread["status"],
   nowIso: string,
@@ -65,7 +65,7 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
   // transition on a source mismatch or the durable row can freeze at a stale
   // "working"/"launching" state.
   const nowIso = new Date().toISOString();
-  const turnTiming = deriveTurnTiming(thread, event.status, nowIso);
+  const turnTiming = deriveThreadTurnTiming(thread, event.status, nowIso);
   const nextSessionRef =
     event.sessionRef &&
     (thread.sessionRef?.providerSessionId !== event.sessionRef.providerSessionId ||

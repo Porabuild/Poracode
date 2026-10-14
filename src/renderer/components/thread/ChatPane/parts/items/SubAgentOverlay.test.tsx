@@ -355,6 +355,105 @@ describe("SubAgentContent", () => {
     expect(screen.queryByText(/^Crossagent:/)).not.toBeInTheDocument();
   });
 
+  it("splits a Crossagents row into name and muted route meta in the right panel", () => {
+    const threadId = "thread-1";
+    const crossagent: RuntimeChatItem = {
+      id: "crossagent-1",
+      type: "tool_call",
+      state: "started",
+      payload: {
+        name: "Review CEO deck — Codex · GPT-5.5 · High",
+        status: "running",
+        isCrossagent: true,
+        progress: { stepCount: 50 },
+      } satisfies ToolCallPayload,
+      streams: {},
+    };
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [crossagent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [crossagent.id]: crossagent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    render(
+      <AppProvider>
+        <ActiveSubAgentTile threadId={threadId} placement="right" />
+      </AppProvider>,
+    );
+
+    const primary = screen.getByText("Review CEO deck");
+    const meta = screen.getByText("Codex · GPT-5.5 · High · 50 steps");
+    expect(meta).toHaveClass("text-[0.6875rem]", "text-muted");
+    // The name and the meta stack in one column, not one truncated line.
+    expect(primary.parentElement).toBe(meta.parentElement);
+    expect(primary.parentElement).toHaveClass("flex-col");
+    expect(screen.queryByText(/^Review CEO deck —/)).not.toBeInTheDocument();
+  });
+
+  it("shows subagent type and model as the second line in the right panel", () => {
+    const threadId = "thread-1";
+    const parentItem: RuntimeChatItem = {
+      id: "parent-1",
+      type: "tool_call",
+      state: "started",
+      payload: {
+        name: "spawnAgent",
+        status: "running",
+        isSubAgent: true,
+        args: { description: "protocol specialist", subagent_type: "Explore" },
+        progress: { model: "gpt-5.6-sol", effort: "ultra", stepCount: 5 },
+      } satisfies ToolCallPayload,
+      streams: {},
+    };
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    render(
+      <AppProvider>
+        <ActiveSubAgentTile threadId={threadId} placement="right" />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("protocol specialist")).toBeInTheDocument();
+    expect(screen.getByText("Explore · GPT 5.6 Sol · Ultra · 5 steps")).toHaveClass(
+      "text-[0.6875rem]",
+      "text-muted",
+    );
+  });
+
+  it("keeps Crossagents rows on one line in the composer", () => {
+    const threadId = "thread-1";
+    const crossagent: RuntimeChatItem = {
+      id: "crossagent-1",
+      type: "tool_call",
+      state: "started",
+      payload: {
+        name: "Review CEO deck — Codex · GPT-5.5 · High",
+        status: "running",
+        isCrossagent: true,
+        progress: { stepCount: 50 },
+      } satisfies ToolCallPayload,
+      streams: {},
+    };
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [crossagent.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [crossagent.id]: crossagent } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+
+    render(
+      <AppProvider>
+        <ActiveSubAgentTile threadId={threadId} placement="composer" />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("Review CEO deck — Codex · GPT-5.5 · High")).toBeInTheDocument();
+    expect(screen.queryByText("Codex · GPT-5.5 · High · 50 steps")).not.toBeInTheDocument();
+  });
+
   it("renders child messages through the main timeline parser", async () => {
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");

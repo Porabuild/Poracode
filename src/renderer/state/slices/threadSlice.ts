@@ -33,6 +33,7 @@ import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
+import { carryPendingThreadInput, confirmPendingThreadInput } from "../pendingThreadInput";
 import { noteRendererCreatedThreadIntent } from "../managedRootCatalog/rootCreateIntent";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
 import { msg } from "@lingui/core/macro";
@@ -411,6 +412,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       if (!changed) return {};
       // The old provider's authoritative launch snapshot describes a session
       // that no longer exists; drop it so the new provider's first launch owns it.
+      confirmPendingThreadInput(threadId);
       const { [threadId]: _droppedPendingConfig, ...pendingThreadConfigByThreadId } =
         state.pendingThreadConfigByThreadId;
       const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
@@ -495,6 +497,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       clearRuntimeStructuralChangeHint(threadId);
       forgetTimelineMeasurements(threadId);
       forgetThreadGalleryCache(threadId);
+      confirmPendingThreadInput(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
 
       if (nextThreads.length === state.threads.length) {
@@ -721,8 +724,17 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
         let effectiveStatus = input.status;
         let effectiveAttention = input.attention;
+        if (input.status === "idle" && !input.forceCloseActiveTurn) {
+          const pending = carryPendingThreadInput(thread, {
+            ...thread,
+            status: input.status,
+            attention: input.attention,
+          });
+          effectiveStatus = pending.status;
+          effectiveAttention = pending.attention;
+        }
         if (
-          input.status === "idle" &&
+          effectiveStatus === "idle" &&
           (thread.status === "working" || thread.status === "finished") &&
           !isVisible
         ) {
@@ -967,6 +979,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         if (!keep) {
           forgetTimelineMeasurements(thread.id);
           forgetThreadGalleryCache(thread.id);
+          confirmPendingThreadInput(thread.id);
         }
         return keep;
       });
@@ -1176,6 +1189,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         if (snapshot) {
           if (snapshot.agentKind !== undefined && snapshot.agentKind !== thread.agentKind)
             return thread;
+          const runtime = carryPendingThreadInput(thread, {
+            ...thread,
+            status: snapshot.status,
+            attention: snapshot.attention,
+            canResumeWithConfig: snapshot.canResumeWithConfig,
+            ...(snapshot.sessionRef ? { sessionRef: snapshot.sessionRef } : {}),
+          });
           const lastRuntimeConfig = lastRuntimeConfigByThreadId[thread.id] ?? thread.config;
           const runtimeConfigChanged =
             snapshot.config !== undefined &&
@@ -1205,7 +1225,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
                   state.pendingThreadConfigByThreadId[thread.id],
                 ).config
               : stripPlanMode(reportedConfig);
-          const nextTurnTiming = deriveTurnTiming(thread, snapshot.status, {
+          const nextTurnTiming = deriveTurnTiming(thread, runtime.status, {
             enteredLiveAt: thread.activeTurnStartedAt ?? thread.updatedAt ?? nowIso,
             nowIso,
           });
@@ -1220,8 +1240,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
               JSON.stringify(snapshot.sessionConfigOptions);
 
           if (
-            thread.status === snapshot.status &&
-            thread.attention === snapshot.attention &&
+            thread.status === runtime.status &&
+            thread.attention === runtime.attention &&
             isThreadConfigEqual(thread.config, nextConfig) &&
             thread.canResumeWithConfig === snapshot.canResumeWithConfig &&
             thread.threadStatusSource === snapshot.threadStatusSource &&
@@ -1246,8 +1266,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           changed = true;
           return {
             ...thread,
-            status: snapshot.status,
-            attention: snapshot.attention,
+            status: runtime.status,
+            attention: runtime.attention,
             config: nextConfig,
             canResumeWithConfig: snapshot.canResumeWithConfig,
             ...(snapshot.threadStatusSource !== undefined
@@ -1281,12 +1301,12 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         if (thread.status === "inactive" || thread.status === "error") {
           return { ...thread, sessionConfigOptions: null };
         }
-        return {
+        return carryPendingThreadInput(thread, {
           ...thread,
           status: "inactive" as ThreadStatus,
           attention: "none" as ThreadAttention,
           sessionConfigOptions: null,
-        };
+        });
       });
 
       const turnsChanged =

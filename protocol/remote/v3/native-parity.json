@@ -2265,7 +2265,7 @@
             ]
           }
         },
-        "note": "Readonly optional saved-workspace roots/revision are retained in order, including unknown legacy versus explicit empty. No workspace-grant capability, mutation API, authorization from cache, or native grant UI is advertised."
+        "note": "Readonly optional saved-workspace roots/revision are retained in order, including unknown legacy versus explicit empty. No workspace-grant capability, mutation API, authorization from cache, or native grant UI is advertised. Both generated native decoders accept optional runtimeStateCurrent metadata; the pending-input recovery guard is renderer-local."
       },
       {
         "id": "thread-turns",

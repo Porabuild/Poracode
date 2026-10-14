@@ -10,6 +10,7 @@ import {
   type PendingThreadConfig,
 } from "../pendingThreadConfig";
 import { carryVolatileSessionConfigOptions } from "../volatileSessionConfigOptions";
+import { carryPendingThreadInput } from "../pendingThreadInput";
 import { projectPendingCatalogEdit, forgetPendingCatalogEdit } from "../pendingCatalogEdits";
 import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../remoteProjection";
 import { refreshGitProject } from "../gitRefresh";
@@ -309,12 +310,15 @@ export function syncRemoteAppRows(
     // A projected row is host-durable state: when it omits the volatile
     // inventory the resident mirror's live value is re-attached instead of
     // erased — same owner/session only, per `carryVolatileSessionConfigOptions`.
-    return projectBrowserThreadWorkspace(
-      projectPendingCatalogEdit(
-        "thread",
-        projectThreadIdentityPreserving(desktopId, thread, residentMirrorRows.get(appRowId)),
-      ),
+    return carryPendingThreadInput(
       residentMirrorRows.get(appRowId),
+      projectBrowserThreadWorkspace(
+        projectPendingCatalogEdit(
+          "thread",
+          projectThreadIdentityPreserving(desktopId, thread, residentMirrorRows.get(appRowId)),
+        ),
+        residentMirrorRows.get(appRowId),
+      ),
     );
   });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);

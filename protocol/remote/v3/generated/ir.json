@@ -51906,6 +51906,9 @@
               "minLength": 1,
               "type": "string"
             },
+            "runtimeStateCurrent": {
+              "type": "boolean"
+            },
             "snapshotSeq": {
               "maximum": 9007199254740991,
               "minimum": 0,
@@ -53392,6 +53395,9 @@
               "type": "string"
             },
             "__schema11": {
+              "type": "boolean"
+            },
+            "__schema12": {
               "items": {
                 "additionalProperties": true,
                 "properties": {
@@ -53424,17 +53430,17 @@
               },
               "type": "array"
             },
-            "__schema12": {
+            "__schema13": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/__schema13"
+                  "$ref": "#/$defs/__schema14"
                 },
                 {
                   "type": "null"
                 }
               ]
             },
-            "__schema13": {
+            "__schema14": {
               "additionalProperties": true,
               "properties": {
                 "breakdown": {
@@ -53479,13 +53485,13 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema14": {
+            "__schema15": {
               "items": {
-                "$ref": "#/$defs/__schema15"
+                "$ref": "#/$defs/__schema16"
               },
               "type": "array"
             },
-            "__schema15": {
+            "__schema16": {
               "additionalProperties": true,
               "properties": {
                 "description": {
@@ -53511,7 +53517,7 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema16": {
+            "__schema17": {
               "anyOf": [
                 {
                   "additionalProperties": true,
@@ -53761,7 +53767,7 @@
                 }
               ]
             },
-            "__schema17": {
+            "__schema18": {
               "additionalProperties": true,
               "properties": {
                 "acknowledgedCount": {
@@ -53946,10 +53952,10 @@
                   "additionalProperties": true,
                   "properties": {
                     "backgroundTasks": {
-                      "$ref": "#/$defs/__schema14"
+                      "$ref": "#/$defs/__schema15"
                     },
                     "completedTurns": {
-                      "$ref": "#/$defs/__schema11"
+                      "$ref": "#/$defs/__schema12"
                     },
                     "completedTurnsNextCursor": {
                       "anyOf": [
@@ -53963,10 +53969,10 @@
                       ]
                     },
                     "contextUsage": {
-                      "$ref": "#/$defs/__schema12"
+                      "$ref": "#/$defs/__schema13"
                     },
                     "followUpQueue": {
-                      "$ref": "#/$defs/__schema16"
+                      "$ref": "#/$defs/__schema17"
                     },
                     "historyProjection": {
                       "const": "details-v1",
@@ -54038,11 +54044,14 @@
                       ]
                     },
                     "runtimeNotice": {
-                      "$ref": "#/$defs/__schema17"
+                      "$ref": "#/$defs/__schema18"
                     },
                     "runtimeResumeCursor": {
                       "minLength": 1,
                       "type": "string"
+                    },
+                    "runtimeStateCurrent": {
+                      "$ref": "#/$defs/__schema11"
                     },
                     "snapshotSeq": {
                       "$ref": "#/$defs/__schema0"
@@ -54104,7 +54113,7 @@
               "additionalProperties": true,
               "properties": {
                 "backgroundTasks": {
-                  "$ref": "#/$defs/__schema14"
+                  "$ref": "#/$defs/__schema15"
                 },
                 "batches": {
                   "items": {
@@ -54354,7 +54363,7 @@
                                   "type": "string"
                                 },
                                 "usage": {
-                                  "$ref": "#/$defs/__schema13"
+                                  "$ref": "#/$defs/__schema14"
                                 }
                               },
                               "required": [
@@ -54442,7 +54451,7 @@
                               "properties": {
                                 "tasks": {
                                   "items": {
-                                    "$ref": "#/$defs/__schema15"
+                                    "$ref": "#/$defs/__schema16"
                                   },
                                   "type": "array"
                                 },
@@ -54667,7 +54676,7 @@
                   "type": "array"
                 },
                 "completedTurns": {
-                  "$ref": "#/$defs/__schema11"
+                  "$ref": "#/$defs/__schema12"
                 },
                 "completedTurnsNextCursor": {
                   "anyOf": [
@@ -54681,21 +54690,24 @@
                   ]
                 },
                 "contextUsage": {
-                  "$ref": "#/$defs/__schema12"
+                  "$ref": "#/$defs/__schema13"
                 },
                 "followUpQueue": {
-                  "$ref": "#/$defs/__schema16"
+                  "$ref": "#/$defs/__schema17"
                 },
                 "kind": {
                   "const": "events",
                   "type": "string"
                 },
                 "runtimeNotice": {
-                  "$ref": "#/$defs/__schema17"
+                  "$ref": "#/$defs/__schema18"
                 },
                 "runtimeResumeCursor": {
                   "minLength": 1,
                   "type": "string"
+                },
+                "runtimeStateCurrent": {
+                  "$ref": "#/$defs/__schema11"
                 },
                 "snapshotSeq": {
                   "$ref": "#/$defs/__schema0"
@@ -59421,7 +59433,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:726c802c6370f036cff83e48b7a9ae6a8e0c8469a3b52f1014429eaaf37dc747",
+  "sourceHash": "sha256:65f613d5d836834bb617321333407caf4857e7adcb83f6ab95d87ab1dcff4fc9",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

@@ -106,6 +106,7 @@ function context(admission: LegacyBulkReadAdmission): RemoteServerContext {
     seq: 7,
     legacyBulkReadAdmission: admission,
     sessionConfigInventory: new SessionConfigInventory(),
+    threadLiveReadState: new ThreadLiveReadState(),
   } as unknown as RemoteServerContext;
 }
 
@@ -272,6 +273,7 @@ describe.skipIf(!sqliteAvailable)("legacy admitted reads", () => {
       seq: 7,
       legacyBulkReadAdmission: admission,
       sessionConfigInventory: new SessionConfigInventory(),
+      threadLiveReadState: new ThreadLiveReadState(),
     } as unknown as RemoteServerContext;
     await expect(
       handleLegacyAdmittedShellSnapshot(callFor(ctx, new FakeResponse())),

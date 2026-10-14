@@ -23,6 +23,10 @@ import {
 } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  notePendingThreadInputMessage,
+  retainPendingThreadInput,
+} from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import {
@@ -85,6 +89,23 @@ export async function performThreadInputSubmit(input: {
     clientContext?: TurnClientContext;
   }) => Promise<void>;
 }): Promise<void> {
+  const releasePendingInput =
+    input.thread.presentationMode === "gui" &&
+    hasSendablePromptContent(input.prompt, input.segments)
+      ? retainPendingThreadInput(input.thread.id)
+      : undefined;
+  try {
+    await performThreadInputSubmitPending(input, releasePendingInput);
+  } catch (error) {
+    releasePendingInput?.();
+    throw error;
+  }
+}
+
+async function performThreadInputSubmitPending(
+  input: Parameters<typeof performThreadInputSubmit>[0],
+  releasePendingInput: (() => void) | undefined,
+): Promise<void> {
   const { thread, prompt, segments, clientContext, transport } = input;
 
   // Optimistic user_message for GUI threads: paint the typed prompt
@@ -98,6 +119,7 @@ export async function performThreadInputSubmit(input: {
   const store = useAppStore.getState();
   if (presentation === "gui" && hasSendablePromptContent(prompt, segments)) {
     optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
+    notePendingThreadInputMessage(thread.id, optimisticUserMessageItemId);
     store.applyRuntimeEvent(thread.id, {
       type: "item.started",
       threadId: thread.id,
@@ -117,9 +139,6 @@ export async function performThreadInputSubmit(input: {
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     });
     markedWorking = true;
-    if (input.captureCheckpoint) {
-      await input.captureCheckpoint(optimisticUserMessageItemId);
-    }
   }
   const rollbackOptimisticWorking = (resumeFailed = false): void => {
     if (!markedWorking) return;
@@ -132,6 +151,9 @@ export async function performThreadInputSubmit(input: {
     });
   };
   try {
+    if (optimisticUserMessageItemId && input.captureCheckpoint) {
+      await input.captureCheckpoint(optimisticUserMessageItemId);
+    }
     await withThreadConfigSubmission(thread.id, thread.config, () =>
       transport.sendThreadInput({
         threadId: thread.id,
@@ -149,6 +171,7 @@ export async function performThreadInputSubmit(input: {
     // error still propagates so callers classify it instead of painting a
     // definite failure.
     if (isRemoteCommandOutcomeUncertainError(error)) {
+      releasePendingInput?.();
       notifyThreadCommandOutcomeUncertain();
       await reconcileThreadCommandOutcome(thread);
       throw error;
@@ -164,6 +187,8 @@ export async function performThreadInputSubmit(input: {
       const connectionToken =
         presentation === "gui" ? store.beginThreadConnecting(thread.id) : undefined;
       try {
+        // The relaunch owns the same prompt's admission from this point.
+        releasePendingInput?.();
         await input.resumeLaunch({
           prompt,
           ...(segments ? { segments } : {}),

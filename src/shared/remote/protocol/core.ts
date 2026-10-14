@@ -300,6 +300,8 @@ export type RemoteBoundedCatalogChangesCapability = z.infer<
  * advertised capability instead of assuming they took effect.
  */
 export const REMOTE_THREAD_LAUNCH_METADATA_VERSION = 1 as const;
+// Optional runtimeStateCurrent snapshot metadata is additive: old readers
+// ignore it and clients keep conservative completion proof when hosts omit it.
 export const REMOTE_CONVERSATION_SNAPSHOTS_VERSION = 1 as const;
 export const remoteThreadLaunchMetadataCapabilitySchema = z.object({
   versions: remoteCapabilityVersionsSchema,

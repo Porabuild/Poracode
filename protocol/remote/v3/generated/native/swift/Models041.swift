@@ -1,5 +1,30 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct WebSocketServerMessageU2DOptionU2D3_a633f9a256: Codable, Sendable, RemoteModelMetadata {
+  public var reason: String
+  public var seq: Int64
+  public var space: RemoteField<WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934> = .missing
+  public var typeValue: WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "reason", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "seq", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "space", typeName: "WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case reason = "reason"
+    case seq = "seq"
+    case space = "space"
+    case typeValue = "type"
+  }
+}
+
+public enum WebSocketServerMessageU2DOptionU2D4U2DType_d8768c073f: String, Codable, Sendable {
+  case pong = "pong"
+}
+
 public struct WebSocketServerMessageU2DOptionU2D4_17b50a5a25: Codable, Sendable, RemoteModelMetadata {
   public var id: RemoteField<String> = .missing
   public var receivedAt: Double

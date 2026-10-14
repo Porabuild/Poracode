@@ -50,6 +50,10 @@ describe("remote thread snapshots", () => {
     };
 
     expect(remoteThreadSnapshotSchema.parse(base).backgroundTasks).toBeUndefined();
+    expect(remoteThreadSnapshotSchema.parse(base).runtimeStateCurrent).toBeUndefined();
+    expect(
+      remoteThreadSnapshotSchema.parse({ ...base, runtimeStateCurrent: true }).runtimeStateCurrent,
+    ).toBe(true);
     expect(
       remoteThreadSnapshotSchema.parse({
         ...base,

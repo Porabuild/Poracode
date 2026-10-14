@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CATALOG_HOST_DECODE_MAX_BYTES,
   CATALOG_HOST_WIRE_MAX_BYTES,
@@ -44,6 +44,7 @@ import { buildThreadRuntimeItemsPage, buildThreadSnapshot } from "./snapshots";
 import { handleHistoryItemDetails } from "./historyItemDetails";
 import { runThreadRuntimeMutation } from "@/host/db/runtimePersistenceRuntime";
 import { runtimeHistoryRevision } from "@/host/db/runtimeHistoryRevision";
+import { persistThreadStateEvent } from "./threadStatePersistence";
 
 function turn(index: number, anchor: string | null = `item-${index}`): PersistedCompletedTurn {
   const hour = String(Math.floor(index / 60)).padStart(2, "0");
@@ -193,7 +194,54 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+    vi.useRealTimers();
   });
+
+  it.each(["legacy", "bounded"] as const)(
+    "serves current runtime state after a subsecond turn through %s history",
+    async (shape) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2020-01-01T00:00:00.000Z"));
+      const row = { ...testThread(), status: "idle" as const, attention: "none" as const };
+      dbUpsertThread(row, 0);
+      const ctx = context();
+      const working = {
+        type: "thread-state" as const,
+        threadId: row.id,
+        agentKind: row.agentKind,
+        status: "working" as const,
+        attention: "working" as const,
+        canResumeWithConfig: true,
+      };
+      ctx.threadLiveReadState.observe(working);
+      persistThreadStateEvent(working);
+      await dbReplaceThreadRuntimeItems(row.id, [
+        { id: "submitted-user", type: "user_message", state: "completed", streams: {} },
+      ]);
+      vi.setSystemTime(new Date("2020-01-01T00:00:00.100Z"));
+      const settled = { ...working, status: "idle" as const, attention: "none" as const };
+      ctx.threadLiveReadState.observe(settled);
+      persistThreadStateEvent(settled);
+      // Simulate the durable control row lagging its already published state.
+      dbUpsertThread({ ...row, status: "working", attention: "working" }, 0);
+      const snapshot =
+        shape === "legacy"
+          ? await buildThreadSnapshot(ctx, row.id)
+          : boundedThreadSnapshotSchema.parse(
+              JSON.parse(await buildBoundedThreadSnapshot(ctx, row.id, negotiation())),
+            );
+      expect(snapshot).toMatchObject({
+        runtimeStateCurrent: true,
+        thread: {
+          status: "idle",
+          lastTurnStartedAt: "2020-01-01T00:00:00.000Z",
+          lastTurnEndedAt: "2020-01-01T00:00:00.100Z",
+        },
+      });
+      expect(snapshot.completedTurns).toEqual([]);
+      expect(snapshot.runtimeItems.map(({ id }) => id)).toContain("submitted-user");
+    },
+  );
 
   it("parses declared negotiation strictly and leaves undeclared requests alone", () => {
     const declared = negotiation("&completedTurnsLimit=17&maxBytes=4096&maxDecodeBytes=8192");
