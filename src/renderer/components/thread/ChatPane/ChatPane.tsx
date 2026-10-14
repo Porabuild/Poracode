@@ -126,11 +126,6 @@ export function ChatPane(props: ChatPaneProps) {
         )
       : undefined,
   );
-  const contentImageReadiness = threadImageReadinessFor(
-    thread,
-    managedImageSession,
-    browserImageReadiness,
-  );
   const isRemoteThread = thread.remoteServerId !== undefined;
   const hasValidRemoteServerId =
     typeof thread.remoteServerId === "string" && thread.remoteServerId.length > 0;
@@ -202,6 +197,14 @@ export function ChatPane(props: ChatPaneProps) {
   }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
+    const contentImageReadiness = threadImageReadinessFor(
+      {
+        id: threadId,
+        ...(thread.remoteServerId !== undefined ? { remoteServerId: thread.remoteServerId } : {}),
+      },
+      managedImageSession,
+      browserImageReadiness,
+    );
     const contentActions: ChatPaneActions = {
       threadId,
       // Image custody is independent of project/file actions, including Home.
@@ -285,7 +288,7 @@ export function ChatPane(props: ChatPaneProps) {
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
     thread.remoteServerId,
-    contentImageReadiness,
+    browserImageReadiness,
     isManagedThread,
     isRemoteThread,
     managedImageSession,
