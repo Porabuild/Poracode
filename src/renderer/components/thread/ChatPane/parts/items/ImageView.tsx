@@ -31,7 +31,7 @@ export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
   const readiness = actions?.remoteImageReadiness;
   const source = useMemo(
     () =>
-      resolveImageViewSource(payload, actions?.remoteImageRefUrl, {
+      resolveImageViewSource(payload, readiness?.resolveRef ?? actions?.remoteImageRefUrl, {
         pendingAsPlaceholder: readiness !== undefined,
       }),
     [actions?.remoteImageRefUrl, readiness, payload],

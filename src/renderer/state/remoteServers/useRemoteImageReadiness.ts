@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import type { RemoteImageRefValue } from "@/shared/remote";
+import type { EnvironmentImagePriority } from "@/shared/remote/clientEnvironmentImages";
 import type { RemoteImageReadiness } from "./environmentSessions";
 
 const noopSubscribe = () => () => undefined;
@@ -18,13 +19,14 @@ export function useRemoteImageRefUrl(
   ref: RemoteImageRefValue | undefined,
   readiness: RemoteImageReadiness | undefined,
   fallback = "",
+  priority: EnvironmentImagePriority = "foreground",
 ): string {
   const activeReadiness = readiness;
   const activeRef = ref;
   const enabled = activeReadiness !== undefined && activeRef !== undefined;
   const url = useSyncExternalStore(
     enabled && activeReadiness && activeRef
-      ? (listener) => activeReadiness.subscribeRef(activeRef, listener)
+      ? (listener) => activeReadiness.subscribeRef(activeRef, listener, priority)
       : noopSubscribe,
     enabled && activeReadiness && activeRef
       ? () => activeReadiness.resolveRef(activeRef)
@@ -32,7 +34,7 @@ export function useRemoteImageRefUrl(
   );
   useEffect(() => {
     if (!enabled || url || !activeReadiness || !activeRef) return;
-    activeReadiness.requestRef(activeRef);
+    activeReadiness.requestRef(activeRef, priority);
   });
   return url || (enabled ? "" : fallback);
 }
@@ -42,6 +44,7 @@ export function useRemoteImagePathUrl(
   path: string | undefined,
   readiness: RemoteImageReadiness | undefined,
   fallback = "",
+  priority: EnvironmentImagePriority = "foreground",
 ): string {
   const activeReadiness = readiness;
   const activePath = path;
@@ -49,7 +52,7 @@ export function useRemoteImagePathUrl(
     activeReadiness !== undefined && activePath !== undefined && activePath.length > 0;
   const url = useSyncExternalStore(
     enabled && activeReadiness && activePath
-      ? (listener) => activeReadiness.subscribePath(activePath, listener)
+      ? (listener) => activeReadiness.subscribePath(activePath, listener, priority)
       : noopSubscribe,
     enabled && activeReadiness && activePath
       ? () => activeReadiness.resolvePath(activePath)
@@ -57,7 +60,7 @@ export function useRemoteImagePathUrl(
   );
   useEffect(() => {
     if (!enabled || url || !activeReadiness || !activePath) return;
-    activeReadiness.requestPath(activePath);
+    activeReadiness.requestPath(activePath, priority);
   });
   return url || (enabled ? "" : fallback);
 }

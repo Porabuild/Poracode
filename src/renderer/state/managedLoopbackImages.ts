@@ -2,8 +2,6 @@ import { useSyncExternalStore } from "react";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import {
   RemoteEnvironmentImageCache,
-  environmentImageRefKey,
-  environmentLocalImageKey,
   type RemoteEnvironmentImageBytes,
 } from "@/shared/remote/clientEnvironmentImages";
 import {
@@ -12,6 +10,7 @@ import {
   type ManagedLoopbackActivationSnapshot,
 } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import type { RemoteImageReadiness } from "./remoteServers/environmentSessions";
+import { createCacheImageReadiness } from "./cacheImageReadiness";
 
 /** Volatile custody identity shared by managed transcript and gallery consumers. */
 export interface ManagedLoopbackImageSession {
@@ -74,19 +73,7 @@ function reconcileActivation(next: ManagedLoopbackActivationSnapshot | null): vo
     createObjectUrl: (blob) => URL.createObjectURL(blob),
     revokeObjectUrl: (url) => URL.revokeObjectURL(url),
   });
-  const readiness = Object.freeze<RemoteImageReadiness>({
-    resolveRef: (ref) => cache.resolutionForImageKey(environmentImageRefKey(ref)).url,
-    subscribeRef: (ref, listener) => cache.subscribeImageKey(environmentImageRefKey(ref), listener),
-    requestRef: (ref) => {
-      cache.imageRefResolution(ref);
-    },
-    resolvePath: (path) => cache.resolutionForImageKey(environmentLocalImageKey(path)).url,
-    subscribePath: (path, listener) =>
-      cache.subscribeImageKey(environmentLocalImageKey(path), listener),
-    requestPath: (path) => {
-      cache.localImageResolution(path);
-    },
-  });
+  const readiness = Object.freeze(createCacheImageReadiness(cache));
   publishSession({
     cache,
     snapshot: Object.freeze({

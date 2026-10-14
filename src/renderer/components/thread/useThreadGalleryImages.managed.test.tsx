@@ -22,6 +22,7 @@ import { setRemoteLocalImageResolver } from "@/shared/localImageDisplay";
 import { toLocalFileUrl } from "@/shared/promptContent";
 import {
   getRemoteBridgeImageReadiness,
+  resolveRemoteBridgeLocalImagePath,
   setRemoteBridgeClient,
 } from "@/renderer/browser/remoteBridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -31,6 +32,7 @@ import {
   installManagedLoopbackImages,
   readManagedLoopbackImageSession,
 } from "@/renderer/state/managedLoopbackImages";
+import { useRemoteImageRefUrl } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ImageLightboxHost } from "@/renderer/components/composer/ImageLightbox";
 import {
@@ -136,6 +138,68 @@ beforeEach(() => {
   setRemoteImageRefResolver(() => "https://poisoned.test/image");
 });
 afterEach(teardownManagedImageFixture);
+
+it("retries a failed gallery download after the existing backoff expires", async () => {
+  vi.useFakeTimers();
+  try {
+    const first = Promise.withResolvers<RemoteEnvironmentImageBytes>();
+    const retry = Promise.withResolvers<RemoteEnvironmentImageBytes>();
+    const activation = createImageActivation(() => retry.promise);
+    vi.mocked(activation.client.fetchTicketedImageBytes).mockImplementationOnce(
+      () => first.promise,
+    );
+    publishImageActivation(activation);
+    installManagedImageRuntime();
+    seedThread();
+    const { result, unmount } = renderHook(() => useThreadGalleryImages(threadId));
+    expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledOnce();
+    await act(async () => first.reject(new Error("offline")));
+    expect(result.current.map((image) => image.src)).toEqual([inline]);
+    await act(async () => vi.advanceTimersByTimeAsync(14_999));
+    expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledOnce();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
+    await act(async () => retry.resolve(imageBytes));
+    expect(result.current.map((image) => image.src)).toEqual([inline, "blob:managed-image-1"]);
+    unmount();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("uses the paired host's Windows path decoder when its platform is unknown", async () => {
+  const host = installManagedImageRuntime();
+  installRemoteImageRuntime("browser", host);
+  const activation = createImageActivation();
+  setRemoteBridgeClient(activation.client, null);
+  seedThread();
+  const url = toLocalFileUrl("C:\\shots\\image.png");
+  useAppStore.setState({
+    runtimeItemIdsByThread: { [threadId]: ["windows-image"] },
+    runtimeItemsByIdByThread: {
+      [threadId]: {
+        "windows-image": {
+          id: "windows-image",
+          type: "assistant_message",
+          state: "completed",
+          streams: {},
+          payload: { content: [{ kind: "text", text: `![shot](${url})` }] },
+        },
+      },
+    },
+  });
+  const resolvers = buildGalleryResolversFromState(useAppStore.getState(), threadId);
+  expect(resolvers.localImagePathForUrl?.(url)).toBe(resolveRemoteBridgeLocalImagePath(url));
+  expect(resolvers.localImagePathForUrl?.(url)).toBe("C:/shots/image.png");
+  expect(activation.client.fetchTicketedImageBytes).not.toHaveBeenCalled();
+  const { result } = renderHook(() => useThreadGalleryImages(threadId));
+  await waitFor(() => expect(result.current[0]?.src).toBe("blob:managed-image-1"));
+  expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledOnce();
+  const [requestPath] = vi.mocked(activation.client.fetchTicketedImageBytes).mock.calls[0]!;
+  expect(new URL(requestPath, activation.endpoint).searchParams.get("path")).toBe(
+    "C:/shots/image.png",
+  );
+});
 
 it("updates a mounted gallery and lightbox with every image from one tool row", async () => {
   const held = Promise.withResolvers<RemoteEnvironmentImageBytes>();
@@ -365,6 +429,10 @@ it.each([
     expect(getThreadGalleryImages(projected.id)).toBe(result.current);
     const resolvers = buildGalleryResolversFromState(useAppStore.getState(), projected.id);
     expect(resolvers.imageUrlForPath?.("/tmp/browser-path.png")).toBe("");
+    // A gallery snapshot cannot start downloads during render or a click-time
+    // lookup. Requests are explicit and use the same selected owner.
+    expect(browser.client.fetchTicketedImageBytes).toHaveBeenCalledOnce();
+    getRemoteBridgeImageReadiness()!.requestPath("/tmp/browser-path.png", "background");
     await waitFor(() =>
       expect(getRemoteBridgeImageReadiness()?.resolvePath("/tmp/browser-path.png")).toBe(
         "blob:managed-image-1",
@@ -554,3 +622,67 @@ it("refreshes a fully-ready gallery and open lightbox on ordinary cache eviction
       .mock.calls.filter(([path]) => path.includes("/items/ref-only/")),
   ).toHaveLength(1);
 });
+
+it.each(["managed", "browser", "attached Electron"] as const)(
+  "keeps mounted %s images ready while a 76-reference gallery exceeds cache capacity",
+  async (surface) => {
+    const held = Promise.withResolvers<RemoteEnvironmentImageBytes>();
+    const activation = createImageActivation(() => held.promise);
+    publishImageActivation(activation);
+    const host = installManagedImageRuntime();
+    if (surface !== "managed") {
+      installRemoteImageRuntime(surface, host);
+      setRemoteBridgeClient(activation.client);
+    }
+    seedThread();
+    const refs = Array.from({ length: 76 }, (_, index) => ({
+      ...hostRef,
+      itemId: `many-images-${index}`,
+    }));
+    const ids = refs.map((ref) => ref.itemId);
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: ids },
+      runtimeItemsByIdByThread: {
+        [threadId]: Object.fromEntries(
+          refs.map((ref) => [
+            ref.itemId,
+            {
+              id: ref.itemId,
+              type: "image_view",
+              state: "completed",
+              streams: {},
+              payload: { images: [remoteImageRef(ref)] },
+            },
+          ]),
+        ),
+      },
+    });
+    const readiness =
+      surface === "managed"
+        ? readManagedLoopbackImageSession()!.readiness
+        : getRemoteBridgeImageReadiness()!;
+    const { result } = renderHook(() => ({
+      images: useThreadGalleryImages(threadId),
+      visible: useRemoteImageRefUrl(refs[75], readiness),
+    }));
+    const requests = vi.mocked(activation.client.fetchTicketedImageBytes);
+    expect(requests).toHaveBeenCalledTimes(4);
+    expect(requests.mock.calls.every(([, signal]) => !signal.aborted)).toBe(true);
+    await act(async () => held.resolve(imageBytes));
+    await waitFor(() => expect(requests).toHaveBeenCalledTimes(64));
+    await waitFor(() => expect(result.current.visible).toBe("blob:managed-image-1"));
+    expect(result.current.images).toHaveLength(1);
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+    expect(
+      requests.mock.calls.filter(([path]) => path.includes("/items/many-images-75/")),
+    ).toHaveLength(1);
+
+    // The oldest image was outside speculative capacity. Mounting its row
+    // still loads it, while the newest mounted row keeps its resource.
+    const oldest = renderHook(() => useRemoteImageRefUrl(refs[0], readiness));
+    await waitFor(() => expect(oldest.result.current).toBe("blob:managed-image-1"));
+    expect(requests).toHaveBeenCalledTimes(65);
+    expect(result.current.visible).toBe("blob:managed-image-1");
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+  },
+);

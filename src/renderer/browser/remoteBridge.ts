@@ -26,13 +26,10 @@ import {
 import { setRemoteLocalImageResolver } from "@/shared/localImageDisplay";
 import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
-import {
-  RemoteEnvironmentImageCache,
-  environmentImageRefKey,
-  environmentLocalImageKey,
-} from "@/shared/remote/clientEnvironmentImages";
+import { RemoteEnvironmentImageCache } from "@/shared/remote/clientEnvironmentImages";
 import { RemoteEnvironmentClient } from "@/shared/remote/clientEnvironments";
 import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
+import { createCacheImageReadiness } from "@/renderer/state/cacheImageReadiness";
 import {
   DEFAULT_KEYBINDINGS,
   keybindingsFileSchema,
@@ -118,22 +115,7 @@ export function setRemoteBridgeClient(
           })
         : null;
     const images = browserImages;
-    browserImageReadiness = images
-      ? {
-          resolveRef: (ref) => images.resolutionForImageKey(environmentImageRefKey(ref)).url,
-          subscribeRef: (ref, listener) =>
-            images.subscribeImageKey(environmentImageRefKey(ref), listener),
-          requestRef: (ref) => {
-            images.imageRefResolution(ref);
-          },
-          resolvePath: (path) => images.resolutionForImageKey(environmentLocalImageKey(path)).url,
-          subscribePath: (path, listener) =>
-            images.subscribeImageKey(environmentLocalImageKey(path), listener),
-          requestPath: (path) => {
-            images.localImageResolution(path);
-          },
-        }
-      : undefined;
+    browserImageReadiness = images ? createCacheImageReadiness(images) : undefined;
     for (const listener of browserImageListeners) listener();
   }
   activeClient = client;

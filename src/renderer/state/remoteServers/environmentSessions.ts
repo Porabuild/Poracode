@@ -4,6 +4,7 @@ import { environmentProxyPrefix } from "@/shared/environments";
 import {
   environmentImageRefKey,
   environmentLocalImageKey,
+  type EnvironmentImagePriority,
 } from "@/shared/remote/clientEnvironmentImages";
 import {
   RemoteEnvironmentClient,
@@ -582,6 +583,7 @@ interface EnvironmentImageBinding {
   client: RemoteEnvironmentClient | null;
   readonly listener: () => void;
   readonly target: RemoteEnvironmentImageTarget | undefined;
+  readonly priority: EnvironmentImagePriority;
   unsubscribe: () => void;
 }
 
@@ -590,9 +592,9 @@ const environmentImageBindings = new Map<string, Map<string, Set<EnvironmentImag
 function requestBinding(binding: EnvironmentImageBinding): void {
   if (!binding.target || !binding.client) return;
   if (binding.target.kind === "ref") {
-    binding.client.imageRefResolution(binding.target.ref);
+    binding.client.imageRefResolution(binding.target.ref, binding.priority);
   } else {
-    binding.client.localImageResolution(binding.target.path);
+    binding.client.localImageResolution(binding.target.path, binding.priority);
   }
 }
 
@@ -602,12 +604,14 @@ function bindImageListener(
   listener: () => void,
   target: RemoteEnvironmentImageTarget | undefined,
   client: RemoteEnvironmentClient | null,
+  priority: EnvironmentImagePriority,
 ): EnvironmentImageBinding {
   const binding: EnvironmentImageBinding = {
     client,
     listener,
     target,
-    unsubscribe: client ? client.subscribeImageKey(key, listener) : () => undefined,
+    priority,
+    unsubscribe: client ? client.subscribeImageKey(key, listener, priority) : () => undefined,
   };
   let byKey = environmentImageBindings.get(connectionKey);
   if (!byKey) {
@@ -650,7 +654,7 @@ function rebindEnvironmentImageListeners(
       if (binding.client === client) continue;
       binding.unsubscribe();
       binding.client = client;
-      binding.unsubscribe = client.subscribeImageKey(key, binding.listener);
+      binding.unsubscribe = client.subscribeImageKey(key, binding.listener, binding.priority);
       requestBinding(binding);
       rebound.push(binding);
     }
@@ -767,14 +771,25 @@ export function __resetEnvironmentSessionDependenciesForTest(): void {
  * Renderer-side readiness surface for environment-held images (R3). Consumers
  * drive `useSyncExternalStore` with `subscribe*` + `resolve*` and call
  * `request*` from an effect, so `getSnapshot` stays pure.
+ * Mounted image consumers default to foreground priority. Gallery observers
+ * and prefetch requests use background priority so cache limits cannot turn
+ * enumeration of off-screen history into repeated downloads and evictions.
  */
 export interface RemoteImageReadiness {
   readonly resolveRef: (ref: RemoteImageRefValue) => string;
-  readonly subscribeRef: (ref: RemoteImageRefValue, listener: () => void) => () => void;
-  readonly requestRef: (ref: RemoteImageRefValue) => void;
+  readonly subscribeRef: (
+    ref: RemoteImageRefValue,
+    listener: () => void,
+    priority?: EnvironmentImagePriority,
+  ) => () => void;
+  readonly requestRef: (ref: RemoteImageRefValue, priority?: EnvironmentImagePriority) => void;
   readonly resolvePath: (path: string) => string;
-  readonly subscribePath: (path: string, listener: () => void) => () => void;
-  readonly requestPath: (path: string) => void;
+  readonly subscribePath: (
+    path: string,
+    listener: () => void,
+    priority?: EnvironmentImagePriority,
+  ) => () => void;
+  readonly requestPath: (path: string, priority?: EnvironmentImagePriority) => void;
 }
 
 /**
@@ -788,19 +803,27 @@ export function environmentImageReadinessFor(
   if (!server || server.transport?.kind !== "environment") return undefined;
   return {
     resolveRef: (ref) => environmentImageUrl(connectionKey, environmentImageRefKey(ref)),
-    subscribeRef: (ref, listener) =>
-      subscribeEnvironmentImage(connectionKey, environmentImageRefKey(ref), listener, {
-        kind: "ref",
-        ref,
-      }),
-    requestRef: (ref) => requestEnvironmentImage(connectionKey, { kind: "ref", ref }),
+    subscribeRef: (ref, listener, priority) =>
+      subscribeEnvironmentImage(
+        connectionKey,
+        environmentImageRefKey(ref),
+        listener,
+        { kind: "ref", ref },
+        priority,
+      ),
+    requestRef: (ref, priority) =>
+      requestEnvironmentImage(connectionKey, { kind: "ref", ref }, priority),
     resolvePath: (path) => environmentImageUrl(connectionKey, environmentLocalImageKey(path)),
-    subscribePath: (path, listener) =>
-      subscribeEnvironmentImage(connectionKey, environmentLocalImageKey(path), listener, {
-        kind: "localPath",
-        path,
-      }),
-    requestPath: (path) => requestEnvironmentImage(connectionKey, { kind: "localPath", path }),
+    subscribePath: (path, listener, priority) =>
+      subscribeEnvironmentImage(
+        connectionKey,
+        environmentLocalImageKey(path),
+        listener,
+        { kind: "localPath", path },
+        priority,
+      ),
+    requestPath: (path, priority) =>
+      requestEnvironmentImage(connectionKey, { kind: "localPath", path }, priority),
   };
 }
 
@@ -820,16 +843,17 @@ export function environmentImageUrl(connectionKey: string, key: string): string 
 export function requestEnvironmentImage(
   connectionKey: string,
   target: RemoteEnvironmentImageTarget,
+  priority?: EnvironmentImagePriority,
 ): void {
   const server = findServer(connectionKey);
   if (!server) return;
   const session = environmentSessionForServer(server);
   if (!session) return;
   if (target.kind === "ref") {
-    session.client.imageRefResolution(target.ref);
+    session.client.imageRefResolution(target.ref, priority);
     return;
   }
-  session.client.localImageResolution(target.path);
+  session.client.localImageResolution(target.path, priority);
 }
 
 /**
@@ -845,10 +869,18 @@ export function subscribeEnvironmentImage(
   key: string,
   listener: () => void,
   target?: RemoteEnvironmentImageTarget,
+  priority: EnvironmentImagePriority = "foreground",
 ): () => void {
   const server = findServer(connectionKey);
   if (!server || server.transport?.kind !== "environment") return () => undefined;
   const session = environmentSessionForServer(server);
-  const binding = bindImageListener(connectionKey, key, listener, target, session?.client ?? null);
+  const binding = bindImageListener(
+    connectionKey,
+    key,
+    listener,
+    target,
+    session?.client ?? null,
+    priority,
+  );
   return () => unbindImageListener(connectionKey, key, binding);
 }

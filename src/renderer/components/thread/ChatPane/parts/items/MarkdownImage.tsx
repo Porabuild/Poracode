@@ -5,6 +5,7 @@ import { useRemoteImagePathUrl } from "@/renderer/state/remoteServers/useRemoteI
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ImageCard } from "./ImageCard";
 import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
+import { useImageViewportPriority } from "@/renderer/components/common/useImageViewportPriority";
 
 // Streamdown accepts both the typed img slot and its custom-tag index signature.
 type MarkdownImageProps = (ComponentProps<"img"> | Record<string, unknown>) & ExtraProps;
@@ -27,10 +28,14 @@ export function MarkdownImage({ alt, className, src, width, height }: MarkdownIm
         ? actions.remoteLocalImageUrl(canonicalSrc)
         : resolveLocalImageDisplayUrl(canonicalSrc)
     : canonicalSrc;
-  const displaySrc = useRemoteImagePathUrl(path, authority?.readiness, fallback);
+  const { viewportRef, priority } = useImageViewportPriority(
+    path !== undefined && authority?.readiness !== undefined,
+  );
+  const displaySrc = useRemoteImagePathUrl(path, authority?.readiness, fallback, priority);
   if (!canonicalSrc) return null;
   return (
     <ImageCard
+      viewportRef={viewportRef}
       source={imageViewSourceFromMarkdownImage({
         src: displaySrc,
         alt: typeof alt === "string" ? alt : "",

@@ -1,6 +1,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ThinkingAnimationVisibility, useBrainThinking, useShimmer } from "./thinkingAnimator";
+import { useBrainThinking, useShimmer } from "./thinkingAnimator";
+import { PaneVisibility } from "./paneVisibility";
 
 function ShimmerProbe({ active }: { active: boolean }) {
   const ref = useShimmer<HTMLSpanElement>(active);
@@ -66,10 +67,10 @@ describe("thinkingAnimator", () => {
 
   it("stops the shared timer for hidden retained panes and resumes at the current phase", () => {
     const pane = (visible: boolean) => (
-      <ThinkingAnimationVisibility value={visible}>
+      <PaneVisibility value={visible}>
         <ShimmerProbe active={true} />
         <BrainProbe active={true} />
-      </ThinkingAnimationVisibility>
+      </PaneVisibility>
     );
     const view = render(pane(true));
     vi.advanceTimersByTime(50);
@@ -93,9 +94,9 @@ describe("thinkingAnimator", () => {
   it("does not register initially hidden targets or stop another visible pane", () => {
     const view = render(
       <>
-        <ThinkingAnimationVisibility value={false}>
+        <PaneVisibility value={false}>
           <ShimmerProbe active={true} />
-        </ThinkingAnimationVisibility>
+        </PaneVisibility>
         <BrainProbe active={true} />
       </>,
     );

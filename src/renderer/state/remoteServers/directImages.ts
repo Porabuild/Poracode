@@ -1,11 +1,8 @@
 import type { RemoteImageRefValue } from "@/shared/remote";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
-import {
-  RemoteEnvironmentImageCache,
-  environmentImageRefKey,
-  environmentLocalImageKey,
-} from "@/shared/remote/clientEnvironmentImages";
+import { RemoteEnvironmentImageCache } from "@/shared/remote/clientEnvironmentImages";
 import type { RemoteImageReadiness } from "./environmentSessions";
+import { createCacheImageReadiness } from "../cacheImageReadiness";
 
 interface DirectImageSession {
   readonly identity: string;
@@ -35,19 +32,7 @@ export function directImageSessionFor(
     createObjectUrl: (blob) => URL.createObjectURL(blob),
     revokeObjectUrl: (url) => URL.revokeObjectURL(url),
   });
-  const readiness: RemoteImageReadiness = {
-    resolveRef: (ref) => cache.resolutionForImageKey(environmentImageRefKey(ref)).url,
-    subscribeRef: (ref, listener) => cache.subscribeImageKey(environmentImageRefKey(ref), listener),
-    requestRef: (ref) => {
-      cache.imageRefResolution(ref);
-    },
-    resolvePath: (path) => cache.resolutionForImageKey(environmentLocalImageKey(path)).url,
-    subscribePath: (path, listener) =>
-      cache.subscribeImageKey(environmentLocalImageKey(path), listener),
-    requestPath: (path) => {
-      cache.localImageResolution(path);
-    },
-  };
+  const readiness = createCacheImageReadiness(cache);
   const session = { identity, cache, readiness };
   sessions.set(connectionKey, session);
   return session;

@@ -26,6 +26,7 @@ import {
   environmentLocalImageKey,
   type RemoteEnvironmentImageBytes,
   type RemoteEnvironmentImageResolution,
+  type EnvironmentImagePriority,
 } from "./clientEnvironmentImages";
 
 /** Typed repair outcomes; renderers localize by code, never by message. */
@@ -297,12 +298,18 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
     return this.images.imageRefUrl(ref);
   }
 
-  imageRefResolution(ref: RemoteImageRefValue): RemoteEnvironmentImageResolution {
-    return this.images.imageRefResolution(ref);
+  imageRefResolution(
+    ref: RemoteImageRefValue,
+    priority?: EnvironmentImagePriority,
+  ): RemoteEnvironmentImageResolution {
+    return this.images.imageRefResolution(ref, priority);
   }
 
-  localImageResolution(absolutePath: string): RemoteEnvironmentImageResolution {
-    return this.images.localImageResolution(absolutePath);
+  localImageResolution(
+    absolutePath: string,
+    priority?: EnvironmentImagePriority,
+  ): RemoteEnvironmentImageResolution {
+    return this.images.localImageResolution(absolutePath, priority);
   }
 
   imageResolutionFor(key: string): RemoteEnvironmentImageResolution {
@@ -318,8 +325,12 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
   }
 
   /** Explicit keyed subscription for `useSyncExternalStore` consumers. */
-  subscribeImageKey(key: string, listener: () => void): () => void {
-    return this.images.subscribeImageKey(key, listener);
+  subscribeImageKey(
+    key: string,
+    listener: () => void,
+    priority?: EnvironmentImagePriority,
+  ): () => void {
+    return this.images.subscribeImageKey(key, listener, priority);
   }
 
   /**

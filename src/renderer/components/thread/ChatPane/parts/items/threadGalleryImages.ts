@@ -30,6 +30,7 @@ import {
   getRemoteBridgeClient,
   remoteBridgeImageRefUrl,
   remoteBridgeLocalImageUrl,
+  resolveRemoteBridgeLocalImagePath,
 } from "@/renderer/browser/remoteBridge";
 import {
   readManagedLoopbackImageSession,
@@ -41,6 +42,7 @@ import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
 import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
 import { resolveThreadMarkdownImageRoots } from "@/renderer/components/thread/threadMarkdownImageRoots";
+import { threadImageReadinessFor } from "@/renderer/components/thread/threadImageReadiness";
 import { imageViewSourceFromImageBlock, resolveImageViewSources } from "./imageViewSource";
 
 /** Renderable thread image for galleries, mosaics, and the fullscreen lightbox. */
@@ -341,6 +343,24 @@ export function buildGalleryResolversFromState(
       ...(remoteServerId ? { isRemote: true as const } : {}),
     });
     if (extraRoots) resolvers.extraRoots = extraRoots;
+  }
+  // Collection runs during render and click-time reads. Use pure snapshots for
+  // cache-backed owners; only the gallery effect starts background requests.
+  // Otherwise enumerating a long history starts foreground work before its
+  // subscriptions can apply backpressure.
+  const readiness = threadImageReadinessFor(thread);
+  if (readiness) {
+    resolvers.remoteImageRefUrl = readiness.resolveRef;
+    if (browserSession || remoteServerId !== undefined) {
+      const pathForUrl =
+        resolvers.localImagePathForUrl ??
+        (browserSession
+          ? resolveRemoteBridgeLocalImagePath
+          : (url: string) => resolveLocalFileUrlPath(url, readBridge().platform));
+      resolvers.imageUrlForPath = readiness.resolvePath;
+      resolvers.localImagePathForUrl = pathForUrl;
+      resolvers.remoteLocalImageUrl = (url) => readiness.resolvePath(pathForUrl(url));
+    }
   }
   return resolvers;
 }

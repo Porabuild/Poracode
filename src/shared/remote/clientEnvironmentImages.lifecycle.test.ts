@@ -1,51 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   ENVIRONMENT_IMAGE_MAX_CONCURRENT_FETCHES,
-  RemoteEnvironmentImageCache,
   environmentLocalImageKey,
-  type RemoteEnvironmentImageBytes,
 } from "./clientEnvironmentImages";
 
-interface FetchCall {
-  readonly requestPath: string;
-  readonly signal: AbortSignal;
-  resolve: (bytes: Uint8Array, contentType?: string) => void;
-  reject: (error: unknown) => void;
-}
-
-function cacheHarness(
-  options: {
-    readonly maxEntries?: number;
-    readonly maxBytes?: number;
-    readonly retryWindowMs?: number;
-    readonly maxConcurrentFetches?: number;
-  } = {},
-) {
-  const fetches: FetchCall[] = [];
-  const created: string[] = [];
-  const revoked: string[] = [];
-  const cache = new RemoteEnvironmentImageCache({
-    fetchBytes: (requestPath, signal) =>
-      new Promise<RemoteEnvironmentImageBytes>((resolve, reject) => {
-        fetches.push({
-          requestPath,
-          signal,
-          resolve: (bytes, contentType = "image/png") => resolve({ bytes, contentType }),
-          reject,
-        });
-      }),
-    createObjectUrl: () => {
-      const url = `blob:${created.length + 1}`;
-      created.push(url);
-      return url;
-    },
-    revokeObjectUrl: (url) => {
-      revoked.push(url);
-    },
-    ...options,
-  });
-  return { cache, fetches, created, revoked };
-}
+import { createImageCacheHarness as cacheHarness } from "./clientEnvironmentImages.testSupport";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 

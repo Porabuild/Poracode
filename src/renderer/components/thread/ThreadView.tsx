@@ -31,7 +31,7 @@ import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 import { ThreadToolRail } from "./ThreadToolRail";
 import { PaneDragHandle } from "./PaneDragAndDrop";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import { ThinkingAnimationVisibility } from "@/renderer/thinkingAnimator";
+import { PaneVisibility } from "@/renderer/paneVisibility";
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix
@@ -349,7 +349,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const contentBodyClass = `${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col pt-2`;
 
   return (
-    <ThinkingAnimationVisibility value={!hidden}>
+    <PaneVisibility value={!hidden}>
       <div
         ref={droppableRef}
         data-poracode-thread-pane=""
@@ -615,6 +615,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           }}
         />
       ) : null}
-    </ThinkingAnimationVisibility>
+    </PaneVisibility>
   );
 }, areThreadViewPropsEqual);

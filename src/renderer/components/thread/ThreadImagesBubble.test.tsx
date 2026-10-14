@@ -227,6 +227,10 @@ describe("ThreadImagesBubble", () => {
 
   it("re-resolves unchanged remote history when the desktop reconnects", () => {
     seedThreadWithImages("t-gallery");
+    const imageUrl = (path: string) =>
+      useRemoteServersStore.getState().runtime["desktop-1"]?.status === "online"
+        ? `https://desktop.test/image?path=${encodeURIComponent(path)}`
+        : "";
     const thread = useAppStore.getState().threads[0]!;
     useAppStore.setState({
       threads: [{ ...thread, remoteServerId: "desktop-1" }],
@@ -246,10 +250,15 @@ describe("ThreadImagesBubble", () => {
       runtime: {
         "desktop-1": { status: "offline", projects: [], threads: [] },
       },
-      localImageUrl: (desktopId, path) =>
-        useRemoteServersStore.getState().runtime[desktopId]?.status === "online"
-          ? `https://desktop.test/image?path=${encodeURIComponent(path)}`
-          : "",
+      localImageUrl: (_desktopId, path) => imageUrl(path),
+      imageReadinessFor: () => ({
+        resolveRef: () => "",
+        subscribeRef: () => () => undefined,
+        requestRef: () => undefined,
+        resolvePath: imageUrl,
+        subscribePath: () => () => undefined,
+        requestPath: () => undefined,
+      }),
     });
     render(<ThreadImagesBubble threadId="t-gallery" />);
     expect(screen.queryByRole("button", { name: "Show images" })).not.toBeInTheDocument();
