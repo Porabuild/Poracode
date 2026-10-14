@@ -23,8 +23,8 @@ const nextConfig = {
   // repo. Turbopack refuses to compile anything whose realpath falls outside its
   // root, so it cannot resolve `next` itself here and no in-repo `turbopack.root`
   // can fix that (still true on 16.3). Webpack follows the symlinks fine. The
-  // Vercel build command in vercel.json omits `--webpack` and uses Turbopack,
-  // because the Vercel installCommand disables the global virtual store.
+  // Vercel uses the same Webpack path: its CLI build in GitHub Actions can
+  // retain the global virtual store despite the installCommand override.
   async headers() {
     return [
       {
