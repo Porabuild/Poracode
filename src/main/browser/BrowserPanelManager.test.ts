@@ -315,6 +315,48 @@ describe("BrowserPanelManager", () => {
     expect(tab.attach).toHaveBeenCalledWith(guestWebContents);
   });
 
+  it.each([false, true])(
+    "publishes and selects a linked tab before revealing the browser (restored: %s)",
+    async (restored) => {
+      const { BrowserPanelManager } = await import("./BrowserPanelManager");
+      const saved = {
+        tabs: [{ url: "https://duckduckgo.com/", title: "DuckDuckGo" }],
+        activeIndex: 0,
+      };
+      const manager = new BrowserPanelManager(
+        { settingsPath: "settings.json" } as never,
+        "Mozilla/5.0",
+        {
+          get: (key: string) =>
+            restored && key === "browser-panel-tabs-v1" ? JSON.stringify(saved) : null,
+          set: () => {},
+        },
+      );
+      try {
+        const { host } = createManagerWithTab();
+        manager.bindHost(host as never);
+        await vi.waitFor(() => expect(manager.snapshot().tabs).toHaveLength(restored ? 1 : 0));
+        let latestState = manager.snapshot();
+        const revealedStates: (typeof latestState)[] = [];
+        manager.addEventListener((event) => {
+          if (event.type === "state") latestState = event.state;
+          if (event.type === "open-panel") revealedStates.push(latestState);
+        });
+
+        await expect(manager.openLink("https://example.com/linked-page")).resolves.toBe(true);
+
+        expect(revealedStates).toHaveLength(1);
+        const revealed = revealedStates[0]!;
+        expect(revealed.tabs).toHaveLength(restored ? 2 : 1);
+        expect(revealed.tabs.find((tab) => tab.tabId === revealed.activeTabId)?.url).toBe(
+          "https://example.com/linked-page",
+        );
+      } finally {
+        manager.dispose();
+      }
+    },
+  );
+
   it("opens app-owned download history once and reuses the existing tab", async () => {
     const { BrowserPanelManager } = await import("./BrowserPanelManager");
     const manager = new BrowserPanelManager(

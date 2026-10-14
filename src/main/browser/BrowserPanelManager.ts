@@ -549,12 +549,6 @@ export class BrowserPanelManager {
     // Creating a tab is agent activity (mounts the headless host). Restore
     // passes markActivity:false so reopening the app doesn't wake dormant tabs.
     if (opts.markActivity !== false) this.markAutomationActivity();
-    // Same presentation path as openLink / openExternal: emit open-panel so
-    // useBrowserSync places the browser in panel or overlay (and above the
-    // file editor when that is open).
-    if (payload.reveal) {
-      this.revealForUserOpen();
-    }
     const tabId = `tab-${randomUUID()}`;
     const internalPage = payload.url ? internalPageForUrl(payload.url) : undefined;
     if (internalPage) this.internalPages.set(tabId, internalPage);
@@ -597,6 +591,11 @@ export class BrowserPanelManager {
     }
     this.emitState();
     this.schedulePersist();
+    // Publish the tab before revealing the panel so its empty-state effect
+    // cannot create and activate a default tab ahead of the linked page.
+    if (payload.reveal) {
+      this.revealForUserOpen();
+    }
     // Wait for the renderer to mount the <webview> and attach its webContents
     // so callers (e.g. MCP) can immediately use cdp / dialogs / network.
     if (opts.awaitAttach !== false && !internalPage) {

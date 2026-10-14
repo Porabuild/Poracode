@@ -55,7 +55,7 @@ export function BrowserOmnibox(props: {
 }) {
   const { t } = useLingui();
   const { activeTabId, activeUrl, onPreviewChange } = props;
-  const [urlInput, setUrlInput] = useState("");
+  const [urlInput, setUrlInput] = useState(activeUrl ?? "");
   const [focused, setFocused] = useState(false);
   const [items, setItems] = useState<OmniItem[]>([]);
   const [selected, setSelected] = useState(-1);
