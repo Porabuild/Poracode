@@ -110,7 +110,6 @@ export class RuntimePersistenceAdmission {
       this.durableGap?.reportFailure(resolution.error);
       return { kind: "blocked", reason: "degraded" };
     }
-    if (resolution?.kind === "suspect") return { kind: "blocked", reason: "unclean-epoch" };
     if (resolution?.kind === "exact") return { kind: "blocked", reason: resolution.reason };
     return this.queue.reserveAdmission(threadId, cost);
   }
@@ -205,18 +204,6 @@ export class RuntimePersistenceAdmission {
         return {
           kind: "refused",
           reason: "degraded",
-          scope: "thread",
-          refusedEvents: events.length,
-          refusedBytes: bytes(),
-        };
-      }
-      if (resolution.kind === "suspect") {
-        // A surviving touch from a boot that never cleanly closed. The
-        // refused events are an additional gap; exact evidence records them.
-        this.handleRefusal(threadId, "unclean-epoch", "thread", events.length, bytes());
-        return {
-          kind: "refused",
-          reason: "unclean-epoch",
           scope: "thread",
           refusedEvents: events.length,
           refusedBytes: bytes(),
@@ -399,9 +386,8 @@ export class RuntimePersistenceAdmission {
    * Contamination record for a thread, or null when it is clean. On an
    * in-memory miss with a durable port, resolve once per boot (bounded, read
    * only) so a gap recorded by a previous boot still refuses reads: an exact
-   * row keeps its reason/counts, a surviving foreign touch resolves
-   * `unclean-epoch`, and a failed bounded read marks the thread degraded for
-   * this boot only (never persisted by the resolution itself).
+   * row keeps its reason/counts, and a failed bounded read marks the thread
+   * degraded for this boot only (never persisted by the resolution itself).
    */
   getContamination(threadId: string): RuntimeContaminationInfo | null {
     const info = this.contaminatedThreads.get(threadId);
@@ -422,22 +408,13 @@ export class RuntimePersistenceAdmission {
       this.contaminatedThreads.set(threadId, degraded);
       return { ...degraded };
     }
-    const durableInfo: RuntimeContaminationInfo =
-      resolution.kind === "exact"
-        ? {
-            reason: resolution.reason,
-            refusedEvents: resolution.refusedEvents,
-            refusedBytes: resolution.refusedBytes,
-            at: this.now(),
-            supersededEvents: 0,
-          }
-        : {
-            reason: "unclean-epoch",
-            refusedEvents: 0,
-            refusedBytes: 0,
-            at: this.now(),
-            supersededEvents: 0,
-          };
+    const durableInfo: RuntimeContaminationInfo = {
+      reason: resolution.reason,
+      refusedEvents: resolution.refusedEvents,
+      refusedBytes: resolution.refusedBytes,
+      at: this.now(),
+      supersededEvents: 0,
+    };
     this.contaminatedThreads.set(threadId, durableInfo);
     return { ...durableInfo };
   }

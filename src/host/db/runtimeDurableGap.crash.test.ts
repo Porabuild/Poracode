@@ -38,8 +38,8 @@ function gapRow(): { reason: string } | undefined {
  * Real SIGKILL evidence for the B1 durable-gap protocol. The in-process reopen
  * tests prove the state machine; these tests prove that a killed production
  * process leaves exactly the evidence the next boot expects: an armed epoch
- * plus a surviving touch resolve suspect after storage recovers, a failed gap
- * write cannot hide the refusal, and a real clean close leaves no false gap.
+ * plus a surviving touch do not block retained history without a recorded gap,
+ * and a real clean close removes its touches.
  */
 describe.skipIf(!sqliteAvailable || process.platform === "win32")(
   "runtime durable-gap evidence across real process kills",
@@ -119,28 +119,26 @@ describe.skipIf(!sqliteAvailable || process.platform === "win32")(
       }
     }
 
-    it("a SIGKILL after the pre-launch touch resolves suspect after storage recovers", async () => {
+    it("a SIGKILL after the pre-launch touch does not block retained history", async () => {
       await killAfterMarker(launch("armed-touch-accepted"), "TOUCHED_ACCEPTED");
 
       initDatabase(dbPath);
       expect(epochRow()).toEqual({ epoch: 1, armed: 1 });
       expect(touchEpochs()).toEqual([1]);
       expect(gapRow()).toBeUndefined();
-      // Storage is writable again, but no later write may erase the evidence:
-      // the surviving touch resolves the thread suspect until a rebase.
-      expect(getRuntimeContamination(THREAD_ID)?.reason).toBe("unclean-epoch");
+      // A surviving touch alone does not prove missing history.
+      expect(getRuntimeContamination(THREAD_ID)).toBeNull();
     });
 
-    it("a SIGKILL with a failed gap write still identifies the thread after reopen", async () => {
+    it("a SIGKILL without a committed gap does not block retained history after reopen", async () => {
       await killAfterMarker(launch("gap-write-failed"), "GAP_WRITE_REFUSED");
 
       initDatabase(dbPath);
       expect(epochRow()).toEqual({ epoch: 1, armed: 1 });
       expect(touchEpochs()).toEqual([1]);
-      // The exact gap row never committed (the write was refused); the touch
-      // is the durable evidence that the boot accepted and lost work.
+      // The exact gap row never committed; a touch alone does not block reads.
       expect(gapRow()).toBeUndefined();
-      expect(getRuntimeContamination(THREAD_ID)?.reason).toBe("unclean-epoch");
+      expect(getRuntimeContamination(THREAD_ID)).toBeNull();
     });
 
     it("a real clean close disarms and removes this boot's touches (no false gap)", async () => {

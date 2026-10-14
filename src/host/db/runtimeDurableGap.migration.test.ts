@@ -124,7 +124,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
 
   it("appends the evidence tables and the singleton epoch row to a schema-47 profile", () => {
     downgradeToSchema47WithoutEvidenceTables();
-    expect(LATEST_SCHEMA_VERSION).toBe(59);
+    expect(LATEST_SCHEMA_VERSION).toBe(60);
 
     initDatabase(dbPath);
     const sqlite = rawDatabase();
@@ -231,6 +231,67 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
     } finally {
       sqlite.close();
     }
+  });
+
+  it("schema 59 upgrade removes only zero-loss restart notices and preserves history", () => {
+    initDatabase(dbPath);
+    dbUpsertProject(
+      {
+        id: "project-1",
+        name: "Upgrade project",
+        location: { kind: "posix", path: "/tmp/project" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+    for (const [index, id] of [
+      "suspect-empty",
+      "suspect-events",
+      "suspect-bytes",
+      "exact-empty",
+    ].entries()) {
+      dbUpsertThread({ ...testThread(), id }, index);
+    }
+    closeDatabase();
+    const raw = rawDatabase();
+    raw.exec(`UPDATE app_state SET value = '59' WHERE key = 'schema_version';
+      INSERT INTO thread_runtime_gap_notices VALUES
+        ('suspect-empty', 'gap2:s8', 'suspect', 'unclean-epoch', 0, 0, 1, 1, 1),
+        ('suspect-events', 'gap2:s8', 'suspect', 'unclean-epoch', 1, 0, 1, 1, 1),
+        ('suspect-bytes', 'gap2:s8', 'suspect', 'unclean-epoch', 0, 10, 1, 1, 1),
+        ('exact-empty', 'gap2:e11111111-1111-4111-8111-111111111111', 'exact', 'age', 0, 0, 1, 1, 1);
+      INSERT INTO thread_runtime_epoch_touches VALUES ('suspect-empty', 8, 1);
+      INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state, payload, streams)
+        VALUES ('suspect-empty', 'kept', 0, 'assistant_message', 'completed', '{}', '{"text":"retained history"}');
+      INSERT INTO thread_runtime_gaps VALUES
+        ('exact-empty', 'age', 1, 10, 8, 1, '11111111-1111-4111-8111-111111111111');`);
+    const items = raw.prepare("SELECT * FROM thread_runtime_items").all();
+    const gaps = raw.prepare("SELECT * FROM thread_runtime_gaps").all();
+    const keptNotices = raw
+      .prepare(
+        "SELECT * FROM thread_runtime_gap_notices WHERE thread_id != 'suspect-empty' ORDER BY thread_id",
+      )
+      .all();
+    raw.close();
+
+    initDatabase(dbPath);
+    expect(
+      getSqlite().prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
+    ).toEqual({ value: "60" });
+    expect(
+      getSqlite().prepare("SELECT * FROM thread_runtime_gap_notices ORDER BY thread_id").all(),
+    ).toEqual(keptNotices);
+    expect(getSqlite().prepare("SELECT * FROM thread_runtime_items").all()).toEqual(items);
+    expect(getSqlite().prepare("SELECT * FROM thread_runtime_gaps").all()).toEqual(gaps);
+    const store = new RuntimeDurableGapStore();
+    store.bind(getSqlite());
+    expect(store.resolve("suspect-empty")).toEqual({ kind: "clean" });
+    expect(store.resolve("exact-empty")).toMatchObject({ kind: "exact", reason: "age" });
+    closeDatabase();
+    initDatabase(dbPath);
+    expect(
+      getSqlite().prepare("SELECT * FROM thread_runtime_gap_notices ORDER BY thread_id").all(),
+    ).toEqual(keptNotices);
   });
 
   it("a thread delete cascades the gap, touch, and notice rows", () => {

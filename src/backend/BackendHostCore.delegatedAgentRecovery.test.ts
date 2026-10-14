@@ -111,17 +111,18 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore retired delegated-agent recov
     vi.restoreAllMocks();
   });
 
-  it("recovers actual unclean-epoch orphans after acknowledgement before publishing reset", async () => {
+  it("recovers orphans with a recorded gap after acknowledgement before publishing reset", async () => {
     // Model the crashed boot's durable arm/touch without a clean-close owner.
     const crashed = new RuntimeDurableGapStore();
     crashed.bind(getSqlite());
     crashed.arm();
     crashed.touch(THREAD);
     applyThreadRuntimeEventsNow(THREAD, [start("old-native"), start("old-cross", true)]);
+    crashed.persistGap(THREAD, "age", 1, 10);
     closeDatabase();
     const core = openHost();
     await continuations();
-    expect(getRuntimeContamination(THREAD)?.reason).toBe("unclean-epoch");
+    expect(getRuntimeContamination(THREAD)?.reason).toBe("age");
     expect(item("old-native")).toMatchObject({ state: "started" });
     dbUpsertThread({ ...testThread(), id: "unrelated-thread" }, 1);
     const mutations = vi.spyOn(runtimePersistenceController, "runThreadMutation");
@@ -154,6 +155,24 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore retired delegated-agent recov
     expect(dbApplyThreadRuntimeEvents(THREAD, [start("fresh")]).kind).toBe("accepted");
     await runThreadRuntimeMutation(THREAD, "truncate", () => {});
     await continuations();
+    expect(item("fresh")).toMatchObject({ state: "started", payload: { status: "running" } });
+  });
+
+  it("recovers orphans after an unclean shutdown without requiring acknowledgement", async () => {
+    const crashed = new RuntimeDurableGapStore();
+    crashed.bind(getSqlite());
+    crashed.arm();
+    crashed.touch(THREAD);
+    applyThreadRuntimeEventsNow(THREAD, [start("old-native"), start("old-cross", true)]);
+    closeDatabase();
+    const core = openHost();
+    await continuations();
+    expect(getRuntimeContamination(THREAD)).toBeNull();
+    expect(core.getThreadRuntimeGap(THREAD)).toBeNull();
+    for (const id of ["old-native", "old-cross"])
+      expect(item(id)).toMatchObject({ state: "completed", payload: { status: "error" } });
+    expect(dbApplyThreadRuntimeEvents(THREAD, [start("fresh")]).kind).toBe("accepted");
+    await runThreadRuntimeMutation(THREAD, "truncate", () => {});
     expect(item("fresh")).toMatchObject({ state: "started", payload: { status: "running" } });
   });
 

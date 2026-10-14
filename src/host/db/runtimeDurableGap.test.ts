@@ -134,7 +134,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap store (production schema)
     });
   });
 
-  it("a crashed boot's surviving touch resolves suspect without any write", () => {
+  it("a crashed boot's surviving touch does not block retained history", () => {
     const firstBoot = boundStore();
     firstBoot.arm();
     firstBoot.touch(A);
@@ -143,20 +143,20 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap store (production schema)
     expect(epochRow()).toEqual({ epoch: 1, armed: 1 });
     expect(touchEpochs(A)).toEqual([1]);
 
-    // A read-only bind (a connection that never arms) still sees it: the
-    // virtual boot epoch marks the prior boot's touch suspect.
+    // A read-only bind (a connection that never arms) still preserves it: the
+    // retained transcript remains readable without acknowledging a restart.
     const readOnlyBoot = boundStore();
-    expect(readOnlyBoot.resolve(A)).toMatchObject({ kind: "suspect", epoch: 1 });
+    expect(readOnlyBoot.resolve(A)).toMatchObject({ kind: "clean" });
     expect(epochRow()).toEqual({ epoch: 1, armed: 1 });
     expect(touchEpochs(A)).toEqual([1]);
 
-    // The next owner arms boot 2 and resolves the prior touch as unrepaired.
+    // The next owner arms boot 2 and keeps the prior touch without blocking reads.
     const secondBoot = boundStore();
     secondBoot.arm();
-    expect(secondBoot.resolve(A)).toMatchObject({ kind: "suspect", epoch: 1 });
+    expect(secondBoot.resolve(A)).toMatchObject({ kind: "clean" });
   });
 
-  it("an older unrepaired touch survives intermediate clean closes", () => {
+  it("an older touch does not block reads after intermediate clean closes", () => {
     const firstBoot = boundStore();
     firstBoot.arm();
     firstBoot.touch(A);
@@ -168,10 +168,10 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap store (production schema)
     expect(epochRow()).toEqual({ epoch: 2, armed: 0 });
     expect(touchEpochs(A)).toEqual([1]);
 
-    // Third boot: A's boot-1 touch is still unrepaired evidence.
+    // Third boot: A's boot-1 touch still does not prove missing history.
     const thirdBoot = boundStore();
     thirdBoot.arm();
-    expect(thirdBoot.resolve(A)).toMatchObject({ kind: "suspect", epoch: 1 });
+    expect(thirdBoot.resolve(A)).toMatchObject({ kind: "clean" });
     // A clean close of the third boot deletes only its own epoch's touches.
     thirdBoot.touch(B);
     thirdBoot.disarmAfterCleanClose();
@@ -250,7 +250,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap store (production schema)
       const store = new RuntimeDurableGapStore();
       const bind = store.bind(readonly);
       expect(bind.boot).toMatchObject({ epoch: 1, priorArmed: true });
-      expect(store.resolve(A)).toMatchObject({ kind: "suspect", epoch: 1 });
+      expect(store.resolve(A)).toMatchObject({ kind: "clean" });
       expect(() => store.arm()).toThrow(/readonly/i);
       // A touch cannot even be attempted before an arm committed.
       expect(() => store.touch(A)).toThrow(/not armed/i);
