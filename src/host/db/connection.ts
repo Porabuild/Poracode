@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import Database from "better-sqlite3";
+import { releaseAsyncDatabaseReads } from "./asyncReads";
 import {
   assertRequiredDatabaseSchema,
   assertSupportedDatabaseSchemaVersion,
@@ -58,6 +59,25 @@ function readStoredSchemaVersion(sqlite: InstanceType<typeof Database>): number 
     | { value: string }
     | undefined;
   return Number(row?.value ?? "0");
+}
+
+/** Workers validate the existing schema; they never migrate, prune, or arm it. */
+export function initReadOnlyDatabase(dbPath: string): void {
+  const sqlite = new Database(dbPath, {
+    ...resolveBetterSqliteNativeBindingOptions(),
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    sqlite.pragma("query_only = ON");
+    sqlite.pragma("busy_timeout = 250");
+    assertRequiredDatabaseSchema(sqlite);
+    assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
+    _sqlite = sqlite;
+  } catch (error) {
+    sqlite.close();
+    throw error;
+  }
 }
 
 export function initDatabase(
@@ -354,6 +374,7 @@ export function registerBeforeDatabaseClose(hook: () => void): void {
 export function closeDatabase() {
   const sqlite = _sqlite;
   if (sqlite) {
+    releaseAsyncDatabaseReads();
     for (const hook of beforeCloseHooks) hook();
     // With journal_mode=WAL + synchronous=NORMAL, committed transactions live
     // in the -wal file and only become durable across an OS crash/power loss

@@ -97,6 +97,8 @@ vi.mock("@/host/db", () => ({
   ),
 }));
 
+vi.mock("@/host/db/legacyCatalogReads", async () => import("./snapshotReads.testFixtures"));
+
 function context(): RemoteServerContext {
   return {
     options: {

@@ -7,6 +7,7 @@ import {
   type RuntimeFenceResult,
 } from "@/host/db/runtimePersistenceTypes";
 import { RemoteHttpError } from "../auth";
+import { DatabaseReadUnavailableError } from "@/host/db/databaseReadProtocol";
 
 /**
  * One HTTP mapping for every typed B1 persistence refusal that can reach a
@@ -22,6 +23,9 @@ import { RemoteHttpError } from "../auth";
  * reconciles through the route's own journal instead of re-executing blindly.
  */
 export function mapPersistenceRefusal(error: unknown): unknown {
+  if (error instanceof DatabaseReadUnavailableError) {
+    return new RemoteHttpError("persistence_read_refused", error.message, 503, error.retryAfterMs);
+  }
   if (error instanceof RuntimePersistenceDegradedError) {
     return new RemoteHttpError(
       "persistence_degraded",

@@ -3,6 +3,7 @@ import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
 import { getSqlite } from "./connection";
+import { readDatabaseAsync } from "./asyncReads";
 import { safeParse } from "./rowMappers";
 import { dbGetThreadRuntimeItemCommitted, type RuntimeItemReadOptions } from "./runtimeItemRead";
 import { clearThreadStreamChunks, writeItemStreams } from "./runtimeStreamStore";
@@ -27,7 +28,7 @@ import {
   flushRuntimeFence,
   getRuntimeDurableGapRebaseEpoch,
   hasPendingRuntimeWrites,
-  readRuntimeFence,
+  readRuntimeFenceAsync,
   releaseRuntimeFence,
   runThreadRuntimeMutation,
   runtimePersistenceController,
@@ -177,11 +178,11 @@ export function dbGetThreadRuntimeSummariesCommitted(
  * degraded, contaminated, cancelled, or deadline outcomes so a short
  * transcript is never served as current.
  */
-async function readThreadWithFence<T>(threadId: string, read: () => T): Promise<T> {
+async function readThreadWithFence<T>(threadId: string, read: () => T | Promise<T>): Promise<T> {
   const token = beginRuntimeFence(threadId);
   const result = await flushRuntimeFence(token);
   if (result.kind !== "committed") throw fenceRefusalError(threadId, result);
-  return readRuntimeFence(token, read);
+  return readRuntimeFenceAsync(token, read);
 }
 
 /** Maps a failed fence outcome to the typed read refusal. */
@@ -227,7 +228,9 @@ export function fenceRefusalError(
  * the committed prefix at the request's pinned cursor, or a typed refusal.
  */
 export function dbGetThreadRuntimeItems(threadId: string): Promise<PersistedRuntimeItem[]> {
-  return readThreadWithFence(threadId, () => dbReadThreadRuntimeItems(threadId));
+  return readThreadWithFence(threadId, () =>
+    readDatabaseAsync("runtimeItems", [threadId], () => dbReadThreadRuntimeItems(threadId)),
+  );
 }
 
 /** Synchronous committed-prefix read. Only call behind a held fence. */
@@ -245,14 +248,18 @@ export function dbReadThreadRuntimeItems(threadId: string): PersistedRuntimeItem
 
 /** Capture the committed pre-turn position, including buffered prior turns. */
 export function dbGetThreadRuntimeItemCursor(threadId: string): Promise<number> {
-  return readThreadWithFence(threadId, () => {
-    const row = getSqlite()
-      .prepare(
-        "SELECT COALESCE(MAX(position), -1) AS position FROM thread_runtime_items WHERE thread_id = ?",
-      )
-      .get(threadId) as { position: number };
-    return row.position;
-  });
+  return readThreadWithFence(threadId, () =>
+    readDatabaseAsync("runtimeCursor", [threadId], () => dbReadThreadRuntimeItemCursor(threadId)),
+  );
+}
+
+export function dbReadThreadRuntimeItemCursor(threadId: string): number {
+  const row = getSqlite()
+    .prepare(
+      "SELECT COALESCE(MAX(position), -1) AS position FROM thread_runtime_items WHERE thread_id = ?",
+    )
+    .get(threadId) as { position: number };
+  return row.position;
 }
 
 /** Read only bounded result evidence through the same fence and stream decoder as history. */
@@ -260,18 +267,27 @@ export function dbGetThreadRuntimeItemsAfter(
   threadId: string,
   cursor: number,
 ): Promise<PersistedRuntimeItem[]> {
-  return readThreadWithFence(threadId, () => {
-    const sqlite = getSqlite();
-    return readRuntimeSnapshot(sqlite, () => {
-      const rows = sqlite
-        .prepare(
-          `SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items
+  return readThreadWithFence(threadId, () =>
+    readDatabaseAsync("runtimeItemsAfter", [threadId, cursor], () =>
+      dbReadThreadRuntimeItemsAfter(threadId, cursor),
+    ),
+  );
+}
+
+export function dbReadThreadRuntimeItemsAfter(
+  threadId: string,
+  cursor: number,
+): PersistedRuntimeItem[] {
+  const sqlite = getSqlite();
+  return readRuntimeSnapshot(sqlite, () => {
+    const rows = sqlite
+      .prepare(
+        `SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items
          WHERE thread_id = ? AND position > ? AND type IN ('assistant_message', 'file_change')
          ORDER BY position DESC LIMIT 500`,
-        )
-        .all(threadId, cursor) as PersistedRuntimeItemRow[];
-      return mapRuntimeItemRows(sqlite, threadId, rows.reverse());
-    });
+      )
+      .all(threadId, cursor) as PersistedRuntimeItemRow[];
+    return mapRuntimeItemRows(sqlite, threadId, rows.reverse());
   });
 }
 
@@ -284,13 +300,17 @@ export function dbGetThreadRuntimeItem(
   options: RuntimeItemReadOptions = {},
 ): Promise<PersistedRuntimeItem | null> {
   return readThreadWithFence(threadId, () =>
-    dbGetThreadRuntimeItemCommitted(threadId, itemId, options),
+    readDatabaseAsync("runtimeItem", [threadId, itemId, options], () =>
+      dbGetThreadRuntimeItemCommitted(threadId, itemId, options),
+    ),
   );
 }
 
 /** Fenced ordered-transcript read for the latest goal even when it precedes the page window. */
 export function dbGetLatestThreadGoalItem(threadId: string): Promise<PersistedRuntimeItem | null> {
-  return readThreadWithFence(threadId, () => dbReadLatestThreadGoalItem(threadId));
+  return readThreadWithFence(threadId, () =>
+    readDatabaseAsync("latestGoal", [threadId], () => dbReadLatestThreadGoalItem(threadId)),
+  );
 }
 
 /** Synchronous committed-prefix read. Only call behind a held fence. */
@@ -320,7 +340,11 @@ export function dbGetThreadRuntimeItemsPage(
   targetTimelineEntryCount?: number,
 ): Promise<PersistedRuntimePage> {
   return readThreadWithFence(threadId, () =>
-    dbReadThreadRuntimeItemsPage(threadId, beforePosition, limit, targetTimelineEntryCount),
+    readDatabaseAsync(
+      "runtimePage",
+      [threadId, beforePosition, limit, targetTimelineEntryCount],
+      () => dbReadThreadRuntimeItemsPage(threadId, beforePosition, limit, targetTimelineEntryCount),
+    ),
   );
 }
 
@@ -453,7 +477,9 @@ export function dbGetThreadConversationItemsPage(
   limit: number,
 ): Promise<PersistedRuntimePage> {
   return readThreadWithFence(threadId, () =>
-    dbReadThreadConversationItemsPage(threadId, beforePosition, limit),
+    readDatabaseAsync("conversationPage", [threadId, beforePosition, limit], () =>
+      dbReadThreadConversationItemsPage(threadId, beforePosition, limit),
+    ),
   );
 }
 

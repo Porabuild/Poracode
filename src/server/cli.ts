@@ -228,6 +228,7 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
       isDev,
       baseDir: profileNamespace(),
       supervisorPath: join(__dirname, "supervisor.cjs"),
+      databaseReadWorkerPath: join(__dirname, "databaseReadWorker.cjs"),
       wslHelpersDir: resources.wslHelpersDir,
       buildIdentity,
       staging,

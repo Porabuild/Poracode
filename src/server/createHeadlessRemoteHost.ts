@@ -35,6 +35,7 @@ export interface HeadlessRemoteHostOptions {
   readonly isDev?: boolean;
   /** Path to the bundled `supervisor.cjs` the host should fork. */
   readonly supervisorPath: string;
+  readonly databaseReadWorkerPath?: string;
   /** Directory of in-WSL helper assets; forwarded to the supervisor for parity. */
   readonly wslHelpersDir: string;
   /** Directory of app-bundled read-only skills; forwarded to the supervisor. */

@@ -7,6 +7,7 @@ import {
   type RemoteThreadCatalogCommand,
 } from "@/shared/remote/protocol/catalogMutations";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { runRendererAction } from "@/renderer/state/rendererActionStore";
 
 /**
  * One dispatch seam for the SDK's split command overloads. Narrow catalog
@@ -29,6 +30,30 @@ export async function sendClientThreadCommand(
   client: RemoteDesktopClient,
   command: RemoteThreadCommand,
   options: { readonly commandId?: string } = {},
+): Promise<void> {
+  if (
+    command.kind === "delete-worktree-group" ||
+    command.kind === "delete" ||
+    command.kind === "archive"
+  ) {
+    // Cleanup scripts and worktree removal can hold an HTTP connection for
+    // seconds. Bulk removal must leave connections free for history reads and
+    // foreground commands. Paint/rollback stays with the caller; only the host
+    // writes queue, and a failed removal does not stop the remaining batch.
+    await runRendererAction(
+      `thread:remove-host:${new URL(client.endpoint).origin}`,
+      () => dispatchClientThreadCommand(client, command, options),
+      { queue: true },
+    );
+    return;
+  }
+  await dispatchClientThreadCommand(client, command, options);
+}
+
+async function dispatchClientThreadCommand(
+  client: RemoteDesktopClient,
+  command: RemoteThreadCommand,
+  options: { readonly commandId?: string },
 ): Promise<void> {
   if (isRemoteThreadCatalogCommand(command)) {
     await client.sendThreadCommand(command, {

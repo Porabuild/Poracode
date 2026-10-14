@@ -422,6 +422,14 @@ export function readRuntimeFence<T>(token: RuntimeFenceToken, read: () => T): T 
   return runtimePersistenceController.readFenced(token, read);
 }
 
+export function readRuntimeFenceAsync<T>(
+  token: RuntimeFenceToken,
+  read: () => T | Promise<T>,
+): Promise<T> {
+  bindCurrentConnection();
+  return runtimePersistenceController.readFencedAsync(token, read);
+}
+
 export function releaseRuntimeFence(token: RuntimeFenceToken): void {
   bindCurrentConnection();
   runtimePersistenceController.releaseFence(token);

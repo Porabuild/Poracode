@@ -1,3 +1,4 @@
+import { closeAsyncDatabaseReads, enableAsyncDatabaseReads } from "@/host/db/asyncReads";
 import {
   closeDatabase,
   dbGetThread,
@@ -116,6 +117,8 @@ export interface RetainedStartupCustody {
 export interface BackendHostCoreOptions {
   baseDir: string;
   dbPath: string;
+  /** Packaged read-only worker; direct/offline database harnesses omit it. */
+  databaseReadWorkerPath?: string;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
   /**
@@ -194,6 +197,9 @@ export class BackendHostCore {
       const database = options.databaseSchemaMode
         ? initDatabase(options.dbPath, { schemaMode: options.databaseSchemaMode })
         : initDatabase(options.dbPath);
+      if (options.databaseReadWorkerPath) {
+        enableAsyncDatabaseReads(options.dbPath, options.databaseReadWorkerPath);
+      }
       this.preparedDatabaseWriteAdmission = capturePreparedDatabaseWriteAdmission(
         database,
         options.baseDir,
@@ -962,6 +968,7 @@ export class BackendHostCore {
       this.canonicalAdmissionControl?.retireOwner();
       await Promise.all(continuations);
       await delegatedRecoveryDisposal;
+      await closeAsyncDatabaseReads();
       this.supervisorJoined = true;
     })();
     return this.supervisorDisposal;

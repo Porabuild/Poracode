@@ -36,10 +36,15 @@ vi.mock("@/host/db", () => ({
     pendingEvents: 0,
     pendingBytes: 0,
   })),
-  readRuntimeFence: vi.fn<(token: RuntimeFenceToken, read: () => unknown) => unknown>(
-    (_token, read) => read(),
-  ),
+  readRuntimeFenceAsync: vi.fn<
+    (token: RuntimeFenceToken, read: () => Promise<unknown>) => Promise<unknown>
+  >((_token, read) => read()),
 }));
+
+// These tests own host projection behavior; the read layer supplies committed
+// data through its new aggregate seam instead of querying a real database.
+vi.mock("@/host/db/legacyCatalogReads", async () => import("./snapshotReads.testFixtures"));
+vi.mock("@/host/db/runtimeSnapshotRead", async () => import("./snapshotReads.testFixtures"));
 
 const controls: SessionConfigOptions = [
   {

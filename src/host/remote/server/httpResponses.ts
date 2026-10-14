@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ZodError } from "zod";
+import { DatabaseReadUnavailableError } from "@/host/db/databaseReadProtocol";
+import { mapPersistenceRefusal } from "./persistenceRefusals";
 import { remoteHttpErrorSchema } from "@/shared/remote";
 import { writeJsonResponse } from "@/shared/http";
 import {
@@ -138,6 +140,7 @@ function gitProcessAdmissionHttpError(error: unknown): RemoteHttpError | null {
 }
 
 export function writeError(res: ServerResponse, error: unknown): void {
+  if (error instanceof DatabaseReadUnavailableError) error = mapPersistenceRefusal(error);
   const httpError =
     error instanceof RemoteHttpError
       ? error

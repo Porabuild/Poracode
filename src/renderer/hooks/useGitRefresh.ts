@@ -14,6 +14,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { runRendererAction } from "@/renderer/state/rendererActionStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
@@ -90,6 +91,7 @@ export function useGitRefresh(storeHydrated: boolean) {
 
     let isActive = true;
     const lastFetchTimes = new Map<string, number>();
+    const pendingFetchProjectIds = new Set<string>();
     let previousPriorityProjectIds = new Set<string>();
     const isActiveCheck = () => isActive;
 
@@ -275,6 +277,7 @@ export function useGitRefresh(storeHydrated: boolean) {
         [...priorityProjectIds].filter((projectId) => !previousPriorityProjectIds.has(projectId)),
       );
       const projectsToFetch = activeProjects.filter((project) => {
+        if (pendingFetchProjectIds.has(project.id)) return false;
         if (lastFetchTimes.has(project.id) && !shouldPollProject(project)) return false;
         const isPriority = priorityProjectIds.has(project.id);
         const interval = isPriority
@@ -289,24 +292,37 @@ export function useGitRefresh(storeHydrated: boolean) {
 
       await Promise.all(
         projectsToFetch.map(async (project) => {
-          if (!isActive) return;
-          const isPriority = priorityProjectIds.has(project.id);
-          const promoted = promotedProjectIds.has(project.id);
-          console.log(
-            `[git-refresh] fetch-start project=${project.id} priority=${isPriority} promoted=${promoted}`,
-          );
-          lastFetchTimes.set(project.id, now);
+          pendingFetchProjectIds.add(project.id);
           try {
-            await readBridge().gitFetch({
-              projectLocation: project.location,
-              remote: "origin",
-              prune: true,
-            });
-          } catch {
-            // ignore — remote may be unreachable
-          }
-          if (isActive) {
-            void refreshGitProject(project, "fetch", "full", { isActive: isActiveCheck });
+            // Network fetches can wait for minutes. Keep background work from
+            // filling the HTTP pool, including across effect replacements.
+            await runRendererAction(
+              "git:background-fetch",
+              async () => {
+                if (!isActive) return;
+                const isPriority = priorityProjectIds.has(project.id);
+                const promoted = promotedProjectIds.has(project.id);
+                console.log(
+                  `[git-refresh] fetch-start project=${project.id} priority=${isPriority} promoted=${promoted}`,
+                );
+                lastFetchTimes.set(project.id, Date.now());
+                try {
+                  await readBridge().gitFetch({
+                    projectLocation: project.location,
+                    remote: "origin",
+                    prune: true,
+                  });
+                } catch {
+                  // ignore — remote may be unreachable
+                }
+                if (isActive) {
+                  void refreshGitProject(project, "fetch", "full", { isActive: isActiveCheck });
+                }
+              },
+              { queue: true },
+            );
+          } finally {
+            pendingFetchProjectIds.delete(project.id);
           }
         }),
       );

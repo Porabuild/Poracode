@@ -215,6 +215,32 @@ export class RuntimeFenceControl {
    * Releases the fence in the same turn after the read.
    */
   readFenced<T>(token: RuntimeFenceToken, read: () => T): T {
+    this.assertReadableFence(token);
+    try {
+      return read();
+    } finally {
+      this.releaseFence(token);
+    }
+  }
+
+  /** Keep the per-thread pin until the worker finishes, then recheck expiry. */
+  async readFencedAsync<T>(token: RuntimeFenceToken, read: () => T | Promise<T>): Promise<T> {
+    this.assertReadableFence(token);
+    try {
+      const value = await read();
+      try {
+        this.assertReadableFence(token);
+      } catch (error) {
+        if (error instanceof RuntimePersistenceContaminatedError) throw error;
+        throw new RuntimePersistenceDegradedError(token.threadId, 0, 0, "retryable", 250, error);
+      }
+      return value;
+    } finally {
+      this.releaseFence(token);
+    }
+  }
+
+  private assertReadableFence(token: RuntimeFenceToken): void {
     const host = this.options.host;
     if (!token.ready || token.released) {
       throw new Error(
@@ -233,14 +259,21 @@ export class RuntimeFenceControl {
       this.releaseFence(token);
       throw new Error("Runtime fence is no longer held; the read was refused.");
     }
-    try {
-      return read();
-    } finally {
+    const contamination = host.contamination(token.threadId);
+    if (contamination) {
       this.releaseFence(token);
+      throw new RuntimePersistenceContaminatedError(
+        token.threadId,
+        contamination.reason,
+        contamination.refusedEvents,
+        contamination.refusedBytes,
+        250,
+      );
     }
   }
 
   releaseFence(token: RuntimeFenceToken): void {
+    if (token.released) return;
     this.heldFences.delete(token);
     token.released = true;
     const nextPin = this.scheduler.settleFence(token);

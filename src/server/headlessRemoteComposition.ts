@@ -279,6 +279,9 @@ export async function composeHeadlessRemoteHost(
     const backendHost = new BackendHostCore({
       baseDir: paths.baseDir,
       dbPath: paths.dbPath,
+      ...(options.databaseReadWorkerPath
+        ? { databaseReadWorkerPath: options.databaseReadWorkerPath }
+        : {}),
       // No agent session survived the restart; without a renderer to run
       // markThreadsInactiveOnLaunch, stale live statuses would be re-served to
       // every client snapshot until the next supervisor event for that thread.

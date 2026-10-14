@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { emptyGitStateSnapshot, pullRequestKey, type PullRequestState } from "@/shared/gitState";
+import { captureCatalogReadProjection } from "./catalogPageBuilders";
 import {
   projectGitStatePatchForInterests,
   projectGitStateSnapshotForRemote,
@@ -23,6 +24,26 @@ function prState(overrides: Partial<PullRequestState> = {}): PullRequestState {
 }
 
 describe("projectGitStateSnapshotForRemote", () => {
+  it("omits unused git state and strips review bodies before worker dispatch", () => {
+    const snapshot = {
+      ...emptyGitStateSnapshot(),
+      pullRequests: { [key]: prState() },
+    };
+    const getSnapshot = vi.fn<() => typeof snapshot>(() => snapshot);
+    const context = { seq: 3, options: { gitState: { getSnapshot } } };
+
+    expect(captureCatalogReadProjection(context)).toEqual({ seq: 3, gitSummaries: {} });
+    expect(getSnapshot).not.toHaveBeenCalled();
+
+    const captured = captureCatalogReadProjection(context, true);
+    const state = captured.gitState!.pullRequests[key]!;
+    expect(state.diff).toBeUndefined();
+    expect(state.files).toBeUndefined();
+    expect(state.reviewThreads).toBeUndefined();
+    expect(state.data).toEqual(snapshot.pullRequests[key]!.data);
+    expect(snapshot.pullRequests[key]!.diff).toBeDefined();
+  });
+
   it("removes every pull-request body but keeps core data and freshness", () => {
     const snapshot = {
       ...emptyGitStateSnapshot(),
