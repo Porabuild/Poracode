@@ -67,8 +67,9 @@ describe("database migration registry", () => {
       [57, "model selection intent writer boundary"],
       [58, "runtime latest goal index"],
       [59, "schedule automation policies and run inbox"],
+      [60, "remove unconfirmed runtime history notices"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(59);
+    expect(LATEST_SCHEMA_VERSION).toBe(60);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -106,8 +107,8 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 59,
-      name: "schedule automation policies and run inbox",
+      version: 60,
+      name: "remove unconfirmed runtime history notices",
       rollback: "forward-only",
     });
     // Migrations below the floor keep their reviewed defaults.

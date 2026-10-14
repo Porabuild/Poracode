@@ -135,6 +135,27 @@ describe("history notice store", () => {
     expect(readThreadHistoryNotice(VIEW_ID)?.notice?.refusedEvents).toBe(7);
   });
 
+  it("clears a cached zero-loss restart notice after a clean read from the upgraded host", () => {
+    recordThreadHistoryNoticeRead(
+      VIEW_ID,
+      CONNECTION,
+      notice({ source: "suspect", reason: "unclean-epoch", refusedEvents: 0, refusedBytes: 0 }),
+    );
+    recordThreadHistoryNoticeRead(VIEW_ID, CONNECTION, undefined);
+    expect(readThreadHistoryNotice(VIEW_ID)?.notice).toBeNull();
+    expect(readThreadHistoryNotice(VIEW_ID)?.needsReview).toBe(false);
+  });
+
+  it.each([
+    { refusedEvents: 1, refusedBytes: 0 },
+    { refusedEvents: 0, refusedBytes: 1 },
+  ])("retains a suspect notice with recorded loss after reconnect: %j", (counts) => {
+    const confirmed = notice({ source: "suspect", reason: "unclean-epoch", ...counts });
+    recordThreadHistoryNoticeRead(VIEW_ID, CONNECTION, confirmed);
+    recordThreadHistoryNoticeRead(VIEW_ID, CONNECTION, undefined);
+    expect(readThreadHistoryNotice(VIEW_ID)?.notice).toEqual(confirmed);
+  });
+
   it("clears on authority replacement instead of showing another server's notice", () => {
     recordThreadHistoryNoticeRead(VIEW_ID, CONNECTION, notice());
     recordThreadHistoryNoticeRead(VIEW_ID, "connection-2", undefined);

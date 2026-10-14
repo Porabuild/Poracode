@@ -5,7 +5,8 @@ import type { RemoteRuntimeGapDescriptor, RemoteRuntimeHistoryNotice } from "@/s
  *
  * The notice is thread-level and durable on the host: it survives later turns,
  * pagination, reset/rebase/truncate and reconnect. Therefore a read that OMITS
- * the field never clears an existing notice — only an authoritative thread
+ * the field retains confirmed loss notices. Zero-loss restart notices are
+ * cleared by a clean read after a host upgrade. Only an authoritative thread
  * removal or an authority replacement does (the entry is fenced by connection
  * identity, so a re-pair/host switch can neither display nor acknowledge
  * another server's notice). `gap` is the current UNACKNOWLEDGED episode read
@@ -52,7 +53,7 @@ function replaceIfAuthorityChanged(viewThreadId: string, authority: string): voi
 /**
  * Record an authoritative transcript read. `notice === undefined` means the
  * response carried no field (an older host or an incremental read): the
- * existing notice is retained, never cleared.
+ * existing confirmed-loss notice is retained.
  */
 export function recordThreadHistoryNoticeRead(
   viewThreadId: string,
@@ -62,6 +63,16 @@ export function recordThreadHistoryNoticeRead(
   replaceIfAuthorityChanged(viewThreadId, authority);
   const current = entries.get(viewThreadId);
   if (notice === undefined) {
+    if (
+      current?.notice?.source === "suspect" &&
+      current.notice.reason === "unclean-epoch" &&
+      current.notice.refusedEvents === 0 &&
+      current.notice.refusedBytes === 0
+    ) {
+      entries.set(viewThreadId, { ...current, notice: null, needsReview: false });
+      publish();
+      return;
+    }
     if (current) {
       if (!current.needsReview) {
         entries.set(viewThreadId, { ...current, needsReview: false });

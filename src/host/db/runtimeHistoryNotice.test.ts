@@ -157,7 +157,7 @@ describe.skipIf(!sqliteAvailable)("runtime history notice store (real SQLite)", 
     return coordinator;
   }
 
-  it("descriptor reads are SELECT-only, exact for a gap, suspect for a foreign touch, null when clean", () => {
+  it("descriptor reads are SELECT-only and ignore foreign touches without a recorded gap", () => {
     const first = stack();
     first.armThreadForAdmission(A);
     first.armThreadForAdmission(B);
@@ -179,17 +179,9 @@ describe.skipIf(!sqliteAvailable)("runtime history notice store (real SQLite)", 
     });
     expect((parsedA as { episodeId: string }).episodeId).toBe(gapRow(A)?.episode_id);
 
-    // A second boot: A's exact gap still wins, B's surviving touch is suspect.
+    // A second boot retains exact loss evidence but does not warn for a restart.
     const second = stack();
-    const descriptorB = second.getGapDescriptor(B);
-    expect(descriptorB).toMatchObject({
-      threadId: B,
-      source: "suspect",
-      reason: "unclean-epoch",
-      refusedEvents: 0,
-      refusedBytes: 0,
-    });
-    expect(parseRuntimeHistoryNoticeToken(descriptorB?.token)).toMatchObject({ kind: "suspect" });
+    expect(second.getGapDescriptor(B)).toBeNull();
     expect(second.getGapDescriptor(A)?.token).toBe(descriptorA?.token);
   });
 

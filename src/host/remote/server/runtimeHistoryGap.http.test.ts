@@ -301,7 +301,7 @@ describe.skipIf(!sqliteAvailable)("B1 runtime-gap recovery over real HTTP", () =
     expect(environment.body.capabilities).toMatchObject({
       runtimeHistoryNotices: { versions: [1] },
     });
-    // A foreign touch without a gap row is the suspect episode (prior state).
+    // A legacy foreign touch without a gap row does not require recovery.
     seedThread(OTHER_THREAD, 1);
     insertForeignTouch(OTHER_THREAD, 7);
     const suspect = await getJson(
@@ -310,7 +310,16 @@ describe.skipIf(!sqliteAvailable)("B1 runtime-gap recovery over real HTTP", () =
       `/api/threads/${OTHER_THREAD}/runtime/gap?notices=v1`,
     );
     expect(suspect.status).toBe(200);
-    expect(suspect.body.gap).toMatchObject({ token: "gap2:s7", source: "suspect" });
+    expect(suspect.body.gap).toBeNull();
+    expect(suspect.body.notice).toBeNull();
+    const retained = await getJson(
+      info,
+      token,
+      `/api/threads/${OTHER_THREAD}/history?reads=bounded-v1&runtimePage=1&notices=v1`,
+    );
+    expect(retained.status).toBe(200);
+    expect(retained.body.runtimeNotice).toBeUndefined();
+    expect(retained.body.runtimeItems).toHaveLength(1);
 
     // Declaration is required; unknown threads are a definite 404.
     expect((await getJson(info, token, `/api/threads/${THREAD}/runtime/gap`)).status).toBe(400);
