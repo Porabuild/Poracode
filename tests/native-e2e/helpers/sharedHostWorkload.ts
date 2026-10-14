@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import type { ProfileClient, ReceivedEvent } from "./concurrencyProfileClient.ts";
+import { CATALOG_READS_CAPABILITY } from "../../../src/shared/remote/catalogReadContract.ts";
+import { boundedShellSnapshotSchema } from "../../../src/shared/remote/catalogReadSchemas.ts";
 
 /** Workload units for the shared-host concurrency experiment. Each helper
  * performs real API round-trips and asserts functional invariants only. */
@@ -165,7 +167,7 @@ export const BURST_OPS_PER_CLIENT = 9;
 
 /** Fires BURST_OPS_PER_CLIENT ops per client fully concurrently: durable file
  * write + read-back + fixture read + notes write/read + settings write + full
- * snapshot read. Under N-way concurrency the shared notes doc holds ONE of the
+ * bounded snapshot read. Under N-way concurrency the shared notes doc holds ONE of the
  * issued docs (last-writer-wins); a value outside the issued set means a lost
  * or stale read and fails. */
 export async function runConcurrentBurst(
@@ -227,8 +229,21 @@ export async function runConcurrentBurst(
         expectOk(settings.status, "burst settings write", settings.body);
         issuedSettingsValues.add(JSON.stringify(unique));
       }
-      const snapshot = await client.fetchJson("snapshot-read", "/api/snapshot");
+      // Legacy snapshots allow one in-flight read per credential. Exercise
+      // concurrent bounded reads like the shipped clients, retaining complete
+      // fixture coverage instead of silently accepting a truncated catalog.
+      const snapshot = await client.fetchJson(
+        "snapshot-read",
+        `/api/snapshot?reads=${CATALOG_READS_CAPABILITY}&summaries=1`,
+      );
       expectOk(snapshot.status, "burst snapshot read", snapshot.body);
+      const body = boundedShellSnapshotSchema.parse(snapshot.body);
+      assert.strictEqual(body.threadsNextCursor, null, "burst fixture threads must be complete");
+      assert.strictEqual(body.projectsNextCursor, null, "burst fixture projects must be complete");
+      assert(
+        body.projects.some((entry) => entry.id === project.projectId),
+        "bounded snapshot must include the fixture project",
+      );
     }),
   );
   // Persistence invariant under N-way concurrent settings writers: the shared

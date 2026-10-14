@@ -20,8 +20,10 @@ if (isMainThread) {
       const threadId = request.args[0] as string;
       if (threadId === "slow" || threadId === "never") {
         // A real synchronous SQLite call, deliberately slow only in this worker.
-        if (threadId === "slow") getSqlite().prepare("SELECT block_read_fixture(1000)").get();
-        else {
+        if (threadId === "slow") {
+          writeFileSync(`${workerData.dbPath}.slow-query-active`, "native query started");
+          getSqlite().prepare("SELECT block_read_fixture(1000)").get();
+        } else {
           writeFileSync(`${workerData.dbPath}.query-active`, "native query started");
           getSqlite()
             .prepare(

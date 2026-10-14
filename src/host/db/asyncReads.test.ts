@@ -26,6 +26,7 @@ import { applyRuntimeEvents, runThreadRuntimeMutation } from "./runtimePersisten
 import { testThread } from "./runtimeItems.testFixtures";
 import { createSchema53PayloadOriginDatabase } from "./runtimePayloadOrigins.testFixtures";
 import { CatalogCursorError } from "@/shared/remote/catalogReadContract";
+import { LEGACY_READ_BUSY_CODE } from "@/shared/remote/legacyReadContract";
 import { parseCatalogReadNegotiation } from "../remote/server/catalogPages";
 import {
   DATABASE_READ_WORKER_PROTOCOL_VERSION,
@@ -142,7 +143,7 @@ describe("worker-backed SQLite reads", () => {
     expect(next).toBe(first);
   });
 
-  it("serves foreground HTTP history and Stop while another history query is blocked", async () => {
+  it("preserves legacy admission while foreground HTTP history and Stop remain available", async () => {
     enableAsyncDatabaseReads(dbPath, delayedWorkerPath);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
       async () => ({}) as never,
@@ -182,7 +183,7 @@ describe("worker-backed SQLite reads", () => {
       expect(shellEtag).not.toBeNull();
       await initialShell.arrayBuffer();
       let slowFinished = false;
-      const slow = fetch(new URL("/api/threads/slow/history?reads=bounded-v1", info.httpBaseUrl), {
+      const slow = fetch(new URL("/api/threads/slow/history", info.httpBaseUrl), {
         headers,
       })
         .then(async (response) => {
@@ -193,6 +194,13 @@ describe("worker-backed SQLite reads", () => {
           slowFinished = true;
         });
       void slow.catch(() => undefined);
+      await vi.waitFor(() => expect(existsSync(`${dbPath}.slow-query-active`)).toBe(true));
+      const refusedLegacy = await fetch(new URL("/api/threads/fast/history", info.httpBaseUrl), {
+        headers,
+      });
+      expect(refusedLegacy.status).toBe(503);
+      expect(refusedLegacy.headers.get("retry-after")).toBe("1");
+      expect(await refusedLegacy.json()).toMatchObject({ error: { code: LEGACY_READ_BUSY_CODE } });
       const fast = await fetch(
         new URL("/api/threads/fast/history?reads=bounded-v1", info.httpBaseUrl),
         { headers },
