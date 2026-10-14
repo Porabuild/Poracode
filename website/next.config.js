@@ -22,9 +22,9 @@ const nextConfig = {
   // so every dependency's real path lives in ~/Library/pnpm/store — outside the
   // repo. Turbopack refuses to compile anything whose realpath falls outside its
   // root, so it cannot resolve `next` itself here and no in-repo `turbopack.root`
-  // can fix that (still true on 16.3). Webpack follows the symlinks fine. The
-  // Vercel uses the same Webpack path: its CLI build in GitHub Actions can
-  // retain the global virtual store despite the installCommand override.
+  // can fix that (still true on 16.3). Webpack follows the symlinks fine.
+  // Vercel uses the same Webpack path. Its workflow disables the global virtual
+  // store through the environment so traced server files stay inside the repo.
   async headers() {
     return [
       {
