@@ -1,15 +1,22 @@
 import { useAppStore } from "@/renderer/state/appStore";
+import { useBrowserFindStore } from "@/renderer/state/browserFindStore";
+import { hasClientCapability } from "@/renderer/clientRuntime";
+import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useGitFindStore } from "@/renderer/state/gitFindStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
-import { isEditorFocusElement, isTerminalFocusElement } from "@/renderer/commands/focusedSurface";
+import {
+  isEditorFocusElement,
+  isTerminalFocusElement,
+  resolveFocusElement,
+} from "@/renderer/commands/focusedSurface";
 import { openEditorFind } from "./editorFindBridge";
 import { openTerminalFind } from "./terminalFindBridge";
 
-export type FindTarget = "editor" | "terminal" | "settings" | "git" | "tree" | "chat";
+export type FindTarget = "browser" | "editor" | "terminal" | "settings" | "git" | "tree" | "chat";
 
 /**
  * Decide which surface a Find (Ctrl+F) press should target. Focus wins first
@@ -18,8 +25,8 @@ export type FindTarget = "editor" | "terminal" | "settings" | "git" | "tree" | "
  * fallback. Returns null when nothing is searchable (e.g. a blocking modal owns
  * its own input, or the home view).
  */
-export function resolveFindTarget(): FindTarget | null {
-  const element = document.activeElement instanceof Element ? document.activeElement : null;
+export function resolveFindTarget(target?: EventTarget | null): FindTarget | null {
+  const element = resolveFocusElement(target);
   if (isEditorFocusElement(element)) return "editor";
   if (isTerminalFocusElement(element)) return "terminal";
   const scope = element
@@ -28,13 +35,12 @@ export function resolveFindTarget(): FindTarget | null {
   if (scope === "git" || scope === "settings" || scope === "tree" || scope === "chat") {
     return scope;
   }
-  if (element?.closest("[data-poracode-browser]")) return null;
+  if (element?.closest("[data-poracode-browser]")) return "browser";
 
   const panel = usePanelStore.getState();
   // Blocking modals trap their own input — leave Ctrl+F to them.
   if (
     useCommandPaletteStore.getState().isOpen ||
-    panel.threadSearchOpen ||
     panel.createProjectModalOpen ||
     panel.cloneProjectModalOpen
   ) {
@@ -48,10 +54,17 @@ export function resolveFindTarget(): FindTarget | null {
 }
 
 /** Entry point for the `find.open` command: open Find on the active surface. */
-export function openFindForActiveSurface(): void {
-  const target = resolveFindTarget();
+export function openFindForActiveSurface(originTarget?: EventTarget | null): void {
+  const target = resolveFindTarget(originTarget);
   if (!target) return;
   switch (target) {
+    case "browser": {
+      if (!hasClientCapability("nativeBrowserWebContents")) return;
+      const browser = useBrowserPanelStore.getState();
+      const tab = browser.tabs.find((candidate) => candidate.tabId === browser.activeTabId);
+      if (tab && !tab.internalPage) useBrowserFindStore.getState().open(tab.tabId);
+      return;
+    }
     case "editor":
       openEditorFind();
       return;

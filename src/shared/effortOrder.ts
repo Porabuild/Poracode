@@ -6,7 +6,7 @@
  * `xhigh, low, medium, none`, which draws the picker out of order. Sorting on
  * this ladder keeps every provider's effort menu reading weakest → strongest.
  */
-const CANONICAL_EFFORT_ORDER = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+const CANONICAL_EFFORT_ORDER = ["off", "none", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 const CANONICAL_EFFORT_ALIASES: Record<string, string> = {
   "extra-high": "xhigh",
@@ -14,9 +14,14 @@ const CANONICAL_EFFORT_ALIASES: Record<string, string> = {
   "very-high": "xhigh",
 };
 
-function effortRank(effort: string): number {
+/** Map provider spellings (`extra-high`) onto the canonical ladder id. */
+export function canonicalizeEffortId(effort: string): string {
   const key = effort.trim().toLowerCase();
-  const canonical = CANONICAL_EFFORT_ALIASES[key] ?? key;
+  return CANONICAL_EFFORT_ALIASES[key] ?? key;
+}
+
+function effortRank(effort: string): number {
+  const canonical = canonicalizeEffortId(effort);
   const index = CANONICAL_EFFORT_ORDER.indexOf(canonical);
   return index === -1 ? CANONICAL_EFFORT_ORDER.length : index;
 }

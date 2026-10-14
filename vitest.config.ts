@@ -2,8 +2,18 @@ import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
+import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
+
+// Core CI shards exclude compiler fixtures in the project that collects them.
+// Vitest 5 does not forward CLI --exclude to inline projects. Ordinary test
+// runs and the dedicated native-contract lane retain the complete suite.
+const coreShardExcludes =
+  process.env.PORACODE_TEST_LANE === "core"
+    ? ["src/shared/remote/contract/native/runtime.test.ts"]
+    : [];
 
 export default defineConfig({
+  plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
     globals: true,
     // Vitest 5 defaults clearMocks to true; the repo accepts the new default
@@ -18,7 +28,11 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
     },
-    exclude: ["dist", "node_modules"],
+    // Perf suites assert absolute latency budgets, so they never run inside
+    // the sharded unit suite — sibling shard workers contend for the same
+    // cores and flip the budgets. They are collected by vitest.perf.config.ts
+    // and run via the `test:perf:*` scripts / the dedicated CI perf job.
+    exclude: ["dist", "node_modules", "**/*.perf.test.ts"],
     projects: [
       {
         extends: true,
@@ -35,7 +49,7 @@ export default defineConfig({
         },
         test: {
           name: "renderer",
-          include: ["src/renderer/**/*.test.{ts,tsx}", "src/mobile/**/*.test.tsx"],
+          include: ["src/renderer/**/*.test.{ts,tsx}"],
           environment: "jsdom",
           setupFiles: ["./src/renderer/testSetup.ts"],
         },
@@ -49,8 +63,13 @@ export default defineConfig({
         },
         test: {
           name: "node",
-          include: ["src/**/*.test.{ts,tsx}"],
-          exclude: ["src/renderer/**/*.test.{ts,tsx}", "src/mobile/**/*.test.tsx"],
+          // Protocol conformance lives under protocol/ but needs the same node
+          // environment and `@` alias as src. Folded into this project so
+          // `pnpm run test --shard=N/4` never shards a one-file project.
+          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts"],
+          // Project-level exclude replaces the inherited root exclude, so the
+          // perf-suite pattern is restated here.
+          exclude: ["src/renderer/**/*.test.{ts,tsx}", "**/*.perf.test.ts", ...coreShardExcludes],
           environment: "node",
         },
       },

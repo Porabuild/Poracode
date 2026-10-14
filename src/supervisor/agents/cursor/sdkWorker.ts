@@ -22,11 +22,13 @@ import {
   type CursorSdkWorkerInitializeParams,
   type CursorSdkWorkerInitializeResult,
   type CursorSdkWorkerModelsListParams,
+  type CursorSdkWorkerModelSelection,
   type CursorSdkWorkerProbeResult,
   type CursorSdkWorkerRequest,
   type CursorSdkWorkerSendOptions,
   type CursorSdkWorkerStartInput,
   type CursorSdkWorkerStartResult,
+  type CursorSdkWorkerSteerResult,
   type CursorSdkWorkerWireMessage,
 } from "./sdkWorkerProtocol";
 import {
@@ -42,6 +44,9 @@ import {
   type RuntimeRun,
 } from "./sdkWorkerRuntime";
 import { probeCursorSdkAccountEmail } from "./sdkAccount";
+import { installCursorSdkCancellationHandler } from "./sdkCancellation";
+
+installCursorSdkCancellationHandler();
 
 // stdout is a protocol channel, while provider-native console output can carry
 // credentials or arbitrary non-JSON text. SDK failures are returned through
@@ -60,12 +65,15 @@ const sdkRuntime = new CursorSdkWorkerRuntime();
 const diagnostics = new CursorSdkWorkerDiagnostics();
 let agent: RuntimeAgent | undefined;
 let agentCwd: string | undefined;
+let agentApiKey: string | undefined;
+let agentModel: CursorSdkWorkerModelSelection | undefined;
 let activeRun: ActiveRun | undefined;
 let startInFlight = false;
 let disposed = false;
 const workerMethods = new Set([
   "initialize",
   "start",
+  "steer",
   "cancel",
   "reload",
   "messages.list",
@@ -120,6 +128,8 @@ async function dispatch(request: CursorSdkWorkerRequest): Promise<unknown> {
       return initialize(request.params);
     case "start":
       return startRun(request.id, request.params);
+    case "steer":
+      return steerRun(request.params.runId, request.params.text);
     case "cancel":
       return cancelRun(request.params.runId);
     case "reload":
@@ -148,7 +158,11 @@ async function initialize(
   diagnostics.rememberMcpSecrets(params.createOptions.mcpServers);
   const cwd = firstCwd(params.createOptions.local.cwd);
   const loaded = await sdkRuntime.load(params.sdk, cwd, params.apiKey);
+  if (!params.resumeAgentId) {
+    await sdkRuntime.prepareModelSelection(params.createOptions.model, params.apiKey);
+  }
   agentCwd = cwd;
+  agentApiKey = params.apiKey;
   const options = {
     ...params.createOptions,
     ...(params.apiKey ? { apiKey: params.apiKey } : {}),
@@ -162,9 +176,13 @@ async function initialize(
       "The installed Cursor SDK returned an invalid agent handle.",
     );
   }
+  agentModel = agent.model ?? params.createOptions.model;
   return {
     agentId: agent.agentId,
     ...(agent.model ? { model: agent.model } : {}),
+    ...(typeof loaded.getDefaultSdkStateRoot === "function"
+      ? { stateRoot: loaded.getDefaultSdkStateRoot(cwd) }
+      : {}),
     ...(opened.recoveredExisting ? { recoveredExisting: true } : {}),
   };
 }
@@ -185,6 +203,8 @@ async function startRun(
   const bufferedDeltas: unknown[] = [];
   let runId: string | undefined;
   try {
+    const model = input.options?.model ?? currentAgent.model ?? agentModel;
+    await sdkRuntime.prepareModelSelection(model, agentApiKey);
     const options: CursorSdkWorkerSendOptions & {
       onDelta: (args: { update: unknown }) => void;
     } = {
@@ -211,6 +231,7 @@ async function startRun(
       );
     }
     runId = run.id;
+    agentModel = model;
     activeRun = { requestId, run };
     for (const update of bufferedDeltas) {
       emitRunEvent({
@@ -275,6 +296,19 @@ async function pumpRun(active: ActiveRun): Promise<void> {
   }
 }
 
+async function steerRun(runId: string, text: string): Promise<CursorSdkWorkerSteerResult> {
+  const run = activeRun?.run;
+  if (!run || run.id !== runId || typeof run.steer !== "function") return "revert_to_followup";
+  const result = await run.steer(text);
+  if (result !== "complete_delivered" && result !== "revert_to_followup") {
+    throw new WorkerDiagnosticError(
+      "module_api_incompatible",
+      "The Cursor SDK returned an invalid steering acknowledgement.",
+    );
+  }
+  return result;
+}
+
 async function cancelRun(requestedRunId?: string): Promise<{ cancelled: boolean }> {
   const active = activeRun;
   if (!active) return { cancelled: false };
@@ -311,6 +345,7 @@ async function listModels(
   const models = await loaded.Cursor.models.list(
     input.apiKey ? { apiKey: input.apiKey } : undefined,
   );
+  sdkRuntime.setModelCatalog(models);
   const authenticatedAs = await probeCursorSdkAccountEmail(loaded.Cursor, input.apiKey);
   return {
     models,
@@ -334,6 +369,8 @@ async function disposeRuntime(): Promise<void> {
   const currentAgent = agent;
   agent = undefined;
   agentCwd = undefined;
+  agentApiKey = undefined;
+  agentModel = undefined;
   if (currentAgent) {
     await disposeCursorSdkAgent(currentAgent);
   }

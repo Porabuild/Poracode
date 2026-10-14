@@ -1,7 +1,6 @@
 import type { RemoteGitSummaries } from "@/shared/remote";
-import type { Project } from "@/shared/contracts";
+import type { GitStatusResult } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
-import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
 
 export function syncRemoteGitSummaries(desktopId: string, summaries: RemoteGitSummaries): void {
@@ -12,54 +11,47 @@ export function syncRemoteGitSummaries(desktopId: string, summaries: RemoteGitSu
       .filter((thread) => thread.remoteServerId === desktopId && thread.remoteId)
       .map((thread) => [thread.remoteId!, thread]),
   );
-  const projectsById = new Map(
-    app.projects
-      .filter((project) => project.remoteServerId === desktopId)
-      .map((project) => [project.id, project]),
-  );
-  const projectsToRefresh = new Map<string, Project>();
-
   for (const [remoteThreadId, summary] of Object.entries(summaries)) {
     const thread = threadsByRemoteId.get(remoteThreadId);
     if (!thread) continue;
     const current = thread.worktreePath
       ? git.worktreeStatuses[thread.worktreePath]
       : git.statuses[thread.projectId];
-    if (!current) {
-      const project = projectsById.get(thread.projectId);
-      if (project) projectsToRefresh.set(project.id, project);
-      continue;
-    }
-    const files = [...current.staged, ...current.unstaged];
+    const files = current ? [...current.staged, ...current.unstaged] : [];
     const detailedInsertions = files.reduce((total, file) => total + file.insertions, 0);
     const detailedDeletions = files.reduce((total, file) => total + file.deletions, 0);
-    if (
-      current.isRepo !== summary.isRepo ||
-      current.branch !== summary.branch ||
-      detailedInsertions !== summary.totalInsertions ||
-      detailedDeletions !== summary.totalDeletions
-    ) {
-      const project = projectsById.get(thread.projectId);
-      if (project) projectsToRefresh.set(project.id, project);
-      continue;
-    }
-    const status = {
-      ...current,
+    const detailsMatchSummary =
+      current !== undefined &&
+      current.isRepo === summary.isRepo &&
+      current.branch === summary.branch &&
+      detailedInsertions === summary.totalInsertions &&
+      detailedDeletions === summary.totalDeletions;
+    const status: GitStatusResult = {
+      ...(detailsMatchSummary && current.detail !== undefined
+        ? { detail: current.detail }
+        : { detail: "summary" as const }),
       isRepo: summary.isRepo,
       branch: summary.branch,
+      tracking: current?.tracking ?? "",
+      hasRemote: current?.hasRemote ?? false,
+      remoteInfo: current?.remoteInfo ?? null,
       ahead: summary.ahead,
       behind: summary.behind,
+      staged: current?.staged ?? [],
+      unstaged: current?.unstaged ?? [],
       totalInsertions: summary.totalInsertions,
       totalDeletions: summary.totalDeletions,
+      ...(current?.headSha !== undefined ? { headSha: current.headSha } : {}),
+      ...(current?.mergeInProgress !== undefined
+        ? { mergeInProgress: current.mergeInProgress }
+        : {}),
+      ...(current?.mergeMessage !== undefined ? { mergeMessage: current.mergeMessage } : {}),
+      ...(current?.conflictFiles !== undefined ? { conflictFiles: current.conflictFiles } : {}),
     };
     if (thread.worktreePath) {
-      git.setWorktreeStatus(thread.worktreePath, status);
+      git.setRemoteWorktreeSummary(thread.worktreePath, status);
     } else {
       git.setStatus(thread.projectId, status);
     }
-  }
-
-  for (const project of projectsToRefresh.values()) {
-    void refreshGitProject(project, "watcher", "status");
   }
 }

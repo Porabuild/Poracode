@@ -19,7 +19,7 @@ import {
   type McpTransport,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { toWslUncPath } from "@/shared/wsl";
+import { getWslLocationHostFsPath, toWslUncPath } from "@/shared/wsl";
 import { resolveWslHomeDirectoryAsync } from "../agents/base";
 import { sanitizeCommandCodeMcpCwd } from "../agents/commandcode/sessionFiles";
 
@@ -507,7 +507,11 @@ function joinRoot(root: LocatedRoot, ...segments: string[]): LocatedFile {
 
 function rootForProject(location: ProjectLocation): LocatedRoot {
   if (location.kind === "wsl") {
-    return { fsPath: location.uncPath, displayPath: location.linuxPath, style: "wsl" };
+    return {
+      fsPath: getWslLocationHostFsPath(location),
+      displayPath: location.linuxPath,
+      style: "wsl",
+    };
   }
   if (location.kind === "windows") {
     return { fsPath: location.path, displayPath: location.path, style: "windows" };

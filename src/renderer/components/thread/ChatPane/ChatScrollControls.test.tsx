@@ -4,6 +4,11 @@ import { createRef, useRef } from "react";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
+import {
+  ChatReaderFollowContext,
+  createChatReaderFollowSignal,
+  type ChatReaderFollowSignal,
+} from "./chatReaderFollow";
 
 let scrollToBottomToken = 0;
 
@@ -22,35 +27,42 @@ function Harness({
   controlsRef,
   virtualScrollToBottom,
   initialScrollSettled = true,
+  initialLayoutReady = false,
   initialScrollRevealDelayMs = 0,
   tailEntryId,
   onInitialScrollSettled,
+  readerFollow,
 }: {
   scrollEl: HTMLDivElement;
   controlsRef: React.RefObject<ChatScrollControlsHandle | null>;
   virtualScrollToBottom: () => void;
   initialScrollSettled?: boolean;
+  initialLayoutReady?: boolean;
   initialScrollRevealDelayMs?: number;
   tailEntryId?: string | null;
   onInitialScrollSettled?: () => void;
+  readerFollow?: ChatReaderFollowSignal;
 }) {
   const scrollRef = useRef(scrollEl);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const virtualScrollToBottomRef = useRef(virtualScrollToBottom);
   return (
-    <ChatScrollControls
-      ref={controlsRef}
-      scrollRef={scrollRef}
-      contentRef={contentRef}
-      layoutChangeToken={null}
-      tailEntryId={tailEntryId ?? "entry-1"}
-      threadId="thread-1"
-      tailLoaderVisible={false}
-      initialScrollSettled={initialScrollSettled}
-      initialScrollRevealDelayMs={initialScrollRevealDelayMs}
-      virtualScrollToBottomRef={virtualScrollToBottomRef}
-      onInitialScrollSettled={onInitialScrollSettled ?? (() => undefined)}
-    />
+    <ChatReaderFollowContext.Provider value={readerFollow ?? null}>
+      <ChatScrollControls
+        ref={controlsRef}
+        scrollRef={scrollRef}
+        contentRef={contentRef}
+        layoutChangeToken={null}
+        tailEntryId={tailEntryId ?? "entry-1"}
+        threadId="thread-1"
+        tailLoaderVisible={false}
+        initialScrollSettled={initialScrollSettled}
+        initialLayoutReady={initialLayoutReady}
+        initialScrollRevealDelayMs={initialScrollRevealDelayMs}
+        virtualScrollToBottomRef={virtualScrollToBottomRef}
+        onInitialScrollSettled={onInitialScrollSettled ?? (() => undefined)}
+      />
+    </ChatReaderFollowContext.Provider>
   );
 }
 
@@ -83,7 +95,7 @@ describe("ChatScrollControls", () => {
           virtualScrollToBottom={() => {}}
         />,
       );
-      const button = getByRole("button", { name: "Scroll to bottom" });
+      const button = getByRole("button", { hidden: true });
       expect(slot).toContainElement(button);
       expect(container).not.toContainElement(button);
       // Shares the composer bubble material instead of floating over the pane.
@@ -109,11 +121,7 @@ describe("ChatScrollControls", () => {
         virtualScrollToBottom={() => {}}
       />,
     );
-    expect(getByRole("button", { name: "Scroll to bottom" })).toHaveClass(
-      "absolute",
-      "bottom-4",
-      "left-1/2",
-    );
+    expect(getByRole("button", { hidden: true })).toHaveClass("absolute", "bottom-4", "left-1/2");
   });
 
   it("skips scrollTop writes and virtualizer reconcile when already at bottom", () => {
@@ -183,6 +191,70 @@ describe("ChatScrollControls", () => {
 
     // A scroll-away zeroes the window so consumers stop suppressing work.
     expect(controlsRef.current?.isThreadOpenSettling()).toBe(false);
+  });
+
+  it("reveals measured initial history without another scroll reconciliation or animation-frame wait", () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => frames.delete(handle));
+    const scrollEl = document.createElement("div");
+    let scrollTop = 0;
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, 800);
+        },
+      },
+    });
+    const onInitialScrollSettled = vi.fn<() => void>();
+    const reconcile = vi.fn<() => void>();
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    const { rerender } = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={reconcile}
+        initialScrollSettled={false}
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    reconcile.mockClear();
+    rerender(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={reconcile}
+        initialScrollSettled={false}
+        initialLayoutReady
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+    expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+    expect(scrollTop).toBe(800);
+    rerender(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={reconcile}
+        initialScrollSettled
+        initialLayoutReady
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+    act(() => {
+      for (const callback of frames.values()) callback(performance.now());
+    });
+    expect(reconcile).not.toHaveBeenCalled();
+    expect(onInitialScrollSettled).toHaveBeenCalledOnce();
   });
 
   it("reveals the initial transcript only after a post-reconcile animation frame", () => {
@@ -316,6 +388,7 @@ describe("ChatScrollControls", () => {
         virtualScrollToBottom={virtualScrollToBottom}
         initialScrollSettled={false}
         initialScrollRevealDelayMs={50}
+        initialLayoutReady
         onInitialScrollSettled={onInitialScrollSettled}
       />,
     );
@@ -688,7 +761,7 @@ describe("ChatScrollControls", () => {
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
   });
 
-  it("re-pins after the submitted message is appended", () => {
+  it("re-pins after the submitted message is appended", async () => {
     let scrollHeight = 1000;
     let scrollTop = 800;
     const scrollEl = document.createElement("div");
@@ -699,7 +772,7 @@ describe("ChatScrollControls", () => {
         configurable: true,
         get: () => scrollTop,
         set: (value: number) => {
-          scrollTop = value;
+          scrollTop = Math.max(0, Math.min(value, scrollHeight - 200));
         },
       },
     });
@@ -726,14 +799,21 @@ describe("ChatScrollControls", () => {
     rerender(renderHarness());
 
     expect(virtualScrollToBottom).toHaveBeenCalled();
-    expect(scrollTop).toBe(1000);
+    expect(scrollTop).toBe(800);
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
 
+    virtualScrollToBottom.mockClear();
     scrollHeight = 1200;
     tailEntryId = "submitted-entry";
     rerender(renderHarness());
 
-    expect(scrollTop).toBe(1200);
+    // With no content observer attached, the structural fallback still follows
+    // the optimistic row that mounted after the explicit submission signal.
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    });
+    expect(virtualScrollToBottom).not.toHaveBeenCalled();
+    expect(scrollTop).toBe(1000);
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
   });
 
@@ -794,7 +874,7 @@ describe("ChatScrollControls", () => {
     });
     const controlsRef = createRef<ChatScrollControlsHandle>();
     const virtualScrollToBottom = vi.fn<() => void>();
-    const { getByRole } = renderWithI18n(
+    const { getByRole, queryByRole } = renderWithI18n(
       <Harness
         scrollEl={scrollEl}
         controlsRef={controlsRef}
@@ -802,19 +882,107 @@ describe("ChatScrollControls", () => {
       />,
     );
 
+    expect(queryByRole("button", { name: "Scroll to bottom" })).toBeNull();
+    const hiddenButton = getByRole("button", { hidden: true });
+    expect(hiddenButton).toBeDisabled();
+
     virtualScrollToBottom.mockClear();
     act(() => {
       controlsRef.current?.markUserScrollIntent();
       controlsRef.current?.disableStickToBottom();
       scrollTop = 400;
+      fireEvent.scroll(scrollEl);
     });
 
-    fireEvent.click(getByRole("button", { name: "Scroll to bottom" }));
+    const visibleButton = getByRole("button", { name: "Scroll to bottom" });
+    expect(visibleButton).toBeEnabled();
+    expect(visibleButton).toHaveAttribute("tabindex", "0");
+    fireEvent.click(visibleButton);
 
     expect(virtualScrollToBottom).toHaveBeenCalledOnce();
     expect(scrollTop).toBe(1000);
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
   });
+
+  it.each(["button", "user end", "submission"])(
+    "publishes confirmed reader intent and releases it on %s before reconciling the tail",
+    (returnAction) => {
+      let now = 1_000;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      let scrollHeight = 1_000;
+      let scrollTop = 800;
+      const scrollEl = document.createElement("div");
+      Object.defineProperties(scrollEl, {
+        scrollHeight: { configurable: true, get: () => scrollHeight },
+        clientHeight: { configurable: true, get: () => 200 },
+        scrollTop: {
+          configurable: true,
+          get: () => scrollTop,
+          set: (value: number) => {
+            scrollTop = value;
+          },
+        },
+      });
+      const readerFollow = createChatReaderFollowSignal();
+      const controlsRef = createRef<ChatScrollControlsHandle>();
+      const virtualScrollToBottom = vi.fn<() => void>(() => {
+        expect(readerFollow.isFollowing()).toBe(true);
+      });
+      const renderHarness = () => (
+        <Harness
+          scrollEl={scrollEl}
+          controlsRef={controlsRef}
+          virtualScrollToBottom={virtualScrollToBottom}
+          readerFollow={readerFollow}
+        />
+      );
+      const { rerender, getByRole } = renderWithI18n(renderHarness());
+      act(() => {
+        // A library-only compensation must not establish reader intent.
+        controlsRef.current?.beginVirtualizerLayoutChange();
+        scrollTop = 700;
+        fireEvent.scroll(scrollEl);
+      });
+      expect(readerFollow.isFollowing()).toBe(true);
+      now = 2_000;
+      act(() => {
+        // Pointer/wheel arming alone also must not freeze a body.
+        controlsRef.current?.markUserScrollIntent();
+        controlsRef.current?.disableStickToBottom();
+      });
+      expect(readerFollow.isFollowing()).toBe(true);
+      act(() => {
+        scrollTop = 400;
+        fireEvent.scroll(scrollEl);
+      });
+      expect(readerFollow.isFollowing()).toBe(false);
+      act(() => {
+        // Resize can make the old reader page physically reach the bottom;
+        // only an explicit return should release its detached text.
+        scrollHeight = 600;
+        controlsRef.current?.onContentHeightChange();
+      });
+      expect(readerFollow.isFollowing()).toBe(false);
+      expect(controlsRef.current?.isStickToBottom()).toBe(false);
+      const returnButton = getByRole("button", { name: "Scroll to bottom" });
+      expect(returnButton).toBeEnabled();
+      virtualScrollToBottom.mockClear();
+      if (returnAction === "button") {
+        fireEvent.click(returnButton);
+      } else if (returnAction === "user end") {
+        act(() => {
+          scrollTop = 500;
+          fireEvent.scroll(scrollEl);
+        });
+      } else {
+        scrollToBottomToken += 1;
+        rerender(renderHarness());
+      }
+      expect(readerFollow.isFollowing()).toBe(true);
+      expect(controlsRef.current?.isStickToBottom()).toBe(true);
+      expect(virtualScrollToBottom).toHaveBeenCalledOnce();
+    },
+  );
 
   it("reasserts an explicit bottom pin after the virtualizer settles short", async () => {
     let scrollTop = 800;
@@ -852,6 +1020,7 @@ describe("ChatScrollControls", () => {
       controlsRef.current?.markUserScrollIntent();
       controlsRef.current?.disableStickToBottom();
       scrollTop = 400;
+      fireEvent.scroll(scrollEl);
     });
 
     fireEvent.click(getByRole("button", { name: "Scroll to bottom" }));
@@ -969,5 +1138,73 @@ describe("ChatScrollControls", () => {
 
     expect(virtualScrollToBottom).toHaveBeenCalled();
     expect(scrollTop).toBe(700);
+  });
+
+  it("cancels pending pins and the delayed reveal on unmount", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const animationFrames = new Map<number, FrameRequestCallback>();
+    let nextAnimationFrameHandle = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextAnimationFrameHandle += 1;
+      animationFrames.set(nextAnimationFrameHandle, callback);
+      return nextAnimationFrameHandle;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => {
+      animationFrames.delete(handle);
+    });
+    let scrollTop = 800;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+    });
+    const onInitialScrollSettled = vi.fn<() => void>();
+
+    const view = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={createRef<ChatScrollControlsHandle>()}
+        virtualScrollToBottom={() => undefined}
+        initialScrollSettled={false}
+        initialScrollRevealDelayMs={50}
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+
+    // Unmount before the pending pin frame fires. Every scheduled frame and
+    // timer must be gone so no post-teardown settle can be rescheduled.
+    view.unmount();
+    expect(animationFrames.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+
+    // Flush the way a live rAF loop would: a surviving pin frame would call
+    // scheduleInitialScrollSettle and arm fresh frames plus a reveal timeout.
+    let steps = 0;
+    while (animationFrames.size > 0 && steps < 10) {
+      const callbacks = [...animationFrames.values()];
+      animationFrames.clear();
+      steps += 1;
+      act(() => callbacks.forEach((callback) => callback(0)));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      now += 500;
+    }
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    expect(animationFrames.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

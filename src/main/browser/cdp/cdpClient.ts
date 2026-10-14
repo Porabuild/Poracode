@@ -1,23 +1,14 @@
 import type { WebContents } from "electron";
-
-type CdpEventHandler = (params: unknown) => void;
+import type { CdpEventHandler, CdpSession } from "@/host/browser/cdp/session";
 
 /**
- * Transport-agnostic view of a CDP target. The browser tool library
- * (`./tools.ts`) is written against this interface only — it never reaches for
- * a concrete `WebContents`. `CdpClient` implements it over an embedded
- * Electron `webContents.debugger`; `ExternalCdpClient` (see
- * `../external/ExternalChromeConnection.ts`) implements the same surface over
- * the companion extension's `chrome.debugger`, so every CDP-based tool works
- * unchanged against the user's real Chrome.
+ * Native Electron adapter for the host-owned {@link CdpSession} contract: the
+ * browser tool library and every CDP helper are written against that interface
+ * and never reach for a concrete `WebContents`. `ExternalCdpClient` (see
+ * `@/host/browser/external/ExternalChromeConnection.ts`) implements the same
+ * surface over the companion extension's `chrome.debugger`, so every CDP-based
+ * tool works unchanged against the user's real Chrome.
  */
-export interface CdpSession {
-  attach(): Promise<void>;
-  isAttached(): boolean;
-  send<TResult = unknown>(method: string, params?: Record<string, unknown>): Promise<TResult>;
-  on(method: string, handler: CdpEventHandler): () => void;
-}
-
 export class CdpClient implements CdpSession {
   private attached = false;
   private listeners = new Map<string, Set<CdpEventHandler>>();

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
 import { mockDraftVoicePermissionGate } from "./smoke-live-voice-draft.mjs";
 
 /** Deterministic composer/media cleanup coverage without microphone or provider access. */
@@ -14,7 +15,7 @@ export async function mockLiveVoiceGate({
   const run = (expression) => evaluate(client, expression, true);
   try {
     await run(`(async () => {
-      const voice = await import('/src/renderer/speech/liveVoice.ts');
+      const voice = await window.__poracodeDev.loadLiveVoice();
       const stores = window.__poracodeDev.stores;
       const original = stores.agentStatuses.getState();
       const capability = { transport: 'webrtc', dataChannel: 'smoke-events' };
@@ -23,6 +24,24 @@ export async function mockLiveVoiceGate({
         capture: navigator.mediaDevices.getUserMedia,
         stopped: 0, capability,
       };
+      // Observe before fixture creation: preserve the first membership/view
+      // transition that can leave a pane pointing at a missing thread.
+      saved.transitions = [];
+      saved.unsubscribeTrace = stores.app.subscribe((next, previous) => {
+        const before = new Set(previous.threads.map(thread => thread.id));
+        const after = new Set(next.threads.map(thread => thread.id));
+        const added = [...after].filter(id => !before.has(id));
+        const removed = [...before].filter(id => !after.has(id));
+        if (!added.length && !removed.length && JSON.stringify(next.view) === JSON.stringify(previous.view)) return;
+        if (saved.transitions.length >= 128) return;
+        saved.transitions.push({
+          at: new Date().toISOString(), added, removed,
+          previousView: previous.view, view: next.view,
+          fixtureThreadId: saved.threadId ?? null,
+          fixturePresent: saved.threadId ? after.has(saved.threadId) : null,
+          stack: new Error('voice fixture membership/view transition').stack,
+        });
+      });
       navigator.mediaDevices.getUserMedia = () => new Promise(resolve => { saved.grant = resolve; });
       const candidate = {
         kind: 'codex', label: 'Smoke Voice', installed: true, authState: 'authenticated',
@@ -35,15 +54,29 @@ export async function mockLiveVoiceGate({
         },
       };
       stores.agentStatuses.getState().hydrateFromCache({ windows: [candidate], wsl: [] });
+      const { loopback } = await window.__poracodeDev.loadHostDiagnostics();
+      const activation = loopback.readManagedLoopbackActivation();
+      if (!activation) throw new Error('Voice fixture requires the managed host');
+      saved.hostClient = activation.client;
       const thread = stores.app.getState().createThread({
         projectId: ${JSON.stringify(fixture.project.id)}, agentKind: candidate.kind,
         config: { model: 'smoke-model' }, prompt: '', presentationMode: 'gui',
+        suppressHostCreateIntent: true,
       });
       saved.threadId = thread.id;
       stores.app.getState().updateThreadRuntime(thread.id, {
         status: 'idle', attention: 'none', canResumeWithConfig: true,
         sessionRef: { providerSessionId: 'smoke-session', discoveredAt: new Date().toISOString() },
       });
+      // This gate never launches a provider. Persist its inert fixture through
+      // the existing host-owned DB seam before leaving the protected open pane.
+      const row = stores.app.getState().threads.find(candidate => candidate.id === thread.id);
+      if (!row) throw new Error('Voice fixture disappeared before persistence');
+      await window.poracode.dbUpsertThread(row);
+      const membership = await saved.hostClient.boundedCatalogMembership({ threadIds: [thread.id] });
+      if (!membership.existingThreadIds.includes(thread.id)) {
+        throw new Error('Voice fixture was not persisted by the host');
+      }
     })()`);
     const visible = () =>
       run(`Boolean(document.querySelector('button[aria-label="Start live voice"]'))`);
@@ -159,18 +192,52 @@ export async function mockLiveVoiceGate({
       fixture,
     });
     return "single compact voice controls, typed Send during voice, start/cancel, late capture cleanup, mute/unmute, hangup, and preservation/reopening of text and attachment drafts edited during pending microphone permission passed with synthetic media; no real microphone or provider used";
+  } catch (error) {
+    const state = await run(`(() => ({
+      view: window.__poracodeDev.stores.app.getState().view,
+      controls: [...document.querySelectorAll('button')].filter(el => el.getClientRects().length).map(el => el.getAttribute('aria-label')).filter(Boolean),
+      providers: window.__poracodeDev.stores.agentStatuses.getState().agentStatuses.map(status => ({
+        kind: status.kind, installed: status.installed, liveVoice: status.capabilities?.liveVoice,
+      })),
+    }))()`);
+    await screenshot(client, join(outDir, "live-voice-failure.png"));
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}; fixture state: ${JSON.stringify(state)}`,
+      { cause: error },
+    );
   } finally {
-    await run(`(async () => {
+    try {
+      const trace = await run(`window.__liveVoiceSmoke?.transitions ?? []`);
+      await writeFile(
+        join(outDir, "live-voice-state-transitions.json"),
+        JSON.stringify(trace, null, 2) + "\n",
+      );
+    } finally {
+      await run(`(async () => {
       const s = window.__liveVoiceSmoke;
       if (!s) return;
+      s.unsubscribeTrace?.();
       await s.voice.liveVoice.stop();
       s.prepared?.();
       navigator.mediaDevices.getUserMedia = s.capture;
       const stores = window.__poracodeDev.stores;
-      if (s.threadId) stores.app.getState().deleteThread(s.threadId);
-      stores.app.setState({ view: s.view });
-      stores.agentStatuses.setState(s.original);
-      delete window.__liveVoiceSmoke;
-    })()`);
+      try {
+        if (s.threadId) {
+          if (s.hostClient) {
+            await s.hostClient.sendThreadCommand({ kind: 'delete', threadId: s.threadId });
+            const membership = await s.hostClient.boundedCatalogMembership({ threadIds: [s.threadId] });
+            if (membership.existingThreadIds.includes(s.threadId)) {
+              throw new Error('Voice fixture remains persisted after cleanup');
+            }
+          }
+        }
+      } finally {
+        if (s.threadId) stores.app.getState().deleteThread(s.threadId);
+        stores.app.setState({ view: s.view });
+        stores.agentStatuses.setState(s.original);
+        delete window.__liveVoiceSmoke;
+      }
+      })()`);
+    }
   }
 }

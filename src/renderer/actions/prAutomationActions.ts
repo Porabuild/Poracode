@@ -8,13 +8,10 @@ import { readBridge } from "@/renderer/bridge";
 import {
   getConflictResolverCandidates,
   readConflictResolverSettingsForProject,
-  resolveConflictResolverLaunchConfig,
+  resolveConflictResolverSettingsLaunchConfig,
   type ConflictResolverSettingsSource,
 } from "@/renderer/components/providers/conflictResolver";
-import {
-  agentWithCapabilities,
-  resolveFastValue,
-} from "@/renderer/components/thread/threadDraftViewHelpers";
+import { agentWithCapabilities } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -44,21 +41,11 @@ export function resolvePrAutomationAgent(
     .filter((agent) => agent.capabilities.models.length > 0);
   const selected = getConflictResolverCandidates(agents, conflictSettings.provider)[0];
   if (!selected) return undefined;
-  const { model, effort } = resolveConflictResolverLaunchConfig(
-    conflictSettings.provider,
-    selected,
-    conflictSettings.model,
-    conflictSettings.effort,
-  );
-  if (!model) return undefined;
-  const fast = resolveFastValue(selected, model, conflictSettings.fast);
+  const config = resolveConflictResolverSettingsLaunchConfig(conflictSettings, selected);
+  if (!config.model) return undefined;
   return {
     agentKind: selected.kind,
-    config: {
-      model,
-      ...(effort ? { effort } : {}),
-      ...(fast ? { fast: true } : {}),
-    },
+    config,
   };
 }
 

@@ -1,6 +1,13 @@
 import { create } from "zustand";
-import { isWorkflowRunLive, type ProjectLocation, type WorkflowRun } from "@/shared/contracts";
+import { shallow } from "zustand/shallow";
+import { isWorkflowRunLive, type ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import {
+  IdleWorkflowRunCache,
+  withoutWorkflowAgentChats,
+  type WorkflowRunEntry,
+  type WorkflowRunSource,
+} from "./workflowRunCache";
 
 /**
  * Shared poller for the workflow manifest. Both the chat-row stats
@@ -14,30 +21,25 @@ import { readBridge } from "@/renderer/bridge";
  *   - Stops once the manifest reports `completed | failed | cancelled`
  *   - Doubles to 3s after a fetch error so transient failures back off
  *
- * Lifecycle: when the last subscriber unsubscribes, we cancel the timer but
- * keep the last `run` snapshot in the store. Re-subscribing returns instantly
- * from cache, then resumes polling if status is still running.
+ * Lifecycle: the last detail subscriber releases reconstructible chats; the
+ * last subscriber cancels polling and retains only a bounded warm summary.
+ * Re-subscribing refetches details, including for terminal workflows.
  */
 
 const ACTIVE_POLL_MS = 1500;
 const ERROR_BACKOFF_MS = 3000;
 
-interface PollerState {
-  manifestPath: string;
-  transcriptDir: string | undefined;
-  includeAgentChats: boolean;
-  chatRefCount: number;
-  location: ProjectLocation;
+interface Subscribers {
   refCount: number;
-  timer: ReturnType<typeof setTimeout> | null;
-  cancelled: boolean;
+  chatRefCount: number;
 }
 
-interface WorkflowRunEntry {
-  manifestPath: string;
-  run: WorkflowRun | null;
-  loading: boolean;
-  error: string | null;
+interface PollerState extends WorkflowRunSource {
+  subscribers: Subscribers;
+  timer: ReturnType<typeof setTimeout> | null;
+  cancelled: boolean;
+  inFlight: boolean;
+  refreshRequested: boolean;
 }
 
 interface WorkflowRunStore {
@@ -53,6 +55,21 @@ interface WorkflowRunStore {
 }
 
 const pollers = new Map<string, PollerState>();
+const idleCache = new IdleWorkflowRunCache();
+
+function sameSource(left: WorkflowRunSource, right: WorkflowRunSource): boolean {
+  return (
+    left.manifestPath === right.manifestPath &&
+    left.transcriptDir === right.transcriptDir &&
+    shallow(left.location, right.location)
+  );
+}
+
+function cancelPoller(poller: PollerState): void {
+  poller.cancelled = true;
+  if (poller.timer !== null) clearTimeout(poller.timer);
+  poller.timer = null;
+}
 
 export const useWorkflowRunStore = create<WorkflowRunStore>((set, get) => {
   function setEntry(itemId: string, patch: Partial<WorkflowRunEntry>): void {
@@ -60,73 +77,117 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set, get) => {
       const previous = state.byItemId[itemId];
       if (!previous) return state;
       const next: WorkflowRunEntry = { ...previous, ...patch };
+      if (shallow(previous, next)) return state;
       return { byItemId: { ...state.byItemId, [itemId]: next } };
     });
   }
 
-  async function tick(itemId: string): Promise<void> {
-    const poller = pollers.get(itemId);
-    if (!poller || poller.cancelled) return;
+  function isCurrent(itemId: string, poller: PollerState): boolean {
+    return !poller.cancelled && pollers.get(itemId) === poller;
+  }
+
+  function scheduleTick(itemId: string, poller: PollerState, delay: number): void {
+    if (!isCurrent(itemId, poller) || poller.inFlight || poller.timer !== null) return;
+    poller.timer = setTimeout(() => {
+      poller.timer = null;
+      void tick(itemId, poller);
+    }, delay);
+  }
+
+  function refresh(itemId: string, poller: PollerState): void {
+    if (poller.inFlight) {
+      poller.refreshRequested = true;
+      return;
+    }
+    if (poller.timer !== null) clearTimeout(poller.timer);
+    poller.timer = null;
+    scheduleTick(itemId, poller, 0);
+  }
+
+  function retainIdleSummary(
+    itemId: string,
+    { manifestPath, transcriptDir, location }: WorkflowRunSource,
+  ): void {
+    const source = { manifestPath, transcriptDir, location };
+    const previous = get().byItemId[itemId];
+    if (!previous) return;
+    const run = withoutWorkflowAgentChats(previous.run);
+    const next = run === previous.run ? previous : { ...previous, run };
+    const evicted = run ? idleCache.retain(itemId, source, next) : [itemId];
+    if (next === previous && evicted.length === 0) return;
+    set((state) => {
+      const byItemId = { ...state.byItemId, [itemId]: next };
+      for (const id of evicted) delete byItemId[id];
+      return { byItemId };
+    });
+  }
+
+  async function tick(itemId: string, poller: PollerState): Promise<void> {
+    if (!isCurrent(itemId, poller) || poller.inFlight) return;
+    poller.inFlight = true;
+    poller.refreshRequested = false;
+    const includeAgentChats = poller.subscribers.chatRefCount > 0;
+    let nextDelay: number | null = null;
     try {
       const result = await readBridge().workflowGetRun({
         manifestPath: poller.manifestPath,
         location: poller.location,
         ...(poller.transcriptDir ? { transcriptDir: poller.transcriptDir } : {}),
-        ...(poller.includeAgentChats ? { includeAgentChats: true } : {}),
+        ...(includeAgentChats ? { includeAgentChats: true } : {}),
       });
-      if (poller.cancelled) return;
+      if (!isCurrent(itemId, poller)) return;
       // A `null` run means the manifest file doesn't exist yet — the
       // workflow runtime writes it lazily on the first progress event.
       // Keep polling at the active cadence rather than backing off; the
       // file usually shows up within a couple of seconds of launch.
-      setEntry(itemId, { run: result.run, loading: false, error: null });
+      const run =
+        poller.subscribers.chatRefCount > 0 ? result.run : withoutWorkflowAgentChats(result.run);
+      setEntry(itemId, { run, loading: false, error: null });
       const isLive = !result.run || isWorkflowRunLive(result.run);
-      if (isLive) {
-        poller.timer = setTimeout(() => void tick(itemId), ACTIVE_POLL_MS);
-      } else {
-        // Manifest reports terminal status — stop polling but keep snapshot.
-        poller.timer = null;
-      }
+      nextDelay = isLive ? ACTIVE_POLL_MS : null;
     } catch (err) {
-      if (poller.cancelled) return;
+      if (!isCurrent(itemId, poller)) return;
       const message = err instanceof Error ? err.message : String(err);
       setEntry(itemId, { loading: false, error: message });
       // Back off on errors but keep retrying while we have subscribers.
-      poller.timer = setTimeout(() => void tick(itemId), ERROR_BACKOFF_MS);
+      nextDelay = ERROR_BACKOFF_MS;
+    } finally {
+      poller.inFlight = false;
+      if (poller.refreshRequested) nextDelay = 0;
+      if (nextDelay !== null) scheduleTick(itemId, poller, nextDelay);
     }
   }
 
   return {
     byItemId: {},
     subscribe(itemId, manifestPath, location, transcriptDir, includeAgentChats = false) {
-      const existing = pollers.get(itemId);
+      const source: WorkflowRunSource = { manifestPath, location, transcriptDir };
+      let existing = pollers.get(itemId);
+      // A resolved path/remote owner replaces the fetch generation, retaining
+      // the subscriber group so older disposers still release their own refs.
+      const subscribers = existing?.subscribers ?? { refCount: 0, chatRefCount: 0 };
+      const needsChats = includeAgentChats && subscribers.chatRefCount === 0;
+      subscribers.refCount += 1;
+      if (includeAgentChats) subscribers.chatRefCount += 1;
+      if (existing && !sameSource(existing, source)) {
+        cancelPoller(existing);
+        existing = undefined;
+      }
       if (existing) {
-        existing.refCount += 1;
-        let shouldFetch = !get().byItemId[itemId]?.run;
-        if (includeAgentChats && !existing.includeAgentChats) {
-          existing.chatRefCount += 1;
-          existing.includeAgentChats = true;
-          shouldFetch = true;
-        } else if (includeAgentChats) {
-          existing.chatRefCount += 1;
-        }
-        if (!existing.timer && shouldFetch) {
-          existing.timer = setTimeout(() => void tick(itemId), 0);
-        }
+        if (needsChats) refresh(itemId, existing);
       } else {
         const poller: PollerState = {
-          manifestPath,
-          transcriptDir,
-          includeAgentChats,
-          chatRefCount: includeAgentChats ? 1 : 0,
-          location,
-          refCount: 1,
+          ...source,
+          subscribers,
           timer: null,
           cancelled: false,
+          inFlight: false,
+          refreshRequested: false,
         };
         pollers.set(itemId, poller);
+        const cachedSource = idleCache.take(itemId);
         const entry = get().byItemId[itemId];
-        if (!entry) {
+        if (!entry || !cachedSource || !sameSource(cachedSource, source)) {
           set((state) => ({
             byItemId: {
               ...state.byItemId,
@@ -134,23 +195,22 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set, get) => {
             },
           }));
         }
-        poller.timer = setTimeout(() => void tick(itemId), 0);
+        scheduleTick(itemId, poller, 0);
       }
+      let disposed = false;
       return () => {
+        if (disposed) return;
+        disposed = true;
         const poller = pollers.get(itemId);
-        if (!poller) return;
-        poller.refCount = Math.max(0, poller.refCount - 1);
-        if (includeAgentChats) {
-          poller.chatRefCount = Math.max(0, poller.chatRefCount - 1);
-          poller.includeAgentChats = poller.chatRefCount > 0;
-        }
-        if (poller.refCount === 0) {
-          poller.cancelled = true;
-          if (poller.timer) {
-            clearTimeout(poller.timer);
-            poller.timer = null;
-          }
+        if (!poller || poller.subscribers !== subscribers) return;
+        subscribers.refCount -= 1;
+        if (includeAgentChats) subscribers.chatRefCount -= 1;
+        if (subscribers.refCount === 0) {
+          cancelPoller(poller);
           pollers.delete(itemId);
+          retainIdleSummary(itemId, poller);
+        } else if (includeAgentChats && subscribers.chatRefCount === 0) {
+          setEntry(itemId, { run: withoutWorkflowAgentChats(get().byItemId[itemId]?.run ?? null) });
         }
       };
     },

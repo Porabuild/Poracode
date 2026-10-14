@@ -105,6 +105,34 @@ describe("failed file opens", () => {
     });
   });
 
+  it("dismisses the empty panel if a renamed file's retry also fails", async () => {
+    const pending = Promise.withResolvers<Awaited<ReturnType<PoracodeBridge["readProjectFile"]>>>();
+    readProjectFile
+      .mockReturnValueOnce(pending.promise)
+      .mockRejectedValueOnce(new Error("Renamed file not found"));
+    const opening = useFileEditorStore
+      .getState()
+      .openFile("draft.md", "modal", true, { lineNumber: 12, markdownPreview: true })
+      .catch((error: unknown) => error);
+    useFileEditorStore.getState().renamePath("draft.md", "renamed.md");
+
+    pending.reject(new Error("Old path no longer exists"));
+    expect(await opening).toEqual(new Error("Renamed file not found"));
+    expect(readProjectFile).toHaveBeenCalledTimes(2);
+    expect(readProjectFile).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: "renamed.md" }),
+    );
+    expect(useFileEditorStore.getState()).toMatchObject({
+      overlayMode: null,
+      tabs: [],
+      activePath: null,
+      buffers: {},
+      previewTab: null,
+      markdownPreviewPath: null,
+      pendingReveal: null,
+    });
+  });
+
   it("does not close a file opened in a new context when an old read fails", async () => {
     const pending =
       Promise.withResolvers<Awaited<ReturnType<PoracodeBridge["readExternalFile"]>>>();

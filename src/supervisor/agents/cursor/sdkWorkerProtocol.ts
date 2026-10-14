@@ -3,8 +3,27 @@ import type {
   CursorSdkMessage,
   CursorSdkRunResult,
 } from "./sdkProtocol";
+import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 1;
+/**
+ * Version 4 requires local Max Mode compatibility, native steering, and the
+ * SDK-provided state root after its FIPS-safe store migration. Pre-upgrade
+ * staged workers cannot honor long-context selections or the new operations.
+ *
+ * Version 3 requires the worker's detached-cancellation handling: a staged
+ * pre-fix helper can otherwise terminate a parent and all its subagents on
+ * an SDK transport abort. Message shapes remain compatible with version 2.
+ *
+ * Version 2 added the additive `sdk.pinnedRoot` request field and
+ * `packageRoot` probe result field: the host now hands the worker a previously
+ * resolved installation to try before probing for one, and needs the absolute
+ * root back to record it. Both ends ship in this app and the handshake
+ * requires an exact version match, so a stale staged helper fails the boot
+ * loudly instead of silently ignoring the new fields — that failure is what
+ * gets it re-staged from current source (the SSH runtime bundle re-installs
+ * whenever the built worker bytes change).
+ */
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 4;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;
@@ -41,17 +60,15 @@ export interface CursorSdkWorkerModel {
 export interface CursorSdkWorkerProbeResult {
   models: CursorSdkWorkerModel[];
   sdkVersion: string;
-  source:
-    | "configured"
-    | "project"
-    | "node-path"
-    | "global-explicit"
-    | "global-inferred"
-    | "global-npm"
-    | "global-pnpm"
-    | "explicit-entry";
+  source: CursorSdkPackageSource | "explicit-entry";
   /** Account the probed API key belongs to, from `Cursor.me()`. */
   authenticatedAs?: string;
+  /**
+   * Absolute directory of the resolved package, so the host can record it for
+   * later probes. Absent when the worker loaded an explicit entry path rather
+   * than discovering an installation.
+   */
+  packageRoot?: string;
 }
 
 export type CursorSdkWorkerMcpServer =
@@ -137,6 +154,8 @@ export interface CursorSdkWorkerInitializeInput {
 export interface CursorSdkWorkerInitializeResult {
   agentId: string;
   model?: CursorSdkWorkerModelSelection;
+  /** SDK-owned location; changed from MD5 to SHA-256 in 1.0.35. */
+  stateRoot?: string;
   /** Fresh create found the deterministic local agent and resumed it instead. */
   recoveredExisting?: boolean;
 }
@@ -149,6 +168,8 @@ export interface CursorSdkWorkerStartInput {
 export interface CursorSdkWorkerStartResult {
   runId: string;
 }
+
+export type CursorSdkWorkerSteerResult = "complete_delivered" | "revert_to_followup";
 
 export interface CursorSdkWorkerAgentMessage {
   type: "user" | "assistant";
@@ -192,6 +213,13 @@ export type CursorSdkWorkerEvent =
 export interface CursorSdkWorkerDiscovery {
   configuredPath?: string;
   /**
+   * An installation the host already resolved and recorded, tried after every
+   * freely re-derivable candidate and before the package-manager probes.
+   * Keeps a working install resolvable when the package manager is not
+   * reachable from this process' `PATH`.
+   */
+  pinnedRoot?: CursorSdkPinHint;
+  /**
    * Test/fast-path only. Normal callers let the worker discover the package
    * inside its own execution environment.
    */
@@ -212,6 +240,7 @@ export interface CursorSdkWorkerModelsListParams {
 export type CursorSdkWorkerMethod =
   | "initialize"
   | "start"
+  | "steer"
   | "cancel"
   | "reload"
   | "messages.list"
@@ -221,6 +250,7 @@ export type CursorSdkWorkerMethod =
 export type CursorSdkWorkerRequest =
   | CursorSdkWorkerRequestFor<"initialize", CursorSdkWorkerInitializeParams>
   | CursorSdkWorkerRequestFor<"start", CursorSdkWorkerStartInput>
+  | CursorSdkWorkerRequestFor<"steer", { runId: string; text: string }>
   | CursorSdkWorkerRequestFor<"cancel", { runId?: string }>
   | CursorSdkWorkerRequestFor<"reload", Record<string, never>>
   | CursorSdkWorkerRequestFor<"messages.list", { limit?: number; offset?: number }>

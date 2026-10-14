@@ -1,8 +1,11 @@
-import { Archive, CircleCheck, FolderOpen, Star, Trash2 } from "lucide-react";
+import { Archive, CircleCheck, FolderOpen, GitFork, Star, Trash2 } from "lucide-react";
+import { Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { Thread } from "@/shared/contracts";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePrState } from "@/renderer/state/gitSelectors";
+import { Button } from "@/renderer/components/common/Button";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { GitBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/GitBadge";
 import { SyncBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/SyncBadge";
@@ -50,7 +53,12 @@ const buttonVisibleClass = "w-[18px] p-0.5";
 const hiddenPanelButtonClass =
   "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
 
-function ProjectGitBadge(props: { projectId: string; projectName: string; threadId: string }) {
+function ProjectGitBadge(props: {
+  projectId: string;
+  projectName: string;
+  threadId: string;
+  compact?: boolean;
+}) {
   const isActive = useIsProjectGitPanelActive(props.projectId);
   return (
     <GitBadge
@@ -58,18 +66,23 @@ function ProjectGitBadge(props: { projectId: string; projectName: string; thread
       projectName={props.projectName}
       onPress={() => openGitReview(props.projectId, undefined, props.threadId)}
       isActive={isActive}
+      {...(props.compact !== undefined ? { compact: props.compact } : {})}
     />
   );
 }
 
-function ThreadItemPanelActions(props: ThreadItemSuffixProps) {
+function ThreadItemPanelActions(props: ThreadItemSuffixProps & { mobileControls?: boolean }) {
   const { thread, showWorktreeBadge, showWorktreeFilesButton, showProjectBadge, projectName } =
     props;
   const { t } = useLingui();
   const worktreePath = showWorktreeBadge ? thread.worktreePath : undefined;
+  const isProvisioningWorktree = useAppStore(
+    (s) => s.provisioningWorktreeThreadIds[thread.id] === true,
+  );
   // Flat main-branch rows mirror the project header's files/terminal launchers
   // because there is no project header in the cross-project list.
-  const showProjectPanelButtons = !thread.worktreePath && !!showProjectBadge;
+  const showProjectPanelButtons =
+    !thread.worktreePath && !isProvisioningWorktree && !!showProjectBadge;
 
   const isWorktreeFilesActive = useIsWorktreeFilesPanelActive(worktreePath);
   const isWorktreeTerminalActive = useIsWorktreeTerminalActive(worktreePath);
@@ -99,7 +112,7 @@ function ThreadItemPanelActions(props: ThreadItemSuffixProps) {
       {thread.starred ? (
         <Star className="size-3 shrink-0 fill-current" aria-label={t`Pinned`} />
       ) : null}
-      {showFiles ? (
+      {!props.mobileControls && showFiles ? (
         <SidebarPanelDragButton
           panel="files"
           projectId={thread.projectId}
@@ -119,7 +132,7 @@ function ThreadItemPanelActions(props: ThreadItemSuffixProps) {
           <FolderOpen className={iconSizeClass} />
         </SidebarPanelDragButton>
       ) : null}
-      {showTerminal ? (
+      {!props.mobileControls && showTerminal ? (
         <SidebarPanelDragButton
           panel="terminal"
           projectId={thread.projectId}
@@ -143,23 +156,51 @@ function ThreadItemPanelActions(props: ThreadItemSuffixProps) {
   );
 }
 
-function ThreadItemStatusBadges(props: ThreadItemSuffixProps) {
+function ThreadItemStatusBadges(props: ThreadItemSuffixProps & { mobileControls?: boolean }) {
   const { thread, showWorktreeBadge, isExperimentCandidate } = props;
   const { t } = useLingui();
   const worktreePath = showWorktreeBadge ? thread.worktreePath : undefined;
   const prState = usePrState(thread.worktreePath);
   const isGitActive = useIsWorktreeGitPanelActive(worktreePath);
+  const isProvisioningWorktree = useAppStore(
+    (s) => s.provisioningWorktreeThreadIds[thread.id] === true,
+  );
   const showDoneButton =
     !isExperimentCandidate && !thread.done && !!thread.worktreePath && prState === "merged";
 
+  if (isProvisioningWorktree && !thread.worktreePath) {
+    const label = t`Worktree: ${thread.worktreeBranch ?? thread.title}`;
+    const isCreating = thread.status === "launching";
+    return (
+      <Tooltip delay={150}>
+        <Tooltip.Trigger tabIndex={-1} role="none">
+          <Button
+            isIconOnly
+            isDisabled
+            isPending={isCreating}
+            size="sm"
+            variant="ghost"
+            aria-label={label}
+            className="size-[18px] min-w-0 p-[3px] text-muted/60"
+          >
+            <GitFork className="size-3" />
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right">
+          {isCreating ? t`Creating worktree…` : label}
+        </Tooltip.Content>
+      </Tooltip>
+    );
+  }
+
   return (
     <>
-      {worktreePath ? (
+      {!props.mobileControls && worktreePath ? (
         <SyncBadge projectId={thread.projectId} worktreePath={worktreePath} />
-      ) : !thread.worktreePath && props.showProjectBadge ? (
+      ) : !props.mobileControls && !thread.worktreePath && props.showProjectBadge ? (
         <SyncBadge projectId={thread.projectId} />
       ) : null}
-      {showDoneButton ? (
+      {!props.mobileControls && showDoneButton ? (
         <div
           role="button"
           tabIndex={0}
@@ -184,12 +225,14 @@ function ThreadItemStatusBadges(props: ThreadItemSuffixProps) {
           onPress={() => openGitReview(thread.projectId, worktreePath, thread.id)}
           isActive={isGitActive}
           fallbackToWorktreeIcon
+          {...(props.mobileControls ? { compact: true } : {})}
         />
       ) : !thread.worktreePath && props.showProjectBadge ? (
         <ProjectGitBadge
           projectId={thread.projectId}
           projectName={props.projectName}
           threadId={thread.id}
+          {...(props.mobileControls ? { compact: true } : {})}
         />
       ) : null}
     </>
@@ -199,6 +242,7 @@ function ThreadItemStatusBadges(props: ThreadItemSuffixProps) {
 function ThreadItemRemovalTime(
   props: Pick<ThreadItemSuffixProps, "thread" | "isExperimentCandidate"> & {
     compact?: boolean;
+    mobileControls?: boolean;
   },
 ) {
   const { thread, isExperimentCandidate, compact = false } = props;
@@ -236,9 +280,9 @@ function ThreadItemRemovalTime(
       <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center">
         <RelativeTime
           iso={thread.updatedAt}
-          className={`block font-mono text-[10px] leading-none tabular-nums text-muted ${isExperimentCandidate ? "" : "group-hover:invisible"}`}
+          className={`block font-mono text-[10px] leading-none tabular-nums text-muted ${isExperimentCandidate || props.mobileControls ? "" : "group-hover:invisible"}`}
         />
-        {!isExperimentCandidate ? (
+        {!isExperimentCandidate && !props.mobileControls ? (
           <div
             role="button"
             tabIndex={0}
@@ -291,7 +335,7 @@ function ThreadItemRemovalTime(
   );
 }
 
-export function ThreadItemTopSuffix(props: ThreadItemSuffixProps) {
+export function ThreadItemTopSuffix(props: ThreadItemSuffixProps & { mobileControls?: boolean }) {
   return (
     <>
       <ThreadItemPanelActions {...props} />
@@ -299,12 +343,15 @@ export function ThreadItemTopSuffix(props: ThreadItemSuffixProps) {
         thread={props.thread}
         isExperimentCandidate={props.isExperimentCandidate}
         compact
+        {...(props.mobileControls ? { mobileControls: true } : {})}
       />
     </>
   );
 }
 
-export function ThreadItemBottomSuffix(props: ThreadItemSuffixProps) {
+export function ThreadItemBottomSuffix(
+  props: ThreadItemSuffixProps & { mobileControls?: boolean },
+) {
   return <ThreadItemStatusBadges {...props} />;
 }
 

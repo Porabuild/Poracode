@@ -1,0 +1,703 @@
+[
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "acu_consumption_at_last_user_interaction",
+        "cognition.ai/eventId": "event-1",
+        "cognition.ai/acuAmount": 0,
+        "cognition.ai/priority": 100,
+        "cognition.ai/streaming": false,
+        "cognition.ai/streamingMessageId": "event-1",
+        "cognition.ai/overwrite": true
+      },
+      "kind": "other",
+      "status": "completed",
+      "title": "ACU usage reset",
+      "toolCallId": "event-1",
+      "sessionUpdate": "tool_call"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "The",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " user",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " said not",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " to use t",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "ools, but repl",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "ying at",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " all requires using",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " message",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "_",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "user since",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " that's the only chann",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "el to",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " commun",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "icate \u2014 it",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "'s clearly not a \"",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "work",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "\"",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " tool in the",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " sense they me",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "ant. I",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "'ll just",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " send the",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " response",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " through",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " message_user and",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": " wait for them",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": ".",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-2"
+      },
+      "content": {
+        "text": "\n\n",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-3",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-3"
+      },
+      "content": {
+        "text": "CL",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-3",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-3"
+      },
+      "content": {
+        "text": "OUD_WIRE",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-3",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-3"
+      },
+      "content": {
+        "text": "_FIRST_20261",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-3",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-3"
+      },
+      "content": {
+        "text": "008",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_thoughts",
+        "cognition.ai/eventId": "event-2",
+        "cognition.ai/streamingMessageId": "event-2",
+        "cognition.ai/thinkingDurationMs": 5614,
+        "cognition.ai/priority": 400,
+        "cognition.ai/streaming": false,
+        "cognition.ai/overwrite": true
+      },
+      "content": {
+        "text": "The user said not to use tools, but replying at all requires using message_user since that's the only channel to communicate \u2014 it's clearly not a \"work\" tool in the sense they meant. I'll just send the response through message_user and wait for them.",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_thought_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-3",
+        "cognition.ai/streamingMessageId": "event-3",
+        "cognition.ai/priority": 500,
+        "cognition.ai/streaming": false,
+        "cognition.ai/overwrite": true
+      },
+      "content": {
+        "text": "CLOUD_WIRE_FIRST_20261008",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "acu_consumption_at_last_user_interaction",
+        "cognition.ai/eventId": "event-4",
+        "cognition.ai/acuAmount": 0,
+        "cognition.ai/priority": 100,
+        "cognition.ai/streaming": false,
+        "cognition.ai/streamingMessageId": "event-4",
+        "cognition.ai/overwrite": true
+      },
+      "kind": "other",
+      "status": "completed",
+      "title": "ACU usage reset",
+      "toolCallId": "event-4",
+      "sessionUpdate": "tool_call"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "context_growth_update",
+        "cognition.ai/eventId": "event-5",
+        "cognition.ai/contextGrowth": {
+          "iteration_count": 1,
+          "current_context_tokens": 24936,
+          "current_context_bytes": 31374,
+          "total_tool_output_bytes": 62,
+          "total_tool_invocation_bytes": 107,
+          "total_tool_output_images": 0,
+          "tool_aggregates": [
+            {
+              "tool_name": "message_user",
+              "call_count": 1,
+              "total_invocation_bytes": 107,
+              "total_output_bytes": 62,
+              "total_output_images": 0,
+              "approx_ant_tokens": 15
+            }
+          ],
+          "per_source_context_bytes": {
+            "footer": 1163,
+            "system": 2029,
+            "shared_files": 285,
+            "testing_agent": 4411,
+            "env_info": 2137,
+            "sysprompt": 19834,
+            "agent_init": 1068,
+            "session_title": 187
+          },
+          "total_main_chain_growth_bytes": 31853,
+          "main_chain_growth_message_count": 13
+        },
+        "cognition.ai/priority": 100,
+        "cognition.ai/streaming": false,
+        "cognition.ai/streamingMessageId": "event-5",
+        "cognition.ai/overwrite": true
+      },
+      "kind": "other",
+      "status": "completed",
+      "title": "context growth updated",
+      "toolCallId": "event-5",
+      "sessionUpdate": "tool_call"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-6",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-6"
+      },
+      "content": {
+        "text": "CLOUD",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-6",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-6"
+      },
+      "content": {
+        "text": "_WIRE_SEC",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-6",
+        "cognition.ai/streaming": true,
+        "cognition.ai/streamingMessageId": "event-6"
+      },
+      "content": {
+        "text": "OND_20261008",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  },
+  {
+    "sessionId": "owned-cloud-stream-fixture",
+    "update": {
+      "_meta": {
+        "cognition.ai/eventType": "devin_message",
+        "cognition.ai/eventId": "event-6",
+        "cognition.ai/streamingMessageId": "event-6",
+        "cognition.ai/priority": 500,
+        "cognition.ai/streaming": false,
+        "cognition.ai/overwrite": true
+      },
+      "content": {
+        "text": "CLOUD_WIRE_SECOND_20261008",
+        "type": "text"
+      },
+      "sessionUpdate": "agent_message_chunk"
+    }
+  }
+]

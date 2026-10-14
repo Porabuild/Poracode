@@ -9,6 +9,7 @@ vi.mock("../acp", () => ({
 
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createAcpStructuredSession } from "../acp";
+import { resolveGrokAcpModel } from "./fastMode";
 import { createGrokAdapter } from "./index";
 
 async function createSessionOptions() {
@@ -27,5 +28,8 @@ describe("Grok ACP fs home carve-out", () => {
     // ~/.grok via fs/read_text_file. Without the carve-out the shared
     // bridge rejects those paths as outside the project.
     expect(await createSessionOptions()).toMatchObject({ acpFsAgentHomeDirs: [".grok"] });
+    expect(vi.mocked(createAcpStructuredSession).mock.calls[0]?.[2]).toEqual({
+      resolveModelConfig: resolveGrokAcpModel,
+    });
   });
 });

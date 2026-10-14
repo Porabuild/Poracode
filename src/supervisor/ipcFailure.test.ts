@@ -1,5 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
+import {
+  HOST_RESOURCE_BUSY_CODE,
+  HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
+} from "@/shared/hostResourceAdmission";
+import {
+  THREAD_SESSION_ABSENCE_REFUSAL_CODE,
+  ThreadSessionAbsenceRefusalError,
+} from "@/shared/threadSessionRefusal";
+import {
+  HostResourceBusyError,
+  HostResourcePolicyUnavailableError,
+} from "./runtime/hostResourceAdmission";
 import { handleSupervisorIpcFailure } from "./ipcFailure";
+import { GIT_ADMISSION_QUEUE_FULL_CODE, GitProcessAdmissionError } from "./git/gitProcessAdmission";
 
 describe("handleSupervisorIpcFailure", () => {
   it("preserves the caller rejection while reporting the original failure for classification", () => {
@@ -26,6 +39,68 @@ describe("handleSupervisorIpcFailure", () => {
       replyTo: "request-2",
       ok: false,
       error: "rejected",
+    });
+  });
+
+  it("carries the typed busy code and retry hint additively", () => {
+    const error = new HostResourceBusyError({
+      resourceClass: "agent-session",
+      limit: 1,
+      active: 1,
+      pending: 0,
+      retiring: 0,
+      retryAfterMs: 1_000,
+    });
+    expect(handleSupervisorIpcFailure(error, "startThread", "request-3", () => {})).toEqual({
+      replyTo: "request-3",
+      ok: false,
+      error: error.message,
+      errorCode: HOST_RESOURCE_BUSY_CODE,
+      retryAfterMs: 1_000,
+    });
+  });
+
+  it("carries the fail-closed policy code without inventing a retry promise", () => {
+    const error = new HostResourcePolicyUnavailableError("host-resource-admission-invalid");
+    expect(handleSupervisorIpcFailure(error, "startThread", "request-4", () => {})).toEqual({
+      replyTo: "request-4",
+      ok: false,
+      error: error.message,
+      errorCode: HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
+    });
+  });
+
+  it("carries Git admission pressure across the supervisor reply", () => {
+    const error = new GitProcessAdmissionError(
+      GIT_ADMISSION_QUEUE_FULL_CODE,
+      { gitClass: "short", units: 1, limit: 8, active: 8, queued: 64, retryAfterMs: 500 },
+      "Git short admission queue is full.",
+    );
+    expect(handleSupervisorIpcFailure(error, "getGitStatus", "request-5", () => {})).toEqual({
+      replyTo: "request-5",
+      ok: false,
+      error: error.message,
+      errorCode: GIT_ADMISSION_QUEUE_FULL_CODE,
+      retryAfterMs: 500,
+    });
+  });
+
+  it("carries the typed missing-session refusal code without inventing a retry hint", () => {
+    const error = new ThreadSessionAbsenceRefusalError("Unknown thread session: caller-visible-id");
+    expect(handleSupervisorIpcFailure(error, "sendThreadInput", "request-6", () => {})).toEqual({
+      replyTo: "request-6",
+      ok: false,
+      error: "Unknown thread session: caller-visible-id",
+      errorCode: THREAD_SESSION_ABSENCE_REFUSAL_CODE,
+    });
+  });
+
+  it("keeps a plain unknown-session prose error message-only (the code is the only proof)", () => {
+    const error = new Error("backend reported: Unknown thread session: caller-visible-id");
+    expect(handleSupervisorIpcFailure(error, "sendThreadInput", "request-7", () => {})).toEqual({
+      replyTo: "request-7",
+      ok: false,
+      error: "backend reported: Unknown thread session: caller-visible-id",
     });
   });
 });

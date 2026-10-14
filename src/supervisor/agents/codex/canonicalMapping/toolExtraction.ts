@@ -44,7 +44,9 @@ export function readCommandAggregatedOutput(
 }
 
 export function codexFinalStatus(raw: unknown): "success" | "error" {
-  return raw === "failed" || raw === "error" || raw === "interrupted" ? "error" : "success";
+  return raw === "failed" || raw === "declined" || raw === "error" || raw === "interrupted"
+    ? "error"
+    : "success";
 }
 
 /**
@@ -246,26 +248,7 @@ export function classifyCodexFileChangeKind(
   return "edit";
 }
 
-export function readCodexChangesDiffSummary(
-  changes: unknown,
-): { added: number; removed: number } | undefined {
-  if (!Array.isArray(changes)) return undefined;
-  let added = 0;
-  let removed = 0;
-  let sawDiff = false;
-  for (const change of changes) {
-    if (!change || typeof change !== "object") continue;
-    const diff = (change as Record<string, unknown>).diff;
-    if (typeof diff !== "string" || diff.length === 0) continue;
-    sawDiff = true;
-    for (const line of diff.split(/\r?\n/)) {
-      if (line.startsWith("+++") || line.startsWith("---")) continue;
-      if (line.startsWith("+")) added++;
-      else if (line.startsWith("-")) removed++;
-    }
-  }
-  return sawDiff ? { added, removed } : undefined;
-}
+export { readCodexChangesDiffSummary } from "../fileChangeDiffSummary";
 
 /** Count results when the web_search item carries a structured `results` array. */
 export function countWebSearchResults(source: CodexItemPayload): number | undefined {

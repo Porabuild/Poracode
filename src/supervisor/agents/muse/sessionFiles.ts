@@ -176,6 +176,19 @@ async function listMuseSessionCandidates(
   return candidates;
 }
 
+/** Resolve only a top-level session; nested child ids must never bind a thread. */
+export async function resolveMuseSessionLogPath(
+  location: ProjectLocation,
+  sessionId: string,
+): Promise<string | undefined> {
+  const root = await getMuseSessionsRootAsync(location);
+  if (!root) return undefined;
+  const candidate = (await listMuseSessionCandidates(location, root)).find(
+    (entry) => entry.id === sessionId,
+  );
+  return candidate ? joinMusePath(location, candidate.path, "session.jsonl") : undefined;
+}
+
 function normalizePathForCompare(path: string, location: ProjectLocation): string {
   const trimmed = path.trim().replace(/[\\/]+$/, "");
   return location.kind === "windows" ? trimmed.replaceAll("\\", "/").toLowerCase() : trimmed;

@@ -1,7 +1,14 @@
 import { useEffect } from "react";
 import { readBridge } from "@/renderer/bridge";
+import { useBrowserCredentialsStore } from "@/renderer/state/browserCredentialsStore";
+import { useBrowserDownloadsStore } from "@/renderer/state/browserDownloadsStore";
+import { useBrowserFindStore } from "@/renderer/state/browserFindStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { selectAnyObstructingOverlayOpen, usePanelStore } from "@/renderer/state/panelStore";
+import {
+  selectBrowserPanelAvailable,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
 
 export function useBrowserSync(): void {
   const setState = useBrowserPanelStore((s) => s.setState);
@@ -13,9 +20,17 @@ export function useBrowserSync(): void {
   const clearUsageLoginConfirmation = useBrowserPanelStore((s) => s.clearUsageLoginConfirmation);
   const setUsageLoginDeviceCode = useBrowserPanelStore((s) => s.setUsageLoginDeviceCode);
   const clearUsageLoginDeviceCode = useBrowserPanelStore((s) => s.clearUsageLoginDeviceCode);
+  const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
+  const applyFindResult = useBrowserFindStore((s) => s.applyResult);
+  const openFind = useBrowserFindStore((s) => s.open);
+  const upsertDownload = useBrowserDownloadsStore((s) => s.upsertDownload);
+  const removeDownload = useBrowserDownloadsStore((s) => s.removeDownload);
+  const invalidateCredentials = useBrowserCredentialsStore((s) => s.invalidate);
 
   useEffect(() => {
+    if (!browserPanelAvailable) return;
     let cancelled = false;
+    let receivedState = false;
     const isMainWindow = readBridge().windowKind === "main";
     // Overlay/panel presentation side-effects belong to the main window alone,
     // and never while the browser is extracted to its own window — the extract
@@ -23,6 +38,7 @@ export function useBrowserSync(): void {
     const reactsToPresentation = () => isMainWindow && !useBrowserPanelStore.getState().extracted;
     const unsub = readBridge().onBrowserEvent((event) => {
       if (event.type === "state") {
+        receivedState = true;
         const hadTabs = useBrowserPanelStore.getState().tabs.length > 0;
         setState(event.state);
         if (event.state.extracted && isMainWindow) {
@@ -40,6 +56,16 @@ export function useBrowserSync(): void {
         upsertTab(event.tab);
       } else if (event.type === "tab-attention") {
         setAttention(event.tabId);
+      } else if (event.type === "find-open-requested") {
+        openFind(event.tabId);
+      } else if (event.type === "find-result") {
+        applyFindResult(event.result);
+      } else if (event.type === "download-updated") {
+        upsertDownload(event.download);
+      } else if (event.type === "download-removed") {
+        removeDownload(event.downloadId);
+      } else if (event.type === "credentials-updated") {
+        invalidateCredentials();
       } else if (event.type === "open-panel") {
         if (!reactsToPresentation()) return;
         const panel = usePanelStore.getState();
@@ -74,7 +100,7 @@ export function useBrowserSync(): void {
     readBridge()
       .browserGetState()
       .then((state) => {
-        if (!cancelled) setState(state);
+        if (!cancelled && !receivedState) setState(state);
       })
       .catch(() => {});
     return () => {
@@ -91,5 +117,11 @@ export function useBrowserSync(): void {
     clearUsageLoginConfirmation,
     setUsageLoginDeviceCode,
     clearUsageLoginDeviceCode,
+    browserPanelAvailable,
+    applyFindResult,
+    openFind,
+    upsertDownload,
+    removeDownload,
+    invalidateCredentials,
   ]);
 }

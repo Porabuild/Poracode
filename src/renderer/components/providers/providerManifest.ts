@@ -9,6 +9,13 @@ export interface ProviderMarkdownImageRootsInput {
 }
 
 export interface RendererProviderManifest {
+  /** Default Fast preference when the user has not saved one. */
+  defaultFastEnabled?: boolean;
+  /** Interpret a saved provider model selection using the current catalog. */
+  normalizeModelConfig?: <T extends { model?: string | undefined; fast?: boolean | undefined }>(
+    config: T,
+    models: readonly { id: string }[],
+  ) => T & { fast?: boolean | undefined };
   kind: string;
   label: MessageDescriptor;
   /** Shared discovery/model-picker order. */

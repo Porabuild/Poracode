@@ -4,8 +4,8 @@ import type { BrowserPanelManager } from "./BrowserPanelManager";
 
 let ingress: BrowserMcpIngress | null = null;
 
-afterEach(() => {
-  ingress?.dispose();
+afterEach(async () => {
+  await ingress?.dispose();
   ingress = null;
 });
 

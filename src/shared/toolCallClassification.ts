@@ -78,3 +78,24 @@ export function isCrossagentSpawnAgentTool(payload: ToolCallPayload | undefined)
 export function isDelegatedAgentTool(payload: ToolCallPayload | undefined): boolean {
   return payload?.isCrossagent === true ? isCrossagentTool(payload) : isSubAgentTool(payload);
 }
+
+/** Preserve the run's details and output while ending an orphaned delegated row. */
+export function interruptDelegatedAgentToolPayload(
+  payload: ToolCallPayload,
+  errorMessage: string,
+): ToolCallPayload {
+  return {
+    ...payload,
+    status: "error",
+    ...(payload.subAgentStatus === "running" || payload.subAgentStatus === "paused"
+      ? { subAgentStatus: "failed" as const }
+      : {}),
+    ...(payload.isCrossagent === true &&
+    (payload.crossagentStatus === undefined || payload.crossagentStatus === "running")
+      ? { crossagentStatus: "failed" as const }
+      : {}),
+    ...(payload.result === undefined
+      ? { result: payload.isCrossagent === true ? errorMessage : { error: errorMessage } }
+      : {}),
+  };
+}

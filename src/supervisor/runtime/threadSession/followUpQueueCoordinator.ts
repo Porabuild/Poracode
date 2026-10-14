@@ -159,6 +159,8 @@ export class FollowUpQueueCoordinator {
           config: entry.payload.config,
           prompt: input.prompt,
           ...(input.segments ? { segments: input.segments } : {}),
+          // An edit changes the text, not when or where the user sent it.
+          ...(entry.payload.clientContext ? { clientContext: entry.payload.clientContext } : {}),
         }),
       };
       delete record.items[index]!.prepared;
@@ -269,13 +271,16 @@ export class FollowUpQueueCoordinator {
   /**
    * Wait only for queued-turn admission, not for the provider turn to finish.
    * Direct input uses this to avoid starting a second turn while a queued
-   * provider call is still doing asynchronous setup and the session still
-   * reports idle.
+   * provider call is still doing asynchronous setup, even when the session
+   * is optimistically working.
    */
   async waitForQueuedTurnAdmission(threadId: string): Promise<void> {
     const active = this.records.get(threadId)?.active;
     if (!active?.dispatched || !active.admission) return;
-    if (active.admitted || active.session.status === "working") {
+    if (
+      active.admitted ||
+      (active.session.status === "working" && active.session.suppressInitialStructuredIdle !== true)
+    ) {
       active.admitted = true;
       this.resolveAdmission(active);
       return;

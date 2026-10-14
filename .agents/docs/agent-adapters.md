@@ -1,5 +1,10 @@
 # Agent Adapter Rules
 
+How providers plug into Poracode: the isolation rules for shared code, the
+`AgentAdapter` contract, and the checklists for adding a provider or a profile.
+Per-provider behavior is in [Provider Notes](provider-notes.md); the shared ACP,
+MCP, and hook-runtime subsystems are in [Provider Runtime](provider-runtime.md).
+
 ## Provider Isolation — Hard Rules
 
 Shared code is code that is not inside a single `src/supervisor/agents/<kind>/` or
@@ -8,9 +13,8 @@ equally, so a change made there for one agent is a change made to all of them.
 
 ### The test for a violation
 
-Ask: _would this line exist if that one provider did not?_ If the answer is no,
-it does not belong in shared code. Concretely, none of these may land in a shared
-file:
+Ask: _would this line exist if that one provider did not?_ If not, it does not
+belong in shared code. None of these may land in a shared file:
 
 - A provider name in an identifier, string literal, or type — `antigravityBuffer`,
   `if (kind === "codex")`, `isGeminiShell`.
@@ -22,34 +26,61 @@ file:
 
 A provider name in a _comment_ is fine and often required — it documents the
 real-world case that motivated an otherwise unexplainable generic behavior. The
-rule is about control flow and data shape, not about erasing history.
+rule is about control flow and data shape.
 
 ### The three escape hatches — use one, do not invent a fourth
 
 1. **Declared capability.** The provider states a fact about itself in its
    `DetectionSpec` / `AgentAdapter` (`acpFsTextCapability`, `acpGoalCommands`,
-   `acpOptimisticMcpTransports`, `baseSpawnEnv`). Shared code reads the flag.
+   `acpOptimisticMcpTransports`, `acpClientCapabilitiesMeta`, `baseSpawnEnv`).
+   Shared code reads the flag. A structured handle that positions per-turn
+   client context itself declares `placesTurnContext` and reads
+   `StartTurnOptions.turnContext`; undeclared handles receive that context at the
+   front of `inlineInstructions`, except on a prompt whose leading `/token`
+   exactly matches a non-skill command the session advertised in
+   `slashCommands` — the provider dispatches that command itself, so the runtime
+   withholds the context rather than corrupting the command's arguments.
 2. **Behavior profile.** Lifecycle differences the transport must honor go in a
    named options object — for ACP, `AcpSessionBehavior`
    (`suppressOutputAfterInterrupt`, `suppressStderrLogging`). Each field is
-   documented in terms of the _condition_ it addresses, never the provider that
-   hit it, and defaults must be safe for a provider that declares nothing.
+   documented by the _condition_ it addresses, never the provider that hit it,
+   and defaults must be safe for a provider that declares nothing.
 3. **Supplied hook.** Parsing or event synthesis for a vendor format lives in the
    provider folder and plugs in through an interface: `AcpTextStreamExtension`
-   (agent-text, background-task, and tool-lifecycle quirks), `acpSessionUpdateTransform` /
-   `acpExtensionSessionUpdateTransform` (payload normalization),
-   `acpExtensionNotificationHandler` (vendor JSON-RPC notifications).
-   Probe customization uses `normalizeProbeResult` for discovered capabilities
-   and `modelLabel` for fallback labels when the agent supplies no display name.
-   Skill frontmatter rules use `skillSupport.invocationForSkill`.
+   (agent-text, background-task, and tool-lifecycle quirks),
+   `acpSessionUpdateTransform` / `acpExtensionSessionUpdateTransform` (payload
+   normalization), `acpExtensionNotificationHandler` (vendor JSON-RPC
+   notifications), `permissionRequestTransform` (normalizes vendor
+   permission/question requests before shared classification; reply option IDs
+   remain transport IDs), `normalizeProbeResult` (discovered capabilities),
+   `modelLabel` (fallback labels when the agent supplies no display name), and
+   `skillSupport.invocationForSkill` (skill frontmatter rules). Probes whose
+   per-model config snapshots are authoritative declare
+   `preserveEmptyModelEfforts`: verified models with no effort choices record
+   `[]`, while an unprobed model stays absent and eligible for catalog fallback.
 
-Message payloads can declare `turnIndependent: true` when a conversation stream
-publishes messages outside an agent execution turn. The shared renderer persists
-and renders them without using their arrival to reopen the agent's work timer.
-Providers own this classification; ordinary messages keep the default behavior.
+Existing extension points built on the same pattern:
 
-If none of the three fits, the right move is to add a new hook with a
-capability-shaped name and document it here — not to add a branch.
+- Message payloads declare `turnIndependent: true` when a conversation stream
+  publishes messages outside an agent turn. The renderer persists and renders
+  them without reopening the agent's work timer. Providers own this
+  classification.
+- `AcpStructuredSessionOptions.configureOpenedSession` runs provider-owned setup
+  after the native open response and options are adopted, before the shared
+  launch configuration or first prompt. Its bounded detached response is opaque
+  to shared code. Readers and echo-confirmed writes are fenced to one open
+  generation and expire when the hook ends. Setup failure rejects the open while
+  retaining the allocated session reference for failed-start custody. Absent
+  hooks keep the ordinary open path.
+- `allowUnlistedSelectValue` admits qualified compound select values: only a
+  detached current select and a string rejected by ordinary membership reach
+  it. Writer locks, owner checks, and echo confirmation still apply.
+- `registerModelDescriptionFormatter` (renderer) lets a provider parse its own
+  catalog text into a numeric hint plus a localized explanation; the shared
+  picker never parses vendor pricing formats.
+
+If none of the three fits, add a new hook with a capability-shaped name and
+document it here — not a branch.
 
 ### Extensions own their state
 
@@ -67,488 +98,315 @@ is attached is a coupling the type system will not catch.
 
 ### Enforcement
 
-`acp/providerIsolation.test.ts` fails the build when a provider name appears in
-an identifier, type, regex, comparison literal, or provider import anywhere under
-`acp/` or `acp-generic/`. It
-discovers provider folders the same way the registry parity test does, so a new
-provider is covered the moment its `detection.ts` lands. Comments and prose
-strings are ignored; expressions inside template strings are checked.
-
-`AMBIGUOUS_KINDS` excludes kind names that are also ordinary words (`cursor`),
-where a segment match proves nothing. Review covers these.
-
-The guard covers the shared ACP stack, which is where the pressure is highest.
-The rule applies to all shared code; the rest is on review.
+`src/supervisor/agents/acp/providerIsolation.test.ts` fails the build when a
+provider name appears in an identifier, type, regex, comparison literal, or
+provider import anywhere under `acp/` or `acp-generic/`. It discovers provider
+folders the same way the registry parity test does, so a new provider is covered
+once its `detection.ts` lands. Comments and prose strings are ignored;
+expressions inside template strings are checked. `AMBIGUOUS_KINDS` excludes kind
+names that are also ordinary words (`cursor`); review covers those. The guard
+covers only the shared ACP stack; the rule applies to all shared code and the
+rest is enforced in review.
 
 ### Worked example
 
 Antigravity streams background-task reports as XML/markdown blocks inside
-assistant prose, and ends turns without terminal `tool_call_update`s. Both were
-once shared: a 607-line parser in `acp/canonicalMapping/`, two Antigravity-shaped
-fields on `AcpMapperState`, plus a hardcoded silence-drain deadline in
-`acp/session.ts`. The parser and behavior profile now live in
-`antigravity/acpTaskNotifications.ts` and `ANTIGRAVITY_ACP_SESSION_BEHAVIOR`,
-reaching the shared session through
-`createAcpGenericAdapter({ sessionBehavior, textStreamExtension })`; the drain
-deadline was removed outright — a turn awaiting background reports waits for
-the report or the user's Stop, never for a silence timeout that could complete
-it silently. Shared ACP code no longer knows the provider exists; every other
-ACP agent streams assistant text untouched.
+assistant prose and ends turns without terminal `tool_call_update`s. The parser
+and behavior profile live in `antigravity/acpTaskNotifications.ts` and
+`ANTIGRAVITY_ACP_SESSION_BEHAVIOR`, reaching the shared session through
+`createAcpGenericAdapter({ sessionBehavior, textStreamExtension })`. There is no
+silence-drain deadline: a turn awaiting background reports waits for the report
+or the user's Stop, never for a timeout that could complete it silently.
 
-Antigravity's server also holds `session/prompt` unresolved while background
-tasks run (`STATE_WAITING_FOR_TASKS`): the model's reply is finished, but the
-stop reason only arrives when every task exits — never, for a dev server. The
-only boundary the server publishes is a glog diagnostic on stderr, so the
-provider declares `stderrTurnSignalParser` (`antigravity/acpTurnHold.ts`)
-through the same options object. The shared session reads it as a capability —
-"this agent reports end-of-reply out of band while holding the prompt" —
-completes the runtime turn at the signal, keeps the still-running command rows
-open as detached items for their late terminal updates, and adopts the held
-prompt's eventual resolution silently. (The block-shape primitives in
-`src/shared/taskNotificationText.ts` predate this rule and are shared with the
-renderer's transcript rendering; they are a known exception, not a license to
-add vendor formats there.)
+Its server also holds `session/prompt` unresolved while background tasks run, so
+the stop reason arrives only when every task exits — never, for a dev server.
+The only boundary it publishes is a stderr diagnostic, so the provider declares
+`stderrTurnSignalParser` (`antigravity/acpTurnHold.ts`). The shared session reads
+it as a capability — "this agent reports end-of-reply out of band while holding
+the prompt" — completes the runtime turn at the signal, keeps still-running
+command rows open as detached items for their late updates, and adopts the held
+prompt's eventual resolution silently.
+
+The block-shape primitives in `src/shared/taskNotificationText.ts` predate this
+rule and are shared with the renderer's transcript rendering; they are a known
+exception, not a license to add vendor formats there.
 
 ## Adapter Contract
 
-Every supported agent implements the `AgentAdapter` interface (`src/supervisor/agents/base.ts`):
+Every agent implements `AgentAdapter` (`src/supervisor/agents/base.ts`).
 
 ### Required
 
-- `kind` / `label` — Provider identifier and display name.
-- `capabilities` — Declares models, efforts, modes, approval policies, sandbox modes, resume/direct-input support, live input mode (terminal | server), presentation mode (terminal | gui).
-- `spawnEnv?` — Optional `{ native?, wsl? }` env records the runtime merges into the PTY spawn (e.g. `BROWSER=/bin/true` under WSL for OAuth-flow providers). Location-specific only — env that must ride EVERY spawn of the CLI belongs in `baseSpawnEnv` instead.
-- `baseSpawnEnv?` — Env applied to every Poracode-made spawn of this CLI in every lane (detection probes, terminal login, PTY launch, ACP session/auth/logout, one-shots, context extraction, subagent children), merged UNDER lane-specific env. Declare it once on the `DetectionSpec`; the adapter re-exposes it via `...inheritBaseSpawnEnv(spec)` so the two can never drift. Shared runtime fans it out — never repeat it per command builder. Deliberately NOT applied to `update` commands so the user-driven "update agent" action still reaches the CLI's own updater. WSL caveat: the shared merge sets spawn-level env; env that must reach the distro still has to be baked into the wsl.exe login-shell script by the command builder (`buildAgentCommand` does this) — keep the same map reference there, as factory does.
-- `detectInstall(ctx?)` — Typically one line: `return detectAgentInstall(ctx, spec)`. Declare a `DetectionSpec` (binary, capabilities, versionArgs?, authProbes?, capabilitiesProbe?, baseSpawnEnv?) and let the engine own the WSL vs native probe + binary resolution + version + auth/capability merge.
-- `buildLaunchArgv()` / `buildResumeArgv()` — Return an `AgentArgvSpec` (`{ binary, args, env?, sessionRef? }`). The runtime wraps it through `resolveLaunchSpec` which owns WSL login-shell, Windows PowerShell encoding, and env injection. **Adapters must never call `buildAgentCommand` on the main launch path** — the contract is structurally argv-only.
-- `createInitialSessionRef()` — Generate a session ID on first launch (or `undefined` if the CLI generates its own).
+- `kind` / `label` — provider identifier and display name.
+- `capabilities` — models, efforts, modes, approval policies, sandbox modes,
+  resume/direct-input support, live input mode (terminal | server), presentation
+  mode (terminal | gui).
+- `spawnEnv?` — `{ native?, wsl? }` env merged into the PTY spawn for one
+  location (e.g. `BROWSER=/bin/true` under WSL for OAuth providers). Env that
+  must ride every spawn belongs in `baseSpawnEnv`.
+- `baseSpawnEnv?` — env applied to every Poracode-made spawn of the CLI in every
+  lane (detection probes, terminal login, PTY launch, ACP session/auth/logout,
+  one-shots, context extraction, subagent children), merged under lane-specific
+  env. Declare it once on the `DetectionSpec` and re-expose it with
+  `...inheritBaseSpawnEnv(spec)` so the two cannot drift; shared runtime fans it
+  out, so never repeat it per command builder. It is deliberately not applied to
+  `update` commands, so the user-driven update still reaches the CLI's own
+  updater. Under WSL the shared merge only sets spawn-level env; env that must
+  reach the distro is baked into the wsl.exe login-shell script by the command
+  builder (`buildAgentCommand` does this) — pass the same map reference there.
+- `detectInstall(ctx?)` — usually `return detectAgentInstall(ctx, spec)`. Declare
+  a `DetectionSpec` (binary, capabilities, versionArgs?, authProbes?,
+  capabilitiesProbe?, baseSpawnEnv?) and let the engine own WSL vs native
+  probing, binary resolution, version, and auth/capability merge.
+- `buildLaunchArgv()` / `buildResumeArgv()` — return an `AgentArgvSpec`
+  (`{ binary, args, env?, sessionRef? }`). The runtime wraps it through
+  `resolveLaunchSpec`, which owns WSL login-shell, Windows PowerShell encoding,
+  and env injection. Adapters never call `buildAgentCommand` on the main launch
+  path; the contract is argv-only.
+- `createInitialSessionRef()` — a session ID for first launch, or `undefined`
+  when the CLI generates its own.
 
-### Optional — Execution Environment
+### Optional
 
-- `windowsProjectExecution?: "wsl"` — Run this provider in the default WSL
-  distro when the project is native Windows. Detection, terminal launch/resume,
-  auth/logout, one-shot generation, attachments, skills, MCPs, and provider
-  session discovery all use the resolved WSL environment; the project itself
-  remains a native Windows project. Use only when the provider has no native
-  Windows runtime.
+- Terminal heuristics: `isReadyForInitialPrompt?(text)`,
+  `detectTerminalStatus?(text)` (derives `ThreadStatus` + `ThreadAttention` from
+  an 8192-char ANSI-stripped rolling window), `detectInvalidSessionRef?(text)`,
+  `detectAutoResponse?(text)` (input that auto-dismisses known TUI prompts),
+  `discoverSessionRef?(location)` (poll the CLI for its session ID after spawn),
+  `syncConfigFromTerminalState?(input)` (reconcile config when the TUI changes
+  state, e.g. leaving plan mode).
+- Structured sessions: `createStructuredSession?(input)` starts a
+  server-controlled session and is what enables `"gui"` presentation.
+- Input: `buildDirectInput?(prompt)` splits a prompt into terminal-safe chunks
+  with delays for TUI pasting.
+- Commit/one-shot generation: `defaultOneShotModel?`,
+  `buildOneShotCommand?(model, effort?)` (piped-stdin generation).
+- Session import: `sessionImport?: SessionImportSource`
+  (`base/sessionImport.ts`) declares existing CLI transcripts the user can import
+  from Settings → Import — transcript `roots`, an `acceptFile` filter,
+  `summarize` (id, cwd, model, first prompt from the bounded `headLines()` /
+  `tailLines()` readers), optional `readTitles`, and `readTranscript`. Identity
+  must be the id the provider's own resume uses; profiles declare their own
+  store. The shared `src/supervisor/sessionImport/` scanner owns enumeration,
+  bounds, the mtime/size summary cache, and request supersession; it reads only
+  inside declared roots, writes nothing to provider homes, and replays text
+  through `thread-runtime-events`. Imported threads are created `inactive` with
+  a `sessionRef`, so opening one resumes through the normal reopen path. The
+  import procedures are desktop-local (not remote-routable) and the scan cache is
+  in-memory.
 
-### Optional — Terminal Heuristics
+### Provider folder layout
 
-- `isReadyForInitialPrompt?(text)` — True when the TUI is ready to receive the first user prompt.
-- `detectTerminalStatus?(text)` — Derive `ThreadStatus` + `ThreadAttention` from rolling terminal output (8192-char window, ANSI-stripped).
-- `detectInvalidSessionRef?(text)` — True if the CLI reports a stale/invalid session ID.
-- `detectAutoResponse?(text)` — Returns input string to auto-dismiss known TUI prompts (e.g. rate-limit).
-- `discoverSessionRef?(location)` — Poll the CLI for its session ID after spawn (e.g. `gemini --list-sessions`).
-- `syncConfigFromTerminalState?(input)` — Reconcile config when the TUI changes state (e.g. Claude plan-mode exit clears mode flag).
+Every provider is a folder under `src/supervisor/agents/<kind>/` with the same
+layout, so two folders side by side show what differs by file name alone:
 
-### Optional — Structured Sessions
-
-- `createStructuredSession?(input)` — Start a server-controlled session (for example Codex app-server JSON-RPC over stdio for GUI presentation).
-
-### Optional — Input
-
-- `buildDirectInput?(prompt)` — Split a prompt into terminal-safe chunks with delays for TUI pasting.
-
-### Optional — Session Import
-
-- `sessionImport?: SessionImportSource` (`base/sessionImport.ts`) — existing CLI
-  transcripts the user can import from Settings → Import. The provider declares
-  its transcript `roots`, an `acceptFile` filter, `summarize` (id, cwd, model,
-  first prompt from the bounded `headLines()` / `tailLines()` readers it is
-  handed), optional `readTitles`, and `readTranscript` for replay. Identity must
-  be the id the provider's own resume uses. Profiles declare their own store.
-- The shared `src/supervisor/sessionImport/` scanner owns enumeration, file and
-  byte bounds, the mtime/size summary cache, and supersession of older requests;
-  the service only reads paths inside a declared root and replays text through
-  `thread-runtime-events`, which main persists. Nothing is written to provider
-  homes. Imported threads are created `inactive` with a `sessionRef`, so opening
-  one resumes through the normal reopen path.
-- Version audit: `listImportableSessions` / `importSessionTranscript` are
-  desktop-local supervisor procedures (not remote-routable), the scan cache is
-  in-memory, and `ThreadConfig.importedFrom` is optional — older data and older
-  readers stay valid, so no version bump.
-
-### Optional — Commit Generation
-
-- `defaultOneShotModel?` — Default model for one-shot CLI calls (commit messages).
-- `buildOneShotCommand?(model, effort?)` — CLI command for piped-stdin generation.
-
-## Current Providers
-
-Every provider is a folder under `src/supervisor/agents/<kind>/` with the same internal layout:
-
-- `index.ts` — composes the adapter; holds closure state (capabilities, pre-spawn snapshots).
-- `argv.ts` — `buildXxxArgs` and any argv helpers.
+- `index.ts` — composes the adapter; holds closure state (capabilities,
+  pre-spawn snapshots).
+- `argv.ts` — `build<Kind>Args` and argv helpers.
 - `detection.ts` — `DetectionSpec`, default capabilities, auth/capability probes.
-- `terminal.ts` — hint table + `detectXxxTerminalStatus` + related parsers.
-- `session.ts` — (optional) session ID discovery, rollout scanning, watch-path resolution.
-- `acp.ts` — (optional) structured-session / ACP wiring.
+- `terminal.ts` — hint table, `detect<Kind>TerminalStatus`, related parsers.
+- `session.ts` — optional session ID discovery, rollout scanning, watch paths.
+- `acp.ts` — optional structured-session / ACP wiring.
 - `*.test.ts` — colocated.
-
-Opening two provider folders side-by-side answers "what does this provider do differently" by file-name alignment alone.
-
-Model/effort lists below are the **statically declared defaults**. Several providers ship `models: []` / `efforts: []` and fill them at runtime from a capabilities probe (Codex/Gemini/Copilot/Grok/OpenCode/Pi, and Cursor via its CLI `--list-models`) — the listed values are illustrative, not authoritative. Read the provider's `detection.ts` for the live source of truth.
-
-The **Structured Session** column reflects whether the adapter implements `createStructuredSession` (i.e. supports a `"gui"` presentation mode); it is not a model-list default and is authoritative.
-
-| Provider     | Models                                                                             | Efforts                                  | Live Input            | Structured Session               |
-| ------------ | ---------------------------------------------------------------------------------- | ---------------------------------------- | --------------------- | -------------------------------- |
-| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                               | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)                        |
-| Codex        | (probed dynamically via app-server)                                                | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server)           |
-| Gemini       | (probed dynamically via ACP)                                                       | (probed dynamically)                     | terminal              | Yes (ACP)                        |
-| Copilot      | (probed via ACP)                                                                   | (probed via ACP)                         | terminal              | Yes (ACP)                        |
-| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`)           | (embedded in model name)                 | terminal              | Yes (ACP)                        |
-| Grok         | grok-build (probed via ACP)                                                        | (none)                                   | terminal              | Yes (ACP)                        |
-| OpenCode     | (probed dynamically via SDK)                                                       | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                 |
-| OpenCode 2   | (probed dynamically via `@opencode/client`; utility default `opencode/big-pickle`) | Probed per model                         | terminal / GUI server | Yes (V2 HTTP server)             |
-| Pi           | (authenticated models probed via SDK)                                              | off…max, per model                       | terminal              | Yes (native SDK)                 |
-| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                                     | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`) |
-| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                             | (none)                                   | terminal              | No                               |
-| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries                 | probed (`none…ultra` fallback)           | terminal              | Yes (MSP over `muse serve`)      |
-
-Antigravity is one built-in agent and one registry card with two managed runtime
-prerequisites: `agy` backs Terminal, while the official `antigravity-acp` registry
-artifact backs Chat. Install reconciles whichever prerequisite is missing; the
-registry alias is not exposed as a second provider (a pre-adoption
-`installKind: "generic"` install keeps its own registry card so it stays
-updatable and removable). When detection finds the CLI
-in an environment where the artifact is missing, the supervisor installs it for
-that environment in the background (once per environment per session), so chat
-works without a manual second install. Removing the artifact records an opt-out
-in `acpRegistryAutoInstallOptOuts`, so a deliberate removal is never undone; the
-next explicit install clears it. Composer, registry-card, and
-provider-settings update surfaces compare both installed versions with their
-independent latest sources, then one action updates whichever runtimes are stale.
-
-### OpenCode 2 (`opencode2`)
-
-OpenCode 2 is a separate built-in provider from OpenCode 1. Install and update
-`@opencode/cli@2.0.26` with npm's `--prefix "$HOME/.opencode2"` (Windows uses
-`$env:USERPROFILE/.opencode2`). This preserves the existing V1 executable.
-Recent packages contain the actual binary at `bin/opencode.exe`; `opencode2.cjs`
-is only a migration notice. The resolver unwraps that notice and validates the
-version before launching. The client and minimum supported CLI are pinned to `2.0.26`, including
-MCP configuration, per-session forms, permission decisions, and `session.update`.
-
-- **Native accounts and sessions:** V2 uses the CLI's normal database selection,
-  including any user-supplied `OPENCODE_DB`. Current OpenCode stores credentials
-  in SQLite alongside sessions; forcing a separate database hides native accounts
-  and makes the Add provider login command and runtime use different stores.
-  Poracode does not copy, rename, or directly migrate OpenCode databases.
-  Existing Poracode sessions in `opencode-v2.db` remain resumable: only a matching
-  native `SessionNotFoundError` selects a separate legacy sidecar. Terminal
-  attachment uses that same selected database. New sessions and account management
-  use the native database; OpenCode owns its schema migrations.
-- **Server:** the pooled runtime starts `serve --hostname=127.0.0.1 --port=0
---print-logs`, reads its URL and generated Basic-auth password, and redacts
-  readiness credentials from diagnostics. Catalog reads wait for
-  the first published plugin inventory. All client types live behind `clientTypes.ts`;
-  the ESM-only client is dynamically imported by the supervisor.
-- **Events:** `event.subscribe` is live-tail only. Admission waits for the first
-  connection. Reconnection reconciles message snapshots, outstanding forms and
-  permissions, and active-session state before admitting another prompt.
-  Completed provider message IDs prevent duplicate rows, and authoritative final
-  text replaces divergent partial text. Child sessions are attached through
-  native subagent tool metadata and do not change the parent turn's lifecycle.
-- **GUI controls:** model and variant selection, built-in Plan mode, primary
-  agent commands, native commands and skills, attachment URI references,
-  structured forms and permissions, Stop and native steering, compaction,
-  rollback, and resume use the V2 API. Permission policy is applied per session
-  before a turn, without separate server processes for different policies.
-- **Terminal:** model, variant, agent, and permissions are persisted through the
-  API before attaching the real PTY with `--session`. The default TUI command
-  has no model/agent flags. Status uses terminal heuristics; there is no V2
-  hook plugin. GUI cross-agent MCP calls use trusted provider-session routing.
-- **MCP and generation:** provider settings manage the directory-scoped MCP set.
-  Utility generation uses `session.generate` without a tool loop, then removes
-  its temporary session. Both one-shot capability flags are supported.
-- **Compatibility copies:** provider discovery changes invalidate both the
-  supervisor status cache and the renderer's persisted capability cache.
-  Runtime `content.delta.replace` carries authoritative stream snapshots; remote
-  protocol v10 prevents older peers from appending them as deltas. Existing
-  persisted streams remain valid. Provider wire compatibility is enforced at
-  detection and server acquisition.
-
-### ACP session ownership
-
-Poracode's persisted threads are the sole conversation list and source of truth.
-Do not call or expose provider-native ACP `session/list`, and do not import a
-provider's independent conversation history automatically, even when the agent
-advertises the capability. This is an intentional product boundary, not missing
-provider support. The one sanctioned path is the explicit, user-initiated import
-below, which turns a chosen transcript into an ordinary Poracode thread.
-
-ACP `session/resume` and legacy `session/load` are used only with a provider
-session ID already associated with a Poracode thread. Provider detection may
-advertise resume support, but it must not turn provider session discovery into a
-second thread index.
-
-## Adding a New Provider — Full Checklist
-
-A provider is split across a supervisor adapter and a renderer plugin. Lightweight
-renderer metadata is discovered automatically; the supervisor registry remains
-explicit, with a parity test that discovers every adjacent `detection.ts` and fails
-when a factory is omitted. Work this list top to bottom; the ⚠️ items are the ones
-most often forgotten.
-
-### 1. Supervisor adapter — `src/supervisor/agents/<kind>/`
-
-- [ ] `detection.ts` — `DetectionSpec`: `kind`, `label`, `binary`, `capabilities`
-      (models, modes, approvalPolicies, `defaultApprovalPolicy`, `bypassPermissions`),
-      `versionArgs`.
-  - [ ] ⚠️ `update` — set **`builtIn`** for a CLI self-updater (`x update`) **and**
-        `npm: "<pkg>"` when the CLI ships on npm. `npm` is what powers the registry
-        "outdated?" badge (`getNpmPackageNameForUpdate`) **and** the auto-fallback
-        when the built-in updater fails. `builtIn`-only ⇒ no version detection.
-  - [ ] ⚠️ Auth — set `loginCommand` (e.g. `"x login"`) **and** advertise a login
-        method, or the Login button never renders. `loginCommand` alone is inert:
-        the Settings button only shows when `status.authMethods` is non-empty. For a
-        non-ACP CLI, add a cheap `capabilitiesProbe` that returns
-        `{ authMethods: [{ id, name: "Login", type: "terminal" }] }` when installed
-        (the renderer routes `type: "terminal"` → `runTerminalLogin` → `loginCommand`).
-        Pair it with an `authProbes` entry that reads the actual **credential
-        artifact** the login writes (e.g. a token / `auth.json` with an API key),
-        **not** mere config-dir presence: the per-user dir (`~/.x`) is usually
-        created on first run, so keying off it falsely reports "Signed in" /
-        "Re-login" for a never-signed-in user (and the inverse if you then drop
-        the probe). Return `authenticated` when the credential exists, else
-        `missing`. (Providers that only auth on first TUI launch may skip this.)
-  - [ ] ⚠️ `baseSpawnEnv` — if the CLI runs a background self-updater (or other
-        opt-out-able side effect) on spawn, declare the opt-out env ONCE here.
-        Shared runtime applies it to every spawn lane except the explicit
-        `update` command; never repeat it per command builder. Re-expose it on
-        the adapter via `...inheritBaseSpawnEnv(spec)` (see the `index.ts` item).
-- [ ] `argv.ts` — `build<Kind>Args(config, prompt, …)`. Map `config.mode`/`approvalPolicy`/
-      `sandboxMode` to flags. Pass a trust/skip-prompt flag so the PTY never blocks.
-- [ ] `terminal.ts` — `detect<Kind>TerminalStatus` hint table (working/needs_approval/idle).
-- [ ] `session.ts` — credential-file auth probe + invalid-session regex; session-id
-      discovery/watch **only if** the CLI exposes stable ids (else resume via
-      `--continue`/`--last` with a synthetic `sessionRef` minted in `buildLaunchArgv`).
-- [ ] `index.ts` — `create<Kind>Adapter()`: `buildLaunchArgv`/`buildResumeArgv`,
-      `buildDirectInput`, `formatPromptSegments`, `detectTerminalStatus`,
-      `detectInvalidSessionRef`, `defaultOneShotModel` + `buildOneShotCommand`,
-      `spawnEnv` (`BROWSER=/bin/true` under WSL for OAuth providers), and
-      `...inheritBaseSpawnEnv(spec)` when the spec declares `baseSpawnEnv`
-      (derive it — never re-declare the literal on the adapter).
-  - [ ] ⚠️ Re-expose `update` on the returned adapter object:
-        `...(spec.update ? { update: spec.update } : {})`. The shared updater reads
-        `status.update ?? adapter.update`, but the registry card's latest-version
-        probe (`getLatestVersionForAdapter`) reads **`adapter.update` only** — omit
-        this and a not-installed card shows no version even though the spec has `npm`.
-- [ ] `<kind>.test.ts` — argv, adapter shape, terminal heuristics, detection/auth.
-
-### 2. Supervisor registry
-
-- [ ] `src/supervisor/agents/registry.ts` — import the factory + add it to `builtIns`.
-- [ ] `src/supervisor/agents/registry.test.ts` — keep the intentional built-in order
-      assertion current. Directory parity, unique kinds, and populated identity
-      fields are checked automatically.
-
-### 3. Renderer provider — `src/renderer/components/providers/<kind>/`
-
-- [ ] `<Kind>Icon.tsx` — `createProviderIcon({ cssPrefix, path, viewBox })`.
-- [ ] `manifest.ts` — export a lightweight `RendererProviderManifest` with the
-      canonical `kind`, localized `label`, discovery/model-picker `order`, and an
-      optional `utilityOrder` override. Manifests are discovered automatically;
-      do not add shared provider-order arrays.
-- [ ] `index.tsx` — import the manifest and use its `kind` for
-      `registerProviderIcon`, `registerComposerControls` (plan/work toggle +
-      approval control), and
-      `registerCommitGenDefaults` / `registerTitleGenDefaults` /
-      `registerConflictResolverDefaults` if the provider should appear in "auto"
-      utility-task selection. The renderer bootstrap discovers `index.tsx`
-      automatically; no provider-barrel export is needed.
-- [ ] If `manifest.ts` adds or changes its user-facing label, run
-      `pnpm i18n:extract` and translate it in all 12 non-English catalogs.
-
-### 4. Renderer native install registration
-
-- [ ] ⚠️ `…/SettingsOverlay/parts/agentRegistryNative.ts` — add a
-      `NATIVE_AGENT_REGISTRY_ENTRIES` entry (per-platform install command +
-      `docsUrl`, plus any ACP registry aliases). Without this there is **no in-app
-      install** for the provider. Browser-MCP scope belongs in the supervisor
-      `DetectionSpec` capability instead of a renderer provider map.
-
-### 5. Tests & verification
-
-- [ ] `tests/integration/providers-lifecycle.integration.test.ts` — add a
-      `PREFERRED_MODEL` entry, or explicitly use its detected-model fallback when
-      the provider has no universally available model (auto-skips when the CLI is
-      not installed).
-- [ ] Run green: `pnpm run typecheck`, `pnpm run lint`, targeted `pnpm exec vitest run`,
-      and `pnpm exec oxfmt --check <changed paths>`.
-
-### Capability-specific (only when the provider supports it)
-
-- [ ] ACP/structured GUI session → `createStructuredSession` + `buildAcpAuthCommand`/
-      `buildAcpLogoutCommand` (see Grok/Copilot/Cursor).
-- [ ] ACP lifecycle quirks → declare a `sessionBehavior` (`AcpSessionBehavior`),
-      supply an `AcpTextStreamExtension`, or (for agents that hold
-      `session/prompt` open during detached background work) a
-      `stderrTurnSignalParser` from the provider folder; never branch in shared
-      ACP code. See
-      [Provider Isolation — Hard Rules](#provider-isolation--hard-rules).
-- [ ] L1 hook plugin → `pluginId`/`installPlugin`/`pluginLaunchExtras` + a
-      `plugin/` dir containing `plugin.json` and exactly one staged runtime
-      (`forward.mjs` or OpenCode's `poracode-status.mjs`). Packaging discovers
-      these directories automatically; `prepareAgentPlugins.test.ts` pins the
-      current provider set and staged asset shape.
-- [ ] OSC status (title spinner / iTerm2 progress) → `handleOscTitle`/
-      `handleOscNotification` (see Grok). Only wire when the CLI actually emits OSC.
-- [ ] Skills → `skillSupport` with `roots` and a default `invocation`. When some
-      skills cannot take that form, supply `skillSupport.invocationForSkill`
-      from the provider folder. The skill scan passes it each SKILL.md's
-      scalar frontmatter fields and records the returned form on that entry
-      (see Claude: `user-invocable: false` skills keep the request form). The
-      supervisor applies the same rule again to every incoming skill segment,
-      so a paired client that predates a rule still sends a valid form.
-
-> Reference template for a **TUI-only, no-ACP** CLI: `commandcode/`
-> (multi-model + npm install/update + a synthesized terminal Login method).
-
-## Giving a Provider Multiple Profiles
-
-A **profile** is a second account or configuration of a provider that already
-exists as a built-in agent (a second Claude account, a Cursor key for another
-org). Each profile is an `AgentInstanceConfig` whose `driver` is the provider
-id; it surfaces as the instance-scoped agent kind `<driver>:<instanceId>` and
-gets its own adapter, sidebar entry, model-picker group, and settings page.
-
-Everything generic already handles profiles — the sealing settings writer, the
-`createProfile` / `setProfileEnvironment` IPC, the sidebar nesting, the instance
-badge on the provider icon, the profile list UI, and `removeAgentInstance`'s
-cleanup of profile-scoped settings. Adding profiles to a provider is four
-declarations, none of which is a new branch in shared code:
-
-- [ ] **Register the driver** — add `{ driver: "<id>" }` (plus
-      `credentialEnvVar` when the provider authenticates with a single secret)
-      to `AGENT_PROFILE_DRIVERS` in `src/shared/contracts/agentProfiles.ts`.
-      This is what makes shared code treat `<id>:<instance>` kinds as profiles.
-- [ ] **Supervisor adapter factory** — export `create<Provider>ProfileAdapter(instance)`
-      from the provider's module and add it to `profileAdapterFactories` in
-      `src/supervisor/agents/registry.ts`. Build it from your normal adapter
-      factory with an overridden `kind`/`label` and the profile's credential in
-      `baseSpawnEnv`, so detection probes and every launch lane use that
-      credential (see `cursor/index.ts`). Throw when the profile is unusable:
-      the registry skips it with a warning instead of failing.
-- [ ] **Profile descriptor** — set `profiles: <provider>ProfileSupport` on the
-      provider's `NATIVE_AGENT_REGISTRY_ENTRIES` entry. The descriptor supplies
-      only what differs: the one extra add-form field, the row subtitle
-      component, the removal-consequence copy, and `createPayload`. Optional
-      `onCreated` pins provider settings that must exist before the first
-      detection pass (Cursor pins its GUI runtime there). A default that must
-      be unique per profile (a config/home directory) comes from the allocated
-      id that `field.placeholderFor(name, id)` receives, never from the name:
-      distinct names can slugify alike, and a shared home shares credentials.
-- [ ] **Profile page** — the provider's `settingsPanel` already receives
-      instance-scoped kinds; branch on your own
-      `extract<Provider>ProfileInstanceId(agentKind)` to render the per-profile
-      editor instead of the base page.
-
-Do NOT add per-provider profile branches to `mergeManagedSharedSettings`,
-`ProviderIcon`, `SettingsSidebar`, `SingleAgentSettings`, or the IPC surface —
-they are all driven by the registry above. Reference implementations:
-`cursor` (single sealed credential), `claude` (free-form environment plus an
-opaque per-profile `config`), and `codex` (a per-profile `CODEX_HOME` with its
-own hook overlay, skill root, native-plugin discovery, and pooled app-server).
 
 ## Plugin Architecture
 
-The codebase is provider-agnostic by design (targeting 5-10 providers). Each provider is a fully self-contained plugin. What that forbids in practice, and the sanctioned ways to vary behavior, are in [Provider Isolation — Hard Rules](#provider-isolation--hard-rules); the structure it produces is:
+Each provider is a self-contained plugin; no provider-specific `if/else` lands in
+shared runtime, UI, or layout code.
 
-- **Supervisor side:** All provider-specific logic (heuristics, commands, detection, parsing) lives in the adapter's own file(s) under `src/supervisor/agents/`. The `SupervisorRuntime` calls adapter methods generically — no provider-specific if/else chains in runtime code.
-- **Renderer side:** Each provider has its own directory under `src/renderer/components/providers/<kind>/` containing a lightweight manifest, icons, status components, and registration calls. `providerManifest.ts` eagerly discovers metadata while `bootstrap.ts` independently loads UI registrations at the desktop/mobile entrypoints. Leaf registries (`ProviderIcon.tsx`, `providerComposer.ts`, `providerSlashCommands.ts`) and feature-owned utility modules (`commitGen.ts`, `titleGen.ts`, `conflictResolver.ts`) stay side-effect-free until a provider module registers with them; the providers barrel does not bootstrap.
-- **Registry pattern:** Provider behavior is fully self-contained. The supervisor factory list is explicit and guarded by directory-parity tests; renderer metadata and UI modules are filesystem-discovered; native install metadata remains an explicit renderer registry. No provider-specific `if/else` lands in shared runtime or layout logic. See [Adding a New Provider — Full Checklist](#adding-a-new-provider--full-checklist) for the remaining integration points.
+- **Supervisor:** all provider logic (heuristics, commands, detection, parsing)
+  lives in the adapter folder. `SupervisorRuntime` calls adapter methods
+  generically. The factory list in `src/supervisor/agents/registry.ts` is
+  explicit and guarded by a directory-parity test.
+- **Renderer:** each provider has `src/renderer/components/providers/<kind>/`
+  with a lightweight `manifest.ts` (localized label, ordering) and an
+  `index.tsx` that registers its UI: `registerProviderIcon`,
+  `registerComposerControls`, `registerCommitGenDefaults` /
+  `registerTitleGenDefaults` / `registerConflictResolverDefaults`.
+  `providerManifest.ts` eagerly discovers manifests; `bootstrap.ts` separately
+  discovers the UI modules and is loaded explicitly by the renderer entry. The
+  providers barrel does not bootstrap, which keeps utility imports and Node
+  tests free of provider TSX side effects. Do not add provider barrel exports or
+  shared model/utility ordering arrays.
+- **Shared renderer provider modules** (import these leaf modules directly; they
+  stay side-effect-free until a provider registers): `ProviderIcon.tsx` (icon
+  registry + lookup), `StatusIcon.tsx`, `statusTone.ts`, `providerComposer.ts`
+  (composer controls and config normalizers), `providerSlashCommands.ts` (GUI
+  slash commands), `utilityTask.ts` (utility-task ranking and registry), and the
+  feature-owned `commitGen.ts`, `titleGen.ts`, `conflictResolver.ts`.
+- **Native install metadata** stays an explicit renderer registry
+  (`agentRegistryNative.ts`).
 
-### Command Code MCP tools
+## Capability-Based UI
 
-Command Code loads Poracode's MCP tools through a session-local `--mod`, using
-its v1 ModApi. The adapter passes a versioned environment envelope; the bundled
-`commandcode-mcp-mod.mjs` connects the enabled stdio, HTTP, or SSE servers and
-registers their tools. Native MCP settings remain owned by Command Code. The
-mod stays alive across native session switches. Tool names and JSON schemas
-are normalized at this provider boundary for the CLI's model/input validation.
-The helper is bundled with its MCP SDK dependencies and shipped through the
-shared helpers resource pipeline, including WSL and SSH deployments.
+The UI shows only controls the agent's `capabilities` declare. Do not render
+controls for features a CLI cannot support (no effort selector where the
+provider has no efforts, no sandbox modes where it has none).
 
 ## WSL Routing
 
 - WSL projects are detected via `ProjectLocation.kind === "wsl"`.
-- Agent commands are wrapped: `wsl.exe -d <distro> --cd <linuxPath> --exec <command>`.
-- `batchWslCommandsAsync()` combines multiple commands into one `wsl.exe` invocation to avoid ~800-1000ms per-spawn overhead.
-- Shell detection (`resolveWslShellPath`) is cached per distro with a `/bin/bash` fallback (chosen over `/bin/sh` so rc files — nvm/fnm/asdf — still get sourced).
-- Agent install detection runs per-environment (Windows and each active WSL distro independently).
+- Agent commands are wrapped:
+  `wsl.exe -d <distro> --cd <linuxPath> --exec <command>`.
+- `batchWslCommandsAsync()` combines commands into one `wsl.exe` invocation;
+  each spawn costs roughly a second.
+- `resolveWslShellPath` is cached per distro and falls back to `/bin/bash`
+  (not `/bin/sh`) so rc files — nvm/fnm/asdf — are still sourced.
+- Install detection runs per environment (Windows and each active WSL distro
+  independently).
 
-## Hook Runtime Resolution
+## Adding a New Provider — Full Checklist
 
-Hooks (Claude/Codex/Gemini `forward.mjs` + the WSL `bridge.mjs`) need a Node binary they can invoke by absolute path. `/bin/sh -c` doesn't source nvm, so a bare `node` token in a hook command fails for nvm-only users. Both runtimes (native + WSL) resolve to an absolute Node path before staging the wrapper.
+A provider spans a supervisor adapter and a renderer plugin. Renderer metadata
+is discovered automatically; the supervisor registry is explicit, with a parity
+test that fails when a `detection.ts` has no registered factory. Items marked
+**often missed** are the ones that silently break a feature.
 
-Pinned LTS version + SHA256 checksums for every target live in `src/supervisor/runtime/pinnedNode.ts`. Both resolvers import from there.
+### 1. Supervisor adapter — `src/supervisor/agents/<kind>/`
 
-### Native (mac / linux / win32) — `src/supervisor/native/runtime/index.ts`
+- `detection.ts` — `DetectionSpec`: `kind`, `label`, `binary`, `capabilities`
+  (models, modes, approvalPolicies, `defaultApprovalPolicy`,
+  `bypassPermissions`), `versionArgs`.
+  - **Often missed — `update`:** set `builtIn` for a CLI self-updater
+    (`x update`) and `npm: "<pkg>"` when the CLI ships on npm. `npm` powers the
+    registry "outdated?" badge (`getNpmPackageNameForUpdate`) and the fallback
+    when the built-in updater fails; `builtIn` alone means no version detection.
+  - **Often missed — auth:** `loginCommand` alone is inert; the Login button
+    renders only when `status.authMethods` is non-empty. For a non-ACP CLI, add
+    a cheap `capabilitiesProbe` returning
+    `{ authMethods: [{ id, name: "Login", type: "terminal" }] }` when installed
+    (`type: "terminal"` routes to `runTerminalLogin` → `loginCommand`). Pair it
+    with an `authProbes` entry that reads the credential artifact the login
+    writes (a token, an `auth.json` with a key), not config-dir presence — the
+    per-user dir is usually created on first run, so keying off it reports
+    "Signed in" for a user who never signed in. Return `authenticated` when the
+    credential exists, else `missing`. Providers that only authenticate on first
+    TUI launch may skip this.
+  - **Often missed — `baseSpawnEnv`:** if the CLI runs a background
+    self-updater (or another opt-out-able side effect) on spawn, declare the
+    opt-out env once here.
+- `argv.ts` — `build<Kind>Args(config, prompt, …)`. Map
+  `config.mode`/`approvalPolicy`/`sandboxMode` to flags and pass a
+  trust/skip-prompt flag so the PTY never blocks.
+- `terminal.ts` — `detect<Kind>TerminalStatus` hint table
+  (working/needs_approval/idle).
+- `session.ts` — credential-file auth probe and invalid-session regex;
+  session-id discovery only if the CLI exposes stable ids (otherwise resume via
+  `--continue`/`--last` with a synthetic `sessionRef` minted in
+  `buildLaunchArgv`).
+- `index.ts` — `create<Kind>Adapter()`: `buildLaunchArgv`/`buildResumeArgv`,
+  `buildDirectInput`, `formatPromptSegments`, `detectTerminalStatus`,
+  `detectInvalidSessionRef`, `defaultOneShotModel` + `buildOneShotCommand`,
+  `spawnEnv`, and `...inheritBaseSpawnEnv(spec)` when the spec declares
+  `baseSpawnEnv` (never re-declare the literal).
+  - **Often missed:** re-expose `update` on the adapter:
+    `...(spec.update ? { update: spec.update } : {})`. The registry card's
+    latest-version probe (`getLatestVersionForAdapter`) reads `adapter.update`
+    only, so without this a not-installed card shows no version.
+- `<kind>.test.ts` — argv, adapter shape, terminal heuristics, detection/auth.
 
-Three layers, in order of cost:
+### 2. Supervisor registry
 
-1. **Managed runtime fast path.** Single `existsSync` on `~/.poracode/runtime/node-v<x>-<target>/{bin/node,node.exe}`. Zero shell spawn — answers in microseconds when a previous boot installed it.
-2. **Login-shell probe.** macOS GUI apps don't inherit the user's interactive PATH (no Homebrew, no nvm) — so on POSIX we spawn `$SHELL -lic` with sentinel markers (`__LC_NODE_PATH__:`, `__LC_NODE_VERSION__:`) to extract the user's `node` past any rc-file noise. On Windows, Electron inherits PATH from the registry already, so `where.exe node` is enough. If the binary version is ≥ `MIN_ACCEPTED_NODE_MAJOR`, that's our pick.
-3. **Background install.** When 1 + 2 both miss, the resolver fires `installNativeRuntime` (download → SHA256-verify → `tar -xJf` for `.tar.xz` / `tar.exe -xf` for `.zip`) and immediately returns null. The current install pass falls back to `ELECTRON_RUN_AS_NODE=1`; next supervisor boot picks up the managed runtime via the fast path.
+- `src/supervisor/agents/registry.ts` — import the factory and add it to
+  `builtIns`.
+- `src/supervisor/agents/registry.test.ts` — keep the built-in order assertion
+  current. Directory parity, unique kinds, and identity fields are checked
+  automatically.
 
-Result is memoized for the supervisor lifetime (one promise per base dir, shared across whatever providers resolve against that dir) and cleared on restart. `resolveNativeNode` is the public entry point; `managedNodePath` is exported for tests.
+### 3. Renderer provider — `src/renderer/components/providers/<kind>/`
 
-### WSL — `src/supervisor/wsl/runtime/index.ts`
+- `<Kind>Icon.tsx` — `createProviderIcon({ cssPrefix, path, viewBox })`.
+- `manifest.ts` — a `RendererProviderManifest` with the canonical `kind`,
+  localized `label`, discovery/model-picker `order`, and optional
+  `utilityOrder`.
+- `index.tsx` — use the manifest's `kind` for `registerProviderIcon`,
+  `registerComposerControls` (plan/work toggle + approval control), and the
+  commit/title/conflict-resolver defaults if the provider should appear in
+  "auto" utility-task selection.
+- A new or changed manifest label needs `pnpm i18n:extract` and translations in
+  every catalog ([i18n](i18n.md)).
 
-- **Probe first:** `resolveNodeForDistro(distro)` runs `command -v node && node --version` through the user's login shell (`batchWslCommandsAsync` already does `-l -i`). ≥ Node 22 wins.
-- **Install fallback:** Downloads the pinned LTS tarball, verifies SHA256 against `NODE_TARBALL_CHECKSUMS`, extracts inside the distro via `tar -xJf`. Glibc only — Alpine/musl users surface their own node via probe (`apk add nodejs`).
+### 4. Renderer native install registration
 
-### Hook wrapper
+- **Often missed:** add a `NATIVE_AGENT_REGISTRY_ENTRIES` entry in
+  `src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts`
+  (per-platform install command, `docsUrl`, any ACP registry aliases). Without
+  it there is no in-app install. Browser-MCP scope belongs in the supervisor
+  `DetectionSpec`, not a renderer map.
 
-`installerBase.writeNativeHookWrapper(pluginDir, { nodePath? })` writes `poracode-hook.{sh,cmd}` next to `forward.mjs`. Two shapes:
+### 5. Tests and verification
 
-- **With nodePath (preferred):** wrapper exec's the bare Node binary directly. ~30–50 ms cold start.
-- **Without:** wrapper sets `ELECTRON_RUN_AS_NODE=1` and exec's `process.execPath` (poracode's bundled Electron). ~150 ms cold start. Always works.
+- `tests/integration/providers-lifecycle.integration.test.ts` — add a
+  `PREFERRED_MODEL` entry, or use its detected-model fallback when no model is
+  universally available (the test skips when the CLI is not installed).
+- Run `pnpm run typecheck`, `pnpm run lint`, targeted `pnpm exec vitest run`, and
+  `pnpm exec oxfmt --check <changed paths>`.
 
-Adapters' `installPlugin` calls `resolveInstallNodePath(ctx)` from `installerBase`, which routes to the WSL or native resolver as appropriate. Provider install code passes the result through `options.resolvedNodePath` to `installXPlugin(ctx, options)`, which threads it into `writeNativeHookWrapper`. The wrapper is rewritten on every install pass — when a user installs Node between launches, the next boot detects it and upgrades the wrapper transparently.
+### Capability-specific
 
-### Bumping pinned Node
+- ACP/structured GUI session → `createStructuredSession` +
+  `buildAcpAuthCommand`/`buildAcpLogoutCommand` (see Grok, Copilot, Cursor).
+- ACP lifecycle quirks → a `sessionBehavior` (`AcpSessionBehavior`), an
+  `AcpTextStreamExtension`, or (for agents that hold `session/prompt` open
+  during detached background work) a `stderrTurnSignalParser`, all from the
+  provider folder. See
+  [Provider Isolation — Hard Rules](#provider-isolation--hard-rules).
+- L1 hook plugin → `pluginId`/`installPlugin`/`pluginLaunchExtras` plus a
+  `plugin/` dir containing `plugin.json` and exactly one staged runtime
+  (`forward.mjs`, or OpenCode's `poracode-status.mjs`). Packaging discovers
+  these automatically; `prepareAgentPlugins.test.ts` pins the provider set and
+  staged asset shape. Hook Node resolution:
+  [Provider Runtime](provider-runtime.md#hook-runtime-resolution).
+- OSC status (title spinner / iTerm2 progress) → `handleOscTitle` /
+  `handleOscNotification` (see Grok). Only when the CLI actually emits OSC.
+- Skills → `skillSupport` with `roots` and a default `invocation`. When some
+  skills cannot take that form, supply `skillSupport.invocationForSkill`; the
+  skill scan passes it each SKILL.md's scalar frontmatter and records the
+  returned form (see Claude: `user-invocable: false` skills keep the request
+  form). The supervisor reapplies the rule to every incoming skill segment, so
+  an older paired client still sends a valid form.
 
-Edit `PORACODE_PINNED_NODE_VERSION` in `src/supervisor/runtime/pinnedNode.ts`, then run `pnpm tsx scripts/refresh-node-checksums.mjs`. The script walks the `NODE_TARBALL_CHECKSUMS` block and replaces every target's SHA256 from the official `nodejs.org/dist/v<x>/SHASUMS256.txt`. Covers `linux-{x64,arm64}` (.tar.xz), `darwin-{x64,arm64}` (.tar.xz), `win-{x64,arm64}` (.zip).
+Reference template for a TUI-only, non-ACP CLI: `commandcode/` (multi-model, npm
+install/update, synthesized terminal Login method).
 
-## Capability-Based UI
+## Giving a Provider Multiple Profiles
 
-The UI only shows controls that the agent's `capabilities` object declares. Do not show fake controls for features a CLI cannot support (e.g. no effort selector for Gemini, no sandbox modes for Claude).
+A profile is a second account or configuration of an existing built-in provider
+(a second Claude account, a Cursor key for another org). Each profile is an
+`AgentInstanceConfig` whose `driver` is the provider id; it surfaces as the
+instance-scoped kind `<driver>:<instanceId>` with its own adapter, sidebar
+entry, model-picker group, and settings page.
 
-### Terminal MCP launch integration
+Generic code already handles profiles (sealing settings writer,
+`createProfile` / `setProfileEnvironment` IPC, sidebar nesting, instance badge,
+profile list UI, `removeAgentInstance` cleanup). Adding profiles is four
+declarations:
 
-Composer `mcpScope.terminal` declares whether the selected MCP set can be supplied
-at launch. Providers with per-launch config flags stage private files and attach
-cleanup to both launch and resume argv. Native Windows ACLs and in-distro Linux
-permissions protect credential-bearing files before writing them.
+- **Register the driver** — add `{ driver: "<id>" }` (plus `credentialEnvVar`
+  when the provider authenticates with a single secret) to
+  `AGENT_PROFILE_DRIVERS` in `src/shared/contracts/agentProfiles.ts`.
+- **Supervisor adapter factory** — export `create<Provider>ProfileAdapter(instance)`
+  and add it to `profileAdapterFactories` in `src/supervisor/agents/registry.ts`.
+  Build it from the normal factory with an overridden `kind`/`label` and the
+  profile's credential in `baseSpawnEnv`, so probes and every launch lane use it
+  (see `cursor/index.ts`). Throw when the profile is unusable; the registry
+  skips it with a warning.
+- **Profile descriptor** — set `profiles: <provider>ProfileSupport` on the
+  provider's `NATIVE_AGENT_REGISTRY_ENTRIES` entry. It supplies only what
+  differs: the extra add-form field, row subtitle component, removal-consequence
+  copy, and `createPayload`. Optional `onCreated` pins provider settings that
+  must exist before the first detection pass. A per-profile unique default (a
+  config/home directory) comes from the allocated id passed to
+  `field.placeholderFor(name, id)`, never from the name — distinct names can
+  slugify alike, and a shared home shares credentials.
+- **Profile page** — the provider's `settingsPanel` already receives
+  instance-scoped kinds; branch on your own
+  `extract<Provider>ProfileInstanceId(agentKind)` to render the per-profile
+  editor.
 
-Providers that ignore a stdio server's `cwd` declare
-`mcpRequiresStdioCwdProxy`. The launch pipeline then uses the standalone stdio
-launcher, which applies cwd/env and preserves raw MCP traffic, including resources
-and prompts. Servers with disabled tools still use the filtering proxy.
-
-Command Code mods and Pi extensions share the SDK connection implementation;
-each provider maps schemas/results and owns its extension lifecycle. Pi closes
-connections on reload/quit and retains them across native session switches. The
-standalone helpers and their versioned launch envelopes must ship together.
-
-### Native MCP setup and consent
-
-CLI availability is independent of Poracode MCP integration. A provider without session-local
-MCP support remains available in CLI mode and does not advertise per-thread MCP selection.
-
-Providers with `nativeMcpConfig(ctx)` expose optional native configuration setup in Provider
-Settings. Users explicitly select saved user MCP servers and click Install after reviewing the
-destination and provider-wide scope. This copies native definitions, not a traffic proxy. It
-never runs on detection or thread launch, and changes are not synchronized automatically.
-Removal preserves unrelated servers and user-edited entries. Unsupported native options are
-unavailable instead of being silently dropped. Native host environments are supported; WSL
-setup remains unavailable until its paths and permissions are verified.
-
-The app's `native-mcp-config/<config-path-hash>.json` version-1 ownership journal stores hashes,
-not credentials. It records old and proposed entry hashes before atomic configuration writes,
-so interrupted updates can be retried. The settings revision covers both native configuration
-and saved server definitions. The optional IPC additions do not change per-thread capabilities,
-so existing status caches remain valid.
+Do not add per-provider profile branches to `mergeManagedSharedSettings`,
+`ProviderIcon`, `SettingsSidebar`, `SingleAgentSettings`, or the IPC surface.
+Reference implementations: `cursor` (single sealed credential), `claude`
+(free-form environment plus an opaque per-profile `config`), `codex` (per-profile
+`CODEX_HOME` with its own hook overlay, skill root, native-plugin discovery, and
+pooled app-server).

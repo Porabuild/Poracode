@@ -17,6 +17,23 @@ export const keybindingsFileSchema = z.object({
 });
 export type KeybindingsFile = z.infer<typeof keybindingsFileSchema>;
 
+/**
+ * The former thread-only search now opens the unified Search palette. Rekey
+ * legacy entries in desktop and browser storage so custom chords remain
+ * editable on the visible `palette.open` shortcut.
+ * Version 1 remains valid: only a command identifier changes, with chords,
+ * conditions, arguments, and removal entries preserved on read.
+ */
+export function migrateThreadSearchCommand(file: KeybindingsFile): KeybindingsFile {
+  let changed = false;
+  const keybindings = file.keybindings.map((binding) => {
+    if (binding.command !== "thread.search.open") return binding;
+    changed = true;
+    return { ...binding, command: "palette.open" };
+  });
+  return changed ? { ...file, keybindings } : file;
+}
+
 export interface KeybindingsConfig {
   path: string;
   file: KeybindingsFile;
@@ -39,6 +56,22 @@ export function bindingForPlatform(
 
 export const QUICK_COMPOSER_COMMAND_ID = "quick-composer.toggle";
 export const QUICK_COMPOSER_SHORTCUT_UNAVAILABLE_CODE = "quick-composer-shortcut-unavailable";
+
+export const EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID = "editor.toggle-markdown-preview";
+
+/**
+ * Scope for the Markdown preview toggle, shared by the default keybinding and
+ * the registry command so the keybinding hook, the command palette, and the
+ * Shortcuts settings all agree. It requires the editor surface to actually be
+ * mounted (`editorSurfaceOpen`; `activePath` survives closing) with a Markdown
+ * file active, and permits the editor's own surfaces — the source view
+ * (Monaco's hidden textarea reports `inputFocus`, so `editorFocus` must win)
+ * and the preview render (which usually leaves focus on `<body>`) — while
+ * standing down everywhere a paste-style chord carries meaning: other text
+ * inputs, the terminal, the composer, and the in-app browser.
+ */
+export const EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN =
+  "editorSurfaceOpen && markdownActive && (editorFocus || (!inputFocus && !terminalFocus && !composerFocus && !browserFocus))";
 
 export const QUICK_COMPOSER_DEFAULT_BINDING: KeybindingEntry = {
   command: QUICK_COMPOSER_COMMAND_ID,
@@ -79,8 +112,9 @@ export const COMPOSER_CONTROL_COMMAND_IDS = [
  * `thread.rename`, `thread.next`/`thread.previous`, `project.add`, `find.open`,
  * `browser.toggle`, `browser.tab.new`, `tab.next`/`tab.previous`, and
  * `thread.recent.next`/`thread.recent.previous`, which gained their first
- * defaults here. The system-wide `quick-composer.toggle` binding is also
- * backfilled so existing users can rebind the overlay from Shortcuts settings.
+ * defaults here, plus `editor.toggle-markdown-preview`. The system-wide
+ * `quick-composer.toggle` binding is also backfilled so existing users can
+ * rebind the overlay from Shortcuts settings.
  */
 export const BACKFILL_COMMAND_IDS = [
   ...COMPOSER_CONTROL_COMMAND_IDS,
@@ -100,6 +134,7 @@ export const BACKFILL_COMMAND_IDS = [
   "tab.previous",
   "thread.recent.next",
   "thread.recent.previous",
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
 ] as const;
 
 /**
@@ -156,7 +191,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       when: "hasProject",
     },
     {
-      command: "thread.search.open",
+      command: "palette.open",
       key: "Ctrl+G",
       mac: "Meta+G",
       when: NOT_TYPING,
@@ -188,6 +223,14 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       key: "Ctrl+S",
       mac: "Meta+S",
       when: "editorFocus",
+    },
+    {
+      command: EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+      key: "Ctrl+Shift+V",
+      // Deliberately Ctrl on mac too: Meta+Shift+V is the macOS paste-and-match-
+      // style chord, and staying on Ctrl has precedent here (thread.recent.*).
+      // The `when` keeps the chord away from every surface where it pastes.
+      when: EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
     },
     {
       command: "thread.archive",

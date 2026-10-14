@@ -332,7 +332,21 @@ export function isToolGroupItem(item: RuntimeChatItem): boolean {
   );
 }
 
+// Completed deferred rows survive as individual items. Group analysis, summary
+// and segmentation otherwise reparse each command on every virtualized remount.
+// The reducer replaces an item on late payload updates; running rows stay live.
+const completedCategories = new WeakMap<RuntimeChatItem, GroupCategory>();
+
 export function categorizeItem(item: RuntimeChatItem): GroupCategory {
+  if (item.state !== "completed") return deriveItemCategory(item);
+  const cached = completedCategories.get(item);
+  if (cached) return cached;
+  const category = deriveItemCategory(item);
+  completedCategories.set(item, category);
+  return category;
+}
+
+function deriveItemCategory(item: RuntimeChatItem): GroupCategory {
   if (item.type === "reasoning") return "thought";
   if (item.type === "command_execution") return categorizeCommandExecution(item);
   if (item.type === "file_change") return "edited";

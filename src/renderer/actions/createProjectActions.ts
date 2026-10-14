@@ -1,7 +1,7 @@
 import { startTransition } from "react";
 import { toast } from "@heroui/react";
-import { msg } from "@/shared/messages";
-import type { CloneRepoSource, ProjectLocation } from "@/shared/contracts";
+import type { CloneRepoSource, Project, ProjectLocation } from "@/shared/contracts";
+import { friendlyError, msg } from "@/shared/messages";
 import {
   deriveLocationFromPath,
   parentDirOf,
@@ -15,6 +15,13 @@ import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  isApplyingHostOriginatedManagedRootMutation,
+  isManagedRootDesktopRuntime,
+  sendManagedRootProjectCommand,
+} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { applyRootCatalogProjectRows } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
+import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { autoDetectSetupScript } from "@/renderer/utils/gitHelpers";
@@ -35,13 +42,43 @@ export interface CommitCreateProjectParams {
  * runtime (so the next create/clone starts there), add it to the store, detect
  * its setup script, and open its draft. Shared by the create and clone flows.
  */
-function registerNewProject(
+async function registerNewProject(
   location: ProjectLocation,
   name: string,
   lastUsedDir: string,
   source: "clone" | "existing" | "scratch",
-): void {
+): Promise<void> {
   useSharedSettings.getState().setLastUsedProjectDir(runtimeKeyForLocation(location), lastUsedDir);
+
+  if (isManagedRootDesktopRuntime() && !isApplyingHostOriginatedManagedRootMutation()) {
+    // B4: the host owns project rows. The directory already exists (created or
+    // cloned by the caller); this is the explicit registration intent, and the
+    // returned authoritative row is installed locally before its draft opens.
+    await sendManagedRootProjectCommand({
+      kind: "add-existing",
+      path: getProjectFsPath(location),
+      ...(name ? { name } : {}),
+      ...(getActiveWorkspaceId() ? { workspaceId: getActiveWorkspaceId()! } : {}),
+    }).then((response) => {
+      refreshManagedRootCatalogSoon();
+      const project = response.project as Project | undefined;
+      if (!project) return;
+      startTransition(() => {
+        applyRootCatalogProjectRows([project]);
+        if (response.created !== false) {
+          captureProductEvent("project.added", {
+            location_kind: location.kind,
+            source,
+          });
+          autoDetectSetupScript(project);
+        } else {
+          toast.info(msg("project.locationConflict"));
+        }
+        useAppStore.getState().openDraft(project.id);
+      });
+    });
+    return;
+  }
 
   startTransition(() => {
     // New projects join the workspace the user is currently looking at,
@@ -88,7 +125,7 @@ export async function commitCreateProject(params: CommitCreateProjectParams): Pr
     lastUsedDir = parentDirOf(params.dir, location.kind);
   }
 
-  registerNewProject(location, name, lastUsedDir, params.mode);
+  await registerNewProject(location, name, lastUsedDir, params.mode);
 }
 
 /**
@@ -120,7 +157,7 @@ export async function addExistingProject(
     choice,
     dir: picked,
     name: "",
-  });
+  }).catch((error: unknown) => toast.danger(friendlyError(error)));
 }
 
 /**
@@ -165,5 +202,5 @@ export async function commitCloneProject(params: CommitCloneProjectParams): Prom
     source: params.source,
   });
 
-  registerNewProject(deriveLocationFromPath(path, platform), name, params.parentDir, "clone");
+  await registerNewProject(deriveLocationFromPath(path, platform), name, params.parentDir, "clone");
 }

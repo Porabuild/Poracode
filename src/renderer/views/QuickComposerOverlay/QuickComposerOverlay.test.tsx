@@ -1,5 +1,6 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "@heroui/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -37,6 +38,7 @@ const { bridge, installedStatus, installedStatuses, settingsState } = vi.hoisted
       onQuickComposerDismissRequested: vi.fn<(listener: () => void) => () => void>(
         () => () => undefined,
       ),
+      onQuickComposerShown: vi.fn<(listener: () => void) => () => void>(() => () => undefined),
       submitQuickComposer: vi
         .fn<(submission: unknown) => Promise<void>>()
         .mockResolvedValue(undefined),
@@ -77,12 +79,16 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
       </button>
       <button
         type="button"
+        // The real shared composer catch swallows non-voice submission
+        // errors; mirror that so the rethrown refusal is not unhandled.
         onClick={() =>
-          void props.onStart({
-            agentKind: "codex",
-            config: { model: "gpt-5.4" },
-            prompt: "sent from overlay",
-          })
+          void Promise.resolve(
+            props.onStart({
+              agentKind: "codex",
+              config: { model: "gpt-5.4" },
+              prompt: "sent from overlay",
+            }),
+          ).catch(() => undefined)
         }
       >
         Send overlay
@@ -127,10 +133,9 @@ describe("QuickComposerOverlay", () => {
     expect(input).toHaveFocus();
 
     screen.getByRole("button", { name: "Switch test project" }).focus();
-    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
-    fireEvent(document, new Event("visibilitychange"));
-    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
-    fireEvent.focus(window);
+    act(() => {
+      bridge.onQuickComposerShown.mock.calls[0]?.[0]();
+    });
 
     expect(input).toHaveFocus();
   });
@@ -164,6 +169,118 @@ describe("QuickComposerOverlay", () => {
     expect(bridge.dismissQuickComposer).toHaveBeenCalledOnce();
     expect(container.querySelector(".quick-composer-drag-handle")).not.toBeInTheDocument();
     expect(container.querySelector(".quick-composer-frame")).toBeInTheDocument();
+  });
+
+  it("surfaces a refused submission exactly once and recovers to idle", async () => {
+    const toastDanger = vi.spyOn(toast, "danger");
+    bridge.submitQuickComposer.mockRejectedValueOnce(new Error("Fixture native handoff refused"));
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Send overlay" }));
+    expect(container.querySelector(".quick-composer-root--sending")).toBeInTheDocument();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(toastDanger).toHaveBeenCalledExactlyOnceWith("Fixture native handoff refused");
+    expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+    expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
+
+    // The draft surface stayed recoverable: an immediate retry goes through.
+    fireEvent.click(screen.getByRole("button", { name: "Send overlay" }));
+    expect(bridge.submitQuickComposer).toHaveBeenCalledTimes(2);
+    expect(container.querySelector(".quick-composer-root--sending")).toBeInTheDocument();
+    toastDanger.mockRestore();
+  });
+
+  it("reopens after native hide/show without a DOM visibility or focus transition", async () => {
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await act(async () => {
+      vi.advanceTimersByTime(180);
+    });
+    expect(bridge.dismissQuickComposer).toHaveBeenCalledOnce();
+    expect(container.querySelector(".quick-composer-root--closing")).toBeInTheDocument();
+
+    act(() => {
+      bridge.onQuickComposerShown.mock.calls[0]?.[0]();
+    });
+    expect(document.visibilityState).toBe("visible");
+    expect(container.querySelector(".quick-composer-root--opening")).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+  });
+
+  it("does not replay the enter animation or refetch when a file dialog returns focus", async () => {
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    const refreshes = bridge.getAgentStatuses.mock.calls.length;
+    fireEvent.focus(window);
+    expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(bridge.getAgentStatuses).toHaveBeenCalledTimes(refreshes);
+  });
+
+  it("does not let a pending main-window reveal hide a newly shown overlay", async () => {
+    let finishReveal!: () => void;
+    bridge.focusWindow.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishReveal = resolve;
+      }),
+    );
+    useAppStore.setState({ projects: [] });
+    const { container } = render(<QuickComposerOverlay />);
+    fireEvent.click(screen.getByRole("button", { name: "Add a project" }));
+    await act(async () => {
+      vi.advanceTimersByTime(180);
+    });
+    expect(bridge.focusWindow).toHaveBeenCalledOnce();
+    act(() => {
+      bridge.onQuickComposerShown.mock.calls[0]?.[0]();
+    });
+    await act(async () => {
+      finishReveal();
+    });
+    expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
+    expect(container.querySelector(".quick-composer-root--opening")).toBeInTheDocument();
+  });
+
+  it("does not let an old pending submission dismiss a newly shown overlay", async () => {
+    let finishSubmission!: () => void;
+    bridge.submitQuickComposer.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishSubmission = resolve;
+      }),
+    );
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send overlay" }));
+    expect(container.querySelector(".quick-composer-root--sending")).toBeInTheDocument();
+    act(() => {
+      bridge.onQuickComposerShown.mock.calls[0]?.[0]();
+    });
+    await act(async () => {
+      finishSubmission();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+    expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
   });
 
   it("prefers the project represented by the active pane", () => {
@@ -203,5 +320,31 @@ describe("QuickComposerOverlay", () => {
         selectedProjectId: otherProject.id,
       }),
     ).toEqual(otherProject);
+  });
+
+  it("applies live agent status from the loopback-backed supervisor subscription", () => {
+    let listener: ((event: unknown) => void) | undefined;
+    bridge.onSupervisorEvent.mockImplementation((cb) => {
+      listener = cb;
+      return () => undefined;
+    });
+    render(<QuickComposerOverlay />);
+    act(() => {
+      listener?.({
+        type: "windows-agent-statuses",
+        statuses: [
+          {
+            kind: "claude",
+            label: "Claude",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {},
+          },
+        ],
+      });
+    });
+    expect(
+      useAgentStatusesStore.getState().agentStatuses.some((status) => status.kind === "claude"),
+    ).toBe(true);
   });
 });

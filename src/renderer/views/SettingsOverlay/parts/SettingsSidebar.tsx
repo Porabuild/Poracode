@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { baseAgentKind, type AgentStatus } from "@/shared/contracts";
+import { baseAgentKind, stripAgentProfileBasePrefix, type AgentStatus } from "@/shared/contracts";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -48,6 +48,7 @@ import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { isDevApp, isRemoteSession, isWindows } from "@/renderer/bridge";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { searchSettings } from "./settingsSearchIndex";
 import type { SettingsSection } from "./types";
 
@@ -55,6 +56,7 @@ import type { SettingsSection } from "./types";
 // hides them and instead surfaces "Models" in place of the Agents tree. Single
 // source of truth for both the collapsed icon rail and the expanded list.
 const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
+  "audio",
   "search",
   "threads",
   "shortcuts",
@@ -70,10 +72,7 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
 ]);
 
 function profileSidebarLabel(agent: AgentStatus): string {
-  const baseKind = baseAgentKind(agent.kind);
-  return agent.label.toLowerCase().startsWith(`${baseKind.toLowerCase()} `)
-    ? agent.label.slice(baseKind.length).trim()
-    : agent.label;
+  return stripAgentProfileBasePrefix(agent.label, agent.kind);
 }
 
 function renderAgentIcon(
@@ -220,7 +219,9 @@ export function SettingsSidebar(props: {
   };
 
   const isSectionVisible = (id: SettingsSection) =>
-    !remoteSession || !DESKTOP_ONLY_SECTIONS.has(id);
+    !remoteSession ||
+    !DESKTOP_ONLY_SECTIONS.has(id) ||
+    (id === "remoteServers" && hasClientCapability("manageRemoteEnvironments"));
 
   // Grouped section model — single source of truth for sidebar order in both
   // the expanded list (with group headers) and the collapsed icon rail. The

@@ -1,7 +1,13 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useRef } from "react";
 import type { TerminalSize, ThreadStatus } from "@/shared/contracts";
-import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
+import type { XTermSurface, XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+
+const DeferredXTermSurface = lazy(() =>
+  import("@/renderer/components/terminal/XTermSurface").then((module) => ({
+    default: module.XTermSurface,
+  })),
+);
 
 export interface TerminalPaneHandle {
   focus(): void;
@@ -56,23 +62,34 @@ export const TerminalPane = forwardRef<
         status === "inactive" || status === "launching" ? "opacity-0" : "opacity-100"
       }`}
     >
-      <XTermSurface
-        ref={xtermRef}
-        terminalId={threadId}
-        enabled={isTerminalActive}
-        baseFontSize={fontSize}
-        visible={!hidden}
-        {...(remoteTransport
-          ? {
-              initialScrollback: remoteTransport.initialScrollback,
-              outputSource: remoteTransport.outputSource,
-              writeInput: remoteTransport.writeInput,
-              resizeBackingTerminal: remoteTransport.resizeBackingTerminal,
-              openLinksInNativeBrowser: true,
-            }
-          : {})}
-        {...(onTerminalResize ? { onTerminalResize } : {})}
-      />
+      <Suspense
+        fallback={
+          <div className="flex h-full items-center justify-center">
+            <span
+              aria-hidden="true"
+              className="size-5 animate-spin rounded-full border-2 border-muted/30 border-t-muted"
+            />
+          </div>
+        }
+      >
+        <DeferredXTermSurface
+          ref={xtermRef}
+          terminalId={threadId}
+          enabled={isTerminalActive}
+          baseFontSize={fontSize}
+          visible={!hidden}
+          {...(remoteTransport
+            ? {
+                initialScrollback: remoteTransport.initialScrollback,
+                outputSource: remoteTransport.outputSource,
+                writeInput: remoteTransport.writeInput,
+                resizeBackingTerminal: remoteTransport.resizeBackingTerminal,
+                openLinksInNativeBrowser: true,
+              }
+            : {})}
+          {...(onTerminalResize ? { onTerminalResize } : {})}
+        />
+      </Suspense>
     </div>
   );
 });

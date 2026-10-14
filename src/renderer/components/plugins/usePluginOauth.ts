@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { LoadedPlugin, McpServer } from "@/shared/contracts";
 import { DEFAULT_MCP_SERVER_TIMEOUT_MS } from "@/shared/contracts";
@@ -51,7 +51,8 @@ function toMcpServer(
 export function usePluginOauth(plugin: LoadedPlugin) {
   const { t } = useLingui();
   const [authorizedUrls, setAuthorizedUrls] = useState<string[]>();
-  const [pending, setPending] = useState<string>();
+  const [pending, setPending] = useState<{ serverName: string; kind: "connect" | "disconnect" }>();
+  const pendingRef = useRef(false);
   const [error, setError] = useState<string>();
 
   const refresh = async () => {
@@ -76,7 +77,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
     const url = server ? remoteServerUrl(server.entry) : undefined;
     if (!url) return "unknown";
-    if (pending === serverName) return "connecting";
+    if (pending?.serverName === serverName && pending.kind === "connect") return "connecting";
     if (!authorizedUrls) return "unknown";
     return authorizedUrls.includes(url) ? "connected" : "disconnected";
   };
@@ -84,8 +85,9 @@ export function usePluginOauth(plugin: LoadedPlugin) {
   const connect = async (serverName: string) => {
     const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
     const url = server ? remoteServerUrl(server.entry) : undefined;
-    if (!server || !url) return;
-    setPending(serverName);
+    if (!server || !url || pendingRef.current) return;
+    pendingRef.current = true;
+    setPending({ serverName, kind: "connect" });
     setError(undefined);
     try {
       const bridge = readBridge();
@@ -108,6 +110,7 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     } catch {
       setError(t`Could not sign in to ${serverName}.`);
     } finally {
+      pendingRef.current = false;
       setPending(undefined);
     }
   };
@@ -115,13 +118,18 @@ export function usePluginOauth(plugin: LoadedPlugin) {
   const disconnect = async (serverName: string) => {
     const server = plugin.mcpServers.find((candidate) => candidate.name === serverName);
     const url = server ? remoteServerUrl(server.entry) : undefined;
-    if (!url) return;
+    if (!url || pendingRef.current) return;
+    pendingRef.current = true;
+    setPending({ serverName, kind: "disconnect" });
     setError(undefined);
     try {
       await readBridge().clearMcpServerOauth({ url });
       await refresh();
     } catch {
       setError(t`Could not sign out of ${serverName}.`);
+    } finally {
+      pendingRef.current = false;
+      setPending(undefined);
     }
   };
 
@@ -131,7 +139,15 @@ export function usePluginOauth(plugin: LoadedPlugin) {
     return server ? remoteServerUrl(server.entry) !== undefined : false;
   };
 
-  return { stateFor, isRemoteServer, connect, disconnect, error };
+  return {
+    stateFor,
+    isRemoteServer,
+    isBusy: pending !== undefined,
+    isPending: (serverName: string) => pending?.serverName === serverName,
+    connect,
+    disconnect,
+    error,
+  };
 }
 
 export type PluginOauthConnectionState = ConnectionState;

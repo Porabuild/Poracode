@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Tooltip } from "@heroui/react";
+import { Skeleton, Tooltip } from "@heroui/react";
 import { Monitor, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -7,7 +7,10 @@ import { isRemoteSession } from "@/renderer/bridge";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { isPdfPath } from "@/shared/promptContent";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
+import { useRemoteImagePathUrl } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
+import { useImageViewportPriority } from "@/renderer/components/common/useImageViewportPriority";
 
 /**
  * Enabled-MCP indicator, parameterized by a {@link ComposerMcpServerDescriptor}
@@ -114,6 +117,42 @@ export function ComputerUseChip(props: {
   );
 }
 
+/**
+ * Attachment thumbnail with environment keyed readiness (R3): a host-held path
+ * on an environment resolves through its subscription instead of waiting for
+ * an unrelated rerender. Direct/ssh (no readiness) keep the sync URL.
+ */
+function AttachmentImage(props: {
+  readonly attachment: Attachment;
+  readonly imageUrlForPath?: ((path: string) => string) | undefined;
+  readonly readiness?: RemoteImageReadiness | undefined;
+  readonly className: string;
+  readonly alt: string;
+}) {
+  const { attachment, imageUrlForPath, readiness, className, alt } = props;
+  const usesHostPath = attachment.isImage && attachment.previewUrl === undefined;
+  const activeReadiness = usesHostPath ? readiness : undefined;
+  const { viewportRef, priority } = useImageViewportPriority(activeReadiness !== undefined);
+  const url = useRemoteImagePathUrl(
+    usesHostPath ? attachment.path : undefined,
+    activeReadiness,
+    activeReadiness ? "" : attachmentImageUrl(attachment, imageUrlForPath),
+    priority,
+  );
+  return url ? (
+    <img
+      ref={viewportRef}
+      className={className}
+      src={url}
+      alt={alt}
+      decoding="async"
+      draggable={false}
+    />
+  ) : (
+    <Skeleton ref={viewportRef} className={className} role="img" aria-label={alt} />
+  );
+}
+
 function AttachmentChip(props: {
   attachment: Attachment;
   onRemove?: ((id: string) => void) | undefined;
@@ -121,6 +160,7 @@ function AttachmentChip(props: {
   onPreviewPdf?: ((attachment: Attachment) => void) | undefined;
   hideImageName?: boolean;
   imageUrlForPath?: ((path: string) => string) | undefined;
+  remoteImageReadiness?: RemoteImageReadiness | undefined;
 }) {
   const { t } = useLingui();
   const {
@@ -130,6 +170,7 @@ function AttachmentChip(props: {
     onPreviewPdf,
     hideImageName,
     imageUrlForPath,
+    remoteImageReadiness,
   } = props;
   const isPicked = !!att.selector;
   const labelText = isPicked ? att.selector! : att.name;
@@ -146,12 +187,12 @@ function AttachmentChip(props: {
   const content = (
     <>
       {att.isImage ? (
-        <img
+        <AttachmentImage
+          attachment={att}
+          imageUrlForPath={imageUrlForPath}
+          readiness={remoteImageReadiness}
           className="poracode-attachment-chip__thumb"
-          src={attachmentImageUrl(att, imageUrlForPath)}
           alt={att.name}
-          decoding="async"
-          draggable={false}
         />
       ) : (
         <img
@@ -215,15 +256,17 @@ function ImagePreview(props: {
   attachment: Attachment;
   onPreviewImage?: ((attachment: Attachment) => void) | undefined;
   imageUrlForPath?: ((path: string) => string) | undefined;
+  remoteImageReadiness?: RemoteImageReadiness | undefined;
 }) {
   const { t } = useLingui();
-  const { attachment: att, onPreviewImage, imageUrlForPath } = props;
+  const { attachment: att, onPreviewImage, imageUrlForPath, remoteImageReadiness } = props;
   const img = (
-    <img
-      src={attachmentImageUrl(att, imageUrlForPath)}
+    <AttachmentImage
+      attachment={att}
+      imageUrlForPath={imageUrlForPath}
+      readiness={remoteImageReadiness}
+      className="poracode-attachment-image-preview__img"
       alt={att.name}
-      decoding="async"
-      draggable={false}
     />
   );
   if (onPreviewImage) {
@@ -258,6 +301,7 @@ export function AttachmentBar(props: {
   hideImageNames?: boolean;
   imagesAsPreview?: boolean;
   imageUrlForPath?: (path: string) => string;
+  remoteImageReadiness?: RemoteImageReadiness | undefined;
   leading?: ReactNode;
 }) {
   const {
@@ -269,6 +313,7 @@ export function AttachmentBar(props: {
     hideImageNames,
     imagesAsPreview,
     imageUrlForPath,
+    remoteImageReadiness,
     leading,
   } = props;
   if (attachments.length === 0 && !leading) return null;
@@ -288,6 +333,7 @@ export function AttachmentBar(props: {
             attachment={att}
             onPreviewImage={onPreviewImage}
             imageUrlForPath={imageUrlForPath}
+            remoteImageReadiness={remoteImageReadiness}
           />
         ) : (
           <AttachmentChip
@@ -297,6 +343,7 @@ export function AttachmentBar(props: {
             onPreviewImage={onPreviewImage}
             onPreviewPdf={onPreviewPdf}
             imageUrlForPath={imageUrlForPath}
+            remoteImageReadiness={remoteImageReadiness}
             {...(hideImageNames === undefined ? {} : { hideImageName: hideImageNames })}
           />
         ),

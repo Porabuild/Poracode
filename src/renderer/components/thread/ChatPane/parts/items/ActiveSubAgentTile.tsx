@@ -3,6 +3,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
+import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
@@ -17,7 +19,12 @@ import {
 } from "@/shared/contracts";
 import type { ThreadDocksPlacement } from "@/shared/settings";
 import { ThreadDocksPlacementToggle } from "../../../ThreadDocksPlacementToggle";
-import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDisplay";
+import {
+  deriveToolDisplay,
+  isCrossagentTool,
+  isWorkflowTool,
+  readSubAgentType,
+} from "./toolDisplay";
 import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
@@ -31,6 +38,7 @@ import {
 import { parseWorkflowInfo } from "./workflowDisplay";
 import {
   SubAgentProgressMeta,
+  buildSubAgentRowText,
   hasSubAgentProgressMeta,
   readSubAgentLiveLabel,
 } from "./subAgentProgressMeta";
@@ -222,7 +230,7 @@ function ActiveSubAgentRow({
   placement?: ThreadDocksPlacement;
 }) {
   const { t } = useLingui();
-  const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
+  const item = useThreadRuntimeItem(threadId, itemId);
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, itemId)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
   const dismiss = useThreadSubAgentDockStore((s) => s.dismiss);
@@ -317,11 +325,34 @@ function ActiveSubAgentRow({
   const progress = payload?.progress;
   const stepCount = progress?.stepCount ?? childCount;
   const liveLabel = readSubAgentLiveLabel(progress, display.title);
+  // The right panel has the vertical room for full info: name on the first
+  // line, agent/model metadata as a smaller muted second line. The composer
+  // strip stays one line. Workflow rows keep their inline stats layout.
+  const twoLineText =
+    placement === "right" && !workflow
+      ? buildSubAgentRowText({
+          rowTitle,
+          titleIsDescription: description !== undefined,
+          isCrossagent: isCrossagentTool(payload),
+          subAgentType: payload.subAgentType ?? readSubAgentType(args),
+          progress,
+          liveLabel,
+          stepCount,
+          isRunning,
+        })
+      : undefined;
+  const metaLine = twoLineText?.meta;
 
   return (
     <ThreadDockActionRow
       title={rowTitle}
-      onClick={() => openSubAgent(threadId, item.id)}
+      onClick={() => {
+        if (placement === "right") {
+          showSubAgentPanel(threadId, item.id, projectLocation, "thread-info");
+        } else {
+          openSubAgent(threadId, item.id);
+        }
+      }}
       className={`${isDone ? "opacity-60" : ""} ${!isDone && placement === "composer" ? "bg-accent/10" : ""}`}
       action={<X className="size-3" />}
       actionLabel={t`Remove ${rowTitle} from panel`}
@@ -335,18 +366,29 @@ function ActiveSubAgentRow({
           <PixelLoader size="xxs" className="text-foreground" />
         </span>
       )}
-      <span
-        className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
-      >
-        {rowTitle}
-      </span>
+      {metaLine && twoLineText ? (
+        <span className="flex min-w-0 flex-1 flex-col justify-center">
+          <span
+            className={`truncate leading-tight ${isDone ? "text-foreground-muted" : "text-foreground"}`}
+          >
+            {twoLineText.title}
+          </span>
+          <span className="truncate text-[0.6875rem] leading-tight text-muted">{metaLine}</span>
+        </span>
+      ) : (
+        <span
+          className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
+        >
+          {rowTitle}
+        </span>
+      )}
       {workflow && workflowRun ? (
         <WorkflowDockStats run={workflowRun} />
       ) : workflowIsLive ? (
         <span className="shrink-0 text-foreground-muted opacity-80">
           <Trans>starting…</Trans>
         </span>
-      ) : isRunning ? (
+      ) : metaLine ? null : isRunning ? (
         <SubAgentProgressMeta
           progress={progress}
           liveLabel={liveLabel}

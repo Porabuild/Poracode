@@ -1,4 +1,5 @@
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
+import type { ComposerSelectionOrigin } from "@/renderer/components/thread/composerSelectionMutation";
 import type { MessageDescriptor } from "@lingui/core";
 import type {
   AgentCapability,
@@ -14,7 +15,14 @@ export interface ComposerControlsInput {
   capabilities: AgentCapability;
   config: ThreadConfig;
   isDisabled: boolean;
-  onConfigChange: (patch: Partial<ThreadConfig>) => void;
+  /**
+   * One resolved config edit. `origin` is the optional ephemeral
+   * selection-event metadata (see `ComposerSelectionOrigin`): a patch the
+   * shared relation helper resolved carries `family-resolved` so the
+   * composition point can route the event, while an absent origin classifies
+   * from the patch's touched keys alone. Purely in-process — never persisted.
+   */
+  onConfigChange: (patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) => void;
   /** Active presentation mode for this thread, when the caller knows it. */
   presentationMode?: ThreadPresentationMode;
 }

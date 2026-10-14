@@ -1,7 +1,9 @@
 import { create } from "zustand";
+import { resolveFocusElement } from "./focusedSurface";
 
 interface CommandPaletteState {
   isOpen: boolean;
+  originTarget: Element | null;
   open: () => void;
   close: () => void;
   toggle: () => void;
@@ -9,7 +11,17 @@ interface CommandPaletteState {
 
 export const useCommandPaletteStore = create<CommandPaletteState>((set) => ({
   isOpen: false,
-  open: () => set({ isOpen: true }),
-  close: () => set({ isOpen: false }),
-  toggle: () => set((state) => ({ isOpen: !state.isOpen })),
+  originTarget: null,
+  open: () =>
+    set((state) => (state.isOpen ? {} : { isOpen: true, originTarget: resolveFocusElement() })),
+  close: () =>
+    set((state) =>
+      state.isOpen || state.originTarget ? { isOpen: false, originTarget: null } : {},
+    ),
+  toggle: () =>
+    set((state) =>
+      state.isOpen
+        ? { isOpen: false, originTarget: null }
+        : { isOpen: true, originTarget: resolveFocusElement() },
+    ),
 }));

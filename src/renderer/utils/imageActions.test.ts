@@ -1,23 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchImageBytes, toClipboardPngBytes } from "./imageActions";
-import { isRemoteSession } from "@/renderer/bridge";
-import type {
-  RemoteHttpRequestPayload,
-  RemoteHttpRequestResult,
-} from "@/shared/ipc/procedures/app";
 
 const readLocalImageFile = vi.fn<(payload: { url: string }) => Promise<Uint8Array>>();
-const remoteHttpRequest =
-  vi.fn<(payload: RemoteHttpRequestPayload) => Promise<RemoteHttpRequestResult>>();
 vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => ({ readLocalImageFile, remoteHttpRequest }),
-  isRemoteSession: vi.fn<() => boolean>(() => false),
+  readBridge: () => ({ readLocalImageFile }),
+}));
+
+const mainProcessFetch = vi.hoisted(() => vi.fn<(url: string) => Promise<Response>>());
+vi.mock("@/renderer/state/remoteServers/mainProcessFetch", () => ({
+  mainProcessFetch: (url: string) => mainProcessFetch(url),
 }));
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  vi.mocked(isRemoteSession).mockReturnValue(false);
+  mainProcessFetch.mockReset();
 });
 
 describe("image action bytes", () => {
@@ -87,43 +84,28 @@ describe("image action bytes", () => {
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:bad");
   });
 
-  it("rejects failed remote responses", async () => {
-    vi.mocked(isRemoteSession).mockReturnValue(true);
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<() => Promise<{ ok: boolean; status: number }>>()
-        .mockResolvedValue({ ok: false, status: 404 }),
-    );
-    await expect(fetchImageBytes("https://example.test/image.png")).rejects.toThrow("404");
-  });
-
-  it("reads desktop HTTP image bytes through main without renderer CORS", async () => {
+  it("reads desktop HTTP image bytes through the shared remote transport", async () => {
     const bytes = new Uint8Array([0, 0xff, 0x80, 42]);
-    remoteHttpRequest.mockResolvedValue({
-      status: 200,
-      headers: {},
-      body: btoa(String.fromCharCode(...bytes)),
-    });
+    mainProcessFetch.mockResolvedValue(new Response(bytes, { status: 200 }));
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
     const url = "https://desktop.test/api/files/image?path=original.webp&token=fixture";
     expect(await fetchImageBytes(url)).toEqual(bytes);
-    expect(remoteHttpRequest).toHaveBeenCalledWith({ url, responseEncoding: "base64" });
+    expect(mainProcessFetch).toHaveBeenCalledWith(url);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects unsuccessful main-process HTTP responses", async () => {
-    remoteHttpRequest.mockResolvedValue({ status: 403, headers: {}, body: "" });
+  it("rejects unsuccessful remote HTTP image responses", async () => {
+    mainProcessFetch.mockResolvedValue(new Response("nope", { status: 403 }));
     await expect(fetchImageBytes("https://desktop.test/image")).rejects.toThrow("403");
   });
 
-  it("uses browser fetch for PWA image bytes", async () => {
-    vi.mocked(isRemoteSession).mockReturnValue(true);
+  it("uses browser fetch for other sources", async () => {
     const bytes = new Uint8Array([1, 2, 3]);
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(bytes));
     vi.stubGlobal("fetch", fetchMock);
-    expect(await fetchImageBytes("https://desktop.test/image")).toEqual(bytes);
-    expect(fetchMock).toHaveBeenCalledWith("https://desktop.test/image");
+    expect(await fetchImageBytes("data:image/png;base64,AAAA")).toEqual(bytes);
+    expect(fetchMock).toHaveBeenCalledWith("data:image/png;base64,AAAA");
+    expect(mainProcessFetch).not.toHaveBeenCalled();
   });
 });

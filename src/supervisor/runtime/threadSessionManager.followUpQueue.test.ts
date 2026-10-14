@@ -58,7 +58,7 @@ it("applies home-scope permission preparation before a direct steer", async () =
         sandboxMode: "danger-full-access",
       },
       undefined,
-      undefined,
+      { userMessageItemId: expect.any(String) },
     );
   } finally {
     finish();
@@ -258,6 +258,13 @@ it("waits direct input while a fallback start is awaiting canonical admission", 
     steerCoordinator.noteSteerTurnStarted(session);
     await steering;
     await direct;
+    // The admitted replacement is still working. Direct input must stage a
+    // steer and start only after that turn settles, rather than overlap it.
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(session.pendingSteer?.prompt).toBe("direct after queued steer");
+    session.status = "idle";
+    void steerCoordinator.maybeDrainPendingSteer(session);
+    await vi.waitFor(() => expect(startTurn).toHaveBeenCalledTimes(2));
     expect(startTurn).toHaveBeenCalledTimes(2);
   } finally {
     fallbackCompletion.resolve();

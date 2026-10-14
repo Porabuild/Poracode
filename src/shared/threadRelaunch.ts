@@ -11,16 +11,19 @@ export function isUnknownThreadSessionError(error: unknown): boolean {
 }
 
 /**
- * Reopening a thread on its host relaunches it with an empty prompt. Only an
+ * Status eligibility for an open-driven, empty-prompt relaunch. Only an
  * INACTIVE thread qualifies: every other status means the host session is
  * either alive (`launching`/`idle`/`working`/`finished` — and host-side
  * startThread is close+restart, so firing it at a live session would kill the
- * run) or intentionally stopped (`error` — a prompt-less relaunch would replay
- * the broken turn, and a failed relaunch lands back on `error`, so the thread
+ * run) or stopped by a failure (`error` — an open-driven relaunch would hide
+ * the failure, and a failed relaunch lands back on `error`, so the thread
  * waits for an explicit prompt instead of an open-driven retry loop).
  *
- * Both clients gate on this one rule before relaunching: the desktop renderer
- * in `reopenStoredThread`, the mobile PWA in `ensureThreadRunning`.
+ * Callers must also apply their presentation's recovery safeguards. Desktop
+ * GUI reopen requires a session reference or config-based resumability; an
+ * identity-less, non-resumable saved thread stays read-only rather than silently
+ * starting a fresh session under its old transcript. Explicit native mobile
+ * Relaunch actions are separate from this open-driven status check.
  */
 export function shouldRelaunchThreadOnOpen(thread: Pick<Thread, "status">): boolean {
   return thread.status === "inactive";
@@ -30,7 +33,7 @@ export function shouldRelaunchThreadOnOpen(thread: Pick<Thread, "status">): bool
  * The empty-prompt relaunch payload both clients send for an inactive thread.
  * The desktop renderer produces this same object in
  * `performInitialThreadLaunch` (its reopen case carries an empty prompt and no
- * segments/userMessageItemId); the mobile PWA builds it here directly. The
+ * segments/userMessageItemId); remote clients build it here directly. The
  * host resolves the MCP launch snapshot itself, so no client snapshot is
  * included.
  */

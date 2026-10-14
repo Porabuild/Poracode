@@ -6,8 +6,9 @@ import type {
   JudgeExperimentResult,
   ProjectLocation,
 } from "@/shared/contracts";
-import { resolveOneShotEffectiveModel, type AgentAdapter } from "./agents/base";
+import { resolveOneShotSelection, type AgentAdapter } from "./agents/base";
 import type { UnifiedDiffStats } from "@/shared/lineUnifiedDiff";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
 import { msg } from "@/shared/messages";
 import { createExperimentJudgeWorkspace } from "./experimentJudgeWorkspace";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
@@ -202,9 +203,7 @@ export async function judgeExperiment(
   adapter: AgentAdapter,
   prompt: string,
   candidates: readonly JudgeExperimentCandidate[],
-  model?: string,
-  effort?: string,
-  fast?: boolean,
+  selection?: ModelSelection,
   runtimeOptions: JudgeExperimentRuntimeOptions = {},
 ): Promise<JudgeExperimentResult> {
   if (!prompt.trim()) {
@@ -217,7 +216,10 @@ export async function judgeExperiment(
     throw new Error(msg("experiment.judge.uniqueThreadIds"));
   }
 
-  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+  // The judge keeps its own complete selection: carriers and any recognized
+  // binding travel into the isolated judge workspace unchanged; only the
+  // effective model is normalized.
+  const effectiveSelection = resolveOneShotSelection(adapter, selection, () => {
     return new Error(msg("experiment.judge.noDefaultModel", { provider: adapter.label }));
   });
   if (!adapter.runOneShot && !adapter.buildOneShotCommand) {
@@ -254,9 +256,7 @@ export async function judgeExperiment(
     raw = await runOneShotPromptWithFallback({
       location: workspace.location,
       adapter,
-      model: effectiveModel,
-      effort,
-      fast,
+      selection: effectiveSelection,
       timeoutMs: JUDGE_TIMEOUT_MS,
       ...(runtimeOptions.signal ? { signal: runtimeOptions.signal } : {}),
       logTag: "experiment-judge",

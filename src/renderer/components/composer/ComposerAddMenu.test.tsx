@@ -1,6 +1,7 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { Pencil } from "lucide-react";
 import { ComposerAddMenu } from "./ComposerAddMenu";
 import {
   browserMcpServer,
@@ -37,8 +38,88 @@ function openMcpServersSubmenu() {
 }
 
 describe("ComposerAddMenu", () => {
+  it("offers side chat as a separate top-level item and closes the menu after opening it", () => {
+    const onOpenSideChat = vi.fn<() => void>();
+    const onPickFiles = vi.fn<() => void>();
+    render(
+      <ComposerAddMenu mcpServers={[]} onPickFiles={onPickFiles} onOpenSideChat={onOpenSideChat} />,
+    );
+    openMenu();
+    const sideChat = screen.getByRole("menuitem", { name: /Side chat/ });
+    expect(sideChat).toHaveAttribute("data-key", "side-chat");
+    fireEvent.click(sideChat);
+    expect(onOpenSideChat).toHaveBeenCalledTimes(1);
+    expect(onPickFiles).not.toHaveBeenCalled();
+    expect(screen.queryByRole("menuitem", { name: /Side chat/ })).not.toBeInTheDocument();
+  });
   beforeEach(() => {
     bridgeMock.isRemoteSession.mockReturnValue(false);
+  });
+
+  it("keeps session actions behind the existing plus submenu and closes it before invoking", async () => {
+    const onAction = vi.fn<() => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+        sessionActions={[
+          { id: "rename", label: "Rename session", icon: Pencil, isDisabled: false, onAction },
+        ]}
+      />,
+    );
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.queryByText("Rename session")).not.toBeInTheDocument();
+    openMenu();
+    expect(screen.getByRole("menuitem", { name: "Session actions" })).toBeInTheDocument();
+    expect(screen.queryByText("Rename session")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Session actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename session" }));
+    expect(onAction).toHaveBeenCalledExactlyOnceWith();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+  });
+
+  it("keeps session actions in a compact submenu with back navigation", async () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    const onAction = vi.fn<() => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+        sessionActions={[
+          { id: "rename", label: "Rename session", icon: Pencil, isDisabled: false, onAction },
+        ]}
+      />,
+    );
+    openMenu();
+    fireEvent.click(screen.getByRole("button", { name: "Session actions" }));
+    expect(screen.getByRole("button", { name: "Rename session" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.queryByRole("button", { name: "Rename session" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Session actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rename session" }));
+    expect(onAction).toHaveBeenCalledExactlyOnceWith();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("respects unavailable session actions in the submenu", () => {
+    const onAction = vi.fn<() => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        onPickFiles={vi.fn<() => void>()}
+        sessionActions={[
+          { id: "rename", label: "Rename session", icon: Pencil, isDisabled: true, onAction },
+        ]}
+      />,
+    );
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Session actions" }));
+    const action = screen.getByRole("menuitem", { name: "Rename session" });
+    expect(action).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(action);
+    expect(onAction).not.toHaveBeenCalled();
   });
 
   it("keeps Chrome unavailable for WSL projects", () => {
@@ -59,6 +140,9 @@ describe("ComposerAddMenu", () => {
     );
 
     expect(container.querySelector("button button")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add attachment or capability" })).toHaveClass(
+      "poracode-composer-add-menu",
+    );
   });
 
   it("hides the file picker action when file attachments are unavailable", () => {
@@ -584,6 +668,59 @@ describe("ComposerAddMenu", () => {
 
       expect(screen.getByText("No MCP servers are enabled for this run")).toBeInTheDocument();
     });
+  });
+
+  it.each([
+    ["the desktop app", "/", false],
+    ["the narrow chat sidebar", "/?surface=chat-sidebar", true],
+  ])("places Plugins and MCP Servers flyouts for %s", (_surface, url, stacked) => {
+    window.history.replaceState(null, "", url);
+    try {
+      render(
+        <ComposerAddMenu
+          mcpServers={[
+            {
+              descriptor: browserMcpServer,
+              enabled: true,
+              visible: true,
+              onToggle: vi.fn<(next: boolean) => void>(),
+            },
+          ]}
+          customMcpServers={[{ id: "user:context7", name: "context7", enabled: false }]}
+          onPickFiles={vi.fn<() => void>()}
+        />,
+      );
+      const submenu = (key: string) =>
+        document.getElementById(
+          document.querySelector(`[data-key="${key}"]`)?.getAttribute("aria-controls") ?? "",
+        );
+      const popoverOf = (element: Element | null) =>
+        element?.closest('[data-slot="dropdown-popover"]');
+      const submenuPlacement = (key: string) =>
+        popoverOf(submenu(key))?.getAttribute("data-placement");
+      // HeroUI's 48svw side-flyout cap is narrower than the rows' min width on
+      // a narrow surface; stacked popovers swap it for a viewport clamp so
+      // trailing switches are not clipped. jsdom cannot measure the result.
+      const viewportClamped = (element: Element | null) =>
+        popoverOf(element)?.classList.contains("max-w-[calc(100vw-2rem)]");
+
+      openMenu();
+      expect(viewportClamped(document.querySelector(`[data-key="plugins"]`))).toBe(stacked);
+      openMcpSubmenu();
+      // Stacked flyouts open above their row; side flyouts keep the default.
+      expect(submenuPlacement("plugins")).toBeTruthy();
+      expect(submenuPlacement("plugins") === "top").toBe(stacked);
+      expect(viewportClamped(submenu("plugins"))).toBe(stacked);
+      act(() => {
+        fireEvent.keyDown(submenu("plugins")!, { key: "Escape" });
+      });
+      openMcpServersSubmenu();
+      expect(submenuPlacement("mcp-servers")).toBeTruthy();
+      expect(submenuPlacement("mcp-servers") === "top").toBe(stacked);
+      expect(viewportClamped(submenu("mcp-servers"))).toBe(stacked);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 
   it("shows a paired-desktop hint for Computer Use in a remote session", () => {

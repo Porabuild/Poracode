@@ -64,13 +64,12 @@ function ensureProvider(monaco: Monaco) {
 export function useMergeConflictContribution(args: {
   editor: MonacoEditor.IStandaloneCodeEditor | null;
   monaco: Monaco | null;
+  model: MonacoEditor.ITextModel | null;
 }) {
-  const { editor, monaco } = args;
+  const { editor, monaco, model } = args;
 
   useEffect(() => {
-    if (!editor || !monaco) return;
-    const model = editor.getModel();
-    if (!model) return;
+    if (!editor || !monaco || !model || model.isDisposed() || editor.getModel() !== model) return;
     const uriKey = model.uri.toString();
 
     ensureCommands(monaco);
@@ -86,6 +85,7 @@ export function useMergeConflictContribution(args: {
 
     let frame: number | null = null;
     const recompute = () => {
+      if (model.isDisposed() || editor.getModel() !== model) return;
       const text = model.getValue();
       const blocks = parseMergeConflicts(text);
       blocksByModelUri.set(uriKey, blocks);
@@ -118,5 +118,5 @@ export function useMergeConflictContribution(args: {
       }
       notifyProviders();
     };
-  }, [editor, monaco]);
+  }, [editor, monaco, model]);
 }

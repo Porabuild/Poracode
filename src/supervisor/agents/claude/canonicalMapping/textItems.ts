@@ -63,10 +63,8 @@ export function completeTextItem(
   events.push({ type: "item.completed", threadId: state.threadId, itemId: item.itemId });
 }
 
-export function closeClaudeOpenItems(
-  state: ClaudeMapperState,
-  options?: { closePlan?: boolean },
-): RuntimeEvent[] {
+/** End the current generation's text without retiring tools or the logical turn. */
+function closeClaudeOpenTextItems(state: ClaudeMapperState): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   for (const item of state.assistantTextItems.values()) {
     completeTextItem(state, item, "assistant_text", events);
@@ -74,12 +72,42 @@ export function closeClaudeOpenItems(
   for (const item of state.reasoningItems.values()) {
     completeTextItem(state, item, "reasoning_text", events);
   }
+  state.assistantTextItems.clear();
+  state.reasoningItems.clear();
+  return events;
+}
+
+/** Close abandoned generation, keeping fully formed tools available for their results. */
+export function closeClaudeGenerationItems(state: ClaudeMapperState): RuntimeEvent[] {
+  const events = closeClaudeOpenTextItems(state);
+  for (const [index, tool] of state.toolItemsByIndex) {
+    if (!tool.inputStreaming) continue;
+    if (!tool.planAggregatorRole) {
+      events.push({
+        type: "item.completed",
+        threadId: state.threadId,
+        itemId: tool.itemId,
+        payload: toolPayload(tool, "error"),
+      });
+    }
+    state.toolItemsByIndex.delete(index);
+    state.toolItemsById.delete(tool.itemId);
+  }
+  return events;
+}
+
+export function closeClaudeOpenItems(
+  state: ClaudeMapperState,
+  options?: { closePlan?: boolean; abandonTools?: boolean },
+): RuntimeEvent[] {
+  const events = closeClaudeOpenTextItems(state);
+  const completedToolIds = new Set<string>();
   // Background subagents run past the main turn's `result`; their parent tool
   // and any in-flight child tools must survive this close so a later
   // `task_notification` / child tool_result can complete them. Once no subagent
   // is live, nothing more is coming, so any dangling child rows are flushed.
   for (const [index, tool] of [...state.toolItemsByIndex]) {
-    if (isLiveSubAgentScopedTool(state, tool)) continue;
+    if (!options?.abandonTools && isLiveSubAgentScopedTool(state, tool)) continue;
     // Plan-aggregated tools never emitted item.started; their lifecycle is
     // owned by the aggregator's plan item, which persists across turns.
     if (!tool.planAggregatorRole) {
@@ -87,31 +115,34 @@ export function closeClaudeOpenItems(
         type: "item.completed",
         threadId: state.threadId,
         itemId: tool.itemId,
-        payload: toolPayload(tool, "success"),
+        payload: toolPayload(tool, options?.abandonTools ? "error" : "success"),
       });
+      completedToolIds.add(tool.itemId);
     }
     state.toolItemsByIndex.delete(index);
   }
   for (const [id, tool] of [...state.toolItemsById]) {
-    if (isLiveSubAgentScopedTool(state, tool)) continue;
+    if (!options?.abandonTools && isLiveSubAgentScopedTool(state, tool)) continue;
     // A dangling sub-agent child whose subagent already closed will never get
     // its tool_result; flush it with a completion (like the open main-thread
     // tools above) so it doesn't stay "running" in the overlay forever. Tools
     // completed by the index loop above are never in the child set, so this
     // cannot double-complete.
-    if (!tool.planAggregatorRole && state.subAgentChildToolItemIds?.has(id)) {
+    if (
+      !tool.planAggregatorRole &&
+      !completedToolIds.has(tool.itemId) &&
+      (options?.abandonTools || state.subAgentChildToolItemIds?.has(id))
+    ) {
       events.push({
         type: "item.completed",
         threadId: state.threadId,
         itemId: tool.itemId,
-        payload: toolPayload(tool, "success"),
+        payload: toolPayload(tool, options?.abandonTools ? "error" : "success"),
       });
     }
     state.toolItemsById.delete(id);
     state.subAgentChildToolItemIds?.delete(id);
   }
-  state.assistantTextItems.clear();
-  state.reasoningItems.clear();
   if (options?.closePlan && state.planAggregator) {
     events.push(...closePlanAggregator(state.planAggregator));
   }

@@ -3,19 +3,18 @@ import type {
   PromptSegment,
   RuntimeEvent,
   ThreadConfig,
+  ThreadGoalControl,
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { terminateChildProcessTree } from "@/shared/processTree";
 import {
-  batchWslCommandsAsync,
   createKnownSessionRef,
   mergeSpawnEnv,
-  quotePosixShellArg,
   type CreateStructuredSessionInput,
   type StartTurnOptions,
   type StructuredSessionHandle,
   type StructuredSessionListener,
+  type StructuredTurnResult,
 } from "../../base";
 import { resolveAgentBinaryPath } from "../../binaryResolver";
 import {
@@ -26,18 +25,19 @@ import {
 } from "../../planAggregator";
 import { buildQuestionAnswerEvents } from "../../questionAnswerEvents";
 import { buildMuseServeArgs, toMspApprovalMode } from "./argv";
+import { MuseMspApprovalDecisions } from "./approvalDecisions";
 import {
   aliasMuseMspItem,
   completeOpenMuseMspItems,
   createMuseMspItemMapperState,
   mapMuseMspDelta,
   mapMuseMspGoalChanged,
-  mapMuseMspItem,
   type MuseMspItem,
 } from "./canonicalMapping";
-import { MuseMspClient, spawnMuseServeHost } from "./client";
+import { MuseMspClient, spawnMuseServeHost, type SpawnMuseServeHostOptions } from "./client";
+import { stopMuseServeHost } from "./hostLifecycle";
 import {
-  MSP_SCHEMA_VERSION,
+  assertMspSchemaVersion,
   MspRpcError,
   parseMspModelListResult,
   type MspModelListResult,
@@ -55,8 +55,17 @@ import {
   type PendingUserInput,
 } from "./requestMapping";
 import { mintMspCommandId } from "./uuidv7";
-import { isMuseCompactCommand } from "./localCommands";
+import { dispatchMuseGoalCommand } from "./goalCommands";
+import {
+  isMuseCompactCommand,
+  museGoalCommandMethod,
+  parseMuseGoalCommand,
+  type MuseGoalCommand,
+} from "./localCommands";
 import { buildMuseTurnInput } from "./turnInput";
+import { buildMuseMspMcpServers } from "../mcpLaunch";
+import { MuseSubagentTranscripts } from "./subagentTranscripts";
+import { MuseSubagentObserver } from "./subagentObserver";
 import { msg } from "@/shared/messages";
 import { isFullBypassApprovalPolicy } from "@/shared/agents/unrestrictedPermissions";
 
@@ -133,10 +142,14 @@ function workspaceRoot(input: CreateStructuredSessionInput): string {
 
 /** Structured Muse Code GUI session backed by the installed `muse serve` MSP host. */
 export class MuseMspStructuredSession implements StructuredSessionHandle {
+  private pendingTurnStartState: { interrupted: boolean } | undefined;
   readonly launchOptions;
   private listener: StructuredSessionListener = NOOP_LISTENER;
   private readonly mapper;
+  private readonly subagents;
+  private readonly subagentObserver;
   private readonly planAggregator;
+  private readonly approvalDecisions;
   private readonly pendingRequests = new Map<string, PendingRequest>();
   private readonly pendingUserItems = new Map<string, string>();
   private readonly emittedTurnIds = new Set<string>();
@@ -151,24 +164,50 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private attention: "none" | "working" | "needs_approval" | "needs_reply" = "none";
   private activated = false;
   private disposed = false;
+  private disposePromise: Promise<void> | undefined;
+  private releaseHostPromise: Promise<void> | undefined;
   private transportErrorReported = false;
   private transportCloseReported = false;
   private pendingCompact: { turnId: string; timer: NodeJS.Timeout } | undefined;
   private usageEpoch = 0;
   private usageScopeFresh = false;
+  /** MSP `config.mcpServers` for this launch; undefined when the set is empty. */
+  private readonly sessionMcpServers;
+  /** Whether the host granted `sessionMcp` at initialize. */
+  private sessionMcpGranted = false;
   private constructor(
     private readonly input: CreateStructuredSessionInput,
     private readonly child: ChildProcess,
     private readonly client: MuseMspClient,
     private readonly hostCookie: string,
+    observerOptions: SpawnMuseServeHostOptions,
   ) {
     this.launchOptions = {
       suppressResumeConfigOverrides: true,
       ...(input.agentSettings ? { agentSettings: input.agentSettings } : {}),
     };
     this.currentConfig = input.config;
+    const mcpServers = buildMuseMspMcpServers(input.mcpServers ?? []);
+    this.sessionMcpServers = Object.keys(mcpServers).length > 0 ? mcpServers : undefined;
     this.mapper = createMuseMspItemMapperState(input.threadId);
+    this.subagentObserver = new MuseSubagentObserver(
+      input.projectLocation,
+      observerOptions,
+      (method, params) => this.subagents.handleNotification(method, params),
+      () => this.subagents.onViewDisconnected(),
+    );
+    this.subagents = new MuseSubagentTranscripts(
+      input.projectLocation,
+      this.subagentObserver,
+      this.mapper,
+      (events) => this.emitMany(events),
+    );
     this.planAggregator = createPlanAggregator(input.threadId, "muse-plan");
+    this.approvalDecisions = new MuseMspApprovalDecisions(
+      client,
+      () => this.requireSessionId(),
+      (approvalId, decision) => this.resolveRequestFromNotification(approvalId, decision),
+    );
     client.onNotification((method, params) => this.handleNotification(method, params));
     client.onError((error) => this.handleTransportError(error));
     client.onServerRequest(({ method, params }) => this.handleServerRequest(method, params));
@@ -191,11 +230,17 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       hosted.child,
       new MuseMspClient(hosted.transport),
       hosted.hostCookie,
+      {
+        ...(executablePath ? { executablePath } : {}),
+        ...(extraEnv ? { extraEnv } : {}),
+        serveArgs: buildMuseServeArgs(undefined),
+        label: "[muse-subagent-view]",
+      },
     );
   }
 
   ownsProviderSession(providerSessionId: string): boolean {
-    return this.ownedSessionIds.has(providerSessionId);
+    return this.ownedSessionIds.has(providerSessionId) || this.subagents.owns(providerSessionId);
   }
 
   setListener(listener: StructuredSessionListener): void {
@@ -210,12 +255,16 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
 
   async activate(): Promise<void> {
     if (this.disposed) throw new Error("Muse MSP session was disposed before activation.");
-    const result = await this.client.initialize("poracode", "1.0.0");
-    if (result.schema.version !== MSP_SCHEMA_VERSION) {
-      throw new Error(
-        `Muse MSP schema version ${result.schema.version} is incompatible with supported version ${MSP_SCHEMA_VERSION}.`,
-      );
-    }
+    // Per-session MCP config sits behind the grantable `sessionMcp`
+    // capability; hosts that predate it simply never grant it, and the
+    // session then starts without an MCP config instead of failing.
+    const result = await this.client.initialize(
+      "poracode",
+      "1.0.0",
+      this.sessionMcpServers ? ["sessionMcp"] : undefined,
+    );
+    assertMspSchemaVersion(result.schema.version);
+    this.sessionMcpGranted = result.grantedCapabilities.includes("sessionMcp");
     this.activated = true;
   }
 
@@ -223,11 +272,20 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     if (!this.activated) throw new Error("Muse MSP session is not initialized.");
     this.currentConfig = config;
     const resumeId = sessionRef?.providerSessionId;
+    // Session MCP servers live only in this host process's session runtime,
+    // so a resume on a fresh host must supply the same config again.
+    const sessionConfig =
+      this.sessionMcpGranted && this.sessionMcpServers
+        ? { config: { mcpServers: this.sessionMcpServers } }
+        : {};
     const result = resumeId
       ? await this.client.request("session/resume", {
           commandId: mintMspCommandId(),
           sessionId: resumeId,
-          excludeItems: true,
+          // Snapshot, not items: no transcript replay, but the folded view
+          // state carries the retained goal/todo blocks (see below).
+          history: "snapshot",
+          ...sessionConfig,
         })
       : await this.client.request("session/start", {
           commandId: mintMspCommandId(),
@@ -235,6 +293,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           modelId: config.model,
           ...(await this.resolveModelProviderId(config.model)),
           approvalMode: toMspApprovalMode(config.approvalPolicy),
+          ...sessionConfig,
         });
     const session = recordOf(result["session"]);
     const sessionId = stringValue(session?.["sessionId"]);
@@ -260,6 +319,8 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     if (session && "todoList" in session && session["todoList"]) {
       this.applyTodoListChanged({ todoList: session["todoList"] });
     }
+    this.hydrateResumeSnapshot(result);
+    this.subagents.open(sessionId, result);
     if (this.activeTurnId) this.emitTurnStarted(this.activeTurnId);
     this.publishUpdate();
     return sessionId;
@@ -270,28 +331,47 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void> {
-    const start = this.startTurnRequest(prompt, config, segments, options);
-    this.pendingTurnStart = start;
+  ): Promise<void | StructuredTurnResult> {
+    const state = { interrupted: false };
+    this.pendingTurnStartState = state;
+    const start = this.startTurnRequest(state, prompt, config, segments, options);
+    // Goal submissions resolve with `completed-without-turn`; the
+    // in-flight gate only needs completion, not the outcome.
+    const pending = start.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.pendingTurnStart = pending;
     try {
-      await start;
+      return await start;
     } finally {
-      if (this.pendingTurnStart === start) this.pendingTurnStart = undefined;
+      if (this.pendingTurnStart === pending) {
+        this.pendingTurnStart = undefined;
+        this.pendingTurnStartState = undefined;
+      }
     }
   }
 
   private async startTurnRequest(
+    state: { interrupted: boolean },
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     const sessionId = this.requireSessionId();
     await this.applyConfig(config);
+    if (state.interrupted || this.disposed) return this.settleInterruptedStart();
     if (isMuseCompactCommand(prompt)) {
       await this.compactSession(sessionId);
       return;
     }
+    const goalCommand = parseMuseGoalCommand(prompt);
+    if (goalCommand) {
+      return this.runGoalCommand(sessionId, goalCommand);
+    }
+    const input = await buildMuseTurnInput(prompt, options?.inlineInstructions);
+    if (state.interrupted || this.disposed) return this.settleInterruptedStart();
     const commandId = mintMspCommandId();
     this.pendingUserItems.set(commandId, options?.userMessageItemId ?? `user-${commandId}`);
     this.status = "working";
@@ -301,7 +381,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       const result = await this.client.request("turn/start", {
         commandId,
         sessionId,
-        input: await buildMuseTurnInput(prompt, options?.inlineInstructions),
+        input,
         displayText: prompt,
         ...(config.effort ? { reasoningEffort: config.effort } : {}),
       });
@@ -310,11 +390,20 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         this.activeTurnId = turnId;
         this.emitTurnStarted(turnId);
       }
+      if (state.interrupted && this.activeTurnId === turnId) await this.interruptTurn();
     } catch (error) {
       this.pendingUserItems.delete(commandId);
       this.failTurn(commandId, errorMessage(error));
       throw error;
     }
+  }
+
+  private settleInterruptedStart(): StructuredTurnResult {
+    if (!this.disposed) {
+      this.refreshWorkingState();
+      this.publishUpdate();
+    }
+    return { outcome: "completed-without-turn" };
   }
 
   /**
@@ -399,6 +488,87 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   }
 
   /**
+   * `/goal …` is a session command, not a turn: the supervisor already
+   * painted the optimistic user row (and opened its synthetic turn) before
+   * this runs. Verbs that never wake a turn (`pause`, `clear`, `view`,
+   * `editUsage`) settle back here with `completed-without-turn` — goal
+   * items are excluded from the renderer's turn-reopen, so the trailing
+   * `goalChanged` item events are safe outside any turn. Verbs that may
+   * wake one (`set`, `edit`, `resume`) adopt the ack-named turn exactly
+   * like `turn/start` acks; the host's own `turn/completed` then closes
+   * the submission.
+   */
+  private async runGoalCommand(
+    sessionId: string,
+    command: MuseGoalCommand,
+  ): Promise<void | StructuredTurnResult> {
+    // The renderer paints Working optimistically on submit, and only a
+    // *changed* supervisor status clears it — leave and re-enter the
+    // settled state so a command-only submission can never stick the
+    // composer (same trap `/compact` works around with a local turn).
+    this.status = "working";
+    this.attention = "working";
+    this.publishUpdate();
+    const method = museGoalCommandMethod(command.kind);
+    if (!method) {
+      if (command.kind === "editUsage") {
+        this.emit({
+          type: "warning",
+          threadId: this.input.threadId,
+          message: msg("thread.goal.editUsage"),
+        });
+      } else if (!this.mapper.goalItemId) {
+        this.emit({
+          type: "warning",
+          threadId: this.input.threadId,
+          message: msg("thread.goal.none"),
+        });
+      }
+      this.settleCommandOnlySubmission();
+      return { outcome: "completed-without-turn" };
+    }
+    let turnId: string | undefined;
+    try {
+      ({ turnId } = await dispatchMuseGoalCommand(
+        this.client,
+        sessionId,
+        method,
+        "objective" in command ? command.objective : undefined,
+      ));
+    } catch (error) {
+      // A failed dispatch owns no host turn: report inline. Throwing here
+      // would fail the whole structured session, not just the command.
+      this.emit({ type: "error", threadId: this.input.threadId, message: errorMessage(error) });
+      this.settleCommandOnlySubmission();
+      return { outcome: "completed-without-turn" };
+    }
+    if (turnId && turnId !== this.activeTurnId && !this.completedTurnIds.has(turnId)) {
+      this.activeTurnId = turnId;
+      this.emitTurnStarted(turnId);
+      this.publishUpdate();
+      // The host owns the turn lifecycle from here.
+      return;
+    }
+    if (turnId) {
+      // Busy admission: the ack names the already-running turn, whose own
+      // `turn/completed` closes this submission.
+      return;
+    }
+    this.settleCommandOnlySubmission();
+    return { outcome: "completed-without-turn" };
+  }
+
+  /**
+   * Settle a submission that runs no model turn. Recomputed (not forced):
+   * a still-running turn keeps working, and pending approvals/questions
+   * keep their attention — only a truly settled thread falls back to idle.
+   */
+  private settleCommandOnlySubmission(): void {
+    this.refreshWorkingState();
+    this.publishUpdate();
+  }
+
+  /**
    * Enqueue input onto the running turn. `turn/steer` carries no `displayText`
    * (unlike `turn/start`), so the steered prompt only reaches the transcript
    * through the server's `userMessage` echo — and registering the optimistic
@@ -412,7 +582,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     const userItemId = options?.userMessageItemId ?? `user-${mintMspCommandId()}`;
     const steerOptions: StartTurnOptions = { ...options, userMessageItemId: userItemId };
     if (prompt.length > 0) {
@@ -429,9 +599,21 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     }
     for (;;) {
       if (!this.activeTurnId && this.pendingTurnStart) await this.pendingTurnStart;
-      if (!this.activeTurnId) return this.startTurn(prompt, config, segments, steerOptions);
+      if (!this.activeTurnId) {
+        // A native steer can become a fresh turn after preparation. Publish
+        // working before its next settings sync, as shared ordinary starts do.
+        this.status = "working";
+        this.attention = "working";
+        this.publishUpdate();
+        return this.startTurn(prompt, config, segments, steerOptions);
+      }
       const expectedTurnId = this.activeTurnId;
       await this.applyConfig(config);
+      const input = await buildMuseTurnInput(prompt, options?.inlineInstructions);
+      // Completion can arrive while settings/input are being prepared. Recheck
+      // before sending so the follow-up starts a fresh turn (or steers the new
+      // live turn), rather than being submitted to the completed predecessor.
+      if (this.activeTurnId !== expectedTurnId) continue;
       const commandId = mintMspCommandId();
       this.pendingUserItems.set(commandId, userItemId);
       try {
@@ -439,7 +621,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           commandId,
           sessionId: this.requireSessionId(),
           expectedTurnId,
-          input: await buildMuseTurnInput(prompt, options?.inlineInstructions),
+          input,
           ...(config.effort ? { reasoningEffort: config.effort } : {}),
         });
         return;
@@ -450,8 +632,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
             continue;
           }
           if (this.activeTurnId === expectedTurnId) this.activeTurnId = undefined;
-          await this.startTurn(prompt, config, segments, steerOptions);
-          return;
+          continue;
         }
         throw error;
       }
@@ -459,7 +640,11 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   }
 
   async interruptTurn(): Promise<void> {
-    if (!this.sessionId || this.disposed || !this.activeTurnId) return;
+    if (!this.sessionId || this.disposed) return;
+    if (!this.activeTurnId) {
+      if (this.pendingTurnStartState) this.pendingTurnStartState.interrupted = true;
+      return;
+    }
     // The compact turn is local — the host knows no turn by that id and would
     // reject `turn/interrupt`. Stop just closes it.
     if (this.pendingCompact?.turnId === this.activeTurnId) {
@@ -481,8 +666,34 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     this.completeTurn(this.activeTurnId, "cancelled");
   }
 
+  /**
+   * Goal dock controls (`edit`, `pause`, `resume`, `clear`) run straight
+   * `goal/*` RPCs — no submission lifecycle is involved, and the host's
+   * `session/goalChanged` repaints the dock. A woken goal-driving turn is
+   * adopted like a `turn/start` ack so Stop and steer target it; rejections
+   * (pre-goal host, cleared goal) surface through the shared toast path.
+   */
+  async controlGoal(control: ThreadGoalControl): Promise<void> {
+    const method = museGoalCommandMethod(control.action);
+    if (!method) throw new Error(msg("thread.goal.unsupported"));
+    const { turnId } = await dispatchMuseGoalCommand(
+      this.client,
+      this.requireSessionId(),
+      method,
+      control.action === "edit" ? control.objective : undefined,
+    );
+    if (turnId && turnId !== this.activeTurnId && !this.completedTurnIds.has(turnId)) {
+      this.activeTurnId = turnId;
+      this.status = "working";
+      this.attention = "working";
+      this.emitTurnStarted(turnId);
+      this.publishUpdate();
+    }
+  }
+
   async resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): Promise<void> {
     const id = String(requestId);
+    if (this.approvalDecisions.isResolved(id)) return;
     const pending = this.pendingRequests.get(id);
     if (!pending) throw new Error(`Muse MSP request ${id} is no longer pending.`);
     if (pending.kind === "approval") {
@@ -492,9 +703,17 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     await this.resolveUserInput(pending, response);
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeOnce().catch((error: unknown) => {
+      this.disposePromise = undefined;
+      throw error;
+    });
+    return this.disposePromise;
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.disposed = true;
+    this.emitMany(this.subagents.dispose());
     this.clearPendingCompact();
     this.emitMany(closePlanAggregator(this.planAggregator));
     for (const requestId of this.pendingRequests.keys()) {
@@ -507,27 +726,39 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     }
     this.pendingRequests.clear();
     if (this.activeTurnId) this.completeTurn(this.activeTurnId, "cancelled");
-    this.client.dispose();
-    terminateChildProcessTree(this.child, { ownedProcessGroup: process.platform !== "win32" });
-    this.killSurvivingWslHost();
+    await this.releaseHost();
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "disposed" });
     this.listener.onClose();
   }
 
   /**
-   * Terminating the Windows-side `wsl.exe` wrapper cannot be relied on to
-   * signal the Linux-side `muse serve` it launched — a surviving host keeps
-   * its sessions locked (`session/resume` then fails `sessionInUse` forever)
-   * and leaks CPU. The host carries a unique cookie in its environ; sweep
-   * /proc for it and kill what matches. Best-effort: the bridge may be gone
-   * (app teardown) or the process may already be dead.
+   * Tear down everything the host owned: the client (failing its pending
+   * requests), the local process group, and on WSL the Linux-side host a dead
+   * `wsl.exe` wrapper can leave behind. Shared by `dispose` and an unexpected
+   * transport close, so a crash cleans up even when nothing disposes the
+   * retired handle; a failed attempt clears the memo so a later call retries.
    */
-  private killSurvivingWslHost(): void {
-    const location = this.input.projectLocation;
-    if (location.kind !== "wsl") return;
-    void batchWslCommandsAsync(location.distro, [
-      `pids=$(grep -ls ${quotePosixShellArg(this.hostCookie)} /proc/[0-9]*/environ 2>/dev/null | tr -dc '0-9\\n '); [ -n "$pids" ] && kill -9 $pids 2>/dev/null; true`,
-    ]).catch(() => {});
+  private releaseHost(): Promise<void> {
+    this.releaseHostPromise ??= this.releaseHostOnce().catch((error: unknown) => {
+      this.releaseHostPromise = undefined;
+      throw error;
+    });
+    return this.releaseHostPromise;
+  }
+
+  private async releaseHostOnce(): Promise<void> {
+    this.emitMany(this.subagents.dispose());
+    const stops = await Promise.allSettled([
+      stopMuseServeHost(this.input.projectLocation, this.child, this.client, this.hostCookie),
+      this.subagentObserver.dispose(),
+    ]);
+    const failures = stops.filter((stop) => stop.status === "rejected");
+    if (failures.length) {
+      throw new AggregateError(
+        failures.map((stop) => stop.reason),
+        "Muse MSP shutdown failed.",
+      );
+    }
   }
 
   private requireSessionId(): string {
@@ -594,6 +825,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   }
 
   private handleNotification(method: string, params: Record<string, unknown>): void {
+    if (!this.disposed && this.subagents.handleNotification(method, params)) return;
     if (this.disposed || (this.sessionId && params["sessionId"] !== this.sessionId)) return;
     switch (method) {
       case "turn/started": {
@@ -638,7 +870,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
             : method === "item/updated"
               ? "updated"
               : "completed";
-        this.emitMany(mapMuseMspItem(this.mapper, item as MuseMspItem, phase));
+        this.emitMany(this.subagents.mapItem(item as MuseMspItem, phase));
         if (stringValue(item["kind"]) === "compaction") this.settleCompactItem(item, phase);
         return;
       }
@@ -649,9 +881,12 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       case "approval/updated":
         this.openApproval(params);
         return;
-      case "approval/resolved":
-        this.resolveRequestFromNotification(stringValue(params["approvalId"]), params["decision"]);
+      case "approval/resolved": {
+        const approvalId = stringValue(params["approvalId"]);
+        if (approvalId) this.approvalDecisions.markResolved(approvalId);
+        this.resolveRequestFromNotification(approvalId, params["decision"]);
         return;
+      }
       case "userInput/requested":
         this.openUserInput(params);
         return;
@@ -703,6 +938,27 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         this.applyTodoListChanged(params);
         return;
       }
+    }
+  }
+
+  /**
+   * Restore the goal dock (and plan) when resuming a session whose goal
+   * outlived the previous host. Verified live on 1.3.0: the `session`
+   * object carries no goal and no `session/goalChanged` replay follows the
+   * resume — the folded `history.snapshot.state` goal block is the only
+   * read-back. Present since 1.0.2, so older hosts either serve it or
+   * downgrade to `none` (same as before); a null goal is a no-op.
+   */
+  private hydrateResumeSnapshot(result: Record<string, unknown>): void {
+    const history = recordOf(result["history"]);
+    const snapshot = recordOf(history?.["snapshot"]);
+    const state = recordOf(snapshot?.["state"]);
+    if (!state) return;
+    if ("goal" in state && state["goal"] !== undefined) {
+      this.emitMany(mapMuseMspGoalChanged(this.mapper, { goal: state["goal"] }));
+    }
+    if (state["todoList"] !== undefined) {
+      this.applyTodoListChanged({ todoList: state["todoList"] });
     }
   }
 
@@ -780,7 +1036,13 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           recordOf(choice) ? [recordOf(choice)!] : [],
         )
       : [];
-    if (!approvalId || !requirementId || choices.length === 0) return;
+    if (
+      !approvalId ||
+      !requirementId ||
+      choices.length === 0 ||
+      this.approvalDecisions.isResolved(approvalId)
+    )
+      return;
     // Verified against `muse` 1.0.3: even with the session in `allowAll`
     // approval mode, the host still raises an approval for shell pipelines it
     // cannot statically parse (heredocs, `… | head`, … — the subject arrives
@@ -831,25 +1093,11 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     requirementId: Record<string, unknown>,
     choiceId: string,
   ): void {
-    const report = (error: unknown) => {
-      this.emit({ type: "error", threadId: this.input.threadId, message: errorMessage(error) });
-    };
-    let sessionId: string;
-    try {
-      sessionId = this.requireSessionId();
-    } catch (error) {
-      report(error);
-      return;
-    }
-    void this.client
-      .request("approval/decide", {
-        commandId: mintMspCommandId(),
-        sessionId,
-        approvalId,
-        requirementId,
-        choiceId,
-      })
-      .catch(report);
+    void this.approvalDecisions
+      .decide({ approvalId, requirementId }, choiceId)
+      .catch((error: unknown) => {
+        this.emit({ type: "error", threadId: this.input.threadId, message: errorMessage(error) });
+      });
   }
 
   private openUserInput(params: Record<string, unknown>): void {
@@ -883,13 +1131,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private async resolveApproval(pending: PendingApproval, response: unknown): Promise<void> {
     const choiceId = resolveMuseApprovalChoiceId(pending, response);
     if (!choiceId) throw new Error("Muse MSP approval supplied no usable choice.");
-    await this.client.request("approval/decide", {
-      commandId: mintMspCommandId(),
-      sessionId: this.requireSessionId(),
-      approvalId: pending.approvalId,
-      requirementId: pending.requirementId,
-      choiceId,
-    });
+    await this.approvalDecisions.decide(pending, choiceId);
   }
 
   private async resolveUserInput(pending: PendingUserInput, response: unknown): Promise<void> {
@@ -1022,5 +1264,10 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "exited" });
     this.listener.onError(`Muse MSP server exited unexpectedly (${detail}).`);
     this.listener.onClose();
+    // The runtime retires this handle on close without disposing it, so the
+    // crash path owns the host teardown (process group, surviving WSL host).
+    void this.releaseHost().catch((error: unknown) => {
+      console.warn("[muse-msp] host cleanup after unexpected exit failed:", error);
+    });
   }
 }

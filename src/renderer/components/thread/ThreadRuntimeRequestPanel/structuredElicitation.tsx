@@ -1,6 +1,8 @@
 import { useId, useState, type ReactNode } from "react";
-import { StructuredCustomValues } from "./StructuredCustomValues";
-import { Button, Input } from "@heroui/react";
+import { StructuredElicitationField } from "./StructuredElicitationField";
+import { QuestionStepForm } from "./QuestionStepForm";
+import { QuestionSwitcher } from "./parts/QuestionSwitcher";
+import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
@@ -9,7 +11,6 @@ import {
   emptyStructuredValue,
   initialStructuredFormValues,
   structuredFieldVisible,
-  structuredFormOptions,
   validStructuredValue,
   type StructuredFormProperty,
   type StructuredFormValue,
@@ -164,24 +165,74 @@ export function StructuredElicitationForm(props: {
   const [formValues, setFormValues] = useState<Record<string, StructuredFormValue>>(() =>
     params.mode === "form" ? initialStructuredFormValues(params.requestedSchema.properties) : {},
   );
+  const [activeFieldKey, setActiveFieldKey] = useState<string | null>(null);
   const requiredKeys = params.mode === "form" ? (params.requestedSchema.required ?? []) : [];
-  const fields =
-    params.mode === "form"
+  function visibleFields(values: Record<string, StructuredFormValue>) {
+    return params.mode === "form"
       ? Object.entries(params.requestedSchema.properties).filter(([, property]) =>
-          structuredFieldVisible(property, formValues),
+          structuredFieldVisible(property, values),
         )
       : [];
+  }
+  const fields = visibleFields(formValues);
+  const activeIndex = Math.max(
+    0,
+    fields.findIndex(([key]) => key === activeFieldKey),
+  );
+  const activeField = fields[activeIndex];
+  const questions = fields.map(([id, property]) => ({
+    id,
+    header: property.title ?? id,
+    question: property.description ?? property.title ?? id,
+    isSecret: false,
+    multiSelect: property.type === "array",
+    options: null,
+  }));
+  const answers = Object.fromEntries(
+    fields.map(([key, property]) => [
+      key,
+      !emptyStructuredValue(formValues[key]) &&
+      validStructuredValue(property, formValues[key], requiredKeys.includes(key))
+        ? String(formValues[key])
+        : "",
+    ]),
+  );
+  const canAdvance =
+    !activeField ||
+    validStructuredValue(
+      activeField[1],
+      formValues[activeField[0]],
+      requiredKeys.includes(activeField[0]),
+    );
+
+  function advance(values = formValues) {
+    if (params.mode !== "form") return;
+    const visible = visibleFields(values);
+    const index = Math.max(
+      0,
+      visible.findIndex(([key]) => key === activeField?.[0]),
+    );
+    setActiveFieldKey(visible[Math.min(index + 1, visible.length - 1)]?.[0] ?? null);
+  }
   const hasMissing = fields.some(
     ([key, property]) =>
       !validStructuredValue(property, formValues[key], requiredKeys.includes(key)),
   );
 
-  function submitAccept() {
-    if (isDisabled || hasMissing) return;
+  function submitAccept(values = formValues) {
+    const submittedFields = visibleFields(values);
+    if (
+      isDisabled ||
+      submittedFields.some(
+        ([key, property]) =>
+          !validStructuredValue(property, values[key], requiredKeys.includes(key)),
+      )
+    )
+      return;
     const content = Object.fromEntries(
-      fields
-        .filter(([key]) => requiredKeys.includes(key) || !emptyStructuredValue(formValues[key]))
-        .map(([key]) => [key, formValues[key]]),
+      submittedFields
+        .filter(([key]) => requiredKeys.includes(key) || !emptyStructuredValue(values[key]))
+        .map(([key]) => [key, values[key]]),
     );
     onSubmit(
       {
@@ -194,7 +245,15 @@ export function StructuredElicitationForm(props: {
   }
 
   return (
-    <div className="space-y-2 border-t border-[color:var(--border)] px-2 py-1.5">
+    <QuestionStepForm
+      id={formId}
+      activeStep={activeField?.[0] ?? ""}
+      isLastStep={activeIndex >= fields.length - 1}
+      canAdvance={canAdvance}
+      isDisabled={isDisabled}
+      onAdvance={() => advance()}
+      onSubmit={() => submitAccept()}
+    >
       {params.mode === "url" ? (
         <ExternalElicitationLink
           href={params.url}
@@ -218,200 +277,34 @@ export function StructuredElicitationForm(props: {
               ) : null}
             </ExternalElicitationLink>
           ))}
-          {fields.map(([key, property]) => {
-            const label = property.title ?? key;
-            const description = property.description ?? "";
-            const enumOpts = structuredFormOptions(property);
-            // Array fields read their current selection in three places below;
-            // narrow once here (updates still read `cur[key]` functionally).
-            const selectedValues = Array.isArray(formValues[key])
-              ? (formValues[key] as string[])
-              : [];
-            const isRequired = requiredKeys.includes(key);
-            const invalid =
-              !emptyStructuredValue(formValues[key]) &&
-              !validStructuredValue(property, formValues[key], isRequired);
-            const errorId = `${formId}-${key}-error`;
-            const constraints = [
-              property.minimum !== undefined ? t`Minimum: ${property.minimum}` : "",
-              property.maximum !== undefined ? t`Maximum: ${property.maximum}` : "",
-              property.minLength !== undefined ? t`Minimum characters: ${property.minLength}` : "",
-              property.maxLength !== undefined ? t`Maximum characters: ${property.maxLength}` : "",
-              property.minItems !== undefined ? t`Minimum selections: ${property.minItems}` : "",
-              property.maxItems !== undefined ? t`Maximum selections: ${property.maxItems}` : "",
-              property.format
-                ? {
-                    email: t`Email address`,
-                    uri: t`URL`,
-                    date: t`Date`,
-                    "date-time": t`Date and time`,
-                  }[property.format]
-                : "",
-              property.pattern ?? "",
-            ]
-              .filter(Boolean)
-              .join(" · ");
-            return (
-              <div
-                key={key}
-                className="space-y-1"
-                role="group"
-                aria-label={label}
-                aria-describedby={errorId}
-              >
-                <div>
-                  <p className="text-[11px] font-medium text-foreground">
-                    {label}
-                    {isRequired ? <span className="text-warning"> *</span> : null}
-                  </p>
-                  {description ? (
-                    <p className="text-[11px] text-[color:var(--muted)]">{description}</p>
-                  ) : null}
-                </div>
-                <p id={errorId} className="text-[11px] text-muted">
-                  {constraints}
-                  {invalid ? (
-                    <span className="block text-danger">
-                      <Trans>Enter a valid value.</Trans>
-                    </span>
-                  ) : null}
-                </p>
-                {property.type === "boolean" ? (
-                  <label className="flex items-center gap-2 text-[11px] text-foreground">
-                    <input
-                      type="checkbox"
-                      className="size-3.5"
-                      disabled={isDisabled}
-                      checked={Boolean(formValues[key])}
-                      onChange={(e) =>
-                        setFormValues((cur) => ({ ...cur, [key]: e.target.checked }))
-                      }
-                    />
-                    <span>{label}</span>
-                  </label>
-                ) : property.type === "integer" || property.type === "number" ? (
-                  <Input
-                    aria-label={label}
-                    aria-invalid={invalid}
-                    aria-describedby={errorId}
-                    min={property.minimum}
-                    max={property.maximum}
-                    step={property.type === "integer" ? 1 : "any"}
-                    type="number"
-                    disabled={isDisabled}
-                    value={formValues[key] === "" ? "" : String(formValues[key] ?? "")}
-                    onChange={(e) =>
-                      setFormValues((cur) => ({
-                        ...cur,
-                        [key]: e.target.value.trim().length === 0 ? "" : Number(e.target.value),
-                      }))
-                    }
-                    className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
-                  />
-                ) : property.type === "array" ? (
-                  <div className="space-y-0.5">
-                    {enumOpts.map((option) => {
-                      const checked = selectedValues.includes(option.id);
-                      return (
-                        <label
-                          key={option.id}
-                          className="flex items-center gap-2 text-[11px] text-foreground"
-                        >
-                          <input
-                            type="checkbox"
-                            disabled={isDisabled}
-                            className="size-3.5"
-                            checked={checked}
-                            onChange={(e) =>
-                              setFormValues((cur) => {
-                                const next = Array.isArray(cur[key])
-                                  ? [...(cur[key] as string[])]
-                                  : [];
-                                return {
-                                  ...cur,
-                                  [key]: e.target.checked
-                                    ? [...next, option.id]
-                                    : next.filter((v) => v !== option.id),
-                                };
-                              })
-                            }
-                          />
-                          <span>{option.label}</span>
-                        </label>
-                      );
-                    })}
-                    {property.allowCustom ? (
-                      <StructuredCustomValues
-                        isDisabled={isDisabled}
-                        atLimit={
-                          property.maxItems !== undefined &&
-                          selectedValues.length >= property.maxItems
-                        }
-                        values={selectedValues.filter(
-                          (value) => !enumOpts.some(({ id }) => id === value),
-                        )}
-                        onChange={(custom) =>
-                          setFormValues((current) => ({
-                            ...current,
-                            [key]: [
-                              ...(Array.isArray(current[key])
-                                ? (current[key] as string[])
-                                : []
-                              ).filter((value) => enumOpts.some(({ id }) => id === value)),
-                              ...custom,
-                            ],
-                          }))
-                        }
-                      />
-                    ) : null}
-                  </div>
-                ) : enumOpts.length > 0 && !property.allowCustom ? (
-                  <select
-                    aria-label={label}
-                    aria-invalid={invalid}
-                    aria-describedby={errorId}
-                    disabled={isDisabled}
-                    value={String(formValues[key] ?? "")}
-                    onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
-                    className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
-                  >
-                    <option value="">—</option>
-                    {enumOpts.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <>
-                    <datalist id={`${formId}-${key}`}>
-                      {enumOpts.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </datalist>
-                    <Input
-                      {...(enumOpts.length > 0 ? { list: `${formId}-${key}` } : {})}
-                      aria-label={label}
-                      aria-invalid={invalid}
-                      aria-describedby={errorId}
-                      {...(property.placeholder !== undefined
-                        ? { placeholder: property.placeholder }
-                        : {})}
-                      minLength={property.minLength}
-                      maxLength={property.maxLength}
-                      type="text"
-                      disabled={isDisabled}
-                      value={String(formValues[key] ?? "")}
-                      onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
-                      className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
-                    />
-                  </>
-                )}
-              </div>
-            );
-          })}
+          <QuestionSwitcher
+            questions={questions}
+            answers={answers}
+            customAnswers={{}}
+            activeIndex={activeIndex}
+            isDisabled={isDisabled}
+            onSelect={(index) => setActiveFieldKey(fields[index]?.[0] ?? null)}
+          />
+          {fields.slice(activeIndex, activeIndex + 1).map(([key, property]) => (
+            <StructuredElicitationField
+              key={key}
+              fieldKey={key}
+              property={property}
+              formId={formId}
+              formValues={formValues}
+              requiredKeys={requiredKeys}
+              isDisabled={isDisabled}
+              setFormValues={setFormValues}
+              onSingleChoice={(value, submitOnLast) => {
+                if (validStructuredValue(property, value, requiredKeys.includes(key))) {
+                  const values = { ...formValues, [key]: value };
+                  const visible = visibleFields(values);
+                  if (submitOnLast && visible.at(-1)?.[0] === key) submitAccept(values);
+                  else advance(values);
+                }
+              }}
+            />
+          ))}
         </div>
       )}
       <div className="flex flex-wrap items-center justify-end gap-1 pt-1">
@@ -433,14 +326,14 @@ export function StructuredElicitationForm(props: {
           <Trans>Decline</Trans>
         </Button>
         <Button
-          isDisabled={isDisabled || hasMissing}
+          isDisabled={isDisabled || (activeIndex < fields.length - 1 ? !canAdvance : hasMissing)}
           size="sm"
           variant="secondary"
-          onPress={submitAccept}
+          type="submit"
         >
-          {params.mode === "url" ? t`Continue` : t`Submit`}
+          {params.mode === "url" || activeIndex < fields.length - 1 ? t`Continue` : t`Submit`}
         </Button>
       </div>
-    </div>
+    </QuestionStepForm>
   );
 }

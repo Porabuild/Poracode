@@ -1,0 +1,23 @@
+{
+  "$comment": "Neutral fixture: stale owner. The record was minted on the Terminal surface; the actual owner is now the GUI surface. Owner mismatch (kind, instance presence, or presentation) makes the whole record unproven; it is dropped or left unproven, never rebound by inference.",
+  "config": {
+    "model": "lead-a+sidekick-b",
+    "effort": "default",
+    "fast": false,
+    "mode": "agent",
+    "selectionBinding": {
+      "version": 1,
+      "kind": "family-member",
+      "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+      "model": "lead-a+sidekick-b",
+      "inertValues": { "effort": "default", "fast": false }
+    }
+  },
+  "owner": { "agentKind": "sample-agent", "presentationMode": "gui" },
+  "expect": {
+    "bindingRecognized": true,
+    "matches": false,
+    "invalidReason": "owner-mismatch",
+    "coldLaunch": "conservative-catalog-required"
+  }
+}

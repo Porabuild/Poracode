@@ -3,6 +3,8 @@ import type { AgentCapability, AgentInstanceConfig, ProjectLocation } from "@/sh
 import { codexProfileKind, parseCodexProfileInstanceConfig } from "@/shared/contracts";
 import type { OscNotification } from "@/shared/osc";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   batchWslCommandsAsync,
   brailleSpinnerOscTitleHint,
   buildAgentCommand,
@@ -10,13 +12,16 @@ import {
   detectAgentInstall,
   detectProbeLocation,
   getOscNotificationText,
+  prepareAgentLocationEnvironment,
   watchSessionPaths,
   type AgentAdapter,
   type CreateStructuredSessionInput,
   type TerminalStatusHint,
 } from "../base";
+import { resolveNativeTildePath } from "../base/sessionFs";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { CodexStructuredSession } from "./acp";
+import { PERSISTED_RUNTIME_PAYLOAD_FORMAT_OWNER_KEY } from "./persistedRuntimePayload";
 import { buildCodexArgvFor, codexExtraArgsPosition, primeCodexGoalsSupport } from "./argv";
 import { codexDefaultCapabilities, codexDetectionSpec } from "./detection";
 import { detectRateLimitPrompt } from "./rateLimitPrompt";
@@ -142,9 +147,12 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
 
   return {
     kind,
+    runtimePayloadFormatOwnerKey: PERSISTED_RUNTIME_PAYLOAD_FORMAT_OWNER_KEY,
     label,
     binary: codexDetectionSpec.binary,
-    sessionImport: createCodexSessionImport(),
+    sessionImport: createCodexSessionImport(
+      options.homeDir !== undefined ? resolveNativeTildePath(options.homeDir) : undefined,
+    ),
     skillSupport: {
       roots: [
         {
@@ -171,7 +179,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
         project: ["agents"],
       },
     },
-    listNativePlugins: (ctx) => listNativeCodexPlugins(ctx, pluginDiscoveryHome(ctx)),
+    listNativePlugins: async (ctx) => listNativeCodexPlugins(ctx, await pluginDiscoveryHome(ctx)),
     ...(codexDetectionSpec.update ? { update: codexDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -208,25 +216,25 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       }
       return isCodexVersionSupportedForHooks();
     },
-    isPluginInstalled(ctx) {
-      return isCodexPluginInstalled(ctx, overlayFor(ctx));
+    async isPluginInstalled(ctx) {
+      return isCodexPluginInstalled(ctx, await overlayFor(ctx));
     },
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
       const result = await installCodexPlugin(ctx, {
         resolvedNodePath: node.nodePath,
-        overlay: overlayFor(ctx),
+        overlay: await overlayFor(ctx),
       });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCodexPlugin(ctx, overlayFor(ctx));
+      await uninstallCodexPlugin(ctx, await overlayFor(ctx));
     },
     async pluginLaunchExtras(ctx) {
-      const overlay = overlayFor(ctx);
-      const paths = getCodexPluginPaths(ctx, overlay);
+      const overlay = await overlayFor(ctx);
+      const paths = await getCodexPluginPaths(ctx, overlay);
       // The install step links state files once; a profile that signs in
       // afterwards needs its new auth.json linked before this launch.
       if (overlay)
@@ -234,7 +242,9 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       const hooksFeatureFlag = await resolveCodexHooksFeatureFlag(ctx);
       return {
         args: ["--enable", hooksFeatureFlag],
-        env: { CODEX_HOME: paths.codexHomeDir },
+        // An unresolved WSL home must leave CODEX_HOME unset rather than pin
+        // it to "" (which Codex would resolve relative to its cwd).
+        ...(paths.codexHomeDir ? { env: { CODEX_HOME: paths.codexHomeDir } } : {}),
       };
     },
     handleOscNotification: codexOscHint,
@@ -242,7 +252,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
     oscHintsDeferToHookPlugin: true,
     async detectInstall(ctx) {
       const location = detectProbeLocation(ctx);
-      const env = profileEnv(location);
+      const env = await profileEnv(location);
       const status = await detectAgentInstall(
         ctx,
         env ? { ...detectionSpec, probeEnv: env } : detectionSpec,
@@ -251,12 +261,12 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       capabilities = status.capabilities;
       return { ...status, kind, label };
     },
-    buildLaunchArgv(location: ProjectLocation, config, prompt, sessionRef, launchOptions) {
+    async buildLaunchArgv(location: ProjectLocation, config, prompt, sessionRef, launchOptions) {
       preSpawnStartedAt = Date.now();
       if (location.kind === "wsl") {
         preSpawnRolloutIds = new Set();
       } else {
-        const homes = sessionHomes(location);
+        const homes = await sessionHomes(location);
         const sessions = readCodexSessionIndexForLocation(location, homes);
         const rollouts = readCodexRolloutsForLocation(location, homes);
         preSpawnRolloutIds = new Set(rollouts.map((rollout) => rollout.id));
@@ -270,13 +280,13 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
         );
       }
       return withProfileEnv(
-        buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions),
+        await buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions),
         location,
       );
     },
-    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+    async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       return withProfileEnv(
-        buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions),
+        await buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions),
         location,
       );
     },
@@ -295,19 +305,20 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       }
       const wslExecPath = resolveAgentBinaryPath(input.projectLocation, "codex");
       return CodexStructuredSession.create(
-        withProfileEnv(input, input.projectLocation),
+        await withProfileEnv(input, input.projectLocation),
         wslExecPath,
       );
     },
     shutdown: shutdownSpawnedCodexAppServers,
     async buildAcpLogoutCommand(ctx) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildAgentCommand(
         location,
         "codex",
         ["logout"],
         resolveAgentBinaryPath(location, "codex"),
-        profileEnv(location),
+        await profileEnv(location),
       );
     },
     buildDirectInput(prompt) {
@@ -322,18 +333,30 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
     },
     initialSessionRefDiscoveryDelayMs: 1000,
     watchSessionRef(location, onChanged) {
-      const paths = resolveCodexSessionWatchPaths(location, sessionHomes(location));
-      if (paths.length === 0) return undefined;
-      return watchSessionPaths(
-        location,
-        paths,
-        onChanged,
-        `codex:${describeCodexLocation(location)}`,
-      );
+      let stopped = false;
+      let stop: (() => void) | undefined;
+      void (async () => {
+        const homes = await sessionHomes(location);
+        if (stopped) return;
+        const paths = resolveCodexSessionWatchPaths(location, homes);
+        if (paths.length === 0) return;
+        stop = watchSessionPaths(
+          location,
+          paths,
+          onChanged,
+          `codex:${describeCodexLocation(location)}`,
+        );
+      })().catch((error) => {
+        console.warn("[codex] session watch setup failed:", error);
+      });
+      return () => {
+        stopped = true;
+        stop?.();
+      };
     },
     async discoverSessionRef(location) {
       try {
-        const homes = sessionHomes(location);
+        const homes = await sessionHomes(location);
         const [sessions, rollouts] = await Promise.all([
           readCodexSessionIndexForLocationAsync(location, homes),
           readCodexRolloutsForLocationAsync(location, homes),
@@ -383,7 +406,14 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       }
     },
     defaultOneShotModel: "gpt-5.5",
-    buildOneShotCommand(model, effort, _prompt, location) {
+    async buildOneShotCommand(model, effort, _prompt, location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Both carriers map natively: reasoning effort and — exactly like the
+      // interactive launch lane — Codex's `service_tier="fast"` priority lane.
+      assertOneShotControlsMapped(selection, { effort: true, fast: true });
       // `--skip-git-repo-check` lets `codex exec` run from worktrees or other
       // directories not on codex's trust list. Title generation only reads
       // the user's prompt from stdin and emits a short string — it never
@@ -392,8 +422,12 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       if (effort) {
         args.push("-c", `model_reasoning_effort="${effort}"`);
       }
+      if (fast) {
+        // Same native mapping the interactive argv lane uses for config.fast.
+        args.push("-c", 'service_tier="fast"');
+      }
       args.push("-");
-      const env = location ? profileEnv(location) : undefined;
+      const env = location ? await profileEnv(location) : undefined;
       return { command: "codex", args, ...(env ? { env } : {}) };
     },
     buildContextExtractionCommand(_sessionRef, _location, _model) {

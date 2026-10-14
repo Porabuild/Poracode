@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { ChevronDown, Images } from "lucide-react";
+import { Images } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadGalleryImage } from "./ChatPane/parts/items/threadGalleryImages";
 import { DownsampledThumb } from "./DownsampledThumb";
 import { openThreadGallery } from "./useThreadGalleryImages";
-import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
+import { ThreadDockCollapseButton, ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
 /**
  * Right-panel "Images" section: a 2-row horizontal mosaic of every renderable
@@ -14,7 +14,14 @@ import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./Thr
  * Clicking any tile opens the fullscreen lightbox at that image with prev/next
  * across the whole thread.
  */
-export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryImage[] }) {
+export function ThreadImagesDock({
+  gallery,
+  threadId,
+}: {
+  gallery: readonly ThreadGalleryImage[];
+  /** Enables live gallery updates in the open lightbox when provided. */
+  threadId?: string | undefined;
+}) {
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(false);
   if (gallery.length === 0) return null;
@@ -31,15 +38,11 @@ export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryI
           title={t`Images`}
           countLabel={<span className="[font-variant-numeric:tabular-nums]">{gallery.length}</span>}
           actions={
-            <ThreadDockIconButton
+            <ThreadDockCollapseButton
+              collapsed={collapsed}
               label={collapsed ? t`Expand images` : t`Collapse images`}
-              tooltip={collapsed ? t`Expand` : t`Collapse`}
               onPress={() => setCollapsed(!collapsed)}
-            >
-              <ChevronDown
-                className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-              />
-            </ThreadDockIconButton>
+            />
           }
         />
         {!collapsed ? (
@@ -56,7 +59,7 @@ export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryI
                     aria-label={t`Open image ${index + 1} of ${gallery.length}`}
                     title={img.alt || t`Open image preview`}
                     className="group relative block h-16 w-24 overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
-                    onClick={() => openThreadGallery(gallery, undefined, index)}
+                    onClick={() => openThreadGallery(gallery, undefined, index, threadId)}
                   >
                     <DownsampledThumb
                       src={img.src}

@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockExecFileCommand } from "../../runtime/macKeychain.testFixtures";
 import {
   ANTIGRAVITY_GOOGLE_TOKEN_URI,
-  invalidateAntigravityAcpCredentialsCache,
   parseAntigravityAcpCredentials,
   readAntigravityAcpCredsFromMacKeychain,
-  resetAntigravityAcpCredentialStateForTests,
+  readAntigravityAcpKeychainFingerprint,
   resolveAntigravityAcpCredentials,
-  resolveAntigravityAcpCredentialsCached,
 } from "./antigravityAcpCredentials";
+import { resetMacKeychainStateForTests } from "../../runtime/macKeychain";
 
 type ExecFileCallback = (error: Error | null, stdout: string, stderr: string) => void;
 
@@ -23,12 +23,14 @@ const { execFileMock } = vi.hoisted(() => {
   // of resolving `{ stdout, stderr }` via the custom-promisify symbol.
   Object.defineProperty(fn, Symbol.for("nodejs.util.promisify.custom"), {
     value: (file: string, args: string[], options: object) =>
-      new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-        fn(file, args, options, (error, stdout, stderr) => {
-          if (error) reject(error);
-          else resolve({ stdout, stderr });
-        });
-      }),
+      mockExecFileCommand(
+        new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+          fn(file, args, options, (error, stdout, stderr) => {
+            if (error) reject(error);
+            else resolve({ stdout, stderr });
+          });
+        }),
+      ),
     configurable: true,
   });
   return { execFileMock: fn };
@@ -58,6 +60,8 @@ describe("parseAntigravityAcpCredentials", () => {
 
   it("rejects malformed credentials and non-Google token destinations", () => {
     expect(parseAntigravityAcpCredentials("not json")).toBeUndefined();
+    expect(parseAntigravityAcpCredentials("null")).toBeUndefined();
+    expect(parseAntigravityAcpCredentials("[]")).toBeUndefined();
     expect(
       parseAntigravityAcpCredentials(
         JSON.stringify({
@@ -77,10 +81,13 @@ describe("resolveAntigravityAcpCredentials", () => {
     const readWsl = vi.fn<() => Promise<string | undefined>>();
     const credentials = await resolveAntigravityAcpCredentials({
       readKeychain: async () => VALID,
+      readKeychainFingerprint: async () => "keychain-source",
       readNative,
       readWsl,
     });
     expect(credentials?.refreshToken).toBe("refresh-token");
+    expect(credentials?.keychainFingerprint).toBe("keychain-source");
+    expect(credentials?.fromKeychain).toBe(true);
     expect(readNative).not.toHaveBeenCalled();
     expect(readWsl).not.toHaveBeenCalled();
   });
@@ -89,10 +96,13 @@ describe("resolveAntigravityAcpCredentials", () => {
     const readWsl = vi.fn<() => Promise<string | undefined>>();
     const credentials = await resolveAntigravityAcpCredentials({
       readKeychain: async () => "not json",
+      readKeychainFingerprint: async () => "keychain-source",
       readNative: async () => VALID,
       readWsl,
     });
     expect(credentials?.refreshToken).toBe("refresh-token");
+    expect(credentials?.keychainFingerprint).toBeUndefined();
+    expect(credentials?.fromKeychain).toBeUndefined();
     expect(readWsl).not.toHaveBeenCalled();
   });
 
@@ -105,6 +115,33 @@ describe("resolveAntigravityAcpCredentials", () => {
     });
     expect(credentials?.refreshToken).toBe("refresh-token");
     expect(readWsl).toHaveBeenCalledOnce();
+  });
+
+  it("continues to the file sources when a credential store throws", async () => {
+    const credentials = await resolveAntigravityAcpCredentials({
+      readKeychain: async () => {
+        throw new Error("Credential store unavailable");
+      },
+      readNative: async () => VALID,
+      readWsl: async () => undefined,
+    });
+    expect(credentials?.refreshToken).toBe("refresh-token");
+  });
+
+  it("keeps a grant process-local when its item is replaced during authorization", async () => {
+    let fingerprint = "original-source";
+    const credentials = await resolveAntigravityAcpCredentials({
+      readKeychainFingerprint: async () => fingerprint,
+      readKeychain: async () => {
+        fingerprint = "replacement-source";
+        return VALID;
+      },
+      readNative: async () => undefined,
+      readWsl: async () => undefined,
+    });
+    expect(credentials?.refreshToken).toBe("refresh-token");
+    expect(credentials?.keychainFingerprint).toBeUndefined();
+    expect(credentials?.fromKeychain).toBe(true);
   });
 });
 
@@ -127,12 +164,13 @@ describe("readAntigravityAcpCredsFromMacKeychain", () => {
   };
 
   beforeEach(() => {
-    resetAntigravityAcpCredentialStateForTests();
+    resetMacKeychainStateForTests();
     execFileMock.mockReset();
     usePlatform("darwin");
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     if (originalPlatformDescriptor) {
       Object.defineProperty(process, "platform", originalPlatformDescriptor);
     }
@@ -144,69 +182,54 @@ describe("readAntigravityAcpCredsFromMacKeychain", () => {
     expect(execFileMock).toHaveBeenCalledOnce();
   });
 
-  it("keeps retrying when the item is missing — that failure never showed a dialog", async () => {
-    let calls = 0;
-    mockSecurity((callback) => {
-      calls += 1;
-      callback(securityError("The specified item could not be found", 44), "", "");
-    });
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    expect(calls).toBe(2);
-  });
-
-  it("backs off after an authorization dialog ends without a grant", async () => {
-    let calls = 0;
-    mockSecurity((callback) => {
-      calls += 1;
-      // 128 = user canceled the macOS authorization dialog.
-      callback(securityError("User canceled", 128), "", "");
-    });
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    expect(calls).toBe(1);
-
-    resetAntigravityAcpCredentialStateForTests();
-    await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
-    expect(calls).toBe(2);
+  it("shares a pending authorization across overlapping refreshes", async () => {
+    const grant = Promise.withResolvers<ExecFileCallback>();
+    mockSecurity((callback) => grant.resolve(callback));
+    const first = readAntigravityAcpCredsFromMacKeychain();
+    const callback = await grant.promise;
+    const second = readAntigravityAcpCredsFromMacKeychain();
+    expect(execFileMock).toHaveBeenCalledExactlyOnceWith(
+      "/usr/bin/security",
+      ["find-generic-password", "-a", "antigravity-acp", "-w", "-s", "gemini"],
+      { timeout: 120_000, encoding: "utf8" },
+      expect.any(Function),
+    );
+    callback(null, VALID, "");
+    await expect(Promise.all([first, second])).resolves.toEqual([VALID, VALID]);
   });
 
   it("resolves undefined off-platform without spawning security", async () => {
     usePlatform("linux");
     mockSecurity((callback) => callback(null, VALID, ""));
     await expect(readAntigravityAcpCredsFromMacKeychain()).resolves.toBeUndefined();
+    await expect(readAntigravityAcpKeychainFingerprint()).resolves.toBeUndefined();
     expect(execFileMock).not.toHaveBeenCalled();
   });
-});
 
-describe("resolveAntigravityAcpCredentialsCached", () => {
-  beforeEach(() => {
-    resetAntigravityAcpCredentialStateForTests();
+  it("checks source identity using attributes without requesting password data", async () => {
+    const metadata = [
+      'keychain: "/test/login.keychain-db"',
+      '    "cdat"<timedate>=0x32303236 "20260901000000Z"',
+      '    "mdat"<timedate>=0x32303236 "20260901000001Z"',
+    ].join("\n");
+    mockSecurity((callback) => callback(null, metadata, ""));
+    const fingerprint = await readAntigravityAcpKeychainFingerprint();
+    expect(fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(execFileMock).toHaveBeenCalledExactlyOnceWith(
+      "/usr/bin/security",
+      ["find-generic-password", "-a", "antigravity-acp", "-s", "gemini"],
+      { timeout: 5_000, encoding: "utf8" },
+      expect.any(Function),
+    );
+    mockSecurity((callback) => callback(null, metadata.replace("000001Z", "000002Z"), ""));
+    const replacement = await readAntigravityAcpKeychainFingerprint();
+    expect(replacement).not.toBe(fingerprint);
   });
 
-  it("resolves once and serves later refresh ticks from the process cache", async () => {
-    const readKeychain = vi.fn<() => Promise<string | undefined>>(async () => VALID);
-    const deps = {
-      readKeychain,
-      readNative: async () => undefined,
-      readWsl: async () => undefined,
-    };
-    const expected = parseAntigravityAcpCredentials(VALID);
-    await expect(resolveAntigravityAcpCredentialsCached(deps)).resolves.toEqual(expected);
-    await expect(resolveAntigravityAcpCredentialsCached(deps)).resolves.toEqual(expected);
-    expect(readKeychain).toHaveBeenCalledOnce();
-  });
-
-  it("re-reads the OS stores after an invalidation", async () => {
-    const readKeychain = vi.fn<() => Promise<string | undefined>>(async () => VALID);
-    const deps = {
-      readKeychain,
-      readNative: async () => undefined,
-      readWsl: async () => undefined,
-    };
-    await resolveAntigravityAcpCredentialsCached(deps);
-    invalidateAntigravityAcpCredentialsCache();
-    await resolveAntigravityAcpCredentialsCached(deps);
-    expect(readKeychain).toHaveBeenCalledTimes(2);
+  it("does not fingerprint a missing item or malformed attributes", async () => {
+    mockSecurity((callback) => callback(null, "attributes unavailable", ""));
+    await expect(readAntigravityAcpKeychainFingerprint()).resolves.toBeUndefined();
+    mockSecurity((callback) => callback(securityError("Missing", 44), "", ""));
+    await expect(readAntigravityAcpKeychainFingerprint()).resolves.toBeUndefined();
   });
 });

@@ -14,15 +14,23 @@ import { toWslUncPath } from "@/shared/wsl";
 import { getCachedWslHomeDirectory, type AgentEnvContext } from "../../base";
 import {
   copyPluginAssetsIfStale,
+  copyWslFile,
   createPluginSourceResolver,
   getNativePluginBaseDir,
   getWslPluginBaseDirs,
   isWslPluginContext,
   readBundledPluginVersion,
   readPluginManifest,
+  readPluginManifestWith,
+  readWslTextFile,
   removeStagedPluginDir,
+  removeWslPath,
+  resolvePluginVerificationIo,
+  resolveWslHomePath,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   type PluginManifest,
+  type PluginVerificationTarget,
 } from "../../plugin/installerBase";
 
 /**
@@ -103,7 +111,7 @@ export interface OpenCodePluginPaths {
   pluginDir: string;
   /** Path to the dropped file OpenCode auto-discovers. */
   opencodePluginFile: string;
-  version: string;
+  version?: string;
 }
 
 const callerDir =
@@ -148,6 +156,19 @@ function resolveOpenCodeWslConfigDir(
   return { linuxDir, uncDir: toWslUncPath(distro, linuxDir) };
 }
 
+/**
+ * Home-resolving variant used by install/uninstall. Resolves a cold home
+ * through the staging worker instead of a synchronous `wsl.exe` spawn.
+ */
+async function resolveOpenCodeWslConfigDirAsync(
+  distro: string,
+): Promise<{ linuxDir: string; uncDir: string } | undefined> {
+  const home = await resolveWslHomePath(distro);
+  if (!home) return undefined;
+  const linuxDir = `${home}/.config/opencode`;
+  return { linuxDir, uncDir: toWslUncPath(distro, linuxDir) };
+}
+
 function resolveOpenCodeWslPluginsDir(
   distro: string,
 ): { linuxDir: string; uncDir: string } | undefined {
@@ -165,19 +186,12 @@ export function getOpenCodePluginPaths(ctx?: AgentEnvContext): OpenCodePluginPat
     if (!wsl) {
       return { pluginDir: "", opencodePluginFile: "", version: "0.0.0" };
     }
-    let version = "0.0.0";
-    try {
-      version = readPluginManifest(wsl.uncBase).version;
-    } catch {
-      // staged manifest absent on first install
-    }
     const opencodeDir = resolveOpenCodeWslPluginsDir(ctx.wslDistro);
     return {
       pluginDir: wsl.linuxBase,
       opencodePluginFile: opencodeDir
         ? `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`
         : "",
-      version,
     };
   }
   const pluginDir = getNativePluginBaseDir("opencode", ctx?.baseDir);
@@ -194,9 +208,11 @@ export function getOpenCodePluginPaths(ctx?: AgentEnvContext): OpenCodePluginPat
   };
 }
 
-export function installOpenCodePlugin(
+export async function installOpenCodePlugin(
   ctx?: AgentEnvContext,
-): { ok: true; paths: OpenCodePluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<
+  { ok: true; paths: OpenCodePluginPaths; version: string } | { ok: false; reason: string }
+> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -259,52 +275,62 @@ export function installOpenCodePlugin(
   };
 }
 
-function installOpenCodePluginWsl(
+async function installOpenCodePluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
-): { ok: true; paths: OpenCodePluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "opencode", OPENCODE_PLUGIN_ASSET_FILES);
+): Promise<
+  { ok: true; paths: OpenCodePluginPaths; version: string } | { ok: false; reason: string }
+> {
+  const staged = await stagePluginAssetsToWsl(
+    distro,
+    sourceDir,
+    "opencode",
+    OPENCODE_PLUGIN_ASSET_FILES,
+  );
   if (!staged.ok) return staged;
 
   const linuxPluginDir = staged.linuxPluginDir;
-  const opencodeDir = resolveOpenCodeWslPluginsDir(distro);
-  if (!opencodeDir) {
+  const cfgDir = await resolveOpenCodeWslConfigDirAsync(distro);
+  if (!cfgDir) {
     return {
       ok: false,
       reason: `failed to resolve OpenCode plugins dir in wsl distro ${distro} (could not read $HOME)`,
     };
   }
-  const opencodePluginFile = `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`;
-  const opencodePluginUnc = `${opencodeDir.uncDir}\\${OPENCODE_PLUGIN_DROP_FILE_NAME}`;
-  const opencodeManifestUnc = `${opencodeDir.uncDir}\\${OPENCODE_PLUGIN_DROP_MANIFEST_NAME}`;
-  const stagedPluginUnc = toWslUncPath(distro, `${linuxPluginDir}/poracode-status.mjs`);
-  const stagedManifestUnc = toWslUncPath(distro, `${linuxPluginDir}/plugin.json`);
+  const opencodePluginsDir = `${cfgDir.linuxDir}/plugins`;
+  const opencodePluginFile = `${opencodePluginsDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`;
 
   try {
-    mkdirSync(opencodeDir.uncDir, { recursive: true });
-    copyFileSync(stagedPluginUnc, opencodePluginUnc);
-    copyFileSync(stagedManifestUnc, opencodeManifestUnc);
-    cleanupLegacyDrops(opencodeDir.uncDir, "wsl");
+    await copyWslFile(
+      distro,
+      `${linuxPluginDir}/poracode-status.mjs`,
+      `${opencodePluginsDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`,
+    );
+    await copyWslFile(
+      distro,
+      `${linuxPluginDir}/plugin.json`,
+      `${opencodePluginsDir}/${OPENCODE_PLUGIN_DROP_MANIFEST_NAME}`,
+    );
+    await cleanupLegacyDropsWsl(distro, opencodePluginsDir);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     return {
       ok: false,
-      reason: `failed to copy poracode-status plugin into ${opencodeDir.linuxDir} (distro ${distro}): ${detail}`,
+      reason: `failed to copy poracode-status plugin into ${opencodePluginsDir} (distro ${distro}): ${detail}`,
     };
   }
 
   // Same scrub on the WSL-side opencode.json. Browser MCP is synced at launch
   // time so it can honor the user's provider setting.
-  const cfgDir = resolveOpenCodeWslConfigDir(distro);
-  if (cfgDir) {
-    const wslConfigPath = `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`;
-    scrubLegacyOpenCodeMcpProjection(
-      wslConfigPath,
-      `${cfgDir.uncDir}\\${LEGACY_MANAGED_MCP_FILE_NAME}`,
-    );
-    updateOpenCodeConfigFile(wslConfigPath, { remove: [] });
-  }
+  await scrubLegacyOpenCodeMcpProjectionWsl(
+    distro,
+    `${cfgDir.linuxDir}/${OPENCODE_CONFIG_FILE_NAME}`,
+    `${cfgDir.linuxDir}/${LEGACY_MANAGED_MCP_FILE_NAME}`,
+  );
+  await updateOpenCodeConfigFileWsl(distro, `${cfgDir.linuxDir}/${OPENCODE_CONFIG_FILE_NAME}`, {
+    remove: [],
+  });
 
   console.log(
     `[supervisor] OpenCode hook plugin staged v${manifest.version} in WSL distro ${distro} ` +
@@ -322,16 +348,17 @@ function installOpenCodePluginWsl(
   };
 }
 
-export function isOpenCodePluginInstalled(ctx?: AgentEnvContext): {
-  installed: boolean;
-  version?: string;
-} {
+export async function isOpenCodePluginInstalled(
+  ctx?: AgentEnvContext,
+): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "opencode");
     if (!wsl) return { installed: false };
     const opencodeDir = resolveOpenCodeWslPluginsDir(ctx.wslDistro);
     if (!opencodeDir) return { installed: false };
-    return verifyOpenCodeInstallAt(wsl.uncBase, opencodeDir.uncDir, "wsl");
+    return verifyOpenCodeInstallAt(wsl.linuxBase, opencodeDir.linuxDir, "wsl", {
+      distro: ctx.wslDistro,
+    });
   }
   return verifyOpenCodeInstallAt(
     getNativePluginBaseDir("opencode", ctx?.baseDir),
@@ -340,35 +367,46 @@ export function isOpenCodePluginInstalled(ctx?: AgentEnvContext): {
   );
 }
 
-function verifyOpenCodeInstallAt(
+async function verifyOpenCodeInstallAt(
   readableStagingDir: string,
   readableOpencodeDir: string,
   target: "native" | "wsl",
-): { installed: boolean; version?: string } {
+  options?: PluginVerificationTarget,
+): Promise<{ installed: boolean; version?: string }> {
+  const io = resolvePluginVerificationIo(target, options);
   let version: string;
   try {
-    version = readPluginManifest(readableStagingDir).version;
+    version = (await readPluginManifestWith(io, readableStagingDir)).version;
   } catch {
     return { installed: false };
   }
   for (const asset of OPENCODE_PLUGIN_ASSET_FILES) {
-    if (!existsSync(join(readableStagingDir, asset))) return { installed: false };
+    if (!(await io.pathExists(io.joinPath(readableStagingDir, asset)))) {
+      return { installed: false };
+    }
   }
-  const joinDropped = (name: string) =>
-    target === "wsl" ? `${readableOpencodeDir}\\${name}` : join(readableOpencodeDir, name);
-  const droppedPlugin = joinDropped(OPENCODE_PLUGIN_DROP_FILE_NAME);
-  const droppedManifest = joinDropped(OPENCODE_PLUGIN_DROP_MANIFEST_NAME);
-  // Byte-for-byte equality so a hand-edited drop is treated as not-installed
-  // and the next install call restages.
+  const droppedPlugin = io.joinPath(readableOpencodeDir, OPENCODE_PLUGIN_DROP_FILE_NAME);
+  const droppedManifest = io.joinPath(readableOpencodeDir, OPENCODE_PLUGIN_DROP_MANIFEST_NAME);
+  // Content equality so a hand-edited drop is treated as not-installed and the
+  // next install call restages. Both files are UTF-8 text, so the worker's
+  // decoded read is byte-faithful.
   try {
-    const stagedPlugin = readFileSync(join(readableStagingDir, "poracode-status.mjs"));
-    const droppedBuf = readFileSync(droppedPlugin);
-    if (stagedPlugin.length !== droppedBuf.length) return { installed: false };
-    if (!stagedPlugin.equals(droppedBuf)) return { installed: false };
-    const stagedManifest = readFileSync(join(readableStagingDir, "plugin.json"));
-    const droppedManifestBuf = readFileSync(droppedManifest);
-    if (stagedManifest.length !== droppedManifestBuf.length) return { installed: false };
-    if (!stagedManifest.equals(droppedManifestBuf)) return { installed: false };
+    const stagedPlugin = await io.readTextFile(
+      io.joinPath(readableStagingDir, "poracode-status.mjs"),
+    );
+    const droppedText = await io.readTextFile(droppedPlugin);
+    if (stagedPlugin === null || droppedText === null || stagedPlugin !== droppedText) {
+      return { installed: false };
+    }
+    const stagedManifest = await io.readTextFile(io.joinPath(readableStagingDir, "plugin.json"));
+    const droppedManifestText = await io.readTextFile(droppedManifest);
+    if (
+      stagedManifest === null ||
+      droppedManifestText === null ||
+      stagedManifest !== droppedManifestText
+    ) {
+      return { installed: false };
+    }
   } catch {
     return { installed: false };
   }
@@ -432,13 +470,10 @@ interface OpenCodeMcpConfigUpdate {
  * JSON actually differs from what's on disk. Best-effort: missing files /
  * malformed JSON are swallowed.
  */
-function updateOpenCodeConfigFile(configPath: string, update: OpenCodeMcpConfigUpdate): void {
-  const read = readJsonFileOrEmpty(configPath);
-  if (!read.ok) return;
-  const original =
-    read.value && typeof read.value === "object" && !Array.isArray(read.value)
-      ? (read.value as Record<string, unknown>)
-      : {};
+function applyOpenCodeConfigUpdate(
+  original: Record<string, unknown>,
+  update: OpenCodeMcpConfigUpdate,
+): Record<string, unknown> {
   const config: Record<string, unknown> = { ...original };
 
   const existingPlugin = config.plugin;
@@ -471,7 +506,21 @@ function updateOpenCodeConfigFile(configPath: string, update: OpenCodeMcpConfigU
     config.mcp = mcp;
   }
 
-  const next = `${JSON.stringify(config, null, 2)}\n`;
+  return config;
+}
+
+function renderOpenCodeConfig(config: Record<string, unknown>): string {
+  return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+function updateOpenCodeConfigFile(configPath: string, update: OpenCodeMcpConfigUpdate): void {
+  const read = readJsonFileOrEmpty(configPath);
+  if (!read.ok) return;
+  const original =
+    read.value && typeof read.value === "object" && !Array.isArray(read.value)
+      ? (read.value as Record<string, unknown>)
+      : {};
+  const next = renderOpenCodeConfig(applyOpenCodeConfigUpdate(original, update));
   let current: string | null = null;
   try {
     current = readFileSync(configPath, "utf8");
@@ -482,6 +531,39 @@ function updateOpenCodeConfigFile(configPath: string, update: OpenCodeMcpConfigU
   try {
     mkdirSync(dirname(configPath), { recursive: true });
     writeFileSync(configPath, next, "utf8");
+  } catch {
+    // best-effort
+  }
+}
+
+async function updateOpenCodeConfigFileWsl(
+  distro: string,
+  linuxConfigPath: string,
+  update: OpenCodeMcpConfigUpdate,
+): Promise<void> {
+  let current: string | null = null;
+  try {
+    current = await readWslTextFile(distro, linuxConfigPath);
+  } catch {
+    return;
+  }
+  if (current !== null && current.trim().length > 0) {
+    try {
+      JSON.parse(current);
+    } catch {
+      return;
+    }
+  }
+  const original =
+    current !== null && current.trim().length > 0
+      ? (JSON.parse(current) as Record<string, unknown>)
+      : {};
+  const parsed =
+    original && typeof original === "object" && !Array.isArray(original) ? original : {};
+  const next = renderOpenCodeConfig(applyOpenCodeConfigUpdate(parsed, update));
+  if (current === next) return;
+  try {
+    await writeWslTextFile(distro, linuxConfigPath, next);
   } catch {
     // best-effort
   }
@@ -519,30 +601,77 @@ function scrubLegacyOpenCodeMcpProjection(configPath: string, managedNamesPath: 
   removeIfPresent(managedNamesPath);
 }
 
+async function scrubLegacyOpenCodeMcpProjectionWsl(
+  distro: string,
+  linuxConfigPath: string,
+  linuxManagedNamesPath: string,
+): Promise<void> {
+  const managedRaw = await readWslTextFile(distro, linuxManagedNamesPath).catch(() => null);
+  const originals = parseManagedMcpOriginalsText(managedRaw);
+  const names = Object.keys(originals);
+  const restored = Object.fromEntries(
+    Object.entries(originals).filter(
+      (entry): entry is [string, Exclude<unknown, null>] => entry[1] !== null,
+    ),
+  );
+  if (names.length > 0) {
+    await updateOpenCodeConfigFileWsl(distro, linuxConfigPath, {
+      remove: names,
+      ...(Object.keys(restored).length > 0 ? { add: restored } : {}),
+    });
+  }
+  await removeWslPath(distro, linuxManagedNamesPath);
+}
+
+function parseManagedMcpOriginalsText(raw: string | null): Record<string, unknown | null> {
+  if (raw === null) return {};
+  if (raw.trim().length === 0) return {};
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+  if (Array.isArray(value)) {
+    return Object.fromEntries(
+      value.filter((name): name is string => typeof name === "string").map((name) => [name, null]),
+    );
+  }
+  return value && typeof value === "object" ? (value as Record<string, unknown | null>) : {};
+}
+
+async function cleanupLegacyDropsWsl(distro: string, linuxPluginsDir: string): Promise<void> {
+  for (const name of OPENCODE_LEGACY_DROP_FILES) {
+    await removeWslPath(distro, `${linuxPluginsDir}/${name}`);
+  }
+}
+
 /**
  * Removes the dropped plugin file from OpenCode's plugins/ directory and any
  * legacy drops, plus scrubs the poracode entry from opencode.json. Staging
  * dir under `~/.poracode/` stays so version diagnostics survive.
  * Best-effort: missing files / unreachable distros are swallowed.
  */
-export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
+export async function uninstallOpenCodePlugin(ctx?: AgentEnvContext): Promise<void> {
   if (isWslPluginContext(ctx)) {
-    const opencodeDir = resolveOpenCodeWslPluginsDir(ctx.wslDistro);
-    if (opencodeDir) {
-      removeIfPresent(`${opencodeDir.uncDir}\\${OPENCODE_PLUGIN_DROP_FILE_NAME}`);
-      removeIfPresent(`${opencodeDir.uncDir}\\${OPENCODE_PLUGIN_DROP_MANIFEST_NAME}`);
-      cleanupLegacyDrops(opencodeDir.uncDir, "wsl");
-    }
-    const cfgDir = resolveOpenCodeWslConfigDir(ctx.wslDistro);
+    const cfgDir = await resolveOpenCodeWslConfigDirAsync(ctx.wslDistro);
     if (cfgDir) {
-      const configPath = `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`;
-      scrubLegacyOpenCodeMcpProjection(
-        configPath,
-        `${cfgDir.uncDir}\\${LEGACY_MANAGED_MCP_FILE_NAME}`,
+      const opencodePluginsDir = `${cfgDir.linuxDir}/plugins`;
+      await removeWslPath(ctx.wslDistro, `${opencodePluginsDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`);
+      await removeWslPath(
+        ctx.wslDistro,
+        `${opencodePluginsDir}/${OPENCODE_PLUGIN_DROP_MANIFEST_NAME}`,
       );
-      updateOpenCodeConfigFile(configPath, { remove: [] });
+      await cleanupLegacyDropsWsl(ctx.wslDistro, opencodePluginsDir);
+      const configPath = `${cfgDir.linuxDir}/${OPENCODE_CONFIG_FILE_NAME}`;
+      await scrubLegacyOpenCodeMcpProjectionWsl(
+        ctx.wslDistro,
+        configPath,
+        `${cfgDir.linuxDir}/${LEGACY_MANAGED_MCP_FILE_NAME}`,
+      );
+      await updateOpenCodeConfigFileWsl(ctx.wslDistro, configPath, { remove: [] });
     }
-    removeStagedPluginDir("opencode", ctx);
+    await removeStagedPluginDir("opencode", ctx);
     return;
   }
   const pluginsDir = resolveOpenCodeNativePluginsDir();
@@ -553,7 +682,7 @@ export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
   const configPath = join(configDir, OPENCODE_CONFIG_FILE_NAME);
   scrubLegacyOpenCodeMcpProjection(configPath, join(configDir, LEGACY_MANAGED_MCP_FILE_NAME));
   updateOpenCodeConfigFile(configPath, { remove: [] });
-  removeStagedPluginDir("opencode", ctx);
+  await removeStagedPluginDir("opencode", ctx);
 }
 
 function removeIfPresent(path: string): void {

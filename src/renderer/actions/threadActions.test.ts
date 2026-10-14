@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import type { Project, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { isDraftPaneId } from "@/shared/paneId";
+import { normalizeStoredThreadStatus } from "@/renderer/state/slices/helpers";
 import { useAppStore } from "@/renderer/state/appStore";
+import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
+import {
+  forgetPendingCatalogEdit,
+  projectPendingCatalogEdit,
+} from "@/renderer/state/pendingCatalogEdits";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -11,6 +18,7 @@ import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   archiveThread,
+  acknowledgeThread,
   deleteThread,
   deleteThreadsAndOwnedWorktrees,
   requestDeleteThread,
@@ -32,8 +40,7 @@ const { bridge } = vi.hoisted(() => ({
     appendUsageEvents: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   },
 }));
-const { hasHydratedThreadRuntimeItems, hydrateThreadRuntimeItems } = vi.hoisted(() => ({
-  hasHydratedThreadRuntimeItems: vi.fn<(threadId: string) => boolean>().mockReturnValue(false),
+const { hydrateThreadRuntimeItems } = vi.hoisted(() => ({
   hydrateThreadRuntimeItems: vi.fn<(threadId: string) => Promise<void>>().mockResolvedValue(),
 }));
 const { deleteWorktreeGroup } = vi.hoisted(() => ({
@@ -56,17 +63,21 @@ vi.mock("@/renderer/actions/worktreeActions", () => ({
   deleteWorktreeGroup,
 }));
 
-vi.mock("@/renderer/state/chatRuntimePersister", () => ({
-  hasHydratedThreadRuntimeItems,
-  hydrateThreadRuntimeItems,
-}));
+vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>();
+  return {
+    ...actual,
+    hydrateThreadRuntimeItems,
+  };
+});
 
 describe("threadActions", () => {
   beforeEach(() => {
+    for (const thread of useAppStore.getState().threads)
+      forgetPendingCatalogEdit("thread", thread.id);
     vi.clearAllMocks();
     setThreadRuntimeReopenEnabled(true);
     localStorage.clear();
-    hasHydratedThreadRuntimeItems.mockReturnValue(false);
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
     deleteWorktreeGroup.mockReset();
     refreshServer.mockReset().mockResolvedValue(undefined);
@@ -81,6 +92,7 @@ describe("threadActions", () => {
       pendingActiveThreadId: null,
       pendingComposerFocusThreadId: null,
       pendingThreadLaunches: {},
+      connectingThreadIds: {},
       provisioningWorktreeThreadIds: {},
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -209,30 +221,56 @@ describe("threadActions", () => {
     });
   });
 
-  it("hydrates a persisted GUI thread before opening the pane", async () => {
-    let resolveHydration: () => void = () => undefined;
-    const hydration = new Promise<void>((resolve) => {
-      resolveHydration = resolve;
+  it("prepares the first GUI chunk before replacing the pane or reconnecting the agent", async () => {
+    let finishRead = () => {};
+    hydrateThreadRuntimeItems.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishRead = resolve;
+      }),
+    );
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
     });
-    hydrateThreadRuntimeItems.mockReturnValueOnce(hydration);
-    const thread = makeThread({ presentationMode: "gui", status: "idle" });
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));
-
     openThread(thread.id);
-
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id);
+    expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+    await waitFor(() =>
+      expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id),
+    );
     expect(useAppStore.getState().view).toEqual({ kind: "home" });
-
-    resolveHydration();
-    await hydration;
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(useAppStore.getState().view).toEqual({
-      kind: "thread",
-      panes: [thread.id],
-    });
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toBeUndefined();
+    finishRead();
+    await waitFor(() =>
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] }),
+    );
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
+  });
+
+  it("retires a prepared navigation after pane adoption without releasing the pane's reader", async () => {
+    const thread = makeThread({ presentationMode: "gui", status: "idle" });
+    useAppStore.setState({ threads: [thread] });
+    openThread(thread.id);
+    await waitFor(() =>
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] }),
+    );
+    const reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
+    const release = vi.spyOn(reader, "release");
+    const setPending = vi.spyOn(useAppStore.getState(), "setPendingActiveThread");
+    try {
+      openNewThread();
+      expect(release).not.toHaveBeenCalled();
+      expect(setPending).not.toHaveBeenCalled();
+    } finally {
+      setPending.mockRestore();
+      release.mockRestore();
+      reader.release();
+    }
   });
 
   it("allows a thread open to opt out of composer focus", async () => {
@@ -269,12 +307,7 @@ describe("threadActions", () => {
     });
   });
 
-  it("does not let an older GUI hydration override a newer thread open", async () => {
-    let resolveFirstHydration: () => void = () => undefined;
-    const firstHydration = new Promise<void>((resolve) => {
-      resolveFirstHydration = resolve;
-    });
-    hydrateThreadRuntimeItems.mockReturnValueOnce(firstHydration);
+  it("does not let an older GUI open override a newer thread open", async () => {
     const firstThread = makeThread({
       id: "thread-gui",
       presentationMode: "gui",
@@ -295,17 +328,64 @@ describe("threadActions", () => {
       });
     });
 
-    resolveFirstHydration();
-    await firstHydration;
-    await Promise.resolve();
-
     expect(useAppStore.getState().view).toEqual({
       kind: "thread",
       panes: [secondThread.id],
     });
   });
 
-  it("hydrates GUI siblings before opening a grouped thread layout", async () => {
+  it("releases a stalled first history read immediately when navigation leaves", async () => {
+    let finishRead = () => {};
+    const release = vi.fn<() => void>();
+    const ready = new Promise<void>((resolve) => {
+      finishRead = resolve;
+    });
+    const prepare = vi
+      .spyOn(runtimeInterestHydration, "prepareRuntimeThreadReader")
+      .mockReturnValueOnce({ ready, release });
+    const thread = makeThread({ presentationMode: "gui", status: "idle" });
+    useAppStore.setState({ threads: [thread] });
+    try {
+      openThread(thread.id);
+      expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+      useAppStore.getState().openHome();
+      expect(release).toHaveBeenCalledOnce();
+      expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+      finishRead();
+      await ready;
+      await Promise.resolve();
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    } finally {
+      prepare.mockRestore();
+    }
+  });
+
+  it("cancels a first history read when its target is removed", async () => {
+    const release = vi.fn<() => void>();
+    let finishRead = () => {};
+    const ready = new Promise<void>((resolve) => {
+      finishRead = resolve;
+    });
+    const prepare = vi
+      .spyOn(runtimeInterestHydration, "prepareRuntimeThreadReader")
+      .mockReturnValueOnce({ ready, release });
+    const thread = makeThread({ presentationMode: "gui", status: "idle" });
+    useAppStore.setState({ threads: [thread] });
+    try {
+      openThread(thread.id);
+      useAppStore.setState({ threads: [] });
+      expect(release).toHaveBeenCalledOnce();
+      expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+      finishRead();
+      await ready;
+      await Promise.resolve();
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    } finally {
+      prepare.mockRestore();
+    }
+  });
+
+  it("prepares the selected grouped GUI pane without waiting for its siblings", async () => {
     const firstThread = makeThread({
       id: "thread-group-a",
       groupId: "group-1",
@@ -320,8 +400,7 @@ describe("threadActions", () => {
 
     openThread(firstThread.id);
 
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(firstThread.id);
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(secondThread.id);
+    expect(hydrateThreadRuntimeItems).not.toHaveBeenCalled();
     expect(useAppStore.getState().view).toEqual({ kind: "home" });
 
     await waitFor(() => {
@@ -331,9 +410,10 @@ describe("threadActions", () => {
         activeGroupId: "group-1",
       });
     });
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(firstThread.id);
   });
 
-  it("opens an experiment candidate without hydrating or mounting its siblings", async () => {
+  it("prepares an experiment candidate without hydrating or mounting its siblings", async () => {
     const firstThread = makeThread({
       id: "thread-experiment-a",
       groupId: "experiment-1",
@@ -354,8 +434,7 @@ describe("threadActions", () => {
         panes: [firstThread.id],
       });
     });
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(1);
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(firstThread.id);
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(firstThread.id);
   });
 
   it("queues terminal reconnects as launching when reopening", () => {
@@ -395,6 +474,73 @@ describe("threadActions", () => {
     expect(reopened?.attention).toBe("none");
     expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
+  });
+
+  it("does not enqueue another reconnect after a stale inactive row arrives during launch", () => {
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
+    });
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    const token = useAppStore.getState().connectingThreadIds[thread.id];
+    useAppStore.getState().consumeThreadLaunch(thread.id);
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches).toEqual({});
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toBe(token);
+  });
+
+  it("does not relaunch a non-resumable inactive GUI thread", () => {
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: false,
+    });
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches).toEqual({});
+    expect(useAppStore.getState().connectingThreadIds).toEqual({});
+    expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
+  });
+
+  it("protects an interrupted pre-session GUI row while allowing an explicit fresh draft", () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const thread = normalizeStoredThreadStatus(
+      makeThread({
+        projectId: project.id,
+        presentationMode: "gui",
+        status: "launching",
+        canResumeWithConfig: false,
+      }),
+    );
+    const history = { [thread.id]: ["original-message"] };
+    const draft = {
+      segments: [{ kind: "text" as const, content: "unsent follow up" }],
+      attachments: [],
+    };
+    useAppStore.setState({
+      threads: [thread],
+      view: { kind: "thread", panes: [thread.id] },
+      runtimeItemIdsByThread: history,
+      threadDraftContents: { [thread.id]: draft },
+    });
+    reopenStoredThread(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches).toEqual({});
+    expect(useAppStore.getState().connectingThreadIds).toEqual({});
+    expect(useAppStore.getState().threads[0]).toBe(thread);
+
+    useSharedSettings.setState({ newThreadMode: "panel" });
+    openNewThread(project.id);
+    const view = useAppStore.getState().view;
+    expect(view.kind).toBe("thread");
+    if (view.kind !== "thread") throw new Error("Expected existing thread and fresh draft");
+    expect(view.panes).toContain(thread.id);
+    expect(view.panes.some(isDraftPaneId)).toBe(true);
+    expect(useAppStore.getState().runtimeItemIdsByThread).toBe(history);
+    expect(useAppStore.getState().threadDraftContents[thread.id]).toEqual(draft);
+    expect(useAppStore.getState().threads[0]).toBe(thread);
   });
 
   it("queues the same empty-prompt reopen for inactive remote threads as local", () => {
@@ -526,7 +672,7 @@ describe("threadActions", () => {
     expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
   });
 
-  it("applies a remote sidebar mutation only after the host accepts it", async () => {
+  it("paints a remote sidebar mutation while the host accepts it", async () => {
     let resolveCommand: () => void = () => undefined;
     sendThreadCommand.mockImplementation(
       () =>
@@ -542,7 +688,7 @@ describe("threadActions", () => {
 
     archiveThread(thread.id);
 
-    expect(useAppStore.getState().threads[0]?.archived).toBe(false);
+    expect(useAppStore.getState().threads[0]?.archived).toBe(true);
     expect(sendThreadCommand).toHaveBeenCalledWith("remote-server", {
       kind: "archive",
       threadId: "remote-thread",
@@ -551,6 +697,75 @@ describe("threadActions", () => {
     resolveCommand();
     await waitFor(() => expect(useAppStore.getState().threads[0]?.archived).toBe(true));
     expect(useAppStore.getState().threads[0]?.archivedAt).toEqual(expect.any(String));
+  });
+
+  it("never overlays an acknowledged old completion on the next running turn", async () => {
+    let accept!: () => void;
+    sendThreadCommand.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const thread = makeThread({
+      status: "finished",
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+    });
+    useAppStore.setState({ threads: [thread] });
+    acknowledgeThread(thread.id);
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    accept();
+    await Promise.resolve();
+    const running = { ...thread, status: "working" as const };
+    expect(projectPendingCatalogEdit("thread", running).status).toBe("working");
+  });
+
+  it("hides a deleted thread immediately, retaining its row and restoring the pane on refusal", async () => {
+    let reject!: (error: Error) => void;
+    sendThreadCommand.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, refuse) => {
+          reject = refuse;
+        }),
+    );
+    const thread = makeThread({ remoteServerId: "remote-server", remoteId: "remote-thread" });
+    const view = { kind: "thread" as const, panes: [thread.id] as [string] };
+    useAppStore.setState({ threads: [thread], view });
+    deleteThread(thread.id);
+    expect(useAppStore.getState().threads[0]?.archived).toBe(true);
+    expect(useAppStore.getState().view.kind).toBe("home");
+    reject(new Error("refused"));
+    await waitFor(() => expect(toast.danger).toHaveBeenCalledWith("refused"));
+    expect(useAppStore.getState().threads).toEqual([thread]);
+    expect(useAppStore.getState().view).toEqual(view);
+  });
+
+  it("retires the last done worktree's terminal tabs only after acceptance", async () => {
+    let accept!: () => void;
+    sendThreadCommand.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const thread = makeThread({
+      remoteServerId: "remote-server",
+      remoteId: "remote-thread",
+      worktreePath: "/repo/wt",
+    });
+    useAppStore.setState({ threads: [thread] });
+    const tab = useDevTerminalStore
+      .getState()
+      .addTab(thread.projectId, "Project", thread.worktreePath);
+    toggleMarkThreadDone(thread.id);
+    expect(useAppStore.getState().threads[0]?.done).toBe(true);
+    expect(useDevTerminalStore.getState().tabs.some((entry) => entry.id === tab.id)).toBe(true);
+    accept();
+    await waitFor(() =>
+      expect(useDevTerminalStore.getState().tabs.some((entry) => entry.id === tab.id)).toBe(false),
+    );
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: tab.id });
   });
 
   it("tags a local thread with worktree metadata in the store", async () => {

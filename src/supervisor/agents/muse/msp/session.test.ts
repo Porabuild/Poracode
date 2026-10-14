@@ -1,6 +1,11 @@
 import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
+import type {
+  ProjectLocation,
+  ResolvedMcpServer,
+  RuntimeEvent,
+  ThreadConfig,
+} from "@/shared/contracts";
 import type { CreateStructuredSessionInput, StructuredSessionUpdate } from "../../base";
 
 const request = vi.hoisted(() =>
@@ -8,12 +13,24 @@ const request = vi.hoisted(() =>
 );
 const initialize = vi.hoisted(() =>
   vi
-    .fn<() => Promise<{ schema: { version: number; fingerprint: string } }>>()
-    .mockResolvedValue({ schema: { version: 1, fingerprint: "fixture" } }),
+    .fn<
+      (
+        clientName: string,
+        clientVersion: string,
+        requestedCapabilities?: readonly string[],
+      ) => Promise<{
+        schema: { version: number; fingerprint: string };
+        grantedCapabilities: string[];
+      }>
+    >()
+    .mockResolvedValue({
+      schema: { version: 1, fingerprint: "fixture" },
+      grantedCapabilities: ["sessionMcp"],
+    }),
 );
 const disposeClient = vi.hoisted(() => vi.fn<() => void>());
 const terminate = vi.hoisted(() =>
-  vi.fn<(child: EventEmitter, options: { ownedProcessGroup: boolean }) => void>(),
+  vi.fn<(child: EventEmitter, options: { ownedProcessGroup: boolean }) => Promise<void>>(),
 );
 const spawnMuseServeHost = vi.hoisted(() =>
   vi.fn<
@@ -30,7 +47,14 @@ let serverRequestHandler:
     }) => Record<string, unknown>)
   | undefined;
 
-vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: terminate }));
+const batchWslCommandsAsync = vi.hoisted(() =>
+  vi.fn<() => Promise<{ ok: boolean; stdout: string }[]>>(),
+);
+vi.mock("@/shared/awaitProcessTermination", () => ({ awaitProcessTermination: terminate }));
+vi.mock("../../base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../base")>()),
+  batchWslCommandsAsync,
+}));
 vi.mock("./client", () => ({
   spawnMuseServeHost,
   MuseMspClient: class {
@@ -126,10 +150,27 @@ async function createSession(overrides: Partial<CreateStructuredSessionInput> = 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  terminate.mockResolvedValue(undefined);
+  batchWslCommandsAsync.mockResolvedValue([{ ok: true, stdout: "" }]);
   notificationHandler = undefined;
   clientErrorHandler = undefined;
   serverRequestHandler = undefined;
 });
+
+function appControlsMcpFixture(): ResolvedMcpServer[] {
+  return [
+    {
+      id: "app-controls",
+      name: "poracode",
+      timeoutMs: 30_000,
+      transport: {
+        type: "http",
+        url: "http://127.0.0.1:1234/mcp?threadId=thread-1",
+        headers: { Authorization: "Bearer wire-token" },
+      },
+    },
+  ];
+}
 
 describe("MuseMspStructuredSession", () => {
   it("routes session/start through the catalog's provider for the model", async () => {
@@ -259,14 +300,113 @@ describe("MuseMspStructuredSession", () => {
     });
   });
 
-  it("resumes only the supplied Poracode session without replaying history", async () => {
+  it("delivers launch MCP servers in the session config once sessionMcp is granted", async () => {
+    const mcpServers = appControlsMcpFixture();
+    const { session } = await createSession({ mcpServers });
+    expect(initialize).toHaveBeenCalledWith("poracode", "1.0.0", ["sessionMcp"]);
+    await session.openThread(config);
+    const start = request.mock.calls.find(([method]) => method === "session/start");
+    expect(start?.[1]).toMatchObject({
+      config: {
+        mcpServers: {
+          poracode: {
+            transport: "streamableHttp",
+            url: "http://127.0.0.1:1234/mcp?threadId=thread-1",
+            headers: { Authorization: "Bearer wire-token" },
+            mode: "optional",
+          },
+        },
+      },
+    });
+  });
+
+  it("re-supplies the MCP session config on resume", async () => {
+    const mcpServers = appControlsMcpFixture();
     const { session } = await createSession({
+      mcpServers,
       sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-01-01T00:00:00Z" },
     });
     await session.openThread(config);
     expect(request).toHaveBeenCalledWith(
       "session/resume",
-      expect.objectContaining({ sessionId: "session-1", excludeItems: true }),
+      expect.objectContaining({
+        config: {
+          mcpServers: {
+            poracode: expect.objectContaining({ transport: "streamableHttp" }),
+          },
+        },
+      }),
+    );
+  });
+
+  it("starts without an MCP session config when the host does not grant sessionMcp", async () => {
+    initialize.mockResolvedValueOnce({
+      schema: { version: 1, fingerprint: "fixture" },
+      grantedCapabilities: [],
+    });
+    const mcpServers = appControlsMcpFixture();
+    const { session } = await createSession({ mcpServers });
+    await session.openThread(config);
+    const start = request.mock.calls.find(([method]) => method === "session/start");
+    expect(start?.[1]).not.toHaveProperty("config");
+  });
+
+  it("resumes only the supplied Poracode session without replaying history", async () => {
+    const { session } = await createSession({
+      sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-01-01T00:00:00Z" },
+    });
+    await session.openThread(config);
+    // Snapshot serves the folded goal/todo state with no transcript items.
+    expect(request).toHaveBeenCalledWith(
+      "session/resume",
+      expect.objectContaining({ sessionId: "session-1", history: "snapshot" }),
+    );
+    expect(request).not.toHaveBeenCalledWith(
+      "session/resume",
+      expect.objectContaining({ excludeItems: expect.anything() }),
+    );
+  });
+
+  it("hydrates the retained goal and plan from the resume snapshot", async () => {
+    const { session, runtimeEvents } = await createSession({
+      sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-01-01T00:00:00Z" },
+    });
+    request.mockImplementation(async (method) => {
+      if (method === "session/resume") {
+        return {
+          session: { sessionId: "session-1", activeTurnId: null },
+          history: {
+            mode: "snapshot",
+            items: null,
+            snapshot: {
+              state: {
+                goal: { objective: "Retained goal", status: "paused", percentComplete: 10 },
+                todoList: { items: [{ text: "Retained task", status: "inProgress" }] },
+              },
+            },
+          },
+        };
+      }
+      return { status: "accepted" };
+    });
+    await session.openThread(config);
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "goal",
+        payload: expect.objectContaining({
+          action: "set",
+          objective: "Retained goal",
+          status: "paused",
+        }),
+      }),
+    );
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "plan",
+        payload: { steps: [{ step: "Retained task", status: "in_progress" }] },
+      }),
     );
   });
 
@@ -627,6 +767,88 @@ describe("MuseMspStructuredSession", () => {
     );
   });
 
+  it("keeps an idle native steer working while its fallback synchronizes settings", async () => {
+    const { session, updates } = await createSession();
+    await session.openThread(config);
+    const settings = Promise.withResolvers<Record<string, unknown>>();
+    request.mockImplementation(async (method) => {
+      if (method === "session/setApprovalMode") return settings.promise;
+      if (method === "turn/start")
+        return { turnId: "follow-up", status: "accepted", disposition: "started" };
+      return { status: "accepted" };
+    });
+    updates.length = 0;
+    const followUp = session.steerTurn("follow-up", { ...config, approvalPolicy: "never" });
+    try {
+      expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
+      expect(request.mock.calls.some(([method]) => method === "turn/start")).toBe(false);
+      settings.resolve({ status: "accepted" });
+      await followUp;
+      expect(updates.every((update) => update.status === "working")).toBe(true);
+    } finally {
+      settings.resolve({ status: "accepted" });
+      await followUp;
+    }
+  });
+
+  it("starts the follow-up when the running turn completes during steer preparation", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    request.mockImplementation(async (method) => {
+      if (method === "turn/start") {
+        return { turnId: "turn-2", status: "accepted", disposition: "started" };
+      }
+      return { status: "accepted" };
+    });
+    const steering = session.steerTurn("follow-up", config, undefined, {
+      userMessageItemId: "user-follow-up",
+    });
+    notificationHandler?.("turn/completed", {
+      sessionId: "session-1",
+      turnId: "turn-1",
+      terminal: "completed",
+    });
+    await steering;
+
+    expect(request.mock.calls.filter(([method]) => method === "turn/steer")).toHaveLength(0);
+    expect(request.mock.calls.filter(([method]) => method === "turn/start")).toHaveLength(2);
+    expect(request.mock.calls.findLast(([method]) => method === "turn/start")?.[1]).toMatchObject({
+      input: [{ type: "text", text: "follow-up" }],
+    });
+    expect(runtimeEvents).toContainEqual({
+      type: "turn.started",
+      threadId: "thread-1",
+      turnId: "turn-2",
+    });
+    expect(
+      runtimeEvents.filter(
+        (event) => event.type === "item.started" && event.itemType === "user_message",
+      ),
+    ).toEqual([expect.objectContaining({ itemId: "user-follow-up" })]);
+  });
+
+  it("cancels an idle native fallback before delayed settings can start work", async () => {
+    const { session, updates } = await createSession();
+    await session.openThread(config);
+    const settings = Promise.withResolvers<Record<string, unknown>>();
+    request.mockImplementation(async (method) => {
+      if (method === "session/setApprovalMode") return settings.promise;
+      return { status: "accepted" };
+    });
+    const followUp = session.steerTurn("follow-up", { ...config, approvalPolicy: "never" });
+    try {
+      await session.interruptTurn();
+      settings.resolve({ status: "accepted" });
+      expect(await followUp).toEqual({ outcome: "completed-without-turn" });
+      expect(request.mock.calls.some(([method]) => method === "turn/start")).toBe(false);
+      expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+    } finally {
+      settings.resolve({ status: "accepted" });
+      await followUp;
+    }
+  });
+
   it("steers the turn returned by an in-flight start instead of queueing another start", async () => {
     let releaseStart!: (value: Record<string, unknown>) => void;
     const startResult = new Promise<Record<string, unknown>>((resolve) => {
@@ -782,6 +1004,43 @@ describe("MuseMspStructuredSession", () => {
     ).toHaveLength(1);
   });
 
+  it("shares concurrent disposal and waits for both local and WSL exit confirmation", async () => {
+    const { session, closes } = await createSession();
+    let finishLocal!: () => void;
+    let finishRemote!: (result: { ok: boolean; stdout: string }[]) => void;
+    terminate.mockReturnValue(
+      new Promise((resolve) => {
+        finishLocal = resolve;
+      }),
+    );
+    batchWslCommandsAsync.mockReturnValue(
+      new Promise((resolve) => {
+        finishRemote = resolve;
+      }),
+    );
+    const first = session.dispose();
+    expect(session.dispose()).toBe(first);
+    expect(terminate).toHaveBeenCalledTimes(1);
+    finishLocal();
+    await Promise.resolve();
+    expect(closes).toEqual([]);
+    finishRemote([{ ok: true, stdout: "" }]);
+    await first;
+    expect(closes).toEqual(["close"]);
+  });
+
+  it.each(["local", "remote"])("allows retry after an unconfirmed %s shutdown", async (failure) => {
+    const { session, closes } = await createSession();
+    if (failure === "local") terminate.mockRejectedValueOnce(new Error("Still running"));
+    else batchWslCommandsAsync.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
+    await expect(session.dispose()).rejects.toThrow("Muse MSP shutdown failed");
+    expect(closes).toEqual([]);
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(2);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(2);
+    expect(closes).toEqual(["close"]);
+  });
+
   it("interrupts the exact active turn and terminates its owned host on dispose", async () => {
     const { session, child } = await createSession();
     await session.openThread(config);
@@ -825,6 +1084,33 @@ describe("MuseMspStructuredSession", () => {
       threadId: "thread-1",
       reason: "exited",
     });
+  });
+
+  it("tears down the owned host after an unexpected exit, once across a later dispose", async () => {
+    const { session, child } = await createSession();
+    child.emit("close", 143, null);
+    await vi.waitFor(() => expect(batchWslCommandsAsync).toHaveBeenCalledTimes(1));
+    expect(disposeClient).toHaveBeenCalledTimes(1);
+    expect(terminate).toHaveBeenCalledExactlyOnceWith(child, {
+      ownedProcessGroup: process.platform !== "win32",
+    });
+
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(1);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a failed crash cleanup on dispose", async () => {
+    const { session, child } = await createSession();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    batchWslCommandsAsync.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
+    child.emit("close", 143, null);
+    await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+    warn.mockRestore();
+
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(2);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(2);
   });
 
   it("reports a failed write channel while the server process remains open", async () => {
@@ -939,6 +1225,63 @@ describe("MuseMspStructuredSession", () => {
     );
   });
 
+  it("decides a projected child approval once across repeated notifications and requests", async () => {
+    const bypassConfig = { ...config, approvalPolicy: "yolo" };
+    const { session, runtimeEvents } = await createSession({ config: bypassConfig });
+    await session.openThread(bypassConfig);
+    const projected = {
+      ...approvalNotification,
+      subagentOrigin: {
+        subagentId: "subagent-1",
+        childRunId: "child-turn-1",
+        childSessionId: "child-session-1",
+      },
+    };
+    notificationHandler?.("approval/requested", projected);
+    serverRequestHandler?.({ id: 101, method: "approval/request", params: projected });
+    notificationHandler?.("approval/updated", projected);
+    await Promise.resolve();
+    await Promise.resolve();
+    serverRequestHandler?.({ id: 102, method: "approval/request", params: projected });
+    notificationHandler?.("approval/resolved", {
+      sessionId: "session-1",
+      approvalId: projected.approvalId,
+      decision: "approved",
+    });
+    notificationHandler?.("approval/requested", projected);
+    serverRequestHandler?.({ id: 103, method: "approval/request", params: projected });
+    await Promise.resolve();
+    expect(request.mock.calls.filter(([method]) => method === "approval/decide")).toHaveLength(1);
+    expect(
+      runtimeEvents.filter((event) => event.type === "error" || event.type === "request.opened"),
+    ).toEqual([]);
+  });
+
+  it("settles a displayed approval from the winning conflict outcome", async () => {
+    const { MspRpcError } = await import("./protocol");
+    const { session, runtimeEvents, updates } = await createSession();
+    await session.openThread(config);
+    notificationHandler?.("approval/requested", approvalNotification);
+    request.mockRejectedValueOnce(
+      new MspRpcError("already resolved", {
+        code: -32051,
+        kind: "approvalAlreadyResolved",
+        data: { resolution: { decision: "approved", resolvedBy: "policy", viewCursor: "v:1" } },
+      }),
+    );
+    await session.resolveServerRequest(approvalNotification.approvalId, { optionId: "allow_once" });
+    notificationHandler?.("approval/resolved", {
+      sessionId: "session-1",
+      approvalId: approvalNotification.approvalId,
+      decision: "approved",
+    });
+    expect(runtimeEvents.filter((event) => event.type === "request.resolved")).toEqual([
+      expect.objectContaining({ requestId: approvalNotification.approvalId, outcome: "accepted" }),
+    ]);
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+    expect(runtimeEvents.filter((event) => event.type === "error")).toEqual([]);
+  });
+
   it("never auto-answers structured questions under bypass policies", async () => {
     const { session, runtimeEvents } = await createSession({
       config: { ...config, approvalPolicy: "yolo" },
@@ -1046,6 +1389,187 @@ describe("MuseMspStructuredSession", () => {
     // Nothing will be compacted, so there is no item to wait for.
     expect(runtimeEvents.at(-1)).toEqual(
       expect.objectContaining({ type: "turn.completed", state: "completed" }),
+    );
+  });
+});
+
+describe("Muse MSP goal commands", () => {
+  it("routes /goal set through goal/set and adopts the woken turn", async () => {
+    const { session, runtimeEvents, updates } = await createSession();
+    await session.openThread(config);
+    request.mockImplementation(async (method) => {
+      if (method === "goal/set") return { status: "accepted", turnId: "goal-turn-1" };
+      return { status: "accepted" };
+    });
+
+    const result = await session.startTurn("/goal Ship the feature", config);
+
+    expect(request).toHaveBeenCalledWith(
+      "goal/set",
+      expect.objectContaining({ sessionId: "session-1", objective: "Ship the feature" }),
+    );
+    expect(request).not.toHaveBeenCalledWith("turn/start", expect.anything());
+    // The host owns the turn lifecycle from here: no local completion.
+    expect(result).toBeUndefined();
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "turn.started", turnId: "goal-turn-1" }),
+    );
+    expect(updates.at(-1)?.status).toBe("working");
+
+    notificationHandler?.("turn/completed", {
+      sessionId: "session-1",
+      turnId: "goal-turn-1",
+      terminal: "completed",
+    });
+    expect(runtimeEvents.at(-1)).toEqual(
+      expect.objectContaining({ type: "turn.completed", turnId: "goal-turn-1" }),
+    );
+    expect(updates.at(-1)?.status).toBe("idle");
+  });
+
+  it("settles pause and clear without a turn", async () => {
+    const { session, runtimeEvents, updates } = await createSession();
+    await session.openThread(config);
+
+    for (const prompt of ["/goal pause", "/goal clear"]) {
+      const result = await session.startTurn(prompt, config);
+      expect(result).toEqual({ outcome: "completed-without-turn" });
+    }
+
+    expect(request).toHaveBeenCalledWith(
+      "goal/pause",
+      expect.objectContaining({ sessionId: "session-1" }),
+    );
+    expect(request).toHaveBeenCalledWith(
+      "goal/clear",
+      expect.objectContaining({ sessionId: "session-1" }),
+    );
+    expect(request).not.toHaveBeenCalledWith("turn/start", expect.anything());
+    expect(
+      runtimeEvents.filter(
+        (event) => event.type === "turn.started" || event.type === "turn.completed",
+      ),
+    ).toHaveLength(0);
+    // Working is still visited so the renderer's optimistic Working clears.
+    expect(updates.map((update) => update.status)).toContain("working");
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+  });
+
+  it("treats a busy-admission turn id as owned by the running turn", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("hello", config);
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "turn.started", turnId: "turn-1" }),
+    );
+
+    request.mockImplementation(async (method) => {
+      if (method === "goal/pause") return { status: "accepted", turnId: "turn-1" };
+      return { status: "accepted" };
+    });
+    const result = await session.startTurn("/goal pause", config);
+
+    expect(result).toBeUndefined();
+    expect(runtimeEvents.filter((event) => event.type === "turn.started")).toHaveLength(1);
+  });
+
+  it("warns on /goal view without a goal and on a bare edit", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+
+    await expect(session.startTurn("/goal", config)).resolves.toEqual({
+      outcome: "completed-without-turn",
+    });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "warning", message: "No active goal in this session." }),
+    );
+    expect(request).not.toHaveBeenCalledWith(expect.stringMatching(/^goal\//), expect.anything());
+
+    await expect(session.startTurn("/goal edit", config)).resolves.toEqual({
+      outcome: "completed-without-turn",
+    });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "warning", message: "Usage: /goal edit <objective>" }),
+    );
+  });
+
+  it("reports a failed goal dispatch inline without failing the session", async () => {
+    const { MspRpcError } = await import("./protocol");
+    const { session, runtimeEvents, updates, errors } = await createSession();
+    await session.openThread(config);
+    request.mockImplementation(async (method) => {
+      if (method === "goal/pause") {
+        throw new MspRpcError("method not found", { code: -32601, kind: "methodNotFound" });
+      }
+      if (method === "turn/start") {
+        return { turnId: "turn-1", status: "accepted", disposition: "started" };
+      }
+      return { status: "accepted" };
+    });
+
+    const result = await session.startTurn("/goal pause", config);
+
+    expect(result).toEqual({ outcome: "completed-without-turn" });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "error",
+        message:
+          "This version of Muse Code does not support session goals. Update Muse Code and try again.",
+      }),
+    );
+    expect(updates.at(-1)?.status).toBe("idle");
+    expect(errors).toHaveLength(0);
+
+    // The session survives: ordinary turns still start.
+    await session.startTurn("hello", config);
+    expect(request).toHaveBeenCalledWith("turn/start", expect.anything());
+  });
+
+  it("runs dock controls as goal RPCs and adopts resume turns", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+
+    await session.controlGoal({ action: "pause" });
+    expect(request).toHaveBeenCalledWith(
+      "goal/pause",
+      expect.objectContaining({ sessionId: "session-1" }),
+    );
+
+    await session.controlGoal({ action: "edit", objective: "Edited goal" });
+    expect(request).toHaveBeenCalledWith(
+      "goal/edit",
+      expect.objectContaining({ sessionId: "session-1", objective: "Edited goal" }),
+    );
+
+    request.mockImplementation(async (method) => {
+      if (method === "goal/resume") return { status: "accepted", turnId: "goal-turn-2" };
+      return { status: "accepted" };
+    });
+    await session.controlGoal({ action: "resume" });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "turn.started", turnId: "goal-turn-2" }),
+    );
+
+    // Stop targets the adopted goal turn.
+    await session.interruptTurn();
+    expect(request).toHaveBeenCalledWith(
+      "turn/interrupt",
+      expect.objectContaining({ turnId: "goal-turn-2" }),
+    );
+  });
+
+  it("rejects dock controls on pre-goal hosts with the unsupported error", async () => {
+    const { MspRpcError } = await import("./protocol");
+    const { session } = await createSession();
+    await session.openThread(config);
+    request.mockImplementation(async (method) => {
+      if (method === "goal/clear") {
+        throw new MspRpcError("method not found", { code: -32601, kind: "methodNotFound" });
+      }
+      return { status: "accepted" };
+    });
+    await expect(session.controlGoal({ action: "clear" })).rejects.toThrow(
+      "This version of Muse Code does not support session goals. Update Muse Code and try again.",
     );
   });
 });

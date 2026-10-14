@@ -1,0 +1,16 @@
+{
+  "$comment": "Neutral fixture: GUI-independent controls with NO stamp. effort 'medium' and Fast false are real independent selections over the config-bound GUI relation. They keep their native meaning, are never stripped by Terminal intent, and a deliberate member edit over a relation declaring no redundancy mints nothing.",
+  "config": {
+    "model": "lead-a+sidekick-b",
+    "effort": "medium",
+    "fast": false,
+    "mode": "agent"
+  },
+  "owner": { "agentKind": "sample-agent", "presentationMode": "gui" },
+  "expect": {
+    "bindingRecognized": false,
+    "matches": false,
+    "invalidReason": "absent-binding",
+    "familyEditMints": false
+  }
+}

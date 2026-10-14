@@ -1,0 +1,12 @@
+{
+  "accessToken": "lc_access_fixture_001",
+  "tokenType": "Bearer",
+  "expiresAt": "2026-09-11T12:00:00.000Z",
+  "scopes": [
+    "session:read",
+    "session:operate",
+    "terminal:read",
+    "terminal:operate",
+    "requests:resolve"
+  ]
+}

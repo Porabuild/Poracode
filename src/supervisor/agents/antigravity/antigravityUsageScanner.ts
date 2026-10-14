@@ -5,11 +5,8 @@ import {
   type UsageWindow,
   type UsageSnapshot,
 } from "@poracode/agents-usage";
-import {
-  invalidateAntigravityAcpCredentialsCache,
-  resolveAntigravityAcpCredentialsCached,
-  type AntigravityAcpCredentials,
-} from "./antigravityAcpCredentials";
+import { antigravityAcpCredentialCache } from "./antigravityAcpCredentialCache";
+import type { AntigravityAcpCredentials } from "./antigravityAcpCredentials";
 import { collectAntigravityCloudUsage } from "./antigravityCloudUsage";
 import {
   GET_COMMAND_MODEL_CONFIGS,
@@ -95,8 +92,9 @@ export interface AntigravityUsageScannerDeps {
     nowMs: number,
     wslDistros: readonly string[],
   ): Promise<UsageSnapshot | undefined>;
-  resolveAcpCredentials(): Promise<AntigravityAcpCredentials | undefined>;
-  invalidateAcpCredentials(): void;
+  resolveAcpCredentials(host: HostPort): Promise<AntigravityAcpCredentials | undefined>;
+  confirmAcpCredentials(host: HostPort, accepted: AntigravityAcpCredentials): Promise<void>;
+  invalidateAcpCredentials(host: HostPort, rejected: AntigravityAcpCredentials): Promise<void>;
   collectCloudUsage(
     nowMs: number,
     host: HostPort,
@@ -106,8 +104,11 @@ export interface AntigravityUsageScannerDeps {
 
 const defaultDeps: AntigravityUsageScannerDeps = {
   scanLanguageServer: scanAntigravityLanguageServerUsage,
-  resolveAcpCredentials: resolveAntigravityAcpCredentialsCached,
-  invalidateAcpCredentials: invalidateAntigravityAcpCredentialsCache,
+  resolveAcpCredentials: (host) => antigravityAcpCredentialCache(host.credentials).resolve(),
+  confirmAcpCredentials: (host, accepted) =>
+    antigravityAcpCredentialCache(host.credentials).confirm(accepted),
+  invalidateAcpCredentials: (host, rejected) =>
+    antigravityAcpCredentialCache(host.credentials).invalidate(rejected),
   collectCloudUsage: collectAntigravityCloudUsage,
 };
 
@@ -120,7 +121,7 @@ export async function scanAntigravityUsage(
 ): Promise<UsageSnapshot> {
   const ls = await deps.scanLanguageServer(nowMs, wslDistros).catch(() => undefined);
   if (ls && ls.windows.length > 0) return ls;
-  const credentials = await deps.resolveAcpCredentials().catch(() => undefined);
+  const credentials = await deps.resolveAcpCredentials(host).catch(() => undefined);
   if (!credentials) {
     return { providerId: "antigravity", status: "app-not-running", windows: [], fetchedAt: nowMs };
   }
@@ -128,7 +129,12 @@ export async function scanAntigravityUsage(
   if (snapshot.status === "auth-missing") {
     // The stored artifact was rejected (e.g. the user re-signed in and the
     // refresh token rotated); re-read the OS stores on the next refresh.
-    deps.invalidateAcpCredentials();
+    await deps.invalidateAcpCredentials(host, credentials);
+  } else if (snapshot.status === "ok") {
+    // The credentials are still accepted, so bind the durable grant to the
+    // live Keychain item (recreated agentside on every server start) instead
+    // of rereading its password — and re-prompting — on the next launch.
+    await deps.confirmAcpCredentials(host, credentials);
   }
   return snapshot;
 }

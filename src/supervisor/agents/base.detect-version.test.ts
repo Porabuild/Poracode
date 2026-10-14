@@ -267,6 +267,7 @@ describe("detectAgentInstall WSL interop guard", () => {
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
     clearExecutablePathCache();
     execFileAsyncMock.mockReset();
+    spawnMock.mockReset();
     commandVStdout = "";
     binaryHomeStdout = "";
     setWslProcessBridgeClient({
@@ -283,9 +284,13 @@ describe("detectAgentInstall WSL interop guard", () => {
           };
         }),
       }),
-      processExec: async () => ({
+      processExec: async (_location: unknown, input: { command: string; args?: string[] }) => ({
         ok: true,
-        stdout: "grok version 1.2.3",
+        // The launch-environment probe asks the login shell for the shell and
+        // home; every other exec is the agent's version probe.
+        stdout: input.args?.some((arg) => arg.includes("__PORACODE_WSL_ENV__"))
+          ? "__PORACODE_WSL_ENV__\n/bin/bash\n/home/demo\n"
+          : "grok version 1.2.3",
         stderr: "",
         exitCode: 0,
       }),

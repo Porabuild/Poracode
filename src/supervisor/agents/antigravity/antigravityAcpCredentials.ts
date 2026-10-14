@@ -1,11 +1,8 @@
-import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import { readMacKeychainPassword, readMacKeychainFingerprint } from "../../runtime/macKeychain";
 import { readAntigravityAcpCredsFromWsl } from "../../runtime/wslCredentials";
-
-const execFileAsync = promisify(execFile);
 
 export const ANTIGRAVITY_GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token";
 
@@ -18,30 +15,23 @@ export const ANTIGRAVITY_GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token
 export const ANTIGRAVITY_ACP_KEYCHAIN_SERVICE = "gemini";
 export const ANTIGRAVITY_ACP_KEYCHAIN_ACCOUNT = "antigravity-acp";
 
-/**
- * Long enough for a human to answer the macOS authorization dialog this read
- * can raise: the item's ACL only trusts the creating app, so the first read
- * asks for the login keychain password. Aborting early is worse than waiting —
- * a killed `security` client never completes the exchange, the "Always Allow"
- * grant is never committed, and every later read prompts again.
- */
-const KEYCHAIN_TIMEOUT_MS = 120_000;
-
-/**
- * Pause after an authorization dialog that ended without a grant (deny,
- * cancel, or the timeout above) so the auto-refresh loop does not re-open the
- * password dialog on every tick. Deliberately short — a user who changes their
- * mind can retry right after.
- */
-const AUTH_DENIED_BACKOFF_MS = 60_000;
-
-let keychainAuthBackoffUntil = 0;
-let cachedCredentials: AntigravityAcpCredentials | undefined;
+const keychainItem = {
+  service: ANTIGRAVITY_ACP_KEYCHAIN_SERVICE,
+  account: ANTIGRAVITY_ACP_KEYCHAIN_ACCOUNT,
+};
 
 export interface AntigravityAcpCredentials {
   clientId: string;
   clientSecret: string;
   refreshToken: string;
+  /**
+   * Last confirmed non-secret identity of the macOS Keychain source item.
+   * `agy_acp_server` delete+adds that item on every start, so a newer
+   * fingerprint alone means a recreated item, not a different account.
+   */
+  keychainFingerprint?: string;
+  /** True when read from the macOS Keychain item, rather than a file source. */
+  fromKeychain?: boolean;
 }
 
 interface AntigravityAcpCredentialFile {
@@ -65,6 +55,7 @@ export function parseAntigravityAcpCredentials(
   } catch {
     return undefined;
   }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
 
   const clientId = nonEmptyString(parsed.client_id);
   const clientSecret = nonEmptyString(parsed.client_secret);
@@ -84,49 +75,28 @@ export function parseAntigravityAcpCredentials(
 export interface AntigravityAcpCredentialDeps {
   /** OS credential store (macOS keychain); resolves undefined off-platform. */
   readKeychain(): Promise<string | undefined>;
+  readKeychainFingerprint?(): Promise<string | undefined>;
   readNative(): Promise<string | undefined>;
   readWsl(): Promise<string | undefined>;
 }
 
-/**
- * `security` exits 44 when the item does not exist — the one failure that
- * never involved an authorization dialog.
- */
-function isSecurityItemMissing(error: unknown): boolean {
-  return (error as { code?: unknown } | null)?.code === 44;
-}
-
 /** Read the ACP token blob from the macOS keychain; undefined when absent/locked. */
 export async function readAntigravityAcpCredsFromMacKeychain(): Promise<string | undefined> {
-  if (process.platform !== "darwin") return undefined;
-  if (Date.now() < keychainAuthBackoffUntil) return undefined;
-  try {
-    const { stdout } = await execFileAsync(
-      "security",
-      [
-        "find-generic-password",
-        "-a",
-        ANTIGRAVITY_ACP_KEYCHAIN_ACCOUNT,
-        "-w",
-        "-s",
-        ANTIGRAVITY_ACP_KEYCHAIN_SERVICE,
-      ],
-      { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
-    );
-    return stdout.trim() || undefined;
-  } catch (error) {
-    if (!isSecurityItemMissing(error)) {
-      // The user was asked to authorize access and the grant did not complete;
-      // back off so the next refresh tick does not re-open the dialog.
-      keychainAuthBackoffUntil = Date.now() + AUTH_DENIED_BACKOFF_MS;
-    }
-    // Missing item or locked keychain: fall through to the file-based sources.
-    return undefined;
-  }
+  return readMacKeychainPassword(keychainItem);
+}
+
+/**
+ * Read only item attributes: omitting both -w and -g avoids requesting password
+ * data (SecurityTool/macOS/keychain_find.c). Dates detect a replacement/login;
+ * the keychain path distinguishes matching items in different keychains.
+ */
+export async function readAntigravityAcpKeychainFingerprint(): Promise<string | undefined> {
+  return readMacKeychainFingerprint(keychainItem);
 }
 
 const defaultDeps: AntigravityAcpCredentialDeps = {
   readKeychain: readAntigravityAcpCredsFromMacKeychain,
+  readKeychainFingerprint: readAntigravityAcpKeychainFingerprint,
   readNative: async () => {
     try {
       return await readFile(
@@ -147,41 +117,27 @@ const defaultDeps: AntigravityAcpCredentialDeps = {
 export async function resolveAntigravityAcpCredentials(
   deps: AntigravityAcpCredentialDeps = defaultDeps,
 ): Promise<AntigravityAcpCredentials | undefined> {
-  for (const read of [deps.readKeychain, deps.readNative]) {
-    const content = await read();
+  const before = await deps.readKeychainFingerprint?.().catch(() => undefined);
+  const keychainContent = await deps.readKeychain().catch(() => undefined);
+  const keychainCredentials = keychainContent
+    ? parseAntigravityAcpCredentials(keychainContent)
+    : undefined;
+  if (keychainCredentials) {
+    const after = await deps.readKeychainFingerprint?.().catch(() => undefined);
+    // The item may be replaced while its password dialog is open. Never bind
+    // the previous account's token to the replacement's identity; the grant
+    // stays unbound until the credential cache confirms it against the API.
+    return {
+      ...keychainCredentials,
+      fromKeychain: true,
+      ...(before && before === after ? { keychainFingerprint: before } : {}),
+    };
+  }
+  for (const read of [deps.readNative, deps.readWsl]) {
+    const content = await read().catch(() => undefined);
     if (!content) continue;
     const parsed = parseAntigravityAcpCredentials(content);
     if (parsed) return parsed;
   }
-  const content = await deps.readWsl();
-  return content ? parseAntigravityAcpCredentials(content) : undefined;
-}
-
-/**
- * Process-lifetime cache over `resolveAntigravityAcpCredentials` for callers
- * that resolve on every usage refresh tick. Once the user has granted
- * keychain access, re-reading the item each tick risks re-opening the macOS
- * authorization dialog for no benefit — the IDE can recreate the item, which
- * resets its ACL. Drop the cache with
- * `invalidateAntigravityAcpCredentialsCache` when the stored artifact is
- * rejected so a re-login gets picked up.
- */
-export async function resolveAntigravityAcpCredentialsCached(
-  deps: AntigravityAcpCredentialDeps = defaultDeps,
-): Promise<AntigravityAcpCredentials | undefined> {
-  if (cachedCredentials) return cachedCredentials;
-  const credentials = await resolveAntigravityAcpCredentials(deps);
-  if (credentials) cachedCredentials = credentials;
-  return credentials;
-}
-
-/** Drop the cached credentials so the next resolve re-reads the OS stores. */
-export function invalidateAntigravityAcpCredentialsCache(): void {
-  cachedCredentials = undefined;
-}
-
-/** Clear process-local credential state between deterministic tests. */
-export function resetAntigravityAcpCredentialStateForTests(): void {
-  cachedCredentials = undefined;
-  keychainAuthBackoffUntil = 0;
+  return undefined;
 }

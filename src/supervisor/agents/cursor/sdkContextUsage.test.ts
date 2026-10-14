@@ -88,7 +88,7 @@ describe("cursorSdkStateRoot", () => {
         "projects",
         "E-work-lightcode",
         "sdk-agent-store",
-        createHash("md5").update("E:\\work\\lightcode").digest("hex"),
+        createHash("sha256").update("E:\\work\\lightcode").digest("hex"),
       ),
     );
   });

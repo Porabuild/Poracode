@@ -12,8 +12,12 @@
 
 // ── Load the manifest ───────────────────────────────────────
 import manifest from "material-icon-theme/dist/material-icons.json";
+import { getBuildAssetBase } from "../../buildAssetBase";
 
 const MATERIAL_ICON_ASSET_PATH = "assets/material-icons/";
+// The served head declares this before module evaluation; all icon URLs in
+// this document share the same base, including import-time default icons.
+const BUILD_ASSET_BASE = getBuildAssetBase();
 
 // ── Manifest tables ─────────────────────────────────────────
 
@@ -132,7 +136,7 @@ const defaultFolderIconName = resolveIconName(defaultFolderIcon) ?? defaultFileI
 
 function buildIconUrl(iconName: string | undefined): string {
   if (!iconName) return "";
-  return `${import.meta.env.BASE_URL}${MATERIAL_ICON_ASSET_PATH}${encodeURIComponent(iconName)}.svg`;
+  return `${BUILD_ASSET_BASE}${MATERIAL_ICON_ASSET_PATH}${encodeURIComponent(iconName)}.svg`;
 }
 
 function resolveIconUrl(iconId: string): string {

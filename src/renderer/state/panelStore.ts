@@ -1,7 +1,15 @@
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { create } from "zustand";
 import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
+import {
+  commitPanelPersistMigration,
+  PANEL_PERSIST_KEY,
+  PANEL_PERSIST_VERSION,
+  type PersistedPanelSlice,
+} from "./panelPersist";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import type {
   ThreadListLayout,
   ThreadSortMode,
@@ -45,6 +53,8 @@ export interface SubAgentPanelContext {
   threadId: string;
   parentItemId: string;
   projectLocation?: ProjectLocation;
+  /** This temporary page was opened from the selected Thread Info panel. */
+  returnToThreadInfo?: true;
 }
 
 export type RightPanelTab =
@@ -56,7 +66,24 @@ export type RightPanelTab =
   | "notes"
   | "ports"
   | "docks"
-  | "subagent";
+  | "subagent"
+  | "sideChat";
+
+/** Compact-browser destinations that replace the home list as a full page. */
+export type MobileUtilityPage =
+  | "profile"
+  | "usage"
+  | "projects"
+  | "terminal"
+  | "browser"
+  | "ports"
+  | "notes"
+  | "workspace"
+  | "pullRequests"
+  | "schedules"
+  | "githubActions"
+  | "projectSettings"
+  | "settings";
 
 export type { ThreadDockKind } from "@/shared/settings";
 export type ThreadDockFocus = ThreadDockKind | "images";
@@ -119,7 +146,9 @@ interface PanelState {
   /**
    * When true, the open right-panel tools re-scope to whichever thread is
    * focused instead of staying on the project/worktree they were opened from.
-   * Persisted — single-thread users leave it on permanently.
+   * Persisted. Defaults to on so Changes / files / terminal follow the focused
+   * checkout; unlock the header lock to pin the panel to one worktree. Unversioned
+   * 1.8.x slices are flipped to locked once (`PANEL_PERSIST_VERSION` v1).
    */
   rightPanelFollowsThread: boolean;
   /** Vertical offset (px from the pane's top) of the per-thread tool rail. */
@@ -127,6 +156,8 @@ interface PanelState {
   browserPanelOpen: boolean;
   usagePanelOpen: boolean;
   notesPanelOpen: boolean;
+  portsPanelOpen: boolean;
+  sideChatPanelOpen: boolean;
   /**
    * Session-scoped: whether the focused thread's Docks tab (goal, plan, agents,
    * background tasks, or images in the right panel) is showing. Informational
@@ -134,6 +165,8 @@ interface PanelState {
    * open it in either mode. Closing it leaves the placement mode alone.
    */
   threadDocksPanelOpen: boolean;
+  /** Keep a returned Thread Info page available if its last task has finished. */
+  threadDocksReturnThreadId: string | null;
   /** Dock section the Docks tab should scroll to on its next open; consumed once. */
   threadDocksFocus: ThreadDockFocus | null;
   browserOverlayOpen: boolean;
@@ -142,14 +175,17 @@ interface PanelState {
   settingsOpen: boolean;
   /** When the overlay is opened deep-linked to a section (e.g. "usage"); else null. */
   settingsSection: string | null;
+  /** Optional setting row to scroll to after opening a deep-linked section. */
+  settingsAnchor: string | null;
   projectSettingsId: string | null;
   threadSortMode: ThreadSortMode;
   threadListLayout: ThreadListLayout;
-  threadSearchOpen: boolean;
   /** Whether the "Start from scratch" create-project modal is open. */
   createProjectModalOpen: boolean;
   /** Whether the "Clone a repository" modal is open. */
   cloneProjectModalOpen: boolean;
+  /** Session-only compact PWA page. Desktop panel state remains independent. */
+  mobileUtilityPage: MobileUtilityPage | null;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
   setThreadSortMode: (mode: ThreadSortMode) => void;
   setThreadListLayout: (layout: ThreadListLayout) => void;
@@ -173,24 +209,27 @@ interface PanelState {
   openUsagePanel: () => void;
   setThreadDocksPanelOpen: (v: boolean) => void;
   openThreadDocksPanel: (focus?: ThreadDockFocus) => void;
+  returnToThreadDocksPanel: (threadId: string) => void;
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
+  setPortsPanelOpen: (v: boolean) => void;
+  openPortsPanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;
   setBrowserOverlayMaximized: (v: boolean) => void;
   setBrowserOverlayDrawerWidth: (v: number) => void;
   openBrowserPanel: () => void;
   openSettings: () => void;
-  openSettingsSection: (section: string) => void;
+  openSettingsSection: (section: string, anchor?: string) => void;
   clearSettingsSection: () => void;
   closeSettings: () => void;
   openProjectSettings: (projectId: string) => void;
   closeProjectSettings: () => void;
-  openThreadSearch: () => void;
-  closeThreadSearch: () => void;
   openCreateProjectModal: () => void;
   closeCreateProjectModal: () => void;
   openCloneProjectModal: () => void;
   closeCloneProjectModal: () => void;
+  openMobileUtilityPage: (page: MobileUtilityPage) => void;
+  closeMobileUtilityPage: () => void;
   closeAllPanels: () => void;
 }
 
@@ -201,7 +240,7 @@ interface PanelState {
  */
 const LEGACY_GIT_CONTEXT_KEY = "poracode-git-panel-context";
 const LEGACY_DRAWER_WIDTH_KEY = "poracode-browser-drawer-width";
-const PERSIST_KEY = "poracode-panel";
+const PERSIST_KEY = PANEL_PERSIST_KEY;
 const DEFAULT_DRAWER_WIDTH = 640;
 const MIN_DRAWER_WIDTH = 420;
 const MAX_DRAWER_WIDTH = 1400;
@@ -243,14 +282,8 @@ function loadInitialDrawerWidth(): number {
   }
 }
 
-const initialPersisted = readPersistedSlice<{
-  gitReviewContext: GitReviewContext | null;
-  browserOverlayDrawerWidth: number;
-  rightPanelFollowsThread?: boolean;
-  threadToolRailOffset?: number;
-  threadSortMode?: ThreadSortMode;
-  threadListLayout?: ThreadListLayout;
-}>(PERSIST_KEY);
+const initialPersisted = readPersistedSlice<PersistedPanelSlice>(PERSIST_KEY);
+const initialFollowsThread = commitPanelPersistMigration(initialPersisted).followsThread;
 
 // Kept in sync with `ThreadSortMode`/`ThreadListLayout` manually — importing
 // the option tables would pull the icon module (lucide) into the store.
@@ -307,14 +340,17 @@ export const usePanelStore = create<PanelState>()((set) => ({
   rightPanelTab: "git",
   rightPanelSplit: null,
   bottomPanelDocks: EMPTY_BOTTOM_PANEL_DOCKS,
-  rightPanelFollowsThread: initialPersisted?.rightPanelFollowsThread ?? false,
+  rightPanelFollowsThread: initialFollowsThread,
   threadToolRailOffset: sanitizeRailOffset(
     initialPersisted?.threadToolRailOffset ?? DEFAULT_THREAD_TOOL_RAIL_OFFSET,
   ),
   browserPanelOpen: false,
   usagePanelOpen: false,
   notesPanelOpen: false,
+  portsPanelOpen: false,
+  sideChatPanelOpen: false,
   threadDocksPanelOpen: false,
+  threadDocksReturnThreadId: null,
   threadDocksFocus: null,
   browserOverlayOpen: false,
   browserOverlayMaximized: false,
@@ -323,12 +359,13 @@ export const usePanelStore = create<PanelState>()((set) => ({
   ),
   settingsOpen: false,
   settingsSection: null,
+  settingsAnchor: null,
   projectSettingsId: null,
   threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
   threadListLayout: sanitizeThreadListLayout(initialPersisted?.threadListLayout),
-  threadSearchOpen: false,
   createProjectModalOpen: false,
   cloneProjectModalOpen: false,
+  mobileUtilityPage: null,
 
   setGitReviewContext: (ctx) => {
     const prev = usePanelStore.getState().gitReviewContext;
@@ -380,7 +417,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       ) {
         return {};
       }
-      return { githubActionsContext: ctx };
+      const compactLayout = isCompactLayoutViewport();
+      return {
+        githubActionsContext: ctx,
+        ...(compactLayout && ctx !== null ? { mobileUtilityPage: "githubActions" as const } : {}),
+        ...(compactLayout && ctx === null && state.mobileUtilityPage === "githubActions"
+          ? { mobileUtilityPage: null }
+          : {}),
+      };
     }),
   setFilesPanelContext: (ctx) =>
     set((state) => {
@@ -410,6 +454,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
           ctx !== null &&
           prev.threadId === ctx.threadId &&
           prev.parentItemId === ctx.parentItemId &&
+          prev.returnToThreadInfo === ctx.returnToThreadInfo &&
           projectLocationsEqual(prev.projectLocation, ctx.projectLocation))
       ) {
         return ctx && !state.subAgentPanelOpen ? { subAgentPanelOpen: true } : {};
@@ -420,10 +465,12 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => {
       const reopenSubAgent =
         tab === "subagent" && state.subAgentPanelContext !== null && !state.subAgentPanelOpen;
-      if (state.rightPanelTab === tab && !reopenSubAgent) return {};
+      const reopenSideChat = tab === "sideChat" && !state.sideChatPanelOpen;
+      if (state.rightPanelTab === tab && !reopenSubAgent && !reopenSideChat) return {};
       return {
         rightPanelTab: tab,
         ...(reopenSubAgent ? { subAgentPanelOpen: true } : {}),
+        ...(reopenSideChat ? { sideChatPanelOpen: true } : {}),
       };
     }),
   setRightPanelSplit: (split) =>
@@ -541,7 +588,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) =>
       state.threadDocksPanelOpen === v
         ? {}
-        : { threadDocksPanelOpen: v, ...(v ? {} : { threadDocksFocus: null }) },
+        : {
+            threadDocksPanelOpen: v,
+            ...(v ? {} : { threadDocksFocus: null, threadDocksReturnThreadId: null }),
+          },
     ),
   openThreadDocksPanel: (focus) =>
     set((state) => ({
@@ -549,6 +599,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       rightPanelTab: "docks" as const,
       threadDocksFocus: focus ?? state.threadDocksFocus,
     })),
+  returnToThreadDocksPanel: (threadId) =>
+    set({
+      subAgentPanelContext: null,
+      subAgentPanelOpen: false,
+      threadDocksPanelOpen: true,
+      threadDocksReturnThreadId: threadId,
+      rightPanelTab: "docks",
+    }),
   setNotesPanelOpen: (v) =>
     set((state) =>
       state.notesPanelOpen === v
@@ -561,28 +619,80 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ? {}
         : { notesPanelOpen: true, rightPanelTab: "notes" as const },
     ),
+  setPortsPanelOpen: (v) =>
+    set((state) => (state.portsPanelOpen === v ? {} : { portsPanelOpen: v })),
+  openPortsPanel: () =>
+    set((state) =>
+      state.portsPanelOpen && state.rightPanelTab === "ports"
+        ? {}
+        : { portsPanelOpen: true, rightPanelTab: "ports" as const },
+    ),
   setThreadSortMode: (mode) =>
     set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
   setThreadListLayout: (layout) =>
     set((state) => (state.threadListLayout === layout ? {} : { threadListLayout: layout })),
   openSettings: () =>
-    set((state) =>
-      state.settingsOpen && state.settingsSection === null
-        ? {}
-        : { settingsOpen: true, settingsSection: null },
-    ),
-  openSettingsSection: (section) => set({ settingsOpen: true, settingsSection: section }),
+    set((state) => {
+      const compact = isCompactLayoutViewport();
+      if (
+        state.settingsSection === null &&
+        state.settingsAnchor === null &&
+        (compact ? state.mobileUtilityPage === "settings" : state.settingsOpen)
+      )
+        return {};
+      return {
+        settingsOpen: !compact,
+        settingsSection: null,
+        settingsAnchor: null,
+        ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
+      };
+    }),
+  openSettingsSection: (section, anchor) =>
+    set((state) => {
+      const compact = isCompactLayoutViewport();
+      if (
+        state.settingsSection === section &&
+        state.settingsAnchor === (anchor ?? null) &&
+        (compact ? state.mobileUtilityPage === "settings" : state.settingsOpen)
+      )
+        return {};
+      return {
+        settingsOpen: !compact,
+        settingsSection: section,
+        settingsAnchor: anchor ?? null,
+        ...(compact ? { mobileUtilityPage: "settings" as const } : {}),
+      };
+    }),
   clearSettingsSection: () =>
-    set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
-  closeSettings: () => set((state) => (state.settingsOpen ? { settingsOpen: false } : {})),
+    set((state) =>
+      state.settingsSection === null && state.settingsAnchor === null
+        ? {}
+        : { settingsSection: null, settingsAnchor: null },
+    ),
+  closeSettings: () =>
+    set((state) => ({
+      ...(state.settingsOpen ? { settingsOpen: false } : {}),
+      ...(state.mobileUtilityPage === "settings" ? { mobileUtilityPage: null } : {}),
+    })),
   openProjectSettings: (projectId) =>
-    set((state) => (state.projectSettingsId === projectId ? {} : { projectSettingsId: projectId })),
+    set((state) => {
+      const compactLayout = isCompactLayoutViewport();
+      if (
+        state.projectSettingsId === projectId &&
+        (!compactLayout || state.mobileUtilityPage === "projectSettings")
+      ) {
+        return {};
+      }
+      return {
+        projectSettingsId: projectId,
+        ...(compactLayout ? { mobileUtilityPage: "projectSettings" as const } : {}),
+      };
+    }),
   closeProjectSettings: () =>
-    set((state) => (state.projectSettingsId === null ? {} : { projectSettingsId: null })),
-  openThreadSearch: () =>
-    set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
-  closeThreadSearch: () =>
-    set((state) => (state.threadSearchOpen ? { threadSearchOpen: false } : {})),
+    set((state) => ({
+      ...(state.projectSettingsId !== null ? { projectSettingsId: null } : {}),
+      ...(state.mobileUtilityPage === "projectSettings" ? { mobileUtilityPage: null } : {}),
+    })),
   openCreateProjectModal: () =>
     set((state) => (state.createProjectModalOpen ? {} : { createProjectModalOpen: true })),
   closeCreateProjectModal: () =>
@@ -591,6 +701,20 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => (state.cloneProjectModalOpen ? {} : { cloneProjectModalOpen: true })),
   closeCloneProjectModal: () =>
     set((state) => (state.cloneProjectModalOpen ? { cloneProjectModalOpen: false } : {})),
+  openMobileUtilityPage: (page) =>
+    set((state) => ({
+      ...(state.mobileUtilityPage === page ? {} : { mobileUtilityPage: page }),
+      ...(page !== "projectSettings" && state.projectSettingsId !== null
+        ? { projectSettingsId: null }
+        : {}),
+    })),
+  closeMobileUtilityPage: () =>
+    set((state) => ({
+      ...(state.mobileUtilityPage !== null ? { mobileUtilityPage: null } : {}),
+      ...(state.mobileUtilityPage === "projectSettings" && state.projectSettingsId !== null
+        ? { projectSettingsId: null }
+        : {}),
+    })),
   closeAllPanels: () => {
     set((state) => {
       // The floating browser overlay (drawer/fullscreen) is intentionally NOT
@@ -611,8 +735,11 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ...(isDocked("browser") ? {} : { browserPanelOpen: false }),
         ...(isDocked("usage") ? {} : { usagePanelOpen: false }),
         ...(isDocked("notes") ? {} : { notesPanelOpen: false }),
+        portsPanelOpen: false,
         subAgentPanelOpen: false,
+        sideChatPanelOpen: false,
         threadDocksPanelOpen: false,
+        threadDocksReturnThreadId: null,
         threadDocksFocus: null,
         rightPanelSplit: null,
       };
@@ -620,10 +747,12 @@ export const usePanelStore = create<PanelState>()((set) => ({
         (next.gitReviewContext === undefined || state.gitReviewContext === null) &&
         (next.filesPanelContext === undefined || state.filesPanelContext === null) &&
         !state.subAgentPanelOpen &&
+        !state.sideChatPanelOpen &&
         !state.threadDocksPanelOpen &&
         (next.browserPanelOpen === undefined || !state.browserPanelOpen) &&
         (next.usagePanelOpen === undefined || !state.usagePanelOpen) &&
         (next.notesPanelOpen === undefined || !state.notesPanelOpen) &&
+        !state.portsPanelOpen &&
         state.rightPanelSplit === null;
       return alreadyClosed ? {} : next;
     });
@@ -639,6 +768,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
 // synchronous, seeded above from readPersistedSlice so the restored git panel
 // and drawer width are present before first paint.
 persistStoreSlice(usePanelStore, PERSIST_KEY, (state) => ({
+  version: PANEL_PERSIST_VERSION,
   gitReviewContext: state.gitReviewContext
     ? {
         projectId: state.gitReviewContext.projectId,
@@ -667,7 +797,7 @@ export function selectAnyObstructingOverlayOpen(): boolean {
     p.gitOverlayOpen ||
     p.prReviewContext !== null ||
     p.githubActionsContext !== null ||
-    p.threadSearchOpen
+    useCommandPaletteStore.getState().isOpen
   ) {
     return true;
   }

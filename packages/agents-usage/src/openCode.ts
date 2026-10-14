@@ -1,11 +1,12 @@
 import type { UsageWindow } from "./types";
 
 /**
- * OpenCode (OpenCode Zen / `opencode-go`) has no usage API — spend is read from
- * the CLI's local SQLite store. This pure aggregator turns assistant-message
- * cost rows into rolling 5h / weekly / monthly percent windows against the
- * fixed plan budgets openusage uses. The host reads the rows; this does the math
- * so it is unit-testable without a database.
+ * Local `opencode.db` spend aggregation into rolling 5h / weekly / monthly
+ * percent windows against the fixed plan budgets openusage assumes. The
+ * authoritative Go plan meters come from the direct usage endpoint
+ * (`openCodeGoApi.ts`) or the opencode.ai web session — this aggregator is a
+ * device-local view only and is never presented as plan quota. The host reads
+ * the rows; this does the math so it is unit-testable without a database.
  */
 
 export interface OpenCodeCostRow {

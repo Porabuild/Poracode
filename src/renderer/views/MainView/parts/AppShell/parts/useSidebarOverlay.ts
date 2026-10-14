@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect } from "react";
 import { useTwoRafReady } from "@/renderer/hooks/useTwoRafReady";
 import { selectShouldOverlay, useSidebarOverlayStore } from "@/renderer/state/sidebarOverlayStore";
 import { CONTENT_MIN_WIDTH } from "./useResizablePanels";
@@ -27,7 +27,6 @@ export function useSidebarOverlayEffects(opts: {
   disabled?: boolean;
 }) {
   const { sidebarWidth, shellRef, disabled = false } = opts;
-  const didAutoCollapseOnNarrowRef = useRef(false);
 
   // Shell width → isNarrow + shellWidth. On the narrow transition we collapse
   // the sidebar to the icon rail rather than overlaying it; overlay only
@@ -48,14 +47,10 @@ export function useSidebarOverlayEffects(opts: {
       const store = useSidebarOverlayStore.getState();
       if (next && !store.isNarrow) {
         if (!store.isCollapsed) {
-          didAutoCollapseOnNarrowRef.current = true;
-          store.setCollapsed(true);
+          store.setAutoCollapsed(true);
         }
       } else if (!next && store.isNarrow) {
-        if (didAutoCollapseOnNarrowRef.current) {
-          didAutoCollapseOnNarrowRef.current = false;
-          store.setCollapsed(false);
-        }
+        store.setAutoCollapsed(false);
       }
       store.setNarrow(next);
       store.setShellWidth(width);

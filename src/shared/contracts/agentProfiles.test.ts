@@ -9,6 +9,7 @@ import {
   isAgentProfileKind,
   parseAgentProfileKind,
   setProfileEnvironmentPayloadSchema,
+  stripAgentProfileBasePrefix,
 } from "./agentProfiles";
 import { claudeProfileKind, codexProfileKind, cursorProfileKind } from "./agentInstance";
 
@@ -55,6 +56,22 @@ describe("agent profile drivers", () => {
       driver: "claude",
       instanceId: "team:eu",
     });
+  });
+});
+
+describe("stripAgentProfileBasePrefix", () => {
+  it("drops the driver word supervisor labels are built with", () => {
+    expect(stripAgentProfileBasePrefix("Claude Qwen", "claude:qwen")).toBe("Qwen");
+    expect(stripAgentProfileBasePrefix("Cursor Work", "cursor:work")).toBe("Work");
+    // The remainder is the display name verbatim, even when it starts with
+    // a word from the base agent's full display label.
+    expect(stripAgentProfileBasePrefix("Claude Code Review", "claude:review")).toBe("Code Review");
+  });
+
+  it("keeps labels without the driver prefix whole", () => {
+    expect(stripAgentProfileBasePrefix("Work account", "claude:work")).toBe("Work account");
+    expect(stripAgentProfileBasePrefix("Claude", "claude:work")).toBe("Claude");
+    expect(stripAgentProfileBasePrefix("OpenCode 2", "acp-generic:opencode-2")).toBe("OpenCode 2");
   });
 });
 

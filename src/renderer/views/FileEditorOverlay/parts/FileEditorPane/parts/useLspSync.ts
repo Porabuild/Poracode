@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { Monaco } from "@monaco-editor/react";
+import type { editor as MonacoEditor } from "monaco-editor";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { lspOrchestrator } from "@/renderer/lsp";
@@ -8,10 +9,11 @@ import { isHomeProjectId } from "@/shared/homeScope";
 
 export function useLspSync(params: {
   monaco: Monaco | null;
+  model: MonacoEditor.ITextModel | null;
   activePath: string | null;
   bufferStatus: string | null;
 }) {
-  const { monaco, activePath, bufferStatus } = params;
+  const { monaco, model, activePath, bufferStatus } = params;
   const lspEnabled = useSharedSettings((s) => s.editorLspEnabled);
   const rootProjectId = useFileEditorStore((state) => state.rootContext?.projectId ?? null);
   const rootProjectLocation = useFileEditorStore(
@@ -25,6 +27,8 @@ export function useLspSync(params: {
     if (
       !lspEnabled ||
       !monaco ||
+      !model ||
+      model.isDisposed() ||
       !rootProjectId ||
       isHomeProjectId(rootProjectId) ||
       !rootProjectLocation ||
@@ -37,37 +41,52 @@ export function useLspSync(params: {
     const currentBuffer = useFileEditorStore.getState().buffers[activePath];
     if (!currentBuffer || currentBuffer.status !== "ready") return;
 
-    const uri = createLspFileUri(rootProjectLocation, activePath);
+    const uri = monaco.Uri.parse(createLspFileUri(rootProjectLocation, activePath)).toString();
+    if (model.uri.toString() !== uri) return;
     let cancelled = false;
 
-    void lspOrchestrator
-      .ensureServer(monaco, rootProjectId, rootProjectLocation, activePath)
-      .then((session) => {
-        if (cancelled || !session) return;
+    const syncCurrentModel = async () => {
+      while (!model.isDisposed()) {
+        if (cancelled) return;
+        const session = await lspOrchestrator.ensureServer(
+          monaco,
+          rootProjectId,
+          rootProjectLocation,
+          activePath,
+        );
+        if (cancelled || !session || model.isDisposed()) return;
         const latestBuffer = useFileEditorStore.getState().buffers[activePath];
         if (!latestBuffer || latestBuffer.status !== "ready") return;
-
-        session.docSync.didOpen(uri, latestBuffer.content, activePath);
-
-        const model = monaco.editor.getModel(monaco.Uri.parse(uri));
-        if (model) session.docSync.watchModel(model);
-      })
-      .catch((error: unknown) => {
-        console.warn("[LSP] Failed to sync document:", error);
-      });
+        // A surface transfer can retire a fulfilled readiness promise before
+        // this callback runs. Reacquire without waiting for a model/path change.
+        if (lspOrchestrator.getSession(rootProjectId, activePath) !== session) continue;
+        session.docSync.bindModel(model, activePath);
+        return;
+      }
+    };
+    void syncCurrentModel().catch((error: unknown) => {
+      console.warn("[LSP] Failed to sync document:", error);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [lspEnabled, monaco, rootProjectId, rootProjectLocation, activePath, bufferStatus]);
+  }, [lspEnabled, monaco, model, rootProjectId, rootProjectLocation, activePath, bufferStatus]);
+}
 
-  // Cleanup when project changes
+// Project ownership and save notifications outlive editor tab/model changes.
+export function useLspLifecycle(monaco: Monaco | null) {
+  const lspEnabled = useSharedSettings((s) => s.editorLspEnabled);
+  const rootProjectId = useFileEditorStore((state) => state.rootContext?.projectId ?? null);
+  const rootProjectLocation = useFileEditorStore(
+    (state) => state.rootContext?.projectLocation ?? null,
+  );
+
   useEffect(() => {
-    const projectId = rootProjectId;
-    return () => {
-      if (projectId && !isHomeProjectId(projectId)) void lspOrchestrator.stopProject(projectId);
-    };
-  }, [rootProjectId]);
+    if (!lspEnabled || !rootProjectId || isHomeProjectId(rootProjectId)) return;
+    const owner = lspOrchestrator.retainProject(rootProjectId);
+    return () => owner.dispose();
+  }, [lspEnabled, rootProjectId]);
 
   function notifyDidSave(path: string) {
     if (!lspEnabled || !rootProjectId || isHomeProjectId(rootProjectId) || !rootProjectLocation) {
@@ -75,8 +94,10 @@ export function useLspSync(params: {
     }
     const session = lspOrchestrator.getSession(rootProjectId, path);
     const savedBuffer = useFileEditorStore.getState().buffers[path];
-    if (session && savedBuffer?.status === "ready") {
-      session.docSync.didSave(createLspFileUri(rootProjectLocation, path), savedBuffer.content);
+    if (session && monaco && savedBuffer?.status === "ready") {
+      // Use the model URI spelling, including Monaco's Windows drive normalization.
+      const uri = monaco.Uri.parse(createLspFileUri(rootProjectLocation, path)).toString();
+      session.docSync.didSave(uri, savedBuffer.content);
     }
   }
 

@@ -1,0 +1,18 @@
+{
+  "$comment": "Neutral fixture: legacy unstamped row carrying the same inert seeds. Missing binding is ordinary legacy — ambiguous by decision, conservative gate applies, and it is never backfilled from UID syntax or value patterns. A family-row no-op cannot upgrade it.",
+  "config": {
+    "model": "lead-a+sidekick-b",
+    "effort": "",
+    "contextSize": "default",
+    "fast": false,
+    "thinking": false,
+    "mode": "agent"
+  },
+  "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+  "expect": {
+    "bindingRecognized": false,
+    "matches": false,
+    "invalidReason": "absent-binding",
+    "coldLaunch": "conservative-catalog-required"
+  }
+}

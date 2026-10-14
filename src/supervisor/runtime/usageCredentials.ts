@@ -1,15 +1,16 @@
+import { resolveDevinToken } from "../agents/devin/usageCredentials";
 import type { CredentialStore } from "@poracode/agents-usage";
 import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
 import { resolveCodexToken } from "./codexCredentials";
 import { resolveCommandCodeToken } from "./commandCodeCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
-import { resolveCursorToken } from "./cursorCredentials";
+import { resolveCursorToken } from "../agents/cursor/usageCredentials";
 import { resolveFactoryCliToken } from "./factoryCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
 import { refreshRejectedGrokToken, resolveFreshGrokToken } from "./grokTokenRefresh";
 import { resolveKimiToken } from "./kimiCredentials";
-import { resolveMuseToken } from "./museCredentials";
+import { resolveMuseToken } from "../agents/muse/usageCredentials";
 import { resolveQoderToken } from "./qoderCredentials";
 import { resolveQwenUsageToken } from "./qwenCredentials";
 import { resolveZaiToken } from "./zaiCredentials";
@@ -47,6 +48,7 @@ function tokenResolvers(
     factory: async () => resolveFactoryCliToken(),
     zai: resolveZaiToken,
     kimi: resolveKimiToken,
+    devin: resolveDevinToken,
     muse: resolveMuseToken,
     qwen: () => resolveQwenUsageToken(settingsPath),
     qoder: resolveQoderToken,

@@ -43,12 +43,21 @@ interface CursorOnDemand {
   limit?: number;
   enabled?: boolean;
 }
+/** Team/period on-demand meter from `GetCurrentPeriodUsage.spendLimitUsage`. Cents. */
+interface CursorSpendLimitUsage {
+  totalSpend?: number;
+  individualUsed?: number;
+  pooledUsed?: number;
+  individualLimit?: number;
+  pooledLimit?: number;
+}
 interface CursorUsageSummary {
   billingCycleStart?: string;
   billingCycleEnd?: string;
   membershipType?: string;
   isUnlimited?: boolean;
   individualUsage?: { plan?: CursorPlanUsage; onDemand?: CursorOnDemand };
+  spendLimitUsage?: CursorSpendLimitUsage;
 }
 
 const MEMBERSHIP_LABELS: Record<string, string> = {
@@ -107,6 +116,29 @@ function apiDollars(plan: CursorPlanUsage): { used?: number; limit?: number } {
   };
 }
 
+/**
+ * Show on-demand when enabled, even before the first charge. Period payloads
+ * have no enabled flag, so require a positive spending allowance there.
+ * An explicit disabled individual bucket takes precedence over historical spend.
+ */
+function onDemandDollars(
+  summary: CursorUsageSummary,
+): { used: number; limit?: number } | undefined {
+  const onDemand = summary.individualUsage?.onDemand;
+  if (onDemand?.enabled === false) return undefined;
+  if (onDemand?.enabled === true) {
+    const used = centsToUsd(onDemand.used) ?? 0;
+    const limit = centsToUsd(onDemand.limit);
+    return { used, ...(limit !== undefined && limit > 0 ? { limit } : {}) };
+  }
+
+  const spend = summary.spendLimitUsage;
+  const limit = centsToUsd(spend?.individualLimit ?? spend?.pooledLimit);
+  if (limit === undefined || limit <= 0) return undefined;
+  const used = centsToUsd(spend?.individualUsed ?? spend?.pooledUsed ?? spend?.totalSpend) ?? 0;
+  return { used, limit };
+}
+
 /** billingCycleEnd may be unix seconds/ms (as a string) or ISO-8601. */
 function toResetMs(value: string | undefined): number | undefined {
   if (!value) return undefined;
@@ -124,7 +156,6 @@ export function parseCursorUsage(
 ): UsageSnapshot {
   const summary = (body ?? {}) as CursorUsageSummary;
   const plan = summary.individualUsage?.plan ?? {};
-  const onDemand = summary.individualUsage?.onDemand;
   const resetsAt = toResetMs(summary.billingCycleEnd);
   const withReset = resetsAt !== undefined ? { resetsAt } : {};
   const membership = summary.membershipType?.trim();
@@ -158,23 +189,19 @@ export function parseCursorUsage(
     });
   }
 
-  // On-demand (usage-based) spend, only when the user has enabled it.
-  if (onDemand?.enabled) {
-    const used = centsToUsd(onDemand.used);
-    const limit = centsToUsd(onDemand.limit);
-    if (used !== undefined) {
-      const pct = limit !== undefined && limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
-      windows.push({
-        id: "extra-usage",
-        label: "On-demand",
-        usedPercent: pct,
-        unit: "usd",
-        currency: "USD",
-        used,
-        ...(limit !== undefined && limit > 0 ? { limit } : {}),
-        ...withReset,
-      });
-    }
+  const onDemandSpend = onDemandDollars(summary);
+  if (onDemandSpend) {
+    const { used, limit } = onDemandSpend;
+    windows.push({
+      id: "extra-usage",
+      label: "On-demand",
+      usedPercent: limit !== undefined && limit > 0 ? Math.min(100, (used / limit) * 100) : 0,
+      unit: "usd",
+      currency: "USD",
+      used,
+      ...(limit !== undefined ? { limit } : {}),
+      ...withReset,
+    });
   }
 
   return {
@@ -271,6 +298,7 @@ interface CursorPeriodUsage {
   billingCycleEnd?: string;
   membershipType?: string;
   planUsage?: CursorPeriodPlanUsage;
+  spendLimitUsage?: CursorSpendLimitUsage;
 }
 
 interface CursorPlanInfo {
@@ -291,6 +319,7 @@ export function parseCursorPeriodUsage(
     {
       billingCycleEnd: period.billingCycleEnd,
       membershipType: period.membershipType,
+      ...(period.spendLimitUsage ? { spendLimitUsage: period.spendLimitUsage } : {}),
       individualUsage: {
         plan: {
           used: plan.totalSpend,

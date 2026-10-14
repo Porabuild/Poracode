@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { envIdentityHash, envLabel, mcpSettingsServerName } from "./identity";
 import type { ResolvedMcpServer } from "@/shared/contracts";
 
 export type ClaudeMcpServerConfig =
@@ -305,25 +305,6 @@ export function buildAcpMcpServers(servers: readonly ResolvedMcpServer[]): AcpMc
   });
 }
 
-function envTokenSegment(value: string): string {
-  return value
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/gu, "_")
-    .replace(/^_+|_+$/gu, "");
-}
-
-function envIdentityHash(...values: string[]): string {
-  return createHash("sha256")
-    .update(JSON.stringify(values))
-    .digest("hex")
-    .slice(0, 16)
-    .toUpperCase();
-}
-
-function envLabel(value: string, fallback: string): string {
-  return (envTokenSegment(value) || fallback).slice(0, 32);
-}
-
 function codexMcpEnvPrefix(server: Pick<ResolvedMcpServer, "id" | "name">): string {
   return `PORACODE_MCP_${envLabel(server.name, "SERVER")}_${envIdentityHash(server.name, server.id)}`;
 }
@@ -352,11 +333,7 @@ function tomlKeySegment(value: string): string {
  * segments even though the CLI TOML parser does. Keep the provider-visible
  * namespace readable and add a stable suffix only when normalization is needed.
  */
-export function codexMcpServerName(server: Pick<ResolvedMcpServer, "id" | "name">): string {
-  const normalized = server.name.replace(/[^A-Za-z0-9_-]/gu, "_").replace(/^_+|_+$/gu, "");
-  if (normalized === server.name) return normalized;
-  return `${normalized || "server"}_${envIdentityHash(server.name, server.id).slice(0, 8).toLowerCase()}`;
-}
+export const codexMcpServerName = mcpSettingsServerName;
 
 function tomlStringArray(values: readonly string[]): string {
   return `[${values.map(tomlString).join(", ")}]`;

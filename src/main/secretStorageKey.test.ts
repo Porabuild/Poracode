@@ -12,15 +12,28 @@ const safeStorageMock = vi.hoisted(() => ({
 
 vi.mock("electron", () => ({ safeStorage: safeStorageMock }));
 
-import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
+const restrictMock = vi.hoisted(() => ({
+  restrictToOwner: vi.fn<(path: string, deps?: { platform?: NodeJS.Platform }) => void>(),
+}));
+vi.mock("@/shared/restrictToOwner", () => restrictMock);
+
+import { SAFE_STORAGE_LATCH_WARNING, resetSafeStorageHealthForTests } from "./safeStorageHealth";
+import {
+  SafeStorageKeyUnavailableError,
+  readOrCreateSafeStorageSecretKey,
+} from "./secretStorageKey";
 
 describe("readOrCreateSafeStorageSecretKey", () => {
   let dir: string;
   let consoleWarn: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    // Availability is the once-per-launch latch (P3); every test starts from
+    // an unprobed latch so mock changes are observed.
+    resetSafeStorageHealthForTests();
     dir = mkdtempSync(join(tmpdir(), "poracode-safe-storage-"));
     consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    restrictMock.restrictToOwner.mockReset();
     safeStorageMock.decryptString.mockReset();
     safeStorageMock.encryptString.mockReset().mockImplementation((value) => Buffer.from(value));
     safeStorageMock.getSelectedStorageBackend.mockReset().mockReturnValue("gnome_libsecret");
@@ -50,9 +63,9 @@ describe("readOrCreateSafeStorageSecretKey", () => {
       expect(safeStorageMock.encryptString).not.toHaveBeenCalled();
       expect(safeStorageMock.decryptString).not.toHaveBeenCalled();
       expect(() => readFileSync(join(dir, "secret-key.safe"))).toThrow(/ENOENT|no such file/i);
-      expect(consoleWarn).toHaveBeenCalledWith(
-        "[credential-storage] secure OS encryption is unavailable; credentials are session-only.",
-      );
+      // The latch warning (P3) names the session-only consequence exactly once.
+      expect(consoleWarn).toHaveBeenCalledTimes(1);
+      expect(consoleWarn).toHaveBeenCalledWith(SAFE_STORAGE_LATCH_WARNING);
     },
   );
 
@@ -68,31 +81,62 @@ describe("readOrCreateSafeStorageSecretKey", () => {
     );
   });
 
-  it("recovers from an undecryptable stored key with only a fixed local warning", () => {
-    writeFileSync(join(dir, "secret-key.safe"), Buffer.from("old-sealed-key").toString("base64"));
+  it("refuses loudly instead of rotating when the stored key cannot be decrypted", () => {
+    const preserved = Buffer.from("old-sealed-key").toString("base64");
+    writeFileSync(join(dir, "secret-key.safe"), preserved);
     safeStorageMock.decryptString.mockImplementation(() => {
       throw new Error("unexpected crypto details");
     });
 
-    const key = readOrCreateSafeStorageSecretKey(dir, "linux");
-
-    expect(Buffer.from(key, "base64")).toHaveLength(32);
-    expect(consoleWarn).toHaveBeenCalledWith(
-      "[credential-storage] stored key recovery (decrypt_failed); rotating encrypted key.",
+    expect(() => readOrCreateSafeStorageSecretKey(dir, "linux")).toThrow(
+      SafeStorageKeyUnavailableError,
     );
-    expect(consoleWarn).not.toHaveBeenCalledWith(expect.stringContaining("unexpected crypto"));
+    expect(() => readOrCreateSafeStorageSecretKey(dir, "linux")).toThrow(/decryption failed/u);
+
+    // No silent rotation: the sealed key file is byte-identical, no new key
+    // was sealed, and the disclosure names the loss and the explicit remedies
+    // without leaking native crypto details.
+    expect(readFileSync(join(dir, "secret-key.safe"), "utf8")).toBe(preserved);
+    expect(safeStorageMock.encryptString).not.toHaveBeenCalled();
+    let message = "";
+    try {
+      readOrCreateSafeStorageSecretKey(dir, "linux");
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("sign in again");
+    expect(message).toContain("restore");
+    expect(message).not.toContain("unexpected crypto details");
   });
 
-  it("rotates an invalid decrypted key with only a fixed local warning", () => {
-    writeFileSync(join(dir, "secret-key.safe"), Buffer.from("old-sealed-key").toString("base64"));
+  it("refuses loudly when decryption yields invalid key material", () => {
+    const preserved = Buffer.from("old-sealed-key").toString("base64");
+    writeFileSync(join(dir, "secret-key.safe"), preserved);
     safeStorageMock.decryptString.mockReturnValue(Buffer.alloc(16).toString("base64"));
 
-    const key = readOrCreateSafeStorageSecretKey(dir, "linux");
-
-    expect(Buffer.from(key, "base64")).toHaveLength(32);
-    expect(consoleWarn).toHaveBeenCalledWith(
-      "[credential-storage] stored key recovery (invalid_key); rotating encrypted key.",
+    expect(() => readOrCreateSafeStorageSecretKey(dir, "linux")).toThrow(
+      SafeStorageKeyUnavailableError,
     );
+    expect(readFileSync(join(dir, "secret-key.safe"), "utf8")).toBe(preserved);
+    expect(safeStorageMock.encryptString).not.toHaveBeenCalled();
+  });
+
+  it("types the refusal with a stable code for surfacing", () => {
+    writeFileSync(join(dir, "secret-key.safe"), Buffer.from("old-sealed-key").toString("base64"));
+    safeStorageMock.decryptString.mockImplementation(() => {
+      throw new Error("unexpected crypto details");
+    });
+    const captured: unknown[] = [];
+    try {
+      readOrCreateSafeStorageSecretKey(dir, "linux");
+    } catch (error) {
+      captured.push(error);
+    }
+    expect(captured).toHaveLength(1);
+    expect((captured[0] as SafeStorageKeyUnavailableError).code).toBe(
+      "SAFE_STORAGE_KEY_UNAVAILABLE",
+    );
+    expect((captured[0] as SafeStorageKeyUnavailableError).reason).toBe("decrypt_failed");
   });
 
   it("keeps unexpected encryption failures observable without leaking the key", () => {
@@ -104,5 +148,12 @@ describe("readOrCreateSafeStorageSecretKey", () => {
       "Unable to encrypt the Poracode secret storage key.",
     );
     expect(() => readFileSync(join(dir, "secret-key.safe"))).toThrow(/ENOENT|no such file/i);
+  });
+
+  it("restricts the newly persisted key file to the owner with the launch platform", () => {
+    readOrCreateSafeStorageSecretKey(dir, "win32");
+    expect(restrictMock.restrictToOwner).toHaveBeenCalledWith(join(dir, "secret-key.safe"), {
+      platform: "win32",
+    });
   });
 });

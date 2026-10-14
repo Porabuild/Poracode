@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { THOUGHT_LEVEL_CONFIG_OPTION_IDS, findThoughtLevelConfigOption } from "./thoughtLevel";
+import {
+  THOUGHT_LEVEL_CONFIG_OPTION_IDS,
+  findThinkingToggleConfigOption,
+  findThoughtLevelConfigOption,
+} from "./thoughtLevel";
 
 describe("findThoughtLevelConfigOption", () => {
   it("returns undefined for non-array input", () => {
@@ -71,6 +75,31 @@ describe("findThoughtLevelConfigOption", () => {
     const result = findThoughtLevelConfigOption(options);
     expect(result?.id).toBe("custom_name");
     expect(result?.category).toBe("thought_level");
+  });
+
+  it("prefers a graded effort ladder over a boolean thinking toggle", () => {
+    const options = [
+      {
+        id: "thinking",
+        category: "thought_level",
+        type: "select",
+        options: [
+          { value: "false", name: "Off" },
+          { value: "true", name: "On" },
+        ],
+      },
+      {
+        id: "effort",
+        category: "thought_level",
+        type: "select",
+        options: [
+          { value: "low", name: "Low" },
+          { value: "xhigh", name: "Extra High" },
+        ],
+      },
+    ];
+    expect(findThoughtLevelConfigOption(options)?.id).toBe("effort");
+    expect(findThinkingToggleConfigOption(options)?.id).toBe("thinking");
   });
 
   it("exposes the known ids for external consumers", () => {

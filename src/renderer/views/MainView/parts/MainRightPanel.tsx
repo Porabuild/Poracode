@@ -1,5 +1,7 @@
 import { Suspense, useState } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useKeepHeavyMountedForDisclosure } from "@/renderer/hooks/useKeepHeavyMountedForDisclosure";
+import { PANEL_EXIT_DURATION_MS } from "@/renderer/components/layout/panelMotion";
 import { useBottomTerminalVisible, usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
 import { BottomPanelDockContainer } from "./RightPanel/parts/PanelDock/BottomPanelDockContainer";
 import {
@@ -10,6 +12,9 @@ import {
 export function MainRightPanel() {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const { rightPanelOpen } = usePanelVisibility();
+  const { keepHeavy } = useKeepHeavyMountedForDisclosure(rightPanelOpen, {
+    fallbackMs: PANEL_EXIT_DURATION_MS,
+  });
   const terminalVisible = useBottomTerminalVisible();
   const [enabled, setEnabled] = useState(rightPanelOpen);
   // Latch: once open the panel host stays mounted. Derived from
@@ -24,7 +29,7 @@ export function MainRightPanel() {
 
   const isTerminalRight = terminalPosition === "right";
 
-  if (isTerminalRight && !rightPanelOpen) return null;
+  if (isTerminalRight && !rightPanelOpen && !keepHeavy) return null;
 
   return (
     <Suspense>

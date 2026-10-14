@@ -1,4 +1,4 @@
-import { normalizeToolName } from "./specs";
+import { normalizeToolName } from "@/host/browser/mcp/tools/specs";
 import type { McpToolResult } from "./types";
 
 /** Wrap a raw tool result into the MCP `content[]` shape. Special-cased for

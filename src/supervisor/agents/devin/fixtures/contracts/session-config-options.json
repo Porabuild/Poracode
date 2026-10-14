@@ -1,0 +1,96 @@
+{
+  "$comment": "Sanitized live session/new configOptions, devin acp 3000.11.3 (9c803229faa4), captured 2026-10-07 (tmp/devin/probe/results/mcp-turn.json). Full and standard client capability sets produce the same three options and categories (mode / model / thought_level). The 108-entry model list is reduced here to a representative subset of REAL captured entries (current value, a plain family, Fusion pairs, an image-less family) with identical field shapes; no invented values.",
+  "configOptions": [
+    {
+      "id": "mode",
+      "name": "Session Mode",
+      "category": "mode",
+      "type": "select",
+      "currentValue": "accept-edits",
+      "options": [
+        {
+          "value": "accept-edits",
+          "name": "Code",
+          "description": "Write and edit code",
+          "_meta": { "cognition.ai/icon": "code" }
+        },
+        {
+          "value": "smart",
+          "name": "Smart",
+          "description": "Auto-approve actions the model judges safe",
+          "_meta": { "cognition.ai/icon": "sparkles" }
+        },
+        {
+          "value": "ask",
+          "name": "Ask",
+          "description": "Answer questions without code changes",
+          "_meta": { "cognition.ai/icon": "message-circle" }
+        },
+        {
+          "value": "plan",
+          "name": "Plan",
+          "description": "Plan changes before implementing",
+          "_meta": { "cognition.ai/icon": "file-text" }
+        },
+        {
+          "value": "bypass",
+          "name": "Bypass Permissions",
+          "description": "Auto-approve all tool calls",
+          "_meta": { "cognition.ai/icon": "shield-off" }
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "name": "Model",
+      "description": "AI model to use",
+      "category": "model",
+      "type": "select",
+      "currentValue": "swe-2-high",
+      "options": [
+        {
+          "value": "swe-2-high",
+          "name": "SWE-2",
+          "_meta": { "cognition.ai/supportsImages": true }
+        },
+        {
+          "value": "adaptive",
+          "name": "Adaptive",
+          "_meta": { "cognition.ai/supportsImages": true }
+        },
+        {
+          "value": "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium",
+          "name": "Fusion (Claude Fable 5.1 Medium + SWE-2 Medium)",
+          "_meta": { "cognition.ai/supportsImages": true }
+        },
+        {
+          "value": "fusion-claude-fable-5-1-medium-sidekick-swe-2-high",
+          "name": "Fusion (Claude Fable 5.1 Medium + SWE-2 High)",
+          "_meta": { "cognition.ai/supportsImages": true }
+        },
+        {
+          "value": "glm-5-2",
+          "name": "GLM-5.2 High",
+          "_meta": { "cognition.ai/supportsImages": false }
+        },
+        {
+          "value": "glm-5-3-max",
+          "name": "GLM-5.3",
+          "_meta": { "cognition.ai/supportsImages": false }
+        }
+      ]
+    },
+    {
+      "id": "thought_level",
+      "name": "Thinking",
+      "category": "thought_level",
+      "type": "select",
+      "currentValue": "max",
+      "options": [
+        { "value": "medium", "name": "Medium" },
+        { "value": "high", "name": "High" },
+        { "value": "max", "name": "Max" }
+      ]
+    }
+  ]
+}

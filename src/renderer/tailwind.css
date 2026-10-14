@@ -1,8 +1,9 @@
 @import "tailwindcss" source(none);
-@import "@heroui/styles";
+@import "./herouiStyles.css";
 @import "@xterm/xterm/css/xterm.css";
 @import "katex/dist/katex.min.css";
 @import "./styles.css";
+@import "./components/common/mobileModals.css";
 
 @source "./**/*.{ts,tsx}";
 @source not "./**/*.{test,spec}.{ts,tsx}";

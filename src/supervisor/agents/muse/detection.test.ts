@@ -23,7 +23,6 @@ vi.mock("./msp/probe", async () => {
 });
 
 import {
-  buildMuseCatalogCapabilities,
   buildMuseProbedCapabilities,
   humanizeMuseModelLabel,
   MUSE_DEFAULT_MODEL_ID,
@@ -31,6 +30,7 @@ import {
   museDefaultCapabilities,
   museDetectionSpec,
   museHasStoredCredentials,
+  museHelpSupportsConfigFlag,
   parseMuseHelpEfforts,
   parseMuseHelpModelIds,
   parseMuseSkillCommands,
@@ -144,12 +144,13 @@ describe("museDetectionSpec", () => {
       args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
     });
     expect(museDetectionSpec.update?.installer?.windows).toEqual({
-      binary: "wsl.exe",
+      binary: "powershell.exe",
       args: [
-        "--exec",
-        "bash",
-        "-lc",
-        "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi",
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "irm https://dev.meta.ai/install.ps1 | iex",
       ],
     });
   });
@@ -185,6 +186,7 @@ describe("museDetectionSpec", () => {
       authMethods: [{ id: "muse-terminal-login", name: "Login", type: "terminal" }],
       // `muse logout` exists independently of the help probe.
       authLogoutSupported: true,
+      mcpScope: { terminal: "none", gui: "none" },
     });
   });
 
@@ -212,6 +214,50 @@ describe("museDetectionSpec", () => {
     expect(result?.models?.map((m) => m.id)).toContain("muse-spark-1.4");
     expect(result?.efforts).toContain("max");
   });
+
+  it("keeps terminal MCP off for help without the per-run --config flag", async () => {
+    readAgentCommandOutputMock.mockResolvedValueOnce({
+      ok: true,
+      stdout: DOCUMENTED_MUSE_HELP,
+      stderr: "",
+    });
+    const result = await museDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "/usr/bin/muse",
+    });
+    expect(result?.mcpScope).toEqual({ terminal: "none", gui: "none" });
+  });
+
+  it("enables terminal launch MCP when help advertises --config KEY=VALUE", async () => {
+    readAgentCommandOutputMock.mockResolvedValueOnce({
+      ok: true,
+      stdout: `${DOCUMENTED_MUSE_HELP}\n  -c, --config <KEY=VALUE>\n          Set one setting for this run (repeatable; values are JSON).`,
+      stderr: "",
+    });
+    const result = await museDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "/usr/bin/muse",
+    });
+    expect(result?.mcpScope).toEqual({ terminal: "launch", gui: "none" });
+  });
+
+  it.each([true, false, undefined])(
+    "advertises GUI MCP only for a granted sessionMcp capability (%s)",
+    async (sessionMcpSupported) => {
+      probeMuseModelCatalogMock.mockResolvedValueOnce({
+        models: [],
+        source: "bundledCatalog",
+        providerId: "meta",
+        profileId: null,
+        ...(sessionMcpSupported === undefined ? {} : { sessionMcpSupported }),
+      });
+      const result = await museDetectionSpec.capabilitiesProbe?.({
+        location: { kind: "posix", path: "/tmp" },
+        executablePath: "/usr/bin/muse",
+      });
+      expect(result?.mcpScope?.gui).toBe(sessionMcpSupported === true ? "launch" : "none");
+    },
+  );
 
   it("uses the live catalog as the authoritative model list", async () => {
     probeMuseModelCatalogMock.mockResolvedValueOnce({
@@ -258,10 +304,11 @@ describe("museDetectionSpec", () => {
       location: { kind: "posix", path: "/tmp" },
       executablePath: "/usr/bin/muse",
     });
-    // Empty help output parses to nothing and the empty catalog adds nothing.
+    // Empty probes retain the static models and disable per-launch MCP.
     expect(result).toEqual({
       authMethods: [{ id: "muse-terminal-login", name: "Login", type: "terminal" }],
       authLogoutSupported: true,
+      mcpScope: { terminal: "none", gui: "none" },
     });
   });
 });
@@ -275,6 +322,8 @@ describe("museDefaultCapabilities", () => {
       "muse-spark-1.2",
       "muse-spark-1.2-contributor",
       "muse-spark-1.1",
+      "muse-wonder-1.0",
+      "muse-wonder-full-1.0",
     ]);
   });
 
@@ -310,6 +359,20 @@ describe("museDefaultCapabilities", () => {
     expect(museDefaultCapabilities.supportsDirectInput).toBe(true);
     expect(museDefaultCapabilities.supportsOneShot).toBe(true);
     expect(museDefaultCapabilities.modes).toEqual(["agent"]);
+  });
+
+  it("keeps terminal MCP off until --config support is probed", () => {
+    // Unprobed binaries advertise neither per-run flags nor session MCP.
+    // Each presentation is enabled only by its own support probe.
+    expect(museDefaultCapabilities.mcpScope).toEqual({ terminal: "none", gui: "none" });
+  });
+
+  it("recognizes only the exact per-run --config setting flag in help", () => {
+    expect(museHelpSupportsConfigFlag(DOCUMENTED_MUSE_HELP)).toBe(false);
+    expect(
+      museHelpSupportsConfigFlag("  -c, --config <KEY=VALUE>\n          Set one setting"),
+    ).toBe(true);
+    expect(museHelpSupportsConfigFlag("  --config-dir <DIR>\n  --configure")).toBe(false);
   });
 });
 
@@ -433,6 +496,17 @@ describe("parseMuseHelpEfforts", () => {
 });
 
 describe("parseMuseHelpModelIds", () => {
+  it("discovers new model families and their contributor variants", () => {
+    expect(
+      parseMuseHelpModelIds(
+        "--model muse-wonder-1.1 or muse-wonder-full-1.1-contributor; muse-image-1.0",
+      ),
+    ).toEqual(["muse-wonder-1.1", "muse-wonder-full-1.1-contributor"]);
+    expect(museDefaultCapabilities.models.map((model) => model.id)).toContain("muse-wonder-1.0");
+    expect(museDefaultCapabilities.models.map((model) => model.id)).toContain(
+      "muse-wonder-full-1.0",
+    );
+  });
   it("collects muse-spark ids deduped in order of appearance", () => {
     expect(
       parseMuseHelpModelIds("try muse-spark-1.4 or muse-spark-1.4-contributor, not muse-spark-1.4"),
@@ -521,94 +595,6 @@ describe("buildMuseProbedCapabilities", () => {
       "minimal",
       "none",
     ]);
-  });
-});
-
-describe("buildMuseCatalogCapabilities", () => {
-  const base = [
-    { id: "muse-spark-1.3", label: "Muse Spark 1.3" },
-    { id: "muse-spark-1.1", label: "Muse Spark 1.1" },
-  ];
-  const efforts = ["low", "medium", "high"];
-
-  it("returns the accepted live subset and ignores only an empty catalog", () => {
-    expect(
-      buildMuseCatalogCapabilities(
-        base,
-        {
-          models: [
-            {
-              id: "muse-spark-1.3",
-              label: "muse-spark-1.3",
-              contextLimit: null,
-              isDefault: false,
-            },
-          ],
-          source: "providerCatalog",
-          providerId: "meta",
-          profileId: null,
-        },
-        efforts,
-      )?.models,
-    ).toEqual([{ id: "muse-spark-1.3", label: "Muse Spark 1.3" }]);
-    expect(
-      buildMuseCatalogCapabilities(
-        base,
-        { models: [], source: "bundledCatalog", providerId: "meta", profileId: "tbh" },
-        efforts,
-      ),
-    ).toBeNull();
-  });
-
-  it("uses catalog ids with catalog labels and limits on the given ladder", () => {
-    const probed = buildMuseCatalogCapabilities(
-      base,
-      {
-        models: [
-          {
-            id: "muse-spark-1.9",
-            label: "Muse Spark 1.9",
-            contextLimit: 2_000_000,
-            isDefault: true,
-          },
-          { id: "", label: "blank", contextLimit: null, isDefault: false },
-        ],
-        source: "providerCatalog",
-        providerId: "meta",
-        profileId: null,
-      },
-      efforts,
-    );
-    expect(probed?.models.map((m) => m.id)).toEqual(["muse-spark-1.9"]);
-    expect(probed?.modelEfforts["muse-spark-1.9"]).toEqual(efforts);
-    expect(probed?.modelContextSizes?.["muse-spark-1.9"]).toEqual(["2M"]);
-    expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toBeUndefined();
-  });
-
-  it("humanizes blank catalog labels and prefers catalog limits for known ids", () => {
-    const probed = buildMuseCatalogCapabilities(
-      base,
-      {
-        models: [
-          {
-            id: "muse-spark-1.3",
-            label: "Muse Spark 1.3",
-            contextLimit: 2_000_000,
-            isDefault: false,
-          },
-          { id: "muse-spark-1.9-contributor", label: "", contextLimit: null, isDefault: false },
-        ],
-        source: "providerCatalog",
-        providerId: "meta",
-        profileId: null,
-      },
-      efforts,
-    );
-    expect(probed?.models.at(-1)).toEqual({
-      id: "muse-spark-1.9-contributor",
-      label: "Muse Spark 1.9 Contributor",
-    });
-    expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["2M"]);
   });
 });
 

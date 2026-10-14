@@ -1,13 +1,18 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { getCachedWslHomeDirectory, resolveWslHomeDirectory } from "../agents/base";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { toWslUncPath } from "@/shared/wsl";
+import { getWslStagingService, type WslStagingService } from "./staging";
 
 /**
  * Shared "stage files into a WSL distro" primitive used by both the git
  * watcher (parcel native binding + watcher.cjs) and the CLI hook bridge
- * (bridge.mjs). Copies happen via `\\wsl.localhost\<distro>\...` UNC paths,
- * which Node's `fs` writes to natively — no `wsl.exe -- cp` round trip
- * required.
+ * (bridge.mjs), and by provider plugin installs and launch-helper staging.
+ *
+ * Every copy runs in the supervisor-owned staging worker over
+ * `\\wsl.localhost\<distro>\...` UNC paths. There is no synchronous entry
+ * point: callers await, so a stalled distro only ever stalls its own
+ * operation while the supervisor event loop (and every other session) keeps
+ * advancing.
  */
 
 export interface WslHomeDeployResult {
@@ -32,6 +37,12 @@ export interface WslBaseDeployResult {
   linuxBaseDir: string;
 }
 
+export interface WslDeployOptions {
+  /** Test seam: replace the shared staging service. */
+  staging?: WslStagingService;
+  signal?: AbortSignal;
+}
+
 /**
  * Resolve the directory containing WSL helper assets shipped with the app
  * (watcher.node, bridge.mjs, …). The main process exports
@@ -45,83 +56,71 @@ export function resolveWslHelpersDir(): string | undefined {
 /**
  * Idempotently stage a set of files into a WSL distro's
  * `<home>/.poracode/<relDest>`. Returns the resolved home + linuxBaseDir on
- * success, or `null` when:
- *   - `$HOME` cannot be resolved through the bootstrap WSL path
- *   - any source file is missing
- *   - the UNC copy errors out (permission, disk, distro restart, …)
+ * success, or `null` when `$HOME` cannot be resolved, a source file is
+ * missing, or the staging worker fails.
  *
- * Idempotent in the same sense as `prepare-wsl-helpers.mjs` is for the
- * Windows side — re-runs are cheap because identical size+mtime files are
- * skipped.
+ * Content-addressed freshness: a destination whose bytes already match the
+ * source is left alone, and every write lands through a temp file + rename so
+ * a reader never sees a partial helper.
  */
-export function deployFilesToWslHome(
+export async function deployFilesToWslHome(
   distro: string,
   files: readonly WslDeployFile[],
-): WslHomeDeployResult | null {
-  const home = getCachedWslHomeDirectory(distro) ?? resolveWslHomeDirectory(distro);
+  options?: WslDeployOptions,
+): Promise<WslHomeDeployResult | null> {
+  if (!filesArePresent(files)) return null;
+  const staging = options?.staging ?? getWslStagingService();
+  const home = await staging.resolveHome(distro, options);
   if (!home) return null;
-
-  for (const file of files) {
-    if (!existsSync(file.src)) return null;
-  }
-
-  const uncHome = `\\\\wsl.localhost\\${distro}${home.replaceAll("/", "\\")}`;
-  const linuxBaseDir = `${home}/.poracode`;
-
   try {
-    for (const file of files) {
-      const segments = file.relDest.split("/").filter((segment) => segment.length > 0);
-      const winDest = [uncHome, ".poracode", ...segments].join("\\");
-      mkdirSync(dirname(winDest), { recursive: true });
-      if (isFresh(file.src, winDest)) continue;
-      copyFileSync(file.src, winDest);
-    }
+    await staging.deployHome(distro, { home, files }, options);
   } catch {
     return null;
   }
-
-  return { home, linuxBaseDir };
+  return { home, linuxBaseDir: `${home}/.poracode` };
 }
 
-export function deployFilesToWslTempBase(
+/**
+ * Stage a file set under a content-addressed `/tmp/<baseName>-<hash>` base
+ * inside the distro. Identical content shares one directory (single-flight
+ * per distro), and two different file sets can never overwrite each other.
+ */
+export async function deployFilesToWslTempBase(
   distro: string,
   baseName: string,
   files: readonly WslDeployFile[],
-): WslBaseDeployResult | null {
-  for (const file of files) {
-    if (!existsSync(file.src)) return null;
-  }
-
-  const safeBaseName = baseName.replace(/[^A-Za-z0-9._-]/g, "-");
-  const linuxBaseDir = `/tmp/${safeBaseName}`;
-  const uncBase = `\\\\wsl.localhost\\${distro}\\tmp\\${safeBaseName}`;
-
+  options?: WslDeployOptions,
+): Promise<WslBaseDeployResult | null> {
+  if (!filesArePresent(files)) return null;
   try {
-    for (const file of files) {
-      const segments = file.relDest.split("/").filter((segment) => segment.length > 0);
-      const winDest = [uncBase, ...segments].join("\\");
-      mkdirSync(dirname(winDest), { recursive: true });
-      if (isFresh(file.src, winDest)) continue;
-      copyFileSync(file.src, winDest);
-    }
+    const staging = options?.staging ?? getWslStagingService();
+    return await staging.deployTemp(distro, { baseName, files }, options);
   } catch {
     return null;
   }
-
-  return { linuxBaseDir };
 }
 
-function isFresh(src: string, dest: string): boolean {
+/**
+ * Best-effort removal for a staged path, isolated in the staging worker.
+ * Cleanup is advisory: callers await it so the removal is visible to later
+ * staging work, but a failure never fails the operation that owns the
+ * resource.
+ */
+export async function removeWslStagedPath(
+  distro: string,
+  linuxPath: string,
+  options?: WslDeployOptions,
+): Promise<void> {
   try {
-    if (!existsSync(dest)) return false;
-    const sourceStat = statSync(src);
-    const destStat = statSync(dest);
-    if (sourceStat.size !== destStat.size) return false;
-    if (sourceStat.mtimeMs > destStat.mtimeMs) return false;
-    return true;
+    const staging = options?.staging ?? getWslStagingService();
+    await staging.remove(distro, toWslUncPath(distro, linuxPath), options);
   } catch {
-    return false;
+    // Cleanup is best effort.
   }
+}
+
+function filesArePresent(files: readonly WslDeployFile[]): boolean {
+  return files.every((file) => existsSync(file.src));
 }
 
 /**

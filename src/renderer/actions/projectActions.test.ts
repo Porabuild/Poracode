@@ -1,15 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitHubAccountRef, McpServer, Project, ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import {
+  visibleCatalogProjects,
+  confirmProjectRemoval,
+} from "@/renderer/state/projectRemovalIntents";
+import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
+import { finalizeProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import * as bridgeRuntime from "@/renderer/bridge";
 import {
+  saveProjectMcpServers,
   setProjectDisabled,
   relocateProject,
   updateProjectGhAccount,
   updateProjectIcon,
   updateProjectMcpServers,
   updateProjectScripts,
+  deleteProject,
 } from "./projectActions";
 
 const { runProjectCommand, toast } = vi.hoisted(() => ({
@@ -44,12 +54,110 @@ const project: Project = {
 
 describe("remote project actions", () => {
   beforeEach(() => {
+    confirmProjectRemoval(project.id);
+    forgetPendingCatalogEdit("project", project.id);
     runProjectCommand.mockReset().mockResolvedValue(undefined);
     toast.danger.mockReset();
     useAppStore.setState({ projects: [project], threads: [] });
   });
 
-  it("applies project settings only after the remote host accepts them", async () => {
+  it("hides a project immediately and restores its latest metadata and draft on refusal", async () => {
+    let reject!: (error: Error) => void;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise((_accept, refuse) => {
+          reject = refuse;
+        }),
+    );
+    const view = { kind: "draft" as const, projectId: project.id };
+    const draft = {
+      segments: [{ kind: "text" as const, content: "unsaved prompt" }],
+      attachments: [],
+    };
+    useAppStore.setState({ view, draftContents: { [project.id]: draft } });
+    deleteProject(project.id);
+    expect(useAppStore.getState().projects).toEqual([]);
+    expect(useAppStore.getState().view.kind).toBe("home");
+    expect(useAppStore.getState().draftContents[project.id]).toBe(draft);
+    expect(visibleCatalogProjects([{ ...project, name: "Updated on host" }])).toEqual([]);
+    reject(new Error("refused"));
+    await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("refused"));
+    expect(useAppStore.getState().projects[0]?.name).toBe("Updated on host");
+    expect(useAppStore.getState().view).toEqual(view);
+    expect(useAppStore.getState().draftContents[project.id]).toBe(draft);
+  });
+
+  it("releases hidden project drafts only after acceptance", async () => {
+    let accept!: () => void;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          accept = resolve;
+        }),
+    );
+    useAppStore.setState({ draftContents: { [project.id]: { segments: [], attachments: [] } } });
+    deleteProject(project.id);
+    expect(useAppStore.getState().draftContents[project.id]).toBeDefined();
+    accept();
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().draftContents[project.id]).toBeUndefined(),
+    );
+    expect(useAppStore.getState().projects).toEqual([]);
+    confirmProjectRemoval(project.id);
+  });
+
+  it("keeps authoritative absence final when a held local removal subsequently refuses", async () => {
+    let reject!: (error: Error) => void;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((_accept, refuse) => {
+          reject = refuse;
+        }),
+    );
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "test" },
+      prompt: "test",
+    });
+    const draft = { segments: [], attachments: [] };
+    useAppStore.setState({
+      view: { kind: "thread", panes: [thread.id] },
+      draftContents: { [project.id]: draft },
+      threadDraftContents: { [thread.id]: draft },
+    });
+    deleteProject(project.id);
+    finalizeProjectRemoval(project.id);
+    reject(new Error("lost reply"));
+    await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("lost reply"));
+    expect(useAppStore.getState().projects).toEqual([]);
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(useAppStore.getState().draftContents[project.id]).toBeUndefined();
+    expect(useAppStore.getState().threadDraftContents[thread.id]).toBeUndefined();
+    expect(useAppStore.getState().view.kind).toBe("home");
+  });
+
+  it("restores cleared optional metadata from the latest complete host row", async () => {
+    let reject!: (error: Error) => void;
+    useAppStore.setState({
+      projects: [{ ...project, disabled: true, icon: "old", mcpServers: [] }],
+    });
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((_accept, refuse) => {
+          reject = refuse;
+        }),
+    );
+    deleteProject(project.id);
+    visibleCatalogProjects([project]);
+    reject(new Error("refused"));
+    await vi.waitFor(() => expect(toast.danger).toHaveBeenCalled());
+    expect(useAppStore.getState().projects[0]?.disabled).toBeUndefined();
+    expect(useAppStore.getState().projects[0]?.icon).toBeUndefined();
+    expect(useAppStore.getState().projects[0]?.mcpServers).toEqual([]);
+  });
+
+  it("paints project settings while the remote host accepts them", async () => {
     let accept: (() => void) | undefined;
     runProjectCommand.mockImplementationOnce(
       () =>
@@ -61,7 +169,7 @@ describe("remote project actions", () => {
 
     updateProjectScripts(project.id, scripts);
 
-    expect(useAppStore.getState().projects[0]?.scripts).toEqual(initialScripts);
+    expect(useAppStore.getState().projects[0]?.scripts).toEqual(scripts);
     accept?.();
     await vi.waitFor(() => expect(useAppStore.getState().projects[0]?.scripts).toEqual(scripts));
     expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
@@ -145,6 +253,75 @@ describe("remote project actions", () => {
     });
   });
 
+  it("saveProjectMcpServers resolves only after the host confirms the change", async () => {
+    let accept: (() => void) | undefined;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const mcpServers: McpServer[] = [
+      {
+        id: "memory-id",
+        name: "memory-server",
+        description: "Memory tools",
+        enabled: true,
+        timeoutMs: 30_000,
+        transport: { type: "stdio", command: "node", args: ["server.js"], env: {} },
+      },
+    ];
+
+    let settled = false;
+    const request = saveProjectMcpServers(project.id, mcpServers).then(() => {
+      settled = true;
+    });
+    await vi.waitFor(() => expect(runProjectCommand).toHaveBeenCalledOnce());
+
+    // The seam is real: while the host command is in flight the save has not
+    // resolved and the row is untouched — a sequenced follow-up write (the
+    // source half of a move) can safely wait on this.
+    expect(settled).toBe(false);
+    expect(useAppStore.getState().projects[0]?.mcpServers).toBeUndefined();
+
+    accept?.();
+    await request;
+    expect(settled).toBe(true);
+    expect(useAppStore.getState().projects[0]?.mcpServers).toEqual(mcpServers);
+  });
+
+  it("refuses a save when the destination project disappeared instead of confirming a no-op", async () => {
+    useAppStore.setState({ projects: [] });
+    await expect(saveProjectMcpServers(project.id, [])).rejects.toThrow("Project not found.");
+    expect(runProjectCommand).not.toHaveBeenCalled();
+  });
+
+  it("saveProjectMcpServers rejects when the host refuses and leaves the row untouched", async () => {
+    runProjectCommand.mockRejectedValueOnce(
+      new Error("mcp_redaction_without_existing_secret: The MCP server change is invalid."),
+    );
+
+    await expect(saveProjectMcpServers(project.id, [])).rejects.toThrow(
+      "mcp_redaction_without_existing_secret",
+    );
+    expect(useAppStore.getState().projects[0]?.mcpServers).toBeUndefined();
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { mcpServers: null },
+    });
+  });
+
+  it("keeps the fire-and-forget MCP save fully handled: refusal toasts once and keeps the row", async () => {
+    runProjectCommand.mockRejectedValueOnce(new Error("remote server offline"));
+
+    updateProjectMcpServers(project.id, []);
+
+    await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("remote server offline"));
+    expect(toast.danger).toHaveBeenCalledOnce();
+    expect(useAppStore.getState().projects[0]?.mcpServers).toBeUndefined();
+  });
+
   it("persists the GitHub account on the remote host before applying it locally", async () => {
     let accept: (() => void) | undefined;
     runProjectCommand.mockImplementationOnce(
@@ -221,7 +398,50 @@ describe("remote project actions", () => {
     expect(useAppStore.getState().projects[0]?.disabled).not.toBe(true);
   });
 
-  it("applies a project icon only after the remote host accepts it", async () => {
+  it("preserves dirty editor contents and restores navigation when disabling is refused", async () => {
+    runProjectCommand.mockRejectedValueOnce(new Error("refused"));
+    const context = {
+      projectId: project.id,
+      projectName: project.name,
+      projectLocation: project.location,
+      rootLabel: project.name,
+    };
+    const buffer = {
+      path: "a.txt",
+      status: "ready" as const,
+      modifiedAtMs: 1,
+      content: "unsaved",
+      savedContent: "saved",
+      lineEnding: "lf" as const,
+      hasBom: false,
+      isDirty: true,
+      isLoading: false,
+    };
+    useFileEditorStore.setState({
+      rootContext: context,
+      buffers: { "a.txt": buffer },
+      tabs: ["a.txt"],
+      activePath: "a.txt",
+    });
+    usePanelStore.setState({
+      filesPanelContext: {
+        projectId: project.id,
+        projectName: project.name,
+        rootLabel: project.name,
+      },
+    });
+    const view = { kind: "draft" as const, projectId: project.id };
+    useAppStore.setState({ view });
+    setProjectDisabled(project.id, true);
+    await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("refused"));
+    expect(useFileEditorStore.getState().buffers["a.txt"]).toBe(buffer);
+    expect(useFileEditorStore.getState().rootContext).toBe(context);
+    expect(useAppStore.getState().view).toEqual(view);
+    useFileEditorStore.getState().clearSession();
+    usePanelStore.setState({ filesPanelContext: null });
+  });
+
+  it("paints a project icon while the remote host accepts it", async () => {
     let accept: (() => void) | undefined;
     runProjectCommand.mockImplementationOnce(
       () =>
@@ -232,7 +452,7 @@ describe("remote project actions", () => {
 
     updateProjectIcon(project.id, "lucide:rocket");
 
-    expect(useAppStore.getState().projects[0]?.icon).toBeUndefined();
+    expect(useAppStore.getState().projects[0]?.icon).toBe("lucide:rocket");
     accept?.();
     await vi.waitFor(() => expect(useAppStore.getState().projects[0]?.icon).toBe("lucide:rocket"));
     expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
@@ -280,6 +500,24 @@ describe("local project icon action", () => {
     expect(useAppStore.getState().projects[0]?.icon).toBeUndefined();
     expect(runProjectCommand).not.toHaveBeenCalled();
   });
+
+  it("saves local MCP servers immediately and resolves without a host command", async () => {
+    const mcpServers: McpServer[] = [
+      {
+        id: "local-memory",
+        name: "local-memory",
+        description: "",
+        enabled: true,
+        timeoutMs: 30_000,
+        transport: { type: "stdio", command: "node", args: ["server.js"], env: {} },
+      },
+    ];
+
+    await expect(saveProjectMcpServers(localProject.id, mcpServers)).resolves.toBeUndefined();
+    expect(useAppStore.getState().projects[0]?.mcpServers).toEqual(mcpServers);
+    expect(runProjectCommand).not.toHaveBeenCalled();
+  });
+
   it("forgets a hidden terminal's scope when its project is disabled", () => {
     resetDevTerminalStore();
     useDevTerminalStore.getState().openPanel(localProject.id);

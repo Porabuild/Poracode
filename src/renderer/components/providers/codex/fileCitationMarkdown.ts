@@ -42,7 +42,7 @@ const STRUCTURAL_MARKDOWN_TYPES = new Set([
  * Codex artifact skills emit file directives in assistant text, including saved
  * transcripts. Normalize them at the provider rendering boundary, before generic
  * path autolinking can split Windows paths or guess an artifact is a folder.
- * See .agents/docs/codex-file-citations.md for provenance and supported syntax.
+ * See docs/codex-file-citations.md for provenance and supported syntax.
  * No persisted text is changed. Incomplete/malformed directives stay literal.
  */
 export function formatFileCitationMarkdown(text: string): string {

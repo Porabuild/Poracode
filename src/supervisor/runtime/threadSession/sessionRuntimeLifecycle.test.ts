@@ -5,6 +5,7 @@ import type {
   AgentAdapter,
   StructuredSessionHandle,
   StructuredSessionListener,
+  StructuredSessionUpdate,
 } from "../../agents/base";
 import type { SessionRuntime } from "../sessionTypes";
 import {
@@ -295,6 +296,19 @@ describe("SessionRuntimeLifecycle", () => {
     expect(harness.mocks.pollSessionRefDiscovery).not.toHaveBeenCalled();
   });
 
+  it("publishes a resume-scope binding added to the same native session reference", () => {
+    const reference = { providerSessionId: "session-1", discoveredAt: "2026-10-07T10:00:00Z" };
+    const harness = createHarness({
+      session: { status: "idle", attention: "none", sessionRef: reference },
+    });
+    harness.lifecycle.attach(harness.session);
+    harness.mocks.emitState.mockClear();
+    const bound = { ...reference, executionIdentity: "opaque-account-scope" };
+    harness.structuredListener!.onUpdate({ status: "idle", attention: "none", sessionRef: bound });
+    expect(harness.session.sessionRef).toEqual(bound);
+    expect(harness.mocks.emitState).toHaveBeenCalledWith(harness.session);
+  });
+
   it("applies metadata but suppresses an initial empty idle update", () => {
     const harness = createHarness({
       session: {
@@ -442,6 +456,9 @@ describe("SessionRuntimeLifecycle", () => {
     expect(harness.mocks.append).not.toHaveBeenCalled();
     expect(harness.mocks.failStructuredSession).not.toHaveBeenCalled();
     expect(harness.mocks.kill).not.toHaveBeenCalled();
+    // A stale generation's close never detaches the handle of the session it
+    // no longer owns the thread slot for.
+    expect(harness.session.structuredSession).toBe(harness.structuredSession);
 
     harness.sessions.set(harness.session.threadId, harness.session);
     harness.session.ignoreExit = true;
@@ -463,6 +480,7 @@ describe("SessionRuntimeLifecycle", () => {
       );
 
       harness.structuredListener?.onClose();
+      expect(harness.session.structuredSession).toBeUndefined();
       expect(harness.mocks.updateState).toHaveBeenCalledWith(harness.session, "inactive", "none");
       expect(harness.mocks.emit).toHaveBeenCalledWith({
         type: "thread-exited",
@@ -494,6 +512,10 @@ describe("SessionRuntimeLifecycle", () => {
       harness.structuredListener?.onClose();
 
       expect(harness.mocks.failStructuredSession).toHaveBeenCalledTimes(1);
+      // The dead handle is detached so the next submit relaunches/resumes
+      // instead of writing into the closed transport.
+      expect(harness.session.structuredSession).toBeUndefined();
+      expect(harness.session.structuredRetired).toBe(true);
       expect(harness.mocks.updateState).not.toHaveBeenCalledWith(
         harness.session,
         "inactive",
@@ -574,5 +596,127 @@ describe("SessionRuntimeLifecycle", () => {
     expect(ignored.mocks.resolveExit).toHaveBeenCalledTimes(1);
     expect(ignored.mocks.updateState).not.toHaveBeenCalled();
     expect(ignored.mocks.emit).not.toHaveBeenCalled();
+  });
+});
+
+describe("SessionRuntimeLifecycle / session config option inventory", () => {
+  const inventory = [
+    {
+      type: "select",
+      id: "thought_level",
+      category: "thought_level",
+      role: "effort",
+      currentValue: "low",
+      values: [{ value: "low", name: "Low" }],
+      groups: [],
+    },
+  ];
+
+  function idleUpdate(extra: Record<string, unknown> = {}): StructuredSessionUpdate {
+    return { status: "idle", attention: "none", ...extra } as unknown as StructuredSessionUpdate;
+  }
+
+  it("seeds an explicit null inventory when attaching a new incarnation", () => {
+    const h = createHarness();
+    h.lifecycle.attach(h.session);
+    expect(h.session.sessionConfigOptions).toBeNull();
+    expect(h.mocks.emitState).toHaveBeenCalled();
+  });
+
+  it("stores a pushed inventory and emits state for an inventory-only update", () => {
+    const h = createHarness();
+    h.lifecycle.attach(h.session);
+    h.session.status = "idle";
+    h.session.attention = "none";
+    h.mocks.emitState.mockClear();
+
+    h.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: inventory }));
+
+    expect(h.session.sessionConfigOptions).toEqual(inventory);
+    expect(h.mocks.emitState).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an update without the field from re-emitting or touching the inventory", () => {
+    const h = createHarness();
+    h.lifecycle.attach(h.session);
+    h.session.status = "idle";
+    h.session.attention = "none";
+    h.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: inventory }));
+    expect(h.session.sessionConfigOptions).toEqual(inventory);
+    h.mocks.emitState.mockClear();
+
+    h.structuredListener!.onUpdate(idleUpdate());
+
+    expect(h.session.sessionConfigOptions).toEqual(inventory);
+    expect(h.mocks.emitState).not.toHaveBeenCalled();
+  });
+
+  it("dedupes a replayed identical inventory into one emission", () => {
+    const h = createHarness();
+    h.lifecycle.attach(h.session);
+    h.session.status = "idle";
+    h.session.attention = "none";
+    h.mocks.emitState.mockClear();
+
+    h.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: inventory }));
+    h.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: inventory }));
+
+    expect(h.mocks.emitState).toHaveBeenCalledTimes(1);
+    expect(h.session.sessionConfigOptions).toEqual(inventory);
+  });
+
+  it("stores and emits an explicit null retirement", () => {
+    const h = createHarness();
+    h.lifecycle.attach(h.session);
+    h.session.status = "idle";
+    h.session.attention = "none";
+    h.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: inventory }));
+    h.mocks.emitState.mockClear();
+
+    h.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: null }));
+
+    expect(h.session.sessionConfigOptions).toBeNull();
+    expect(h.mocks.emitState).toHaveBeenCalledTimes(1);
+  });
+
+  it("never applies a retired session's inventory to its successor", () => {
+    const predecessor = createHarness();
+    predecessor.lifecycle.attach(predecessor.session);
+    const successor = createHarness({ session: { instanceId: "instance-2" } });
+    successor.lifecycle.attach(successor.session);
+    // The successor replaces the predecessor in the SAME runtime map the
+    // owner fence consults — the manager's replacement shape.
+    predecessor.sessions.set(successor.session.threadId, successor.session);
+    expect(successor.session.instanceId).not.toBe(predecessor.session.instanceId);
+
+    predecessor.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: inventory }));
+
+    expect(successor.session.sessionConfigOptions).toBeNull();
+    expect(predecessor.session.sessionConfigOptions).toBeNull();
+  });
+
+  it("retires the inventory when the structured transport closes", () => {
+    const h = createHarness({ withPty: false });
+    h.lifecycle.attach(h.session);
+    h.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: inventory }));
+    expect(h.session.sessionConfigOptions).toEqual(inventory);
+
+    h.structuredListener!.onClose();
+
+    expect(h.session.sessionConfigOptions).toBeNull();
+  });
+
+  it("emits the retirement when the transport closes while already inactive", () => {
+    const h = createHarness({ withPty: false });
+    h.lifecycle.attach(h.session);
+    h.session.status = "inactive";
+    h.session.attention = "none";
+    h.structuredListener!.onUpdate(idleUpdate({ sessionConfigOptions: inventory }));
+    h.mocks.emitState.mockClear();
+
+    h.structuredListener!.onClose();
+
+    expect(h.session.sessionConfigOptions).toBeNull();
+    expect(h.mocks.emitState).toHaveBeenCalledTimes(1);
   });
 });

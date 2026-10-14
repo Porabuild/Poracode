@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Button, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
 import { House } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import type {
   AgentStatus,
   Project,
@@ -15,23 +16,33 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { HOME_PROJECT_ID, isHomeProject } from "@/shared/homeScope";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
+import { resolvePreferredEffort } from "@/renderer/utils/effortSelection";
 import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
 } from "@/renderer/components/thread/buildModelPickerControls";
 import { ThreadComposer } from "@/renderer/components/thread/ThreadComposer";
+import { ScheduleFormRow as FieldRow, SCHEDULE_CONTROL_WIDTH } from "./parts/ScheduleFormRow";
+import { ScheduleExecutionSection } from "./parts/ScheduleExecutionSection";
 import {
+  DEVICE_LOCAL_TIME_ZONE,
+  deviceTimeZone,
+  type IntervalUnit,
+  isHeartbeatTargetThread,
   type RepeatMode,
   type ScheduleDraft,
   scheduleDraftIsValid,
+  scheduleDraftAutomationIssue,
+  scheduleDraftPreview,
   weekdayShortNames,
 } from "./scheduleDraft";
 
-// Scheduled tasks always run as one-shot GUI (structured runtime) jobs, so the
-// model picker mirrors the Chat presentation surface.
+// Schedule execution uses the GUI structured runtime, so the model picker
+// mirrors the Chat presentation surface.
 const PRESENTATION_MODE: ThreadPresentationMode = "gui";
 
 interface ScheduleEditorProps {
+  remoteMachineId?: string;
   agents: AgentStatus[];
   busy: boolean;
   draft: ScheduleDraft | null;
@@ -39,8 +50,6 @@ interface ScheduleEditorProps {
   onClose: () => void;
   onSave: () => void;
 }
-
-const CONTROL_WIDTH = "w-[280px] max-w-[60%] shrink-0";
 
 function projectLocationLabel(location: ProjectLocation): string {
   return location.kind === "wsl" ? `${location.distro}: ${location.linuxPath}` : location.path;
@@ -61,23 +70,37 @@ function EditorSection(props: { title: ReactNode; children: ReactNode }) {
   );
 }
 
-/** Label-left / control-right row mirroring the settings `SettingRow` layout. */
-function FieldRow(props: { label: ReactNode; description?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="flex min-h-11 items-center justify-between gap-4 py-1.5">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{props.label}</p>
-        {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
-      </div>
-      <div className="flex shrink-0 justify-end">{props.children}</div>
-    </div>
-  );
-}
-
 export function ScheduleEditor(props: ScheduleEditorProps) {
   const { t, i18n } = useLingui();
+  const compact = useCompactLayout();
+  const controlWidth = compact ? "w-full" : SCHEDULE_CONTROL_WIDTH;
   const projects = useAppStore((state) => state.projects);
+  const allThreads = useAppStore((state) => state.threads);
+  const projectIds = new Map(
+    projects.map((project) => [project.id, project.remoteId ?? project.id]),
+  );
+  const threads = allThreads
+    .filter((thread) =>
+      props.remoteMachineId
+        ? thread.remoteServerId === props.remoteMachineId
+        : !thread.remoteServerId,
+    )
+    .map((thread) =>
+      props.remoteMachineId
+        ? {
+            ...thread,
+            id: thread.remoteId ?? thread.id,
+            projectId: projectIds.get(thread.projectId) ?? thread.projectId,
+          }
+        : thread,
+    );
   const draft = props.draft;
+  const heartbeatTargetIsValid =
+    draft?.automationMode !== "heartbeat" ||
+    threads.some(
+      (thread) =>
+        thread.id === draft.heartbeatTargetThreadId && isHeartbeatTargetThread(thread, draft),
+    );
   const projectOptions = [
     {
       id: HOME_PROJECT_ID,
@@ -85,9 +108,15 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
       icon: <House className="size-4 shrink-0 text-muted" />,
     },
     ...projects
-      .filter((project) => !isHomeProject(project) && !project.remoteServerId)
+      .filter(
+        (project) =>
+          !isHomeProject(project) &&
+          (props.remoteMachineId
+            ? project.remoteServerId === props.remoteMachineId
+            : !project.remoteServerId),
+      )
       .map((project) => ({
-        id: project.id,
+        id: props.remoteMachineId ? (project.remoteId ?? project.id) : project.id,
         label: project.name,
         icon: <ScheduleProjectIcon project={project} />,
         detail: projectLocationLabel(project.location),
@@ -107,6 +136,27 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
   const selectedAgent = draft
     ? props.agents.find((agent) => agent.kind === draft.agentKind)
     : undefined;
+  const automationIssue = draft ? scheduleDraftAutomationIssue(draft) : null;
+  const completionIsAvailable =
+    draft?.automationMode !== "heartbeat" ||
+    draft?.completionKind !== "ai-evaluated" ||
+    selectedAgent?.capabilities.supportsTextOnlyOneShot === true;
+  const automationError =
+    automationIssue === "time-limit"
+      ? t`Use a time limit between 1 and 1440 minutes.`
+      : automationIssue === "iterations"
+        ? t`Use a run limit between 1 and 100, or leave it empty.`
+        : automationIssue === "target" || !heartbeatTargetIsValid
+          ? t`Choose an available conversation in this project.`
+          : automationIssue === "retry-ceiling"
+            ? t`Maximum retry delay must be at least the initial delay.`
+            : automationIssue === "retry"
+              ? t`Use 2 to 6 attempts and delays between 1 and 3600 seconds.`
+              : automationIssue === "completion"
+                ? t`Enter a stop condition and a confidence between 0% and 100%.`
+                : !completionIsAvailable
+                  ? t`This agent cannot run completion checks. Choose another agent or remove the stop condition.`
+                  : "";
   const weekdayNames = weekdayShortNames(i18n.locale);
   const timeFormatter = new Intl.DateTimeFormat(i18n.locale, {
     hour: "numeric",
@@ -122,6 +172,28 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
     id: `00:${String(minute).padStart(2, "0")}`,
     label: minute === 0 ? t`On the hour` : t`${minute} minutes past the hour`,
   }));
+  const timeZoneOptions = [
+    ...new Set([
+      draft?.timeZone ?? deviceTimeZone(),
+      deviceTimeZone(),
+      "UTC",
+      ...(typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : []),
+    ]),
+  ]
+    .filter((timeZone) => draft?.repeatMode !== "cron" || timeZone !== DEVICE_LOCAL_TIME_ZONE)
+    .map((timeZone) => ({
+      id: timeZone,
+      label:
+        timeZone === DEVICE_LOCAL_TIME_ZONE ? t`Desktop local time` : timeZone.replaceAll("_", " "),
+    }));
+  const preview = draft ? scheduleDraftPreview(draft) : null;
+  const nextRunAt = preview?.nextRunAt ?? null;
+  const nextRunIsDesktopCalculated = preview?.nextRunIsDesktopCalculated ?? false;
+  const recurrenceIsValid = preview?.recurrenceIsValid ?? false;
+  const dateTimeFormatter = new Intl.DateTimeFormat(i18n.locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 
   function set(next: Partial<ScheduleDraft>) {
     if (draft) props.onChange({ ...draft, ...next });
@@ -158,17 +230,14 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
             };
             const caps = presented.capabilities;
             const model = nextSelection.model;
-            const efforts = caps.modelEfforts[model] ?? caps.efforts ?? [];
-            const keepEffort = efforts.includes(draft.effort);
-            const defaultEffort =
-              caps.defaultEffort && efforts.includes(caps.defaultEffort)
-                ? caps.defaultEffort
-                : (efforts[0] ?? "");
             set({
               agentKind: nextSelection.agentKind,
               model,
-              effort: keepEffort ? draft.effort : defaultEffort,
+              effort: resolvePreferredEffort(caps, model, draft.effort),
               fast: resolveFastValue(presented, model, draft.fast),
+              ...(nextSelection.agentKind !== draft.agentKind
+                ? { heartbeatTargetThreadId: "" }
+                : {}),
             });
           },
           onConfigPatch: (patch) => {
@@ -227,12 +296,16 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                 >
                   <Select
                     aria-label={t`Project`}
-                    className={CONTROL_WIDTH}
+                    className={controlWidth}
                     options={projectSelectOptions}
                     value={draft.projectId ?? HOME_PROJECT_ID}
-                    onChange={(value) =>
-                      set({ projectId: value === HOME_PROJECT_ID ? null : value })
-                    }
+                    onChange={(value) => {
+                      const projectId = value === HOME_PROJECT_ID ? null : value;
+                      set({
+                        projectId,
+                        heartbeatTargetThreadId: "",
+                      });
+                    }}
                   />
                 </FieldRow>
 
@@ -260,13 +333,15 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                   <FieldRow label={<Trans>Repeat</Trans>}>
                     <Select
                       aria-label={t`Repeat`}
-                      className={CONTROL_WIDTH}
+                      className={controlWidth}
                       options={[
                         { id: "hourly", label: t`Hourly` },
+                        { id: "interval", label: t`Interval` },
                         { id: "daily", label: t`Daily` },
                         { id: "weekdays", label: t`Weekdays` },
                         { id: "weekly", label: t`Weekly` },
                         { id: "custom", label: t`Custom` },
+                        { id: "cron", label: t`Cron` },
                         { id: "once", label: t`One time` },
                       ]}
                       value={draft.repeatMode}
@@ -306,12 +381,53 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                     <FieldRow label={<Trans>Run at</Trans>}>
                       <TextField
                         aria-label={t`Run at`}
-                        className={CONTROL_WIDTH}
+                        className={controlWidth}
                         type="datetime-local"
                         value={draft.runAt}
                         onChange={(runAt) => set({ runAt })}
                       >
                         <Input />
+                      </TextField>
+                    </FieldRow>
+                  ) : draft.repeatMode === "interval" ? (
+                    <FieldRow label={<Trans>Every</Trans>}>
+                      <div className={`${controlWidth} flex items-center gap-2`}>
+                        <TextField
+                          aria-label={t`Interval amount`}
+                          className="min-w-0 flex-1"
+                          type="number"
+                          value={draft.intervalEvery}
+                          onChange={(intervalEvery) => set({ intervalEvery })}
+                        >
+                          <Input min="1" max="999" />
+                        </TextField>
+                        <Select
+                          aria-label={t`Interval unit`}
+                          className="w-32 shrink-0"
+                          options={[
+                            { id: "minutes", label: t`Minutes` },
+                            { id: "hours", label: t`Hours` },
+                            { id: "days", label: t`Days` },
+                          ]}
+                          value={draft.intervalUnit}
+                          onChange={(intervalUnit) =>
+                            set({ intervalUnit: intervalUnit as IntervalUnit })
+                          }
+                        />
+                      </div>
+                    </FieldRow>
+                  ) : draft.repeatMode === "cron" ? (
+                    <FieldRow
+                      label={<Trans>Cron expression</Trans>}
+                      description={<Trans>Minute, hour, day of month, month, and weekday.</Trans>}
+                    >
+                      <TextField
+                        aria-label={t`Cron expression`}
+                        className={controlWidth}
+                        value={draft.cronExpression}
+                        onChange={(cronExpression) => set({ cronExpression })}
+                      >
+                        <Input className="font-mono" maxLength={120} placeholder={t`0 9 * * 1-5`} />
                       </TextField>
                     </FieldRow>
                   ) : (
@@ -322,14 +438,52 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                     >
                       <Select
                         aria-label={draft.repeatMode === "hourly" ? t`Minute` : t`Time`}
-                        className={CONTROL_WIDTH}
+                        className={controlWidth}
                         options={draft.repeatMode === "hourly" ? hourlyOptions : timeOptions}
                         value={draft.time}
                         onChange={(time) => set({ time })}
                       />
                     </FieldRow>
                   )}
+                  {draft.repeatMode === "daily" ||
+                  draft.repeatMode === "weekdays" ||
+                  draft.repeatMode === "weekly" ||
+                  draft.repeatMode === "custom" ||
+                  draft.repeatMode === "cron" ? (
+                    <FieldRow label={<Trans>Time zone</Trans>}>
+                      <Select
+                        aria-label={t`Time zone`}
+                        className={controlWidth}
+                        popoverProps={{ className: SCHEDULE_CONTROL_WIDTH }}
+                        options={timeZoneOptions}
+                        value={
+                          draft.repeatMode === "cron" && draft.timeZone === DEVICE_LOCAL_TIME_ZONE
+                            ? deviceTimeZone()
+                            : draft.timeZone
+                        }
+                        onChange={(timeZone) => set({ timeZone })}
+                      />
+                    </FieldRow>
+                  ) : null}
+                  <FieldRow label={<Trans>Next run</Trans>}>
+                    <p
+                      className={`max-w-[280px] text-right text-xs ${recurrenceIsValid ? "text-muted" : "text-danger"}`}
+                    >
+                      {nextRunAt
+                        ? dateTimeFormatter.format(new Date(nextRunAt))
+                        : nextRunIsDesktopCalculated
+                          ? t`Calculated on desktop after saving`
+                          : recurrenceIsValid
+                            ? t`No upcoming run`
+                            : t`Enter a valid schedule`}
+                    </p>
+                  </FieldRow>
                 </EditorSection>
+
+                <ScheduleExecutionSection draft={draft} threads={threads} onChange={set} />
+                <p aria-live="polite" className="min-h-5 text-xs text-danger">
+                  {automationError}
+                </p>
               </Modal.Body>
               <Modal.Footer>
                 <Button variant="ghost" isDisabled={props.busy} onPress={props.onClose}>
@@ -339,7 +493,11 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                   variant="tertiary"
                   className="text-foreground"
                   isPending={props.busy}
-                  isDisabled={!scheduleDraftIsValid(draft)}
+                  isDisabled={
+                    !scheduleDraftIsValid(draft, recurrenceIsValid) ||
+                    !heartbeatTargetIsValid ||
+                    !completionIsAvailable
+                  }
                   onPress={props.onSave}
                 >
                   {draft.id ? <Trans>Save changes</Trans> : <Trans>Create schedule</Trans>}

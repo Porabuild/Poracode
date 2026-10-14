@@ -226,7 +226,7 @@ describe("TerminalSettings", () => {
     expect(screen.queryByText("Terminal panel shell")).not.toBeInTheDocument();
     expect(screen.queryByText("Internal commands and agents")).not.toBeInTheDocument();
     expect(screen.queryByText("Terminal shell arguments")).not.toBeInTheDocument();
-    expect(screen.getByText("Collapse terminal composer")).toBeInTheDocument();
+    expect(screen.queryByText("Collapse terminal composer")).not.toBeInTheDocument();
     expect(screen.getByText("Agent terminal font size")).toBeInTheDocument();
     expect(screen.getByText("Terminal panel font size")).toBeInTheDocument();
     expect(screen.getByText("Terminal scroll speed")).toBeInTheDocument();

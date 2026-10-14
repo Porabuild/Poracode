@@ -1,54 +1,33 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, AgentStatusesResponse, Project } from "@/shared/contracts";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AgentStatus, Project } from "@/shared/contracts";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
   wslAgentStatuses: [] as AgentStatus[],
+  inFirstLaunchDiscovery: false,
 };
 
-const resetDiscoveredAgentsMock = vi.fn<() => void>();
-const beginFirstLaunchDiscoveryMock = vi.fn<(scope?: unknown) => void>();
-const hydrateFromCacheMock =
-  vi.fn<(cached: { windows: AgentStatus[]; wsl: AgentStatus[] }) => void>();
-const emptyStatusesResponse: AgentStatusesResponse = {
-  windows: [],
-  wsl: [],
-  fromCache: false,
-};
-const refreshAgentStatusesMock = vi.fn<(wslDistros?: string[]) => Promise<AgentStatusesResponse>>();
+const refreshAgentDiscoveryMock = vi.fn<(distros: string[]) => void>();
+vi.mock("@/renderer/actions/agentDiscoveryActions", () => ({
+  refreshAgentDiscovery: (distros: string[]) => refreshAgentDiscoveryMock(distros),
+}));
 
 const appState = {
   projects: [] as Project[],
+  openSchedules: vi.fn<() => void>(),
 };
 
 const bridgeState = {
   remote: false,
 };
 
-vi.mock("@/renderer/state/agentStatusesStore", () => {
-  const useAgentStatusesStore = (
-    selector: (state: {
-      agentStatuses: AgentStatus[];
-      wslAgentStatuses: AgentStatus[];
-      beginFirstLaunchDiscovery: (scope?: unknown) => void;
-      resetDiscoveredAgents: () => void;
-    }) => unknown,
-  ) =>
-    selector({
-      ...statusesState,
-      beginFirstLaunchDiscovery: beginFirstLaunchDiscoveryMock,
-      resetDiscoveredAgents: resetDiscoveredAgentsMock,
-    });
-  useAgentStatusesStore.getState = () => ({
-    beginFirstLaunchDiscovery: beginFirstLaunchDiscoveryMock,
-    resetDiscoveredAgents: resetDiscoveredAgentsMock,
-    hydrateFromCache: hydrateFromCacheMock,
-  });
-  return { useAgentStatusesStore };
-});
+vi.mock("@/renderer/state/agentStatusesStore", () => ({
+  useAgentStatusesStore: (selector: (state: typeof statusesState) => unknown) =>
+    selector(statusesState),
+}));
 
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: (selector: (state: typeof appState) => unknown) => selector(appState),
@@ -60,10 +39,21 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 }));
 
 vi.mock("@/renderer/components/layout/PageLayout", () => ({
-  PageLayout: (props: { sidebar: ReactNode; content: ReactNode }) => (
-    <div>
+  PageLayout: (props: {
+    sidebar: ReactNode;
+    content: ReactNode;
+    compactHome?: boolean;
+    compactTitle?: string;
+    onCompactBack?: () => void;
+  }) => (
+    <div data-compact-home={props.compactHome || undefined} data-compact-title={props.compactTitle}>
       <aside>{props.sidebar}</aside>
       <main>{props.content}</main>
+      {props.onCompactBack ? (
+        <button type="button" onClick={props.onCompactBack}>
+          Mobile back
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -105,29 +95,16 @@ vi.mock("@/renderer/bridge", () => ({
   isRemoteSession: () => bridgeState.remote,
   isWindows: () => false,
   readBridge: () => ({
-    refreshAgentStatuses: refreshAgentStatusesMock,
+    openExternal: vi.fn<() => Promise<void>>(async () => undefined),
   }),
 }));
 
-vi.mock("@/renderer/components/thread/AgentDiscoveryScreen", () => ({
-  AgentDiscoveryScreen: (props: { onCancel?: () => void }) => (
-    <div>
-      Discovering coding agents…
-      {props.onCancel ? (
-        <button type="button" onClick={props.onCancel}>
-          Cancel
-        </button>
-      ) : null}
-    </div>
-  ),
-}));
-
 vi.mock("./parts/GeneralSettings", () => ({
-  GeneralSettings: () => <div>General</div>,
+  GeneralSettings: () => <div data-settings-anchor="general.language">General</div>,
 }));
 
 vi.mock("./parts/AppearanceSettings", () => ({
-  AppearanceSettings: () => <div>Appearance</div>,
+  AppearanceSettings: () => <div data-settings-anchor="appearance.mode">Appearance</div>,
 }));
 
 vi.mock("./parts/TerminalSettings", () => ({
@@ -188,6 +165,8 @@ vi.mock("./parts/SingleAgentSettings", () => ({
 }));
 
 import { SettingsOverlay, settingsSectionProductProperties } from "./SettingsOverlay";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 const baseCapabilities = {
   models: [],
@@ -215,16 +194,257 @@ function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {})
 }
 
 describe("SettingsOverlay", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+  });
+
   beforeEach(() => {
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
     appState.projects = [];
+    appState.openSchedules.mockReset();
     bridgeState.remote = false;
-    beginFirstLaunchDiscoveryMock.mockReset();
-    resetDiscoveredAgentsMock.mockReset();
-    hydrateFromCacheMock.mockReset();
-    refreshAgentStatusesMock.mockReset();
-    refreshAgentStatusesMock.mockResolvedValue(emptyStatusesResponse);
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    refreshAgentDiscoveryMock.mockReset();
+    usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
+  });
+
+  it("scrolls to an initially requested setting anchor and consumes the request", async () => {
+    const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions | boolean) => void>();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    usePanelStore.getState().openSettingsSection("general", "general.language");
+    render(<SettingsOverlay onClose={() => undefined} />);
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" }),
+    );
+    expect(within(screen.getByRole("main")).getByText("General")).toHaveClass(
+      "poracode-setting-highlight",
+    );
+    expect(usePanelStore.getState().settingsSection).toBeNull();
+    expect(usePanelStore.getState().settingsAnchor).toBeNull();
+  });
+
+  it("repeats a same-section setting request while the overlay is open", async () => {
+    const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions | boolean) => void>();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    render(<SettingsOverlay onClose={() => undefined} />);
+    act(() => usePanelStore.getState().openSettingsSection("appearance", "appearance.mode"));
+    await waitFor(() =>
+      expect(within(screen.getByRole("main")).getByText("Appearance")).toHaveClass(
+        "poracode-setting-highlight",
+      ),
+    );
+    scrollIntoView.mockClear();
+    act(() => usePanelStore.getState().openSettingsSection("appearance", "appearance.mode"));
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" }),
+    );
+  });
+  it("ports the nightly mobile settings index and keeps its drill-down local", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    const { container } = render(<SettingsOverlay onClose={() => undefined} />);
+    const layout = container.querySelector("[data-compact-title]");
+    const main = screen.getByRole("main");
+    expect(layout).not.toHaveAttribute("data-compact-home");
+    expect(layout).toHaveAttribute("data-compact-title", "Settings");
+    expect(
+      within(main).getByText("Stored on this device; the desktop keeps its own values."),
+    ).toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: /Desktop Settings/ })).toBeInTheDocument();
+
+    fireEvent.click(within(main).getByRole("button", { name: /Appearance/ }));
+    expect(layout).toHaveAttribute("data-compact-title", "Appearance");
+    expect(within(main).getByText("Appearance")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+    expect(layout).toHaveAttribute("data-compact-title", "Settings");
+    expect(within(main).getByRole("button", { name: /Desktop Settings/ })).toBeInTheDocument();
+  });
+
+  it("returns direct compact settings pages to the main page", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const onClose = vi.fn<() => void>();
+    usePanelStore.setState({ settingsSection: "remoteServers" });
+
+    const { container } = render(<SettingsOverlay onClose={onClose} />);
+    expect(container.querySelector("[data-compact-title]")).toHaveAttribute(
+      "data-compact-title",
+      "Connections",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /Desktop Settings/ })).not.toBeInTheDocument();
+  });
+
+  it("uses the compact page history when returning from Usage settings", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const onClose = vi.fn<() => void>();
+    const onBack = vi.fn<() => void>();
+    usePanelStore.setState({ settingsSection: "usage" });
+
+    render(<SettingsOverlay onClose={onClose} onBack={onBack} />);
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("ports the nightly Desktop Settings index and returns detail pages to it", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    const { container } = render(<SettingsOverlay onClose={() => undefined} />);
+    const layout = container.querySelector("[data-compact-title]");
+    const main = screen.getByRole("main");
+
+    fireEvent.click(within(main).getByRole("button", { name: /Desktop Settings/ }));
+    expect(layout).toHaveAttribute("data-compact-title", "Desktop Settings");
+    expect(
+      within(main).getByText("Edits the paired desktop and syncs back to it."),
+    ).toBeInTheDocument();
+    expect(
+      within(main)
+        .getAllByRole("button")
+        .map((button) => button.textContent?.replace(/\s+/gu, " ").trim()),
+    ).toEqual([
+      "ProfileIdentity and usage stats",
+      "Provider UsageTracking and display",
+      "SchedulesScheduled tasks on this desktop",
+      "AI HelpersTitle, commit, and conflict models",
+      "AgentsEnabled agents, model visibility and order",
+      "Archived ThreadsRestore or delete",
+    ]);
+
+    fireEvent.click(within(main).getByRole("button", { name: /AI Helpers/ }));
+    expect(layout).toHaveAttribute("data-compact-title", "AI Helpers");
+    fireEvent.click(screen.getByRole("button", { name: "Mobile back" }));
+    expect(layout).toHaveAttribute("data-compact-title", "Desktop Settings");
+  });
+
+  it("opens remote Desktop Settings with its machine selector in the PWA", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    bridgeState.remote = true;
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Studio",
+          endpoint: "https://desktop.example.test",
+          accessToken: "token",
+          scopes: ["projects:manage"],
+        },
+      ],
+      runtime: {
+        "desktop-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+        },
+      },
+    });
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+    const main = screen.getByRole("main");
+    const desktopSettings = within(main).getByRole("button", { name: /Desktop Settings/ });
+    expect(desktopSettings).toBeEnabled();
+
+    fireEvent.click(desktopSettings);
+
+    expect(within(main).getByRole("button", { name: "Connections" })).toHaveTextContent("Studio");
+  });
+
+  it("opens Schedules from the compact Desktop Settings index", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const onClose = vi.fn<() => void>();
+
+    render(<SettingsOverlay onClose={onClose} />);
+    const main = screen.getByRole("main");
+    fireEvent.click(within(main).getByRole("button", { name: /Desktop Settings/ }));
+    fireEvent.click(within(main).getByRole("button", { name: /Schedules/ }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(appState.openSchedules).toHaveBeenCalledTimes(1);
   });
 
   it("uses bounded analytics properties for regular and agent settings", () => {
@@ -262,6 +482,7 @@ describe("SettingsOverlay", () => {
     const headers = [...container.querySelectorAll("aside p")].map((el) => el.textContent);
     expect(headers).toEqual(["Personal", "Workspace", "Agents", "About"]);
     expect(screen.getByRole("button", { name: "Models" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remote Access" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Browser" })).not.toBeInTheDocument();
   });
@@ -411,90 +632,19 @@ describe("SettingsOverlay", () => {
     expect(factoryButton.querySelector(".text-warning")).not.toBeNull();
   });
 
-  it("refreshes agent probing from the agents sidebar and shows the discovery overlay", async () => {
-    vi.useFakeTimers();
-    statusesState.agentStatuses = [
-      makeStatus("claude", {
-        label: "Claude Code",
-        envKind: "posix",
-      }),
-    ];
+  it("starts app-owned discovery with the project WSL environments", () => {
     appState.projects = [
       {
         id: "project-1",
         name: "demo",
         disabled: false,
         createdAt: new Date(0).toISOString(),
-        location: {
-          kind: "wsl",
-          distro: "Ubuntu",
-          linuxPath: "/home/demo/project",
-          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
-        },
+        location: { kind: "wsl", distro: "Ubuntu", linuxPath: "/home/demo/project", uncPath: "" },
       },
     ];
-
-    let resolveRefresh: ((value: AgentStatusesResponse) => void) | undefined;
-    const refreshed: AgentStatusesResponse = {
-      windows: statusesState.agentStatuses,
-      wsl: [],
-      fromCache: false,
-    };
-    refreshAgentStatusesMock.mockReturnValueOnce(
-      new Promise<AgentStatusesResponse>((resolve) => {
-        resolveRefresh = resolve;
-      }),
-    );
-
-    try {
-      render(<SettingsOverlay onClose={() => undefined} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
-
-      expect(beginFirstLaunchDiscoveryMock).toHaveBeenCalledWith({
-        kind: "all",
-        wslDistros: ["Ubuntu"],
-      });
-      expect(resetDiscoveredAgentsMock).not.toHaveBeenCalled();
-      expect(refreshAgentStatusesMock).toHaveBeenCalledWith(["Ubuntu"]);
-      expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
-
-      await act(async () => {
-        resolveRefresh?.(refreshed);
-        await vi.advanceTimersByTimeAsync(0);
-      });
-
-      expect(hydrateFromCacheMock).toHaveBeenCalledWith({
-        windows: refreshed.windows,
-        wsl: refreshed.wsl,
-      });
-
-      await act(() => vi.advanceTimersByTimeAsync(999));
-      expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
-      expect(resetDiscoveredAgentsMock).not.toHaveBeenCalled();
-
-      await act(() => vi.advanceTimersByTimeAsync(1));
-      expect(screen.queryByText("Discovering coding agents…")).not.toBeInTheDocument();
-      expect(resetDiscoveredAgentsMock).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("cancels the visible agent refresh overlay", () => {
-    refreshAgentStatusesMock.mockReturnValueOnce(
-      new Promise<AgentStatusesResponse>(() => undefined),
-    );
-
     render(<SettingsOverlay onClose={() => undefined} />);
-
     fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
-    expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(screen.queryByText("Discovering coding agents…")).not.toBeInTheDocument();
-    expect(resetDiscoveredAgentsMock).toHaveBeenCalledTimes(1);
+    expect(refreshAgentDiscoveryMock).toHaveBeenCalledExactlyOnceWith(["Ubuntu"]);
   });
 
   it("searches across individual settings, not just sections", () => {

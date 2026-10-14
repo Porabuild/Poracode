@@ -5,7 +5,12 @@ export type ModelVisibilityCheckState = "all" | "some" | "none";
 export interface ModelVisibilityEntry {
   /** Settings key this model's hidden list is persisted under. */
   hiddenModelsKey: string;
-  modelId: string;
+  /**
+   * Every exact model id the row stands for — one for an ordinary row, all
+   * member UIDs for a projected family row (hiding a family persists every
+   * exact member so member ids stay canonical).
+   */
+  modelIds: readonly string[];
 }
 
 /**
@@ -34,7 +39,7 @@ export function collectHeaderModelGroups(
     } else {
       const entry: ModelVisibilityEntry = {
         hiddenModelsKey: item.hiddenModelsKey,
-        modelId: item.modelId,
+        modelIds: item.familyModelIds ?? [item.modelId],
       };
       if (providerHeaderId) groups.get(providerHeaderId)?.push(entry);
       if (subHeaderId) groups.get(subHeaderId)?.push(entry);
@@ -49,6 +54,8 @@ export function headerGroupState(
   isHidden: (hiddenModelsKey: string, modelId: string) => boolean,
 ): ModelVisibilityCheckState {
   if (entries.length === 0) return "all";
-  const hidden = entries.filter((entry) => isHidden(entry.hiddenModelsKey, entry.modelId)).length;
+  const isEntryHidden = (entry: ModelVisibilityEntry) =>
+    entry.modelIds.every((modelId) => isHidden(entry.hiddenModelsKey, modelId));
+  const hidden = entries.filter(isEntryHidden).length;
   return hidden === 0 ? "all" : hidden === entries.length ? "none" : "some";
 }

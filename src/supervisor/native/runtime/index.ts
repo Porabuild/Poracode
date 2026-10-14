@@ -2,20 +2,23 @@
  * Native Node runtime resolver.
  *
  * Symmetric to the WSL resolver in `src/supervisor/wsl/runtime/index.ts`,
- * but for the host platform (mac/linux/win32). Three layers, in order of
+ * but for the host platform (mac/linux/win32). Four layers, in order of
  * cost:
  *
  *   1. **Poracode-managed runtime** (zero-shell-spawn fast path).
  *      A previous background install dropped the pinned LTS at
  *      `~/.poracode/runtime/<archive-dir>/`. A single `existsSync` decides.
  *
- *   2. **Login-shell probe.** On mac/linux, GUI-launched apps don't inherit
+ *   2. **Compatible bare Node host.** Reuse the supervisor executable when
+ *      it already runs under Node; Electron-as-Node does not qualify.
+ *
+ *   3. **Login-shell probe.** On mac/linux, GUI-launched apps don't inherit
  *      the user's interactive PATH (no Homebrew, no nvm, no fnm) — so we
  *      spawn `bash -lic` / `zsh -lic` to source the user's rc files and
  *      surface their `node`. On Windows, the registry-driven user PATH is
  *      already inherited by Electron, so `where.exe node` is enough.
  *
- *   3. **Background install.** When 1 + 2 both miss, we kick off a
+ *   4. **Background install.** When the earlier layers miss, we kick off a
  *      fire-and-forget download of the pinned LTS archive into
  *      `~/.poracode/runtime/`. The current install pass falls back to
  *      Electron-as-Node for this boot; the next supervisor boot picks up
@@ -26,7 +29,7 @@
  * is paid once per process.
  */
 
-import { spawn } from "node:child_process";
+import { resolveHostNode } from "./hostNode";
 import { existsSync, mkdirSync, mkdtempSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
@@ -44,7 +47,13 @@ import {
   parseNodeMajor,
   type NodeTargetTriple,
 } from "../../runtime/pinnedNode";
-import { spawnAndAwaitExit } from "../../runtime/spawn";
+import { exitCouldNotBeConfirmed, spawnAndAwaitExit } from "../../runtime/spawn";
+import {
+  nativeRuntimeWork,
+  resetNativeRuntimeWorkForTests,
+  startNativeRuntimeWork,
+  stopNativeRuntimeWork,
+} from "./work";
 
 // ── Public types ─────────────────────────────────────────────────────────
 
@@ -54,12 +63,13 @@ export interface ResolvedNativeNode {
   /** Reported version, e.g. "22.11.0". */
   nodeVersion: string;
   /** How we found it — useful for logs and tests. */
-  source: "user-installed" | "poracode-managed";
+  source: "host-runtime" | "user-installed" | "poracode-managed";
 }
 
 export interface NativeRuntimeProgressEvent {
   kind:
     | "probe-start"
+    | "probe-found-host"
     | "probe-found-managed"
     | "probe-found-user"
     | "probe-missing"
@@ -104,6 +114,7 @@ const resolutionCache = new Map<string, Promise<ResolvedNativeNode | null>>();
 const backgroundInstallCache = new Map<string, Promise<{ nodePath: string } | null>>();
 
 export function resetNativeRuntimeCacheForTests(): void {
+  resetNativeRuntimeWorkForTests();
   resolutionCache.clear();
   backgroundInstallCache.clear();
 }
@@ -121,16 +132,31 @@ export function resetNativeRuntimeCacheForTests(): void {
 export function resolveNativeNode(
   options?: ResolveNativeNodeOptions,
 ): Promise<ResolvedNativeNode | null> {
-  const key = options?.baseDir ?? "";
+  const key = options?.baseDir ?? resolvePoracodePaths().baseDir;
+  const owner = nativeRuntimeWork(key);
+  owner.signal.throwIfAborted();
   const cached = resolutionCache.get(key);
   if (cached) return cached;
-  const promise = resolveNativeNodeUncached(options);
+  const promise = owner.run(() =>
+    resolveNativeNodeUncached({ ...options, baseDir: key }, owner.signal),
+  );
   resolutionCache.set(key, promise);
   return promise;
 }
 
+/** Prefetch establishes the shared owner before provider installers use the resolver. */
+export function startNativeRuntimeSession(baseDir: string): void {
+  if (startNativeRuntimeWork(baseDir)) resolutionCache.delete(baseDir);
+}
+
+/** Stop admission, cancel I/O and join the actual probe/extraction before shutdown. */
+export async function disposeNativeRuntime(baseDir: string): Promise<void> {
+  await stopNativeRuntimeWork(baseDir);
+}
+
 async function resolveNativeNodeUncached(
-  options: ResolveNativeNodeOptions | undefined,
+  options: ResolveNativeNodeOptions,
+  signal: AbortSignal,
 ): Promise<ResolvedNativeNode | null> {
   const onProgress = options?.onProgress;
   onProgress?.({ kind: "probe-start" });
@@ -154,7 +180,18 @@ async function resolveNativeNodeUncached(
     }
   }
 
-  const userNode = await probeUserNode();
+  const hostNode = resolveHostNode();
+  if (hostNode) {
+    onProgress?.({
+      kind: "probe-found-host",
+      nodePath: hostNode.nodePath,
+      version: hostNode.version,
+    });
+    return { nodePath: hostNode.nodePath, nodeVersion: hostNode.version, source: "host-runtime" };
+  }
+
+  const userNode = await probeUserNode(signal);
+  signal.throwIfAborted();
   if (userNode) {
     onProgress?.({
       kind: "probe-found-user",
@@ -193,9 +230,11 @@ export function managedNodePath(baseDir: string, target: NodeTargetTriple): stri
 
 // ── Probe ────────────────────────────────────────────────────────────────
 
-export async function probeUserNode(): Promise<{ nodePath: string; version: string } | null> {
-  if (process.platform === "win32") return probeWindowsNode();
-  return probePosixLoginShellNode();
+export async function probeUserNode(
+  signal?: AbortSignal,
+): Promise<{ nodePath: string; version: string } | null> {
+  if (process.platform === "win32") return probeWindowsNode(signal);
+  return probePosixLoginShellNode(signal);
 }
 
 const PROBE_PATH_MARKER = "__LC_NODE_PATH__:";
@@ -209,11 +248,16 @@ const MAX_PROBE_OUTPUT_BYTES = 64 * 1024;
  * can extract the path/version even when the shell prints MOTDs, banners,
  * or fnm/nvm noise.
  */
-async function probePosixLoginShellNode(): Promise<{ nodePath: string; version: string } | null> {
+async function probePosixLoginShellNode(
+  signal?: AbortSignal,
+): Promise<{ nodePath: string; version: string } | null> {
   const shell = pickPosixShell();
   const script = `echo "${PROBE_PATH_MARKER}$(command -v node)"; echo "${PROBE_VERSION_MARKER}$(node --version 2>/dev/null)"`;
 
-  const output = await runCapturing(shell, ["-lic", script], { timeoutMs: PROBE_TIMEOUT_MS });
+  const output = await runCapturing(shell, ["-lic", script], {
+    timeoutMs: PROBE_TIMEOUT_MS,
+    ...(signal ? { signal } : {}),
+  });
   if (output === null) return null;
 
   const nodePath = extractMarker(output, PROBE_PATH_MARKER);
@@ -237,8 +281,13 @@ function pickPosixShell(): string {
  * `where.exe node` finds Volta/nvm-windows/Scoop/winget node without any
  * shell init. Skips `node.cmd` shims by preferring `node.exe` lines.
  */
-async function probeWindowsNode(): Promise<{ nodePath: string; version: string } | null> {
-  const whereOut = await runCapturing("where.exe", ["node"], { timeoutMs: PROBE_TIMEOUT_MS });
+async function probeWindowsNode(
+  signal?: AbortSignal,
+): Promise<{ nodePath: string; version: string } | null> {
+  const whereOut = await runCapturing("where.exe", ["node"], {
+    timeoutMs: PROBE_TIMEOUT_MS,
+    ...(signal ? { signal } : {}),
+  });
   if (whereOut === null) return null;
   const lines = whereOut
     .split(/\r?\n/g)
@@ -247,7 +296,10 @@ async function probeWindowsNode(): Promise<{ nodePath: string; version: string }
   const exeLine = lines.find((l) => l.toLowerCase().endsWith("node.exe")) ?? lines[0];
   if (!exeLine) return null;
 
-  const versionOut = await runCapturing(exeLine, ["--version"], { timeoutMs: PROBE_TIMEOUT_MS });
+  const versionOut = await runCapturing(exeLine, ["--version"], {
+    timeoutMs: PROBE_TIMEOUT_MS,
+    ...(signal ? { signal } : {}),
+  });
   if (versionOut === null) return null;
   const versionRaw = versionOut
     .split(/\r?\n/g)
@@ -266,49 +318,25 @@ async function probeWindowsNode(): Promise<{ nodePath: string; version: string }
  * is capped to the trailing 64 KiB so a chatty rc (fortune, neofetch,
  * MOTD) can't OOM us — markers we look for are echoed last anyway.
  */
-function runCapturing(
+async function runCapturing(
   command: string,
   args: string[],
-  opts: { timeoutMs: number },
+  opts: { timeoutMs: number; signal?: AbortSignal },
 ): Promise<string | null> {
-  return new Promise<string | null>((resolve) => {
-    const child = spawn(command, args, {
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
+  let out = "";
+  try {
+    await spawnAndAwaitExit(command, args, {
+      ...opts,
+      onStdout: (chunk) => {
+        out += chunk.toString("utf8");
+        if (out.length > MAX_PROBE_OUTPUT_BYTES) out = out.slice(-MAX_PROBE_OUTPUT_BYTES);
+      },
     });
-    let out = "";
-    let settled = false;
-    const finish = (value: string | null, killOnTimeout = false) => {
-      if (settled) return;
-      settled = true;
-      // Only kill on the timeout path; the natural-exit and error paths
-      // mean the child is already gone, and on Windows kill() against a
-      // recycled PID would be pointed at someone else.
-      if (killOnTimeout) {
-        try {
-          child.kill();
-        } catch {
-          // ESRCH if the timer fired between exit and our handler.
-        }
-      }
-      resolve(value);
-    };
-    const timer = setTimeout(() => finish(null, true), opts.timeoutMs);
-    child.stdout?.on("data", (chunk: Buffer) => {
-      out += chunk.toString("utf8");
-      if (out.length > MAX_PROBE_OUTPUT_BYTES) {
-        out = out.slice(out.length - MAX_PROBE_OUTPUT_BYTES);
-      }
-    });
-    child.on("error", () => {
-      clearTimeout(timer);
-      finish(null);
-    });
-    child.on("exit", (code) => {
-      clearTimeout(timer);
-      finish(code === 0 ? out : null);
-    });
-  });
+    return out;
+  } catch (error) {
+    if (opts.signal?.aborted || exitCouldNotBeConfirmed(error)) throw error;
+    return null;
+  }
 }
 
 function extractMarker(output: string, marker: string): string | null {
@@ -333,6 +361,17 @@ export async function installNativeRuntime(
   target: NodeTargetTriple,
   onProgress?: NativeRuntimeProgressListener,
 ): Promise<{ nodePath: string }> {
+  const owner = nativeRuntimeWork(baseDir);
+  return owner.run(() => installNativeRuntimeOwned(baseDir, target, onProgress, owner.signal));
+}
+
+async function installNativeRuntimeOwned(
+  baseDir: string,
+  target: NodeTargetTriple,
+  onProgress: NativeRuntimeProgressListener | undefined,
+  signal: AbortSignal,
+): Promise<{ nodePath: string }> {
+  signal.throwIfAborted();
   const finalNodePath = managedNodePath(baseDir, target);
   if (existsSync(finalNodePath)) return { nodePath: finalNodePath };
 
@@ -351,9 +390,11 @@ export async function installNativeRuntime(
   const archivePath = join(stagingRoot, nodeArchiveFileName(target));
 
   onProgress?.({ kind: "background-install-start" });
+  let exitUnconfirmed = false;
 
   try {
     await downloadToFile(url, archivePath, {
+      signal,
       ...(onProgress
         ? {
             onProgress: ({ bytesReceived, bytesTotal }) => {
@@ -362,9 +403,11 @@ export async function installNativeRuntime(
           }
         : {}),
     });
-    await verifySha256(archivePath, checksum);
+    await verifySha256(archivePath, checksum, signal);
+    signal.throwIfAborted();
 
-    await extractArchive(archivePath, stagingRoot, target);
+    await extractArchive(archivePath, stagingRoot, target, signal);
+    signal.throwIfAborted();
 
     const stagedDir = join(stagingRoot, nodeArchiveDirName(target));
     if (!existsSync(stagedDir)) {
@@ -387,8 +430,11 @@ export async function installNativeRuntime(
 
     onProgress?.({ kind: "background-install-ready", nodePath: finalNodePath });
     return { nodePath: finalNodePath };
+  } catch (error) {
+    exitUnconfirmed = exitCouldNotBeConfirmed(error);
+    throw error;
   } finally {
-    safeRm(stagingRoot);
+    if (!exitUnconfirmed) safeRm(stagingRoot);
   }
 }
 
@@ -401,14 +447,18 @@ function runBackgroundInstall(
   const inflight = backgroundInstallCache.get(key);
   if (inflight) return inflight;
 
-  const promise = installNativeRuntime(baseDir, target, onProgress)
-    .catch((error) => {
-      console.warn("[native-runtime] background install failed:", error);
-      return null;
-    })
-    .finally(() => {
-      backgroundInstallCache.delete(key);
-    });
+  const owner = nativeRuntimeWork(baseDir);
+  const promise = owner.run(() =>
+    installNativeRuntime(baseDir, target, onProgress)
+      .catch((error) => {
+        if (!nativeRuntimeWork(baseDir).signal.aborted)
+          console.warn("[native-runtime] background install failed:", error);
+        return null;
+      })
+      .finally(() => {
+        if (backgroundInstallCache.get(key) === promise) backgroundInstallCache.delete(key);
+      }),
+  );
   backgroundInstallCache.set(key, promise);
   return promise;
 }
@@ -424,8 +474,9 @@ async function extractArchive(
   archivePath: string,
   destDir: string,
   target: NodeTargetTriple,
+  signal: AbortSignal,
 ): Promise<void> {
   const tarBin = process.platform === "win32" ? "tar.exe" : "tar";
   const flags = target.startsWith("win-") ? ["-xf", archivePath] : ["-xJf", archivePath];
-  await spawnAndAwaitExit(tarBin, [...flags, "-C", destDir]);
+  await spawnAndAwaitExit(tarBin, [...flags, "-C", destDir], { signal });
 }

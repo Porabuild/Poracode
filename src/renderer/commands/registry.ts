@@ -1,14 +1,25 @@
+import { withThreadConfigSubmission } from "@/renderer/actions/threadConfigSubmission";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { isMarkdownFile } from "@/shared/pathUtils";
+import {
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
+} from "@/shared/keybindings";
 import type { AgentSlashCommand, Project, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { addExistingProject } from "@/renderer/actions/createProjectActions";
 import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
+import {
+  isRemoteCommandOutcomeUncertainError,
+  notifyThreadCommandOutcomeUncertain,
+  reconcileThreadCommandOutcome,
+} from "@/renderer/actions/threadCommandOutcomeActions";
 import {
   openChangelogSettings,
   openFilesPanel,
@@ -33,13 +44,16 @@ import { cycleRecentThread } from "@/renderer/actions/recentThreadCycle";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { toggleSidebar } from "@/renderer/state/sidebarOverlayStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
 import { openFindForActiveSurface } from "@/renderer/components/find/findController";
-import { isEditorFocusElement, isTerminalFocusElement } from "./focusedSurface";
+import {
+  isEditorFocusElement,
+  isTerminalFocusElement,
+  resolveFocusElement,
+} from "./focusedSurface";
 import { useCommandPaletteStore } from "./commandPaletteStore";
 import type { CommandWhenContext } from "./when";
 import { evaluateWhenClause } from "./when";
@@ -60,7 +74,14 @@ export interface AppCommand {
    */
   keys?: string[];
   showInShortcuts?: boolean;
-  run: (args?: unknown) => void | Promise<void>;
+  /** Hide commands that should not be offered as executable palette results. */
+  showInPalette?: boolean;
+  run: (args?: unknown, context?: AppCommandExecutionContext) => void | Promise<void>;
+}
+
+export interface AppCommandExecutionContext {
+  /** The element that owned focus before a command surface took it. */
+  target: EventTarget | null;
 }
 
 interface ActiveContext {
@@ -78,9 +99,14 @@ export function buildWhenContext(
   const terminal = useDevTerminalStore.getState();
   const paletteOpen = useCommandPaletteStore.getState().isOpen;
   const active = resolveActiveContext();
-  const element = target instanceof Element ? target : document.activeElement;
+  const element = resolveFocusElement(target);
   const inputFocus = isTextInputElement(element);
   const editorFocus = isEditorFocusElement(element);
+  const markdownActive = Boolean(fileEditor.activePath && isMarkdownFile(fileEditor.activePath));
+  // Mirrors the pane hosts: fullscreen OverlayShell, modal, and panel all mount
+  // the editor only while a root context and an overlay mode are set, so
+  // activePath alone (which survives closing) is not proof the editor is open.
+  const editorSurfaceOpen = Boolean(fileEditor.rootContext && fileEditor.overlayMode);
   const terminalFocus = isTerminalFocusElement(element);
   const composerFocus = Boolean(
     element?.closest("[data-poracode-composer], .poracode-composer-shell"),
@@ -93,6 +119,8 @@ export function buildWhenContext(
     paletteOpen,
     inputFocus,
     editorFocus,
+    markdownActive,
+    editorSurfaceOpen,
     composerFocus,
     editorOpen: Boolean(fileEditor.activePath || fileEditor.rootContext),
     terminalFocus,
@@ -124,8 +152,9 @@ function baseCommands(): AppCommand[] {
   return [
     {
       id: "palette.open",
-      title: msg`Open Command Palette`,
+      title: msg`Search`,
       group: "Poracode",
+      showInPalette: false,
       run: () => useCommandPaletteStore.getState().open(),
     },
     {
@@ -148,7 +177,7 @@ function baseCommands(): AppCommand[] {
       subtitle: msg`Search the current view`,
       group: "Poracode",
       keywords: ["find", "search", "filter"],
-      run: openFindForActiveSurface,
+      run: (_args, context) => openFindForActiveSurface(context?.target),
     },
     {
       id: "sidebar.toggle",
@@ -196,9 +225,11 @@ function baseCommands(): AppCommand[] {
     },
     {
       id: "thread.search.open",
-      title: msg`Search Threads`,
-      group: msg`Thread`,
-      run: () => usePanelStore.getState().openThreadSearch(),
+      title: msg`Search`,
+      group: "Poracode",
+      showInPalette: false,
+      showInShortcuts: false,
+      run: () => useCommandPaletteStore.getState().open(),
     },
     {
       id: "thread.archive",
@@ -303,6 +334,7 @@ function baseCommands(): AppCommand[] {
       title: msg`Run Terminal Command`,
       group: msg`Terminal`,
       when: "hasProject",
+      showInPalette: false,
       run: (args) => runTerminalCommand(args),
     },
     {
@@ -353,8 +385,24 @@ function baseCommands(): AppCommand[] {
       when: "editorOpen",
       run: () => {
         const editor = useFileEditorStore.getState();
-        if (editor.activePath) void editor.saveFile(editor.activePath);
+        if (editor.activePath) {
+          void editor.saveFile(editor.activePath).catch((error) => {
+            console.error("[commands] editor.save failed:", error);
+            toast.danger(i18n._(msg`Unable to save the file`));
+          });
+        }
       },
+    },
+    {
+      id: EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+      title: msg`Toggle Markdown Preview`,
+      subtitle: msg`Switch the active Markdown file between source and preview`,
+      group: msg`Editor`,
+      keywords: ["markdown", "preview"],
+      // Shares the eye button's store toggle; scope documented on
+      // EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN.
+      when: EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
+      run: () => useFileEditorStore.getState().toggleMarkdownPreview(),
     },
     {
       id: "editor.close",
@@ -389,7 +437,7 @@ function baseCommands(): AppCommand[] {
       // same chords elsewhere but stand down inside the editor/terminal (see
       // their `when`), leaving them free here.
       when: "editorFocus || terminalFocus",
-      run: () => switchFocusedSurfaceTab("next"),
+      run: (_args, context) => switchFocusedSurfaceTab("next", context?.target),
     },
     {
       id: "tab.previous",
@@ -397,7 +445,7 @@ function baseCommands(): AppCommand[] {
       subtitle: msg`Switch to the previous tab`,
       group: "Poracode",
       when: "editorFocus || terminalFocus",
-      run: () => switchFocusedSurfaceTab("previous"),
+      run: (_args, context) => switchFocusedSurfaceTab("previous", context?.target),
     },
     {
       id: "browser.focus-address-bar",
@@ -407,7 +455,7 @@ function baseCommands(): AppCommand[] {
       // Only while the in-app browser holds focus — same scope as the other
       // browser shortcuts, and avoids swallowing Ctrl+L elsewhere in the app.
       when: "browserFocus",
-      run: focusBrowserAddressBar,
+      run: (_args, context) => focusBrowserAddressBar(context?.target),
     },
     {
       id: "browser.toggle",
@@ -465,11 +513,25 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
     when: "hasThread",
     showInShortcuts: false,
     run: async () => {
-      await readBridge().sendThreadInput({
-        threadId: thread.id,
-        prompt: `/${command.id}`,
-        config: thread.config,
-      });
+      try {
+        await withThreadConfigSubmission(thread.id, thread.config, () =>
+          readBridge().sendThreadInput({
+            threadId: thread.id,
+            prompt: `/${command.id}`,
+            config: thread.config,
+          }),
+        );
+      } catch (error) {
+        // The host may have applied the command without being able to confirm
+        // it: explain the uncertainty and run one bounded authoritative read —
+        // never a resend, and no success bookkeeping.
+        if (isRemoteCommandOutcomeUncertainError(error)) {
+          notifyThreadCommandOutcomeUncertain();
+          await reconcileThreadCommandOutcome(thread);
+          return;
+        }
+        throw error;
+      }
       captureThreadPromptSubmitted(thread, `/${command.id}`, undefined, "command_palette");
       useAppStore.getState().touchThread(thread.id);
     },
@@ -506,24 +568,26 @@ function openNewBrowserTab(): void {
     .catch(() => {});
 }
 
-function focusBrowserAddressBar(): void {
+function focusBrowserAddressBar(target?: EventTarget | null): void {
   // The browser panel can be mounted twice (right panel + overlay), so target
-  // the address bar inside the browser that currently holds focus, falling back
-  // to the first mounted instance.
-  const active = document.activeElement;
+  // the address bar inside the browser where the command originated, falling
+  // back to the active or first mounted instance.
+  const active = resolveFocusElement(target);
   const container =
-    (active instanceof Element ? active.closest("[data-poracode-browser]") : null) ??
-    document.querySelector("[data-poracode-browser]");
+    active?.closest("[data-poracode-browser]") ?? document.querySelector("[data-poracode-browser]");
   const input = container?.querySelector<HTMLInputElement>("[data-poracode-browser-address]");
   if (!input) return;
   input.focus();
   input.select();
 }
 
-function switchFocusedSurfaceTab(direction: "next" | "previous"): void {
-  // The binding's `when` (editorFocus || terminalFocus) guarantees one of these
-  // surfaces holds focus when this runs; cycle that surface's own tab strip.
-  const element = document.activeElement;
+function switchFocusedSurfaceTab(
+  direction: "next" | "previous",
+  target?: EventTarget | null,
+): void {
+  // The command's availability context guarantees one of these surfaces owned
+  // focus when invoked; cycle that originating surface's own tab strip.
+  const element = resolveFocusElement(target);
   if (isTerminalFocusElement(element)) {
     useDevTerminalStore.getState().cycleTab(direction);
     return;

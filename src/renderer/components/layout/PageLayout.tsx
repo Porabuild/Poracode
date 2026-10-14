@@ -3,12 +3,17 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "@heroui/react";
 import { House } from "lucide-react";
 import { isMac, isWindows } from "@/renderer/bridge";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { macosTrafficLightGutterClass } from "@/renderer/components/layout/sidebarChrome";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
 import {
   AppShell,
   SidebarContext,
   useSidebar,
 } from "@/renderer/views/MainView/parts/AppShell/AppShell";
+import { MobilePageHeader } from "./MobilePageHeader";
+import { MobilePageActionScope } from "./MobilePageActionScope";
 
 const alwaysExpandedSidebar = {
   isCollapsed: false,
@@ -41,7 +46,7 @@ function SidebarHeaderWordmark(props: {
       <button
         type="button"
         aria-label={title}
-        className="poracode-overlay-header__controls shrink-0 leading-none text-muted transition-colors hover:text-foreground"
+        className="poracode-sidebar-wordmark poracode-overlay-header__controls shrink-0 leading-none text-muted transition-colors hover:text-foreground"
         onClick={onTitleClick}
       >
         {content}
@@ -100,7 +105,7 @@ function SidebarHeaderRow(props: {
         }`}
         aria-hidden="true"
       >
-        {isMac() && <div className={macosTrafficLightGutterClass} />}
+        {hasMacWindowChrome() && <div className={macosTrafficLightGutterClass} />}
         {showHeaderActions && (
           <SidebarHeaderWordmark
             title={props.title}
@@ -115,7 +120,7 @@ function SidebarHeaderRow(props: {
         ref={ref}
         className={`flex min-h-0 min-w-0 flex-1 items-center gap-1.5${isWindows() ? " pl-1" : ""}`}
       >
-        {isMac() && <div className={macosTrafficLightGutterClass} />}
+        {hasMacWindowChrome() && <div className={macosTrafficLightGutterClass} />}
         {showHeaderActions ? (
           hideWordmark && props.onTitleClick ? (
             <Tooltip delay={150}>
@@ -169,7 +174,14 @@ export function PageLayout(props: {
   forceSidebarExpanded?: boolean;
   onRequestClosePanels?: () => void;
   onDismissRightOverlay?: () => void;
+  compactHome?: boolean;
+  compactTitle?: string;
+  compactBackLabel?: string;
+  compactHeaderChildren?: ReactNode;
+  onCompactBack?: () => void;
+  mobileNavigation?: boolean;
 }) {
+  const compactLayout = useCompactLayout();
   const {
     title,
     titleNode,
@@ -186,43 +198,79 @@ export function PageLayout(props: {
     forceSidebarExpanded,
     onRequestClosePanels,
     onDismissRightOverlay,
+    compactHome = false,
+    compactTitle,
+    compactBackLabel,
+    compactHeaderChildren,
+    onCompactBack,
+    mobileNavigation = false,
   } = props;
 
-  const sidebarHeader = (
-    <SidebarHeaderRow
-      title={title}
-      titleNode={titleNode}
-      {...(onTitleClick != null ? { onTitleClick } : {})}
-    >
-      {sidebarHeaderChildren}
-    </SidebarHeaderRow>
-  );
+  const sidebarHeader =
+    compactLayout && compactHome ? (
+      <MobilePageHeader
+        variant="home"
+        title={title}
+        {...(titleNode !== undefined ? { titleNode } : {})}
+        {...(onTitleClick !== undefined ? { onTitleClick } : {})}
+        {...(sidebarHeaderChildren !== undefined ? { trailing: sidebarHeaderChildren } : {})}
+      />
+    ) : (
+      <SidebarHeaderRow
+        title={title}
+        titleNode={titleNode}
+        {...(onTitleClick != null ? { onTitleClick } : {})}
+      >
+        {sidebarHeaderChildren}
+      </SidebarHeaderRow>
+    );
 
-  // macOS only: drop the empty center `poracode-overlay-header` when there is no content so main
-  // + the right column reclaim the titlebar row next to hidden-inset chrome. Other platforms keep
-  // the empty row (signalled by the empty fragment, since `null` would suppress it everywhere).
-  const contentHeader = contentHeaderChildren ?? (isMac() ? null : <></>);
+  // macOS and desktop browser: drop the empty center `poracode-overlay-header` when there is no
+  // content so main + the right column reclaim the titlebar row. Other native platforms keep the
+  // empty row for their titleBarOverlay controls (signalled by the empty fragment, since `null`
+  // would suppress it everywhere). Compact browser layouts retain their explicit mobile header.
+  const contentHeader =
+    compactLayout && !compactHome ? (
+      <MobilePageHeader
+        variant="page"
+        title={compactTitle ?? title}
+        {...(compactTitle === undefined && titleNode !== undefined ? { titleNode } : {})}
+        {...(compactTitle === undefined && onTitleClick !== undefined ? { onTitleClick } : {})}
+        {...(onCompactBack !== undefined ? { onBack: onCompactBack } : {})}
+        {...(compactBackLabel !== undefined ? { backLabel: compactBackLabel } : {})}
+      >
+        {compactHeaderChildren}
+      </MobilePageHeader>
+    ) : (
+      (contentHeaderChildren ?? (isMac() || isBrowserClientRuntime() ? null : <></>))
+    );
+  const effectiveForceSidebarExpanded =
+    (forceSidebarExpanded === true && !compactLayout) || (compactLayout && compactHome);
 
   const shell = (
-    <AppShell
-      sidebarHeader={sidebarHeader}
-      contentHeader={contentHeader}
-      sidebar={sidebar}
-      content={content}
-      rightPanel={rightPanel}
-      gitPanel={gitPanel}
-      {...(rightPanelOpen !== undefined ? { rightPanelOpen } : {})}
-      {...(rightPanelPlacement !== undefined ? { rightPanelPlacement } : {})}
-      {...(rightPanelResizeLabel !== undefined ? { rightPanelResizeLabel } : {})}
-      {...(forceSidebarExpanded === true ? { forceSidebarExpanded: true } : {})}
-      {...(onRequestClosePanels != null ? { onRequestClosePanels } : {})}
-      {...(onDismissRightOverlay != null ? { onDismissRightOverlay } : {})}
-    />
+    <MobilePageActionScope>
+      <AppShell
+        sidebarHeader={sidebarHeader}
+        contentHeader={contentHeader}
+        sidebar={sidebar}
+        content={content}
+        rightPanel={rightPanel}
+        gitPanel={gitPanel}
+        {...(rightPanelOpen !== undefined ? { rightPanelOpen } : {})}
+        {...(rightPanelPlacement !== undefined ? { rightPanelPlacement } : {})}
+        {...(rightPanelResizeLabel !== undefined ? { rightPanelResizeLabel } : {})}
+        {...(effectiveForceSidebarExpanded ? { forceSidebarExpanded: true } : {})}
+        {...(onRequestClosePanels != null ? { onRequestClosePanels } : {})}
+        {...(onDismissRightOverlay != null ? { onDismissRightOverlay } : {})}
+        compactHome={compactHome}
+        mobileNavigation={mobileNavigation}
+      />
+    </MobilePageActionScope>
   );
 
-  if (forceSidebarExpanded === true) {
-    return <SidebarContext.Provider value={alwaysExpandedSidebar}>{shell}</SidebarContext.Provider>;
-  }
-
-  return shell;
+  return (
+    <SidebarContext.Provider value={effectiveForceSidebarExpanded ? alwaysExpandedSidebar : null}>
+      {shell}
+    </SidebarContext.Provider>
+  );
 }

@@ -1,0 +1,213 @@
+{
+  "http": {
+    "stateResponse": {
+      "state": {
+        "tabs": [
+          {
+            "tabId": "tab-main",
+            "url": "https://example.test/docs?query=%E6%9D%B1%E4%BA%AC",
+            "title": "Poracode — 東京",
+            "faviconUrl": "https://example.test/favicon.ico",
+            "loading": false,
+            "canGoBack": true,
+            "canGoForward": false
+          },
+          {
+            "tabId": "tab-loading",
+            "url": "about:blank",
+            "title": "",
+            "loading": true,
+            "canGoBack": false,
+            "canGoForward": false
+          }
+        ],
+        "activeTabId": "tab-main"
+      }
+    },
+    "commands": [
+      { "id": "create-empty", "request": { "kind": "create-tab" } },
+      {
+        "id": "create-url",
+        "request": { "kind": "create-tab", "url": "https://example.test/新規" }
+      },
+      { "id": "close", "request": { "kind": "close-tab", "tabId": "tab-loading" } },
+      { "id": "activate", "request": { "kind": "activate-tab", "tabId": "tab-main" } },
+      {
+        "id": "move-before",
+        "request": {
+          "kind": "move-tab",
+          "tabId": "tab-loading",
+          "targetTabId": "tab-main",
+          "position": "before"
+        }
+      },
+      {
+        "id": "move-after",
+        "request": {
+          "kind": "move-tab",
+          "tabId": "tab-main",
+          "targetTabId": "tab-loading",
+          "position": "after"
+        }
+      },
+      {
+        "id": "navigate",
+        "request": {
+          "kind": "navigate",
+          "tabId": "tab-main",
+          "url": "https://example.test/résumé"
+        }
+      },
+      { "id": "back", "request": { "kind": "back", "tabId": "tab-main" } },
+      { "id": "forward", "request": { "kind": "forward", "tabId": "tab-main" } },
+      { "id": "reload", "request": { "kind": "reload", "tabId": "tab-main" } }
+    ]
+  },
+  "webSocket": {
+    "client": [
+      { "id": "watch", "message": { "type": "browser-watch" } },
+      { "id": "unwatch", "message": { "type": "browser-unwatch" } },
+      {
+        "id": "tap",
+        "message": { "type": "browser-input", "input": { "kind": "tap", "x": 144.5, "y": 280.25 } }
+      },
+      {
+        "id": "scroll",
+        "message": {
+          "type": "browser-input",
+          "input": {
+            "kind": "scroll",
+            "x": 120,
+            "y": 240,
+            "deltaX": -12.5,
+            "deltaY": 96.75
+          }
+        }
+      },
+      {
+        "id": "insert-unicode",
+        "message": {
+          "type": "browser-input",
+          "input": { "kind": "insert-text", "text": "héllo 日本 👋" }
+        }
+      },
+      {
+        "id": "key-enter",
+        "message": { "type": "browser-input", "input": { "kind": "key", "key": "enter" } }
+      },
+      {
+        "id": "key-backspace",
+        "message": { "type": "browser-input", "input": { "kind": "key", "key": "backspace" } }
+      },
+      {
+        "id": "key-tab",
+        "message": { "type": "browser-input", "input": { "kind": "key", "key": "tab" } }
+      },
+      {
+        "id": "key-escape",
+        "message": { "type": "browser-input", "input": { "kind": "key", "key": "escape" } }
+      },
+      {
+        "id": "key-arrow-up",
+        "message": { "type": "browser-input", "input": { "kind": "key", "key": "arrow-up" } }
+      },
+      {
+        "id": "key-arrow-down",
+        "message": { "type": "browser-input", "input": { "kind": "key", "key": "arrow-down" } }
+      },
+      {
+        "id": "key-arrow-left",
+        "message": { "type": "browser-input", "input": { "kind": "key", "key": "arrow-left" } }
+      },
+      {
+        "id": "key-arrow-right",
+        "message": { "type": "browser-input", "input": { "kind": "key", "key": "arrow-right" } }
+      }
+    ],
+    "server": [
+      {
+        "id": "state",
+        "message": {
+          "type": "browser-state",
+          "state": {
+            "tabs": [
+              {
+                "tabId": "tab-main",
+                "url": "https://example.test/docs",
+                "title": "Docs",
+                "loading": false,
+                "canGoBack": true,
+                "canGoForward": false
+              }
+            ],
+            "activeTabId": "tab-main"
+          }
+        }
+      },
+      {
+        "id": "frame",
+        "message": {
+          "type": "browser-frame",
+          "tabId": "tab-main",
+          "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/2Q==",
+          "metadata": {
+            "deviceWidth": 1280,
+            "deviceHeight": 720,
+            "pageScaleFactor": 2,
+            "offsetTop": 24.5,
+            "scrollOffsetX": 10,
+            "scrollOffsetY": 512.25
+          }
+        }
+      },
+      {
+        "id": "status-starting",
+        "message": {
+          "type": "browser-mirror-status",
+          "status": { "status": "starting", "tabId": "tab-main" }
+        }
+      },
+      {
+        "id": "status-active",
+        "message": {
+          "type": "browser-mirror-status",
+          "status": { "status": "active", "tabId": "tab-main" }
+        }
+      },
+      {
+        "id": "status-unavailable",
+        "message": {
+          "type": "browser-mirror-status",
+          "status": {
+            "status": "unavailable",
+            "tabId": null,
+            "reason": "No active browser tab"
+          }
+        }
+      }
+    ]
+  },
+  "coordinateMapping": [
+    {
+      "id": "letterboxed-center",
+      "image": { "left": 0, "top": 0, "width": 390, "height": 844 },
+      "device": { "width": 1280, "height": 720 },
+      "point": { "x": 195, "y": 422 },
+      "expectedPagePoint": { "x": 640, "y": 360 }
+    },
+    {
+      "id": "outside-letterbox",
+      "image": { "left": 0, "top": 0, "width": 390, "height": 844 },
+      "device": { "width": 1280, "height": 720 },
+      "point": { "x": 195, "y": 20 },
+      "expectedPagePoint": null
+    },
+    {
+      "id": "offset-square",
+      "image": { "left": 20, "top": 40, "width": 300, "height": 300 },
+      "device": { "width": 600, "height": 600 },
+      "point": { "x": 95, "y": 115 },
+      "expectedPagePoint": { "x": 150, "y": 150 }
+    }
+  ]
+}

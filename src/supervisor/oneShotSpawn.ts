@@ -4,7 +4,12 @@ import { spawn as spawnPty } from "node-pty";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateProcessTree } from "@/shared/processTree";
-import { buildAgentCommand, type CommandSpec } from "./agents/base";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
+import {
+  buildAgentCommand,
+  prepareAgentLocationEnvironment,
+  type CommandSpec,
+} from "./agents/base";
 import { ensureNodePtySpawnHelperExecutable } from "./nodePty";
 import { markOneShotOutput, stripOneShotBanner } from "./oneShotOutputMarker";
 import { processEnvRecord } from "./processEnv";
@@ -41,13 +46,14 @@ function isolatedCwdLocation(location: ProjectLocation): ProjectLocation {
   return { ...location, path: tmpdir() };
 }
 
-export function buildOneShotSpec(
+export async function buildOneShotSpec(
   location: ProjectLocation,
   command: string,
   args: string[],
   options?: OneShotSpecOptions,
-): CommandSpec {
+): Promise<CommandSpec> {
   const effectiveLocation = options?.isolateCwd ? isolatedCwdLocation(location) : location;
+  await prepareAgentLocationEnvironment(effectiveLocation);
   const spec = buildAgentCommand(effectiveLocation, command, args, undefined, options?.env);
   return options?.markOutput ? markOneShotOutput(spec) : spec;
 }
@@ -61,7 +67,7 @@ export function buildOneShotSpec(
  * is always sentinel-fenced (`markOutput: true`) so login-shell banners are
  * stripped before the spawner resolves — see `markOneShotOutput`.
  */
-export function prepareOneShot(
+export async function prepareOneShot(
   location: ProjectLocation,
   cmd: {
     command: string;
@@ -70,8 +76,8 @@ export function prepareOneShot(
     pty?: boolean;
     env?: Record<string, string>;
   },
-): { spec: CommandSpec; spawn: typeof spawnAgent } {
-  const spec = buildOneShotSpec(location, cmd.command, cmd.args, {
+): Promise<{ spec: CommandSpec; spawn: typeof spawnAgent }> {
+  const spec = await buildOneShotSpec(location, cmd.command, cmd.args, {
     isolateCwd: cmd.isolateCwd,
     markOutput: true,
     ...(cmd.env ? { env: cmd.env } : {}),
@@ -90,6 +96,11 @@ export function spawnAgent(
       reject(new Error("Aborted"));
       return;
     }
+
+    // Mock-QA enforcement: one-shot prompt runs execute a real provider CLI
+    // with real credentials, so mock sessions refuse them like thread launches
+    // (a throw here rejects the promise).
+    assertAgentLaunchAllowed("one-shot");
 
     const child = spawnChild(spec.command, spec.args, {
       stdio: ["pipe", "pipe", "pipe"],
@@ -117,6 +128,11 @@ export function spawnAgent(
     child.on("error", (err) => {
       signal?.removeEventListener("abort", onAbort);
       reject(err);
+    });
+    child.stdin.on?.("error", (err) => {
+      // A child that dies before stdin flushes surfaces here as EPIPE; the
+      // close handler below is the authoritative outcome for the one-shot.
+      if ((err as NodeJS.ErrnoException).code !== "EPIPE") reject(err);
     });
     child.on("close", (code) => {
       signal?.removeEventListener("abort", onAbort);
@@ -147,6 +163,9 @@ export function spawnAgentPty(
       reject(new Error("Aborted"));
       return;
     }
+
+    // Mock-QA enforcement: see the child_process lane above.
+    assertAgentLaunchAllowed("one-shot");
 
     ensureNodePtySpawnHelperExecutable();
 

@@ -1,7 +1,15 @@
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, posix, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
-import { beforeEach, afterEach, describe, expect, it } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { ProjectTreeService } from "./projectTree";
 import type { WslBridgeClient } from "./wsl/bridge/client";
@@ -67,6 +75,45 @@ describe("ProjectTreeService", () => {
     expect(readFileSync(join(tempDir, "note.txt"), "utf8")).toBe("x\r\ny\r\n");
   });
 
+  it.skipIf(process.platform === "win32")(
+    "confines symlink reads, listings and editor saves to the real project root",
+    async () => {
+      const outside = mkdtempSync(join(tmpdir(), "poracode-file-boundary-"));
+      try {
+        writeFileSync(join(outside, "synthetic.txt"), "private fixture");
+        symlinkSync(outside, join(tempDir, "escape"), "dir");
+        await expect(
+          service.readProjectFile({ projectLocation: location, path: "escape/synthetic.txt" }),
+        ).rejects.toThrow("escapes the project root");
+        await expect(
+          service.listProjectTree({ projectLocation: location, directoryPath: "escape" }),
+        ).rejects.toThrow("escapes the project root");
+        await expect(
+          service.writeProjectFile({
+            projectLocation: location,
+            path: "escape/synthetic.txt",
+            content: "changed",
+            baseModifiedAtMs: 0,
+          }),
+        ).rejects.toThrow("escapes the project root");
+        expect(readFileSync(join(outside, "synthetic.txt"), "utf8")).toBe("private fixture");
+        writeFileSync(join(tempDir, "inside.txt"), "inside fixture");
+        symlinkSync(join(tempDir, "inside.txt"), join(tempDir, "inside-link.txt"));
+        await expect(
+          service.readProjectFile({ projectLocation: location, path: "inside-link.txt" }),
+        ).resolves.toMatchObject({ content: "inside fixture" });
+        await expect(
+          service.readExternalFile({
+            projectLocation: location,
+            absolutePath: join(outside, "synthetic.txt"),
+          }),
+        ).resolves.toMatchObject({ content: "private fixture" });
+      } finally {
+        rmSync(outside, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("marks binary files as non-editable", async () => {
     writeFileSync(join(tempDir, "image.bin"), Buffer.from([0x61, 0x00, 0x62]));
 
@@ -80,24 +127,48 @@ describe("ProjectTreeService", () => {
   });
 
   it("reports the size of files too large to edit", async () => {
-    writeFileSync(join(tempDir, "large.png"), Buffer.alloc(1_000_001));
+    writeFileSync(join(tempDir, "large.txt"), Buffer.alloc(1_000_001));
 
     const projectResult = await service.readProjectFile({
       projectLocation: location,
-      path: "large.png",
+      path: "large.txt",
     });
     const absoluteResult = await service.readAbsoluteFile({
       projectLocation: location,
-      absolutePath: join(tempDir, "large.png"),
+      absolutePath: join(tempDir, "large.txt"),
     });
     const externalResult = await service.readExternalFile({
       projectLocation: location,
-      absolutePath: join(tempDir, "large.png"),
+      absolutePath: join(tempDir, "large.txt"),
     });
 
     expect(projectResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
     expect(absoluteResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
     expect(externalResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
+  });
+
+  it("returns stat-only media metadata regardless of text cap and refuses media symlink escapes", async () => {
+    writeFileSync(join(tempDir, "small.png"), "synthetic-image-bytes");
+    writeFileSync(join(tempDir, "large.mp4"), Buffer.alloc(1_000_001, 1));
+    for (const path of ["small.png", "large.mp4"]) {
+      const result = await service.readProjectFile({ projectLocation: location, path });
+      expect(result).toMatchObject({
+        status: "binary",
+        sizeBytes: path === "small.png" ? 21 : 1_000_001,
+      });
+      expect(result).not.toHaveProperty("content");
+      expect(result).not.toHaveProperty("contentBase64");
+    }
+    const outside = mkdtempSync(join(tmpdir(), "poracode-media-outside-"));
+    try {
+      writeFileSync(join(outside, "outside.mp4"), "outside");
+      symlinkSync(join(outside, "outside.mp4"), join(tempDir, "escape.mp4"));
+      await expect(
+        service.readProjectFile({ projectLocation: location, path: "escape.mp4" }),
+      ).rejects.toThrow("escapes");
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
   });
 
   it("treats PDFs as binary without loading body bytes", async () => {
@@ -262,6 +333,124 @@ describe("ProjectTreeService", () => {
     });
     expect(existsSync(join(tempDir, "dest", "renamed.ts"))).toBe(false);
   });
+
+  it("never replaces existing entries during create, rename, or move", async () => {
+    mkdirSync(join(tempDir, "src"), { recursive: true });
+    mkdirSync(join(tempDir, "dest"), { recursive: true });
+    writeFileSync(join(tempDir, "src", "existing.ts"), "source", "utf8");
+    writeFileSync(join(tempDir, "src", "collision.ts"), "destination", "utf8");
+    writeFileSync(join(tempDir, "dest", "existing.ts"), "moved destination", "utf8");
+
+    await expect(
+      service.createProjectEntry({
+        projectLocation: location,
+        path: "src/existing.ts",
+        type: "file",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      service.renameProjectEntry({
+        projectLocation: location,
+        path: "src/existing.ts",
+        nextName: "collision.ts",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      service.moveProjectEntry({
+        projectLocation: location,
+        path: "src/existing.ts",
+        nextParentPath: "dest",
+      }),
+    ).rejects.toThrow("already exists");
+
+    expect(readFileSync(join(tempDir, "src", "existing.ts"), "utf8")).toBe("source");
+    expect(readFileSync(join(tempDir, "src", "collision.ts"), "utf8")).toBe("destination");
+    expect(readFileSync(join(tempDir, "dest", "existing.ts"), "utf8")).toBe("moved destination");
+  });
+
+  it("rejects rename and delete operations targeting the project root", async () => {
+    writeFileSync(join(tempDir, "keep.txt"), "keep", "utf8");
+
+    await expect(
+      service.renameProjectEntry({ projectLocation: location, path: "/", nextName: "renamed" }),
+    ).rejects.toThrow("project root");
+    await expect(
+      service.deleteProjectEntry({ projectLocation: location, path: "." }),
+    ).rejects.toThrow("project root");
+
+    expect(readFileSync(join(tempDir, "keep.txt"), "utf8")).toBe("keep");
+  });
+
+  it("rejects project mutations through symbolic-link ancestors", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "poracode-project-tree-outside-"));
+    writeFileSync(join(outside, "keep.txt"), "keep", "utf8");
+    try {
+      try {
+        symlinkSync(outside, join(tempDir, "outside-link"), "dir");
+      } catch {
+        return;
+      }
+
+      await expect(
+        service.createProjectEntry({
+          projectLocation: location,
+          path: "outside-link/new.txt",
+          type: "file",
+        }),
+      ).rejects.toThrow("Symbolic links");
+      await expect(
+        service.deleteProjectEntry({
+          projectLocation: location,
+          path: "outside-link/keep.txt",
+        }),
+      ).rejects.toThrow("Symbolic links");
+
+      expect(readFileSync(join(outside, "keep.txt"), "utf8")).toBe("keep");
+      expect(existsSync(join(outside, "new.txt"))).toBe(false);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects WSL destination collisions and root deletion before mutation", async () => {
+    const stat = vi.fn<WslBridgeClient["stat"]>(async (_location, paths) => ({
+      stats: paths.map((path) => ({ path, exists: true, isFile: true })),
+    }));
+    const moveEntry = vi.fn<WslBridgeClient["moveNoReplace"]>(async () => undefined);
+    const removeEntry = vi.fn<WslBridgeClient["rm"]>(async () => undefined);
+    service.setWslClient({
+      stat,
+      moveNoReplace: moveEntry,
+      rm: removeEntry,
+    } as unknown as WslBridgeClient);
+    const wslLocation: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/home/user/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\user\\repo",
+    };
+
+    await expect(
+      service.renameProjectEntry({
+        projectLocation: wslLocation,
+        path: "source.txt",
+        nextName: "destination.txt",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      service.moveProjectEntry({
+        projectLocation: wslLocation,
+        path: "source.txt",
+        nextParentPath: "dest",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      service.deleteProjectEntry({ projectLocation: wslLocation, path: "/" }),
+    ).rejects.toThrow("project root");
+
+    expect(moveEntry).not.toHaveBeenCalled();
+    expect(removeEntry).not.toHaveBeenCalled();
+  });
 });
 
 /**
@@ -289,6 +478,18 @@ class ContainmentBridgeClient {
       throw Object.assign(new Error("path escapes projectRoot"), { code: "ESCAPE" });
     }
     return normTarget;
+  }
+
+  async stat(location: { linuxPath: string }, paths: string[]) {
+    return {
+      stats: paths.map((path) => {
+        const target = this.resolveOrEscape(location.linuxPath, path);
+        const file = this.files.get(target);
+        return file
+          ? { path, exists: true, isFile: true, size: file.content.length, mtimeMs: file.mtimeMs }
+          : { path, exists: false, code: "ENOENT" };
+      }),
+    };
   }
 
   async readFile(
@@ -390,7 +591,8 @@ describe("ProjectTreeService WSL external files", () => {
     });
 
     expect(binary).toMatchObject({ status: "binary", sizeBytes: 3 });
-    expect(tooLarge).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
+    expect(tooLarge).toMatchObject({ status: "binary", sizeBytes: 1_000_001 });
+    expect(bridge.reads).toHaveLength(0);
   });
 
   it("writeExternalFile saves a path outside the project root on WSL", async () => {
@@ -419,6 +621,30 @@ describe("ProjectTreeService WSL external files", () => {
       expect(call.projectRoot).toBe("/home/user/notes");
     }
   });
+
+  it.each(["project", "external"] as const)(
+    "surfaces WSL commit-time conflicts through the %s editor without hiding other errors",
+    async (editor) => {
+      const location = makeWslLocation("/home/user/work/repo");
+      const absolutePath = "/home/user/work/repo/shared.txt";
+      bridge.files.set(absolutePath, { content: Buffer.from("before\n"), mtimeMs: 5000 });
+      const write = () => {
+        const payload = { projectLocation: location, content: "after\n", baseModifiedAtMs: 5000 };
+        return editor === "project"
+          ? service.writeProjectFile({ ...payload, path: "shared.txt" })
+          : service.writeExternalFile({ ...payload, absolutePath });
+      };
+      const commit = vi.spyOn(bridge, "writeFile");
+      commit.mockRejectedValueOnce(
+        Object.assign(new Error("file changed on disk since it was read"), { code: "EMTIME" }),
+      );
+      await expect(write()).rejects.toThrow("The file changed on disk. Reload it before saving.");
+      const denied = Object.assign(new Error("permission denied"), { code: "EACCES" });
+      commit.mockRejectedValueOnce(denied);
+      await expect(write()).rejects.toBe(denied);
+      expect(bridge.files.get(absolutePath)?.content.toString("utf8")).toBe("before\n");
+    },
+  );
 
   it("readExternalFile returns 'missing' when the WSL bridge reports ENOENT", async () => {
     const result = await service.readExternalFile({
@@ -504,7 +730,6 @@ describe("ProjectTreeService.browseHostDirectory", () => {
 
   it("classifies a symlink to a directory as a directory", async () => {
     if (process.platform === "win32") return; // symlink perms differ on Windows CI
-    const { symlinkSync } = await import("node:fs");
     mkdirSync(join(tempDir, "real"));
     symlinkSync(join(tempDir, "real"), join(tempDir, "link"));
 
@@ -517,5 +742,45 @@ describe("ProjectTreeService.browseHostDirectory", () => {
     await expect(service.browseHostDirectory({ path: join(tempDir, "file.txt") })).rejects.toThrow(
       "Not a directory.",
     );
+  });
+});
+
+describe("WSL media metadata containment", () => {
+  it("requests followed regular-file stat and refuses missing/escape rows without retrying broad reads", async () => {
+    const stat = vi.fn<WslBridgeClient["stat"]>().mockResolvedValue({
+      stats: [
+        {
+          path: "/repo/clip.mp4",
+          exists: true,
+          isFile: true,
+          isDirectory: false,
+          isSymlink: false,
+          size: 2,
+          mtimeMs: 123,
+        },
+      ],
+    });
+    const bridge = {
+      stat,
+      readFile: vi.fn<WslBridgeClient["readFile"]>(),
+    } as unknown as WslBridgeClient;
+    const service = new ProjectTreeService();
+    service.setWslClient(bridge);
+    const projectLocation = {
+      kind: "wsl" as const,
+      distro: "Ubuntu",
+      linuxPath: "/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+    };
+    expect(await service.readProjectFile({ projectLocation, path: "clip.mp4" })).toMatchObject({
+      status: "binary",
+      modifiedAtMs: 123,
+    });
+    expect(stat).toHaveBeenLastCalledWith(projectLocation, ["/repo/clip.mp4"], { follow: true });
+    stat.mockResolvedValue({ stats: [{ path: "/repo/clip.mp4", exists: false, code: "ESCAPE" }] });
+    await expect(
+      service.readProjectFile({ projectLocation, path: "clip.mp4" }),
+    ).rejects.toMatchObject({ code: "ESCAPE" });
+    expect(bridge.readFile).not.toHaveBeenCalled();
   });
 });

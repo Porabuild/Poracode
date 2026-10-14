@@ -1,6 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import { selectAnyObstructingOverlayOpen, usePanelStore } from "./panelStore";
 import { useFileEditorStore } from "./fileEditorStore";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 
 const initialPanelState = usePanelStore.getState();
 const initialFileEditorState = useFileEditorStore.getState();
@@ -20,8 +22,9 @@ function resetPanelStore() {
     browserOverlayOpen: false,
     settingsOpen: false,
     projectSettingsId: null,
-    threadSearchOpen: false,
+    mobileUtilityPage: null,
   });
+  useCommandPaletteStore.setState({ isOpen: false });
 }
 
 function resetFileEditorStore() {
@@ -33,6 +36,84 @@ function resetFileEditorStore() {
 
 it("defaults the thread list to the flat layout", () => {
   expect(initialPanelState.threadListLayout).toBe("flat");
+});
+
+it("defaults the right panel to follow the focused thread", () => {
+  expect(initialPanelState.rightPanelFollowsThread).toBe(true);
+});
+
+it("hides a side chat when it is the only open right panel and reopens its tab", () => {
+  resetPanelStore();
+  usePanelStore.setState({ sideChatPanelOpen: true, rightPanelTab: "sideChat" });
+  usePanelStore.getState().closeAllPanels();
+  expect(usePanelStore.getState().sideChatPanelOpen).toBe(false);
+  usePanelStore.getState().setRightPanelTab("sideChat");
+  expect(usePanelStore.getState().sideChatPanelOpen).toBe(true);
+  resetPanelStore();
+});
+
+function stubMatchMedia(matches: (query: string) => boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      media: query,
+      matches: matches(query),
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => true,
+    })),
+  );
+}
+
+describe("compact project settings navigation", () => {
+  beforeEach(() => {
+    resetPanelStore();
+    resetAdaptiveLayoutForTest();
+    Reflect.deleteProperty(window, "poracodeHost");
+    stubMatchMedia((query) => query === "(max-width: 767px)");
+    initializeAdaptiveLayout();
+  });
+
+  afterEach(() => {
+    resetPanelStore();
+    resetAdaptiveLayoutForTest();
+    vi.unstubAllGlobals();
+  });
+
+  it("opens project settings as a top-level mobile page", () => {
+    usePanelStore.getState().openProjectSettings("proj-1");
+
+    expect(usePanelStore.getState()).toMatchObject({
+      mobileUtilityPage: "projectSettings",
+      projectSettingsId: "proj-1",
+    });
+  });
+
+  it("clears both the page and project identity when navigating back", () => {
+    usePanelStore.getState().openProjectSettings("proj-1");
+    usePanelStore.getState().closeProjectSettings();
+
+    expect(usePanelStore.getState()).toMatchObject({
+      mobileUtilityPage: null,
+      projectSettingsId: null,
+    });
+  });
+
+  it("keeps the desktop project settings overlay route unchanged", () => {
+    resetAdaptiveLayoutForTest();
+    stubMatchMedia(() => false);
+    initializeAdaptiveLayout();
+
+    usePanelStore.getState().openProjectSettings("proj-1");
+
+    expect(usePanelStore.getState()).toMatchObject({
+      mobileUtilityPage: null,
+      projectSettingsId: "proj-1",
+    });
+  });
 });
 
 describe("selectAnyObstructingOverlayOpen", () => {
@@ -76,8 +157,8 @@ describe("selectAnyObstructingOverlayOpen", () => {
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 
-  it("returns true when the thread search overlay is open", () => {
-    usePanelStore.setState({ threadSearchOpen: true });
+  it("returns true when the search palette is open", () => {
+    useCommandPaletteStore.getState().open();
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 

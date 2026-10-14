@@ -3,6 +3,7 @@ import { toast } from "@heroui/react";
 import { Download } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { extractAcpGenericInstanceId, type AgentStatus, type Project } from "@/shared/contracts";
+import { localizeCatalogMessage } from "@/shared/messages";
 import {
   formatUpdateCommandLine,
   isNewerVersion,
@@ -222,7 +223,7 @@ export function ThreadAgentUpdateDock(props: {
           ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
         });
         if (!result.ok) {
-          const detail = result.output?.trim();
+          const detail = localizeCatalogMessage(result.output?.trim() ?? "");
           toast.danger(
             detail
               ? t`Unable to update ${agentStatus.label}: ${detail.slice(0, 240)}`

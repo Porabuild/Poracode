@@ -1,9 +1,12 @@
 import { Check, FolderOpen, GitFork, Trash2 } from "lucide-react";
+import { Spinner } from "@heroui/react";
+import { useGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
 import { useLingui } from "@lingui/react/macro";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import type { StatusTone } from "@/renderer/components/providers/statusTone";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
@@ -47,6 +50,11 @@ export function WorktreeGroupHeader({
   projectTag?: React.ReactNode;
 }) {
   const { t } = useLingui();
+  const gitPending = useGitReviewActionStore((state) => {
+    const action = state.panels[props.worktreePath];
+    return !!(action?.isMerging || action?.isPullingFromSource);
+  });
+  const compactLayout = useCompactLayout();
   const hiddenPanelButtonClass =
     "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
   // A project tag means this is a flat cross-project row, which stacks the tag
@@ -58,53 +66,62 @@ export function WorktreeGroupHeader({
       className={`min-w-0 flex-1 truncate font-medium ${props.isDone ? "opacity-50 line-through" : "text-foreground/80"}`}
     >
       {props.worktreeBranch}
+      {gitPending ? <Spinner size="sm" className="ms-1 inline-flex" /> : null}
     </span>
   );
 
   const panelButtons = (
     <>
-      <SidebarPanelDragButton
-        panel="files"
-        projectId={props.projectId}
-        worktreePath={props.worktreePath}
-        ariaLabel={t`Files for ${props.worktreeBranch}`}
-        className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-          props.isActiveFiles
-            ? "w-[18px] p-0.5 text-accent"
-            : `text-muted/60 ${hiddenPanelButtonClass}`
-        }`}
-        onPress={props.onOpenFiles}
-      >
-        <FolderOpen className="size-3.5" />
-      </SidebarPanelDragButton>
-      <SidebarPanelDragButton
-        panel="terminal"
-        projectId={props.projectId}
-        worktreePath={props.worktreePath}
-        ariaLabel={t`Terminal for ${props.worktreeBranch}`}
-        className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
-          props.isActiveTerminal
-            ? "w-[18px] p-0.5 text-accent"
-            : props.hasTerminal
-              ? "w-[18px] p-0.5 text-foreground"
+      {!compactLayout ? (
+        <SidebarPanelDragButton
+          panel="files"
+          projectId={props.projectId}
+          worktreePath={props.worktreePath}
+          ariaLabel={t`Files for ${props.worktreeBranch}`}
+          className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+            props.isActiveFiles
+              ? "w-[18px] p-0.5 text-accent"
               : `text-muted/60 ${hiddenPanelButtonClass}`
-        }`}
-        onPress={props.onOpenTerminal}
-      >
-        <AnimatedTerminalIcon className="size-3.5" isBusy={props.isBusyTerminal} />
-      </SidebarPanelDragButton>
+          }`}
+          onPress={props.onOpenFiles}
+        >
+          <FolderOpen className="size-3.5" />
+        </SidebarPanelDragButton>
+      ) : null}
+      {!compactLayout ? (
+        <SidebarPanelDragButton
+          panel="terminal"
+          projectId={props.projectId}
+          worktreePath={props.worktreePath}
+          ariaLabel={t`Terminal for ${props.worktreeBranch}`}
+          className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+            props.isActiveTerminal
+              ? "w-[18px] p-0.5 text-accent"
+              : props.hasTerminal
+                ? "w-[18px] p-0.5 text-foreground"
+                : `text-muted/60 ${hiddenPanelButtonClass}`
+          }`}
+          onPress={props.onOpenTerminal}
+        >
+          <AnimatedTerminalIcon className="size-3.5" isBusy={props.isBusyTerminal} />
+        </SidebarPanelDragButton>
+      ) : null}
     </>
   );
 
   const gitBadges = (
     <>
-      <SyncBadge projectId={props.projectId} worktreePath={props.worktreePath} />
+      {!compactLayout ? (
+        <SyncBadge projectId={props.projectId} worktreePath={props.worktreePath} />
+      ) : null}
       <GitBadge
         projectId={props.projectId}
         projectName={props.worktreeBranch}
         worktreePath={props.worktreePath}
         onPress={props.onOpenGitReview}
         isActive={props.isActiveGit}
+        {...(!compactLayout ? { fallbackToWorktreeIcon: true } : {})}
+        {...(compactLayout ? { compact: true } : {})}
       />
     </>
   );
@@ -136,9 +153,9 @@ export function WorktreeGroupHeader({
     <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center">
       <RelativeTime
         iso={props.updatedAt}
-        className="block font-mono text-[10px] leading-none tabular-nums text-muted group-hover:invisible"
+        className={`block font-mono text-[10px] leading-none tabular-nums text-muted ${compactLayout ? "" : "group-hover:invisible"}`}
       />
-      {deleteButton}
+      {compactLayout ? null : deleteButton}
     </span>
   ) : (
     <span className="relative w-[2.4ch] shrink-0">
@@ -203,7 +220,9 @@ export function WorktreeGroupHeader({
       tooltip={t`Worktree: ${props.worktreeBranch}`}
       size="xs"
       liveText
-      {...(stacked ? { density: "compact" as const } : { className: "h-8" })}
+      {...(stacked
+        ? { density: "compact" as const, className: "poracode-sidebar-worktree-row" }
+        : { className: "h-8" })}
       onPress={props.onToggleCollapse}
       {...(props.isDragging != null ? { isDragging: props.isDragging } : {})}
       {...(props.isDraggingAnything != null

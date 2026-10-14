@@ -137,6 +137,27 @@ describe("GitBadge", () => {
     expect(icon).toHaveClass("lucide-git-fork");
   });
 
+  it("shows the worktree fork while its first git status is still loading", () => {
+    useGitStore.setState({
+      statuses: { "project-1": makeStatus({ totalInsertions: 42, behind: 3 }) },
+    });
+
+    render(
+      <GitBadge
+        projectId="project-1"
+        projectName="feature/pr"
+        worktreePath="/wt/feature"
+        fallbackToWorktreeIcon
+      />,
+    );
+
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    expect(badge.querySelector(".lucide-git-fork")).toBeInTheDocument();
+    expect(badge).not.toHaveClass("opacity-0");
+    expect(screen.queryByText("+42")).not.toBeInTheDocument();
+    expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
+  });
+
   it("shows a hover affordance for a clean worktree without the fallback", () => {
     useGitStore.setState({
       worktreeStatuses: { "/wt/feature": makeStatus() },

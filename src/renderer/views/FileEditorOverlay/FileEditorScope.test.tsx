@@ -62,8 +62,15 @@ describe.each(["modal", "fullscreen"] as const)("%s editor file scope", (mode) =
     expect(screen.getByTestId("project-tree")).toBeInTheDocument();
   });
 
-  it("retains the remote project's file-only editor", () => {
+  it("retains tree browsing for a remote project", () => {
     openEditor("remote-project", "host");
+
+    expect(screen.getByTestId("file-editor")).toBeInTheDocument();
+    expect(screen.getByTestId("project-tree")).toBeInTheDocument();
+  });
+
+  it("opens remote Home files without mounting the project tree", () => {
+    openEditor(HOME_PROJECT_ID, "host");
 
     expect(screen.getByTestId("file-editor")).toBeInTheDocument();
     expect(screen.queryByTestId("project-tree")).not.toBeInTheDocument();

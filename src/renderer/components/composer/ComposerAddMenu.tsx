@@ -7,12 +7,15 @@ import {
   Monitor,
   Paperclip,
   Plus,
+  MessagesSquare,
   Server,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { Selection } from "@heroui/react";
 import { Dropdown, Label, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
+import { isChatSidebarSurface } from "@/renderer/clientSurface";
 import { Button } from "@/renderer/components/common/Button";
 import {
   ResponsiveMenuSurface,
@@ -26,6 +29,8 @@ import {
 } from "./ComposerAddMenuParts";
 import { COMPUTER_USE_MCP_ID } from "./composerMcpServers";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
+import type { ProviderSessionMenuAction } from "../providers/providerSessionControls";
+import { ComposerSessionActionsMenu } from "./ComposerSessionActionsMenu";
 import {
   ComposerMcpServersMobileList,
   ComposerMcpServersSubmenuContent,
@@ -48,7 +53,7 @@ export type ComposerMcpMenuItem = {
 const EMPTY_PLUGIN_LABELS: Readonly<Record<string, string>> = {};
 
 /** Mobile sheet drill-in target: the root list swaps to a sub-list in place. */
-type MobileView = "root" | "plugins" | "mcp";
+type MobileView = "root" | "plugins" | "mcp" | "session";
 
 export function ComposerAddMenu(props: {
   /** First-party plugin MCP servers, listed under "Plugins". */
@@ -63,6 +68,7 @@ export function ComposerAddMenu(props: {
   onManageMcpServers?: () => void;
   showFileOption?: boolean;
   onPickFiles: () => void;
+  onOpenSideChat?: () => void;
   /**
    * Computer Use is a launch-time capability handled separately from the MCP
    * registry (it gates on project location + agent kind, not the shared MCP
@@ -91,14 +97,19 @@ export function ComposerAddMenu(props: {
    * same as the plugin's `@`-mention instead of naming the raw server.
    */
   pluginLabels?: Readonly<Record<string, string>>;
+  sessionActions?: readonly ProviderSessionMenuAction[];
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse, experiment } = props;
   const customMcpServers = props.customMcpServers ?? [];
-  const onManageMcpServers = props.onManageMcpServers;
+  const sessionActions = props.sessionActions ?? [];
+  // Both draft and existing-thread composers share this menu. The focused
+  // sidebar has no settings destination, but still shows its server bindings.
+  const canManageMcpServers = !isChatSidebarSurface();
+  const onManageMcpServers = canManageMcpServers ? props.onManageMcpServers : undefined;
   const readOnly = props.readOnly === true;
   const pluginLabels = props.pluginLabels ?? EMPTY_PLUGIN_LABELS;
   const { t } = useLingui();
-  const { mobile } = useResponsiveMenu();
+  const { mobile, stackSubmenus } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>("root");
   const visiblePlugins = mcpServers.filter((server) => server.visible);
@@ -123,7 +134,15 @@ export function ComposerAddMenu(props: {
     (showComputerUse && computerUse.enabled ? 1 : 0);
   const enabledMcpServerCount = customMcpServers.filter((server) => server.enabled).length;
 
-  if (!showFileOption && !hasPluginsMenu && !hasMcpServersMenu && !experiment) return null;
+  if (
+    !showFileOption &&
+    !hasPluginsMenu &&
+    !hasMcpServersMenu &&
+    !experiment &&
+    !sessionActions.length &&
+    !props.onOpenSideChat
+  )
+    return null;
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -139,6 +158,10 @@ export function ComposerAddMenu(props: {
   const handlePickFiles = () => {
     closeMenu();
     onPickFiles();
+  };
+  const handleSideChat = () => {
+    closeMenu();
+    props.onOpenSideChat?.();
   };
 
   // The Plugins submenu is a multiple-selection menu (Computer Use included as
@@ -180,7 +203,7 @@ export function ComposerAddMenu(props: {
     <Button
       isIconOnly
       aria-label={t`Add attachment or capability`}
-      className="poracode-composer-menu min-w-9 px-2"
+      className="poracode-composer-menu poracode-composer-add-menu min-w-9 px-2"
       size="sm"
       variant="ghost"
       {...(mobile ? { onPress: () => setIsOpen(true) } : {})}
@@ -200,6 +223,14 @@ export function ComposerAddMenu(props: {
           </span>
           <span className="shrink-0 text-xs text-muted">
             <Trans>Attach</Trans>
+          </span>
+        </button>
+      ) : null}
+      {props.onOpenSideChat ? (
+        <button type="button" className="m-sheet-action" onClick={handleSideChat}>
+          <MessagesSquare className="size-4 text-muted" />
+          <span className="flex-1 truncate">
+            <Trans>Side chat</Trans>
           </span>
         </button>
       ) : null}
@@ -242,6 +273,15 @@ export function ComposerAddMenu(props: {
               {enabledMcpServerCount}
             </span>
           ) : null}
+          <ChevronRight className="size-4 shrink-0 text-muted" />
+        </button>
+      ) : null}
+      {sessionActions.length > 0 ? (
+        <button type="button" className="m-sheet-action" onClick={() => setMobileView("session")}>
+          <SlidersHorizontal className="size-4 text-muted" />
+          <span className="flex-1 truncate">
+            <Trans>Session actions</Trans>
+          </span>
           <ChevronRight className="size-4 shrink-0 text-muted" />
         </button>
       ) : null}
@@ -328,7 +368,14 @@ export function ComposerAddMenu(props: {
         contentClassName="p-0"
         dialogClassName="overflow-hidden"
       >
-        {mobileView === "plugins" && hasPluginsMenu ? (
+        {mobileView === "session" ? (
+          <ComposerSessionActionsMenu
+            actions={sessionActions}
+            mobile
+            onBack={() => setMobileView("root")}
+            onSelected={closeMenu}
+          />
+        ) : mobileView === "plugins" && hasPluginsMenu ? (
           mobilePluginsList
         ) : mobileView === "mcp" && hasMcpServersMenu ? (
           <ComposerMcpServersMobileList
@@ -344,15 +391,27 @@ export function ComposerAddMenu(props: {
   }
 
   // ── Desktop: HeroUI dropdown with real flyout submenus ──────────────────────
+  // A narrow desktop surface cannot fit a side-by-side flyout next to the root
+  // menu, so submenus open flush above their row instead of being clipped.
+  // HeroUI caps dropdown popovers at 48svw to leave room for a side flyout; on
+  // a narrow surface that cap falls below the menus' min width and the
+  // popover's scroll clip cuts off trailing switches. Stacked menus never sit
+  // side by side, so clamp them to the viewport instead.
+  const stackedPopoverClassName = "max-w-[calc(100vw-2rem)]";
+  const rootPopoverProps = stackSubmenus ? { className: stackedPopoverClassName } : {};
+  const submenuPopoverProps = stackSubmenus
+    ? ({ placement: "top", offset: 0, className: stackedPopoverClassName } as const)
+    : {};
   return (
-    <Dropdown>
+    <Dropdown isOpen={isOpen} onOpenChange={handleOpenChange}>
       {button}
-      <Dropdown.Popover placement="top start">
+      <Dropdown.Popover placement="top start" {...rootPopoverProps}>
         <Dropdown.Menu
           aria-label={t`Add to composer`}
           selectionMode="none"
           onAction={(key) => {
             if (key === "file") handlePickFiles();
+            if (key === "side-chat") handleSideChat();
             if (key === "experiment" && experiment) {
               experiment.onToggle(!experiment.enabled);
             }
@@ -368,6 +427,15 @@ export function ComposerAddMenu(props: {
               <span className="ms-auto truncate text-xs text-muted">
                 <Trans>Attach</Trans>
               </span>
+            </Dropdown.Item>
+          ) : null}
+          {props.onOpenSideChat ? (
+            <Dropdown.Item id="side-chat" textValue={t`Side chat`}>
+              <MessagesSquare className="size-4 text-muted" />
+              <Label className="flex-1 truncate">
+                <Trans>Side chat</Trans>
+              </Label>
+              <span className="ms-auto text-xs text-muted">/btw</span>
             </Dropdown.Item>
           ) : null}
           {experiment ? (
@@ -399,7 +467,7 @@ export function ComposerAddMenu(props: {
                 ) : null}
                 <Dropdown.SubmenuIndicator />
               </Dropdown.Item>
-              <Dropdown.Popover>
+              <Dropdown.Popover {...submenuPopoverProps}>
                 <div className="flex flex-col">
                   {readOnly ? (
                     // Session bindings are fixed at launch — render a static list
@@ -488,10 +556,13 @@ export function ComposerAddMenu(props: {
                 ) : null}
                 <Dropdown.SubmenuIndicator />
               </Dropdown.Item>
-              <Dropdown.Popover>
+              <Dropdown.Popover {...submenuPopoverProps}>
                 <ComposerMcpServersSubmenuContent {...mcpServersMenuProps} />
               </Dropdown.Popover>
             </Dropdown.SubmenuTrigger>
+          ) : null}
+          {sessionActions.length > 0 ? (
+            <ComposerSessionActionsMenu actions={sessionActions} onSelected={closeMenu} />
           ) : null}
         </Dropdown.Menu>
       </Dropdown.Popover>

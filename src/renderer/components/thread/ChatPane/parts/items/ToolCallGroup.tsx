@@ -11,6 +11,7 @@ import {
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
+import { StartTruncatedText } from "@/renderer/components/common/StartTruncatedText";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit, Globe, Pencil, Terminal, type LucideIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -44,6 +45,7 @@ import { iconForCommandIntent } from "./CommandExecution";
 import { formatDiffSummaryLabel, formatKindVerb } from "./FileChange";
 import { ToolCallRowOpenContext, useToolCallRowOpenSignal } from "./toolCallRowOpenContext";
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
+import { GroupSummarySection } from "./GroupSummarySection";
 import { useToolCallWindowShift } from "./useToolCallWindowShift";
 import {
   extractAcpAddedFileText,
@@ -67,13 +69,13 @@ import {
   readCommandPayloadCommand,
   segmentToolGroupRows,
   summarizeToolCalls,
-  type GroupSection,
   type SameFileEditGroupSummary,
   type ToolGroupRowSegment,
 } from "./toolCallCategorization";
 import { deriveToolDisplay } from "./toolDisplay";
 import { deriveWebSearchDisplay } from "./webSearchDisplay";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
+import { useHistoryItemDetails, HistoryItemDetailPlaceholder } from "./useHistoryItemDetails";
 
 interface ToolCallGroupProps {
   threadId: string;
@@ -419,10 +421,12 @@ function GroupRowInline({ item }: { item: RuntimeChatItem }) {
   return <ToolCallInline item={item} />;
 }
 
-function ToolCallInline({ item }: { item: RuntimeChatItem }) {
+function ToolCallInline({ item: source }: { item: RuntimeChatItem }) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
+  const details = useHistoryItemDetails(source, isExpanded);
+  const item = details.item;
   useToolCallRowOpenSignal(isExpanded);
   const row = getInlineRow(item, isExpanded, t);
   const isRunning = item.state !== "completed";
@@ -434,7 +438,7 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
   if (!row) return null;
   const Icon = row.Icon;
 
-  if (!row.hasDetails) {
+  if (!row.hasDetails && !source.detailsDeferred) {
     return (
       <div className="flex min-h-[18px] w-fit max-w-full min-w-0 items-center gap-1.5 py-0.5 text-[length:var(--lc-chat-font-size-command)] leading-tight">
         <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
@@ -471,7 +475,9 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
       </Disclosure.Heading>
       <Disclosure.Content>
         <Disclosure.Body className="pb-1 pl-4 pt-1">
-          {fetchTarget ? (
+          {details.pending ? (
+            <HistoryItemDetailPlaceholder failed={details.failed} retry={details.retry} />
+          ) : fetchTarget ? (
             fetched.content !== undefined ? (
               <CommandOutputViewport
                 text={fetched.content}
@@ -531,48 +537,6 @@ type InlineRow = {
   fetchPath?: string | undefined;
 };
 
-/**
- * One category summary in the group header ("3 commands"). When the group is
- * collapsed and the category still has a running item — a detached background
- * command outliving its turn is the main case — the label carries the same
- * shimmer treatment as running rows, so collapsed groups don't hide active
- * work. While expanded, the rows themselves shimmer and the header stays
- * static.
- */
-function GroupSummarySection({
-  section,
-  showRunning,
-}: {
-  section: GroupSection;
-  showRunning: boolean;
-}) {
-  const isRunning = showRunning && section.hasRunning === true;
-  const shimmerRef = useShimmer<HTMLElement>(isRunning);
-  const diffLabel = formatDiffSummaryLabel(section.diffSummary, { animated: true });
-  return (
-    <span className="flex shrink-0 items-center gap-1">
-      <section.Icon className="size-3" />
-      <code
-        ref={shimmerRef}
-        className={`font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)] ${
-          isRunning ? "poracode-thinking-text" : ""
-        }`}
-        {...(isRunning
-          ? { "data-poracode-shimmer-text": `${section.count} ${section.label}` }
-          : {})}
-      >
-        <AnimatedNumber value={section.count} />{" "}
-        {section.category === "mcp" ? (
-          <Plural value={section.count} one="MCP" other="MCPs" />
-        ) : (
-          section.label
-        )}
-      </code>
-      {diffLabel ? <span className="shrink-0 tabular-nums font-medium">{diffLabel}</span> : null}
-    </span>
-  );
-}
-
 function InlineRowTitle({
   isRunning,
   title,
@@ -611,7 +575,7 @@ function InlineRowTitle({
             />
           </>
         ) : (
-          <span className="lc-truncate-start flex-1">{titleParts.path}</span>
+          <StartTruncatedText className="flex-1">{titleParts.path}</StartTruncatedText>
         )}
       </code>
     );

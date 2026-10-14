@@ -186,7 +186,7 @@ describe("ThreadAgentUpdateDock", () => {
       agentKind: "cursor",
       npmPackage: {
         name: "@cursor/sdk",
-        minVersion: "1.0.24",
+        minVersion: "1.0.37",
         maxExclusiveMajor: 2,
       },
     });
@@ -196,7 +196,7 @@ describe("ThreadAgentUpdateDock", () => {
     expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
       expect.objectContaining({
         label: "Cursor SDK",
-        command: expect.stringContaining("npm install -g '@cursor/sdk@^1.0.24'"),
+        command: expect.stringContaining("npm install -g '@cursor/sdk@^1.0.37'"),
         purpose: "update",
       }),
     );

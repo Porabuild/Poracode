@@ -44,7 +44,7 @@ const SAFE_PARAM_TOKEN = /^[^,[\]=]+$/u;
  */
 type CursorSdkParamFamily = "effort" | "context" | "fast" | "thinking";
 
-function paramFamily(paramId: string): CursorSdkParamFamily | undefined {
+export function cursorSdkParamFamily(paramId: string): CursorSdkParamFamily | undefined {
   const id = paramId.trim().toLowerCase();
   if (id.includes("context")) return "context";
   if (id.includes("effort") || id.includes("reasoning")) return "effort";
@@ -57,7 +57,7 @@ function familyParameter(
   model: CursorSdkModel | undefined,
   family: CursorSdkParamFamily,
 ): CursorSdkModelParameter | undefined {
-  return model?.parameters?.find((candidate) => paramFamily(candidate.id) === family);
+  return model?.parameters?.find((candidate) => cursorSdkParamFamily(candidate.id) === family);
 }
 
 function parameterById(
@@ -178,7 +178,7 @@ function variantModelId(modelId: string, variant: CursorSdkModelVariant): string
 }
 
 function needsDedicatedVariantRow(variant: CursorSdkModelVariant): boolean {
-  return variant.params.some(({ id }) => paramFamily(id) === undefined);
+  return variant.params.some(({ id }) => cursorSdkParamFamily(id) === undefined);
 }
 
 /**
@@ -361,7 +361,7 @@ function variantFamilyValue(
   variant: CursorSdkModelVariant,
   family: CursorSdkParamFamily,
 ): string | undefined {
-  return variant.params.find(({ id }) => paramFamily(id) === family)?.value;
+  return variant.params.find(({ id }) => cursorSdkParamFamily(id) === family)?.value;
 }
 
 /**

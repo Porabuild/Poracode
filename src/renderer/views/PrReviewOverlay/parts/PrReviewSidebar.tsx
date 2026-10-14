@@ -35,6 +35,9 @@ export function PrReviewSidebar(props: {
   onSelectFile: (path: string) => void;
   onClose: () => void;
   onRefresh: () => void;
+  /** Hide the desktop "Return to app / Hide sidebar" footer (mobile shells
+   * provide their own navigation chrome). */
+  hideFooterNav?: boolean;
 }) {
   const {
     files,
@@ -48,6 +51,7 @@ export function PrReviewSidebar(props: {
     onSelectFile,
     onClose,
     onRefresh,
+    hideFooterNav = false,
   } = props;
   const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
@@ -168,18 +172,20 @@ export function PrReviewSidebar(props: {
             handleUpdatePrBranch={handleUpdatePrBranch}
           />
 
-          <div className={sidebarFooterNavClass}>
-            <SidebarButton
-              icon={<ArrowLeft className="size-4" />}
-              label={t`Return to app`}
-              onPress={onClose}
-            />
-            <SidebarButton
-              icon={<PanelLeftClose className="size-4" />}
-              label={t`Hide sidebar`}
-              onPress={collapse}
-            />
-          </div>
+          {hideFooterNav ? null : (
+            <div className={sidebarFooterNavClass}>
+              <SidebarButton
+                icon={<ArrowLeft className="size-4" />}
+                label={t`Return to app`}
+                onPress={onClose}
+              />
+              <SidebarButton
+                icon={<PanelLeftClose className="size-4" />}
+                label={t`Hide sidebar`}
+                onPress={collapse}
+              />
+            </div>
+          )}
         </div>
       </GitReviewPadXProvider>
     </div>

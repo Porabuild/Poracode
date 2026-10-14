@@ -1,21 +1,34 @@
-import { Globe, Plus, X } from "lucide-react";
+import { Download, Globe, KeyRound, Plus, X } from "lucide-react";
+import { Spinner } from "@heroui/react";
 import { useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import { readBridge } from "@/renderer/bridge";
+import { activateBrowserTab, editBrowserPresentation } from "@/renderer/actions/browserActions";
+import { useRendererActionStore } from "@/renderer/state/rendererActionStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
+import { useBrowserPanelStore, browserActionKey } from "@/renderer/state/browserPanelStore";
 import type { BrowserTabGroupInfo, BrowserTabInfo } from "@/shared/ipc";
 import { BrowserTabGroupMenu } from "./BrowserTabGroupMenu";
 import { groupColor } from "./groupColors";
 
-function TabFavicon(props: { faviconUrl?: string; loading: boolean }) {
+function TabFavicon(props: {
+  faviconUrl?: string;
+  loading: boolean;
+  internalPage?: BrowserTabInfo["internalPage"];
+}) {
   if (props.loading) {
     return (
       <span className="flex size-3.5 shrink-0 items-center justify-center">
         <span className="size-2 animate-pulse rounded-full bg-accent/70" />
       </span>
     );
+  }
+  if (props.internalPage === "downloads") {
+    return <Download className="size-3.5 shrink-0 text-foreground/60" />;
+  }
+  if (props.internalPage === "passwords") {
+    return <KeyRound className="size-3.5 shrink-0 text-foreground/60" />;
   }
   if (props.faviconUrl) {
     return (
@@ -97,6 +110,24 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
   const { t } = useLingui();
   const variant = props.variant ?? "row";
   const tabs = useBrowserPanelStore((s) => s.tabs);
+  const ownerRevision = useBrowserPanelStore((s) => s.ownerRevision);
+  const pending = useRendererActionStore(
+    useShallow((state) =>
+      Object.fromEntries([
+        ["browser:create", state.pending[browserActionKey("browser:create", ownerRevision)]],
+        ...tabs.flatMap((tab) => [
+          [
+            `browser:navigate:${tab.tabId}`,
+            state.pending[browserActionKey(`browser:navigate:${tab.tabId}`, ownerRevision)],
+          ],
+          [
+            `browser:close:${tab.tabId}`,
+            state.pending[browserActionKey(`browser:close:${tab.tabId}`, ownerRevision)],
+          ],
+        ]),
+      ]),
+    ),
+  );
   const groups = useBrowserPanelStore((s) => s.groups);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
   const attentionTabId = useBrowserPanelStore((s) => s.attentionTabId);
@@ -133,7 +164,7 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
       // still land on a tab (Fitts's law). Empty strip space stays a window-drag
       // region; tabs themselves opt out via `__controls`.
       "flex h-full min-w-0 flex-1 items-stretch overflow-x-auto"
-    : "flex items-center overflow-x-auto border-b border-border bg-[var(--content-background)] px-1 py-0.5";
+    : "poracode-browser-tab-strip flex items-center overflow-x-auto border-b border-border bg-[var(--content-background)] px-1 py-0.5";
 
   const groupById = new Map(groups.map((g) => [g.id, g]));
   const countByGroup = new Map<string, number>();
@@ -150,11 +181,15 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
   ) => {
     const active = tab.tabId === activeTabId;
     const attention = !active && tab.tabId === attentionTabId;
+    const displayTitle =
+      tab.internalPage === "downloads"
+        ? t`Download history`
+        : tab.internalPage === "passwords"
+          ? t`Password manager`
+          : tab.title || tab.url || t`New tab`;
     const activate = () => {
       if (!active) {
-        readBridge()
-          .browserActivateTab({ tabId: tab.tabId })
-          .catch(() => {});
+        activateBrowserTab(tab.tabId);
       }
     };
     return (
@@ -163,7 +198,7 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
         role="button"
         tabIndex={0}
         draggable
-        className={`group flex w-40 min-w-[48px] shrink cursor-pointer items-center gap-1 px-2 text-left text-[12px] ${
+        className={`poracode-browser-tab group flex w-40 min-w-[48px] shrink cursor-pointer items-center gap-1 px-2 text-left text-[12px] ${
           opts.grouped ? "rounded-t-md" : "rounded-md"
         } ${opts.marginClass} ${isHeader ? "" : "py-0.5"} ${noDrag} ${
           active
@@ -204,28 +239,34 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
         title={tab.url}
       >
         <TabFavicon
-          loading={tab.loading}
+          loading={
+            tab.loading ||
+            !!pending[`browser:navigate:${tab.tabId}`] ||
+            !!pending[`browser:close:${tab.tabId}`]
+          }
           {...(tab.faviconUrl ? { faviconUrl: tab.faviconUrl } : {})}
+          {...(tab.internalPage ? { internalPage: tab.internalPage } : {})}
         />
-        <span className="flex-1 truncate">{tab.title || tab.url || t`New tab`}</span>
+        <span className="flex-1 truncate">{displayTitle}</span>
         <button
           type="button"
           aria-label={t`Close tab`}
-          className="invisible flex h-4 w-4 items-center justify-center rounded text-foreground/50 hover:bg-[var(--row-hover)] hover:text-foreground group-hover:visible group-focus-within:visible"
+          className="poracode-browser-tab-close invisible flex h-4 w-4 items-center justify-center rounded text-foreground/50 hover:bg-[var(--row-hover)] hover:text-foreground group-hover:visible group-focus-within:visible"
           title={t`Close tab`}
+          disabled={!!pending[`browser:close:${tab.tabId}`]}
           onClick={(e) => {
             e.stopPropagation();
-            readBridge()
-              .browserCloseTab({ tabId: tab.tabId })
-              .catch(() => {});
+            editBrowserPresentation({ kind: "close", tabId: tab.tabId }, () =>
+              readBridge().browserCloseTab({ tabId: tab.tabId }),
+            );
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               e.stopPropagation();
-              readBridge()
-                .browserCloseTab({ tabId: tab.tabId })
-                .catch(() => {});
+              editBrowserPresentation({ kind: "close", tabId: tab.tabId }, () =>
+                readBridge().browserCloseTab({ tabId: tab.tabId }),
+              );
             }
           }}
         >
@@ -294,8 +335,10 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
           title={t`New tab`}
           className={`ml-1 flex size-6 shrink-0 self-center items-center justify-center rounded text-foreground/60 hover:bg-[var(--surface-secondary)] hover:text-foreground ${noDrag}`}
           onClick={props.onCreateTab}
+          disabled={!!pending["browser:create"]}
+          aria-busy={!!pending["browser:create"]}
         >
-          <Plus className="size-3.5" />
+          {pending["browser:create"] ? <Spinner size="sm" /> : <Plus className="size-3.5" />}
         </button>
       </div>
       {menu ? (

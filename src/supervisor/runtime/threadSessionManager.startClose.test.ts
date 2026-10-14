@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentKind } from "@/shared/contracts";
+import type { AgentKind, ProviderRevertAnchor } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { WindowsShellPreference } from "../shellPreference";
@@ -166,7 +166,7 @@ function createInactiveRuntime(
     config: { model: `${agentKind}/model` },
     terminalSize: { cols: 80, rows: 24 },
     launchPrompt: "",
-    sessionRef: { providerSessionId: "ses_existing" },
+    sessionRef: { providerSessionId: "ses_existing", discoveredAt: "2026-09-08T00:00:00.000Z" },
     status: "inactive",
     attention: "none",
     canResumeWithConfig: true,
@@ -210,6 +210,68 @@ describe("ThreadSessionManager provider-session routing", () => {
 
     delete adapter.capabilities.crossagentMcpRouting;
     expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBeUndefined();
+  });
+});
+
+describe("ThreadSessionManager revert anchors (WS2 stage 3)", () => {
+  function installRuntime(overrides: { status?: string } = {}): {
+    manager: ThreadSessionManager;
+    runtime: SessionRuntime;
+    structuredSession: StructuredSessionHandle;
+  } {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    if (overrides.status) runtime.status = overrides.status as SessionRuntime["status"];
+    manager.sessions.set(runtime.threadId, runtime);
+    return { manager, runtime, structuredSession };
+  }
+
+  it("createRevertAnchor rejects when the structured provider lacks the hook", async () => {
+    const { manager } = installRuntime();
+    await expect(
+      manager.createRevertAnchor({ threadId: "thread-codex", numTurns: 1 }),
+    ).rejects.toThrow(/does not support revert anchors/);
+  });
+
+  it("refuses anchors while the thread is working", async () => {
+    const { manager } = installRuntime({ status: "working" });
+    await expect(
+      manager.createRevertAnchor({ threadId: "thread-codex", numTurns: 1 }),
+    ).rejects.toThrow(/Cannot roll back a thread while the agent is working/);
+    await expect(
+      manager.restoreToRevertAnchor({
+        threadId: "thread-codex",
+        anchor: { version: 1, data: {} },
+      }),
+    ).rejects.toThrow(/Cannot roll back a thread while the agent is working/);
+  });
+
+  it("createRevertAnchor returns the provider anchor; restoreToRevertAnchor adopts a forked session ref", async () => {
+    const { manager, runtime, structuredSession } = installRuntime();
+    const anchor: ProviderRevertAnchor = {
+      version: 1,
+      data: { variant: "fork", sourceThreadId: "ses_existing", lastTurnId: "turn-2", numTurns: 2 },
+    };
+    structuredSession.createRevertAnchor = vi
+      .fn<NonNullable<StructuredSessionHandle["createRevertAnchor"]>>()
+      .mockResolvedValue(anchor);
+    structuredSession.restoreToRevertAnchor = vi
+      .fn<NonNullable<StructuredSessionHandle["restoreToRevertAnchor"]>>()
+      .mockResolvedValue({ providerSessionId: "ses_forked", messages: [] });
+
+    await expect(
+      manager.createRevertAnchor({ threadId: runtime.threadId, numTurns: 2 }),
+    ).resolves.toEqual({
+      anchor,
+    });
+    expect(structuredSession.createRevertAnchor).toHaveBeenCalledWith(2);
+
+    await manager.restoreToRevertAnchor({ threadId: runtime.threadId, anchor });
+    expect(structuredSession.restoreToRevertAnchor).toHaveBeenCalledWith(anchor);
+    expect(runtime.sessionRef?.providerSessionId).toBe("ses_forked");
+    expect(runtime.canResumeWithConfig).toBe(true);
   });
 });
 
@@ -275,7 +337,437 @@ describe("ThreadSessionManager Windows shells", () => {
   });
 });
 
+describe("ThreadSessionManager reopen", () => {
+  it("keeps another client's live runtime even when the caller has stale config", async () => {
+    const structured = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structured);
+    const manager = createManager("codex", adapter);
+    const live = createInactiveRuntime("codex", adapter, structured);
+    live.status = "working";
+    manager.sessions.set(live.threadId, live);
+    await expect(
+      manager.ensureThreadRunning({
+        threadId: live.threadId,
+        projectLocation: live.projectLocation,
+        agentKind: live.agentKind,
+        config: { model: "stale-model" },
+        prompt: "",
+        initialSize: live.terminalSize,
+      }),
+    ).resolves.toEqual({ threadId: live.threadId });
+    expect(manager.sessions.get(live.threadId)).toBe(live);
+    expect(live.status).toBe("working");
+    expect(structured.dispose).not.toHaveBeenCalled();
+    expect(adapter.createStructuredSession).not.toHaveBeenCalled();
+  });
+
+  it("joins concurrent reopens and permits a later reopen after unload", async () => {
+    const activation = deferred();
+    const structured = createStructuredSession(activation.promise);
+    const adapter = createAdapter("codex", structured);
+    const manager = createManager("codex", adapter);
+    const payload = {
+      threadId: "reopen-race",
+      projectLocation: { kind: "posix" as const, path: process.cwd() },
+      agentKind: "codex" as const,
+      config: { model: "test" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      sessionRef: { providerSessionId: "ses_existing", discoveredAt: "2026-09-08T00:00:00.000Z" },
+      presentationMode: "gui" as const,
+    };
+    const first = manager.ensureThreadRunning(payload);
+    const second = manager.ensureThreadRunning(payload);
+    let secondSettled = false;
+    void second.then(() => {
+      secondSettled = true;
+    });
+    await vi.waitFor(() => expect(structured.activate).toHaveBeenCalledOnce());
+    expect(secondSettled).toBe(false);
+    activation.resolve();
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { threadId: payload.threadId },
+      { threadId: payload.threadId },
+    ]);
+    expect(adapter.createStructuredSession).toHaveBeenCalledOnce();
+    const live = manager.sessions.get(payload.threadId);
+    await manager.ensureThreadRunning(payload);
+    expect(manager.sessions.get(payload.threadId)).toBe(live);
+    expect(structured.dispose).not.toHaveBeenCalled();
+    await manager.closeThread({ threadId: payload.threadId });
+    await manager.ensureThreadRunning(payload);
+    expect(adapter.createStructuredSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not turn a pending launch failure into another launch or success", async () => {
+    const activation = deferred();
+    const structured = createStructuredSession(activation.promise);
+    const adapter = createAdapter("codex", structured);
+    const manager = createManager("codex", adapter);
+    const payload = {
+      threadId: "failed-reopen",
+      projectLocation: { kind: "posix" as const, path: process.cwd() },
+      agentKind: "codex" as const,
+      config: { model: "test" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui" as const,
+    };
+    const results = Promise.allSettled([
+      manager.ensureThreadRunning(payload),
+      manager.ensureThreadRunning(payload),
+    ]);
+    await vi.waitFor(() => expect(structured.activate).toHaveBeenCalledOnce());
+    activation.reject(new Error("activation failed"));
+    expect((await results).map((result) => result.status)).toEqual(["rejected", "rejected"]);
+    expect(adapter.createStructuredSession).toHaveBeenCalledOnce();
+  });
+});
+
 describe("ThreadSessionManager start guards", () => {
+  it("settles a submitted GUI turn when opening fails before the runtime is published", async () => {
+    const structured = createStructuredSession(Promise.resolve());
+    structured.openThread = vi.fn<NonNullable<StructuredSessionHandle["openThread"]>>(async () => {
+      throw new Error("The selected configuration was rejected");
+    });
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", createAdapter("fixture", structured), (event) =>
+      events.push(event),
+    );
+    await expect(
+      manager.startThread({
+        threadId: "failed-open",
+        projectLocation: { kind: "posix", path: "/fixture" },
+        agentKind: "fixture",
+        config: { model: "fixture-model" },
+        prompt: "A submitted message",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("The selected configuration was rejected");
+    expect(manager.sessions.has("failed-open")).toBe(false);
+    expect(structured.dispose).toHaveBeenCalledOnce();
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: "failed-open",
+        status: "error",
+        errorMessage: "The selected configuration was rejected",
+        forceCloseActiveTurn: true,
+      }),
+    );
+    const runtimeEvents = events.flatMap((event) =>
+      event.type === "thread-runtime-event"
+        ? [event.event]
+        : event.type === "thread-runtime-events"
+          ? event.events
+          : event.type === "thread-runtime-events-multi"
+            ? event.batches.flatMap((batch) => batch.events)
+            : [],
+    );
+    expect(runtimeEvents.filter((event) => event.type === "error")).toEqual([
+      {
+        type: "error",
+        threadId: "failed-open",
+        message: "The selected configuration was rejected",
+      },
+    ]);
+  });
+
+  it("retains an allocated reference when later opening configuration fails", async () => {
+    const reference = {
+      providerSessionId: "owned-pending-resource",
+      discoveredAt: "2026-10-08T00:00:00Z",
+      executionIdentity: "opaque-owner-scope",
+    };
+    const structured = createStructuredSession(Promise.resolve());
+    let allocated = false;
+    structured.getSessionRef = () => (allocated ? reference : undefined);
+    structured.openThread = async () => {
+      allocated = true;
+      throw new Error("Requested selection unavailable");
+    };
+    structured.dispose = vi.fn<StructuredSessionHandle["dispose"]>(async () => {
+      allocated = false;
+    });
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", createAdapter("fixture", structured), (event) =>
+      events.push(event),
+    );
+    await expect(
+      manager.startThread({
+        threadId: "failed-allocated-open",
+        projectLocation: { kind: "posix", path: "/fixture" },
+        agentKind: "fixture",
+        config: { model: "fixture-model" },
+        prompt: "Never sent",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("Requested selection unavailable");
+    expect(structured.dispose).toHaveBeenCalledOnce();
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: "failed-allocated-open",
+        agentKind: "fixture",
+        status: "error",
+        canResumeWithConfig: true,
+        sessionRef: reference,
+        sessionConfigOptions: null,
+      }),
+    );
+    expect(manager.sessions.has("failed-allocated-open")).toBe(false);
+    expect(structured.getSessionRef()).toBeUndefined();
+  });
+
+  it("resolves failed-open resume custody against the active GUI presentation override", async () => {
+    const reference = {
+      providerSessionId: "owned-pending-resource",
+      discoveredAt: "2026-10-08T00:00:00Z",
+      executionIdentity: "opaque-owner-scope",
+    };
+    const structured = createStructuredSession(Promise.resolve());
+    let allocated = false;
+    structured.getSessionRef = () => (allocated ? reference : undefined);
+    structured.openThread = async () => {
+      allocated = true;
+      throw new Error("Requested selection unavailable");
+    };
+    structured.dispose = vi.fn<StructuredSessionHandle["dispose"]>(async () => {
+      allocated = false;
+    });
+    const adapter = createAdapter("fixture", structured);
+    adapter.capabilities.supportsResume = false;
+    adapter.capabilities.presentationCapabilities = { gui: { supportsResume: true } };
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    await expect(
+      manager.startThread({
+        threadId: "failed-open-gui-resume",
+        projectLocation: { kind: "posix", path: "/fixture" },
+        agentKind: "fixture",
+        config: { model: "fixture-model" },
+        prompt: "Never sent",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("Requested selection unavailable");
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: "failed-open-gui-resume",
+        status: "error",
+        canResumeWithConfig: true,
+        sessionRef: reference,
+      }),
+    );
+  });
+
+  it("respects a GUI presentation override that rejects failed-open resume custody", async () => {
+    const reference = {
+      providerSessionId: "owned-pending-resource",
+      discoveredAt: "2026-10-08T00:00:00Z",
+      executionIdentity: "opaque-owner-scope",
+    };
+    const structured = createStructuredSession(Promise.resolve());
+    let allocated = false;
+    structured.getSessionRef = () => (allocated ? reference : undefined);
+    structured.openThread = async () => {
+      allocated = true;
+      throw new Error("Requested selection unavailable");
+    };
+    structured.dispose = vi.fn<StructuredSessionHandle["dispose"]>(async () => {
+      allocated = false;
+    });
+    const adapter = createAdapter("fixture", structured);
+    adapter.capabilities.presentationCapabilities = { gui: { supportsResume: false } };
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    await expect(
+      manager.startThread({
+        threadId: "failed-open-gui-no-resume",
+        projectLocation: { kind: "posix", path: "/fixture" },
+        agentKind: "fixture",
+        config: { model: "fixture-model" },
+        prompt: "Never sent",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("Requested selection unavailable");
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: "failed-open-gui-no-resume",
+        status: "error",
+        canResumeWithConfig: false,
+        sessionRef: reference,
+      }),
+    );
+  });
+
+  it("keeps the GUI-resolved reference when an interrupted failed open is published inactive", async () => {
+    const reference = {
+      providerSessionId: "owned-pending-resource",
+      discoveredAt: "2026-10-08T00:00:00Z",
+      executionIdentity: "opaque-owner-scope",
+    };
+    const openSettled = deferred();
+    const structured = createStructuredSession(Promise.resolve());
+    let allocated = false;
+    structured.getSessionRef = () => (allocated ? reference : undefined);
+    structured.openThread = async () => {
+      allocated = true;
+      await openSettled.promise;
+      throw new Error("Requested selection unavailable");
+    };
+    structured.dispose = vi.fn<StructuredSessionHandle["dispose"]>(async () => {
+      allocated = false;
+    });
+    const adapter = createAdapter("fixture", structured);
+    adapter.capabilities.supportsResume = false;
+    adapter.capabilities.presentationCapabilities = { gui: { supportsResume: true } };
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    const start = manager.startThread({
+      threadId: "interrupted-open-gui-resume",
+      projectLocation: { kind: "posix", path: "/fixture" },
+      agentKind: "fixture",
+      config: { model: "fixture-model" },
+      prompt: "Never sent",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    await vi.waitFor(() => expect(allocated).toBe(true));
+    await manager.interruptThread({ threadId: "interrupted-open-gui-resume" });
+    openSettled.resolve();
+    await expect(start).resolves.toEqual({ threadId: "interrupted-open-gui-resume" });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: "interrupted-open-gui-resume",
+        status: "inactive",
+        canResumeWithConfig: true,
+        sessionRef: reference,
+      }),
+    );
+  });
+
+  it("keeps the base terminal projection false even when a GUI override allows resume", async () => {
+    const reference = {
+      providerSessionId: "owned-pending-resource",
+      discoveredAt: "2026-10-08T00:00:00Z",
+      executionIdentity: "opaque-owner-scope",
+    };
+    const openSettled = deferred();
+    const structured = createStructuredSession(Promise.resolve());
+    let allocated = false;
+    structured.getSessionRef = () => (allocated ? reference : undefined);
+    structured.openThread = async () => {
+      allocated = true;
+      await openSettled.promise;
+      throw new Error("Requested selection unavailable");
+    };
+    structured.dispose = vi.fn<StructuredSessionHandle["dispose"]>(async () => {
+      allocated = false;
+    });
+    const adapter = createAdapter("fixture", structured);
+    adapter.capabilities.supportsResume = false;
+    adapter.capabilities.presentationCapabilities = { gui: { supportsResume: true } };
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    const start = manager.startThread({
+      threadId: "interrupted-open-terminal-base",
+      projectLocation: { kind: "posix", path: "/fixture" },
+      agentKind: "fixture",
+      config: { model: "fixture-model" },
+      prompt: "Never sent",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "terminal",
+    });
+    await vi.waitFor(() => expect(allocated).toBe(true));
+    await manager.interruptThread({ threadId: "interrupted-open-terminal-base" });
+    openSettled.resolve();
+    await expect(start).resolves.toEqual({ threadId: "interrupted-open-terminal-base" });
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: "interrupted-open-terminal-base",
+        status: "inactive",
+        canResumeWithConfig: false,
+        sessionRef: reference,
+      }),
+    );
+  });
+
+  it("carries the presentation-resolved custody flag through a failed retirement", async () => {
+    const reference = {
+      providerSessionId: "owned-pending-resource",
+      discoveredAt: "2026-10-08T00:00:00Z",
+      executionIdentity: "opaque-owner-scope",
+    };
+    const structured = createStructuredSession(Promise.resolve());
+    let allocated = false;
+    structured.getSessionRef = () => (allocated ? reference : undefined);
+    structured.openThread = async () => {
+      allocated = true;
+      throw new Error("Requested selection unavailable");
+    };
+    structured.dispose = vi.fn<StructuredSessionHandle["dispose"]>(async () => {
+      allocated = false;
+      throw new Error("Retirement rejected");
+    });
+    const adapter = createAdapter("fixture", structured);
+    adapter.capabilities.supportsResume = false;
+    adapter.capabilities.presentationCapabilities = { gui: { supportsResume: true } };
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    await expect(
+      manager.startThread({
+        threadId: "failed-open-retirement-parity",
+        projectLocation: { kind: "posix", path: "/fixture" },
+        agentKind: "fixture",
+        config: { model: "fixture-model" },
+        prompt: "Never sent",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      }),
+    ).rejects.toThrow("Retirement rejected");
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: "failed-open-retirement-parity",
+        status: "error",
+        canResumeWithConfig: true,
+        sessionRef: reference,
+      }),
+    );
+  });
+
+  it("publishes the complete structured reference immediately after open", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const reference = {
+      providerSessionId: "ses_test",
+      discoveredAt: "2026-10-07T10:00:00Z",
+      executionIdentity: "opaque-account-scope",
+    };
+    structuredSession.getSessionRef = () => reference;
+    const adapter = createAdapter("fixture", structuredSession);
+    const manager = createManager("fixture", adapter);
+    await manager.startThread({
+      threadId: "bound-session",
+      projectLocation: { kind: "posix", path: "/fixture" },
+      agentKind: "fixture",
+      config: { model: "model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    expect(
+      manager.getThreadSnapshots().find((entry) => entry.threadId === "bound-session")?.sessionRef,
+    ).toEqual(reference);
+  });
+
   it("waits for a reconnect before delivering input to the new live session", async () => {
     const activation = deferred();
     const structuredSession = createStructuredSession(activation.promise);
@@ -868,4 +1360,30 @@ describe("ThreadSessionManager fork mention handoff", () => {
       "Thread mentions require the Poracode read_thread tool",
     );
   });
+});
+
+it("releases launch reservations when config rewriting fails, permitting a retry", async () => {
+  const structured = createStructuredSession(Promise.resolve());
+  const adapter = createAdapter("fixture", structured);
+  adapter.createStructuredSession = async () => undefined;
+  const cleanup = vi.fn<() => void>();
+  adapter.buildLaunchArgv = () => ({ binary: "fixture", args: [], cleanup });
+  adapter.rewriteLaunchArgsForConfig = vi
+    .fn<NonNullable<AgentAdapter["rewriteLaunchArgsForConfig"]>>()
+    .mockRejectedValueOnce(new Error("catalog unavailable"))
+    .mockImplementation(async (args: string[]) => args);
+  const manager = createManager("fixture", adapter);
+  const payload = {
+    threadId: "rewrite-retry",
+    agentKind: "fixture",
+    projectLocation: { kind: "posix" as const, path: process.cwd() },
+    config: { model: "model" },
+    prompt: "hello",
+    initialSize: { cols: 80, rows: 24 },
+    presentationMode: "terminal" as const,
+  };
+  await expect(manager.startThread(payload)).rejects.toThrow("catalog unavailable");
+  expect(cleanup).toHaveBeenCalledOnce();
+  await expect(manager.startThread(payload)).resolves.toEqual({ threadId: payload.threadId });
+  expect(spawnPty).toHaveBeenCalled();
 });

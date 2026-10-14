@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  completeOpenMuseMspItems,
   createMuseMspItemMapperState,
   mapMuseMspDelta,
   mapMuseMspGoalChanged,
@@ -218,7 +219,7 @@ describe("Muse MSP canonical mapping", () => {
         action: "set",
         objective: "Fix flaky network test",
         status: "active",
-        availableActions: [],
+        availableActions: ["edit", "pause", "clear"],
         lastReason: "Investigating timeout",
       },
     });
@@ -246,7 +247,7 @@ describe("Muse MSP canonical mapping", () => {
       payload: {
         action: "updated",
         status: "paused",
-        availableActions: [],
+        availableActions: ["edit", "resume", "clear"],
       },
     });
     expect(pauseEvents[1]).toMatchObject({
@@ -296,7 +297,7 @@ describe("Muse MSP canonical mapping", () => {
       payload: {
         action: "updated",
         status: "active",
-        availableActions: [],
+        availableActions: ["edit", "pause", "clear"],
       },
     });
     expect(resumeEvents[1]).toMatchObject({
@@ -429,5 +430,70 @@ describe("Muse MSP subagent tool mapping", () => {
     const payload = (started as { payload: Record<string, unknown> }).payload;
     expect(payload.isSubAgent).toBeUndefined();
     expect(payload.subAgentStatus).toBeUndefined();
+  });
+
+  it("uses native task names and retains the result's assigned id for companion calls", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    const nativeSpawn = {
+      ...spawnItem,
+      args: JSON.stringify({
+        role: "reviewer",
+        task_name: "Review discovery grouping",
+        objective: "Review the patch",
+      }),
+    };
+    const [started] = mapMuseMspItem(state, nativeSpawn, "started");
+    expect(started).toMatchObject({
+      payload: { title: "Review discovery grouping", isSubAgent: true },
+    });
+    mapMuseMspItem(
+      state,
+      {
+        ...nativeSpawn,
+        status: "completed",
+        visibleOutput: JSON.stringify({ status: "accepted", subagent_id: "subagent-1" }),
+      },
+      "completed",
+    );
+    // Identity must survive the parent turn, since results can arrive later.
+    completeOpenMuseMspItems(state);
+    const [continuation] = mapMuseMspItem(
+      state,
+      {
+        ...waitItem,
+        tool: "subagent_read_result",
+        args: JSON.stringify({ subagent_id: "subagent-1" }),
+      },
+      "started",
+    );
+    expect(continuation).toMatchObject({
+      payload: { title: "Review discovery grouping", isSubAgent: true, isSubAgentResume: true },
+    });
+  });
+
+  it("uses the native role when task_name is absent", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    const [started] = mapMuseMspItem(
+      state,
+      {
+        ...spawnItem,
+        args: { role: "Review approval handling", objective: "Inspect the code" },
+      },
+      "started",
+    );
+    expect(started).toMatchObject({ payload: { title: "Review approval handling" } });
+  });
+
+  it("uses the child id when replay did not contain its spawn", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    const [started] = mapMuseMspItem(
+      state,
+      {
+        ...waitItem,
+        args: { subagent_id: "subagent-1" },
+      },
+      "started",
+    );
+    expect(started).toMatchObject({ payload: { title: "subagent-1", isSubAgentResume: true } });
   });
 });

@@ -99,7 +99,29 @@ async function slashCommandContent(
   return blocks;
 }
 
+/**
+ * `turnContext` (per-turn client context) leads the message as its own text
+ * block: it never displaces a slash command from the last text block and,
+ * unlike `inlineInstructions`, never turns a native skill into a request.
+ */
 export async function buildSdkUserMessage(
+  prompt: string,
+  segments?: PromptSegment[],
+  inlineInstructions?: string,
+  turnContext?: string,
+): Promise<SDKUserMessage> {
+  const message = await buildSdkUserMessageBody(prompt, segments, inlineInstructions);
+  if (!turnContext) return message;
+  const body = (message as unknown as { message: { content: string | ContentBlock[] } }).message;
+  const content =
+    typeof body.content === "string" ? [{ type: "text", text: body.content }] : body.content;
+  return {
+    ...message,
+    message: { ...body, content: [{ type: "text", text: turnContext }, ...content] },
+  } as unknown as SDKUserMessage;
+}
+
+async function buildSdkUserMessageBody(
   prompt: string,
   segments?: PromptSegment[],
   inlineInstructions?: string,

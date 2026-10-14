@@ -1,4 +1,4 @@
-import { Activity, ChevronDown, X } from "lucide-react";
+import { Activity, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { BackgroundTask } from "@/shared/contracts";
 import type { ThreadDocksPlacement } from "@/shared/settings";
@@ -7,6 +7,7 @@ import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgr
 import { useVisibleThreadBackgroundTasks } from "./useThreadDocksSummary";
 import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
 import {
+  ThreadDockCollapseButton,
   ThreadDockHeader,
   ThreadDockIconButton,
   ThreadDockList,
@@ -50,15 +51,11 @@ export function ThreadBackgroundTasksDock({
           <>
             {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
             {tasks.length > 1 ? (
-              <ThreadDockIconButton
+              <ThreadDockCollapseButton
+                collapsed={collapsed}
                 label={collapsed ? t`Expand background tasks` : t`Collapse background tasks`}
-                tooltip={collapsed ? t`Expand` : t`Collapse`}
                 onPress={() => setCollapsed(!collapsed)}
-              >
-                <ChevronDown
-                  className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-                />
-              </ThreadDockIconButton>
+              />
             ) : null}
             <ThreadDockIconButton
               label={t`Close background tasks`}

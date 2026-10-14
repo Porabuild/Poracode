@@ -1,10 +1,12 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
+import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
 // Standalone config for live-CLI integration tests under `tests/integration/`.
 // Kept out of the default `vitest run` glob so `pnpm test` stays fast and
 // hermetic. Invoke explicitly via `pnpm test:integration:providers`.
 export default defineConfig({
+  plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "src"),

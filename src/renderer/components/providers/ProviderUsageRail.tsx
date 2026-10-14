@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { startTransition, useLayoutEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, type DragEndEvent, KeyboardSensor, PointerSensor } from "@dnd-kit/react";
@@ -8,18 +8,19 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { Check } from "lucide-react";
-import { formatResetCountdown, usageWindowDisplayLabel } from "@poracode/agents-usage/formatters";
+import { formatResetCountdown } from "@poracode/agents-usage/formatters";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
 import { openUsagePanel } from "@/renderer/actions/panelActions";
-import { readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common/ContextMenu";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";
+import { useProviderUsageHydration } from "./useProviderUsageHydration";
 import { UsageCostLine } from "./UsageCostLine";
 import { UsageOverflowChip } from "./UsageOverflowChip";
 import { PaceLine } from "./UsageWindowBars";
 import {
+  usageWindowDisplayLabel,
   formatWindowPace,
   formatWindowSecondaryValue,
   formatWindowValue,
@@ -317,8 +318,8 @@ function UsageRailRow(props: { providers: readonly UsageProvider[]; onReorder: R
 
 /**
  * A compact rail of per-provider usage rings for the sidebar footer. Hidden when
- * the user turns off `usage.showInSidebar`. On mount it hydrates the store from
- * the supervisor cache (which also triggers a refresh if the cache is stale).
+ * the user turns off `usage.showInSidebar`. Hydrates when the host is ready and
+ * on reconnect; stale cache reads trigger the supervisor's background refresh.
  * Circles are drag-sortable and persist to `usage.providerOrder`, shared with
  * the docked usage panel.
  */
@@ -331,20 +332,7 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
   const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
 
-  useEffect(() => {
-    let cancelled = false;
-    void readBridge()
-      .getProviderUsage({})
-      .then((res) => {
-        if (cancelled) return;
-        const store = useProviderUsageStore.getState();
-        for (const snapshot of res.snapshots) store.mergeSnapshot(snapshot);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useProviderUsageHydration();
 
   // Full set drives the persisted order; the rail only offers the providers the
   // user hasn't individually hidden and that have usage worth a ring — a

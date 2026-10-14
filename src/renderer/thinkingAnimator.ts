@@ -22,8 +22,9 @@
 // hidden or unfocused (using the state from uiAnimationActivity.ts), and honours
 // `prefers-reduced-motion` by painting one static frame.
 
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
 import type { RefObject } from "react";
+import { PaneVisibility } from "./paneVisibility";
 
 const FPS = 20;
 const TICK_MS = Math.round(1000 / FPS); // 50ms
@@ -132,16 +133,17 @@ function useAnimatedElement<T extends Element>(
   add: (el: T) => void,
   remove: (el: T) => void,
 ): void {
+  const visible = useContext(PaneVisibility);
   useEffect(() => {
     const el = ref.current;
-    if (!active || !el) return;
+    if (!active || !visible || !el) return;
     add(el);
     ensureRunning();
     return () => {
       remove(el);
       maybeStop();
     };
-  }, [ref, active, add, remove]);
+  }, [ref, active, visible, add, remove]);
 }
 
 /**

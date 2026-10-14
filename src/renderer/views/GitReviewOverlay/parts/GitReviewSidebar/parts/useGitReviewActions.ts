@@ -33,6 +33,8 @@ import {
   resolveCommitGenConfig,
   type GeneratedCommitMessageWithProvider,
 } from "@/renderer/components/providers/commitGen";
+import { resolveUtilitySelection } from "@/renderer/utils/utilitySelection";
+import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { usePrWriteActions } from "@/renderer/hooks/usePrWriteActions";
 import {
   runGitMergeToSource,
@@ -131,6 +133,9 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const commitGenModel = useSharedSettings((s) => (isWsl ? s.wslCommitGenModel : s.commitGenModel));
   const commitGenEffort = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenEffort : s.commitGenEffort,
+  );
+  const commitGenSelection = useSharedSettings((s) =>
+    isWsl ? s.wslCommitGenSelection : s.commitGenSelection,
   );
   const commitGenFast = useSharedSettings((s) => (isWsl ? s.wslCommitGenFast : s.commitGenFast));
   // Commit messages and PR summaries are "git text": they follow the dedicated
@@ -313,9 +318,9 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       projectLocation: project.location,
       agentStatuses: projectAgentStatuses,
       provider: commitGenProvider,
-      model: commitGenModel,
-      effort: commitGenEffort,
-      fast: commitGenFast,
+      ...(commitGenSelection !== undefined
+        ? { selection: commitGenSelection }
+        : { model: commitGenModel, effort: commitGenEffort, fast: commitGenFast }),
       ...(gitTextLanguage ? { language: gitTextLanguage } : {}),
       invoke: (payload) => readBridge().generateCommitMessage(payload),
     });
@@ -664,15 +669,25 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     baseBranch: string,
   ): Promise<{ title: string; description: string; provider: string; model: string } | null> {
     for (const candidate of candidates) {
-      const resolved = resolveCommitGenConfig(candidate, commitGenModel, commitGenEffort);
+      const resolved = resolveUtilitySelection(
+        commitGenSelection,
+        { model: commitGenModel, effort: commitGenEffort, fast: commitGenFast },
+        (scalars) => {
+          const config = resolveCommitGenConfig(candidate, scalars.model, scalars.effort);
+          return {
+            model: config.model,
+            effort: config.effort,
+            fast: resolveFastValue(candidate, config.model, scalars.fast),
+          };
+        },
+      );
       try {
         const result = await readBridge().generatePrSummary({
           projectLocation: project.location,
           agentKind: candidate.kind,
           branch: headBranch,
           baseBranch,
-          ...(resolved.model ? { model: resolved.model } : {}),
-          ...(resolved.effort ? { effort: resolved.effort } : {}),
+          selection: resolved,
           ...(gitTextLanguage ? { language: gitTextLanguage } : {}),
         });
         captureProductEvent("git.pr_summary_generated", {

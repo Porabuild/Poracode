@@ -8,11 +8,11 @@ import { createPageMetadata } from "@/lib/seo";
 export const metadata: Metadata = createPageMetadata({
   title: "Poracode Privacy Policy",
   description:
-    "How the Poracode mobile companion and website handle pairing, camera, push notification, and usage data.",
+    "How the Poracode app and website handle pairing, camera, push notification, diagnostics, and usage data.",
   path: "/privacy",
 });
 
-const EFFECTIVE_DATE = "July 15, 2026";
+const EFFECTIVE_DATE = "August 10, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -45,20 +45,22 @@ export default function PrivacyPage() {
           <section>
             <h2 className="mb-3 text-xl font-semibold text-white">Overview</h2>
             <p>
-              Poracode mobile is a companion for a Poracode desktop app that you control. It does
-              not run product analytics or third-party crash reporting in mobile sessions, show ads,
-              or sell personal information. This policy also explains the limited services used by
-              the Poracode website and optional push notifications.
+              Poracode is one application across Electron, browsers, installed PWAs, and native
+              shells. Browser and native clients connect to a Poracode host that you control. The
+              app may send the privacy-bounded product analytics and crash diagnostics described
+              below when they are configured. Poracode does not show ads or sell personal
+              information. This policy also explains the limited services used by the Poracode
+              website and optional push notifications.
             </p>
           </section>
 
           <section>
             <h2 className="mb-3 text-xl font-semibold text-white">Data handled by the app</h2>
             <p>
-              When you pair a desktop, the app stores connection details such as the desktop name
-              and identifier, endpoint, access token, and your mobile preferences. It also receives
-              and caches the projects, threads, terminal output, files, and settings that your
-              paired desktop makes available. This data is used to provide the features you request.
+              When you pair a host, the app stores connection details such as the host name and
+              identifier, endpoint, access token, and your client preferences. It also receives and
+              caches the projects, threads, terminal output, files, and settings that your paired
+              host makes available. This data is used to provide the features you request.
             </p>
           </section>
 
@@ -72,15 +74,13 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-xl font-semibold text-white">
-              Desktop connections and storage
-            </h2>
+            <h2 className="mb-3 text-xl font-semibold text-white">Host connections and storage</h2>
             <div className="space-y-3">
               <p>
-                App requests and live updates travel between your device and the paired desktop.
-                Native builds keep pairing credentials in the operating system&apos;s secure
-                storage; the web app uses encrypted browser storage when supported. Removing a
-                paired desktop deletes its saved connection data from the app.
+                App requests and live updates travel between your device and the paired host. Native
+                builds keep pairing credentials in the operating system&apos;s secure storage; the
+                web app uses encrypted browser storage when supported. Removing a paired host
+                deletes its saved connection data from the app.
               </p>
               <p>
                 Connections can use HTTPS or, in native builds, HTTP on a trusted local network.
@@ -95,38 +95,50 @@ export default function PrivacyPage() {
             <p>
               If you enable notifications, the native app receives an Apple Push Notification
               service (APNs) or Firebase Cloud Messaging (FCM) token; an installed web app creates a
-              browser Push API subscription. The app sends that registration to your paired desktop.
-              The desktop may send the registration and notification content through Poracode&apos;s
+              browser Push API subscription. The app sends that registration to your paired host.
+              The host may send the registration and notification content through Poracode&apos;s
               hosted service at poracode.com, which forwards the message to APNs, FCM, or the
               browser push service. Notification content can include a project or thread name and
-              status needed to show the alert; desktop privacy settings can redact identifying
-              titles. Apple, Google, Mozilla, Microsoft, and Poracode&apos;s hosting provider may
-              process delivery data under their own terms. You can disable notifications or remove
-              the paired desktop to unregister the device.
+              status needed to show the alert; host privacy settings can redact identifying titles.
+              Apple, Google, Mozilla, Microsoft, and Poracode&apos;s hosting provider may process
+              delivery data under their own terms. You can disable notifications or remove the
+              paired host to unregister the device.
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-xl font-semibold text-white">Website analytics</h2>
-            <p>
-              The public Poracode website uses Vercel Analytics and Speed Insights to understand
-              aggregate site usage and performance. These website services are separate from the
-              mobile companion session, where product analytics and remote diagnostics are disabled.
-            </p>
+            <h2 className="mb-3 text-xl font-semibold text-white">
+              Application diagnostics and analytics
+            </h2>
+            <div className="space-y-3">
+              <p>
+                When configured for a release, Poracode sends allowlisted product events to PostHog
+                using anonymous installation and session identifiers. Events describe feature use,
+                app and platform versions, and bucketed counts or durations. Person profiles are
+                disabled, and events do not include prompts, file content, terminal output, or
+                project and thread names or identifiers.
+              </p>
+              <p>
+                Configured releases may send scrubbed crash diagnostics to Sentry. Default personal
+                information, screenshots, breadcrumbs, and performance traces are disabled. The
+                public Poracode website uses Vercel Analytics and Speed Insights to understand
+                aggregate site usage and performance.
+              </p>
+            </div>
           </section>
 
           <section>
             <h2 className="mb-3 text-xl font-semibold text-white">Sharing and retention</h2>
             <div className="space-y-3">
               <p>
-                Poracode does not sell or rent mobile data or use it for advertising. Data is shared
-                only when needed to connect to services you choose through the paired desktop, to
+                Poracode does not sell or rent app data or use it for advertising. Data is shared
+                only when needed to connect to services you choose through the paired host, to
                 deliver optional notifications, to operate the website, or when required by law.
               </p>
               <p>
-                Pairing data and cached content remain on your device until you remove the desktop
-                or clear the app&apos;s data. Push registrations remain on the paired desktop until
-                they are unregistered or removed. Hosting and notification providers may retain
+                Pairing data and cached content remain on your device until you remove the host or
+                clear the app&apos;s data. Push registrations remain on the paired host until they
+                are unregistered or removed. Hosting and notification providers may retain
                 operational or security logs according to their policies.
               </p>
               <p>

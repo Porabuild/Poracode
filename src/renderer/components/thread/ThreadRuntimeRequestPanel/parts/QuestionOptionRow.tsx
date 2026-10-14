@@ -1,5 +1,6 @@
 import { Tooltip } from "@heroui/react";
 import { Check } from "lucide-react";
+import type { KeyboardEventHandler } from "react";
 import type { UserInputOption } from "@/shared/contracts";
 
 export function QuestionOptionRow(props: {
@@ -7,6 +8,7 @@ export function QuestionOptionRow(props: {
   option: UserInputOption;
   isDisabled: boolean;
   onClick: () => void;
+  onKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
   /** Single-select forms can mark the saved choice without changing row shape. */
   selected?: boolean;
   /** When defined, the row renders a checkbox marker (multi-select). */
@@ -25,9 +27,12 @@ export function QuestionOptionRow(props: {
     <button
       type="button"
       role="option"
+      data-question-option
+      {...(index < 9 ? { "aria-keyshortcuts": String(index + 1) } : {})}
       aria-selected={isMultiSelect ? checked === true : selected === true}
       disabled={isDisabled}
       onClick={onClick}
+      {...(props.onKeyDown ? { onKeyDown: props.onKeyDown } : {})}
       className={`flex w-full items-start gap-2 rounded px-2 py-1 text-left transition-colors hover:bg-foreground/5 focus-visible:bg-foreground/5 focus-visible:outline-none disabled:opacity-60 disabled:hover:bg-transparent ${
         selected ? "bg-foreground/5" : ""
       }`}
@@ -42,11 +47,10 @@ export function QuestionOptionRow(props: {
         >
           <Check className="size-2.5" strokeWidth={3} aria-hidden />
         </span>
-      ) : (
-        <span className="mt-px w-4 shrink-0 text-[11px] font-medium text-[color:var(--muted)] [font-variant-numeric:tabular-nums]">
-          {`${index + 1}.`}
-        </span>
-      )}
+      ) : null}
+      <span className="mt-px w-4 shrink-0 text-[11px] font-medium text-[color:var(--muted)] [font-variant-numeric:tabular-nums]">
+        {`${index + 1}.`}
+      </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-medium text-foreground">{option.label}</span>
         {option.description ? (

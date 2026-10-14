@@ -6,11 +6,30 @@ import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import { WebSocket } from "ws";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { CdpSession } from "./cdp/cdpClient";
+import type { CdpSession } from "@/host/browser/cdp/session";
 import type { ToolContext } from "./mcp/tools/types";
-import type { ChromeToolContext } from "./external/chromeTools";
+import type { ChromeToolContext } from "@/host/browser/external/chromeTools";
 import { dispatchTool } from "./mcp/tools/dispatch";
-import { dispatchChromeTool } from "./external/chromeTools";
+import { dispatchChromeTool } from "@/host/browser/external/chromeTools";
+
+/** The shared CDP tooling moved from `src/main/browser` to `src/host/browser`;
+ *  a baseline archive may predate or postdate the move. Try the host layout
+ *  first, then the historical main layout. */
+async function loadBaselineChromeTools(
+  candidates: string[],
+): Promise<{ dispatchChromeTool: typeof dispatchChromeTool }> {
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      return (await import(/* @vite-ignore */ candidate)) as {
+        dispatchChromeTool: typeof dispatchChromeTool;
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
 
 // Opt-in real Chromium benchmark; PORACODE_BROWSER_BASELINE_REF selects the
 // comparison commit (HEAD by default). Both versions use identical fixtures.
@@ -127,17 +146,29 @@ describe.skipIf(!enabled)("real browser before/after workflows", () => {
       { encoding: "utf8", windowsHide: true },
     ).trim();
     const archive = resolve(baselineDir, "source.tar");
+    const baselinePaths = ["src/main/browser", "src/host/browser"].filter((path) => {
+      try {
+        execFileSync("git", ["cat-file", "-e", `${baselineCommit}:${path}`], { windowsHide: true });
+        return true;
+      } catch {
+        return false;
+      }
+    });
     execFileSync(
       "git",
-      ["archive", "--format=tar", `--output=${archive}`, baselineCommit, "src/main/browser"],
+      ["archive", "--format=tar", `--output=${archive}`, baselineCommit, ...baselinePaths],
       { windowsHide: true },
     );
     execFileSync("tar", ["-xf", archive, "-C", baselineDir], { windowsHide: true });
     const baseline = resolve(baselineDir, "src/main/browser");
     baselineBrowser = (await import(/* @vite-ignore */ `${baseline}/mcp/tools/dispatch.ts`))
       .dispatchTool;
-    baselineChrome = (await import(/* @vite-ignore */ `${baseline}/external/chromeTools.ts`))
-      .dispatchChromeTool;
+    baselineChrome = (
+      await loadBaselineChromeTools([
+        resolve(baselineDir, "src/host/browser/external/chromeTools.ts"),
+        resolve(baselineDir, "src/main/browser/external/chromeTools.ts"),
+      ])
+    ).dispatchChromeTool;
     await mkdir("tmp/browser-benchmark", { recursive: true });
     const profile = await mkdtemp(resolve("tmp/browser-benchmark/profile-"));
     await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));

@@ -41,6 +41,7 @@ import {
 import {
   buildAgentCommand,
   batchWslCommandsAsync,
+  prepareAgentLocationEnvironment,
   quotePosixShellArg,
   type AcpSessionUpdateTransform,
   type AgentAdapter,
@@ -171,6 +172,7 @@ export function createAcpGenericAdapter(
       return undefined;
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildGenericCommand(input.projectLocation, cfg, instance);
       return createAcpStructuredSession(
         command,
@@ -193,6 +195,7 @@ export function createAcpGenericAdapter(
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildGenericCommand(location, cfg, instance);
     },
   };
@@ -207,6 +210,7 @@ export async function authenticateAcpGenericInstance(
 ): Promise<void> {
   const cfg = parseAcpGenericInstanceConfig(instance.config);
   const location = detectProbeLocation(ctx);
+  await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
   const command = buildGenericCommand(location, cfg, instance, authBrowserEnv(location));
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
   await authenticateAcpAgent(command.command, command.args, methodId, {
@@ -236,6 +240,7 @@ export async function logoutAcpGenericInstance(
 ): Promise<void> {
   const cfg = parseAcpGenericInstanceConfig(instance.config);
   const location = detectProbeLocation(ctx);
+  await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
   const command = buildGenericCommand(location, cfg, instance);
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
   await logoutAcpAgent(command.command, command.args, {
@@ -263,7 +268,7 @@ function detectProbeLocation(ctx: AgentEnvContext | undefined): ProjectLocation 
 export async function probeAcpGenericInstance(
   instance: AgentInstanceConfig,
   ctx?: AgentEnvContext,
-  options?: { timeoutMs?: number },
+  options?: { timeoutMs?: number; onFailureDetail?: (reason: string) => void },
 ): Promise<AcpProbeResult | undefined> {
   const cfg = parseAcpGenericInstanceConfig(instance.config);
   return probeGenericCapabilities(
@@ -272,6 +277,7 @@ export async function probeAcpGenericInstance(
     instance,
     instance.displayName ?? cfg.binary,
     options?.timeoutMs,
+    options?.onFailureDetail,
   );
 }
 
@@ -281,8 +287,10 @@ async function probeGenericCapabilities(
   instance: AgentInstanceConfig,
   label: string,
   timeoutMs?: number,
+  onFailureDetail?: (reason: string) => void,
 ): Promise<AcpProbeResult | undefined> {
   const location = detectProbeLocation(ctx);
+  await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
   const command = buildGenericCommand(location, cfg, instance);
   // On posix, route into the contained probe dir (TCC-safe); on WSL the linux
   // path is required by the agent; on Windows, keep the project's native path.
@@ -298,6 +306,7 @@ async function probeGenericCapabilities(
     ...(command.env ? { env: command.env } : {}),
     label,
     ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+    ...(onFailureDetail ? { onFailureDetail } : {}),
     ...(ctx?.signal ? { signal: ctx.signal } : {}),
   });
 }
@@ -318,6 +327,9 @@ function mergeAcpProbeCapabilities(
       ? { modelDefaultEfforts: probeResult.modelDefaultEfforts }
       : {}),
     ...(probeResult.thinkingModels ? { thinkingModels: probeResult.thinkingModels } : {}),
+    ...(probeResult.fastModels ? { fastModels: probeResult.fastModels } : {}),
+    ...(probeResult.contextSizes ? { contextSizes: probeResult.contextSizes } : {}),
+    ...(probeResult.modelContextSizes ? { modelContextSizes: probeResult.modelContextSizes } : {}),
     ...(probeResult.modes ? { modes: probeResult.modes } : {}),
     ...(probeResult.approvalPolicies ? { approvalPolicies: probeResult.approvalPolicies } : {}),
     ...(probeResult.slashCommands ? { slashCommands: probeResult.slashCommands } : {}),

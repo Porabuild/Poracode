@@ -87,7 +87,7 @@ export function ExperimentJudgeDialog(props: {
       <Modal.Container size="sm">
         <Modal.Dialog className="sm:max-w-[480px]">
           <Modal.CloseTrigger />
-          <Modal.Header>
+          <Modal.Header data-direct-modal-icon="">
             <Modal.Icon className="bg-default text-foreground">
               <Crown className="size-5" />
             </Modal.Icon>

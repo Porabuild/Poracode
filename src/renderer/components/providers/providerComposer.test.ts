@@ -1,7 +1,8 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import type { AgentCapability } from "@/shared/contracts";
+import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
+import type { ComposerSelectionOrigin } from "@/renderer/components/thread/composerSelectionMutation";
 import {
   getComposerControls,
   getConfigNormalizer,
@@ -83,5 +84,22 @@ describe("provider composer registry", () => {
         presentationMode: "terminal",
       }),
     ).toEqual({ mode: "agent" });
+  });
+
+  it("lets a registered factory forward the ephemeral origin with its patch", () => {
+    const seen: Array<[Partial<ThreadConfig>, ComposerSelectionOrigin | undefined]> = [];
+    registerComposerControls("test-origin-forward", ({ onConfigChange }) => {
+      onConfigChange({ mode: "plan" });
+      onConfigChange({ model: "pair-beta-x" }, { kind: "family-resolved" });
+      return [];
+    });
+    getComposerControls("test-origin-forward")?.({
+      ...input,
+      onConfigChange: (patch, origin) => seen.push([patch, origin]),
+    });
+    expect(seen).toEqual([
+      [{ mode: "plan" }, undefined],
+      [{ model: "pair-beta-x" }, { kind: "family-resolved" }],
+    ]);
   });
 });

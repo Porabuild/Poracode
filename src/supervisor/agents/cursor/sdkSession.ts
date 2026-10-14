@@ -1,4 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
+import { isThreadConfigEqual } from "@/shared/contracts";
 import type {
   ProjectLocation,
   PromptSegment,
@@ -23,8 +24,8 @@ import {
 import { resolveSessionCwd } from "../acp/sessionPaths";
 import { resolveWslHomeDirectoryAsync } from "../base/processRuntime";
 import { createContextUsageEvent } from "../contextUsage";
-import { buildCursorSdkMcpServers } from "../userMcp";
 import {
+  appendCursorSdkSteerMessage,
   closeCursorSdkOpenItems,
   createCursorSdkMapperState,
   mapCursorSdkInteractionUpdate,
@@ -40,7 +41,11 @@ import {
   type CursorSdkModelSelection,
 } from "./sdkModels";
 import { buildCursorSdkUserMessage } from "./sdkPrompt";
-import { CursorSdkWorkerRpcError, spawnCursorSdkWorker } from "./sdkWorkerClient";
+import {
+  CursorSdkWorkerRpcError,
+  CursorSdkWorkerStartupError,
+  spawnCursorSdkWorker,
+} from "./sdkWorkerClient";
 import type {
   CursorSdkWorkerAgentMessage,
   CursorSdkWorkerAgentOptions,
@@ -50,12 +55,26 @@ import type {
   CursorSdkWorkerProbeResult,
   CursorSdkWorkerStartInput,
   CursorSdkWorkerStartResult,
+  CursorSdkWorkerSteerResult,
 } from "./sdkWorkerProtocol";
+import { CursorSdkSteering } from "./sdkSteering";
+import {
+  buildCursorSdkAgentOptions,
+  buildCursorSdkSendOptions,
+  sameSdkSafetyPosture,
+  sdkSafetyPosture,
+  type CursorSdkSafetyPosture,
+} from "./sdkSessionOptions";
+export { cursorSdkAgentId } from "./sdkSessionOptions";
+
+import { readCursorSdkInstallPin } from "./sdkInstallPin";
+import type { CursorSdkPinHint } from "./sdkLoaderSupport";
 import { CURSOR_SDK_SESSION_PREFIX, cursorSdkSessionId } from "./structuredRuntime";
 
 interface CursorSdkWorkerHandle {
   initialize(input: CursorSdkWorkerInitializeInput): Promise<CursorSdkWorkerInitializeResult>;
   start(input: CursorSdkWorkerStartInput): Promise<CursorSdkWorkerStartResult>;
+  steer(runId: string, text: string): Promise<CursorSdkWorkerSteerResult>;
   cancel(runId?: string): Promise<unknown>;
   reload(): Promise<void>;
   listMessages(input?: { limit?: number; offset?: number }): Promise<CursorSdkWorkerAgentMessage[]>;
@@ -68,12 +87,8 @@ interface CursorSdkWorkerHandle {
 interface CursorSdkWorkerSpawnInput {
   projectLocation: ProjectLocation;
   configuredPath?: string;
+  pinnedRoot?: CursorSdkPinHint;
   env?: Record<string, string>;
-}
-
-interface CursorSdkSafetyPosture {
-  autoReview: boolean;
-  sandboxEnabled: boolean;
 }
 
 interface CursorSdkWorkerListeners {
@@ -102,6 +117,7 @@ const DEFAULT_DEPENDENCIES: CursorSdkSessionDependencies = {
 
 interface ActiveTurn {
   turnId: string;
+  mcpRevision: number;
   worker?: CursorSdkWorkerHandle;
   runId?: string;
   startRequest?: Promise<CursorSdkWorkerStartResult>;
@@ -109,6 +125,8 @@ interface ActiveTurn {
   cancelSent: boolean;
   settled: boolean;
   completion: Promise<void>;
+  ready: Promise<void>;
+  resolveReady(): void;
   resolveCompletion(): void;
 }
 
@@ -117,40 +135,21 @@ function createActiveTurn(turnId: string): ActiveTurn {
   const completion = new Promise<void>((resolve) => {
     resolveCompletion = resolve;
   });
+  let resolveReady!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    resolveReady = resolve;
+  });
   return {
     turnId,
+    mcpRevision: 0,
     cancelRequested: false,
     cancelSent: false,
     settled: false,
     completion,
+    ready,
+    resolveReady,
     resolveCompletion,
   };
-}
-
-function sdkMode(config: ThreadConfig): "agent" | "plan" {
-  return config.mode === "plan" ? "plan" : "agent";
-}
-
-function sdkAutoReview(config: ThreadConfig): boolean {
-  return config.approvalPolicy !== "never";
-}
-
-function sdkSandboxEnabled(config: ThreadConfig): boolean {
-  return config.sandboxMode !== "danger-full-access";
-}
-
-function sdkSafetyPosture(config: ThreadConfig): CursorSdkSafetyPosture {
-  return {
-    autoReview: sdkAutoReview(config),
-    sandboxEnabled: sdkSandboxEnabled(config),
-  };
-}
-
-function sameSdkSafetyPosture(
-  left: CursorSdkSafetyPosture,
-  right: CursorSdkSafetyPosture,
-): boolean {
-  return left.autoReview === right.autoReview && left.sandboxEnabled === right.sandboxEnabled;
 }
 
 function createReplacementOperation(): CursorSdkReplacementOperation {
@@ -169,23 +168,6 @@ function createReplacementOperation(): CursorSdkReplacementOperation {
     },
   };
   return operation;
-}
-
-/**
- * Give every fresh local SDK agent a stable Cursor-shaped identity before the
- * provider creates any durable state. If Poracode or the worker exits after
- * Agent.create() but before the returned session ref is persisted, retrying
- * the same thread can safely resume this identity instead of orphaning a
- * second conversation.
- */
-export function cursorSdkAgentId(threadId: string): string {
-  const digest = createHash("sha256")
-    .update("poracode/cursor-sdk/agent-id\0", "utf8")
-    .update(threadId, "utf8")
-    .digest("hex");
-  const versioned = `5${digest.slice(13, 16)}`;
-  const variant = ((Number.parseInt(digest[16]!, 16) & 0x3) | 0x8).toString(16);
-  return `agent-${digest.slice(0, 8)}-${digest.slice(8, 12)}-${versioned}-${variant}${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
 }
 
 function nativeAgentId(sessionRef: SessionRef | undefined): string | undefined {
@@ -229,6 +211,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
   private workerSafetyPosture: CursorSdkSafetyPosture | undefined;
   private bufferedRuntimeEvents: RuntimeEvent[] = [];
   private modelCatalog: readonly CursorSdkModel[] = [];
+  private stateRoot: string | undefined;
   private mcpServers: readonly ResolvedMcpServer[];
   private currentConfig: ThreadConfig;
   private currentStatus: ThreadStatus = "idle";
@@ -238,12 +221,15 @@ export class CursorSdkSession implements StructuredSessionHandle {
   private activeTurn: ActiveTurn | undefined;
   private replacementOperation: CursorSdkReplacementOperation | undefined;
   private disposePromise: Promise<void> | undefined;
+  private readonly pendingWorkerCleanup = new Set<Pick<CursorSdkWorkerHandle, "dispose">>();
   private forceStaleRunOnNextSend = false;
   private pendingTransportError: string | undefined;
   private closeReported = false;
   private activated = false;
   private disposed = false;
   private contextUsageRefreshGeneration = 0;
+  private mcpRevision = 0;
+  private readonly steering: CursorSdkSteering;
 
   private get apiKey(): string | undefined {
     // The shared GUI session factory normally leaves `input.env` absent and
@@ -269,6 +255,49 @@ export class CursorSdkSession implements StructuredSessionHandle {
     this.currentConfig = input.config;
     this.mcpServers = input.mcpServers ?? [];
     this.mapperState = createCursorSdkMapperState(input.threadId);
+    this.steering = new CursorSdkSteering({
+      activeRun: () => {
+        const turn = this.activeTurn;
+        if (!turn || turn.settled) return undefined;
+        return {
+          ready: turn.ready,
+          completion: turn.completion,
+          isCancelled: () =>
+            turn.cancelRequested || this.disposed || this.currentStatus === "error",
+          canSteer: (config) =>
+            this.activeTurn === turn &&
+            !turn.settled &&
+            turn.mcpRevision === this.mcpRevision &&
+            isThreadConfigEqual(config, this.currentConfig),
+          steer: (text) => turn.worker!.steer(turn.runId!, text),
+        };
+      },
+      buildMessage: ({ prompt, segments, options }) =>
+        buildCursorSdkUserMessage(
+          prompt,
+          segments,
+          this.input.projectLocation,
+          options.inlineInstructions,
+        ),
+      paintMessage: (steer) =>
+        this.emitRuntimeEvents(appendCursorSdkSteerMessage(this.mapperState, steer)),
+      start: async ({ config, options }, message) => {
+        const previousTurn = this.activeTurn;
+        const completion = this.startTurnWithMessage(
+          () => Promise.resolve(message),
+          config,
+          options,
+        );
+        const turn = this.activeTurn;
+        if (!turn || turn === previousTurn) {
+          await completion;
+          return;
+        }
+        void completion.catch(() => {});
+        await turn.ready;
+      },
+      drained: () => this.reportIdleWithoutActiveTurn(),
+    });
   }
 
   static create(
@@ -320,6 +349,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       this.workerListeners = listeners;
       listeners.active = true;
     } catch (error) {
+      if (error instanceof CursorSdkWorkerStartupError) this.pendingWorkerCleanup.add(error.worker);
       this.detachWorkerListeners(listeners);
       if (worker) await this.bestEffortDispose(worker);
       this.activated = false;
@@ -365,6 +395,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       resumeAgentId !== undefined || initialized.recoveredExisting === true;
     this.workerSafetyPosture = sdkSafetyPosture(config);
     this.sessionId = initialized.agentId;
+    this.stateRoot = initialized.stateRoot;
     this.mapperState.agentId = initialized.agentId;
     const initializedModel = initialized.model?.id ?? createOptions.model?.id;
     if (initializedModel) this.mapperState.model = initializedModel;
@@ -384,10 +415,28 @@ export class CursorSdkSession implements StructuredSessionHandle {
     return prefixedId;
   }
 
-  async startTurn(
+  startTurn(
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void> {
+    return this.startTurnWithMessage(
+      () =>
+        buildCursorSdkUserMessage(
+          prompt,
+          segments,
+          this.input.projectLocation,
+          options?.inlineInstructions,
+        ),
+      config,
+      options,
+    );
+  }
+
+  private async startTurnWithMessage(
+    prepareMessage: () => Promise<CursorSdkWorkerStartInput["message"]>,
+    config: ThreadConfig,
     options?: StartTurnOptions,
   ): Promise<void> {
     this.requireOpenedWorker();
@@ -404,12 +453,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
     this.emitUpdate({ status: "working", attention: "working", config });
 
     try {
-      const message = await buildCursorSdkUserMessage(
-        prompt,
-        segments,
-        this.input.projectLocation,
-        options?.inlineInstructions,
-      );
+      const message = await prepareMessage();
       if (turn.settled) return;
       if (turn.cancelRequested || this.disposed) {
         this.completeTurnWithoutWorker(turn, "cancelled");
@@ -436,6 +480,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
         return;
       }
 
+      turn.mcpRevision = this.mcpRevision;
       const startRequest = worker.start({
         message,
         options: this.buildSendOptions(config, turn.turnId),
@@ -445,6 +490,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       this.forceStaleRunOnNextSend = false;
       turn.runId = started.runId;
       this.mapperState.currentRunId = started.runId;
+      turn.resolveReady();
       if (turn.settled) {
         if (turn.cancelRequested) await this.sendTurnCancel(turn);
         return;
@@ -461,9 +507,31 @@ export class CursorSdkSession implements StructuredSessionHandle {
     }
   }
 
+  steerTurn(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void> {
+    this.requireOpenedWorker();
+    return this.steering.enqueue({
+      prompt,
+      config,
+      ...(segments ? { segments } : {}),
+      options: {
+        ...options,
+        userMessageItemId: options?.userMessageItemId ?? `user-${this.dependencies.newId()}`,
+      },
+    });
+  }
+
   async interruptTurn(): Promise<void> {
+    this.steering.cancel();
     const turn = this.activeTurn;
-    if (!turn || turn.settled || this.disposed) return;
+    if (!turn || turn.settled || this.disposed) {
+      this.reportIdleWithoutActiveTurn();
+      return;
+    }
     turn.cancelRequested = true;
     if (turn.runId) {
       await this.sendTurnCancel(turn);
@@ -481,9 +549,11 @@ export class CursorSdkSession implements StructuredSessionHandle {
   }
 
   forceCompleteTurn(): void {
+    this.steering.cancel();
     const turn = this.activeTurn;
     if (!turn || turn.settled) {
       this.emitRuntimeEvents(closeCursorSdkOpenItems(this.mapperState));
+      this.reportIdleWithoutActiveTurn();
       return;
     }
     turn.cancelRequested = true;
@@ -493,6 +563,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
 
   async updateMcpServers(mcpServers: readonly ResolvedMcpServer[]): Promise<void> {
     this.mcpServers = mcpServers;
+    this.mcpRevision += 1;
   }
 
   async readThread(): Promise<ThreadHistory> {
@@ -510,12 +581,16 @@ export class CursorSdkSession implements StructuredSessionHandle {
   }
 
   dispose(): Promise<void> {
-    this.disposePromise ??= this.disposeOnce();
+    this.disposePromise ??= this.disposeOnce().catch((error: unknown) => {
+      this.disposePromise = undefined;
+      throw error;
+    });
     return this.disposePromise;
   }
 
   private async disposeOnce(): Promise<void> {
     this.disposed = true;
+    this.steering.cancel();
     const replacementOperation = this.replacementOperation;
     replacementOperation?.cancel();
     const worker = this.worker;
@@ -523,7 +598,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
     if (turn && !turn.settled) {
       turn.cancelRequested = true;
       if (turn.runId && turn.worker) {
-        await this.sendTurnCancel(turn);
+        void this.sendTurnCancel(turn);
       }
       this.completeTurnWithoutWorker(turn, "cancelled");
     } else {
@@ -531,44 +606,52 @@ export class CursorSdkSession implements StructuredSessionHandle {
     }
     this.detachWorkerListeners(this.workerListeners);
     this.workerListeners = undefined;
-    this.worker = undefined;
-    this.workerSafetyPosture = undefined;
     const [workerDisposal] = await Promise.allSettled([
       worker ? worker.dispose() : Promise.resolve(),
       replacementOperation ? replacementOperation.promise.catch(() => {}) : Promise.resolve(),
     ]);
+    if (workerDisposal.status === "fulfilled") {
+      this.worker = undefined;
+      this.workerSafetyPosture = undefined;
+    }
+    const retainedDisposals = await Promise.allSettled(
+      [...this.pendingWorkerCleanup].map(async (pendingWorker) => {
+        await pendingWorker.dispose();
+        this.pendingWorkerCleanup.delete(pendingWorker);
+      }),
+    );
+    const failures = [workerDisposal, ...retainedDisposals].filter(
+      (result) => result.status === "rejected",
+    );
+    if (failures.length) {
+      throw new AggregateError(
+        failures.map((result) => result.reason),
+        "Cursor SDK session shutdown failed.",
+      );
+    }
     this.reportClose();
-    if (workerDisposal.status === "rejected") throw workerDisposal.reason;
   }
 
   private buildAgentOptions(config: ThreadConfig): CursorSdkWorkerAgentOptions {
-    const safetyPosture = sdkSafetyPosture(config);
-    return {
-      model: this.modelSelection(config),
-      name: `poracode/${this.input.threadId.slice(0, 8)}`,
-      local: {
-        cwd: resolveSessionCwd(this.input.projectLocation),
-        settingSources: ["all"],
-        autoReview: safetyPosture.autoReview,
-        sandboxOptions: { enabled: safetyPosture.sandboxEnabled },
-      },
-      mcpServers: buildCursorSdkMcpServers(this.mcpServers),
-      mode: sdkMode(config),
-      agentId: cursorSdkAgentId(this.input.threadId),
-    };
+    return buildCursorSdkAgentOptions(
+      config,
+      this.modelSelection(config),
+      this.input,
+      this.mcpServers,
+    );
   }
 
   private buildSendOptions(
     config: ThreadConfig,
     idempotencyKey: string,
   ): NonNullable<CursorSdkWorkerStartInput["options"]> {
-    return {
-      model: this.modelSelection(config),
-      mode: sdkMode(config),
-      mcpServers: buildCursorSdkMcpServers(this.mcpServers),
+    return buildCursorSdkSendOptions(
+      config,
+      this.modelSelection(config),
+      this.mcpServers,
       idempotencyKey,
-      ...(this.forceStaleRunOnNextSend ? { local: { force: true } } : {}),
-    };
+      this.forceStaleRunOnNextSend,
+    );
   }
 
   private modelSelection(config: ThreadConfig): CursorSdkModelSelection {
@@ -576,8 +659,13 @@ export class CursorSdkSession implements StructuredSessionHandle {
   }
 
   private workerSpawnInput(): CursorSdkWorkerSpawnInput {
+    // A session must drive the same installation detection advertised, so the
+    // recorded root travels with the spawn. Whether a record applies to this
+    // target is the worker client's single applicability gate.
+    const pinnedRoot = readCursorSdkInstallPin();
     return {
       projectLocation: this.input.projectLocation,
+      ...(pinnedRoot ? { pinnedRoot } : {}),
       ...(this.input.env ? { env: this.input.env } : {}),
     };
   }
@@ -661,6 +749,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       this.workerSafetyPosture = nextSafetyPosture;
       this.forceStaleRunOnNextSend = true;
       this.mapperState.agentId = initialized.agentId;
+      this.stateRoot = initialized.stateRoot;
       const initializedModel = initialized.model?.id ?? createOptions.model?.id;
       if (initializedModel) this.mapperState.model = initializedModel;
       committed = true;
@@ -668,6 +757,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       this.detachWorkerListeners(previousListeners);
       await this.bestEffortDispose(previousWorker);
     } catch (error) {
+      if (error instanceof CursorSdkWorkerStartupError) this.pendingWorkerCleanup.add(error.worker);
       if (!committed) {
         this.detachWorkerListeners(replacementListeners);
         if (replacementWorker) await this.bestEffortDispose(replacementWorker);
@@ -712,8 +802,10 @@ export class CursorSdkSession implements StructuredSessionHandle {
   private async bestEffortDispose(worker: CursorSdkWorkerHandle): Promise<void> {
     try {
       await worker.dispose();
+      this.pendingWorkerCleanup.delete(worker);
     } catch {
-      // A replacement is already authoritative, or the candidate never became authoritative.
+      // Keep ownership of retired/candidate workers until shutdown is confirmed.
+      this.pendingWorkerCleanup.add(worker);
     }
   }
 
@@ -765,6 +857,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
 
   private handleWorkerTransportError(error: Error): void {
     if (this.disposed || this.pendingTransportError || this.closeReported) return;
+    this.steering.cancel();
     const message = errorMessage(error);
     const turn = this.activeTurn;
     if (turn && !turn.settled) {
@@ -789,6 +882,12 @@ export class CursorSdkSession implements StructuredSessionHandle {
     }
   }
 
+  private reportIdleWithoutActiveTurn(): void {
+    if (!this.disposed && !this.activeTurn && this.currentStatus === "working") {
+      this.emitUpdate({ status: "idle", attention: "none" });
+    }
+  }
+
   private settleTurn(
     turn: ActiveTurn,
     status: "finished" | "error" | "cancelled",
@@ -798,15 +897,20 @@ export class CursorSdkSession implements StructuredSessionHandle {
     turn.settled = true;
     if (this.activeTurn === turn) this.activeTurn = undefined;
     if (status === "error") {
+      this.steering.cancel();
       this.emitUpdate({
         status: "error",
         attention: "error",
         ...(failureMessage ? { errorMessage: failureMessage } : {}),
       });
-    } else {
+    } else if (status === "cancelled" || !this.steering.hasPending) {
+      // Stop needs a settled acknowledgement to retire the shared watchdog.
+      // A fresh-generation steer is still awaiting acceptance; its direct-input
+      // reservation keeps queued work behind the replacement start.
       this.emitUpdate({ status: "idle", attention: "none" });
     }
     void this.refreshContextUsage();
+    turn.resolveReady();
     turn.resolveCompletion();
   }
 
@@ -912,11 +1016,15 @@ export class CursorSdkSession implements StructuredSessionHandle {
     try {
       const projectLocation = this.input.projectLocation;
       const wslDistro = projectLocation.kind === "wsl" ? projectLocation.distro : undefined;
-      const wslHome = wslDistro ? await resolveWslHomeDirectoryAsync(wslDistro) : undefined;
-      if (wslDistro && !wslHome) return;
+      const wslHome =
+        wslDistro && !this.stateRoot ? await resolveWslHomeDirectoryAsync(wslDistro) : undefined;
+      if (wslDistro && !this.stateRoot && !wslHome) return;
       const usage = await readCursorSdkContextUsage({
         cwd,
         agentId,
+        ...(this.stateRoot
+          ? { stateRoot: wslDistro ? toWslUncPath(wslDistro, this.stateRoot) : this.stateRoot }
+          : {}),
         ...(wslDistro && wslHome ? { homeDir: toWslUncPath(wslDistro, wslHome) } : {}),
       });
       if (

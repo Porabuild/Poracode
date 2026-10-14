@@ -44,6 +44,7 @@ export function formatResetCountdown(
  */
 const KNOWN_WINDOW_LABELS: Record<string, string> = {
   "session-5h": "Session (5h)",
+  daily: "Daily",
   weekly: "Weekly",
   "weekly-opus": "Weekly · Opus",
   "weekly-sonnet": "Weekly · Sonnet",
@@ -159,6 +160,8 @@ export function windowDurationMs(windowId: string, resetsAt: number): number | u
   switch (windowId) {
     case "session-5h":
       return 5 * HOUR_MS;
+    case "daily":
+      return DAY_MS;
     case "weekly":
     case "weekly-opus":
     case "weekly-sonnet":

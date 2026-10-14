@@ -32,6 +32,17 @@ interface AgentStatusesStore {
    * launches where the cache is loaded eagerly.
    */
   inFirstLaunchDiscovery: boolean;
+  /**
+   * True while the scan is streaming. The overlay keeps its results open when
+   * the scan completes (rows stay refreshable) until Done or its countdown
+   * dismisses it; cancel/hydrate still end the session outright.
+   */
+  discoveryScanning: boolean;
+  /** A manual row refresh keeps results open for the rest of this discovery session. */
+  discoveryAutoHideCancelled: boolean;
+  /** Session-only visibility; hiding the artwork does not stop detection. */
+  discoveryHidden: boolean;
+  setDiscoveryHidden: (hidden: boolean) => void;
   discoveryScope: AgentDiscoveryScope | undefined;
   /** Statuses streamed from `agent-detected` events during first-launch scan. */
   discoveredAgents: AgentStatus[];
@@ -69,7 +80,15 @@ function capabilitiesEqual(
   if (a.models.length !== b.models.length) return false;
   if (a.efforts.length !== b.efforts.length) return false;
   for (let i = 0; i < a.models.length; i++) {
-    if (a.models[i]!.id !== b.models[i]!.id) return false;
+    const previous = a.models[i]!;
+    const next = b.models[i]!;
+    if (
+      previous.id !== next.id ||
+      previous.label !== next.label ||
+      previous.description !== next.description ||
+      previous.tooltipDescription !== next.tooltipDescription
+    )
+      return false;
   }
   for (let i = 0; i < a.efforts.length; i++) {
     if (a.efforts[i] !== b.efforts[i]) return false;
@@ -88,6 +107,12 @@ function capabilitiesEqual(
   // gets replaced — otherwise the one-shot AI selectors would keep hiding
   // one-shot-capable providers for the whole first post-upgrade session.
   if ((a.supportsOneShot ?? false) !== (b.supportsOneShot ?? false)) return false;
+  if (
+    (a.contextSizeChangeReloadsSession ?? false) !== (b.contextSizeChangeReloadsSession ?? false) ||
+    (a.contextSizeReloadStopsSubagents ?? false) !== (b.contextSizeReloadStopsSubagents ?? false)
+  ) {
+    return false;
+  }
   // Codex context-window lists are user-editable. A detection that only
   // changes those fields must replace the cached status or the composer keeps
   // the previous picker after settings save / next launch.
@@ -143,13 +168,16 @@ function buildStatusUpdatePatch(
   const currentList = isWsl ? prev.wslAgentStatuses : prev.agentStatuses;
   const currentLoaded = isWsl ? prev.wslLoaded : prev.windowsLoaded;
   const equal = statusesEqual(currentList, incoming);
-  const endsDiscovery =
-    prev.inFirstLaunchDiscovery &&
+  // The terminal bulk event completes the scan but no longer dismisses the
+  // overlay: its rows stay open (and individually refreshable) until Done or
+  // its countdown dismisses the session.
+  const scanCompletes =
+    prev.discoveryScanning &&
     (isWsl
       ? prev.discoveryScope?.kind === "wsl"
       : prev.discoveryScope?.kind === undefined || prev.discoveryScope.kind === "native");
-  const discoveryPatch: Partial<AgentStatusesStore> = endsDiscovery
-    ? { inFirstLaunchDiscovery: false, discoveryScope: undefined }
+  const discoveryPatch: Partial<AgentStatusesStore> = scanCompletes
+    ? { discoveryScanning: false }
     : {};
   if (equal && currentLoaded) {
     return discoveryPatch;
@@ -173,6 +201,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       windowsLoaded: false,
       wslLoaded: false,
       inFirstLaunchDiscovery: false,
+      discoveryScanning: false,
+      discoveryAutoHideCancelled: false,
+      discoveryHidden: false,
+      setDiscoveryHidden: (discoveryHidden) => set({ discoveryHidden }),
       discoveryScope: undefined,
       discoveredAgents: [],
       setAgentStatuses: (incoming) =>
@@ -186,6 +218,8 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           windowsLoaded: true,
           wslLoaded: true,
           inFirstLaunchDiscovery: false,
+          discoveryScanning: false,
+          discoveryAutoHideCancelled: false,
           discoveryScope: undefined,
         })),
       beginFirstLaunchDiscovery: (scope) =>
@@ -196,6 +230,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           }
           return {
             inFirstLaunchDiscovery: true,
+            discoveryScanning: true,
+            discoveryAutoHideCancelled: false,
+            discoveryHidden: false,
             discoveryScope: nextScope,
             discoveredAgents: [],
             ...(nextScope.kind === "wsl" ? { wslLoaded: false } : {}),
@@ -205,26 +242,41 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
         set((prev) =>
           prev.discoveredAgents.length === 0 &&
           !prev.inFirstLaunchDiscovery &&
+          !prev.discoveryScanning &&
+          !prev.discoveryAutoHideCancelled &&
           prev.discoveryScope === undefined
             ? prev
-            : { discoveredAgents: [], inFirstLaunchDiscovery: false, discoveryScope: undefined },
+            : {
+                discoveredAgents: [],
+                inFirstLaunchDiscovery: false,
+                discoveryScanning: false,
+                discoveryAutoHideCancelled: false,
+                discoveryScope: undefined,
+                discoveryHidden: false,
+              },
         ),
       pushDiscoveredAgent: (status) =>
         set((prev) => {
-          if (!isStatusInDiscoveryScope(status, prev.discoveryScope)) {
-            return prev;
-          }
           if (
-            prev.discoveredAgents.some(
-              (existing) =>
-                existing.kind === status.kind &&
-                existing.envKind === status.envKind &&
-                existing.envDistro === status.envDistro,
-            )
+            !prev.inFirstLaunchDiscovery ||
+            !isStatusInDiscoveryScope(status, prev.discoveryScope)
           ) {
             return prev;
           }
-          return { discoveredAgents: [...prev.discoveredAgents, status] };
+          // Upsert: a scoped per-row refresh (or a progressive probe result)
+          // re-emits an already-listed agent with fresher data — replace its
+          // row in place instead of dropping the update.
+          const idx = prev.discoveredAgents.findIndex(
+            (existing) =>
+              existing.kind === status.kind &&
+              existing.envKind === status.envKind &&
+              existing.envDistro === status.envDistro,
+          );
+          if (idx === -1) return { discoveredAgents: [...prev.discoveredAgents, status] };
+          if (prev.discoveredAgents[idx] === status) return prev;
+          const discoveredAgents = prev.discoveredAgents.slice();
+          discoveredAgents[idx] = status;
+          return { discoveredAgents };
         }),
       mergeAgentStatus: (status) =>
         set((prev) => {
@@ -232,20 +284,27 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
             entry.kind === status.kind &&
             entry.envKind === status.envKind &&
             entry.envDistro === status.envDistro;
+          // Keep a listed discovery row current as probe updates stream in
+          // (the row set itself is owned by the scan — never appended here).
+          const discoveredIdx = prev.discoveredAgents.findIndex(matches);
+          const discoveredAgents =
+            discoveredIdx === -1
+              ? prev.discoveredAgents
+              : prev.discoveredAgents.map((entry, i) => (i === discoveredIdx ? status : entry));
           if (status.envKind === "wsl") {
             const idx = prev.wslAgentStatuses.findIndex(matches);
             const next =
               idx === -1
                 ? [...prev.wslAgentStatuses, status]
                 : prev.wslAgentStatuses.map((entry, i) => (i === idx ? status : entry));
-            return { wslAgentStatuses: next, wslLoaded: true };
+            return { wslAgentStatuses: next, wslLoaded: true, discoveredAgents };
           }
           const idx = prev.agentStatuses.findIndex(matches);
           const next =
             idx === -1
               ? [...prev.agentStatuses, status]
               : prev.agentStatuses.map((entry, i) => (i === idx ? status : entry));
-          return { agentStatuses: next, windowsLoaded: true };
+          return { agentStatuses: next, windowsLoaded: true, discoveredAgents };
         }),
       removeAgentStatus: (kind) =>
         set((prev) => {
@@ -264,10 +323,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 33,
-      // v33 mirrors supervisor STATUS_CACHE_VERSION=36: re-probe account catalogs
-      // that previously read the isolated session database.
-
+      version: 56,
+      // Discovery interaction flags are excluded by partialize and do not
+      // change the persisted format.
+      // v56 mirrors supervisor STATUS_CACHE_VERSION=60: advertise Muse's
+      // launch-scoped MCP wiring in both presentations.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

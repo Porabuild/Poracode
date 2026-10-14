@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { AlertTriangle, ChevronDown, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
-import { localizeCatalogMessage } from "@/shared/messages";
+import { friendlyErrorWithDetail } from "@/shared/messages";
 import type { ThreadErrorDockState } from "./threadErrorState";
-import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
+import {
+  ThreadDockCollapseButton,
+  ThreadDockHeader,
+  ThreadDockIconButton,
+  ThreadDockSection,
+} from "./ThreadDockUI";
 
 interface ThreadErrorDockProps {
   state: ThreadErrorDockState;
@@ -14,33 +19,45 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
   const { state, onDismiss } = props;
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(true);
-  const message = localizeCatalogMessage(state.message);
-  const isMultiline = message.includes("\n") || message.length > 120;
+  // Presentation boundary: supervisor errors cross IPC as a single string that
+  // may carry an attached details block behind the \0 sentinel (see
+  // attachErrorDetails) plus IPC wrapper noise. Split it here so the summary
+  // renders localized and the sentinel never reaches the DOM; upstream auth
+  // classification keeps operating on the raw payload. Attached details
+  // surface through the expand affordance below.
+  const { summary, details } = friendlyErrorWithDetail(state.message);
+  const expandedMessage = details ? `${summary}\n${details}` : summary;
+  const isMultiline = expandedMessage.includes("\n") || expandedMessage.length > 120;
   const canExpand = isMultiline;
-  const { title, body } = splitErrorTitle(message, t`Error`);
+  const isWarning = state.severity === "warning";
+  const { title, body } = splitErrorTitle(summary, isWarning ? t`Warning` : t`Error`);
 
   return (
     <ThreadDockSection placement="composer" collapsed={collapsed}>
       <ThreadDockHeader
         icon={AlertTriangle}
-        iconClassName="text-danger"
+        iconClassName={isWarning ? "text-warning" : "text-danger"}
         title={title}
         actions={
           <>
             {canExpand ? (
-              <ThreadDockIconButton
-                label={collapsed ? t`Expand error` : t`Collapse error`}
-                tooltip={collapsed ? t`Expand` : t`Collapse`}
+              <ThreadDockCollapseButton
+                collapsed={collapsed}
+                label={
+                  isWarning
+                    ? collapsed
+                      ? t`Expand warning`
+                      : t`Collapse warning`
+                    : collapsed
+                      ? t`Expand error`
+                      : t`Collapse error`
+                }
                 onPress={() => setCollapsed(!collapsed)}
-              >
-                <ChevronDown
-                  className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-                />
-              </ThreadDockIconButton>
+              />
             ) : null}
             {onDismiss ? (
               <ThreadDockIconButton
-                label={t`Dismiss error`}
+                label={isWarning ? t`Dismiss warning` : t`Dismiss error`}
                 tooltip={t`Dismiss`}
                 onPress={onDismiss}
               >
@@ -52,7 +69,7 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
       >
         <span
           className="min-w-0 flex-1 truncate leading-5 text-[color:var(--muted)]"
-          title={message}
+          title={summary}
         >
           {body}
         </span>
@@ -60,7 +77,7 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
 
       {canExpand && !collapsed ? (
         <div className="max-h-[min(12rem,32vh)] overflow-y-auto whitespace-pre-wrap break-words px-2 pb-1.5 text-[color:var(--muted)] [scrollbar-gutter:stable]">
-          {message}
+          {expandedMessage}
         </div>
       ) : null}
     </ThreadDockSection>

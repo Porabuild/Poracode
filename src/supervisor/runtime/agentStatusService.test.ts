@@ -200,19 +200,22 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledTimes(2);
   });
 
-  it("invalidates the previous model catalog cache generation", () => {
-    const { service, statusCachePath } = makeService(vi.fn<AgentAdapter["detectInstall"]>());
-    writeFileSync(
-      statusCachePath,
-      JSON.stringify({
-        version: 35,
-        windows: [makeStatus()],
-        wsl: [],
-      }),
-    );
-    expect(STATUS_CACHE_VERSION).toBe(36);
-    expect(service.getCachedCapabilities("codex")).toBeUndefined();
-  });
+  it.each([35, 51, 52, 53, 54, 55, 56, 57, 58, 59])(
+    "invalidates the previous model catalog cache generation v%i",
+    (version) => {
+      const { service, statusCachePath } = makeService(vi.fn<AgentAdapter["detectInstall"]>());
+      writeFileSync(
+        statusCachePath,
+        JSON.stringify({
+          version,
+          windows: [makeStatus()],
+          wsl: [],
+        }),
+      );
+      expect(STATUS_CACHE_VERSION).toBe(60);
+      expect(service.getCachedCapabilities("codex")).toBeUndefined();
+    },
+  );
 
   it("drops the on-disk status cache before an explicit full refresh", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
@@ -422,6 +425,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledWith({
       envKind: process.platform === "win32" ? "windows" : "posix",
       agentSettings: initialSettings,
+      signal: expect.any(AbortSignal),
     });
     expect(detectInstall).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -456,6 +460,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
       envKind: "wsl",
       wslDistro: "Ubuntu",
       agentSettings: updatedSettings,
+      signal: expect.any(AbortSignal),
     });
   });
 });

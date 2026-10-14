@@ -11,6 +11,9 @@ import { isHomeScopeLocation } from "@/shared/homeScope";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   createKnownSessionRef,
   detectAgentInstall,
   watchSessionPaths,
@@ -293,7 +296,16 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
       return defaultModel;
     },
 
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Effort maps natively through buildAntigravityModelArgs (separate flag
+      // or folded into the model id); the agy CLI has no Fast lane, so false
+      // Fast is the declared-inactive legacy carrier and meaningful Fast
+      // refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) return undefined;
       // `agy -p` persists a throwaway conversation AND rewrites
       // last_conversations.json[cwd] with its id. Running it in the project cwd
@@ -315,13 +327,24 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
       };
     },
 
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, _location, model, options) {
+      const selection = resolveCheckedOneShotResumeSelection(model, options);
+      // The resume lane reuses the same native model/effort args as the
+      // one-shot lane; agy has no Fast lane, so false Fast is the
+      // declared-inactive legacy carrier and meaningful Fast (and any
+      // thinking/context carrier) refuses before the command is built.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       return {
         command: "agy",
         args: [
           "--conversation",
           sessionRef.providerSessionId,
-          ...buildAntigravityModelArgs(model, undefined, supportsSeparateModelEffort, defaultModel),
+          ...buildAntigravityModelArgs(
+            model,
+            selection.effort,
+            supportsSeparateModelEffort,
+            defaultModel,
+          ),
           "-p",
           EXTRACTION_PROMPT,
         ],

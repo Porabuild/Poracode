@@ -7,6 +7,7 @@ import {
   type Workspace,
 } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useAppStore } from "./appStore";
 import { useSharedSettings } from "./sharedSettingsStore";
 import { useActiveWorkspaceId } from "./workspaceStore";
@@ -35,7 +36,10 @@ function workspaceIdSet(workspaces: readonly Workspace[]): ReadonlySet<string> {
 export function useWorkspaceProjectFilter(): (project: Project) => boolean {
   const knownWorkspaceIds = workspaceIdSet(useSharedSettings((state) => state.workspaces));
   const activeWorkspaceId = useActiveWorkspaceId();
-  return (project) => isProjectInWorkspace(project, activeWorkspaceId, knownWorkspaceIds);
+  const compact = useCompactLayout();
+  // Compact navigation has no workspace switcher; every group stays reachable.
+  return (project) =>
+    compact || isProjectInWorkspace(project, activeWorkspaceId, knownWorkspaceIds);
 }
 
 /**
@@ -46,7 +50,8 @@ export function useWorkspaceProjectFilter(): (project: Project) => boolean {
 export function useWorkspaceThreadFilter(): (thread: Thread) => boolean {
   const knownWorkspaceIds = workspaceIdSet(useSharedSettings((state) => state.workspaces));
   const activeWorkspaceId = useActiveWorkspaceId();
-  return (thread) => isThreadInWorkspace(thread, activeWorkspaceId, knownWorkspaceIds);
+  const compact = useCompactLayout();
+  return (thread) => compact || isThreadInWorkspace(thread, activeWorkspaceId, knownWorkspaceIds);
 }
 
 /** Ids of projects the active workspace shows, in store order. Excludes Home. */

@@ -1,0 +1,111 @@
+{
+  "watchV2": {
+    "type": "terminal-watch",
+    "id": "terminal-fixture-001",
+    "cursorSync": {
+      "version": 2,
+      "watchId": "watch-fixture-002",
+      "maxChunkBytes": 4096,
+      "maxWindowBytes": 8192
+    }
+  },
+  "watchV2Resume": {
+    "type": "terminal-watch",
+    "id": "terminal-fixture-001",
+    "cursorSync": {
+      "version": 2,
+      "watchId": "watch-fixture-003",
+      "maxChunkBytes": 4096,
+      "maxWindowBytes": 8192,
+      "resume": {
+        "generation": "instance-fixture-aaa",
+        "cursor": 108
+      }
+    }
+  },
+  "ack": {
+    "type": "terminal-watch-baseline-ack",
+    "id": "terminal-fixture-001",
+    "cursorSync": {
+      "version": 2,
+      "watchId": "watch-fixture-002",
+      "throughCursor": 106
+    }
+  },
+  "chunks": [
+    {
+      "type": "terminal-watch-baseline-chunk",
+      "id": "terminal-fixture-001",
+      "cursorSync": {
+        "version": 2,
+        "watchId": "watch-fixture-002",
+        "generation": "instance-fixture-aaa",
+        "chunkIndex": 0,
+        "chunkCount": 3,
+        "fromCursor": 100,
+        "toCursor": 103,
+        "data": "abc",
+        "processState": "running",
+        "terminalSize": null,
+        "resumeServed": false
+      }
+    },
+    {
+      "type": "terminal-watch-baseline-chunk",
+      "id": "terminal-fixture-001",
+      "cursorSync": {
+        "version": 2,
+        "watchId": "watch-fixture-002",
+        "generation": "instance-fixture-aaa",
+        "chunkIndex": 1,
+        "chunkCount": 3,
+        "fromCursor": 103,
+        "toCursor": 106,
+        "data": "def",
+        "processState": "running",
+        "terminalSize": null,
+        "resumeServed": false
+      }
+    },
+    {
+      "type": "terminal-watch-baseline-chunk",
+      "id": "terminal-fixture-001",
+      "cursorSync": {
+        "version": 2,
+        "watchId": "watch-fixture-002",
+        "generation": "instance-fixture-aaa",
+        "chunkIndex": 2,
+        "chunkCount": 3,
+        "fromCursor": 106,
+        "toCursor": 108,
+        "data": "gh",
+        "processState": "running",
+        "terminalSize": {
+          "cols": 80,
+          "rows": 24
+        },
+        "resumeServed": false
+      }
+    }
+  ],
+  "resumeUpToDateChunk": {
+    "type": "terminal-watch-baseline-chunk",
+    "id": "terminal-fixture-001",
+    "cursorSync": {
+      "version": 2,
+      "watchId": "watch-fixture-003",
+      "generation": "instance-fixture-aaa",
+      "chunkIndex": 0,
+      "chunkCount": 1,
+      "fromCursor": 108,
+      "toCursor": 108,
+      "data": "",
+      "processState": "running",
+      "terminalSize": {
+        "cols": 80,
+        "rows": 24
+      },
+      "resumeServed": true
+    }
+  }
+}

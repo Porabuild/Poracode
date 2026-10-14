@@ -1,6 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { SettingsSection } from "./types";
+import { createSearchQuery, scoreSearchFields } from "@/shared/searchMatching";
 
 /**
  * Static index of individual settings, powering the sidebar's "Search settings"
@@ -139,6 +140,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Show voice input button`,
     description: msg`Show the microphone button in the composer.`,
     keywords: "mic microphone dictation speech composer",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -146,6 +148,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Microphone`,
     description: msg`Device used by the composer voice input button.`,
     keywords: "mic input device audio source",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -153,6 +156,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Test microphone`,
     description: msg`Check the live input level from the selected device.`,
     keywords: "mic check level meter input test",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -160,6 +164,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input language`,
     description: msg`Language the speech model should expect when transcribing composer dictation.`,
     keywords: "transcription dictation speech locale",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -167,6 +172,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input model`,
     description: msg`Fastest uses Whisper tiny; Better uses Whisper base.`,
     keywords: "whisper transcription speech model tiny base quality speed",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -174,6 +180,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Use WebGPU acceleration`,
     description: msg`Run local transcription on the GPU when available.`,
     keywords: "gpu acceleration hardware transcription performance",
+    desktopOnly: true,
   },
 
   // Appearance
@@ -275,6 +282,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Collapse terminal composer`,
     description: msg`Start the composer collapsed in terminal-native threads. A collapsed composer routes browser element picks straight to the terminal.`,
     keywords: "collapse composer terminal-native threads input minimize",
+    desktopOnly: true,
   },
   {
     section: "terminal",
@@ -283,6 +291,13 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     description: msg`Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal.`,
     keywords: "browser pick target cli element picker selection terminal",
     desktopOnly: true,
+  },
+  {
+    section: "terminal",
+    anchor: "terminal.terminalFontFamily",
+    title: msg`Terminal font face`,
+    description: msg`Font for agent terminals and the terminal panel. Missing fonts use the default.`,
+    keywords: "font face family typeface installed monospace",
   },
   {
     section: "terminal",
@@ -352,6 +367,31 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Confirm before deleting threads`,
     description: msg`Show a confirmation before permanently deleting a thread.`,
     keywords: "confirm delete thread worktree remove ask warning",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveAgentSessions",
+    title: msg`Max active agent sessions`,
+    description: msg`Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords: "resource admission execution slots limit concurrency capacity host agent sessions",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveTerminalShells",
+    title: msg`Max active terminal shells`,
+    description: msg`Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords: "resource admission execution slots limit concurrency capacity host terminal shells",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveGenerationHelpers",
+    title: msg`Max active generation helpers`,
+    description: msg`Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords:
+      "resource admission execution slots limit concurrency capacity host generation helpers titles commits conflict resolution",
     desktopOnly: true,
   },
 
@@ -590,7 +630,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "usage",
     anchor: "usage.showEstimatedCost",
     title: msg`Show estimated cost`,
-    description: msg`Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel.`,
+    description: msg`Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans.`,
     keywords: "price spending money dollars estimate billing cost",
   },
 
@@ -641,6 +681,8 @@ export interface SettingsSearchResult {
    * target UX where a description-only hit surfaces the description snippet.
    */
   snippet: string | null;
+  /** Transient relevance score shared with the unified palette. */
+  score?: number;
 }
 
 type Translate = (descriptor: MessageDescriptor) => string;
@@ -652,10 +694,21 @@ function truncate(text: string, max = SNIPPET_MAX): string {
   return `${text.slice(0, max).trimEnd()}…`;
 }
 
+export function isSettingsSearchEntryAvailable(
+  entry: SettingsSearchEntry,
+  options?: { devMode?: boolean; remoteSession?: boolean; windows?: boolean },
+): boolean {
+  return (
+    (!entry.devOnly || Boolean(options?.devMode)) &&
+    (!entry.desktopOnly || !options?.remoteSession) &&
+    (!entry.windowsOnly || Boolean(options?.windows))
+  );
+}
+
 /**
- * Match `query` against the index. Case-insensitive substring over the localized
- * title, then description, then English `keywords` — same semantics as the
- * sidebar's existing section-label filter. Returns `[]` for a blank query.
+ * Match `query` against the index. Every whitespace-delimited term must match
+ * the localized title, description, or English `keywords`. Returns `[]` for a
+ * blank query.
  */
 export function searchSettings(
   query: string,
@@ -667,27 +720,28 @@ export function searchSettings(
     index?: readonly SettingsSearchEntry[];
   },
 ): SettingsSearchResult[] {
-  const needle = query.trim().toLowerCase();
-  if (needle === "") return [];
+  const search = createSearchQuery(query);
+  if (search.terms.length === 0) return [];
   const index = opts?.index ?? SETTINGS_SEARCH_INDEX;
   const results: SettingsSearchResult[] = [];
   for (const entry of index) {
-    if (entry.devOnly && !opts?.devMode) continue;
-    if (entry.desktopOnly && opts?.remoteSession) continue;
-    if (entry.windowsOnly && !opts?.windows) continue;
+    if (!isSettingsSearchEntryAvailable(entry, opts)) continue;
     const title = t(entry.title);
     const description = entry.description ? t(entry.description) : "";
-    const titleMatch = title.toLowerCase().includes(needle);
-    const descMatch = description !== "" && description.toLowerCase().includes(needle);
-    const keywordMatch =
-      entry.keywords !== undefined && entry.keywords.toLowerCase().includes(needle);
-    if (!titleMatch && !descMatch && !keywordMatch) continue;
+    const titleField = { text: title, fuzzy: true };
+    const score = scoreSearchFields(
+      [titleField, { text: description, weight: 0.4 }, { text: entry.keywords ?? "", weight: 0.4 }],
+      search,
+    );
+    if (score === null) continue;
+    const titleMatch = scoreSearchFields([titleField], search) !== null;
     results.push({
       section: entry.section,
       anchor: entry.anchor,
       title,
       snippet: titleMatch || description === "" ? null : truncate(description),
+      score,
     });
   }
-  return results;
+  return results.toSorted((a, b) => (b.score ?? 0) - (a.score ?? 0));
 }

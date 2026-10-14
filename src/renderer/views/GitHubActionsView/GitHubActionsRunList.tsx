@@ -18,7 +18,10 @@ import {
   type GitHubActionsJob,
   type GitHubActionsRun,
 } from "@/shared/contracts";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { ResponsiveContextMenu } from "@/renderer/components/common/ResponsiveContextMenu";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 
 function runTone(run: Pick<GitHubActionsRun | GitHubActionsJob, "status" | "conclusion">) {
@@ -107,6 +110,7 @@ export function GitHubActionsRunList(props: {
   onDelete: (run: GitHubActionsRun) => void;
 }) {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   if (props.runs.length === 0) {
     return props.loading ? (
       <div className="flex justify-center py-12 text-muted">
@@ -119,6 +123,100 @@ export function GitHubActionsRunList(props: {
           <Trans>No workflow runs found.</Trans>
         </p>
       </div>
+    );
+  }
+
+  if (compactLayout) {
+    return (
+      <nav aria-label={t`Workflow runs`}>
+        {props.runs.map((run) => {
+          const completed = run.status.toLowerCase() === "completed";
+          const failed = run.conclusion.toLowerCase() === "failure";
+          return (
+            <ResponsiveContextMenu
+              key={run.id}
+              label={run.title || run.workflowName || run.name || t`Workflow run`}
+              items={[
+                ...(run.url
+                  ? [
+                      {
+                        id: "open",
+                        label: t`Open on GitHub`,
+                        icon: <ExternalLink className="size-4" />,
+                      },
+                    ]
+                  : []),
+                {
+                  id: "cancel",
+                  label: t`Cancel workflow`,
+                  icon: <CircleStop className="size-4" />,
+                  isDisabled: completed,
+                },
+                {
+                  id: "rerun",
+                  label: t`Re-run all jobs`,
+                  icon: <RotateCcw className="size-4" />,
+                  isDisabled: !completed,
+                },
+                ...(failed
+                  ? [
+                      {
+                        id: "rerun-failed",
+                        label: t`Re-run failed jobs`,
+                        icon: <RotateCcw className="size-4" />,
+                      },
+                    ]
+                  : []),
+                {
+                  id: "delete",
+                  label: t`Delete workflow run`,
+                  icon: <Trash2 className="size-4" />,
+                  variant: "danger" as const,
+                  isDisabled: !completed,
+                },
+              ]}
+              onAction={(key) => {
+                if (key === "open" && run.url) void openExternalWithFeedback(run.url);
+                if (key === "rerun") props.onRerun(run, false);
+                if (key === "rerun-failed") props.onRerun(run, true);
+                if (key === "cancel") props.onCancel(run);
+                if (key === "delete") props.onDelete(run);
+              }}
+            >
+              <SidebarButton
+                className="poracode-sidebar-thread-row"
+                size="xs"
+                icon={
+                  <StatusIndicator
+                    status={run.status}
+                    conclusion={run.conclusion}
+                    showLabel={false}
+                  />
+                }
+                label={
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate font-medium text-foreground">
+                      {run.title || run.workflowName || run.name || t`Workflow run`}
+                    </span>
+                    <span className="flex min-w-0 items-center gap-2 text-[10px] text-muted">
+                      {run.headBranch ? (
+                        <span className="truncate font-mono">{run.headBranch}</span>
+                      ) : null}
+                      {run.event ? <span className="truncate">{run.event}</span> : null}
+                      <span className="shrink-0">#{run.number}</span>
+                      {run.createdAt ? (
+                        <RelativeTime iso={run.createdAt} className="shrink-0" />
+                      ) : null}
+                    </span>
+                  </span>
+                }
+                isDisabled={props.pendingRunId === run.id}
+                onPress={() => props.onSelectRun(run.id)}
+              />
+            </ResponsiveContextMenu>
+          );
+        })}
+      </nav>
     );
   }
 

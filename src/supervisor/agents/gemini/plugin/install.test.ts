@@ -2,7 +2,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setWslStagingService } from "../../../wsl/staging";
 import {
+  createGeminiThreadSettingsFile,
   ensureGeminiLaunchSettingsFile,
   getGeminiPluginPaths,
   installGeminiPlugin,
@@ -56,7 +58,7 @@ describe("getGeminiPluginPaths", () => {
     expect(paths.settingsPath).toBe(join(baseDir, "agent-plugins", "gemini", "settings.json"));
   });
 
-  it("creates an MCP settings carrier without installing the status plugin", () => {
+  it("creates an MCP settings carrier without installing the status plugin", async () => {
     const baseDir = makeBaseDir();
     const ctx = {
       envKind: "posix" as const,
@@ -73,9 +75,9 @@ describe("getGeminiPluginPaths", () => {
       ],
     };
 
-    const settingsPath = ensureGeminiLaunchSettingsFile(ctx, true);
+    const settingsPath = await ensureGeminiLaunchSettingsFile(ctx, true);
     expect(settingsPath).toBeDefined();
-    syncGeminiLaunchMcpSettings(ctx, ctx.mcpServers);
+    await syncGeminiLaunchMcpSettings(ctx, ctx.mcpServers);
 
     expect(readSettings(settingsPath!).mcpServers).toMatchObject({
       memory: { command: "memory-server", timeout: 30_000 },
@@ -117,10 +119,10 @@ describe("renderGeminiSettings", () => {
 });
 
 describe("installGeminiPlugin", () => {
-  it("stages assets and writes a private Gemini system settings file", () => {
+  it("stages assets and writes a private Gemini system settings file", async () => {
     const baseDir = makeBaseDir();
 
-    const result = installGeminiPlugin({ envKind: "posix", baseDir });
+    const result = await installGeminiPlugin({ envKind: "posix", baseDir });
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -128,7 +130,7 @@ describe("installGeminiPlugin", () => {
     expect(existsSync(join(result.paths.pluginDir, "plugin.json"))).toBe(true);
     expect(existsSync(join(result.paths.pluginDir, "forward.mjs"))).toBe(true);
     expect(existsSync(result.paths.settingsPath)).toBe(true);
-    expect(isGeminiPluginInstalled({ envKind: "posix", baseDir })).toMatchObject({
+    expect(await isGeminiPluginInstalled({ envKind: "posix", baseDir })).toMatchObject({
       installed: true,
       version: "1.2.3",
     });
@@ -158,10 +160,10 @@ function readSettings(path: string): McpSettings {
 }
 
 describe("syncGeminiLaunchMcpSettings", () => {
-  it("replaces the complete provider-neutral MCP projection", () => {
+  it("replaces the complete provider-neutral MCP projection", async () => {
     const baseDir = makeBaseDir();
     const ctx = { envKind: "posix" as const, baseDir };
-    const install = installGeminiPlugin(ctx);
+    const install = await installGeminiPlugin(ctx);
     expect(install.ok).toBe(true);
     if (!install.ok) return;
     const settingsPath = install.paths.settingsPath;
@@ -178,7 +180,7 @@ describe("syncGeminiLaunchMcpSettings", () => {
       },
     ];
 
-    syncGeminiLaunchMcpSettings(ctx, servers);
+    await syncGeminiLaunchMcpSettings(ctx, servers);
     expect(readSettings(settingsPath).mcpServers).toEqual({
       runtime: {
         httpUrl: "http://127.0.0.1:9200/mcp",
@@ -186,7 +188,63 @@ describe("syncGeminiLaunchMcpSettings", () => {
         timeout: 45_000,
       },
     });
-    syncGeminiLaunchMcpSettings(ctx, []);
+    await syncGeminiLaunchMcpSettings(ctx, []);
     expect(readSettings(settingsPath).mcpServers).toBeUndefined();
+  });
+});
+
+describe("Gemini WSL launch settings (worker-backed)", () => {
+  afterEach(() => {
+    setWslStagingService(undefined);
+  });
+
+  it("creates, projects, and snapshots settings through the staging worker", async () => {
+    const files = new Map<string, string>();
+    const written: string[] = [];
+    setWslStagingService({
+      resolveHome: async () => "/home/demo",
+      pathExists: async (_distro: string, path: string) => files.has(path),
+      readTextFile: async (_distro: string, path: string) => files.get(path) ?? null,
+      writeTextFile: async (_distro: string, path: string, content: string) => {
+        files.set(path, content);
+        written.push(path);
+      },
+      remove: async (_distro: string, path: string) => {
+        files.delete(path);
+      },
+    } as never);
+
+    const ctx = {
+      envKind: "wsl" as const,
+      wslDistro: "Ubuntu",
+      mcpServers: [
+        {
+          id: "runtime",
+          name: "runtime",
+          timeoutMs: 45_000,
+          transport: {
+            type: "http" as const,
+            url: "http://127.0.0.1:9200/mcp",
+            headers: {},
+          },
+        },
+      ],
+    };
+
+    const settingsPath = await ensureGeminiLaunchSettingsFile(ctx, true);
+    expect(settingsPath).toBe("/home/demo/.poracode/agent-plugins/gemini/settings.json");
+
+    await syncGeminiLaunchMcpSettings(ctx, ctx.mcpServers);
+    expect(JSON.parse(files.get(written.at(-1)!)!).mcpServers).toMatchObject({
+      runtime: { httpUrl: "http://127.0.0.1:9200/mcp", timeout: 45_000 },
+    });
+
+    const thread = await createGeminiThreadSettingsFile(ctx);
+    expect(thread?.settingsPath).toMatch(
+      /^\/home\/demo\/\.poracode\/agent-plugins\/gemini\/\.poracode-thread-.*\.json$/,
+    );
+    expect(files.get(thread!.settingsPath)).toBe(files.get(settingsPath!));
+    await thread!.cleanup();
+    expect(files.has(thread!.settingsPath)).toBe(false);
   });
 });

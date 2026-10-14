@@ -2,8 +2,8 @@ import { BrowserWindow, globalShortcut, screen, type Display } from "electron";
 import {
   ComputerUseActivityTracker,
   type ComputerUseActivityState,
-} from "./ComputerUseActivityTracker";
-import type { ComputerUseActivityEvent } from "./ComputerUseMcpIngress";
+} from "@/host/computer-use/ComputerUseActivityTracker";
+import type { ComputerUseActivityEvent } from "@/host/computer-use/ComputerUseMcpIngress";
 import {
   COMPUTER_USE_OVERLAY_TITLE,
   OVERLAY_EXIT_URL,

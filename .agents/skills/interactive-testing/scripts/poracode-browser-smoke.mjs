@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, resolve as resolvePath } from "node:path";
+import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
+import { clickCdpElements, clickCdpLabel } from "./poracode-cdp-actions.mjs";
 import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -18,7 +19,7 @@ const connection = await resolveDebugConnection({
 });
 const port = connection.port;
 const appUrl = connection.appUrl;
-const defaultOutDir = `${homedir()}\\.poracode-smoke\\artifacts\\browser-${Date.now()}`;
+const defaultOutDir = join(homedir(), ".poracode-smoke", "artifacts", `browser-${Date.now()}`);
 const outDir = resolvePath(args.outDir ?? process.env.PORACODE_SMOKE_OUT_DIR ?? defaultOutDir);
 const waitMs = Number(args.waitMs ?? 10000);
 const commandTimeoutMs = Number(args.commandTimeoutMs ?? 8000);
@@ -30,6 +31,9 @@ await mkdir(outDir, { recursive: true });
 
 const appTarget = await waitForAppTarget();
 const app = await connectTarget(appTarget);
+let externalTabId = null;
+let deviceEmulationEnabled = false;
+let findActive = false;
 let browserUi = app;
 
 try {
@@ -47,8 +51,29 @@ try {
     "renderer body contains rendered app controls",
   );
 
+  // A prior full-suite scenario may leave a fullscreen overlay open. Return
+  // through its visible control before touching the Browser behind it.
+  const returned = await clickText("Return to app", { optional: true });
+  if (returned.ok) {
+    await waitFor(
+      async () =>
+        evaluate(`![...document.querySelectorAll('button,[role=button],a')]
+      .some((element) => element.textContent?.trim() === "Return to app")`),
+      "return to the app surface",
+    );
+  }
   step("opening Browser panel");
-  await clickButton("Open browser", { optional: true });
+  // SidebarHeader also renders an invisible sizing copy of these controls.
+  const browserControlSelector = ".poracode-sidebar-aside button:not(.invisible *)";
+  const opened = await clickLabel("Open browser", browserControlSelector, { optional: true });
+  if (
+    !opened.ok &&
+    !(await evaluate(
+      `Boolean(document.querySelector(${JSON.stringify(`${browserControlSelector}[aria-label="Hide browser"]`)}))`,
+    ))
+  ) {
+    throw new Error("Browser panel control is unavailable.");
+  }
   await wait(500);
   browserUi = await connectBrowserUiTarget();
   if (browserUi !== app) {
@@ -77,6 +102,7 @@ try {
   assert(state.activeTabId !== null, "Active tab", "browser state has an active tab");
   assert(activeTab(state)?.url === firstUrl, "Navigate", "active tab reached first smoke URL");
   const tabId = state.activeTabId;
+  externalTabId = tabId;
   await screenshot(browserUi, "smoke-browser-02-tab.png");
 
   await wait(500);
@@ -90,6 +116,12 @@ try {
   await screenshotForTarget(firstUrl, "smoke-browser-03-page.png");
 
   step("checking toolbar state");
+  await clickCdpElements({
+    client: browserUi,
+    evaluate: (client, expression) => evaluate(expression, {}, client),
+    elementsExpression: `[...document.querySelectorAll('input[placeholder="Search or enter address"]')]`,
+    label: "visible Browser URL input",
+  });
   const toolbar = await evaluate(
     `(() => {
       const input = document.querySelector('input[placeholder="Search or enter address"]');
@@ -137,6 +169,136 @@ try {
   );
   await screenshot(browserUi, "smoke-browser-04-navigation.png");
 
+  step("checking downloads internal page creation and reuse");
+  await callBridge("browserOpenInternalPage", { page: "downloads" });
+  state = await waitForBrowserState(
+    (s) => activeTab(s)?.internalPage === "downloads",
+    "downloads internal tab",
+  );
+  const downloadsTabId = state.activeTabId;
+  const downloadsTabCount = state.tabs.filter((tab) => tab.internalPage === "downloads").length;
+  const downloadsPage = await waitForInternalPage(downloadsTabId, "Download history");
+  assert(downloadsPage.headingVisible, "Downloads heading", "Download history heading is visible");
+  assert(
+    downloadsPage.activeTabWebview === false,
+    "Downloads guest omission",
+    "active downloads tab has no webview",
+  );
+  await screenshot(app, "smoke-browser-05-downloads.png");
+
+  step("checking passwords internal page creation and reuse");
+  await callBridge("browserOpenInternalPage", { page: "passwords" });
+  state = await waitForBrowserState(
+    (s) => activeTab(s)?.internalPage === "passwords",
+    "passwords internal tab",
+  );
+  const passwordsTabId = state.activeTabId;
+  const passwordsTabCount = state.tabs.filter((tab) => tab.internalPage === "passwords").length;
+  const passwordsPage = await waitForInternalPage(passwordsTabId, "Manage passwords");
+  assert(passwordsPage.headingVisible, "Passwords heading", "Manage passwords heading is visible");
+  assert(
+    passwordsPage.activeTabWebview === false,
+    "Passwords guest omission",
+    "active passwords tab has no webview",
+  );
+  await screenshot(app, "smoke-browser-06-passwords.png");
+
+  await callBridge("browserOpenInternalPage", { page: "downloads" });
+  state = await waitForBrowserState(
+    (s) => s.activeTabId === downloadsTabId,
+    "reused downloads internal tab",
+  );
+  assert(
+    state.tabs.filter((tab) => tab.internalPage === "downloads").length === downloadsTabCount,
+    "Reuse downloads tab",
+    "opening downloads again activates the existing internal tab",
+  );
+
+  await callBridge("browserOpenInternalPage", { page: "passwords" });
+  state = await waitForBrowserState(
+    (s) => s.activeTabId === passwordsTabId,
+    "reused passwords internal tab",
+  );
+  assert(
+    state.tabs.filter((tab) => tab.internalPage === "passwords").length === passwordsTabCount,
+    "Reuse passwords tab",
+    "opening passwords again activates the existing internal tab",
+  );
+
+  step("checking device emulation state and toolbar");
+  await callBridge("browserActivateTab", { tabId });
+  await waitForBrowserState((s) => s.activeTabId === tabId, "reactivated external smoke tab");
+  const emulation = {
+    width: 833,
+    height: 970,
+    deviceScaleFactor: 1,
+    scale: 1,
+    mobile: false,
+    touch: false,
+    preset: "Responsive",
+  };
+  await callBridge("browserSetDeviceEmulation", { tabId, emulation });
+  deviceEmulationEnabled = true;
+  state = await waitForBrowserState((s) => {
+    const active = activeTab(s);
+    return (
+      active?.tabId === tabId &&
+      active.deviceEmulation?.width === emulation.width &&
+      active.deviceEmulation?.height === emulation.height &&
+      active.deviceEmulation?.scale === emulation.scale &&
+      active.deviceEmulation?.preset === emulation.preset
+    );
+  }, "device emulation state");
+  assert(
+    activeTab(state)?.deviceEmulation?.preset === "Responsive",
+    "Device emulation state",
+    "active external tab exposes Responsive emulation state",
+  );
+  const deviceToolbar = await waitForDeviceToolbar(tabId, emulation.width, emulation.height);
+  assert(
+    deviceToolbar.visible,
+    "Device toolbar",
+    "device controls are visible with the expected dimensions",
+  );
+  assert(
+    deviceToolbar.activeTabWebview,
+    "Emulated guest preserved",
+    "active external tab keeps its webview while emulated",
+  );
+  await screenshot(app, "smoke-browser-07-device-toolbar.png");
+
+  await callBridge("browserSetDeviceEmulation", { tabId, emulation: null });
+  deviceEmulationEnabled = false;
+  state = await waitForBrowserState(
+    (s) => s.activeTabId === tabId && activeTab(s)?.deviceEmulation === undefined,
+    "cleared device emulation state",
+  );
+  assert(
+    activeTab(state)?.deviceEmulation === undefined,
+    "Clear device emulation",
+    "active external tab returns to its normal viewport",
+  );
+  const toolbarCleared = await evaluate(
+    `document.querySelector('[data-poracode-browser] [aria-label="Close device toolbar"]') === null`,
+  );
+  assert(toolbarCleared, "Hide device toolbar", "device controls disappear after clearing state");
+
+  step("checking Find in page against the generated data page");
+  await openFindBar();
+  findActive = true;
+  await setFindQuery("second page");
+  const findResult = await waitForFindResult("1 of 1");
+  assert(findResult.visible, "Find in page", "find bar reports one match in the data page");
+  await screenshot(app, "smoke-browser-08-find.png");
+  await clickButton("Close find");
+  findActive = false;
+  await waitFor(async () => {
+    const closed = await evaluate(
+      `document.querySelector('input[placeholder="Find in page"]') === null`,
+    );
+    return closed ? true : null;
+  }, "closed browser find bar");
+
   step("checking Browser settings");
   let settingsOpened = await settingsOverlayVisible();
   if (!settingsOpened.ok) {
@@ -148,20 +310,11 @@ try {
       await waitForSettingsOverlay();
     }
   }
-  if (settingsOpened.ok) {
-    await clickSettingsSidebarItem("Browser", { optional: true });
-    const settingsText = await waitForBrowserSettingsPage({
-      optional: true,
-    });
-    if (settingsText.ok) {
-      assert(true, "Browser settings", "Browser settings page is reachable");
-      await screenshot(app, "smoke-browser-05-settings.png");
-    } else {
-      findings.push("Settings opened, but Browser settings page was not reachable by text click.");
-    }
-  } else {
-    findings.push("Settings button was not found, so Browser settings was not exercised.");
-  }
+  if (!settingsOpened.ok) throw new Error("Settings control was not found.");
+  await clickSettingsSidebarItem("Browser");
+  await waitForBrowserSettingsPage();
+  assert(true, "Browser settings", "Browser settings page is reachable");
+  await screenshot(app, "smoke-browser-05-settings.png");
 
   const errors = [
     ...(await collectedErrors(app)),
@@ -179,6 +332,27 @@ try {
   printReport(errors);
   process.exitCode = results.some((result) => result.status === "FAIL") ? 1 : 0;
 } finally {
+  if (findActive && externalTabId) {
+    try {
+      await clickButton("Close find", { optional: true });
+      await callBridge("browserStopFindInPage", {
+        tabId: externalTabId,
+        action: "clearSelection",
+      });
+    } catch (error) {
+      findings.push(`Find cleanup failed: ${error.message}`);
+    }
+  }
+  if (deviceEmulationEnabled && externalTabId) {
+    try {
+      await callBridge("browserSetDeviceEmulation", {
+        tabId: externalTabId,
+        emulation: null,
+      });
+    } catch (error) {
+      findings.push(`Device emulation cleanup failed: ${error.message}`);
+    }
+  }
   if (browserUi !== app) browserUi.close();
   app.close();
 }
@@ -352,62 +526,25 @@ async function rendererSnapshot() {
 }
 
 async function clickButton(label, options = {}) {
-  const clicked = await evaluate(
-    `(() => {
-      const label = ${JSON.stringify(label)};
-      const buttons = [...document.querySelectorAll("button")];
-      const button = buttons.find((candidate) => {
-        const text = candidate.getAttribute("aria-label") || candidate.title || candidate.textContent?.trim() || "";
-        return text === label;
-      });
-      if (!button) {
-        return { ok: false, available: buttons.map((candidate) => candidate.getAttribute("aria-label") || candidate.title || candidate.textContent?.trim() || "") };
-      }
-      if (button.disabled || button.getAttribute("aria-disabled") === "true") {
-        return { ok: false, disabled: true };
-      }
-      button.click();
-      return { ok: true };
-    })()`,
-  );
-  if (!clicked.ok && options.optional !== true) {
-    throw new Error(`Button "${label}" was not clickable: ${JSON.stringify(clicked)}`);
-  }
-  return clicked;
+  return clickLabel(label, "button", options);
 }
 
 async function clickText(text, options = {}) {
-  const clicked = await evaluate(
-    `(() => {
-      const text = ${JSON.stringify(text)};
-      const candidates = [...document.querySelectorAll("button,[role=button],a")];
-      const element = candidates.find((candidate) => candidate.textContent?.trim() === text || candidate.getAttribute("aria-label") === text);
-      if (!element) return { ok: false };
-      element.click();
-      return { ok: true };
-    })()`,
-  );
-  if (!clicked.ok && options.optional !== true) {
-    throw new Error(`Text "${text}" was not clickable`);
-  }
-  return clicked;
+  return clickLabel(text, "button,[role=button],a", options);
 }
 
 async function clickSettingsSidebarItem(text, options = {}) {
-  const clicked = await evaluate(
-    `(() => {
-      const text = ${JSON.stringify(text)};
-      const candidates = [...document.querySelectorAll('[role="button"]')].filter((candidate) => candidate.textContent?.trim() === text);
-      const element = candidates.find((candidate) => String(candidate.className).includes("group relative")) ?? candidates.at(-1);
-      if (!element) return { ok: false };
-      element.click();
-      return { ok: true };
-    })()`,
-  );
-  if (!clicked.ok && options.optional !== true) {
-    throw new Error(`Settings item "${text}" was not clickable`);
-  }
-  return clicked;
+  return clickLabel(text, '[data-overlay-surface] [role="button"]', options);
+}
+
+function clickLabel(label, selector, options) {
+  return clickCdpLabel({
+    client: app,
+    evaluate: (client, expression) => evaluate(expression, {}, client),
+    label,
+    selector,
+    optional: options.optional === true,
+  });
 }
 
 async function settingsOverlayVisible() {
@@ -429,22 +566,17 @@ async function waitForSettingsOverlay() {
   }, "settings overlay");
 }
 
-async function waitForBrowserSettingsPage(options = {}) {
-  try {
-    await waitFor(async () => {
-      return evaluate(
-        `(() => {
+async function waitForBrowserSettingsPage() {
+  await waitFor(async () => {
+    return evaluate(
+      `(() => {
           const openLinksControl = document.querySelector('button[aria-label="Open links in"]');
           const showOpenedLinksControl = document.querySelector('button[aria-label="Show opened links in"]');
           return openLinksControl && showOpenedLinksControl ? { ok: true } : null;
         })()`,
-      );
-    }, "Browser settings page");
-    return { ok: true };
-  } catch (error) {
-    if (options.optional === true) return { ok: false, error: error.message };
-    throw error;
-  }
+    );
+  }, "Browser settings page");
+  return { ok: true };
 }
 
 async function browserState() {
@@ -464,6 +596,133 @@ async function waitForBrowserState(predicate, label) {
 
 function activeTab(state) {
   return state.tabs.find((tab) => tab.tabId === state.activeTabId);
+}
+
+async function waitForInternalPage(tabId, heading) {
+  return waitFor(async () => {
+    const snapshot = await evaluate(
+      `(() => {
+        const root = document.querySelector('[data-poracode-browser]');
+        const tabId = ${JSON.stringify(tabId)};
+        const headingText = ${JSON.stringify(heading)};
+        const heading = [...(root?.querySelectorAll('h1') ?? [])].find(
+          (candidate) => candidate.textContent?.trim() === headingText,
+        );
+        return {
+          headingVisible: Boolean(heading && heading.getClientRects().length > 0),
+          activeTabWebview: Boolean(root?.querySelector('webview[data-tab-id="' + CSS.escape(tabId) + '"]')),
+        };
+      })()`,
+    );
+    return snapshot.headingVisible ? snapshot : null;
+  }, `${heading} internal page`);
+}
+
+async function waitForDeviceToolbar(tabId, width, height) {
+  return waitFor(async () => {
+    const snapshot = await evaluate(
+      `(() => {
+        const root = document.querySelector('[data-poracode-browser]');
+        const widthInput = root?.querySelector('[aria-label="Viewport width"]');
+        const heightInput = root?.querySelector('[aria-label="Viewport height"]');
+        const close = root?.querySelector('[aria-label="Close device toolbar"]');
+        const tabId = ${JSON.stringify(tabId)};
+        return {
+          visible: Boolean(close && close.getClientRects().length > 0) &&
+            widthInput?.value === ${JSON.stringify(String(width))} &&
+            heightInput?.value === ${JSON.stringify(String(height))},
+          activeTabWebview: Boolean(root?.querySelector('webview[data-tab-id="' + CSS.escape(tabId) + '"]')),
+        };
+      })()`,
+    );
+    return snapshot.visible ? snapshot : null;
+  }, "device toolbar dimensions");
+}
+
+async function openFindBar() {
+  await clickButton("Browser menu");
+  await waitFor(async () => {
+    const clicked = await evaluate(
+      `(() => {
+        const item = [...document.querySelectorAll('[role="menuitem"]')].find((candidate) =>
+          candidate.querySelector('label')?.textContent?.trim() === "Find in page"
+        );
+        if (!item || item.getAttribute('aria-disabled') === 'true') return false;
+        item.click();
+        return true;
+      })()`,
+    );
+    return clicked ? true : null;
+  }, "Find in page menu item");
+  await waitFor(async () => {
+    const visible = await evaluate(
+      `Boolean(document.querySelector('input[placeholder="Find in page"]'))`,
+    );
+    return visible ? true : null;
+  }, "browser find bar");
+}
+
+async function setFindQuery(query) {
+  const focused = await evaluate(
+    `(() => {
+      const input = document.querySelector('input[placeholder="Find in page"]');
+      if (!input) return false;
+      input.focus();
+      input.select();
+      return true;
+    })()`,
+  );
+  if (!focused) throw new Error("Browser find input was not available");
+  await send(app, "Input.insertText", { text: query });
+  await waitFor(async () => {
+    const value = await evaluate(
+      `document.querySelector('input[placeholder="Find in page"]')?.value ?? null`,
+    );
+    return value === query ? true : null;
+  }, "browser find query input");
+}
+
+async function waitForFindResult(counter) {
+  return waitFor(async () => {
+    const snapshot = await evaluate(
+      `(() => {
+        const input = document.querySelector('input[placeholder="Find in page"]');
+        const search = input?.closest('[role="search"]');
+        return {
+          visible: Boolean(search && search.getClientRects().length > 0),
+          text: search?.textContent ?? '',
+        };
+      })()`,
+    );
+    if (!snapshot.visible) return null;
+    // AnimatedNumber paints in shadow DOM and labels itself through
+    // ElementInternals. textContent omits its digit; read the same accessible
+    // counter a screen reader receives rather than weakening the match check.
+    const object = await send(browserUi, "Runtime.evaluate", {
+      expression: `document.querySelector('input[placeholder="Find in page"]')?.closest('[role="search"]')?.querySelector('[aria-live="polite"]')`,
+      returnByValue: false,
+    });
+    const objectId = object.result?.objectId;
+    if (!objectId) return null;
+    try {
+      const { nodes } = await send(browserUi, "Accessibility.getPartialAXTree", { objectId });
+      const byId = new Map(nodes.map((node) => [node.nodeId, node]));
+      function readableText(node) {
+        if (node.role?.value === "image" || node.role?.value === "StaticText") {
+          return node.name?.value ?? "";
+        }
+        return (node.childIds ?? [])
+          .map((id) => byId.get(id))
+          .filter(Boolean)
+          .map(readableText)
+          .join("");
+      }
+      const text = readableText(nodes[0]).replace(/\s+/g, " ").trim();
+      return text === counter ? { ...snapshot, text } : null;
+    } finally {
+      await send(browserUi, "Runtime.releaseObject", { objectId });
+    }
+  }, `browser find result ${counter}`);
 }
 
 async function callBridge(method, payload) {
@@ -559,21 +818,32 @@ function domSummaryExpression() {
 }
 
 async function screenshot(client, filename) {
-  try {
-    const result = await send(client, "Page.captureScreenshot", {
-      format: "png",
-      fromSurface: true,
-    });
-    const path = resolvePath(outDir, filename);
-    await writeFile(path, Buffer.from(result.data, "base64"));
-    results.push({ status: "INFO", label: "Screenshot", detail: path });
-  } catch (error) {
-    findings.push(`Screenshot failed for ${filename}: ${error.message}`);
-  }
+  await waitFor(
+    async () =>
+      evaluate(
+        `!document.getAnimations().some((animation) =>
+    animation.playState === "running" && Number.isFinite(animation.effect?.getComputedTiming().endTime))`,
+        {},
+        client,
+      ),
+    `settled transitions for ${filename}`,
+  );
+  await evaluate(
+    `new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+    { awaitPromise: true },
+    client,
+  );
+  const result = await send(client, "Page.captureScreenshot", {
+    format: "png",
+    fromSurface: true,
+  });
+  const path = resolvePath(outDir, filename);
+  await writeFile(path, Buffer.from(result.data, "base64"));
+  results.push({ status: "INFO", label: "Screenshot", detail: path });
 }
 
 function smokeDataUrl(title, body) {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body><main><h1>${title}</h1><p>${body}</p><button>Smoke Button</button></main></body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>body { color: #111; background: #fff; }</style></head><body><main><h1>${title}</h1><p>${body}</p><button>Smoke Button</button></main></body></html>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 

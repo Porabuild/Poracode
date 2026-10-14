@@ -15,7 +15,7 @@ import {
   isCursorProfileKind,
   parseAgentProfileKind,
 } from "@/shared/contracts";
-import { friendlyError } from "@/shared/messages";
+import { friendlyError, localizeCatalogMessage } from "@/shared/messages";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -633,7 +633,7 @@ export function SingleAgentSettings(props: {
           }
           return;
         }
-        const detail = result.output?.trim();
+        const detail = localizeCatalogMessage(result.output?.trim() ?? "");
         const detailText = detail ? detail.slice(0, 240) : "";
         toast.danger(
           detail

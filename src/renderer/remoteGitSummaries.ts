@@ -6,7 +6,7 @@ import type { RemoteGitSummaries, RemoteThreadGitSummary } from "@/shared/remote
 
 /**
  * Mirrors compact per-thread git/PR summaries to the main process so paired
- * remote clients (the mobile PWA) can show diff stats and PR status. The
+ * paired browser clients can show diff stats and PR status. The
  * renderer is the only holder of live git state (gitStore, fed by the git
  * watchers), so this is a renderer→main push, debounced and deduplicated.
  */

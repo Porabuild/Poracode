@@ -1,0 +1,281 @@
+diff --git a/dist/acp.d.ts b/dist/acp.d.ts
+index 376b2ce3baddeae09c786825424cf949f6fdd3ce..2890bfee332843935366b7bb2558190b74b8af7d 100644
+--- a/dist/acp.d.ts
++++ b/dist/acp.d.ts
+@@ -27,8 +27,8 @@ export type Stream = {
+  */
+ export declare function ndJsonStream(output: WritableStream<Uint8Array>, input: ReadableStream<Uint8Array>): Stream;
+ export { RequestError } from "./jsonrpc.js";
+-export type { AnyMessage, AnyNotification, AnyRequest, AnyResponse, ErrorResponse, JsonRpcId, MaybePromise, Result, SendRequestOptions, } from "./jsonrpc.js";
+-import type { JsonRpcId, MaybePromise, SendRequestOptions } from "./jsonrpc.js";
++export type { AnyMessage, AnyNotification, AnyRequest, AnyResponse, DispatchObserver, ErrorResponse, JsonRpcId, MaybePromise, Result, SendRequestOptions, } from "./jsonrpc.js";
++import type { DispatchObserver, JsonRpcId, MaybePromise, SendRequestOptions } from "./jsonrpc.js";
+ /**
+  * ACP method-name constants.
+  *
+@@ -968,6 +968,13 @@ export declare class TerminalHandle {
+      */
+     [Symbol.asyncDispose](): Promise<void>;
+ }
++/**
++ * Options for observing a client-side connection's raw inbound dispatch.
++ */
++export type ClientSideConnectionOptions = {
++    /** Observe each raw inbound transport frame without serializing dispatch. */
++    dispatchObserver?: DispatchObserver;
++};
+ /**
+  * A client-side connection to an agent.
+  *
+@@ -982,6 +989,12 @@ export declare class TerminalHandle {
+  * single context object and supports `connectWith` and session helpers.
+  */
+ export declare class ClientSideConnection implements Agent {
++    /**
++     * Compatibility version of the optional raw dispatch observer API.
++     * Check for version 1 before constructing a stream that depends on these
++     * callbacks. Unpatched SDK 1.4.0 artifacts do not expose this marker.
++     */
++    static readonly dispatchObserverVersion: 1;
+     private connection;
+     /**
+      * Creates a new client-side connection to an agent.
+@@ -992,12 +1005,13 @@ export declare class ClientSideConnection implements Agent {
+      * @param toClient - A function that creates a Client handler to process incoming agent requests
+      * @param stream - The bidirectional message stream for communication. Typically created using
+      *                 {@link ndJsonStream} for stdio-based connections.
++     * @param options - Optional raw inbound dispatch lifecycle observer.
+      *
+      * See protocol docs: [Communication Model](https://agentclientprotocol.com/protocol/overview#communication-model)
+      *
+      * @deprecated Prefer `client({ name }).connectWith(stream, async (ctx) => ...)`.
+      */
+-    constructor(toClient: (agent: Agent) => Client, stream: Stream);
++    constructor(toClient: (agent: Agent) => Client, stream: Stream, options?: ClientSideConnectionOptions);
+     /**
+      * Establishes the connection with a client and negotiates protocol capabilities.
+      *
+diff --git a/dist/acp.js b/dist/acp.js
+index 49cee9f7acda859037272b3c44acf03bd7a74f73..683e61cd16f643e917411ac33b1e0d38c9297a2e 100644
+--- a/dist/acp.js
++++ b/dist/acp.js
+@@ -1435,6 +1435,10 @@ export class TerminalHandle {
+  * single context object and supports `connectWith` and session helpers.
+  */
+ export class ClientSideConnection {
++    /** Compatibility version of the optional raw dispatch observer API. */
++    static get dispatchObserverVersion() {
++        return 1;
++    }
+     connection;
+     /**
+      * Creates a new client-side connection to an agent.
+@@ -1445,14 +1449,18 @@ export class ClientSideConnection {
+      * @param toClient - A function that creates a Client handler to process incoming agent requests
+      * @param stream - The bidirectional message stream for communication. Typically created using
+      *                 {@link ndJsonStream} for stdio-based connections.
++     * @param options - Optional raw inbound dispatch lifecycle observer.
+      *
+      * See protocol docs: [Communication Model](https://agentclientprotocol.com/protocol/overview#communication-model)
+      *
+      * @deprecated Prefer `client({ name }).connectWith(stream, async (ctx) => ...)`.
+      */
+-    constructor(toClient, stream) {
++    constructor(toClient, stream, options = {}) {
++        const connectionOptions = options.dispatchObserver
++            ? { ...stableConnectionOptions, dispatchObserver: options.dispatchObserver }
++            : stableConnectionOptions;
+         this.connection = legacyClientApp(toClient(this))[appBuilder]()
+-            .connect(stream, stableConnectionOptions);
++            .connect(stream, connectionOptions);
+     }
+     /**
+      * Establishes the connection with a client and negotiates protocol capabilities.
+diff --git a/dist/jsonrpc.d.ts b/dist/jsonrpc.d.ts
+index 8c95134da048b29517f792ce038d0fcb5b39692e..abe6d4ab1695459b0616bcca1e65f39335041e47 100644
+--- a/dist/jsonrpc.d.ts
++++ b/dist/jsonrpc.d.ts
+@@ -400,6 +400,32 @@ export declare class ConnectionContext {
+      */
+     get closed(): Promise<void>;
+ }
++/**
++ * Optional metadata hooks around dispatch of raw inbound transport frames.
++ */
++export type DispatchObserver = {
++    /**
++     * Called once before dispatch of each raw inbound transport frame, with its
++     * original identity. Values are unknown because malformed frames and whole
++     * batch arrays are observed too; batch members are not observed separately.
++     * Callbacks must be synchronous and must not mutate the frame. Return values
++     * are not awaited; accidental promise rejections close the connection.
++     */
++    started(message: unknown): void;
++    /**
++     * Called exactly once after that dispatch completes or fails, including
++     * validation failures, ignored notifications and responses. Async handlers
++     * (and all members of a supported batch) finish before settlement. Queuing a
++     * handler retry counts as completion of this dispatch; a later retry is not
++     * a new transport frame. Closing does not finish a non-cooperative handler.
++     *
++     * Callback exceptions close the connection without retrying dispatch. A
++     * failed started callback still gets one settled call. A failed settled
++     * callback is not retried; observers must release remaining ownership when
++     * the connection closes. Neither callback serializes the receive loop.
++     */
++    settled(message: unknown): void;
++};
+ /**
+  * Options for constructing a lower-level JSON-RPC connection.
+  */
+@@ -408,6 +434,8 @@ export type ConnectionOptions = {
+      * Extra handlers to prepend to the connection's handler chain.
+      */
+     handlers?: JsonRpcHandler[];
++    /** Optional raw inbound dispatch lifecycle observer. */
++    dispatchObserver?: DispatchObserver;
+ };
+ /**
+  * Lower-level JSON-RPC connection over an ACP `Stream`.
+@@ -429,6 +457,7 @@ export declare class Connection {
+     private context;
+     private receiveReader?;
+     private allowBatches;
++    private dispatchObserver?;
+     constructor(requestHandler: RequestHandler, notificationHandler: NotificationHandler, stream: WireStream, options?: ConnectionOptions);
+     constructor(stream: WireStream, handlers: JsonRpcHandler[], options?: ConnectionOptions);
+     /**
+@@ -491,6 +520,8 @@ export declare class Connection {
+     private legacyHandler;
+     private receive;
+     private receiveWireMessage;
++    private notifyDispatchObserver;
++    private dispatchWireMessage;
+     private receiveBatch;
+     private receiveMessage;
+     private processIncomingMessage;
+diff --git a/dist/jsonrpc.js b/dist/jsonrpc.js
+index 646d40a6f22dcdc31187fa8e323ec8d3cd3aed74..ab6ed816e3b29b9c76a2c7759c1b1e105029d74b 100644
+--- a/dist/jsonrpc.js
++++ b/dist/jsonrpc.js
+@@ -380,6 +380,7 @@ export class Connection {
+     context = new ConnectionContext(this);
+     receiveReader;
+     allowBatches = true;
++    dispatchObserver;
+     constructor(requestHandlerOrStream, notificationHandlerOrHandlers, streamOrOptions, options) {
+         if (typeof requestHandlerOrStream === "function") {
+             const requestHandler = requestHandlerOrStream;
+@@ -603,6 +604,7 @@ export class Connection {
+         this.stream = stream;
+         this.staticHandlers = handlers;
+         this.allowBatches = options?.allowBatches ?? true;
++        this.dispatchObserver = options?.dispatchObserver;
+         this.closedPromise = new Promise((resolve) => {
+             this.abortController.signal.addEventListener("abort", () => resolve());
+         });
+@@ -654,27 +656,62 @@ export class Connection {
+         }
+     }
+     receiveWireMessage(message) {
++        const observer = this.dispatchObserver;
++        if (!observer) {
++            this.dispatchWireMessage(message);
++            return;
++        }
++        let processing;
++        try {
++            if (this.notifyDispatchObserver(observer, "started", message)) {
++                processing = this.dispatchWireMessage(message);
++            }
++        }
++        catch (error) {
++            this.close(error);
++        }
++        // Observe completion without making the receive loop await requests.
++        void Promise.resolve(processing)
++            .catch((error) => this.close(error))
++            .then(() => {
++            this.notifyDispatchObserver(observer, "settled", message);
++        });
++    }
++    notifyDispatchObserver(observer, phase, message) {
++        try {
++            const result = observer[phase](message);
++            // Callbacks are synchronous metadata hooks. Do not await accidental
++            // promise returns, but consume rejections so they cannot escape.
++            if (result != null) {
++                void Promise.resolve(result).catch((error) => this.close(error));
++            }
++            return true;
++        }
++        catch (error) {
++            this.close(error);
++            return false;
++        }
++    }
++    dispatchWireMessage(message) {
+         if (Array.isArray(message)) {
+             if (!this.allowBatches) {
+                 this.close(new TypeError("JSON-RPC batches are not supported on this connection"));
+                 return;
+             }
+-            this.receiveBatch(message);
+-            return;
++            return this.receiveBatch(message);
+         }
+         if (!isRequestMessage(message) &&
+             !isNotificationMessage(message) &&
+             !isResponseShapedMessage(message)) {
+-            void this.sendWireMessage(protocolErrorResponse(RequestError.invalidRequest(message))).catch(() => { });
+-            return;
++            return this.sendWireMessage(protocolErrorResponse(RequestError.invalidRequest(message))).catch(() => { });
+         }
+-        this.receiveMessage(message);
++        return this.receiveMessage(message);
+     }
+     receiveBatch(batch) {
+         if (batch.length === 0) {
+-            void this.sendWireMessage(protocolErrorResponse(RequestError.invalidRequest(batch))).catch(() => { });
+-            return;
++            return this.sendWireMessage(protocolErrorResponse(RequestError.invalidRequest(batch))).catch(() => { });
+         }
++        const processingMessages = this.dispatchObserver ? [] : undefined;
+         const responseBatch = isResponseBatch(batch);
+         const responseCount = responseBatch
+             ? 0
+@@ -704,22 +741,30 @@ export class Connection {
+                 // provoke responses. Still route response-shaped objects so a
+                 // malformed response with a matching ID rejects its pending request.
+                 if (isResponseShapedMessage(message)) {
+-                    this.receiveMessage(message);
++                    const processing = this.receiveMessage(message);
++                    processingMessages?.push(processing);
+                 }
+                 continue;
+             }
+             if (!isRequestMessage(message) && !isNotificationMessage(message)) {
+-                void collectResponse(protocolErrorResponse(RequestError.invalidRequest(message))).catch(() => { });
++                const processing = collectResponse(protocolErrorResponse(RequestError.invalidRequest(message))).catch(() => { });
++                processingMessages?.push(processing);
+                 continue;
+             }
+             const processing = this.receiveMessage(message, isRequestMessage(message) ? collectResponse : undefined, batch.length);
+             if (isNotificationMessage(message)) {
+-                void processing.finally(() => {
++                const completion = processing.finally(() => {
+                     remainingNotifications -= 1;
+-                    void sendResponsesIfReady().catch((error) => this.close(error));
++                    const sent = sendResponsesIfReady().catch((error) => this.close(error));
++                    return processingMessages ? sent : undefined;
+                 });
++                processingMessages?.push(completion);
++            }
++            else {
++                processingMessages?.push(processing);
+             }
+         }
++        return processingMessages ? Promise.all(processingMessages) : undefined;
+     }
+     receiveMessage(message, sendResponse, batchSize) {
+         if (this.abortController.signal.aborted) {

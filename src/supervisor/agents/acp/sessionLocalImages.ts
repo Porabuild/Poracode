@@ -16,7 +16,7 @@
 import { readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { ProjectLocation } from "@/shared/contracts";
-import { toWslUncPath } from "@/shared/wsl";
+import { wslLinuxToHostFsPath } from "@/shared/wsl";
 import { isWindowsAbsolutePath } from "./sessionPaths";
 
 /**
@@ -111,13 +111,13 @@ function inlineImageMimeType(filePath: string): string | undefined {
  * Map an agent-visible path onto a path this process can actually read.
  *
  * WSL projects report Linux paths that don't exist on the Windows host, so we
- * translate them through the same `\\wsl$\<distro>` UNC bridge the ACP fs
- * layer uses (`sessionPaths.resolveAcpHostFsPath`). When the host isn't
+ * translate them through the same host path mapping the ACP fs layer uses
+ * (native drive path for DrvFs, `\\wsl.localhost\<distro>` UNC otherwise) (`sessionPaths.resolveAcpHostFsPath`). When the host isn't
  * Windows there is no such bridge, so we skip rather than read the wrong
  * filesystem.
  */
 function toHostReadablePath(location: ProjectLocation, filePath: string): string | undefined {
   if (location.kind !== "wsl" || isWindowsAbsolutePath(filePath)) return filePath;
   if (process.platform !== "win32") return undefined;
-  return toWslUncPath(location.distro, filePath);
+  return wslLinuxToHostFsPath(location.distro, filePath);
 }

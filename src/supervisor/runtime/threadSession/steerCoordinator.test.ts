@@ -203,10 +203,10 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     expect(harness.interruptStructuredTurn).not.toHaveBeenCalled();
   });
 
-  it("keeps ordinary steer provider options unchanged", () => {
+  it("paints an ordinary steer before provider admission and supplies its canonical id", () => {
     const harness = createHarness();
     const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(
-      async () => undefined,
+      () => new Promise<void>(() => undefined),
     );
     harness.session.structuredSession!.steerTurn = steerTurn;
 
@@ -215,13 +215,19 @@ describe("SteerCoordinator interrupt-backed steering", () => {
       config: { model: "model-2" },
     });
 
-    expect(harness.emitOptimisticUserMessage).not.toHaveBeenCalled();
-    expect(steerTurn).toHaveBeenCalledWith(
+    expect(harness.emitOptimisticUserMessage).toHaveBeenCalledWith(
+      harness.session.threadId,
       "ordinary steer",
-      { model: "model-2" },
       undefined,
       undefined,
+      { includeTurn: false },
     );
+    expect(harness.emitOptimisticUserMessage.mock.invocationCallOrder[0]).toBeLessThan(
+      steerTurn.mock.invocationCallOrder[0]!,
+    );
+    expect(steerTurn).toHaveBeenCalledWith("ordinary steer", { model: "model-2" }, undefined, {
+      userMessageItemId: "user-optimistic",
+    });
   });
 
   it("releases the direct barrier when native steer completes without a turn", async () => {

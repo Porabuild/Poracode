@@ -12,17 +12,27 @@ export function useGitDiffContribution(args: {
   editor: MonacoEditor.IStandaloneCodeEditor | null;
   gitDiff: FileEditorGitDiffContext | null;
   bufferStatus: string;
+  model: MonacoEditor.ITextModel | null;
 }) {
-  const { editor, gitDiff, bufferStatus } = args;
+  const { editor, gitDiff, bufferStatus, model } = args;
 
   useEffect(() => {
-    if (!gitDiff || !editor || bufferStatus !== "ready") return;
+    if (
+      !gitDiff ||
+      !editor ||
+      !model ||
+      model.isDisposed() ||
+      editor.getModel() !== model ||
+      bufferStatus !== "ready"
+    )
+      return;
     const fallbackDecorations = buildGitDiffDecorations(gitDiff.diff);
     const baseline = buildGitDiffBaseline(gitDiff.diff, editor.getValue());
     const decorations = editor.createDecorationsCollection();
     const zoneIds: string[] = [];
 
     const render = () => {
+      if (model.isDisposed() || editor.getModel() !== model) return;
       const diffDecorations = baseline
         ? buildLiveGitDiffDecorations(baseline, editor.getValue(), fallbackDecorations)
         : fallbackDecorations;
@@ -48,7 +58,7 @@ export function useGitDiffContribution(args: {
       replaceGitDiffZones(editor, zoneIds, []);
       decorations.clear();
     };
-  }, [gitDiff, editor, bufferStatus]);
+  }, [gitDiff, editor, bufferStatus, model]);
 }
 
 interface GitDiffEditorDecorations {

@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { performPageActions, readPerformSteps, PERFORM_TOOL } from "./perform";
-import * as page from "./page";
+import {
+  performPageActions,
+  readPerformSteps,
+  PERFORM_TOOL,
+} from "@/host/browser/mcp/tools/perform";
+import * as page from "@/host/browser/mcp/tools/page";
 import { formatToolResult } from "./formatResult";
-import { CHROME_TOOLS, normalizeChromeToolName } from "../../external/chromeTools";
-import { TOOLS } from "./specs";
+import { CHROME_TOOLS, normalizeChromeToolName } from "@/host/browser/external/chromeTools";
+import { TOOLS } from "@/host/browser/mcp/tools/specs";
 
-vi.mock("./page", async (importOriginal) => ({
+vi.mock("@/host/browser/mcp/tools/page", async (importOriginal) => ({
   ...(await importOriginal<typeof page>()),
   dispatchPageTool: vi.fn<typeof page.dispatchPageTool>(),
 }));

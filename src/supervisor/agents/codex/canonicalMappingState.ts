@@ -33,6 +33,13 @@ export interface CodexMapperState {
   goalObjective?: string;
   /** Current plan item sourced from `turn/plan/updated` notifications. */
   turnPlanItemId?: string;
+  /**
+   * Codex `contextCompaction` item id → internal row id. Survives turn
+   * completion: auto-compaction runs in its own internal turn.
+   */
+  compactionItemIdMap: Map<string, string>;
+  /** Advisory notices already surfaced (method + message), deduped per session. */
+  surfacedAdvisories: Set<string>;
 }
 
 export function createCodexMapperState(threadId: string): CodexMapperState {
@@ -44,6 +51,8 @@ export function createCodexMapperState(threadId: string): CodexMapperState {
     fileChangeOutputMap: new Map(),
     fileChangePathMap: new Map(),
     reasoningSummaryIndexMap: new Map(),
+    compactionItemIdMap: new Map(),
+    surfacedAdvisories: new Set(),
   };
 }
 

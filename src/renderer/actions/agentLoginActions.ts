@@ -8,6 +8,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { CommandCompletionParser } from "@/renderer/utils/commandCompletion";
 import {
   disposeRoutedShellSession,
   startShellWithCurrentSettings,
@@ -425,8 +426,7 @@ function watchCommandCompletion(
   onCommandComplete: (exitCode: number) => void,
   remoteServerId?: string,
 ): () => void {
-  const marker = completionMarker(token);
-  let buffer = "";
+  const parser = new CommandCompletionParser(completionMarker(token));
   let done = false;
   let unsubscribe: () => void = () => undefined;
   const timeout = window.setTimeout(() => {
@@ -434,25 +434,21 @@ function watchCommandCompletion(
     done = true;
     unsubscribe();
   }, 10 * 60_000);
+  const consume = (output: string, replace = false) => {
+    if (done) return;
+    const exitCode = replace ? parser.replace(output) : parser.push(output);
+    if (exitCode === null) return;
+    done = true;
+    window.clearTimeout(timeout);
+    unsubscribe();
+    onCommandComplete(exitCode);
+  };
   unsubscribe = watchRoutedTerminal(
     shellId,
     {
-      onOutput: (output) => {
-        if (done) return;
-        buffer = `${buffer}${output}`.slice(-1024);
-        const start = buffer.indexOf(marker);
-        if (start < 0) return;
-        const rest = buffer.slice(start + marker.length);
-        const match = /^(\d+)/u.exec(rest);
-        if (!match) return;
-        done = true;
-        window.clearTimeout(timeout);
-        unsubscribe();
-        onCommandComplete(Number(match[1]));
-      },
-      onReset: () => {
-        buffer = "";
-      },
+      onOutput: (output) => consume(output),
+      onSnapshot: (snapshot) => consume(snapshot.data, true),
+      onReset: () => parser.reset(),
       onExited: () => {
         if (done) return;
         done = true;
@@ -462,6 +458,7 @@ function watchCommandCompletion(
     },
     remoteServerId,
   );
+  if (done) unsubscribe();
   return () => {
     if (done) return;
     done = true;

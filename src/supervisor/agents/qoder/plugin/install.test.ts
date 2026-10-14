@@ -11,8 +11,8 @@ describe("installQoderPlugin", () => {
     rmSync(baseDir, { recursive: true, force: true });
   });
 
-  it("stages assets and renders qoder hook settings", () => {
-    const result = installQoderPlugin({ envKind: "posix", baseDir });
+  it("stages assets and renders qoder hook settings", async () => {
+    const result = await installQoderPlugin({ envKind: "posix", baseDir });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -39,7 +39,7 @@ describe("installQoderPlugin", () => {
     expect(submit?.type).toBe("command");
     expect(submit?.command.endsWith("UserPromptSubmit")).toBe(true);
 
-    expect(isQoderPluginInstalled({ envKind: "posix", baseDir })).toEqual({
+    expect(await isQoderPluginInstalled({ envKind: "posix", baseDir })).toEqual({
       installed: true,
       version: result.version,
     });

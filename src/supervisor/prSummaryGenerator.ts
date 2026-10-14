@@ -1,5 +1,6 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import { resolveOneShotEffectiveModel, type AgentAdapter } from "./agents/base";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
+import { resolveOneShotSelection, type AgentAdapter } from "./agents/base";
 import { buildDiffPromptContext, getFilesFromDiff } from "./diffPromptContext";
 import { GitService } from "./git";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
@@ -81,11 +82,10 @@ export async function generatePrSummary(
   adapter: AgentAdapter,
   branch: string,
   baseBranch: string,
-  model?: string,
-  effort?: string,
+  selection?: ModelSelection,
   language?: string,
 ): Promise<{ title: string; description: string }> {
-  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+  const effectiveSelection = resolveOneShotSelection(adapter, selection, () => {
     return new Error(`No default one-shot model configured for ${adapter.label}`);
   });
 
@@ -123,8 +123,7 @@ export async function generatePrSummary(
   const raw = await runOneShotPromptWithFallback({
     location,
     adapter,
-    model: effectiveModel,
-    effort,
+    selection: effectiveSelection,
     timeoutMs: PR_SUMMARY_TIMEOUT_MS,
     logTag: "pr-summary-gen",
     attempts: [

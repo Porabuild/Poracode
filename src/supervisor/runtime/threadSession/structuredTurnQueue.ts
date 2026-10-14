@@ -1,13 +1,19 @@
 import { randomUUID } from "node:crypto";
-import type { PromptSegment, ProviderHandoffItemPayload } from "@/shared/contracts";
+import type { PromptSegment, ProviderHandoffItemPayload, RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { StructuredTurnResult } from "../../agents/base";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
+import { structuredTurnTextOptions } from "../turnClientContext";
+import type { ThreadOutputPipeline } from "../threadOutputPipeline";
+import { settleStructuredStartupWithoutTurn } from "./helpers";
 
 export interface StructuredTurnQueueContext {
   emit(event: SupervisorEvent): void;
+  /** Append same-turn feedback behind buffered events and flush within credit. */
+  emitTurnContinuation(threadId: string, events: RuntimeEvent[]): void;
   sessions: Map<string, SessionRuntime>;
+  outputPipeline: Pick<ThreadOutputPipeline, "updateState">;
   beginFailureEpisode(session: SessionRuntime): void;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
 }
@@ -20,6 +26,11 @@ export interface StructuredTurnQueueContext {
  * `ThreadSessionManager`.
  */
 export class StructuredTurnQueue {
+  private readonly pendingStarts = new WeakMap<
+    SessionRuntime,
+    Promise<void | StructuredTurnResult>
+  >();
+
   constructor(private readonly ctx: StructuredTurnQueueContext) {}
 
   start(
@@ -30,25 +41,23 @@ export class StructuredTurnQueue {
       return undefined;
     }
     this.ctx.beginFailureEpisode(session);
-    // Optimistic user_message: paint the user's prompt in the chat pane
-    // before the structured session's `prompt()` round-trip resolves so the
-    // chat doesn't visually stall waiting on the agent. Only meaningful for
-    // GUI threads — terminal threads render user input via PTY echo.
-    // Reuse the renderer-supplied id when present, but still emit the canonical
-    // events. The originating renderer dedupes them by id, while other paired
-    // renderers need this broadcast to see the submitted user message.
-    const optimisticItemId =
-      session.presentationMode === "gui" && turn.prompt.length > 0
-        ? this.emitOptimisticUserMessage(
-            session.threadId,
-            turn.prompt,
-            turn.displaySegments ?? turn.segments,
-            turn.userMessageItemId,
-          )
-        : undefined;
+    let optimisticItemId: string | undefined;
+    if (session.presentationMode === "gui" && turn.prompt.length > 0) {
+      // Match first-turn startup: providers can publish idle metadata while
+      // applying settings, before their canonical working/turn-start edge.
+      session.suppressInitialStructuredIdle = true;
+      this.ctx.outputPipeline.updateState(session, "working", "working");
+      // Broadcast the renderer's row ID so paired clients see the same prompt.
+      optimisticItemId = this.emitOptimisticUserMessage(
+        session.threadId,
+        turn.prompt,
+        turn.displaySegments ?? turn.segments,
+        turn.userMessageItemId,
+      );
+    }
     const startOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
-      ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
+      ...structuredTurnTextOptions(session, turn),
     };
     const startTurn = session.structuredSession.startTurn(
       turn.prompt,
@@ -56,12 +65,26 @@ export class StructuredTurnQueue {
       turn.segments,
       Object.keys(startOptions).length > 0 ? startOptions : undefined,
     );
-    void startTurn.catch((error) => {
-      if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
-        return;
-      }
-      this.ctx.failStructuredSession(session, error);
-    });
+    this.pendingStarts.set(session, startTurn);
+    void startTurn.then(
+      (result) => {
+        if (this.pendingStarts.get(session) !== startTurn) return;
+        this.pendingStarts.delete(session);
+        if (this.ctx.sessions.get(session.threadId)?.instanceId === session.instanceId) {
+          settleStructuredStartupWithoutTurn(session, result, this.ctx.outputPipeline);
+        }
+      },
+      (error) => {
+        if (this.pendingStarts.get(session) === startTurn) this.pendingStarts.delete(session);
+        if (
+          session.ignoreExit ||
+          this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId
+        ) {
+          return;
+        }
+        this.ctx.failStructuredSession(session, error);
+      },
+    );
     // This promise is the provider's admission/round-trip result. Callers
     // may observe rejection so a queued item can be restored, but must never
     // use resolution as the turn-completion boundary.
@@ -99,31 +122,25 @@ export class StructuredTurnQueue {
     requestedItemId?: string,
     options?: { includeTurn?: boolean },
   ): string {
-    const turnId = `turn-${randomUUID()}`;
     const itemId = requestedItemId ?? `user-${randomUUID()}`;
-    if (options?.includeTurn !== false) {
-      this.ctx.emit({
-        type: "thread-runtime-event",
-        threadId,
-        event: { type: "turn.started", threadId, turnId },
-      });
-    }
-    this.ctx.emit({
-      type: "thread-runtime-event",
-      threadId,
-      event: {
+    const events: RuntimeEvent[] = [
+      {
         type: "item.started",
         threadId,
         itemId,
         itemType: "user_message",
         payload: { content: buildPromptContentBlocks(prompt, segments) },
       },
-    });
-    this.ctx.emit({
-      type: "thread-runtime-event",
-      threadId,
-      event: { type: "item.completed", threadId, itemId },
-    });
+      { type: "item.completed", threadId, itemId },
+    ];
+    if (options?.includeTurn === false) {
+      this.ctx.emitTurnContinuation(threadId, events);
+    } else {
+      events.unshift({ type: "turn.started", threadId, turnId: `turn-${randomUUID()}` });
+      for (const event of events) {
+        this.ctx.emit({ type: "thread-runtime-event", threadId, event });
+      }
+    }
     return itemId;
   }
 

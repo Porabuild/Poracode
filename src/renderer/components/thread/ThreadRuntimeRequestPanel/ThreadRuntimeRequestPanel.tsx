@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { Button, Tooltip, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { FileText, HelpCircle, ListChecks, Plug, ShieldAlert } from "lucide-react";
+import { FileText, HelpCircle, ListChecks, Loader2, Plug, ShieldAlert } from "lucide-react";
 import {
   asPermissionRequestDetails,
   type RequestOutcome,
@@ -22,7 +22,12 @@ import {
   readInputString,
 } from "./helpers";
 import { asStructuredElicitationDetails, StructuredElicitationForm } from "./structuredElicitation";
-import { asUserInputFormDetails, UserInputForm, useUserInputFormController } from "./userInputForm";
+import {
+  asUserInputFormDetails,
+  questionHasAnswer,
+  UserInputForm,
+  useUserInputFormController,
+} from "./userInputForm";
 import { ApprovalActions } from "./parts/ApprovalActions";
 import {
   OpenCodePermissionDetailsLine,
@@ -190,7 +195,18 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
     // A gated Submit stays hoverable (not natively disabled) so its tooltip
     // explains why; the form's own guard no-ops the click. Mirrors the
     // composer's `disabledReason` toggle pattern.
-    const gated = !userInputFormAllAnswered;
+    const isLastStep =
+      !userInputFormController ||
+      userInputFormController.activeIndex >= userInputFormController.questions.length - 1;
+    const activeQuestion = userInputFormController?.questions[userInputFormController.activeIndex];
+    const gated = isLastStep
+      ? !userInputFormAllAnswered
+      : !activeQuestion ||
+        !questionHasAnswer(
+          activeQuestion,
+          userInputFormController!.answers,
+          userInputFormController!.customAnswers,
+        );
     const submit = (
       <Button
         aria-disabled={gated}
@@ -199,9 +215,13 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         size="sm"
         type="submit"
         variant="tertiary"
-        className={gated ? "cursor-not-allowed opacity-50 text-white" : "text-white"}
+        className={
+          gated && !resolving
+            ? "pointer-events-auto cursor-not-allowed opacity-50 text-white"
+            : "text-white"
+        }
       >
-        <Trans>Submit</Trans>
+        {isLastStep ? t`Submit` : t`Continue`}
       </Button>
     );
     if (!gated) return submit;
@@ -209,7 +229,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       <Tooltip delay={0}>
         {submit}
         <Tooltip.Content placement="top">
-          <Trans>Answer every question to submit</Trans>
+          {isLastStep ? t`Answer every question to submit` : t`Answer this question to continue`}
         </Tooltip.Content>
       </Tooltip>
     );
@@ -274,6 +294,15 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           </div>
         ) : userInputFormActions ? (
           <div className="ml-auto shrink-0 self-start">{userInputFormActions}</div>
+        ) : null}
+        {resolving ? (
+          <span
+            className="flex shrink-0 items-center gap-1 self-center text-[11px] text-muted"
+            role="status"
+          >
+            <Loader2 className="size-3 animate-spin" />
+            <Trans>Resolving…</Trans>
+          </span>
         ) : null}
       </div>
 

@@ -768,3 +768,61 @@ describe("ThreadOutputPipeline / emitState", () => {
     expect(emittedState(emit)).not.toHaveProperty("threadMentionToolsAvailable");
   });
 });
+
+describe("ThreadOutputPipeline / emitState session config options", () => {
+  function emittedInventoryState(emit: ReturnType<typeof vi.fn<() => void>>) {
+    const states = (emit.mock.calls as unknown as Array<[Record<string, unknown>]>)
+      .map((call) => call[0])
+      .filter((event) => event.type === "thread-state");
+    expect(states).toHaveLength(1);
+    return states[0]!;
+  }
+
+  function sessionWithInventory(sessionConfigOptions: unknown) {
+    return {
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      agentKind: "acp-agent",
+      config: {},
+      canResumeWithConfig: false,
+      adapter: { capabilities: { presentationMode: "gui" } },
+      ...(sessionConfigOptions !== undefined ? { sessionConfigOptions } : {}),
+    } as unknown as SessionRuntime;
+  }
+
+  it("carries a negotiated inventory on thread-state", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const inventory = [
+      {
+        type: "select",
+        id: "thought_level",
+        category: "thought_level",
+        role: "effort",
+        currentValue: "low",
+        values: [{ value: "low", name: "Low" }],
+        groups: [],
+      },
+    ];
+
+    p.emitState(sessionWithInventory(inventory));
+    expect(emittedInventoryState(emit)).toHaveProperty("sessionConfigOptions", inventory);
+  });
+
+  it("carries an explicit null retirement on thread-state", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+
+    p.emitState(sessionWithInventory(null));
+    expect(emittedInventoryState(emit)).toHaveProperty("sessionConfigOptions", null);
+  });
+
+  it("omits the field when the incarnation never stated an inventory", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+
+    p.emitState(sessionWithInventory(undefined));
+    expect(emittedInventoryState(emit)).not.toHaveProperty("sessionConfigOptions");
+  });
+});

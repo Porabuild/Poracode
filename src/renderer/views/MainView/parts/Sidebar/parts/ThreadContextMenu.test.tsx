@@ -1,11 +1,12 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project, Thread } from "@/shared/contracts";
+import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { groupExperiment } from "@/shared/test/threadGroups";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -13,6 +14,14 @@ import { ThreadContextMenu } from "./ThreadContextMenu";
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
+}));
+
+const groupIntentsMock = vi.hoisted(() => vi.fn<(assignments: unknown) => void>());
+vi.mock("@/renderer/state/managedRootCatalog/rootCatalogIntents", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/renderer/state/managedRootCatalog/rootCatalogIntents")
+  >()),
+  dispatchManagedRootThreadGroupIntents: groupIntentsMock,
 }));
 
 const project: Project = {
@@ -60,6 +69,23 @@ function renderMenu(
   return screen.findByRole("menu");
 }
 
+function status(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
+  return {
+    isRepo: true,
+    branch: "main",
+    tracking: "",
+    hasRemote: false,
+    remoteInfo: null,
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+    ...overrides,
+  };
+}
+
 describe("ThreadContextMenu project actions", () => {
   beforeEach(() => {
     resetDevTerminalStore();
@@ -67,6 +93,71 @@ describe("ThreadContextMenu project actions", () => {
     useAppStore.setState({ threads: [], view: { kind: "home" } });
     usePanelStore.setState({ githubActionsContext: null });
     useSharedSettings.setState({ workspaces: [] } as never);
+    useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
+  });
+
+  it.each([undefined, status()])(
+    "hides the transfer choice when status is clean or unavailable (%j)",
+    async (projectStatus) => {
+      if (projectStatus) useGitStore.getState().setStatus(project.id, projectStatus);
+      await renderMenu(thread());
+      fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Move to Worktree" }));
+      expect(await screen.findByRole("menuitem", { name: "Clean Worktree" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("menuitem", { name: "Bring Uncommitted Changes" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["staged", "unstaged"] as const)(
+    "offers transfer when the source has %s files",
+    async (field) => {
+      useGitStore.getState().setStatus(
+        project.id,
+        status({
+          [field]: [
+            {
+              path: "file.txt",
+              status: field === "staged" ? "M" : "?",
+              staged: field === "staged",
+              insertions: 1,
+              deletions: 0,
+            },
+          ],
+        }),
+      );
+      await renderMenu(thread());
+      fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Move to Worktree" }));
+      expect(
+        await screen.findByRole("menuitem", { name: "Bring Uncommitted Changes" }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("updates an open menu when the source becomes clean and ignores other worktrees", async () => {
+    useGitStore.getState().setStatus(
+      project.id,
+      status({
+        unstaged: [{ path: "file.txt", status: "?", staged: false, insertions: 0, deletions: 0 }],
+      }),
+    );
+    useGitStore.getState().setWorktreeStatus(
+      "C:\\repo\\other-worktree",
+      status({
+        unstaged: [{ path: "other.txt", status: "M", staged: false, insertions: 1, deletions: 0 }],
+      }),
+    );
+    await renderMenu(thread());
+    fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Move to Worktree" }));
+    expect(
+      await screen.findByRole("menuitem", { name: "Bring Uncommitted Changes" }),
+    ).toBeInTheDocument();
+
+    act(() => useGitStore.getState().setStatus(project.id, status()));
+    expect(
+      screen.queryByRole("menuitem", { name: "Bring Uncommitted Changes" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Clean Worktree" })).toBeInTheDocument();
   });
 
   it("offers project Git and Run submenus on flat main-branch rows", async () => {
@@ -118,6 +209,44 @@ describe("ThreadContextMenu project actions", () => {
 
     expect(screen.getByRole("menuitem", { name: "Git" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Run" })).not.toBeInTheDocument();
+  });
+
+  it("routes Group open threads through the managed-root group intents", async () => {
+    groupIntentsMock.mockClear();
+    const first = thread({ id: "t1", projectId: project.id });
+    const second = thread({ id: "t2", projectId: project.id });
+    useAppStore.setState({
+      threads: [first, second],
+      view: { kind: "thread", panes: ["t1", "t2"] },
+    });
+
+    await renderMenu(first, project);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Group open threads" }));
+
+    expect(groupIntentsMock).toHaveBeenCalledTimes(1);
+    const assignments = groupIntentsMock.mock.calls[0]![0] as Array<{
+      threadId: string;
+      groupId?: string;
+      groupName?: string;
+    }>;
+    expect(assignments.map((assignment) => assignment.threadId).sort()).toEqual(["t1", "t2"]);
+    expect(new Set(assignments.map((assignment) => assignment.groupId)).size).toBe(1);
+    expect(assignments.every((assignment) => assignment.groupName === first.title)).toBe(true);
+  });
+
+  it("routes Remove from group through the managed-root clear-group intents", async () => {
+    groupIntentsMock.mockClear();
+    const first = thread({ id: "t1", projectId: project.id, groupId: "g-1", groupName: "G" });
+    const second = thread({ id: "t2", projectId: project.id, groupId: "g-1", groupName: "G" });
+    useAppStore.setState({
+      threads: [first, second],
+      view: { kind: "thread", panes: ["t1", "t2"] },
+    });
+
+    await renderMenu(first, project);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Remove from group" }));
+
+    expect(groupIntentsMock).toHaveBeenCalledWith([{ threadId: "t1" }, { threadId: "t2" }]);
   });
 
   it("files a Home thread under a picked workspace and un-files it again", async () => {

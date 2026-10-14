@@ -368,7 +368,7 @@ describe("detectOpenCode2TerminalStatus", () => {
 
 describe("createOpenCode2Adapter", () => {
   it.each(["posix", "windows", "wsl"] as const)(
-    "installs the published 2.0.26 CLI after self-update fails on %s",
+    "updates the managed CLI within the supported major on %s",
     (envKind) => {
       expect(
         resolveSharedUpdateCommand({
@@ -380,9 +380,11 @@ describe("createOpenCode2Adapter", () => {
       ).toMatchObject({
         strategy: "installer",
         args: expect.arrayContaining([
-          envKind === "windows"
-            ? 'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.26'
-            : 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.26',
+          expect.stringContaining(
+            envKind === "windows"
+              ? 'npm install --ignore-scripts --include=optional --prefix "$env:USERPROFILE/.opencode2" "@opencode/cli@^2.0.26"'
+              : 'npm install --ignore-scripts --include=optional --prefix "$HOME/.opencode2" "@opencode/cli@^2.0.26"',
+          ),
         ]),
       });
     },
@@ -479,11 +481,11 @@ describe("createOpenCode2Adapter", () => {
     expect(adapter.shouldDeferPromptToTerminal?.({ model: "" })).toBe(true);
   });
 
-  it("resumes through --session and forwards MCP config via the config overlay env", () => {
+  it("resumes through --session and forwards MCP config via the config overlay env", async () => {
     const adapter = createOpenCode2Adapter();
     rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_launch", "native");
     rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_resume", "native");
-    const launch = adapter.buildLaunchArgv(
+    const launch = await adapter.buildLaunchArgv(
       { kind: "posix", path: "/repo" },
       { model: "" },
       "",
@@ -493,7 +495,7 @@ describe("createOpenCode2Adapter", () => {
     expect(launch.args).toEqual(["--session", "ses_launch"]);
     expect(launch.sessionRef).toMatchObject({ providerSessionId: "ses_launch" });
 
-    const resume = adapter.buildResumeArgv(
+    const resume = await adapter.buildResumeArgv(
       { kind: "posix", path: "/repo" },
       { model: "" },
       "next",
@@ -513,7 +515,7 @@ describe("createOpenCode2Adapter", () => {
     expect(resume.env?.OPENCODE_CONFIG_CONTENT).toContain('"browser"');
   });
 
-  it("keeps the legacy database alongside MCP config for launch and resume", () => {
+  it("keeps the legacy database alongside MCP config for launch and resume", async () => {
     const adapter = createOpenCode2Adapter();
     const location = { kind: "posix", path: "/repo" } as const;
     rememberOpenCode2SessionDatabase(location, "ses_old", "legacy-isolated");
@@ -528,8 +530,8 @@ describe("createOpenCode2Adapter", () => {
         },
       ],
     };
-    const launch = adapter.buildLaunchArgv(location, { model: "" }, "", undefined, options);
-    const resume = adapter.buildResumeArgv(
+    const launch = await adapter.buildLaunchArgv(location, { model: "" }, "", undefined, options);
+    const resume = await adapter.buildResumeArgv(
       location,
       { model: "" },
       "",
@@ -541,10 +543,10 @@ describe("createOpenCode2Adapter", () => {
     expect(launch.env?.OPENCODE_CONFIG_CONTENT).toContain('"browser"');
   });
 
-  it("omits the MCP env when a launch carries no servers", () => {
+  it("omits the MCP env when a launch carries no servers", async () => {
     const adapter = createOpenCode2Adapter();
     rememberOpenCode2SessionDatabase({ kind: "posix", path: "/repo" }, "ses_resume", "native");
-    const resume = adapter.buildResumeArgv(
+    const resume = await adapter.buildResumeArgv(
       { kind: "posix", path: "/repo" },
       { model: "", approvalPolicy: "yolo" },
       "next",

@@ -2,7 +2,7 @@ import { stripAnsi } from "@/shared/ansi";
 import { normalizeAntigravityAcpModelSelection } from "@/shared/agents/antigravity";
 import type { AgentCapability, LabeledOption } from "@/shared/contracts";
 import { spawnAgentPty } from "@/supervisor/oneShotSpawn";
-import { buildAgentCommand, type DetectProbeCtx } from "../base";
+import { buildAgentCommand, prepareAgentLocationEnvironment, type DetectProbeCtx } from "../base";
 
 const TEXT_MODEL_HINT = /\b(?:claude|gemini|gpt|opus|sonnet|haiku|flash|pro|oss)\b/i;
 const MARKER_RE = /^\s*(?:[-*\u2022]\s+|\d+[.)]\s+|\[[ xX]\]\s*)/;
@@ -484,6 +484,7 @@ export async function probeAntigravityRuntime(
   }
   const executablePath = ctx.executablePath;
   const readProbe = async (args: string[]) => {
+    await prepareAgentLocationEnvironment(ctx.location, { signal: ctx.signal });
     const spec = buildAgentCommand(ctx.location, executablePath, args, undefined, ctx.probeEnv);
     try {
       return {

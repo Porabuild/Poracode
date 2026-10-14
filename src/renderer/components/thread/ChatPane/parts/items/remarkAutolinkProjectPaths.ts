@@ -34,10 +34,20 @@ export function remarkAutolinkProjectPaths(options: PluginOptions) {
 
 function visit(node: MdNode, options: PluginOptions): void {
   if (!node.children) return;
-  const next: MdNode[] = [];
-  for (const child of node.children) {
+  // Preserve the recursive visitor's DFS order and delayed parent replacement
+  // without consuming the JS stack for deeply nested inline formatting.
+  const pending = [{ node, children: node.children, index: 0, next: [] as MdNode[] }];
+  while (pending.length > 0) {
+    const frame = pending[pending.length - 1]!;
+    if (frame.index >= frame.children.length) {
+      frame.node.children = frame.next;
+      pending.pop();
+      pending[pending.length - 1]?.next.push(frame.node);
+      continue;
+    }
+    const child = frame.children[frame.index++]!;
     if (child.type === "text" && typeof child.value === "string") {
-      next.push(...transformText(child.value, options));
+      frame.next.push(...transformText(child.value, options));
     } else if (child.type === "link" && typeof child.url === "string") {
       // These destinations already carry URL identity. Filesystem normalization
       // can collapse `https://` to `https:/` and misclassify an explicit file link
@@ -46,15 +56,15 @@ function visit(node: MdNode, options: PluginOptions): void {
         const ref = options.parsePathRef(child.url);
         if (ref) child.url = pathRefUrl(ref);
       }
-      next.push(child);
+      frame.next.push(child);
     } else if (SKIP_PARENT_TYPES.has(child.type)) {
-      next.push(child);
+      frame.next.push(child);
+    } else if (child.children) {
+      pending.push({ node: child, children: child.children, index: 0, next: [] });
     } else {
-      visit(child, options);
-      next.push(child);
+      frame.next.push(child);
     }
   }
-  node.children = next;
 }
 
 function transformText(text: string, options: PluginOptions): MdNode[] {

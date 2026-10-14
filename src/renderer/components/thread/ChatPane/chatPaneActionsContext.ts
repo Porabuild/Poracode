@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { RemoteImageRefValue } from "@/shared/remote";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 
 export type ChatPaneActions = {
   /** Owning thread — lets inline images open the thread-wide gallery. */
@@ -50,8 +51,26 @@ export type ChatPaneActions = {
   formatTranscriptMarkdown?: ((text: string) => string) | undefined;
   /** Resolve an image held on a remote project's host. */
   remoteLocalImageUrl?: ((url: string) => string) | undefined;
+  /**
+   * Live, path-keyed custody for canonical Markdown local-image URLs. The
+   * decoder uses the same owning filesystem as remoteLocalImageUrl, including
+   * Home panes which omit project file actions. Empty readiness stays pending;
+   * it must not fall back to a different host or the native file protocol.
+   */
+  markdownLocalImageReadiness?:
+    | {
+        readonly readiness: RemoteImageReadiness;
+        readonly pathForUrl: (url: string) => string | undefined;
+      }
+    | undefined;
   /** Resolve an inline-image reference held in a remote host's transcript. */
   remoteImageRefUrl?: ((ref: RemoteImageRefValue) => string) | undefined;
+  /**
+   * Keyed readiness surface for host-owned environment images (R3). Present
+   * only when the thread's server record is an environment; consumers then
+   * subscribe instead of relying on incidental rerenders.
+   */
+  remoteImageReadiness?: RemoteImageReadiness | undefined;
 };
 
 export const ChatPaneActionsContext = createContext<ChatPaneActions | null>(null);

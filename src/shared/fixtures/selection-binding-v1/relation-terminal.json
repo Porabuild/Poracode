@@ -1,0 +1,50 @@
+{
+  "$comment": "Neutral fixture: Terminal presentation relation with the surface-scoped redundant-carrier declaration. Model-bound effort/Fast (the atomic family patch writes the empty-effort/false-Fast seeds) plus declared default-context/false-thinking carriers, including the empty-string carriers, which are real present values. A deliberate member edit over this relation records the intersection of resulting present values with this declaration.",
+  "relation": {
+    "model": "lead-a+sidekick-b",
+    "label": "Composite Family",
+    "selectors": [
+      {
+        "id": "sample.axis.a",
+        "labelKey": "modelSelection.lead",
+        "options": [
+          { "id": "opt-a1", "label": "A1" },
+          { "id": "opt-a2", "label": "A2" }
+        ]
+      },
+      {
+        "id": "sample.axis.b",
+        "labelKey": "modelSelection.sidekick",
+        "options": [
+          { "id": "opt-b1", "label": "B1" },
+          { "id": "opt-b2", "label": "B2" }
+        ]
+      }
+    ],
+    "bindings": { "effort": "model", "fast": "model" },
+    "redundantValues": {
+      "effort": ["", "default"],
+      "fast": [false],
+      "thinking": [false],
+      "contextSize": ["", "default"]
+    },
+    "members": [
+      {
+        "model": "lead-a+sidekick-b",
+        "selections": { "sample.axis.a": "opt-a1", "sample.axis.b": "opt-b1" },
+        "effort": "high",
+        "fast": false
+      },
+      {
+        "model": "lead-a2+sidekick-b2",
+        "selections": { "sample.axis.a": "opt-a2", "sample.axis.b": "opt-b2" },
+        "effort": "max",
+        "fast": true
+      }
+    ]
+  },
+  "expect": {
+    "relationValid": true,
+    "mintableAxesExample": ["effort", "fast", "thinking", "contextSize"]
+  }
+}

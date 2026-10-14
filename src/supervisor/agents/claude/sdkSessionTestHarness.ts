@@ -11,11 +11,16 @@ export function createClaudeTestQuery() {
       .fn<(mode: PermissionMode) => Promise<void>>()
       .mockResolvedValue(undefined),
     applyFlagSettings: vi.fn<(settings: unknown) => Promise<void>>().mockResolvedValue(undefined),
+    backgroundTasks: vi.fn<(toolUseId?: string) => Promise<boolean>>().mockResolvedValue(true),
     initializationResult: async () => ({ commands: [] }),
     supportedCommands: async () => [],
     supportedModels: async () => [],
     getContextUsage: async () => null,
     close: () => output.end(),
+    return: vi.fn<() => Promise<IteratorResult<SDKMessage, void>>>().mockResolvedValue({
+      done: true,
+      value: undefined,
+    }),
   };
   return { output, ...controls, runtime: Object.assign(output, controls) as unknown as Query };
 }

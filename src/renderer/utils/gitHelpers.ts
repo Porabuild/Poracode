@@ -1,12 +1,15 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { Project } from "@/shared/contracts";
+import { i18n } from "@/renderer/i18n/i18n";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import { activateFileEditorContext } from "@/renderer/actions/fileEditorContext";
 import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { useFileEditorStore, resolvePathForFileOpen } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import type { FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 
@@ -94,36 +97,56 @@ export async function openFileInEditor(
   path: string,
   options?: OpenFileInEditorOptions,
 ): Promise<void> {
-  if (project.remoteServerId && (path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path))) return;
   const fileEditor = useFileEditorStore.getState();
   const targetContext = buildFileEditorContext(project, worktreePath, worktreeBranch);
   if (!activateFileEditorContext(targetContext)) return;
   const openOptions = typeof options === "number" ? { lineNumber: options } : options;
-  let gitDiff: { diff: string } | undefined;
-  if (openOptions?.gitDiff && shouldOpenGitDiffEditor(openOptions.gitDiff.status)) {
-    try {
-      const result = await readBridge().getGitDiff({
-        projectLocation: targetContext.projectLocation,
-        filePath: path,
-        staged: openOptions.gitDiff.staged,
-      });
-      gitDiff = { diff: result.diff };
-    } catch (error) {
-      captureRendererException(error, { featureArea: "git" });
-    }
-  }
+  const wantsDiff = openOptions?.gitDiff && shouldOpenGitDiffEditor(openOptions.gitDiff.status);
+  // This object also fences a late diff against another open of the same file.
+  const pendingDiff = wantsDiff ? { diff: "" } : undefined;
   const editorOptions = {
     ...(openOptions?.lineNumber !== undefined ? { lineNumber: openOptions.lineNumber } : {}),
     ...(openOptions?.markdownPreview !== undefined
       ? { markdownPreview: openOptions.markdownPreview }
       : {}),
-    ...(gitDiff ? { gitDiff } : {}),
+    ...(pendingDiff ? { gitDiff: pendingDiff } : {}),
   };
   try {
-    await fileEditor.openFile(path, "modal", false, editorOptions);
+    const mode = isCompactLayoutViewport() ? "fullscreen" : "modal";
+    const opened = fileEditor.openFile(path, mode, false, editorOptions);
+    const context = useFileEditorStore.getState().rootContext;
+    const openedPath = resolvePathForFileOpen(context, path);
+    const diff = wantsDiff
+      ? readBridge()
+          .getGitDiff({
+            projectLocation: targetContext.projectLocation,
+            filePath: path,
+            staged: openOptions.gitDiff!.staged,
+          })
+          .catch((error: unknown) => {
+            captureRendererException(error, { featureArea: "git" });
+            return undefined;
+          })
+      : Promise.resolve(undefined);
+    const [, result] = await Promise.all([opened, diff]);
+    if (pendingDiff)
+      useFileEditorStore.setState((state) => {
+        const buffer = state.buffers[openedPath];
+        if (state.rootContext !== context || buffer?.gitDiff !== pendingDiff) return {};
+        const { gitDiff: _pending, ...ready } = buffer;
+        return {
+          buffers: {
+            ...state.buffers,
+            [openedPath]: {
+              ...ready,
+              ...(result ? { gitDiff: { diff: result.diff } } : {}),
+            },
+          },
+        };
+      });
   } catch (error) {
     captureRendererException(error, { featureArea: "file-editor" });
-    toast.danger(error instanceof Error ? error.message : String(error));
+    toast.danger(i18n._(msg`Unable to open the file in the editor`));
   }
 }
 

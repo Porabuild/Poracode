@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { projectLocationSchema, type ProjectLocation } from "../../contracts";
 import {
+  managedLoopbackBootstrapSchema,
+  type ManagedLoopbackBootstrap,
+} from "../../managedLoopback";
+import {
   type KeybindingsConfig,
   type KeybindingsFile,
   keybindingsFileSchema,
@@ -52,6 +56,16 @@ export const setRemoteAccessAdvertisedUrlPayloadSchema = z.object({
   url: z.string(),
 });
 
+/** V6 A.1: Node TLS leaf-fingerprint probe. Additive main-local name. */
+export const probeTlsCertificateFingerprintPayloadSchema = z.object({
+  url: z.string().min(1),
+});
+
+/** V6 A.5: optional pairing-scope preset when minting the Settings QR. */
+export const refreshRemoteAccessPairingPayloadSchema = z.object({
+  preset: z.enum(["operator", "viewer"]).optional(),
+});
+
 export const setGlobalShortcutsSuspendedPayloadSchema = z.object({
   suspended: z.boolean(),
 });
@@ -88,34 +102,7 @@ export interface LegacyDataMigrationRequestResult {
   readonly status: "scheduled" | "no-legacy-data" | "unavailable";
 }
 
-/**
- * Desktop-as-client HTTP proxy. The renderer can't fetch a remote Poracode
- * server directly — the server's CORS allowlist doesn't include the desktop's
- * origin — so remote requests run in the main process, which isn't subject to
- * CORS. See docs/REMOTE_ARCHITECTURE.md, Phase 4.
- */
-export const remoteHttpRequestPayloadSchema = z.object({
-  url: z.string().url(),
-  method: z.enum(["GET", "POST", "DELETE"]).optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-  body: z.string().optional(),
-  bodyBase64: z.string().optional(),
-  /** Opt-in binary response; omitted by existing text/JSON callers. Local IPC only. */
-  responseEncoding: z.enum(["utf8", "base64"]).optional(),
-});
-export type RemoteHttpRequestPayload = z.infer<typeof remoteHttpRequestPayloadSchema>;
-export interface RemoteHttpRequestResult {
-  readonly status: number;
-  readonly headers: Record<string, string>;
-  readonly body: string;
-}
-
 export const appProcedures = {
-  remoteHttpRequest: definePayloadProcedure<
-    RemoteHttpRequestPayload,
-    RemoteHttpRequestResult,
-    "main-local"
-  >("remoteHttpRequest", "main-local", remoteHttpRequestPayloadSchema),
   pickFolder: defineIpcProcedure<[string?], string | undefined, string | null, "main-local">(
     "pickFolder",
     "main-local",
@@ -134,12 +121,12 @@ export const appProcedures = {
     z.infer<typeof detectProjectIconPayloadSchema>,
     string | null,
     "main-local"
-  >("detectProjectIcon", "main-local", detectProjectIconPayloadSchema),
+  >("detectProjectIcon", "main-local", detectProjectIconPayloadSchema, z.string().nullable()),
   listProjectIconFiles: definePayloadProcedure<
     z.infer<typeof detectProjectIconPayloadSchema>,
     string[],
     "main-local"
-  >("listProjectIconFiles", "main-local", detectProjectIconPayloadSchema),
+  >("listProjectIconFiles", "main-local", detectProjectIconPayloadSchema, z.array(z.string())),
   saveClipboardImage: definePayloadProcedure<
     z.infer<typeof saveClipboardImagePayloadSchema>,
     string,
@@ -220,9 +207,41 @@ export const appProcedures = {
     "getRemoteAccessPairing",
     "main-local",
   ),
-  refreshRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
+  // V5 plan 2.5 completion: the managed renderer's always-on loopback attach
+  // payload (endpoint + single-use credential), minted by main at readiness.
+  // Additive procedure name: peers loud-reject unknown names, so the map
+  // version stays and only the pinned fingerprint moves.
+  getManagedLoopbackBootstrap: defineNoArgProcedure<ManagedLoopbackBootstrap | null, "main-local">(
+    "getManagedLoopbackBootstrap",
+    "main-local",
+    managedLoopbackBootstrapSchema.nullable(),
+  ),
+  // V6 A.1: observe the leaf SHA-256 a TLS host actually presents so Electron
+  // can pin the QR/mDNS fingerprint before spending the pairing credential.
+  // Additive main-local name: peers loud-reject unknown names, so the map
+  // version stays and only the pinned fingerprint moves.
+  probeTlsCertificateFingerprint: definePayloadProcedure<
+    z.infer<typeof probeTlsCertificateFingerprintPayloadSchema>,
+    string | null,
+    "main-local"
+  >(
+    "probeTlsCertificateFingerprint",
+    "main-local",
+    probeTlsCertificateFingerprintPayloadSchema,
+    z.string().nullable(),
+  ),
+  // V6 A.5: optional viewer/operator preset. Empty args keep the historical
+  // operator mint so older renderers stay compatible without an IPC version bump.
+  refreshRemoteAccessPairing: defineIpcProcedure<
+    [payload?: z.infer<typeof refreshRemoteAccessPairingPayloadSchema>],
+    z.infer<typeof refreshRemoteAccessPairingPayloadSchema>,
+    RemoteAccessPairingInfo,
+    "main-local"
+  >(
     "refreshRemoteAccessPairing",
     "main-local",
+    refreshRemoteAccessPairingPayloadSchema,
+    (payload) => refreshRemoteAccessPairingPayloadSchema.parse(payload ?? {}),
   ),
   setRemoteAccessEnabled: definePayloadProcedure<
     z.infer<typeof setRemoteAccessEnabledPayloadSchema>,

@@ -1,10 +1,12 @@
 import { forwardRef, type ReactNode } from "react";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project, Thread } from "@/shared/contracts";
+import type { Experiment, Project, Thread } from "@/shared/contracts";
 import { openFilesPanel } from "@/renderer/actions/panelActions";
 import { openTerminal } from "@/renderer/actions/terminalActions";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { SortableThreadItem } from "./SortableThreadItem";
 
 type MockContextMenuItem = {
@@ -40,6 +42,12 @@ vi.mock("@dnd-kit/react", () => ({
   useDraggable: () => undefined,
 }));
 
+const layoutMock = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => layoutMock.compact,
+}));
+
 vi.mock("@dnd-kit/react/sortable", () => ({
   useSortable: (options: unknown) => {
     sortableOptionsMock(options);
@@ -59,23 +67,31 @@ vi.mock("@/renderer/components/common/ContextMenu", () => ({
 }));
 
 vi.mock("@/renderer/components/common/SidebarButton", () => ({
-  SidebarButton: forwardRef<HTMLDivElement, { label: ReactNode; suffix?: ReactNode }>(
-    (props, ref) => (
-      <div ref={ref} role="button">
-        {props.label}
-        {props.suffix}
-      </div>
-    ),
-  ),
+  SidebarButton: forwardRef<
+    HTMLDivElement,
+    { icon: ReactNode; label: ReactNode; suffix?: ReactNode }
+  >((props, ref) => (
+    <div ref={ref} role="button">
+      {props.icon}
+      {props.label}
+      {props.suffix}
+    </div>
+  )),
 }));
 
 vi.mock("@/renderer/components/providers/ThreadProviderIcon", () => ({
-  ThreadProviderIcon: () => null,
+  ThreadProviderIcon: (props: { className: string; tone: string }) => (
+    <span data-testid="provider-icon" data-tone={props.tone} className={props.className} />
+  ),
 }));
 
 vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/GitBadge", () => ({
-  GitBadge: (props: { projectName: string }) => (
-    <button type="button" aria-label={`Git status for ${props.projectName}`} />
+  GitBadge: (props: { projectName: string; fallbackToWorktreeIcon?: boolean }) => (
+    <button
+      type="button"
+      aria-label={`Git status for ${props.projectName}`}
+      data-worktree-icon={props.fallbackToWorktreeIcon || undefined}
+    />
   ),
 }));
 
@@ -153,7 +169,7 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 vi.mock("@/renderer/state/gitStore", () => {
-  const state = { prData: {} };
+  const state = { prData: {}, statuses: {} };
   return {
     useGitStore: Object.assign((selector: (value: typeof state) => unknown) => selector(state), {
       getState: () => state,
@@ -161,7 +177,7 @@ vi.mock("@/renderer/state/gitStore", () => {
   };
 });
 
-function makeThread(): Thread {
+function makeThread(overrides: Partial<Thread> = {}): Thread {
   return {
     id: "thread-1",
     projectId: "project-1",
@@ -176,6 +192,7 @@ function makeThread(): Thread {
     starred: false,
     createdAt: "2026-03-21T10:00:00.000Z",
     updatedAt: "2026-03-21T10:00:00.000Z",
+    ...overrides,
   };
 }
 
@@ -188,6 +205,8 @@ const project: Project = {
 
 describe("SortableThreadItem", () => {
   beforeEach(() => {
+    layoutMock.compact = false;
+    useAppStore.setState({ threads: [], provisioningWorktreeThreadIds: {} });
     sortableRefMock.mockClear();
     sortableHandleRefMock.mockClear();
     sortableOptionsMock.mockClear();
@@ -293,6 +312,59 @@ describe("SortableThreadItem", () => {
     expect(handle).toHaveTextContent("Thread 1");
   });
 
+  it("hands the row element and handle to dnd-kit only while the row can drag", () => {
+    useExperimentStore.setState({
+      experiments: {
+        "experiment-1": {
+          id: "experiment-1",
+          projectId: project.id,
+          title: "Experiment",
+          status: "running",
+          candidates: [],
+          createdAt: "2026-09-08T10:00:00.000Z",
+          updatedAt: "2026-09-08T10:00:00.000Z",
+        } as unknown as Experiment,
+      },
+    });
+
+    // Experiment candidates cannot drag (the experiment owns their order).
+    render(
+      <SortableThreadItem
+        thread={makeThread({ groupId: "experiment-1" })}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+    expect(sortableRefMock).not.toHaveBeenCalled();
+    expect(sortableHandleRefMock).not.toHaveBeenCalled();
+    expect(sortableOptionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ accept: [], disabled: true }),
+    );
+
+    // The compact provider ships no sensors, so nothing can drag there either.
+    layoutMock.compact = true;
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+    expect(sortableRefMock).not.toHaveBeenCalled();
+    expect(sortableHandleRefMock).not.toHaveBeenCalled();
+    expect(sortableOptionsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ accept: [], disabled: false }),
+    );
+  });
+
   it("keeps automatic-sort rows draggable into panes while disabling sidebar reordering", () => {
     render(
       <SortableThreadItem
@@ -314,6 +386,77 @@ describe("SortableThreadItem", () => {
         disabled: false,
       }),
     );
+  });
+
+  it("uses a status-coloured provider icon and compact Git metadata on mobile", () => {
+    layoutMock.compact = true;
+
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(sortableOptionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ accept: [], disabled: false }),
+    );
+    expect(screen.getByTestId("provider-icon")).toHaveClass("size-3.5");
+    expect(screen.getByTestId("provider-icon")).toHaveAttribute("data-tone", "default");
+    expect(screen.getByText("Project")).toBeInTheDocument();
+    expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+  });
+
+  it("keeps relative time on grouped compact rows", () => {
+    layoutMock.compact = true;
+
+    const { container } = render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+
+    expect(container.querySelector(".tabular-nums")).toBeInTheDocument();
+  });
+
+  it("shows the worktree glyph beside compact Git counts without repeating the branch", () => {
+    layoutMock.compact = true;
+    const thread = {
+      ...makeThread(),
+      worktreePath: "C:\\repo\\worktree",
+      worktreeBranch: "feature/mobile-cards",
+    };
+
+    render(
+      <SortableThreadItem
+        thread={thread}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Git status for feature/mobile-cards" }),
+    ).toHaveAttribute("data-worktree-icon", "true");
+    expect(screen.queryByText("feature/mobile-cards")).not.toBeInTheDocument();
   });
 
   it("enables unload for a loaded thread without a session ref", () => {
@@ -386,6 +529,86 @@ describe("SortableThreadItem", () => {
 
     expect(openFilesPanel).toHaveBeenCalledWith("project-1");
     expect(openTerminal).toHaveBeenCalledWith("project-1");
+  });
+
+  it.each([
+    { layout: "desktop flat", compact: false, flat: true },
+    { layout: "desktop grouped", compact: false, flat: false },
+    { layout: "compact flat", compact: true, flat: true },
+  ])("shows a disabled worktree marker during creation in $layout rows", ({ compact, flat }) => {
+    layoutMock.compact = compact;
+    const thread = makeThread({ status: "launching", worktreeBranch: "feature/pending" });
+    useAppStore.setState({
+      threads: [thread],
+      provisioningWorktreeThreadIds: { [thread.id]: true },
+    });
+    const renderThread = (rowThread: Thread) => (
+      <SortableThreadItem
+        thread={rowThread}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge
+        showWorktreeFilesButton
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+        {...(flat ? { projectTag: <span>{project.name}</span> } : {})}
+      />
+    );
+    const { rerender } = render(renderThread(thread));
+
+    const badge = screen.getByRole("button", { name: "Worktree: feature/pending" });
+    expect(badge).toBeDisabled();
+    expect(badge).toHaveAttribute("aria-disabled", "true");
+    expect(badge).toHaveAttribute("data-pending", "true");
+    expect(badge.querySelector(".lucide-git-fork")).toBeInTheDocument();
+    expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Git status for Project" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Files for Project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Terminal for Project" })).not.toBeInTheDocument();
+
+    act(() => {
+      useAppStore
+        .getState()
+        .setThreadWorktree(thread.id, "C:\\repo\\pending", thread.worktreeBranch);
+      rerender(renderThread(useAppStore.getState().threads[0]!));
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Worktree: feature/pending" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Git status for feature/pending" })).toBeEnabled();
+    expect(screen.queryByTestId("sync-badge")?.textContent).toBe(
+      compact ? undefined : "project-1:C:\\repo\\pending",
+    );
+  });
+
+  it("keeps failed worktree creation from falling back to main-branch controls", () => {
+    useAppStore.setState({ provisioningWorktreeThreadIds: { "thread-1": true } });
+    render(
+      <SortableThreadItem
+        thread={makeThread({ status: "error", worktreeBranch: "feature/failed" })}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="flat:__flat__"
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    const badge = screen.getByRole("button", { name: "Worktree: feature/failed" });
+    expect(badge).toBeDisabled();
+    expect(badge).not.toHaveAttribute("data-pending");
+    expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Git status for Project" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Files for Project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Terminal for Project" })).not.toBeInTheDocument();
   });
 
   it("keeps the flat-list row metadata while renaming only its title", () => {

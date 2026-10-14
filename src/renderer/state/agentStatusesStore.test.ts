@@ -37,6 +37,8 @@ function reset() {
     windowsLoaded: false,
     wslLoaded: false,
     inFirstLaunchDiscovery: false,
+    discoveryScanning: false,
+    discoveryAutoHideCancelled: false,
     discoveryScope: undefined,
     discoveredAgents: [],
   });
@@ -45,7 +47,115 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
-  it("invalidates v28 snapshots so MCP capabilities are re-probed", async () => {
+  it("does not persist manual discovery refresh cancellation", () => {
+    useAgentStatusesStore.setState({ discoveryAutoHideCancelled: true });
+    const persisted = useAgentStatusesStore.persist.getOptions().partialize!(
+      useAgentStatusesStore.getState(),
+    );
+    expect(persisted).not.toHaveProperty("discoveryAutoHideCancelled");
+  });
+
+  it.each([36, 37, 43])(
+    "invalidates v%i catalogs that omitted confirmed empty effort ladders",
+    async (version) => {
+      const options = useAgentStatusesStore.persist.getOptions();
+      const stale = makeStatus({
+        capabilities: {
+          ...makeStatus().capabilities,
+          models: [{ id: "plain", label: "Plain" }],
+          efforts: ["high"],
+          modelEfforts: {},
+        },
+      });
+      const migrated = await options.migrate!(
+        { agentStatuses: [stale], wslAgentStatuses: [], windowsLoaded: true, wslLoaded: true },
+        version,
+      );
+
+      expect(options.version).toBe(56);
+      expect(migrated).toMatchObject({
+        agentStatuses: [],
+        wslAgentStatuses: [],
+        windowsLoaded: false,
+        wslLoaded: false,
+      });
+    },
+  );
+
+  it.each([
+    30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
+    54, 55,
+  ])("invalidates stored v%i provider inventories during rehydration", async (version) => {
+    const staleStatus = makeStatus({ kind: "example", label: "Example" });
+    localStorage.setItem(
+      "poracode-agent-statuses-v1",
+      JSON.stringify({
+        version,
+        state: {
+          agentStatuses: [staleStatus],
+          wslAgentStatuses: [staleStatus],
+          windowsLoaded: true,
+          wslLoaded: true,
+        },
+      }),
+    );
+
+    await useAgentStatusesStore.persist.rehydrate();
+
+    expect(useAgentStatusesStore.getState()).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v30 snapshots carrying a Cursor SDK install derived from PATH", async () => {
+    // Mirrors supervisor STATUS_CACHE_VERSION 34: a v30 SDK variant could report
+    // `installed: false` for a package that was intact on disk but unresolvable
+    // from the probing process. Re-probing lets the resolved root be recorded.
+    const options = useAgentStatusesStore.persist.getOptions();
+    const { capabilities } = makeStatus();
+    const staleCursor = makeStatus({
+      kind: "cursor",
+      label: "Cursor",
+      installed: true,
+      runtimeVariants: {
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities,
+        },
+        sdk: {
+          presentationMode: "gui",
+          installed: false,
+          authState: "unknown",
+          authUsesProviderLogin: false,
+          capabilities,
+        },
+      },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [staleCursor],
+        wslAgentStatuses: [staleCursor],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      30,
+    );
+    expect(options.version).toBe(56);
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v29 snapshots so merged catalog and MCP capabilities are re-probed", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
     const stale = makeStatus({ kind: "example", label: "Example" });
     const migrated = await options.migrate!(
@@ -55,31 +165,9 @@ describe("persisted agent status cache", () => {
         windowsLoaded: true,
         wslLoaded: true,
       },
-      28,
-    );
-    expect(options.version).toBe(33);
-    expect(migrated).toMatchObject({
-      agentStatuses: [],
-      wslAgentStatuses: [],
-      windowsLoaded: false,
-      wslLoaded: false,
-    });
-  });
-  it("invalidates v29 snapshots so OpenCode 2 and per-provider credentials are re-probed", async () => {
-    const options = useAgentStatusesStore.persist.getOptions();
-    // Persisted before OpenCode 2 reported connected AI providers, so the
-    // settings panel would list none until the next probe landed.
-    const stale = makeStatus({ kind: "opencode2", label: "OpenCode 2" });
-    const migrated = await options.migrate!(
-      {
-        agentStatuses: [stale],
-        wslAgentStatuses: [stale],
-        windowsLoaded: true,
-        wslLoaded: true,
-      },
       29,
     );
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -111,7 +199,7 @@ describe("persisted agent status cache", () => {
       },
       30,
     );
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -136,7 +224,7 @@ describe("persisted agent status cache", () => {
       },
       21,
     );
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -180,7 +268,184 @@ describe("persisted agent status cache", () => {
       19,
     );
 
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v32 Muse statuses cached under WSL-routed Windows detection", async () => {
+    // Mirrors supervisor STATUS_CACHE_VERSION 36: a v32 Windows status could
+    // report `installed: false` for a natively installed Muse because
+    // detection routed through WSL. Re-probing lets the host install surface.
+    const options = useAgentStatusesStore.persist.getOptions();
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [
+          makeStatus({
+            kind: "muse",
+            label: "Muse Code",
+            installed: false,
+            authState: "missing",
+            envKind: "windows",
+          }),
+        ],
+        wslAgentStatuses: [
+          makeStatus({
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            envKind: "wsl",
+            envDistro: "Ubuntu",
+          }),
+        ],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      32,
+    );
+
+    expect(options.version).toBe(56);
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v34 statuses before derived model capability refresh", async () => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [makeStatus({ kind: "example" })],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      34,
+    );
+    expect(options.version).toBe(56);
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v39 statuses holding the raw flat composite inventory and legacy composite Fast declaration", async () => {
+    // Mirrors supervisor STATUS_CACHE_VERSION 44: family-relation projection
+    // derives from fresh capability data, so a v39 store snapshot carrying the
+    // flat composite rows and the legacy composite Fast declaration must not
+    // hydrate as current.
+    const options = useAgentStatusesStore.persist.getOptions();
+    expect(options.version).toBe(56);
+    const stale = makeStatus({
+      kind: "example",
+      label: "Example",
+      capabilities: {
+        ...makeStatus().capabilities,
+        models: [
+          { id: "regular-a", label: "Regular A" },
+          { id: "pair-a-medium-fast-b-high", label: "Pair A Medium + B High" },
+          { id: "pair-a-high-b-high", label: "Pair A High + B High" },
+          { id: "pair-a-medium-fast-b-low", label: "Pair A Medium + B Low" },
+        ],
+        fastModels: ["pair-a-medium-fast-b-high", "pair-a-medium-fast-b-low"],
+      },
+    });
+    const persisted = {
+      agentStatuses: [stale],
+      wslAgentStatuses: [stale],
+      windowsLoaded: true,
+      wslLoaded: true,
+      // Any non-status persisted key must survive invalidation untouched —
+      // the migrate only discards the derived status inventory.
+      unrelatedPersistedField: { savedAt: "2026-10-08" },
+    };
+    const migrated = await options.migrate!(persisted, 39);
+    expect(migrated).toEqual({
+      ...persisted,
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it.each([40, 41])(
+    "invalidates v%s fallback inventories without dropping unrelated persisted state",
+    async (version) => {
+      const options = useAgentStatusesStore.persist.getOptions();
+      const relation = {
+        model: "pair-one",
+        label: "Pair",
+        selectors: [
+          {
+            id: "mate",
+            labelKey: "modelSelection.sidekick" as const,
+            options: [{ id: "one", label: "One" }],
+          },
+        ],
+        bindings: { effort: "model" as const, fast: "model" as const },
+        members: [
+          { model: "pair-one", selections: { mate: "one" }, effort: "medium", fast: false },
+        ],
+      };
+      const stale = makeStatus({
+        capabilities: {
+          ...makeStatus().capabilities,
+          modelFamilies: [relation],
+          presentationCapabilities: {
+            gui: { models: [{ id: "pair-one", label: "Pair One" }], modelFamilies: [relation] },
+          },
+        },
+      });
+      const persisted = {
+        agentStatuses: [stale],
+        wslAgentStatuses: [stale],
+        windowsLoaded: true,
+        wslLoaded: true,
+        unrelatedPersistedField: { savedChoice: "pair-one" },
+      };
+      expect(await options.migrate!(persisted, version)).toEqual({
+        ...persisted,
+        agentStatuses: [],
+        wslAgentStatuses: [],
+        windowsLoaded: false,
+        wslLoaded: false,
+      });
+    },
+  );
+
+  it("invalidates v33 Cursor ACP statuses cached before parameterized picker", async () => {
+    // Mirrors supervisor STATUS_CACHE_VERSION 37: a v33 snapshot could still
+    // advertise one bracketed default variant per model and must be re-probed.
+    const options = useAgentStatusesStore.persist.getOptions();
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [
+          makeStatus({
+            kind: "cursor",
+            label: "Cursor",
+            capabilities: {
+              ...makeStatus().capabilities,
+              models: [{ id: "gpt-5.5[context=272k,reasoning=medium]", label: "GPT-5.5" }],
+            },
+          }),
+        ],
+        wslAgentStatuses: [],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      33,
+    );
+
+    expect(options.version).toBe(56);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -210,7 +475,7 @@ describe("persisted agent status cache", () => {
       17,
     );
 
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -221,7 +486,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v15 statuses cached before Command Code's live-only model discovery", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     const staleCommandCode = makeStatus({
       kind: "commandcode",
       label: "Command Code",
@@ -253,7 +518,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v10 statuses whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     const staleLogin = makeStatus({
       kind: "antigravity",
       label: "Antigravity",
@@ -280,7 +545,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v14 statuses that grouped Cursor Grok under Other models", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     const staleCursor = makeStatus({
       kind: "cursor",
       label: "Cursor",
@@ -313,7 +578,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     const staleAcp = makeStatus({
       kind: "acp-generic:example",
       label: "Example ACP",
@@ -340,7 +605,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(33);
+    expect(options.version).toBe(56);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -385,7 +650,7 @@ it("invalidates v20 ACP labels in both persisted environments", async () => {
     },
     20,
   );
-  expect(options.version).toBe(33);
+  expect(options.version).toBe(56);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
@@ -395,6 +660,20 @@ it("invalidates v20 ACP labels in both persisted environments", async () => {
 });
 
 describe("setAgentStatuses", () => {
+  it.each(["contextSizeChangeReloadsSession", "contextSizeReloadStopsSubagents"] as const)(
+    "refreshes an added %s consequence even when the provider and context catalog stay the same",
+    (field) => {
+      const cached = makeStatus();
+      useAgentStatusesStore.setState({ agentStatuses: [cached] });
+      const fresh = {
+        ...cached,
+        capabilities: { ...cached.capabilities, [field]: true },
+      };
+      useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+      expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities[field]).toBe(true);
+    },
+  );
+
   it("preserves the existing array reference when statuses are identity-equal", () => {
     const initial = [makeStatus({ kind: "claude", label: "Claude" })];
     useAgentStatusesStore.setState({ agentStatuses: initial, windowsLoaded: true });
@@ -593,12 +872,13 @@ describe("setAgentStatuses", () => {
     );
   });
 
-  it("flips windowsLoaded to true on first apply, ending first-launch discovery", () => {
-    useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true });
+  it("flips windowsLoaded to true on first apply, completing the scan but keeping results open", () => {
+    useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true, discoveryScanning: true });
     useAgentStatusesStore.getState().setAgentStatuses([]);
     const state = useAgentStatusesStore.getState();
     expect(state.windowsLoaded).toBe(true);
-    expect(state.inFirstLaunchDiscovery).toBe(false);
+    expect(state.discoveryScanning).toBe(false);
+    expect(state.inFirstLaunchDiscovery).toBe(true);
     expect(state.discoveryScope).toBeUndefined();
   });
 });
@@ -614,9 +894,10 @@ describe("setWslAgentStatuses", () => {
     expect(state.wslLoaded).toBe(true);
   });
 
-  it("ends WSL discovery when WSL statuses arrive", () => {
+  it("completes a WSL scan when WSL statuses arrive, keeping results open", () => {
     useAgentStatusesStore.setState({
       inFirstLaunchDiscovery: true,
+      discoveryScanning: true,
       discoveryScope: { kind: "wsl", distro: "Ubuntu" },
       wslLoaded: false,
     });
@@ -625,8 +906,9 @@ describe("setWslAgentStatuses", () => {
       .setWslAgentStatuses([makeStatus({ envKind: "wsl", envDistro: "Ubuntu" })]);
     const state = useAgentStatusesStore.getState();
     expect(state.wslLoaded).toBe(true);
-    expect(state.inFirstLaunchDiscovery).toBe(false);
-    expect(state.discoveryScope).toBeUndefined();
+    expect(state.discoveryScanning).toBe(false);
+    expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScope).toEqual({ kind: "wsl", distro: "Ubuntu" });
   });
 
   it("preserves reference when re-applying identical statuses", () => {
@@ -641,7 +923,7 @@ describe("setWslAgentStatuses", () => {
 
 describe("hydrateFromCache", () => {
   it("populates both lists, marks both scopes loaded, and ends discovery", () => {
-    useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true });
+    useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true, discoveryScanning: true });
     useAgentStatusesStore.getState().hydrateFromCache({
       windows: [makeStatus({ kind: "claude" })],
       wsl: [makeStatus({ kind: "gemini", envKind: "wsl", envDistro: "Ubuntu" })],
@@ -652,6 +934,7 @@ describe("hydrateFromCache", () => {
     expect(state.windowsLoaded).toBe(true);
     expect(state.wslLoaded).toBe(true);
     expect(state.inFirstLaunchDiscovery).toBe(false);
+    expect(state.discoveryScanning).toBe(false);
     expect(state.discoveryScope).toBeUndefined();
   });
 });
@@ -664,6 +947,7 @@ describe("beginFirstLaunchDiscovery", () => {
     useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
     const state = useAgentStatusesStore.getState();
     expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScanning).toBe(true);
     expect(state.discoveryScope).toEqual({ kind: "native" });
     expect(state.discoveredAgents).toEqual([]);
   });
@@ -672,6 +956,7 @@ describe("beginFirstLaunchDiscovery", () => {
     useAgentStatusesStore.setState({ windowsLoaded: true });
     useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
     expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
+    expect(useAgentStatusesStore.getState().discoveryScanning).toBe(false);
   });
 
   it("can start WSL discovery after native statuses loaded", () => {
@@ -679,6 +964,7 @@ describe("beginFirstLaunchDiscovery", () => {
     useAgentStatusesStore.getState().beginFirstLaunchDiscovery({ kind: "wsl", distro: "Ubuntu" });
     const state = useAgentStatusesStore.getState();
     expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScanning).toBe(true);
     expect(state.discoveryScope).toEqual({ kind: "wsl", distro: "Ubuntu" });
     expect(state.wslLoaded).toBe(false);
   });
@@ -690,15 +976,35 @@ describe("beginFirstLaunchDiscovery", () => {
       .beginFirstLaunchDiscovery({ kind: "all", wslDistros: ["Ubuntu"] });
     const state = useAgentStatusesStore.getState();
     expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScanning).toBe(true);
     expect(state.discoveryScope).toEqual({ kind: "all", wslDistros: ["Ubuntu"] });
   });
 });
 
 describe("pushDiscoveredAgent", () => {
+  it("ignores streamed results after discovery has been cancelled", () => {
+    useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
+    useAgentStatusesStore.getState().resetDiscoveredAgents();
+    useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus());
+    expect(useAgentStatusesStore.getState().discoveredAgents).toEqual([]);
+  });
+
   it("appends a windows agent and dedupes by kind", () => {
+    useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
     useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "claude" }));
     useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "claude" }));
     expect(useAgentStatusesStore.getState().discoveredAgents).toHaveLength(1);
+  });
+
+  it("replaces an already-listed row in place when a fresher status streams in", () => {
+    useAgentStatusesStore.getState().beginFirstLaunchDiscovery();
+    useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "claude" }));
+    useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "gemini" }));
+    const fresher = makeStatus({ kind: "claude", authState: "missing" });
+    useAgentStatusesStore.getState().pushDiscoveredAgent(fresher);
+    const discovered = useAgentStatusesStore.getState().discoveredAgents;
+    expect(discovered.map((status) => status.kind)).toEqual(["claude", "gemini"]);
+    expect(discovered[0]).toBe(fresher);
   });
 
   it("ignores WSL agents during native discovery", () => {
@@ -749,6 +1055,7 @@ describe("resetDiscoveredAgents", () => {
     const state = useAgentStatusesStore.getState();
     expect(state.discoveredAgents).toEqual([]);
     expect(state.inFirstLaunchDiscovery).toBe(false);
+    expect(state.discoveryScanning).toBe(false);
     expect(state.discoveryScope).toBeUndefined();
   });
 
@@ -795,6 +1102,18 @@ describe("mergeAgentStatus", () => {
       .getState()
       .mergeAgentStatus(makeStatus({ kind: "gemini", envKind: "wsl", envDistro: "Debian" }));
     expect(useAgentStatusesStore.getState().wslAgentStatuses).toHaveLength(2);
+  });
+
+  it("updates a listed discovery row without appending unlisted ones", () => {
+    const listed = makeStatus({ kind: "claude", authState: "missing" });
+    useAgentStatusesStore.setState({ discoveredAgents: [listed] });
+    useAgentStatusesStore
+      .getState()
+      .mergeAgentStatus(makeStatus({ kind: "claude", authState: "authenticated" }));
+    useAgentStatusesStore.getState().mergeAgentStatus(makeStatus({ kind: "gemini" }));
+    const discovered = useAgentStatusesStore.getState().discoveredAgents;
+    expect(discovered).toHaveLength(1);
+    expect(discovered[0]?.authState).toBe("authenticated");
   });
 });
 
@@ -888,7 +1207,7 @@ describe("isDiscoveryActiveForLocation", () => {
   });
 });
 
-it("invalidates v32 account catalogs in both persisted environments", async () => {
+it("invalidates v25 model catalogs in both persisted environments", async () => {
   const options = useAgentStatusesStore.persist.getOptions();
   const stale = makeStatus();
   const migrated = await options.migrate!(
@@ -898,9 +1217,9 @@ it("invalidates v32 account catalogs in both persisted environments", async () =
       windowsLoaded: true,
       wslLoaded: true,
     },
-    32,
+    25,
   );
-  expect(options.version).toBe(33);
+  expect(options.version).toBe(56);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
@@ -908,3 +1227,44 @@ it("invalidates v32 account catalogs in both persisted environments", async () =
     wslLoaded: false,
   });
 });
+
+it("refreshes model pricing metadata when model IDs and provider version stay the same", () => {
+  const original = makeStatus();
+  original.capabilities.models = [{ id: "model", label: "Model", description: "old price" }];
+  useAgentStatusesStore.setState({ agentStatuses: [original] });
+  const fresh = {
+    ...original,
+    capabilities: {
+      ...original.capabilities,
+      models: [{ id: "model", label: "Model", description: "new price" }],
+    },
+  };
+  useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+  expect(
+    useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.models[0]?.description,
+  ).toBe("new price");
+});
+
+// The newly integrated native-account discovery must invalidate both old parents.
+it.each([29, 32, 33, 44, 51, 52, 53, 54, 55])(
+  "re-probes v%s account catalogs while preserving unrelated state",
+  async (version) => {
+    const options = useAgentStatusesStore.persist.getOptions();
+    const stale = makeStatus({ kind: "example", label: "Example" });
+    const previous = {
+      agentStatuses: [stale],
+      wslAgentStatuses: [stale],
+      windowsLoaded: true,
+      wslLoaded: true,
+      unrelatedPersistedField: { savedChoice: "preserved" },
+    };
+    expect(options.version).toBe(56);
+    expect(await options.migrate!(previous, version)).toEqual({
+      ...previous,
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  },
+);

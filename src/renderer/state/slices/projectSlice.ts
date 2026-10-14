@@ -1,3 +1,6 @@
+import { retainPendingThreadConfigs } from "../pendingThreadConfig";
+import { composerDraftStorage } from "../composerDraftStorage";
+import { areSelectionBindingsEqual } from "@/shared/contracts";
 import type {
   Project,
   ProjectDraftConfig,
@@ -17,6 +20,9 @@ import { msg } from "@/shared/messages";
 import { currentProjectIdentityOptions } from "../projectReferences";
 import { reorderIds, type ReorderPlacement } from "../reorder";
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
+import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
+import { forgetThreadGalleryCache } from "../threadGalleryCache";
+import { confirmPendingThreadInput } from "../pendingThreadInput";
 import { removePaneFromView } from "./helpers";
 import type { SliceCreator } from "./shared";
 
@@ -26,6 +32,7 @@ function projectDraftConfigEqual(
 ): boolean {
   return (
     a !== undefined &&
+    areSelectionBindingsEqual(a.selectionBinding, b.selectionBinding) &&
     a.agentKind === b.agentKind &&
     a.model === b.model &&
     a.effort === b.effort &&
@@ -54,7 +61,7 @@ export interface ProjectSlice {
     workspaceId?: string,
   ) => Project;
   ensureHomeProject: (location: ProjectLocation) => Project;
-  deleteProject: (projectId: string) => void;
+  deleteProject: (projectId: string, options?: { alreadyHidden: boolean }) => void;
   updateProjectDraftConfig: (projectId: string, draftConfig: ProjectDraftConfig) => void;
   updateProjectScripts: (projectId: string, scripts: ProjectScripts) => void;
   updateProjectSearchSettings: (
@@ -168,11 +175,11 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
 
     return ensured!;
   },
-  deleteProject: (projectId) =>
+  deleteProject: (projectId, options) =>
     set((state) => {
       const nextProjects = state.projects.filter((project) => project.id !== projectId);
 
-      if (nextProjects.length === state.projects.length) {
+      if (nextProjects.length === state.projects.length && !options?.alreadyHidden) {
         return {};
       }
 
@@ -181,8 +188,13 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
       );
       for (const threadId of projectThreadIds) {
         useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
+        forgetTimelineMeasurements(threadId);
+        forgetThreadGalleryCache(threadId);
+        confirmPendingThreadInput(threadId);
       }
 
+      composerDraftStorage()?.remove("project", projectId);
+      for (const threadId of projectThreadIds) composerDraftStorage()?.remove("thread", threadId);
       const nextThreads = state.threads.filter((thread) => thread.projectId !== projectId);
 
       const nextPendingThreadLaunches = Object.fromEntries(
@@ -232,6 +244,10 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
       return {
         projects: nextProjects,
         threads: nextThreads,
+        pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+          state.pendingThreadConfigByThreadId,
+          nextThreads,
+        ),
         pendingThreadLaunches: nextPendingThreadLaunches,
         pendingLaunchSegments: nextPendingLaunchSegments,
         pendingLaunchUserMessageItemIds: nextPendingLaunchUserMessageItemIds,

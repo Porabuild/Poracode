@@ -65,20 +65,6 @@ export async function closeExperimentThread(threadId: string): Promise<boolean> 
   }
 }
 
-export async function persistExperimentOwnershipState(threadIds: readonly string[]): Promise<void> {
-  const threads = useAppStore.getState().threads;
-  const targetIds = new Set(threadIds);
-  const upsertThreads = threads.flatMap((thread, sortOrder) =>
-    targetIds.has(thread.id) ? [{ thread, sortOrder }] : [],
-  );
-  const persistedIds = new Set(upsertThreads.map(({ thread }) => thread.id));
-  await readBridge().dbPersistExperimentState({
-    upsertThreads,
-    deletedThreadIds: threadIds.filter((threadId) => !persistedIds.has(threadId)),
-    experiments: useExperimentStore.getState().experiments,
-  });
-}
-
 export async function resolveCandidateWorktreePath(
   project: Project,
   candidate: ExperimentCandidate,

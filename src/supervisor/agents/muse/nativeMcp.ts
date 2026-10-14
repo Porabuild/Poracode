@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { nativeJsonMcpConfig } from "../../mcp/nativeSetup/jsonConfig";
 import type { NativeMcpConfigFile } from "../../mcp/nativeSetup/configFile";
+import { buildMuseSettingsMcpServer } from "./mcpSettings";
 
 export function museNativeMcpConfig(
   path = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "muse", "settings.json"),
@@ -18,21 +19,12 @@ export function museNativeMcpConfig(
       if (transport.type === "stdio") {
         if (transport.cwd) throw new Error("Working directory is not supported by native setup");
         return {
-          enabled: true,
-          transport: "stdio",
-          command: transport.command,
-          args: transport.args,
-          env: transport.env,
+          ...buildMuseSettingsMcpServer(transport),
           framing: "line_delimited_json",
         };
       }
       if (transport.type === "sse") throw new Error("SSE is not supported by native setup");
-      return {
-        enabled: true,
-        transport: "streamable_http",
-        url: transport.url,
-        headers: transport.headers,
-      };
+      return buildMuseSettingsMcpServer(transport);
     },
     { defaults: { schema_version: 1 } },
   );

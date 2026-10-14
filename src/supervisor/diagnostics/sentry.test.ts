@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  HostResourceBusyError,
+  HostResourcePolicyUnavailableError,
+} from "../runtime/hostResourceAdmission";
+import {
   classifySupervisorFailure,
   classifySupervisorIpcFailure,
   initializeSupervisorSentry,
 } from "./sentry";
+import {
+  GIT_ADMISSION_QUEUE_FULL_CODE,
+  GitProcessAdmissionError,
+} from "../git/gitProcessAdmission";
 
 type ClassificationCase = {
   operation: string;
@@ -268,6 +276,50 @@ describe("supervisor Sentry policy", () => {
       treatment: "capture",
       domain: "supervisor.ipc",
       fingerprint: null,
+    });
+  });
+
+  it.each([
+    [
+      "host-resource-busy",
+      new HostResourceBusyError({
+        resourceClass: "agent-session",
+        limit: 1,
+        active: 1,
+        pending: 0,
+        retiring: 0,
+        retryAfterMs: 1_000,
+      }),
+    ],
+    [
+      "host-resource-policy-unavailable",
+      new HostResourcePolicyUnavailableError("host-resource-admission-invalid"),
+    ],
+    [
+      "git-admission-refusal",
+      new GitProcessAdmissionError(
+        GIT_ADMISSION_QUEUE_FULL_CODE,
+        {
+          gitClass: "short",
+          units: 1,
+          limit: 8,
+          active: 8,
+          queued: 64,
+          retryAfterMs: 1_000,
+        },
+        "Git short admission queue is full.",
+      ),
+    ],
+  ])("treats a typed admission refusal as expected operational: %s", (errorClass, error) => {
+    expect(classifySupervisorIpcFailure(error, "startThread")).toEqual({
+      failureClass: "expected-operational",
+      treatment: "drop",
+      level: null,
+      operational: true,
+      domain: "supervisor.ipc",
+      operation: "startthread",
+      errorClass,
+      fingerprint: ["poracode", "supervisor.ipc", "startthread", errorClass],
     });
   });
 

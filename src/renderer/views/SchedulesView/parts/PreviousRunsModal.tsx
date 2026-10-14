@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Modal } from "@heroui/react";
+import { Button, Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { CheckCircle2, CircleSlash, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, CircleSlash, Clock3, Loader2, XCircle } from "lucide-react";
 import type { ScheduledTask, ScheduledTaskRun } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { scheduleRunStatusMessages } from "./scheduleRunStatus";
 import { useThread } from "@/renderer/state/useThread";
 
 interface PreviousRunsModalProps {
@@ -15,11 +16,21 @@ interface PreviousRunsModalProps {
   formatDateTime: (iso: string) => string;
   onOpenRunThread: (threadId: string) => void;
   onClose: () => void;
+  onViewRun?: (run: ScheduledTaskRun) => void;
+  /** Overrides the local bridge fetch — machine-scoped callers route to a host. */
+  fetchRuns?: ((id: string) => Promise<ScheduledTaskRun[]>) | undefined;
+  /** Maps a run's host-side thread id to the id this workspace knows. Remote
+   * machines return host ids in runs; without this the rows render as
+   * deleted threads even when the thread is mirrored locally. */
+  resolveThreadId?: ((hostThreadId: string) => string) | undefined;
 }
 
 function RunStatusIcon({ status, label }: { status: ScheduledTaskRun["status"]; label: string }) {
   if (status === "running") {
     return <Loader2 className="size-3.5 shrink-0 animate-spin text-accent" aria-label={label} />;
+  }
+  if (status === "waiting-for-approval") {
+    return <Clock3 className="size-3.5 shrink-0 text-warning" aria-label={label} />;
   }
   if (status === "succeeded") {
     return <CheckCircle2 className="size-3.5 shrink-0 text-success" aria-label={label} />;
@@ -35,15 +46,21 @@ function RunRow({
   statusLabel,
   formatDateTime,
   onOpen,
+  resolveThreadId,
+  onViewRun,
 }: {
   run: ScheduledTaskRun;
   statusLabel: string;
   formatDateTime: (iso: string) => string;
   onOpen: (threadId: string) => void;
+  onViewRun?: ((run: ScheduledTaskRun) => void) | undefined;
+  resolveThreadId?: ((hostThreadId: string) => string) | undefined;
 }) {
   // Reactive lookup so the row's provider icon and title track live thread
-  // state (e.g. renames) while the modal stays open.
-  const thread = useThread(run.threadId);
+  // state (e.g. renames) while the modal stays open. Remote runs carry the
+  // HOST's thread id — resolve it before the lookup; `onOpen` still receives
+  // the raw id so machine-scoped callers can do their own mapping.
+  const thread = useThread(resolveThreadId ? resolveThreadId(run.threadId) : run.threadId);
   const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
   const agent = thread ? agentStatuses.find((status) => status.kind === thread.agentKind) : null;
   const model = thread?.config.model;
@@ -65,31 +82,37 @@ function RunRow({
   const errorLine = run.error ? (
     <p className="line-clamp-2 text-xs whitespace-pre-wrap text-danger">{run.error}</p>
   ) : null;
+  const summary = run.result?.summary ?? run.summary;
+  const summaryLine = summary ? (
+    <p className="line-clamp-2 text-xs whitespace-pre-wrap text-foreground/80">{summary}</p>
+  ) : null;
 
-  if (!thread) {
+  if (!thread && !onViewRun) {
     // The linked thread was deleted: nothing to navigate to (openRunThread
     // guards anyway), so render a muted, non-interactive row.
     return (
-      <div className="w-full border-b border-[var(--hairline)] px-3 py-2.5 text-left opacity-60 last:border-b-0">
+      <div className="block h-auto w-full rounded-none border-b border-[var(--hairline)] px-3 py-2.5 text-left opacity-60 last:border-b-0">
         <div className="flex items-center justify-between gap-2.5">{trailing}</div>
         {errorLine}
+        {summaryLine}
       </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(run.threadId)}
-      className="w-full border-b border-[var(--hairline)] px-3 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-default-100/60 focus-visible:bg-default-100/60"
+    <Button
+      variant="ghost"
+      onPress={() => (onViewRun ? onViewRun(run) : onOpen(run.threadId))}
+      className="block h-auto w-full rounded-none border-b border-[var(--hairline)] px-3 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-default-100/60 focus-visible:bg-default-100/60"
     >
       <div className="flex items-center gap-2.5">
-        <ThreadProviderIcon thread={thread} className="size-3.5 shrink-0" />
+        {thread ? <ThreadProviderIcon thread={thread} className="size-3.5 shrink-0" /> : null}
         <span className="min-w-0 flex-1 truncate text-xs text-muted">{runMeta}</span>
         {trailing}
       </div>
       {errorLine}
-    </button>
+      {summaryLine}
+    </Button>
   );
 }
 
@@ -98,13 +121,16 @@ export function PreviousRunsModal({
   formatDateTime,
   onOpenRunThread,
   onClose,
+  onViewRun,
+  fetchRuns,
+  resolveThreadId,
 }: PreviousRunsModalProps) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [runs, setRuns] = useState<ScheduledTaskRun[] | null>(null);
   const [runsError, setRunsError] = useState("");
 
   const taskId = task?.id ?? null;
-  const isRunning = task?.lastStatus === "running";
+  const isRunning = task?.lastStatus === "running" || task?.lastStatus === "waiting-for-approval";
 
   // Reset the list whenever the shown schedule (or its running state, which
   // controls the live poll) changes — during render rather than
@@ -124,8 +150,7 @@ export function PreviousRunsModal({
     if (!taskId) return;
     let cancelled = false;
     const load = () => {
-      void readBridge()
-        .getScheduleRuns({ id: taskId })
+      void (fetchRuns ? fetchRuns(taskId) : readBridge().getScheduleRuns({ id: taskId }))
         .then((next) => {
           if (cancelled) return;
           setRuns(next);
@@ -149,20 +174,7 @@ export function PreviousRunsModal({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [taskId, isRunning]);
-
-  function statusLabel(status: ScheduledTaskRun["status"]): string {
-    switch (status) {
-      case "running":
-        return t`Running`;
-      case "succeeded":
-        return t`Succeeded`;
-      case "failed":
-        return t`Failed`;
-      default:
-        return t`Interrupted`;
-    }
-  }
+  }, [taskId, isRunning, fetchRuns]);
 
   function openRun(threadId: string) {
     // Close before navigating: opening the thread routes away from this page.
@@ -195,9 +207,18 @@ export function PreviousRunsModal({
                   <RunRow
                     key={run.id}
                     run={run}
-                    statusLabel={statusLabel(run.status)}
+                    statusLabel={i18n._(scheduleRunStatusMessages[run.status])}
                     formatDateTime={formatDateTime}
                     onOpen={openRun}
+                    {...(onViewRun
+                      ? {
+                          onViewRun: (selected: ScheduledTaskRun) => {
+                            onClose();
+                            onViewRun(selected);
+                          },
+                        }
+                      : {})}
+                    resolveThreadId={resolveThreadId}
                   />
                 ))}
               </div>

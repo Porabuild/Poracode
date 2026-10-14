@@ -20,14 +20,19 @@ import { CommandOutputViewport } from "./CommandOutputViewport";
 import { getCommandExecutionCollapsedHeader } from "./collapsedHeaderCache";
 import { type CommandIntentKind } from "./commandSummary";
 import { extractAcpResultText } from "./acpToolPayload";
+import { useHistoryItemDetails, HistoryItemDetailPlaceholder } from "./useHistoryItemDetails";
 
 interface CommandExecutionProps {
   item: RuntimeChatItem;
 }
 
-export const CommandExecution = memo(function CommandExecution({ item }: CommandExecutionProps) {
-  const payload = getRuntimeItemPayload<CommandExecutionPayload>(item, "command_execution");
+export const CommandExecution = memo(function CommandExecution({
+  item: source,
+}: CommandExecutionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const details = useHistoryItemDetails(source, isExpanded);
+  const item = details.item;
+  const payload = getRuntimeItemPayload<CommandExecutionPayload>(item, "command_execution");
   const header = payload ? getCommandExecutionCollapsedHeader(item, payload) : null;
   const isRunning = item.state !== "completed";
   const status = resolveCommandStatus(
@@ -64,7 +69,11 @@ export const CommandExecution = memo(function CommandExecution({ item }: Command
       isExpanded={isExpanded}
       onExpandedChange={setIsExpanded}
     >
-      {terminalBody.length > 0 ? <CommandOutputViewport text={terminalBody} /> : null}
+      {details.pending ? (
+        <HistoryItemDetailPlaceholder failed={details.failed} retry={details.retry} />
+      ) : terminalBody.length > 0 ? (
+        <CommandOutputViewport text={terminalBody} />
+      ) : null}
     </ChatItemAccordion>
   );
 });

@@ -263,3 +263,58 @@ describe("handleComposerControlShortcut", () => {
   });
 });
 // @vitest-environment node
+
+it("keeps effort and Fast shortcuts with a single pairing control", () => {
+  const onFastChange = vi.fn<(value: boolean) => void>();
+  const onEffortChange = vi.fn<(value: string) => void>();
+  const onSelectorChange = vi.fn<(value: string) => void>();
+  const fastToggle: ComposerControl = {
+    kind: "toggle",
+    label: "Fast",
+    isSelected: false,
+    onChange: onFastChange,
+  };
+  const effort: ComposerControl = {
+    kind: "effort-context",
+    efforts: [
+      { id: "low", label: "Low" },
+      { id: "high", label: "High" },
+    ],
+    effortValue: "low",
+    onEffortChange,
+    contextSizes: [],
+  };
+  effort.familySelection = {
+    agentKind: "example",
+    effortScope: "primary",
+    columns: [
+      {
+        id: "lead",
+        label: "Main",
+        icon: null,
+        models: {
+          options: [
+            { id: "a", label: "Alpha" },
+            { id: "b", label: "Beta" },
+          ],
+          value: "a",
+          onChange: onSelectorChange,
+        },
+      },
+    ],
+  };
+  const input = {
+    controls: [effort, fastToggle],
+    onOpenModelPicker: vi.fn<() => void>(),
+  };
+  expect(dispatch(shortcutEvent("t"), input)).toBe(true);
+  expect(onEffortChange).toHaveBeenCalledWith("high");
+  expect(onSelectorChange).not.toHaveBeenCalled();
+  expect(dispatch(shortcutEvent("f", { shiftKey: true }), input)).toBe(true);
+  expect(onFastChange).toHaveBeenCalledExactlyOnceWith(true);
+  fastToggle.disabledReason = "Unavailable";
+  expect(dispatch(shortcutEvent("f", { shiftKey: true }), input)).toBe(false);
+  expect(onFastChange).toHaveBeenCalledTimes(1);
+  effort.isDisabled = true;
+  expect(dispatch(shortcutEvent("t"), input)).toBe(false);
+});

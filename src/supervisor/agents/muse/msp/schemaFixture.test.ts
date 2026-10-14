@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { MUSE_EFFORTS } from "../detection";
 import { toMspApprovalMode } from "./argv";
+import { MSP_SCHEMA_FINGERPRINT, MSP_SCHEMA_VERSION } from "./protocol";
 
 /**
  * Pins the MSP wire contract the client speaks: the fixture is a verbatim
@@ -24,14 +25,29 @@ describe("MSP schema fixture", () => {
     const schema = loadSchemaFixture();
     expect(typeof schema.description).toBe("string");
     expect(schema.description as string).toMatch(/Muse Session Protocol \(MSP\) v1/);
+    const manifest = JSON.parse(
+      readFileSync(new URL("./fixtures/manifest.json", import.meta.url), "utf8"),
+    );
+    expect(manifest).toEqual({
+      experimental: false,
+      schemaVersion: MSP_SCHEMA_VERSION,
+      fingerprint: MSP_SCHEMA_FINGERPRINT,
+    });
   });
 
   it("declares every method the client uses", () => {
     const schema = loadSchemaFixture();
     for (const method of [
       "approval/decide",
+      "goal/clear",
+      "goal/edit",
+      "goal/pause",
+      "goal/resume",
+      "goal/set",
       "initialize",
       "model/list",
+      "session/compact",
+      "session/read",
       "session/resume",
       "session/setApprovalMode",
       "session/setModel",
@@ -41,6 +57,7 @@ describe("MSP schema fixture", () => {
       "turn/steer",
       "userInput/answer",
       "userInput/cancel",
+      "view/subscribe",
     ]) {
       expect(
         schema.methods?.[method],
@@ -50,9 +67,17 @@ describe("MSP schema fixture", () => {
     expect(schema.notifications).toBeDefined();
   });
 
-  it("keeps the ReasoningEffort enum in lockstep with the static ladder", () => {
+  it("accepts every rung of the static effort ladder", () => {
+    // Subset, not equality: the static ladder is the no-probe fallback, so
+    // every entry must be servable by the pinned host — but additive host
+    // growth (1.3.0 added `max`) is adopted at runtime by the `--help` probe
+    // and must not force the static list (which pre-growth hosts also read).
     const schema = loadSchemaFixture();
-    expect(schema.$defs?.["ReasoningEffort"]?.enum).toEqual([...MUSE_EFFORTS]);
+    const ladder = schema.$defs?.["ReasoningEffort"]?.enum;
+    expect(Array.isArray(ladder)).toBe(true);
+    for (const effort of MUSE_EFFORTS) {
+      expect(ladder).toContain(effort);
+    }
   });
 
   it("covers every approval mode the argv mapper can emit", () => {

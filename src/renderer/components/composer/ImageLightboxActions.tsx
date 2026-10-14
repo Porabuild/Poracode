@@ -5,9 +5,12 @@ import { readBridge } from "@/renderer/bridge";
 import { fetchImageBytes, toClipboardPngBytes } from "@/renderer/utils/imageActions";
 import { imageUrlMetadata } from "@/renderer/utils/imageUrlMetadata";
 import type { LightboxImage } from "./ImageLightbox";
+import { runRendererAction, useRendererActionStore } from "@/renderer/state/rendererActionStore";
 
 export function ImageLightboxActions({ image }: { image: LightboxImage }) {
   const { t } = useLingui();
+  const actionKey = `image:action:${image.src}`;
+  const pending = useRendererActionStore((state) => !!state.pending[actionKey]);
 
   async function runAction(action: "copy" | "save") {
     const metadata = imageUrlMetadata(image.src, image.alt);
@@ -15,12 +18,16 @@ export function ImageLightboxActions({ image }: { image: LightboxImage }) {
     const fileName = image.fileName ?? metadata.fileName;
     try {
       if (action === "copy") {
-        const data = await toClipboardPngBytes({ src: image.src, mime });
+        const data = await toClipboardPngBytes({
+          src: image.src,
+          mime,
+          ...(image.readBytes ? { readBytes: image.readBytes } : {}),
+        });
         if (!(await readBridge().copyImageToClipboard({ data }))) {
           toast.danger(t`Unable to copy image.`);
         }
       } else if (action === "save") {
-        const data = await fetchImageBytes(image.src);
+        const data = image.readBytes ? await image.readBytes() : await fetchImageBytes(image.src);
         await readBridge().saveImageFile({ data, suggestedName: fileName });
       }
     } catch {
@@ -36,7 +43,9 @@ export function ImageLightboxActions({ image }: { image: LightboxImage }) {
           variant="ghost"
           className="poracode-image-lightbox__zoom-button"
           aria-label={t`Copy image`}
-          onPress={() => void runAction("copy")}
+          isPending={pending}
+          isDisabled={pending}
+          onPress={() => void runRendererAction(actionKey, () => runAction("copy"))}
         >
           <Copy className="size-4" />
         </Button>
@@ -48,7 +57,9 @@ export function ImageLightboxActions({ image }: { image: LightboxImage }) {
           variant="ghost"
           className="poracode-image-lightbox__zoom-button"
           aria-label={t`Save image`}
-          onPress={() => void runAction("save")}
+          isPending={pending}
+          isDisabled={pending}
+          onPress={() => void runRendererAction(actionKey, () => runAction("save"))}
         >
           <Download className="size-4" />
         </Button>

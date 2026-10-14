@@ -1,15 +1,16 @@
-import { extractOscEventsFromPtyStream } from "@/shared/osc";
+import { createShellPromptGate } from "@/shared/shellPromptReady";
 import { readBridge } from "@/renderer/bridge";
 import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
-
-const REMOTE_SHELL_QUIET_READY_MS = 250;
-const REMOTE_SHELL_QUERY_FALLBACK_MS = 12_000;
+import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
 
 interface RoutedShellSessionOptions {
   readonly shellId: string;
   readonly data: string;
   readonly remoteServerId?: string;
   readonly onOutput?: (output: string) => void;
+  /** Inspect authoritative history separately from live output (e.g. a
+   * current-token completion marker recovered after reconnect). */
+  readonly onSnapshot?: (snapshot: RemoteTerminalWatchResultReady) => void;
   readonly onReset?: () => void;
   readonly onExited?: (exitCode: number | null) => void;
   readonly onWriteError?: (error: unknown) => void;
@@ -29,11 +30,11 @@ export function disposeRoutedShellSession(shellId: string): void {
 export function createRoutedShellSession(options: RoutedShellSessionOptions): () => void {
   disposeRoutedShellSession(options.shellId);
   let armed = true;
-  let outputBuffer = "";
-  let oscCarry = "";
+  let observedSpawnReset = false;
   let timer = 0;
   let disposed = false;
   let unsubscribe: () => void = () => undefined;
+  const prompt = createShellPromptGate();
 
   const clearTimer = () => {
     if (timer === 0) return;
@@ -59,35 +60,31 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
       });
   };
   const reset = () => {
+    if (disposed) return;
+    observedSpawnReset = true;
     armed = true;
-    outputBuffer = "";
-    oscCarry = "";
+    prompt.reset();
     clearTimer();
     options.onReset?.();
   };
+  const armWrite = (output: string) => {
+    if (prompt.push(output) === "ready") {
+      write();
+      return;
+    }
+    clearTimer();
+    timer = window.setTimeout(write, prompt.delayMs());
+  };
   const onOutput = (output: string) => {
+    if (disposed) return;
     if (!armed) {
       options.onOutput?.(output);
       return;
     }
-    if (!options.remoteServerId) {
-      write();
-      return;
-    }
-    outputBuffer = `${outputBuffer}${output}`.slice(-2048);
-    const extracted = extractOscEventsFromPtyStream(oscCarry, output);
-    oscCarry = extracted.carryOut;
-    if (extracted.shell.some((event) => event.code === 133 && event.kind === "prompt-end")) {
-      write();
-      return;
-    }
-    clearTimer();
-    const sawTerminalQuery =
-      outputBuffer.includes("\u001B[0c") || outputBuffer.includes("\u001B[6n");
-    timer = window.setTimeout(
-      write,
-      sawTerminalQuery ? REMOTE_SHELL_QUERY_FALLBACK_MS : REMOTE_SHELL_QUIET_READY_MS,
-    );
+    // Local and remote shells share this gate. The first bytes are often a
+    // device-attribute query, not a prompt; writing the command there leaves
+    // an empty pane and skips `exit` because the script runs before PATH exists.
+    armWrite(output);
   };
 
   unsubscribe = watchRoutedTerminal(
@@ -95,6 +92,24 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
     {
       onReset: reset,
       onOutput,
+      onSnapshot: (snapshot) => {
+        if (disposed) return;
+        options.onSnapshot?.(snapshot);
+        // A new prompt may be wholly covered by the feed baseline. Only the
+        // spawn this listener observed can arm readiness from history; later
+        // reconnect snapshots must never rerun or report old command output.
+        if (
+          disposed ||
+          !armed ||
+          !observedSpawnReset ||
+          snapshot.processState !== "running" ||
+          snapshot.data.length === 0
+        ) {
+          return;
+        }
+        prompt.reset();
+        armWrite(snapshot.data);
+      },
       onExited: (exitCode) => {
         dispose();
         options.onExited?.(exitCode);

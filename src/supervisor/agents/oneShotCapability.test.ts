@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { ProjectLocation } from "@/shared/contracts";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
 import { createAgentRegistry } from "./registry";
 
 /**
@@ -66,5 +68,31 @@ describe("supportsOneShot capability", () => {
     expect(muse?.capabilities.supportsOneShot).toBe(true);
     expect(muse?.runOneShot).toBeUndefined();
     expect(typeof muse?.buildOneShotCommand).toBe("function");
+  });
+});
+
+/** Positionals must disagree visibly before a provider can perform effects. */
+describe("one-shot builder projection inventory", () => {
+  const location: ProjectLocation = { kind: "posix", path: "/repo" };
+  const adapters = createAgentRegistry();
+  const lanes = adapters.flatMap((adapter) =>
+    (["buildOneShotCommand", "buildTextOnlyOneShotCommand"] as const).flatMap((lane) =>
+      adapter[lane] ? [{ adapter, lane }] : [],
+    ),
+  );
+
+  it.each(lanes)("checks positionals for $adapter.kind $lane", async ({ adapter, lane }) => {
+    const selection: ModelSelection = { model: "fixture-model", effort: "", fast: false };
+    for (const [model, effort, fast] of [
+      ["other", "", false],
+      [selection.model, undefined, false],
+      [selection.model, "", undefined],
+    ] as const) {
+      await expect(
+        Promise.resolve().then(() =>
+          adapter[lane]?.(model, effort, "title", location, fast, { selection }),
+        ),
+      ).rejects.toThrow("positional arguments disagree");
+    }
   });
 });

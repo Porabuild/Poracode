@@ -1,11 +1,29 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolvePoracodeBaseDir, resolvePoracodePaths } from "./poracodePaths";
+import {
+  poracodeBaseDirFromEnv,
+  resolvePoracodeBaseDir,
+  resolvePoracodePaths,
+} from "./poracodePaths";
 
 describe("poracodePaths", () => {
   it("derives the default base dir under the user home", () => {
     expect(resolvePoracodeBaseDir("stable")).toBe(join(homedir(), ".poracode"));
+  });
+
+  it("accepts an absolute PORACODE_DATA_DIR from the environment", () => {
+    expect(poracodeBaseDirFromEnv({ PORACODE_DATA_DIR: "/tmp/scratch-profile" })).toBe(
+      "/tmp/scratch-profile",
+    );
+  });
+
+  it("rejects the environment forms that would scatter writes", () => {
+    expect(poracodeBaseDirFromEnv({})).toBeUndefined();
+    expect(poracodeBaseDirFromEnv({ PORACODE_DATA_DIR: undefined })).toBeUndefined();
+    expect(poracodeBaseDirFromEnv({ PORACODE_DATA_DIR: "undefined" })).toBeUndefined();
+    expect(poracodeBaseDirFromEnv({ PORACODE_DATA_DIR: "  " })).toBeUndefined();
+    expect(poracodeBaseDirFromEnv({ PORACODE_DATA_DIR: "relative/dir" })).toBeUndefined();
   });
 
   it("returns the nightly base dir when the channel is nightly", () => {
@@ -28,6 +46,7 @@ describe("poracodePaths", () => {
       agentPluginsDir: join(baseDir, "agent-plugins"),
       pluginsDir: join(baseDir, "plugins"),
       pluginDataDir: join(baseDir, "plugin-data"),
+      packageInstallPinsPath: join(baseDir, "package-install-pins.json"),
       acpIconsDir: join(baseDir, "cache", "acp-icons"),
     });
   });

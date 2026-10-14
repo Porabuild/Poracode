@@ -1,6 +1,7 @@
 import { Suspense, useState } from "react";
 import { AlertDialog } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
+import { AgentDiscoveryOverlay } from "@/renderer/components/thread/AgentDiscoveryOverlay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
@@ -37,6 +38,8 @@ import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
+import { BrowserRemoteConnectionGate } from "./BrowserRemoteConnectionGate";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 
 function useEverEnabled(active: boolean): boolean {
   const [enabled, setEnabled] = useState(active);
@@ -51,9 +54,13 @@ function useEverEnabled(active: boolean): boolean {
 }
 
 export function AppOverlays() {
+  const compactLayout = useCompactLayout();
+  const mobileUtilityPage = usePanelStore((s) => s.mobileUtilityPage);
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
+  const projectSettingsOverlayVisible =
+    projectSettingsId !== null && !(compactLayout && mobileUtilityPage === "projectSettings");
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
@@ -76,7 +83,8 @@ export function AppOverlays() {
     : undefined;
   const prReviewVisible = !!prReviewContext && !!prReviewProject;
   const githubActionsContext = usePanelStore((s) => s.githubActionsContext);
-  const githubActionsVisible = githubActionsContext !== null;
+  const githubActionsVisible =
+    githubActionsContext !== null && !(compactLayout && mobileUtilityPage === "githubActions");
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
   const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
   const trackedOverlaySurface =
@@ -104,6 +112,7 @@ export function AppOverlays() {
     <>
       <WelcomeOverlay />
       <WhatsNewOverlay />
+      <AgentDiscoveryOverlay />
       <OverlayShell open={settingsOpen} onExited={() => usePanelStore.getState().closeSettings()}>
         <Suspense fallback={<OverlayLoader />}>
           <DeferredSettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
@@ -113,11 +122,11 @@ export function AppOverlays() {
           project as it mounts, so fading it in over the hidden base app just
           shows full-screen acrylic until the content lands. */}
       <OverlayShell
-        open={!!projectSettingsId}
+        open={projectSettingsOverlayVisible}
         instantEnter
         onExited={() => usePanelStore.getState().closeProjectSettings()}
       >
-        {projectSettingsId && (
+        {projectSettingsOverlayVisible && projectSettingsId && (
           <Suspense fallback={<OverlayLoader />}>
             <DeferredProjectSettingsOverlay
               projectId={projectSettingsId}
@@ -225,15 +234,23 @@ export function AppOverlays() {
         onExited={() => usePanelStore.getState().setGitHubActionsContext(null)}
       >
         {githubActionsContext && (
-          <Suspense fallback={<OverlayLoader />}>
-            <DeferredGitHubActionsView
-              {...(githubActionsContext.projectId
-                ? { projectId: githubActionsContext.projectId }
-                : {})}
-              {...(githubActionsContext.runId ? { runId: githubActionsContext.runId } : {})}
-              onClose={() => usePanelStore.getState().setGitHubActionsContext(null)}
-            />
-          </Suspense>
+          <BrowserRemoteConnectionGate
+            onPair={() => {
+              const panelStore = usePanelStore.getState();
+              panelStore.setGitHubActionsContext(null);
+              panelStore.openSettingsSection("remoteServers");
+            }}
+          >
+            <Suspense fallback={<OverlayLoader />}>
+              <DeferredGitHubActionsView
+                {...(githubActionsContext.projectId
+                  ? { projectId: githubActionsContext.projectId }
+                  : {})}
+                {...(githubActionsContext.runId ? { runId: githubActionsContext.runId } : {})}
+                onClose={() => usePanelStore.getState().setGitHubActionsContext(null)}
+              />
+            </Suspense>
+          </BrowserRemoteConnectionGate>
         )}
       </OverlayShell>
       <OverlayShell
@@ -267,7 +284,7 @@ function DeferredBrowserHost() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
   const extracted = useBrowserPanelStore((s) => s.extracted);
-  const hasTabs = useBrowserPanelStore((s) => s.tabs.length > 0);
+  const hasTabs = useBrowserPanelStore((s) => s.residentTabs.length > 0);
   const automationActive = useBrowserPanelStore((s) => s.automationActive);
   const enabled = useEverEnabled(
     !extracted && (browserPanelOpen || browserOverlayOpen || (hasTabs && automationActive)),

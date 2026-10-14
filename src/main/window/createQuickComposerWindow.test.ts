@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IPC_EVENT_CHANNELS } from "@/shared/ipc/channels";
 
 const electronMock = vi.hoisted(() => {
   const window = {
     webContents: {
+      send: vi.fn<(...args: unknown[]) => void>(),
       session: {},
       setUserAgent: vi.fn<(value: string) => void>(),
       setWindowOpenHandler: vi.fn<(handler: (...args: unknown[]) => unknown) => void>(),
@@ -63,6 +65,9 @@ describe("quick composer window", () => {
     electronMock.window.getBounds.mockReturnValue({ x: 120, y: 80, width: 560, height: 470 });
     electronMock.window.isDestroyed.mockReturnValue(false);
     electronMock.window.isVisible.mockReturnValue(false);
+    electronMock.window.show.mockImplementation(() => {
+      electronMock.window.isVisible.mockReturnValue(true);
+    });
   });
 
   it("places the composer bottom-center with room above for its menus", () => {
@@ -96,6 +101,16 @@ describe("quick composer window", () => {
     ).toBe(false);
   });
 
+  it("publishes a confirmed hidden-to-visible transition without relying on an Electron event", () => {
+    showQuickComposerWindow(electronMock.window as never);
+    expect(electronMock.window.webContents.send).toHaveBeenCalledOnce();
+    expect(electronMock.window.webContents.send).toHaveBeenCalledWith(
+      IPC_EVENT_CHANNELS.quickComposerShown,
+    );
+    showQuickComposerWindow(electronMock.window as never);
+    expect(electronMock.window.webContents.send).toHaveBeenCalledOnce();
+  });
+
   it("creates a frameless transparent window that remains natively draggable", () => {
     createQuickComposerWindow({
       title: "Poracode",
@@ -122,6 +137,24 @@ describe("quick composer window", () => {
         alwaysOnTop: true,
         skipTaskbar: true,
       }),
+    );
+    // Each native show reaches the renderer even if the OS never emits focus.
+    const onShow = electronMock.window.on.mock.calls.find(
+      ([event]) => event === "show",
+    )?.[1] as () => void;
+    const onHide = electronMock.window.on.mock.calls.find(
+      ([event]) => event === "hide",
+    )?.[1] as () => void;
+    electronMock.window.isVisible.mockReturnValue(true);
+    onShow();
+    onShow();
+    electronMock.window.isVisible.mockReturnValue(false);
+    onHide();
+    electronMock.window.isVisible.mockReturnValue(true);
+    onShow();
+    expect(electronMock.window.webContents.send).toHaveBeenCalledTimes(2);
+    expect(electronMock.window.webContents.send).toHaveBeenCalledWith(
+      IPC_EVENT_CHANNELS.quickComposerShown,
     );
   });
 });

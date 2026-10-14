@@ -1,4 +1,5 @@
 import { awaitOpenCode2Activation } from "./readiness";
+import { availableOpenCode2Catalog } from "./catalogAvailability";
 import { OPENCODE2_MIN_VERSION, parseOpenCode2Version, supportsOpenCode2Version } from "./binary";
 import { quotePosixShellArg, quotePowerShellLiteral } from "../base/shellBasics";
 import { homedir } from "node:os";
@@ -13,6 +14,7 @@ import { acquireOpenCode2Server, resolveOpenCode2SessionDirectory } from "./clie
 import {
   buildOpenCode2StatusFromIntegrations,
   readOpenCode2Integrations,
+  readOpenCode2LegacyProviders,
   type OpenCode2InventoryIntegration,
 } from "./credentials";
 
@@ -251,37 +253,46 @@ export async function probeOpenCode2Inventory(
           "OpenCode 2 catalog probe timed out",
         );
 
+      const available = availableOpenCode2Catalog(models.data, providers.data, integrations.data);
+
       return {
         commands: [
           ...mapOpenCode2Commands(commands.data),
           ...mapOpenCode2Skills(skills.data, directory),
           ...mapOpenCode2Agents(agents.data),
         ],
-        models: models.data
-          .filter((model) => model.enabled)
-          .map((model) => {
-            const id = `${model.providerID}/${model.id}`;
-            const name = model.name.trim();
-            const contextLimit = model.limit.context;
-            return {
-              id,
-              label: name.length > 0 ? name : id,
-              variants: model.variants.map((variant) => variant.id),
-              ...(Number.isFinite(contextLimit) && contextLimit > 0
-                ? { contextLimit: Math.trunc(contextLimit) }
-                : {}),
-            };
-          }),
-        providers: providers.data.map((provider) => ({ id: provider.id, name: provider.name })),
+        models: available.models.map((model) => {
+          const id = `${model.providerID}/${model.id}`;
+          const name = model.name.trim();
+          const contextLimit = model.limit.context;
+          return {
+            id,
+            label: name.length > 0 ? name : id,
+            variants: model.variants.map((variant) => variant.id),
+            ...(Number.isFinite(contextLimit) && contextLimit > 0
+              ? { contextLimit: Math.trunc(contextLimit) }
+              : {}),
+          };
+        }),
+        providers: available.providers.map((provider) => ({
+          id: provider.id,
+          name: provider.name,
+        })),
         integrations: readOpenCode2Integrations(integrations.data),
         agents: agents.data.map((agent) => ({
           id: agent.id,
           mode: agent.mode,
           hidden: agent.hidden,
         })),
-        defaultModel: defaultModel.data
-          ? { providerID: defaultModel.data.providerID, id: defaultModel.data.id }
-          : undefined,
+        defaultModel:
+          defaultModel.data &&
+          available.models.some(
+            (model) =>
+              model.providerID === defaultModel.data?.providerID &&
+              model.id === defaultModel.data?.id,
+          )
+            ? { providerID: defaultModel.data.providerID, id: defaultModel.data.id }
+            : undefined,
       } satisfies OpenCode2Inventory;
     })();
 
@@ -322,9 +333,13 @@ async function runOpenCode2DetectionProbe(
 
   try {
     const inventory = await probeOpenCode2Inventory(ctx.location, ctx.signal);
+    const legacyProviders = await readOpenCode2LegacyProviders(
+      ctx.location,
+      inventory.integrations,
+    );
     return {
       capabilities: buildOpenCode2CapabilityPartialFromInventory(inventory),
-      status: buildOpenCode2StatusFromIntegrations(inventory.integrations),
+      status: buildOpenCode2StatusFromIntegrations(inventory.integrations, legacyProviders),
     };
   } catch (cause) {
     // No CLI fallback exists for V2 — keep the default capability set so the
@@ -356,7 +371,9 @@ function probeOpenCode2Detection(
   return pending;
 }
 
-// Keep installer and protocol validation aligned with the pinned HTTP client.
+// Keep installs inside the supported protocol major. Run only the package-owned
+// setup explicitly: npm can succeed while its lifecycle policy leaves a stub.
+// Verify the launcher so an incomplete install never reports update success.
 export const openCode2DetectionSpec: DetectionSpec = {
   kind: "opencode2",
   label: "OpenCode 2",
@@ -381,7 +398,7 @@ export const openCode2DetectionSpec: DetectionSpec = {
         binary: "sh",
         args: [
           "-c",
-          `npm install --prefix "$HOME/.opencode2" @opencode/cli@${OPENCODE2_MIN_VERSION}`,
+          `npm install --ignore-scripts --include=optional --prefix "$HOME/.opencode2" "@opencode/cli@^${OPENCODE2_MIN_VERSION}" && npm --prefix "$HOME/.opencode2/node_modules/@opencode/cli" run postinstall && "$HOME/.opencode2/node_modules/@opencode/cli/bin/opencode.exe" --version`,
         ],
       },
       windows: {
@@ -389,7 +406,7 @@ export const openCode2DetectionSpec: DetectionSpec = {
         args: [
           "-NoProfile",
           "-Command",
-          `npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@${OPENCODE2_MIN_VERSION}`,
+          `$ErrorActionPreference = "Stop"; npm install --ignore-scripts --include=optional --prefix "$env:USERPROFILE/.opencode2" "@opencode/cli@^${OPENCODE2_MIN_VERSION}"; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; npm --prefix "$env:USERPROFILE/.opencode2/node_modules/@opencode/cli" run postinstall; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & "$env:USERPROFILE/.opencode2/node_modules/@opencode/cli/bin/opencode.exe" --version; exit $LASTEXITCODE`,
         ],
       },
     },

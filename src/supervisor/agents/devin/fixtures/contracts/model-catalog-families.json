@@ -1,0 +1,3692 @@
+{
+  "families": [
+    {
+      "family_label": "Adaptive",
+      "slug": "adaptive",
+      "variants": [
+        {
+          "model_uid": "adaptive",
+          "label": "Adaptive"
+        }
+      ]
+    },
+    {
+      "family_label": "SWE-2",
+      "slug": "swe-2",
+      "variants": [
+        {
+          "model_uid": "swe-2-high",
+          "label": "SWE-2 High"
+        },
+        {
+          "model_uid": "swe-2-medium",
+          "label": "SWE-2 Medium"
+        },
+        {
+          "model_uid": "swe-2-max",
+          "label": "SWE-2 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "SWE-1.7 Lightning",
+      "slug": "swe-1.7-lightning",
+      "variants": [
+        {
+          "model_uid": "swe-1-7-lightning",
+          "label": "SWE-1.7 Lightning Max"
+        },
+        {
+          "model_uid": "swe-1-7-lightning-medium",
+          "label": "SWE-1.7 Lightning Medium"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Fable 5.1",
+      "slug": "claude-fable-5.1",
+      "variants": [
+        {
+          "model_uid": "claude-fable-5-1-medium",
+          "label": "Claude Fable 5.1 Medium"
+        },
+        {
+          "model_uid": "claude-fable-5-1-low",
+          "label": "Claude Fable 5.1 Low"
+        },
+        {
+          "model_uid": "claude-fable-5-1-high",
+          "label": "Claude Fable 5.1 High"
+        },
+        {
+          "model_uid": "claude-fable-5-1-xhigh",
+          "label": "Claude Fable 5.1 XHigh"
+        },
+        {
+          "model_uid": "claude-fable-5-1-max",
+          "label": "Claude Fable 5.1 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Opus 5.5",
+      "slug": "claude-opus-5.5",
+      "variants": [
+        {
+          "model_uid": "claude-opus-5-5-medium",
+          "label": "Claude Opus 5.5 Medium"
+        },
+        {
+          "model_uid": "claude-opus-5-5-low",
+          "label": "Claude Opus 5.5 Low"
+        },
+        {
+          "model_uid": "claude-opus-5-5-high",
+          "label": "Claude Opus 5.5 High"
+        },
+        {
+          "model_uid": "claude-opus-5-5-xhigh",
+          "label": "Claude Opus 5.5 XHigh"
+        },
+        {
+          "model_uid": "claude-opus-5-5-max",
+          "label": "Claude Opus 5.5 Max"
+        },
+        {
+          "model_uid": "claude-opus-5-5-low-fast",
+          "label": "Claude Opus 5.5 Low Fast"
+        },
+        {
+          "model_uid": "claude-opus-5-5-medium-fast",
+          "label": "Claude Opus 5.5 Medium Fast"
+        },
+        {
+          "model_uid": "claude-opus-5-5-high-fast",
+          "label": "Claude Opus 5.5 High Fast"
+        },
+        {
+          "model_uid": "claude-opus-5-5-xhigh-fast",
+          "label": "Claude Opus 5.5 XHigh Fast"
+        },
+        {
+          "model_uid": "claude-opus-5-5-max-fast",
+          "label": "Claude Opus 5.5 Max Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-6 Astra",
+      "slug": "gpt-6-astra",
+      "variants": [
+        {
+          "model_uid": "gpt-6-astra-medium",
+          "label": "GPT-6 Astra Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-6-astra-low",
+          "label": "GPT-6 Astra Low Thinking"
+        },
+        {
+          "model_uid": "gpt-6-astra-high",
+          "label": "GPT-6 Astra High Thinking"
+        },
+        {
+          "model_uid": "gpt-6-astra-xhigh",
+          "label": "GPT-6 Astra XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-6-astra-max",
+          "label": "GPT-6 Astra Max Thinking"
+        },
+        {
+          "model_uid": "gpt-6-astra-low-priority",
+          "label": "GPT-6 Astra Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-astra-medium-priority",
+          "label": "GPT-6 Astra Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-astra-high-priority",
+          "label": "GPT-6 Astra High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-astra-xhigh-priority",
+          "label": "GPT-6 Astra XHigh Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-astra-max-priority",
+          "label": "GPT-6 Astra Max Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-6 Sol",
+      "slug": "gpt-6-sol",
+      "variants": [
+        {
+          "model_uid": "gpt-6-sol-medium",
+          "label": "GPT-6 Sol Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-6-sol-none",
+          "label": "GPT-6 Sol No Thinking"
+        },
+        {
+          "model_uid": "gpt-6-sol-low",
+          "label": "GPT-6 Sol Low Thinking"
+        },
+        {
+          "model_uid": "gpt-6-sol-high",
+          "label": "GPT-6 Sol High Thinking"
+        },
+        {
+          "model_uid": "gpt-6-sol-xhigh",
+          "label": "GPT-6 Sol XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-6-sol-max",
+          "label": "GPT-6 Sol Max Thinking"
+        },
+        {
+          "model_uid": "gpt-6-sol-none-priority",
+          "label": "GPT-6 Sol No Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-sol-low-priority",
+          "label": "GPT-6 Sol Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-sol-medium-priority",
+          "label": "GPT-6 Sol Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-sol-high-priority",
+          "label": "GPT-6 Sol High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-sol-xhigh-priority",
+          "label": "GPT-6 Sol XHigh Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-sol-max-priority",
+          "label": "GPT-6 Sol Max Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-6 Luna",
+      "slug": "gpt-6-luna",
+      "variants": [
+        {
+          "model_uid": "gpt-6-luna-medium",
+          "label": "GPT-6 Luna Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-6-luna-none",
+          "label": "GPT-6 Luna No Thinking"
+        },
+        {
+          "model_uid": "gpt-6-luna-low",
+          "label": "GPT-6 Luna Low Thinking"
+        },
+        {
+          "model_uid": "gpt-6-luna-high",
+          "label": "GPT-6 Luna High Thinking"
+        },
+        {
+          "model_uid": "gpt-6-luna-xhigh",
+          "label": "GPT-6 Luna XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-6-luna-max",
+          "label": "GPT-6 Luna Max Thinking"
+        },
+        {
+          "model_uid": "gpt-6-luna-none-priority",
+          "label": "GPT-6 Luna No Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-luna-low-priority",
+          "label": "GPT-6 Luna Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-luna-medium-priority",
+          "label": "GPT-6 Luna Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-luna-high-priority",
+          "label": "GPT-6 Luna High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-luna-xhigh-priority",
+          "label": "GPT-6 Luna XHigh Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-luna-max-priority",
+          "label": "GPT-6 Luna Max Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "Kimi K3",
+      "slug": "kimi-k3",
+      "variants": [
+        {
+          "model_uid": "kimi-k3-high",
+          "label": "Kimi K3 High"
+        },
+        {
+          "model_uid": "kimi-k3-low",
+          "label": "Kimi K3 Low"
+        },
+        {
+          "model_uid": "kimi-k3-max",
+          "label": "Kimi K3 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "GLM-5.2",
+      "slug": "glm-5.2",
+      "variants": [
+        {
+          "model_uid": "glm-5-2",
+          "label": "GLM-5.2 High"
+        },
+        {
+          "model_uid": "glm-5-2-max",
+          "label": "GLM-5.2 Max"
+        },
+        {
+          "model_uid": "glm-5-2-1m",
+          "label": "GLM-5.2 High 1M"
+        },
+        {
+          "model_uid": "glm-5-2-max-1m",
+          "label": "GLM-5.2 Max 1M"
+        },
+        {
+          "model_uid": "glm-5-2-none",
+          "label": "GLM-5.2 No Thinking"
+        },
+        {
+          "model_uid": "glm-5-2-none-1m",
+          "label": "GLM-5.2 No Thinking 1M"
+        }
+      ]
+    },
+    {
+      "family_label": "GLM-5.3",
+      "slug": "glm-5.3",
+      "variants": [
+        {
+          "model_uid": "glm-5-3-low",
+          "label": "GLM-5.3 Low"
+        },
+        {
+          "model_uid": "glm-5-3-high",
+          "label": "GLM-5.3 High"
+        },
+        {
+          "model_uid": "glm-5-3-max",
+          "label": "GLM-5.3 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Sonnet 5.5",
+      "slug": "claude-sonnet-5.5",
+      "variants": [
+        {
+          "model_uid": "claude-sonnet-5-5-medium",
+          "label": "Claude Sonnet 5.5 Medium"
+        },
+        {
+          "model_uid": "claude-sonnet-5-5-low",
+          "label": "Claude Sonnet 5.5 Low"
+        },
+        {
+          "model_uid": "claude-sonnet-5-5-high",
+          "label": "Claude Sonnet 5.5 High"
+        },
+        {
+          "model_uid": "claude-sonnet-5-5-xhigh",
+          "label": "Claude Sonnet 5.5 XHigh"
+        },
+        {
+          "model_uid": "claude-sonnet-5-5-max",
+          "label": "Claude Sonnet 5.5 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "Gemini 3.8 Flash",
+      "slug": "gemini-3.8-flash",
+      "variants": [
+        {
+          "model_uid": "gemini-3-8-flash-medium",
+          "label": "Gemini 3.8 Flash Medium"
+        },
+        {
+          "model_uid": "gemini-3-8-flash-low",
+          "label": "Gemini 3.8 Flash Low"
+        },
+        {
+          "model_uid": "gemini-3-8-flash-high",
+          "label": "Gemini 3.8 Flash High"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Opus 4.7",
+      "slug": "claude-opus-4.7",
+      "variants": [
+        {
+          "model_uid": "claude-opus-4-7-medium",
+          "label": "Claude Opus 4.7 Medium"
+        },
+        {
+          "model_uid": "claude-opus-4-7-low",
+          "label": "Claude Opus 4.7 Low"
+        },
+        {
+          "model_uid": "claude-opus-4-7-high",
+          "label": "Claude Opus 4.7 High"
+        },
+        {
+          "model_uid": "claude-opus-4-7-xhigh",
+          "label": "Claude Opus 4.7 XHigh"
+        },
+        {
+          "model_uid": "claude-opus-4-7-max",
+          "label": "Claude Opus 4.7 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Opus 4.8",
+      "slug": "claude-opus-4.8",
+      "variants": [
+        {
+          "model_uid": "claude-opus-4-8-medium",
+          "label": "Claude Opus 4.8 Medium"
+        },
+        {
+          "model_uid": "claude-opus-4-8-low",
+          "label": "Claude Opus 4.8 Low"
+        },
+        {
+          "model_uid": "claude-opus-4-8-high",
+          "label": "Claude Opus 4.8 High"
+        },
+        {
+          "model_uid": "claude-opus-4-8-xhigh",
+          "label": "Claude Opus 4.8 XHigh"
+        },
+        {
+          "model_uid": "claude-opus-4-8-max",
+          "label": "Claude Opus 4.8 Max"
+        },
+        {
+          "model_uid": "claude-opus-4-8-low-fast",
+          "label": "Claude Opus 4.8 Low Fast"
+        },
+        {
+          "model_uid": "claude-opus-4-8-medium-fast",
+          "label": "Claude Opus 4.8 Medium Fast"
+        },
+        {
+          "model_uid": "claude-opus-4-8-high-fast",
+          "label": "Claude Opus 4.8 High Fast"
+        },
+        {
+          "model_uid": "claude-opus-4-8-xhigh-fast",
+          "label": "Claude Opus 4.8 XHigh Fast"
+        },
+        {
+          "model_uid": "claude-opus-4-8-max-fast",
+          "label": "Claude Opus 4.8 Max Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Opus 5",
+      "slug": "claude-opus-5",
+      "variants": [
+        {
+          "model_uid": "claude-opus-5-medium",
+          "label": "Claude Opus 5 Medium"
+        },
+        {
+          "model_uid": "claude-opus-5-low",
+          "label": "Claude Opus 5 Low"
+        },
+        {
+          "model_uid": "claude-opus-5-high",
+          "label": "Claude Opus 5 High"
+        },
+        {
+          "model_uid": "claude-opus-5-xhigh",
+          "label": "Claude Opus 5 XHigh"
+        },
+        {
+          "model_uid": "claude-opus-5-max",
+          "label": "Claude Opus 5 Max"
+        },
+        {
+          "model_uid": "claude-opus-5-low-fast",
+          "label": "Claude Opus 5 Low Fast"
+        },
+        {
+          "model_uid": "claude-opus-5-medium-fast",
+          "label": "Claude Opus 5 Medium Fast"
+        },
+        {
+          "model_uid": "claude-opus-5-high-fast",
+          "label": "Claude Opus 5 High Fast"
+        },
+        {
+          "model_uid": "claude-opus-5-xhigh-fast",
+          "label": "Claude Opus 5 XHigh Fast"
+        },
+        {
+          "model_uid": "claude-opus-5-max-fast",
+          "label": "Claude Opus 5 Max Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Fable 5",
+      "slug": "claude-fable-5",
+      "variants": [
+        {
+          "model_uid": "claude-5-fable-low",
+          "label": "Claude Fable 5 Low"
+        },
+        {
+          "model_uid": "claude-5-fable-medium",
+          "label": "Claude Fable 5 Medium"
+        },
+        {
+          "model_uid": "claude-5-fable-high",
+          "label": "Claude Fable 5 High"
+        },
+        {
+          "model_uid": "claude-5-fable-xhigh",
+          "label": "Claude Fable 5 XHigh"
+        },
+        {
+          "model_uid": "claude-5-fable-max",
+          "label": "Claude Fable 5 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Sonnet 5",
+      "slug": "claude-sonnet-5",
+      "variants": [
+        {
+          "model_uid": "claude-sonnet-5-low",
+          "label": "Claude Sonnet 5 Low"
+        },
+        {
+          "model_uid": "claude-sonnet-5-medium",
+          "label": "Claude Sonnet 5 Medium"
+        },
+        {
+          "model_uid": "claude-sonnet-5-high",
+          "label": "Claude Sonnet 5 High"
+        },
+        {
+          "model_uid": "claude-sonnet-5-xhigh",
+          "label": "Claude Sonnet 5 XHigh"
+        },
+        {
+          "model_uid": "claude-sonnet-5-max",
+          "label": "Claude Sonnet 5 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Haiku 5.5",
+      "slug": "claude-haiku-5.5",
+      "variants": [
+        {
+          "model_uid": "claude-haiku-5-5-low",
+          "label": "Claude Haiku 5.5 Low"
+        },
+        {
+          "model_uid": "claude-haiku-5-5-medium",
+          "label": "Claude Haiku 5.5 Medium"
+        },
+        {
+          "model_uid": "claude-haiku-5-5-high",
+          "label": "Claude Haiku 5.5 High"
+        },
+        {
+          "model_uid": "claude-haiku-5-5-xhigh",
+          "label": "Claude Haiku 5.5 XHigh"
+        },
+        {
+          "model_uid": "claude-haiku-5-5-max",
+          "label": "Claude Haiku 5.5 Max"
+        }
+      ]
+    },
+    {
+      "family_label": "Gemini 3.5 Flash",
+      "slug": "gemini-3.5-flash",
+      "variants": [
+        {
+          "model_uid": "gemini-3-5-flash-minimal",
+          "label": "Gemini 3.5 Flash Minimal"
+        },
+        {
+          "model_uid": "gemini-3-5-flash-low",
+          "label": "Gemini 3.5 Flash Low"
+        },
+        {
+          "model_uid": "gemini-3-5-flash-medium",
+          "label": "Gemini 3.5 Flash Medium"
+        },
+        {
+          "model_uid": "gemini-3-5-flash-high",
+          "label": "Gemini 3.5 Flash High"
+        }
+      ]
+    },
+    {
+      "family_label": "Gemini 3.6 Flash",
+      "slug": "gemini-3.6-flash",
+      "variants": [
+        {
+          "model_uid": "gemini-3-6-flash-minimal",
+          "label": "Gemini 3.6 Flash Minimal"
+        },
+        {
+          "model_uid": "gemini-3-6-flash-low",
+          "label": "Gemini 3.6 Flash Low"
+        },
+        {
+          "model_uid": "gemini-3-6-flash-medium",
+          "label": "Gemini 3.6 Flash Medium"
+        },
+        {
+          "model_uid": "gemini-3-6-flash-high",
+          "label": "Gemini 3.6 Flash High"
+        }
+      ]
+    },
+    {
+      "family_label": "Gemini 3.7 Flash",
+      "slug": "gemini-3.7-flash",
+      "variants": [
+        {
+          "model_uid": "gemini-3-7-flash-low",
+          "label": "Gemini 3.7 Flash Low"
+        },
+        {
+          "model_uid": "gemini-3-7-flash-medium",
+          "label": "Gemini 3.7 Flash Medium"
+        },
+        {
+          "model_uid": "gemini-3-7-flash-high",
+          "label": "Gemini 3.7 Flash High"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.6 Sol",
+      "slug": "gpt-5.6-sol",
+      "variants": [
+        {
+          "model_uid": "gpt-5-6-sol-none",
+          "label": "GPT-5.6 Sol No Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-low",
+          "label": "GPT-5.6 Sol Low Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-medium",
+          "label": "GPT-5.6 Sol Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-high",
+          "label": "GPT-5.6 Sol High Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-xhigh",
+          "label": "GPT-5.6 Sol XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-max",
+          "label": "GPT-5.6 Sol Max Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-none-priority",
+          "label": "GPT-5.6 Sol No Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-low-priority",
+          "label": "GPT-5.6 Sol Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-medium-priority",
+          "label": "GPT-5.6 Sol Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-high-priority",
+          "label": "GPT-5.6 Sol High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-xhigh-priority",
+          "label": "GPT-5.6 Sol XHigh Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-sol-max-priority",
+          "label": "GPT-5.6 Sol Max Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.6 Terra",
+      "slug": "gpt-5.6-terra",
+      "variants": [
+        {
+          "model_uid": "gpt-5-6-terra-none",
+          "label": "GPT-5.6 Terra No Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-low",
+          "label": "GPT-5.6 Terra Low Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-medium",
+          "label": "GPT-5.6 Terra Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-high",
+          "label": "GPT-5.6 Terra High Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-xhigh",
+          "label": "GPT-5.6 Terra XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-max",
+          "label": "GPT-5.6 Terra Max Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-none-priority",
+          "label": "GPT-5.6 Terra No Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-low-priority",
+          "label": "GPT-5.6 Terra Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-medium-priority",
+          "label": "GPT-5.6 Terra Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-high-priority",
+          "label": "GPT-5.6 Terra High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-xhigh-priority",
+          "label": "GPT-5.6 Terra XHigh Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-terra-max-priority",
+          "label": "GPT-5.6 Terra Max Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.6 Luna",
+      "slug": "gpt-5.6-luna",
+      "variants": [
+        {
+          "model_uid": "gpt-5-6-luna-none",
+          "label": "GPT-5.6 Luna No Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-low",
+          "label": "GPT-5.6 Luna Low Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-medium",
+          "label": "GPT-5.6 Luna Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-high",
+          "label": "GPT-5.6 Luna High Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-xhigh",
+          "label": "GPT-5.6 Luna XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-max",
+          "label": "GPT-5.6 Luna Max Thinking"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-none-priority",
+          "label": "GPT-5.6 Luna No Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-low-priority",
+          "label": "GPT-5.6 Luna Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-medium-priority",
+          "label": "GPT-5.6 Luna Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-high-priority",
+          "label": "GPT-5.6 Luna High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-xhigh-priority",
+          "label": "GPT-5.6 Luna XHigh Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-6-luna-max-priority",
+          "label": "GPT-5.6 Luna Max Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-6.1 Sol",
+      "slug": "gpt-6.1-sol",
+      "variants": [
+        {
+          "model_uid": "gpt-6-1-sol-low",
+          "label": "GPT-6.1 Sol Low Thinking"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-medium",
+          "label": "GPT-6.1 Sol Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-high",
+          "label": "GPT-6.1 Sol High Thinking"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-xhigh",
+          "label": "GPT-6.1 Sol XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-max",
+          "label": "GPT-6.1 Sol Max Thinking"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-low-priority",
+          "label": "GPT-6.1 Sol Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-medium-priority",
+          "label": "GPT-6.1 Sol Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-high-priority",
+          "label": "GPT-6.1 Sol High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-xhigh-priority",
+          "label": "GPT-6.1 Sol XHigh Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-6-1-sol-max-priority",
+          "label": "GPT-6.1 Sol Max Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "Grok 4.5",
+      "slug": "grok-4.5",
+      "variants": [
+        {
+          "model_uid": "grok-4-5-low",
+          "label": "Grok 4.5 Low"
+        },
+        {
+          "model_uid": "grok-4-5-medium",
+          "label": "Grok 4.5 Medium"
+        },
+        {
+          "model_uid": "grok-4-5-high",
+          "label": "Grok 4.5 High"
+        }
+      ]
+    },
+    {
+      "family_label": "Grok 4.6",
+      "slug": "grok-4.6",
+      "variants": [
+        {
+          "model_uid": "grok-4-6-low",
+          "label": "Grok 4.6 Low"
+        },
+        {
+          "model_uid": "grok-4-6-medium",
+          "label": "Grok 4.6 Medium"
+        },
+        {
+          "model_uid": "grok-4-6-high",
+          "label": "Grok 4.6 High"
+        },
+        {
+          "model_uid": "grok-4-6-xhigh",
+          "label": "Grok 4.6 XHigh"
+        }
+      ]
+    },
+    {
+      "family_label": "Grok 4.7",
+      "slug": "grok-4.7",
+      "variants": [
+        {
+          "model_uid": "grok-4-7-low",
+          "label": "Grok 4.7 Low"
+        },
+        {
+          "model_uid": "grok-4-7-medium",
+          "label": "Grok 4.7 Medium"
+        },
+        {
+          "model_uid": "grok-4-7-high",
+          "label": "Grok 4.7 High"
+        },
+        {
+          "model_uid": "grok-4-7-xhigh",
+          "label": "Grok 4.7 XHigh"
+        }
+      ]
+    },
+    {
+      "family_label": "Inkling",
+      "slug": "inkling",
+      "variants": [
+        {
+          "model_uid": "inkling-none",
+          "label": "Inkling None"
+        },
+        {
+          "model_uid": "inkling-low",
+          "label": "Inkling Low"
+        },
+        {
+          "model_uid": "inkling-medium",
+          "label": "Inkling Medium"
+        },
+        {
+          "model_uid": "inkling-high",
+          "label": "Inkling High"
+        },
+        {
+          "model_uid": "inkling-xhigh",
+          "label": "Inkling X-High"
+        },
+        {
+          "model_uid": "inkling-max",
+          "label": "Inkling Max"
+        }
+      ]
+    },
+    {
+      "family_label": "GLM-5.3 Flash",
+      "slug": "glm-5.3-flash",
+      "variants": [
+        {
+          "model_uid": "glm-5-3-flash-low",
+          "label": "GLM-5.3 Flash Low"
+        },
+        {
+          "model_uid": "glm-5-3-flash-high",
+          "label": "GLM-5.3 Flash High"
+        },
+        {
+          "model_uid": "glm-5-3-flash-max",
+          "label": "GLM-5.3 Flash Max"
+        }
+      ]
+    },
+    {
+      "family_label": "DeepSeek V4 Flash",
+      "slug": "deepseek-v4-flash",
+      "variants": [
+        {
+          "model_uid": "deepseek-v4-flash-high",
+          "label": "DeepSeek V4 Flash High"
+        },
+        {
+          "model_uid": "deepseek-v4-flash-max",
+          "label": "DeepSeek V4 Flash Max"
+        }
+      ]
+    },
+    {
+      "family_label": "DeepSeek V4.1 Flash",
+      "slug": "deepseek-v4.1-flash",
+      "variants": [
+        {
+          "model_uid": "deepseek-v4-1-flash-high",
+          "label": "DeepSeek V4.1 Flash High"
+        },
+        {
+          "model_uid": "deepseek-v4-1-flash-max",
+          "label": "DeepSeek V4.1 Flash Max"
+        }
+      ]
+    },
+    {
+      "family_label": "SWE-1.7",
+      "slug": "swe-1.7",
+      "variants": [
+        {
+          "model_uid": "swe-1-7",
+          "label": "SWE-1.7 Max"
+        },
+        {
+          "model_uid": "swe-1-7-medium",
+          "label": "SWE-1.7 Medium"
+        }
+      ]
+    },
+    {
+      "family_label": "Fusion",
+      "slug": "fusion",
+      "variants": [
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Fable 5.1 Medium + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Fable 5.1 High + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol High Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol High Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 High + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 High Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 High + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 High Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Sonnet 5.5 High + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra High Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra High Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol High Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol High Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol High Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol High Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 Medium + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 Medium Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 Medium + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 Medium Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra Medium Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra Medium Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol Medium Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol Medium Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 XHigh + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 XHigh Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 XHigh + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 XHigh Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Fable 5.1 XHigh + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 Low + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 Low Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 Low + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 Low Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Sonnet 5.5 Low + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Fable 5.1 Low + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra Low Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra Low Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol Low Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol Low Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Fable 5.1 Max + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra Max Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Astra Max Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol Max Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6 Sol Max Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-fast-sidekick-swe-2-medium",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 Max + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5 Max Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 Max + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-fast-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Opus 5.5 Max Fast + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-sidekick-swe-2-medium",
+          "label": "Fusion (Claude Sonnet 5.5 Max + SWE-2 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 Medium + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Medium + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 High + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 High + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol High Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol High Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5 High + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 High Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 High + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 High Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 High + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 High + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Astra High Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra High Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Sol High Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol High Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol High Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol High Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5 Medium + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 Medium Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 Medium + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Medium Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Astra Medium Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra Medium Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Sol Medium Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol Medium Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5 XHigh + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 XHigh Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 XHigh + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 XHigh Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 XHigh + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 XHigh + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5 Low + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 Low Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 Low + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Low Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 Low + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Low + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 Low + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Low + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Astra Low Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra Low Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Sol Low Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol Low Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 Max + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Max + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Astra Max Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra Max Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6 Sol Max Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol Max Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5 Max + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 Max Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 Max + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Max Fast + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-sidekick-gpt-5-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 Max + GPT-5.6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-fast-sidekick-gpt-5-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Max + GPT-5.6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 Medium + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Medium + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 High + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 High + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol High Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol High Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5 High + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 High Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 High + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 High Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 High + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 High + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Astra High Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra High Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Sol High Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol High Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol High Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol High Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5 Medium + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 Medium Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 Medium + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Medium Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Astra Medium Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra Medium Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Sol Medium Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol Medium Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5 XHigh + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 XHigh Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 XHigh + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 XHigh Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 XHigh + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 XHigh + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5 Low + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 Low Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 Low + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Low Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 Low + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Low + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 Low + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Low + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Astra Low Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra Low Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Sol Low Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol Low Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Fable 5.1 Max + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Max + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Astra Max Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Astra Max Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6 Sol Max Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6 Sol Max Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-sidekick-gpt-6-luna-high",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5 Max + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5 Max Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Opus 5.5 Max + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Max Fast + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-sidekick-gpt-6-luna-high",
+          "label": "Fusion (Claude Sonnet 5.5 Max + GPT-6 Luna High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-fast-sidekick-gpt-6-luna-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Max + GPT-6 Luna High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-sidekick-glm-5-2",
+          "label": "Fusion (Claude Fable 5.1 Medium + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-sidekick-glm-5-2",
+          "label": "Fusion (Claude Fable 5.1 High + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol High Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol High Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 High + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 High Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 High + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 High Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-sidekick-glm-5-2",
+          "label": "Fusion (Claude Sonnet 5.5 High + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra High Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra High Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol High Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol High Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol High Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol High Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 Medium + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 Medium Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 Medium + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 Medium Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-sidekick-glm-5-2",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra Medium Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra Medium Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol Medium Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol Medium Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 XHigh + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 XHigh Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 XHigh + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 XHigh Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-sidekick-glm-5-2",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-sidekick-glm-5-2",
+          "label": "Fusion (Claude Fable 5.1 XHigh + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 Low + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 Low Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 Low + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 Low Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-sidekick-glm-5-2",
+          "label": "Fusion (Claude Sonnet 5.5 Low + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-sidekick-glm-5-2",
+          "label": "Fusion (Claude Fable 5.1 Low + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra Low Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra Low Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol Low Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol Low Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-sidekick-glm-5-2",
+          "label": "Fusion (Claude Fable 5.1 Max + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra Max Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Astra Max Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol Max Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6 Sol Max Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-fast-sidekick-glm-5-2",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 Max + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5 Max Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 Max + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-fast-sidekick-glm-5-2",
+          "label": "Fusion (Claude Opus 5.5 Max Fast + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-sidekick-glm-5-2",
+          "label": "Fusion (Claude Sonnet 5.5 Max + GLM-5.2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Fable 5.1 Medium + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Medium + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Fable 5.1 High + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Fable 5.1 High + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5 High + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5 High Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5.5 High + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5.5 High Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Sonnet 5.5 High + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 High + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Astra High Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Astra High Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Sol High Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Sol High Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6.1 Sol High Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6.1 Sol High Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5 Medium + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5 Medium Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5.5 Medium + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Medium Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Astra Medium Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Astra Medium Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Sol Medium Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Sol Medium Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5 XHigh + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5 XHigh Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5.5 XHigh + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5.5 XHigh Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Fable 5.1 XHigh + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Fable 5.1 XHigh + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5 Low + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5 Low Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5.5 Low + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Low Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Sonnet 5.5 Low + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Low + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Fable 5.1 Low + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Low + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Astra Low Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Astra Low Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Sol Low Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Sol Low Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Fable 5.1 Max + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Fable 5.1 Max + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Astra Max Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Astra Max Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6 Sol Max Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6 Sol Max Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5 Max + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5 Max Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Opus 5.5 Max + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Opus 5.5 Max Fast + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-sidekick-gpt-5-6-sol-high",
+          "label": "Fusion (Claude Sonnet 5.5 Max + GPT-5.6 Sol High Thinking)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-fast-sidekick-gpt-5-6-sol-high-priority",
+          "label": "Fusion (Claude Sonnet 5.5 Max + GPT-5.6 Sol High Thinking Fast)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-sidekick-swe-2-high",
+          "label": "Fusion (Claude Fable 5.1 Medium + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-sidekick-swe-2-high",
+          "label": "Fusion (Claude Fable 5.1 High + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol High Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol High Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 High + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 High Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 High + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 High Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-sidekick-swe-2-high",
+          "label": "Fusion (Claude Sonnet 5.5 High + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra High Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra High Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol High Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol High Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol High Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol High Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 Medium + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 Medium Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 Medium + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 Medium Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-sidekick-swe-2-high",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra Medium Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra Medium Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol Medium Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol Medium Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 XHigh + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 XHigh Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 XHigh + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 XHigh Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-sidekick-swe-2-high",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-sidekick-swe-2-high",
+          "label": "Fusion (Claude Fable 5.1 XHigh + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 Low + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 Low Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 Low + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 Low Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-sidekick-swe-2-high",
+          "label": "Fusion (Claude Sonnet 5.5 Low + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-sidekick-swe-2-high",
+          "label": "Fusion (Claude Fable 5.1 Low + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra Low Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra Low Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol Low Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol Low Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-sidekick-swe-2-high",
+          "label": "Fusion (Claude Fable 5.1 Max + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra Max Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Astra Max Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol Max Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6 Sol Max Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-fast-sidekick-swe-2-high",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 Max + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5 Max Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 Max + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-fast-sidekick-swe-2-high",
+          "label": "Fusion (Claude Opus 5.5 Max Fast + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-sidekick-swe-2-high",
+          "label": "Fusion (Claude Sonnet 5.5 Max + SWE-2 High)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 Medium + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 High + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol High Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol High Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 High + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 High Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 High + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 High Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra High Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra High Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol High Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol High Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol High Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol High Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Medium + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Medium Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Medium + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Medium Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Medium Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Medium Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Medium Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Medium Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 XHigh + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 XHigh Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 XHigh + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 XHigh Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 XHigh + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Low + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Low Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Low + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Low Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 Low + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Low Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Low Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Low Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Low Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 Max + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Max Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Max Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Max Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Max Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Max + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Max Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Max + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-fast-sidekick-claude-sonnet-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Max Fast + Claude Sonnet 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-medium-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 Medium + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-high-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 High + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol High Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-high-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol High Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 High + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-high-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 High Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 High + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-high-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 High Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-high-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Sonnet 5.5 High + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra High Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-high-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra High Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol High Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-high-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol High Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol High Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-high-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol High Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-medium-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Medium Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Medium + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-medium-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Medium Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Medium + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-medium-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Medium Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-medium-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Sonnet 5.5 Medium + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Medium Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-medium-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Medium Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Medium Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-medium-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Medium Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-medium-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Medium Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 XHigh + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-xhigh-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 XHigh Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 XHigh + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-xhigh-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 XHigh Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-xhigh-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Sonnet 5.5 XHigh + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-xhigh-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 XHigh + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-xhigh-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol XHigh Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-xhigh-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra XHigh Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-xhigh-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol XHigh Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-xhigh-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol XHigh Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-low-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Low Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Low + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-low-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Low Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Low + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-low-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Low Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-low-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Sonnet 5.5 Low + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-low-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 Low + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Low Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-low-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Low Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Low Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-low-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Low Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-low-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Low Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-fable-5-1-max-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Fable 5.1 Max + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Max Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-astra-max-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Astra Max Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Max Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-sol-max-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6 Sol Max Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-6-1-sol-max-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-6.1 Sol Max Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-gpt-5-6-sol-max-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (GPT-5.6 Sol Max Thinking Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Max + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-max-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5 Max Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Max + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-opus-5-5-max-fast-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Opus 5.5 Max Fast + Claude Haiku 5.5 Medium)"
+        },
+        {
+          "model_uid": "fusion-claude-sonnet-5-5-max-sidekick-claude-haiku-5-5-medium",
+          "label": "Fusion (Claude Sonnet 5.5 Max + Claude Haiku 5.5 Medium)"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Opus 4.6",
+      "slug": "claude-opus-4.6",
+      "variants": [
+        {
+          "model_uid": "claude-opus-4-6",
+          "label": "Claude Opus 4.6"
+        },
+        {
+          "model_uid": "claude-opus-4-6-thinking",
+          "label": "Claude Opus 4.6 Thinking"
+        },
+        {
+          "model_uid": "claude-opus-4-6-1m",
+          "label": "Claude Opus 4.6 1M"
+        },
+        {
+          "model_uid": "claude-opus-4-6-thinking-1m",
+          "label": "Claude Opus 4.6 Thinking 1M"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.4",
+      "slug": "gpt-5.4",
+      "variants": [
+        {
+          "model_uid": "gpt-5-4-none",
+          "label": "GPT-5.4 No Thinking"
+        },
+        {
+          "model_uid": "gpt-5-4-low",
+          "label": "GPT-5.4 Low Thinking"
+        },
+        {
+          "model_uid": "gpt-5-4-medium",
+          "label": "GPT-5.4 Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-5-4-high",
+          "label": "GPT-5.4 High Thinking"
+        },
+        {
+          "model_uid": "gpt-5-4-xhigh",
+          "label": "GPT-5.4 XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-5-4-none-priority",
+          "label": "GPT-5.4 No Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-4-low-priority",
+          "label": "GPT-5.4 Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-4-medium-priority",
+          "label": "GPT-5.4 Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-4-high-priority",
+          "label": "GPT-5.4 High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-4-xhigh-priority",
+          "label": "GPT-5.4 XHigh Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.5",
+      "slug": "gpt-5.5",
+      "variants": [
+        {
+          "model_uid": "gpt-5-5-none",
+          "label": "GPT-5.5 No Thinking"
+        },
+        {
+          "model_uid": "gpt-5-5-low",
+          "label": "GPT-5.5 Low Thinking"
+        },
+        {
+          "model_uid": "gpt-5-5-medium",
+          "label": "GPT-5.5 Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-5-5-high",
+          "label": "GPT-5.5 High Thinking"
+        },
+        {
+          "model_uid": "gpt-5-5-xhigh",
+          "label": "GPT-5.5 XHigh Thinking"
+        },
+        {
+          "model_uid": "gpt-5-5-none-priority",
+          "label": "GPT-5.5 No Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-5-low-priority",
+          "label": "GPT-5.5 Low Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-5-medium-priority",
+          "label": "GPT-5.5 Medium Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-5-high-priority",
+          "label": "GPT-5.5 High Thinking Fast"
+        },
+        {
+          "model_uid": "gpt-5-5-xhigh-priority",
+          "label": "GPT-5.5 XHigh Thinking Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.4 Mini",
+      "slug": "gpt-5.4-mini",
+      "variants": [
+        {
+          "model_uid": "gpt-5-4-mini-low",
+          "label": "GPT-5.4 Mini Low Thinking"
+        },
+        {
+          "model_uid": "gpt-5-4-mini-medium",
+          "label": "GPT-5.4 Mini Medium Thinking"
+        },
+        {
+          "model_uid": "gpt-5-4-mini-high",
+          "label": "GPT-5.4 Mini High Thinking"
+        },
+        {
+          "model_uid": "gpt-5-4-mini-xhigh",
+          "label": "GPT-5.4 Mini XHigh Thinking"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Sonnet 4.6",
+      "slug": "claude-sonnet-4.6",
+      "variants": [
+        {
+          "model_uid": "claude-sonnet-4-6",
+          "label": "Claude Sonnet 4.6"
+        },
+        {
+          "model_uid": "claude-sonnet-4-6-thinking",
+          "label": "Claude Sonnet 4.6 Thinking"
+        },
+        {
+          "model_uid": "claude-sonnet-4-6-1m",
+          "label": "Claude Sonnet 4.6 1M"
+        },
+        {
+          "model_uid": "claude-sonnet-4-6-thinking-1m",
+          "label": "Claude Sonnet 4.6 Thinking 1M"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.2",
+      "slug": "gpt-5.2",
+      "variants": [
+        {
+          "model_uid": "MODEL_GPT_5_2_LOW",
+          "label": "GPT-5.2 Low Thinking"
+        },
+        {
+          "model_uid": "MODEL_GPT_5_2_MEDIUM",
+          "label": "GPT-5.2 Medium Thinking"
+        },
+        {
+          "model_uid": "MODEL_GPT_5_2_NONE",
+          "label": "GPT-5.2 No Thinking"
+        },
+        {
+          "model_uid": "MODEL_GPT_5_2_HIGH",
+          "label": "GPT-5.2 High Thinking"
+        },
+        {
+          "model_uid": "MODEL_GPT_5_2_XHIGH",
+          "label": "GPT-5.2 XHigh Thinking"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Opus 4.5",
+      "slug": "claude-opus-4.5",
+      "variants": [
+        {
+          "model_uid": "MODEL_CLAUDE_4_5_OPUS",
+          "label": "Claude Opus 4.5"
+        },
+        {
+          "model_uid": "MODEL_CLAUDE_4_5_OPUS_THINKING",
+          "label": "Claude Opus 4.5 Thinking"
+        }
+      ]
+    },
+    {
+      "family_label": "Claude Haiku 4.5",
+      "slug": "claude-haiku-4.5",
+      "variants": [
+        {
+          "model_uid": "MODEL_PRIVATE_11",
+          "label": "Claude Haiku 4.5"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-4.1",
+      "slug": "gpt-4.1",
+      "variants": [
+        {
+          "model_uid": "MODEL_CHAT_GPT_4_1_2025_04_14",
+          "label": "GPT-4.1"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.1",
+      "slug": "gpt-5.1",
+      "variants": [
+        {
+          "model_uid": "MODEL_PRIVATE_12",
+          "label": "GPT-5.1 No Thinking"
+        },
+        {
+          "model_uid": "MODEL_PRIVATE_13",
+          "label": "GPT-5.1 Low Thinking"
+        },
+        {
+          "model_uid": "MODEL_PRIVATE_14",
+          "label": "GPT-5.1 Medium Thinking"
+        },
+        {
+          "model_uid": "MODEL_PRIVATE_15",
+          "label": "GPT-5.1 High Thinking"
+        }
+      ]
+    },
+    {
+      "family_label": "GPT-5.3-Codex",
+      "slug": "gpt-5.3-codex",
+      "variants": [
+        {
+          "model_uid": "gpt-5-3-codex-low",
+          "label": "GPT-5.3-Codex Low"
+        },
+        {
+          "model_uid": "gpt-5-3-codex-medium",
+          "label": "GPT-5.3-Codex Medium"
+        },
+        {
+          "model_uid": "gpt-5-3-codex-high",
+          "label": "GPT-5.3-Codex High"
+        },
+        {
+          "model_uid": "gpt-5-3-codex-xhigh",
+          "label": "GPT-5.3-Codex X-High"
+        },
+        {
+          "model_uid": "gpt-5-3-codex-low-priority",
+          "label": "GPT-5.3-Codex Low Fast"
+        },
+        {
+          "model_uid": "gpt-5-3-codex-medium-priority",
+          "label": "GPT-5.3-Codex Medium Fast"
+        },
+        {
+          "model_uid": "gpt-5-3-codex-high-priority",
+          "label": "GPT-5.3-Codex High Fast"
+        },
+        {
+          "model_uid": "gpt-5-3-codex-xhigh-priority",
+          "label": "GPT-5.3-Codex XHigh Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "Kimi K2.6",
+      "slug": "kimi-k2.6",
+      "variants": [
+        {
+          "model_uid": "kimi-k2-6",
+          "label": "Kimi K2.6"
+        }
+      ]
+    },
+    {
+      "family_label": "Kimi K2.7",
+      "slug": "kimi-k2.7",
+      "variants": [
+        {
+          "model_uid": "kimi-k2-7",
+          "label": "Kimi K2.7"
+        }
+      ]
+    },
+    {
+      "family_label": "Nemotron 3 Ultra",
+      "slug": "nemotron-3-ultra",
+      "variants": [
+        {
+          "model_uid": "nemotron-3-ultra-none",
+          "label": "Nemotron 3 Ultra None"
+        },
+        {
+          "model_uid": "nemotron-3-ultra-medium",
+          "label": "Nemotron 3 Ultra Medium"
+        },
+        {
+          "model_uid": "nemotron-3-ultra-high",
+          "label": "Nemotron 3 Ultra High"
+        }
+      ]
+    },
+    {
+      "family_label": "SWE-1.6",
+      "slug": "swe-1.6",
+      "variants": [
+        {
+          "model_uid": "swe-1-6",
+          "label": "SWE-1.6"
+        }
+      ]
+    },
+    {
+      "family_label": "SWE-1.6 Fast",
+      "slug": "swe-1.6-fast",
+      "variants": [
+        {
+          "model_uid": "swe-1-6-fast",
+          "label": "SWE-1.6 Fast"
+        }
+      ]
+    },
+    {
+      "family_label": "Gemini 3.1 Pro",
+      "slug": "gemini-3.1-pro",
+      "variants": [
+        {
+          "model_uid": "gemini-3-1-pro-low",
+          "label": "Gemini 3.1 Pro Low Thinking"
+        },
+        {
+          "model_uid": "gemini-3-1-pro-high",
+          "label": "Gemini 3.1 Pro High Thinking"
+        }
+      ]
+    },
+    {
+      "family_label": "Gemini 3 Flash",
+      "slug": "gemini-3-flash",
+      "variants": [
+        {
+          "model_uid": "MODEL_GOOGLE_GEMINI_3_0_FLASH_MINIMAL",
+          "label": "Gemini 3 Flash Minimal"
+        },
+        {
+          "model_uid": "MODEL_GOOGLE_GEMINI_3_0_FLASH_LOW",
+          "label": "Gemini 3 Flash Low"
+        },
+        {
+          "model_uid": "MODEL_GOOGLE_GEMINI_3_0_FLASH_MEDIUM",
+          "label": "Gemini 3 Flash Medium"
+        },
+        {
+          "model_uid": "MODEL_GOOGLE_GEMINI_3_0_FLASH_HIGH",
+          "label": "Gemini 3 Flash High"
+        }
+      ]
+    },
+    {
+      "family_label": "DeepSeek V4 Pro",
+      "slug": "deepseek-v4-pro",
+      "variants": [
+        {
+          "model_uid": "deepseek-v4-pro-high",
+          "label": "DeepSeek V4 Pro High"
+        },
+        {
+          "model_uid": "deepseek-v4-pro-max",
+          "label": "DeepSeek V4 Pro Max"
+        }
+      ]
+    }
+  ]
+}

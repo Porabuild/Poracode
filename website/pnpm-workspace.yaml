@@ -1,6 +1,9 @@
 packages:
   - "."
 
+# Share the virtual store across worktrees/checkouts (see pnpm.io/git-worktrees).
+enableGlobalVirtualStore: true
+
 allowBuilds:
   sharp: true
 minimumReleaseAgeExclude:
@@ -89,4 +92,5 @@ onlyBuiltDependencies:
 
 overrides:
   "postcss@<8.5.12": "8.5.12"
-  "sharp@<0.35.3": "0.35.3"
+  # sharp 0.35.5 covers the librsvg CVE-2026-96889 dependency advisory (#209).
+  "sharp@<0.35.5": "0.35.5"

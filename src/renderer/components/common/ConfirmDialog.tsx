@@ -14,6 +14,7 @@ export function ConfirmDialog(props: {
   status?: "danger" | "warning";
   onConfirm: () => void;
   onClose: () => void;
+  isPending?: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -33,7 +34,7 @@ export function ConfirmDialog(props: {
     <AlertDialog.Backdrop isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialog.Container>
         <AlertDialog.Dialog>
-          <AlertDialog.Header>
+          <AlertDialog.Header data-direct-alert-icon="">
             <AlertDialog.Icon status={status} />
             <AlertDialog.Heading>{title}</AlertDialog.Heading>
           </AlertDialog.Header>
@@ -42,7 +43,12 @@ export function ConfirmDialog(props: {
             <Button slot="close" variant="ghost" className="text-muted">
               {resolvedCancelLabel}
             </Button>
-            <Button variant={confirmVariant} onPress={onConfirm}>
+            <Button
+              variant={confirmVariant}
+              isPending={props.isPending ?? false}
+              isDisabled={props.isPending ?? false}
+              onPress={onConfirm}
+            >
               {confirmLabel}
             </Button>
           </AlertDialog.Footer>

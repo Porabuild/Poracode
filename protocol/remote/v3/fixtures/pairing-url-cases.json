@@ -1,0 +1,208 @@
+{
+  "comment": "Shared pairing-URL conformance cases, fixture-pinned across the desktop TS reference (src/shared/remote/pairingUrl.ts), iOS (ios/App/App/Protocol/PairingURL.swift), and Android (android/.../protocol/PairingUrl.kt). Every asserted case MUST produce the identical result on all three platforms; the desktop TS implementation is canonical. Cases whose behavior legitimately differs per platform live in documentedDifferences and are pinned by native-only or desktop-only tests instead. Duplicate query/fragment parameters resolve to the FIRST occurrence everywhere (URLSearchParams.get / queryItems first(where:) / first-wins map).",
+  "parseParts": [
+    {
+      "name": "direct desktop link with fragment token",
+      "url": "https://desktop.tailnet.ts.net/#token=lc_pair_001",
+      "token": "lc_pair_001"
+    },
+    {
+      "name": "surrounding whitespace is trimmed before parsing",
+      "url": "  https://desktop.tailnet.ts.net/#token=lc_pair_001  ",
+      "token": "lc_pair_001"
+    },
+    {
+      "name": "uppercase scheme still parses",
+      "url": "HTTPS://desktop.tailnet.ts.net/#token=lc_pair_002",
+      "token": "lc_pair_002"
+    },
+    {
+      "name": "hosted link with percent-encoded host parameter",
+      "url": "https://poracode.com/pair?host=https%3A%2F%2Fdesktop.example%2Fbase#token=lc_pair_003",
+      "token": "lc_pair_003",
+      "host": "https://desktop.example/base"
+    },
+    {
+      "name": "userinfo in authority must not shadow the fragment credential",
+      "url": "https://lc_decoy@desktop.example/#token=lc_pair_004",
+      "token": "lc_pair_004"
+    },
+    {
+      "name": "percent-encoded token octets decode",
+      "url": "https://desktop.example/#token=lc_%50air_enc",
+      "token": "lc_Pair_enc"
+    },
+    {
+      "name": "fragment credential wins over a query credential",
+      "url": "https://desktop.example/?token=lc_query#token=lc_frag",
+      "token": "lc_frag"
+    },
+    {
+      "name": "duplicate fragment tokens resolve to the first occurrence",
+      "url": "https://desktop.example/#token=lc_first&token=lc_second",
+      "token": "lc_first"
+    },
+    {
+      "name": "duplicate host parameters resolve to the first occurrence",
+      "url": "https://poracode.com/?host=https%3A%2F%2Fa.example&host=https%3A%2F%2Fb.example#token=lc_dup_host",
+      "token": "lc_dup_host",
+      "host": "https://a.example"
+    },
+    {
+      "name": "empty fragment token is unusable",
+      "url": "https://desktop.example/#token=",
+      "expectNull": true
+    },
+    {
+      "name": "whitespace-only encoded token is unusable",
+      "url": "https://desktop.example/#token=%20",
+      "expectNull": true
+    },
+    {
+      "name": "hosted link without any credential is unusable",
+      "url": "https://poracode.com/pair?host=https%3A%2F%2Fdesktop.example",
+      "expectNull": true
+    },
+    {
+      "name": "garbage input is unusable",
+      "url": "not a url",
+      "expectNull": true
+    },
+    {
+      "name": "relative link without a scheme is unusable",
+      "url": "/pair#token=lc_rel",
+      "expectNull": true
+    }
+  ],
+  "normalizeEndpoint": [
+    {
+      "name": "desktop link strips the credential fragment",
+      "url": "https://d.example/#token=lc_x",
+      "endpoint": "https://d.example"
+    },
+    {
+      "name": "hosted link follows the encoded host parameter",
+      "url": "https://poracode.com/pair?host=https%3A%2F%2Fd.example%2Fbase#token=x",
+      "endpoint": "https://d.example/base"
+    },
+    {
+      "name": "host parameter can itself carry an app suffix",
+      "url": "https://poracode.com/pair?host=https%3A%2F%2Fd.example%2Fpair#token=x",
+      "endpoint": "https://d.example"
+    },
+    {
+      "name": "app suffix is stripped",
+      "url": "https://d.example/app",
+      "endpoint": "https://d.example"
+    },
+    {
+      "name": "pair suffix with trailing slash is stripped",
+      "url": "https://d.example/pair/",
+      "endpoint": "https://d.example"
+    },
+    {
+      "name": "desktop suffix is stripped",
+      "url": "https://d.example/desktop",
+      "endpoint": "https://d.example"
+    },
+    {
+      "name": "mobile.html suffix is stripped",
+      "url": "https://d.example/mobile.html",
+      "endpoint": "https://d.example"
+    },
+    {
+      "name": "relay base path is preserved while the suffix is stripped",
+      "url": "https://relay.example/s/server-1/pair#token=x",
+      "endpoint": "https://relay.example/s/server-1"
+    },
+    {
+      "name": "vite dev port rewrites to the remote-access port",
+      "url": "http://localhost:3100/#token=lc_vite",
+      "endpoint": "http://localhost:49152"
+    },
+    {
+      "name": "garbage input is invalid",
+      "url": "not a url",
+      "expectInvalid": true
+    },
+    {
+      "name": "empty input is invalid",
+      "url": "   ",
+      "expectInvalid": true
+    },
+    {
+      "name": "bare scheme without a host is invalid",
+      "url": "https://",
+      "expectInvalid": true
+    }
+  ],
+  "cleartextLanUrl": [
+    {
+      "name": "plain http LAN endpoint is cleartext",
+      "url": "http://192.168.1.50:49152",
+      "cleartext": true
+    },
+    {
+      "name": "dns hostname over http is cleartext",
+      "url": "http://desktop.tailnet.ts.net:49152",
+      "cleartext": true
+    },
+    {
+      "name": "https endpoint is never cleartext",
+      "url": "https://desktop.example",
+      "cleartext": false
+    },
+    {
+      "name": "localhost is not cleartext LAN",
+      "url": "http://localhost:49152",
+      "cleartext": false
+    },
+    {
+      "name": "ipv4 loopback is not cleartext LAN",
+      "url": "http://127.0.0.1:49152",
+      "cleartext": false
+    },
+    {
+      "name": "bracketed ipv6 loopback is not cleartext LAN",
+      "url": "http://[::1]:49152",
+      "cleartext": false
+    },
+    {
+      "name": "subdomains under localhost are not cleartext LAN",
+      "url": "http://a.localhost:49152",
+      "cleartext": false
+    },
+    {
+      "name": "android emulator host alias is treated as a normal lan host",
+      "url": "http://10.0.2.2:49152",
+      "cleartext": true
+    }
+  ],
+  "documentedDifferences": [
+    {
+      "area": "parseParts: token in the query of an http(s) link",
+      "behavior": "iOS and Android fall back to a query credential when the fragment is absent; the desktop reference requires the #token fragment and returns null.",
+      "reason": "Mobile deep-link plumbing (QR re-encoding, intent/app-router round trips) can drop URL fragments, so the natives accept the query fallback; desktop links are always built by the host with a fragment. Pinned natively by PairingUrlTest.parseTokenFromQueryAsFallback and the iOS query-token tests."
+    },
+    {
+      "area": "parseParts: poracode:// custom-scheme links",
+      "behavior": "Natives parse poracode://pair?host=…&token=… (fragment or query credential); the desktop reference returns null because the custom scheme never reaches desktop code.",
+      "reason": "The custom scheme is a mobile-only deep-link surface. Routing above the shared parse (parseDeepLink / validatedPairingCandidate) is pinned by native-only tests (PairingIntentDecisionsTest, iOS candidate tests)."
+    },
+    {
+      "area": "loopback scope for the cleartext gate",
+      "behavior": "Android additionally treats the whole 127.0.0.0/8 range as loopback in this classifier; desktop and iOS pin the exact host set localhost/127.0.0.1/::1/[::1] plus *.localhost.",
+      "reason": "On a phone, a 127.x address is the phone itself, so rejecting it as an endpoint is strictly safer. Separately, at a deeper layer, Android's transport cleartext gate only dials private/loopback addresses and knows the 10.0.2.2 emulator alias (CleartextPolicy/LocalNetworkAccess via isPrivateOrLoopbackHostname) — that is transport enforcement, not this URL classifier, which is exactly why http://10.0.2.2 asserts cleartext:true above on all platforms."
+    },
+    {
+      "area": "normalizeEndpoint: accepted schemes",
+      "behavior": "Natives require http/https and reject other schemes; the desktop normalizer accepts any parsable URL scheme.",
+      "reason": "The mobile input is a security gate for network endpoints; the desktop paste box only normalizes text before further validation happens elsewhere."
+    },
+    {
+      "area": "plus-sign decoding in query/fragment values",
+      "behavior": "Desktop URLSearchParams and Android URLDecoder decode '+' as a space; iOS URLComponents leaves it literal.",
+      "reason": "Pairing credentials are base64url (no '+', '/') and endpoint hosts are percent-encoded, so no canonical claim is needed; avoid '+' in fixture-asserted values."
+    }
+  ]
+}

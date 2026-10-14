@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Runtime.kt intentionally includes U+FEFF in the ECMAScript whitespace table. -->
+    <issue id="ByteOrderMark">
+        <ignore regexp=".*/protocol/remote/v3/generated/native/kotlin/Runtime\.kt" />
+    </issue>
+</lint>

@@ -1,0 +1,51 @@
+{
+  "$comment": "Recorded Devin MCP injection contracts, devin acp 3000.11.3 (9c803229faa4), live 2026-10-07. Sources: tmp/devin/probe/results/mcp-turn.json (parent run, scenarios stdioNative/diskOverlay/wireShapes.http) and tmp/devin/probe/results/mcp-turn-e2.json (lane E2 residuals: fresh-connection load after closing the lock holder, SSE transport, documented tool filters). Every recorded shape here produced a real tools/list + tools/call round trip inside a prompt turn unless noted otherwise.",
+  "sessionNewMcpServers": {
+    "stdio": {
+      "$note": "Native stdio injection; proven with env:[] (empty). Env-bearing stdio entries and an explicit type discriminator are spec-shaped but were not separately turn-proven — the tool-filter relay remains the production route.",
+      "proven": true,
+      "shape": { "name": "<server name>", "command": "<executable>", "args": ["<...>"], "env": [] }
+    },
+    "http": {
+      "$note": "Spec-exact remote shape: type discriminator REQUIRED, headers as {name,value} objects (not a map). Earlier probes omitting `type` or sending header maps were rejected -32602 'data did not match any variant of untagged enum McpServer'.",
+      "proven": true,
+      "shape": {
+        "type": "http",
+        "name": "<server name>",
+        "url": "http://127.0.0.1:<port>/mcp",
+        "headers": [{ "name": "X-Probe", "value": "<nonce>" }]
+      }
+    },
+    "sse": {
+      "$note": "Legacy SSE transport against a genuine MCP SSE endpoint (GET stream + endpoint event + POST target): initialize/tools/list/tools/call all observed on the SSE stream with the run nonce inside one prompt turn (tmp/devin/probe/results/mcp-turn-e2.json scenario sseTurn, 2026-10-07).",
+      "proven": true,
+      "shape": {
+        "type": "sse",
+        "name": "<server name>",
+        "url": "http://127.0.0.1:<port>/sse",
+        "headers": [{ "name": "X-Probe", "value": "<nonce>" }]
+      }
+    }
+  },
+  "diskOverlayMcpConfig": {
+    "$note": "Private XDG_CONFIG_HOME overlay; stdio entries under mcpServers are proven (tools/list + tools/call in-turn). The documented disk shape for remote servers is {url, transport?: \"http\"|\"sse\", headers?: map} per tmp/devin/docs/cli/extensibility/mcp/configuration.md — the disk remote shape itself has not been turn-proven and must not be serialized for production until it is.",
+    "provenStdio": true,
+    "shape": { "mcpServers": { "<server name>": { "command": "<executable>", "args": ["<...>"] } } }
+  },
+  "sessionLockedError": {
+    "$note": "Recorded -32015 on session/load while another live process holds the session; retryable, not a load failure. Closing the holder (lockHolderPid) releases the lock; after that a fresh-connection load succeeds (mcp-turn-e2.json scenario resumeLoad).",
+    "code": -32015,
+    "message": "Session '<id>' is already open in another process (PID <pid>). Close the other instance before opening it here.",
+    "data": {
+      "cognition.ai/errorKind": "session_locked",
+      "cognition.ai/retryable": true,
+      "cognition.ai/lockHolderPid": 0
+    }
+  },
+  "toolFilters": {
+    "$note": "Lane E2 filter run (tmp/devin/probe/results/mcp-turn-e2.json scenario toolFilter, 2026-10-07): overlay config.json carried both documented mechanisms. The injected MCP tool `probe_secret` was blocked by `permissions.deny` (\"mcp__<server>__<tool>\" pattern) at CALL time — the CLI logged `Permission decision for tool mcp__poracode-fixture__probe_secret: auto-decided Some(Deny) by cog` and the fixture server never received the tools/call. `disabled_tools` produced NO observable pre-call filtering of the injected MCP tool (the model still saw and attempted it). One run, one tool name: treat disabled_tools-on-MCP as unproven rather than disproven, and never rely on it for MCP tool hiding.",
+    "proven": true,
+    "disabledTools": "no-effect-observed-on-injected-mcp-tools",
+    "permissionsDeny": "blocks-at-call-time-before-server-dispatch"
+  }
+}

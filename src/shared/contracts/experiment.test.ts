@@ -48,9 +48,7 @@ function judgePayload() {
     experimentId: "exp-1",
     projectLocation: { kind: "windows" as const, path: "C:\\repo" },
     agentKind: "codex",
-    model: "gpt-5.5",
-    effort: "high",
-    fast: true,
+    selection: { model: "gpt-5.5", effort: "high", fast: true },
     prompt: "Implement the feature",
     candidates: [
       { threadId: "thread-1", diff: "diff one" },
@@ -214,6 +212,49 @@ describe("judgeExperimentPayloadSchema", () => {
           { threadId: "thread-1", diff: "one" },
           { threadId: "thread-1", diff: "two" },
         ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("carries the canonical selection: empty effort and false Fast are exact values", () => {
+    // The replaced scalar triple rejected `effort: ""` with `.min(1)`; the
+    // nested canonical selection must preserve it as a real present carrier.
+    expect(
+      judgeExperimentPayloadSchema.safeParse({
+        ...judgePayload(),
+        selection: { model: "", effort: "", fast: false, thinking: false, contextSize: "default" },
+      }).success,
+    ).toBe(true);
+    // A present selection must carry `model` (possibly "") — only omitting the
+    // whole `selection` field requests the utility default.
+    expect(
+      judgeExperimentPayloadSchema.safeParse({ ...judgePayload(), selection: {} }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a malformed selection binding instead of stripping it into a record", () => {
+    expect(
+      judgeExperimentPayloadSchema.safeParse({
+        ...judgePayload(),
+        selection: {
+          model: "gpt-5.5",
+          selectionBinding: { version: 2, kind: "family-member" },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      judgeExperimentPayloadSchema.safeParse({
+        ...judgePayload(),
+        selection: {
+          model: "gpt-5.5",
+          selectionBinding: {
+            version: 1,
+            kind: "family-member",
+            owner: { agentKind: "codex", presentationMode: "terminal", extra: true },
+            model: "member",
+            inertValues: { effort: "" },
+          },
+        },
       }).success,
     ).toBe(false);
   });

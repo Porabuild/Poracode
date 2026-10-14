@@ -1,5 +1,6 @@
 import {
   Bot,
+  MessagesSquare,
   FileDiff,
   FolderOpen,
   Gauge,
@@ -17,6 +18,7 @@ import type { RightPanelTab } from "@/renderer/state/panelStore";
 export const PANEL_TAB_ICONS: Record<RightPanelTab, LucideIcon> = {
   docks: LayoutList,
   subagent: Bot,
+  sideChat: MessagesSquare,
   terminal: TerminalSquare,
   files: FolderOpen,
   git: FileDiff,
@@ -31,6 +33,7 @@ export function usePanelTabLabels(): Record<RightPanelTab, string> {
   return {
     docks: t`Docks`,
     subagent: t`Subagent`,
+    sideChat: t`Side chat`,
     terminal: t`Terminal`,
     files: t`Files`,
     git: t`Git`,

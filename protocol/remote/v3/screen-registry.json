@@ -1,0 +1,126 @@
+{
+  "contract": "poracode.remote.screen-registry",
+  "formatVersion": 1,
+  "screens": [
+    {
+      "id": "android.environment",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.event",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.gitStageAll",
+      "testClass": "Android37WireLabFamilyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabFamilyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.ready",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.request-resolve",
+      "testClass": "Android37WireLabFamilyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabFamilyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.shell-snapshot",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.terminal-write",
+      "testClass": "Android37WireLabFamilyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabFamilyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.thread-history",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.thread-interrupt",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.thread-send",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.thread-steer-set",
+      "testClass": "Android37WireLabFamilyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabFamilyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.token-exchange",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "android.websocket-ticket",
+      "testClass": "Android37WireLabJourneyInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "ios.content.delta",
+      "testClass": "NativeJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"
+    },
+    {
+      "id": "ios.gitStageAll",
+      "testClass": "NativeFamilyJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeFamilyJourneyUITests.swift"
+    },
+    {
+      "id": "ios.request-resolve",
+      "testClass": "NativeFamilyJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeFamilyJourneyUITests.swift"
+    },
+    {
+      "id": "ios.resync-required",
+      "testClass": "NativeJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"
+    },
+    {
+      "id": "ios.shell-snapshot",
+      "testClass": "NativeJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"
+    },
+    {
+      "id": "ios.terminal-write",
+      "testClass": "NativeFamilyJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeFamilyJourneyUITests.swift"
+    },
+    {
+      "id": "ios.thread-history",
+      "testClass": "NativeJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"
+    },
+    {
+      "id": "ios.thread-interrupt",
+      "testClass": "NativeJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"
+    },
+    {
+      "id": "ios.thread-send",
+      "testClass": "NativeJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"
+    },
+    {
+      "id": "ios.thread-steer-set",
+      "testClass": "NativeFamilyJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeFamilyJourneyUITests.swift"
+    },
+    {
+      "id": "ios.token-exchange",
+      "testClass": "NativeJourneyUITests",
+      "file": "ios/App/NativeE2ETests/NativeJourneyUITests.swift"
+    }
+  ]
+}

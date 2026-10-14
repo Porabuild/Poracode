@@ -168,6 +168,7 @@ interface RendererArgumentsOptions {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
+  hostCapabilities?: import("@/shared/hostControlProtocol").HostServiceCapabilities;
 }
 
 /** Preload `additionalArguments` that seed the renderer's bootstrap config. */
@@ -183,5 +184,8 @@ export function buildRendererAdditionalArguments(options: RendererArgumentsOptio
     `--lc-posthog-host=${encodeURIComponent(options.posthogHost)}`,
     `--lc-posthog-key=${encodeURIComponent(options.posthogKey)}`,
     `--lc-sentry-enabled=${options.sentryEnabled ? "1" : "0"}`,
+    ...(options.hostCapabilities
+      ? [`--lc-host-capabilities=${encodeURIComponent(JSON.stringify(options.hostCapabilities))}`]
+      : []),
   ];
 }

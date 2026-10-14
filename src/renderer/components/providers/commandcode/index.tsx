@@ -2,9 +2,10 @@ export * from "./CommandCodeIcon";
 
 import { CommandCodeIcon } from "./CommandCodeIcon";
 import providerManifest from "./manifest";
+import { normalizeCommandCodeConfig } from "./config";
 import { standardPlanApprovalControls } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
-import { registerComposerControls } from "../providerComposer";
+import { registerComposerControls, registerConfigNormalizer } from "../providerComposer";
 import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
@@ -16,4 +17,10 @@ const liveDefaults = { label: "Command Code", model: "", effort: "" };
 registerCommitGenDefaults(PROVIDER_KIND, liveDefaults);
 registerTitleGenDefaults(PROVIDER_KIND, liveDefaults);
 registerConflictResolverDefaults(PROVIDER_KIND, liveDefaults);
-registerComposerControls(PROVIDER_KIND, (input) => standardPlanApprovalControls(input));
+registerConfigNormalizer(PROVIDER_KIND, normalizeCommandCodeConfig);
+registerComposerControls(PROVIDER_KIND, (input) =>
+  standardPlanApprovalControls({
+    ...input,
+    config: { ...input.config, ...normalizeCommandCodeConfig(input) },
+  }),
+);

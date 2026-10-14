@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type {
   AgentSlashCommand,
   AgentStatus,
@@ -30,6 +31,7 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 
 type ThreadComposerDocksProps = {
+  notice?: ReactNode;
   // Visibility flags — each gates one dock.
   hasActiveSubAgent: boolean;
   hasBackgroundTasks: boolean;
@@ -148,6 +150,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
       {showContextInComposer ? (
         <ThreadContextDock summary={contextSummary} onClose={onCloseContextDock} />
       ) : null}
+      {props.notice}
       {showErrorInComposer
         ? errorDockStates.map((state) => (
             <ThreadErrorDock

@@ -5,10 +5,14 @@ import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAcpStructuredSession } from "../acp";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
   iterm2ProgressOscHint,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -93,8 +97,8 @@ export function createQwenAdapter(): AgentAdapter {
       }
     },
 
-    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
-      const mcp = qwenMcpLaunch(location, options?.mcpServers);
+    async buildLaunchArgv(location, config, prompt, _sessionRef, options) {
+      const mcp = await qwenMcpLaunch(location, options?.mcpServers);
       const sessionId = randomUUID();
       return {
         binary: "qwen",
@@ -104,8 +108,8 @@ export function createQwenAdapter(): AgentAdapter {
       };
     },
 
-    buildResumeArgv(location, config, prompt, sessionRef, options) {
-      const mcp = qwenMcpLaunch(location, options?.mcpServers);
+    async buildResumeArgv(location, config, prompt, sessionRef, options) {
+      const mcp = await qwenMcpLaunch(location, options?.mcpServers);
       return {
         binary: "qwen",
         ...mcp,
@@ -114,6 +118,7 @@ export function createQwenAdapter(): AgentAdapter {
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const acpBridge = createQwenAcpSessionBridge();
       const command = buildQwenCommand(
         input.projectLocation,
@@ -130,6 +135,7 @@ export function createQwenAdapter(): AgentAdapter {
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildQwenCommand(location, ["--acp"], resolveAgentBinaryPath(location, "qwen"));
     },
 
@@ -156,7 +162,19 @@ export function createQwenAdapter(): AgentAdapter {
 
     defaultOneShotModel: QWEN_DEFAULT_MODEL_ID,
 
-    buildOneShotCommand(model, _effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // The qwen CLI maps neither effort nor Fast in this lane (no baseline
+      // effort ladder). The legacy default carriers stay accepted as
+      // declared-inactive so default utility selections keep flowing; a
+      // meaningful control refuses visibly instead of being silently dropped.
+      assertOneShotControlsMapped(selection, {
+        effort: { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       if (!prompt) return undefined;
       return {
         command: "qwen",
@@ -165,7 +183,15 @@ export function createQwenAdapter(): AgentAdapter {
       };
     },
 
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, _location, model, options) {
+      const selection = resolveCheckedOneShotResumeSelection(model, options);
+      // Same provider policy as the one-shot lane: only the model maps here,
+      // so meaningful effort/Fast (and any thinking/context carrier) refuse
+      // before the command is built.
+      assertOneShotControlsMapped(selection, {
+        effort: { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       return {
         command: "qwen",
         args: [

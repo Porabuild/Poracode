@@ -1,4 +1,10 @@
+import { browserDeviceEmulationEqual } from "@/shared/browserDeviceEmulation";
 import { create } from "zustand";
+import {
+  browserPresentationBase,
+  projectBrowserPresentation,
+  resetBrowserPresentationIntents,
+} from "./browserPresentationIntents";
 import type { UsageLoginConfirmationRequest, UsageLoginDeviceCode } from "@/shared/contracts";
 import type {
   BrowserBookmarkInfo,
@@ -19,8 +25,20 @@ export interface PendingPickerAttachment {
 
 interface BrowserPanelState {
   tabs: BrowserTabInfo[];
+  /** Native webview custody follows host membership, independently of the visible strip. */
+  residentTabs: BrowserTabInfo[];
   groups: BrowserTabGroupInfo[];
   activeTabId: string | null;
+  initialized: boolean;
+  hostActiveTabId: string | null;
+  selectionRevision: number;
+  ownerRevision: number;
+  activationIntent: {
+    tabId: string;
+    previous: string | null;
+    token: symbol;
+    dispatched: boolean;
+  } | null;
   extracted: boolean;
   bookmarks: BrowserBookmarkInfo[];
   bookmarkBarVisible: boolean;
@@ -33,8 +51,12 @@ interface BrowserPanelState {
   usageLoginConfirmation: UsageLoginConfirmationRequest | null;
   usageLoginDeviceCode: UsageLoginDeviceCode | null;
   setState: (state: BrowserState) => void;
+  resetOwner: () => void;
   upsertTab: (tab: BrowserTabInfo) => void;
   setActive: (tabId: string | null) => void;
+  beginActivation: (tabId: string) => symbol;
+  markActivationDispatched: (token: symbol) => boolean;
+  settleActivation: (token: symbol, accepted: boolean) => void;
   setPickerActive: (active: boolean) => void;
   setAttention: (tabId: string | null) => void;
   setAutomationActive: (active: boolean) => void;
@@ -45,10 +67,16 @@ interface BrowserPanelState {
   clearUsageLoginDeviceCode: (providerId: string) => void;
 }
 
-export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
+export const useBrowserPanelStore = create<BrowserPanelState>((set, get) => ({
   tabs: [],
+  residentTabs: [],
   groups: [],
   activeTabId: null,
+  initialized: false,
+  hostActiveTabId: null,
+  selectionRevision: 0,
+  ownerRevision: 0,
+  activationIntent: null,
   extracted: false,
   bookmarks: [],
   bookmarkBarVisible: false,
@@ -59,44 +87,115 @@ export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
   usageLoginConfirmation: null,
   usageLoginDeviceCode: null,
 
+  resetOwner: () => {
+    resetBrowserPresentationIntents();
+    set((state) => ({
+      ownerRevision: state.ownerRevision + 1,
+      tabs: [],
+      residentTabs: [],
+      groups: [],
+      bookmarks: [],
+      bookmarkBarVisible: false,
+      activeTabId: null,
+      hostActiveTabId: null,
+      initialized: false,
+      activationIntent: null,
+    }));
+  },
+
   setState: (state) =>
     set((s) => {
+      const residentTabs = state.tabs;
+      const hostActiveTabId = state.activeTabId;
+      state = projectBrowserPresentation(state, true);
+      const intent = s.activationIntent;
+      const activationIntent =
+        intent &&
+        state.tabs.some((tab) => tab.tabId === intent.tabId) &&
+        !(intent.dispatched && hostActiveTabId === intent.tabId)
+          ? intent
+          : null;
+      const activeTabId = activationIntent?.tabId ?? state.activeTabId;
       const extracted = state.extracted === true;
       const bookmarks = state.bookmarks ?? [];
       const bookmarkBarVisible = state.bookmarkBarVisible === true;
       const groups = state.groups ?? [];
       if (
-        s.activeTabId === state.activeTabId &&
+        s.initialized &&
+        s.hostActiveTabId === hostActiveTabId &&
+        s.activationIntent === activationIntent &&
+        s.activeTabId === activeTabId &&
         s.extracted === extracted &&
         s.bookmarkBarVisible === bookmarkBarVisible &&
         bookmarksEqual(s.bookmarks, bookmarks) &&
         groupsEqual(s.groups, groups) &&
-        tabsEqual(s.tabs, state.tabs)
+        tabsEqual(s.tabs, state.tabs) &&
+        tabsEqual(s.residentTabs, residentTabs)
       ) {
         return {};
       }
       return {
         tabs: state.tabs,
+        residentTabs,
         groups,
-        activeTabId: state.activeTabId,
+        initialized: true,
+        hostActiveTabId,
+        activationIntent,
+        activeTabId,
         extracted,
         bookmarks,
         bookmarkBarVisible,
       };
     }),
-  upsertTab: (tab) =>
-    set((s) => {
-      const idx = s.tabs.findIndex((t) => t.tabId === tab.tabId);
-      if (idx < 0) {
-        return { tabs: [...s.tabs, tab] };
-      }
-      const nextTab = { ...s.tabs[idx]!, ...tab };
-      if (tabInfoEqual(s.tabs[idx]!, nextTab)) return {};
-      const next = s.tabs.slice();
-      next[idx] = nextTab;
-      return { tabs: next };
-    }),
+  upsertTab: (tab) => {
+    const s = get();
+    const base = browserPresentationBase({ ...s, tabs: s.residentTabs });
+    const idx = base.tabs.findIndex((t) => t.tabId === tab.tabId);
+    const tabs = base.tabs.slice();
+    if (idx < 0) tabs.push(tab);
+    else tabs[idx] = tab;
+    s.setState({ ...base, tabs });
+  },
   setActive: (tabId) => set((state) => (state.activeTabId === tabId ? {} : { activeTabId: tabId })),
+  beginActivation: (tabId) => {
+    const token = Symbol(tabId);
+    set((state) => ({
+      activeTabId: tabId,
+      selectionRevision: state.selectionRevision + 1,
+      activationIntent: {
+        tabId,
+        token,
+        previous: state.activationIntent?.previous ?? state.activeTabId,
+        dispatched: false,
+      },
+    }));
+    return token;
+  },
+  markActivationDispatched: (token) => {
+    let dispatched = false;
+    set((state) => {
+      if (state.activationIntent?.token !== token) return {};
+      dispatched = true;
+      return { activationIntent: { ...state.activationIntent, dispatched: true } };
+    });
+    return dispatched;
+  },
+  settleActivation: (token, accepted) =>
+    set((state) => {
+      const intent = state.activationIntent;
+      if (intent?.token !== token) return {};
+      if (!accepted) {
+        const projected = projectBrowserPresentation(
+          browserPresentationBase({
+            ...state,
+            tabs: state.residentTabs,
+            activeTabId: state.hostActiveTabId ?? intent.previous,
+          }),
+        );
+        return { activationIntent: null, activeTabId: projected.activeTabId };
+      }
+      return state.hostActiveTabId === intent.tabId ? { activationIntent: null } : {};
+    }),
   setPickerActive: (active) =>
     set((state) => (state.pickerActive === active ? {} : { pickerActive: active })),
   setAttention: (tabId) =>
@@ -118,6 +217,11 @@ export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
       state.usageLoginDeviceCode?.providerId === providerId ? { usageLoginDeviceCode: null } : {},
     ),
 }));
+
+/** Commands and their visible feedback cannot wait for a retired owner's jobs. */
+export function browserActionKey(key: string, ownerRevision: number): string {
+  return `${key}:owner:${ownerRevision}`;
+}
 
 function tabsEqual(a: BrowserTabInfo[], b: BrowserTabInfo[]): boolean {
   return a.length === b.length && a.every((tab, i) => tabInfoEqual(tab, b[i]!));
@@ -157,6 +261,9 @@ function tabInfoEqual(a: BrowserTabInfo, b: BrowserTabInfo): boolean {
     a.canGoBack === b.canGoBack &&
     a.canGoForward === b.canGoForward &&
     a.devToolsOpen === b.devToolsOpen &&
+    a.internalPage === b.internalPage &&
+    a.zoomFactor === b.zoomFactor &&
+    browserDeviceEmulationEqual(a.deviceEmulation, b.deviceEmulation) &&
     a.groupId === b.groupId
   );
 }

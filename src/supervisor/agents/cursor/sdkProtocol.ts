@@ -1,5 +1,5 @@
 /**
- * Structural public-protocol types for `@cursor/sdk` 1.0.24.
+ * Structural public-protocol types for `@cursor/sdk` 1.0.37.
  *
  * Poracode deliberately does not import the optional SDK package from its
  * provider boundary. Keeping the small, stable event envelopes here lets the
@@ -177,6 +177,11 @@ export interface CursorSdkStepStartedUpdate {
   stepId: number;
 }
 
+export interface CursorSdkToolRequestsListedUpdate {
+  type: "tool-requests-listed";
+  callCount: number;
+}
+
 export interface CursorSdkStepCompletedUpdate {
   type: "step-completed";
   stepId: number;
@@ -224,6 +229,7 @@ export type CursorSdkNestedTaskUpdate =
   | CursorSdkPartialToolCallUpdate
   | CursorSdkToolCallCompletedUpdate
   | CursorSdkStepStartedUpdate
+  | CursorSdkToolRequestsListedUpdate
   | CursorSdkStepCompletedUpdate;
 
 export interface CursorSdkToolCallDeltaUpdate {
@@ -243,6 +249,7 @@ export type CursorSdkInteractionUpdate =
   | CursorSdkToolCallDeltaUpdate
   | CursorSdkTokenDeltaUpdate
   | CursorSdkStepStartedUpdate
+  | CursorSdkToolRequestsListedUpdate
   | CursorSdkStepCompletedUpdate
   | CursorSdkTurnEndedUpdate
   | CursorSdkUserMessageAppendedUpdate

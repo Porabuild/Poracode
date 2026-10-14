@@ -1,13 +1,21 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
+import { createAcpStructuredSession } from "../acp";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   detectAgentInstall,
   type AgentAdapter,
   type TerminalStatusHint,
   inheritBaseSpawnEnv,
+  prepareAgentLocationEnvironment,
 } from "../base";
+import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCommandCodeArgs } from "./argv";
+import { buildCommandCodeAcpCommand, resolveCommandCodeAcpMode } from "./acp";
+import { normalizeCommandCodePermissionRequest } from "./acpRequests";
+import { normalizeCommandCodeSessionUpdate } from "./acpUpdates";
 import { commandCodeMcpLaunch } from "./mcp";
 import { commandCodeDetectionSpec, defaultCommandCodeCapabilities } from "./detection";
 import {
@@ -90,6 +98,8 @@ export function createCommandCodeAdapter(): AgentAdapter {
     // Disables the CLI's background self-updater so no lane can spawn a
     // detached `npm i` terminal window.
     ...inheritBaseSpawnEnv(commandCodeDetectionSpec),
+    // Native ACP omits stdio cwd; the shared launcher preserves it for both surfaces.
+    mcpRequiresStdioCwdProxy: true,
 
     // ── CLI hook plugin support ──────────────────────────────────────────
     // Command Code emits no OSC; its Claude-compatible hook system is the only
@@ -111,12 +121,12 @@ export function createCommandCodeAdapter(): AgentAdapter {
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installCommandCodePlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installCommandCodePlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCommandCodePlugin(ctx);
+      await uninstallCommandCodePlugin(ctx);
     },
 
     async detectInstall(ctx) {
@@ -125,14 +135,14 @@ export function createCommandCodeAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
+    async buildLaunchArgv(location, config, prompt, _sessionRef, options) {
       // `command-code` has no flag to pre-assign or report a session id, so we
       // snapshot the existing transcripts here and let the runtime discover the
       // real id afterward (discoverSessionRef below). Returning no sessionRef
       // is what enables that discovery path; resume then targets the exact id.
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
       snapshotCommandCodePreSpawnSessions(location, cwd);
-      const mcp = commandCodeMcpLaunch(location, options?.mcpServers);
+      const mcp = await commandCodeMcpLaunch(location, options?.mcpServers);
       return {
         ...mcp,
         binary: "command-code",
@@ -140,7 +150,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       };
     },
 
-    buildResumeArgv(location, config, prompt, sessionRef, options) {
+    async buildResumeArgv(location, config, prompt, sessionRef, options) {
       // Resume the exact discovered session id (`--resume <id>`). A dead/stale
       // id surfaces command-code's "found to resume" error, which the runtime
       // recovers by relaunching fresh (see detectCommandCodeInvalidSessionRef)
@@ -148,8 +158,35 @@ export function createCommandCodeAdapter(): AgentAdapter {
       // back to `--continue`.
       const id = sessionRef?.providerSessionId;
       const args = buildCommandCodeArgs(config, prompt, id && isUuid(id) ? id : "");
-      const mcp = commandCodeMcpLaunch(location, options?.mcpServers);
+      const mcp = await commandCodeMcpLaunch(location, options?.mcpServers);
       return { ...mcp, binary: "command-code", args: [...mcp.args, ...args] };
+    },
+
+    async createStructuredSession(input) {
+      // ACP allocates the ID before the transcript exists. Terminal launches
+      // must create their own session rather than resume that unwritten ID.
+      if (input.presentationMode !== "gui") return undefined;
+      await prepareAgentLocationEnvironment(input.projectLocation);
+      return createAcpStructuredSession(
+        buildCommandCodeAcpCommand(
+          input.projectLocation,
+          resolveAgentBinaryPath(input.projectLocation, "command-code"),
+        ),
+        {
+          ...input,
+          // The harness owns filesystem and terminal permissions itself.
+          acpFsTextCapability: false,
+          acpTerminalCapability: false,
+          acpSessionUpdateTransform: normalizeCommandCodeSessionUpdate,
+        },
+        {
+          resolveMode: resolveCommandCodeAcpMode,
+          permissionRequestTransform: normalizeCommandCodePermissionRequest,
+          // promptResult usage is cumulative consumption; native usage_update
+          // carries authoritative context occupancy (including compaction).
+          behavior: { promptUsageReportsContext: false, strictConfigSelection: true },
+        },
+      );
     },
 
     createInitialSessionRef() {
@@ -188,7 +225,15 @@ export function createCommandCodeAdapter(): AgentAdapter {
 
     allowsImplicitOneShotModel: true,
 
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Reasoning effort maps natively (`--effort`); the command-code CLI has
+      // no Fast lane, so false Fast is the declared-inactive legacy carrier and
+      // meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) return undefined;
       return {
         command: "command-code",
@@ -205,8 +250,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       };
     },
 
-    // Command Code has no structured (GUI) runtime, so it joins the subagent
-    // roster via the one-shot child lane. `--trust` skips folder trust; `--yolo`
+    // The headless child lane remains available. `--trust` skips folder trust; `--yolo`
     // is the actual tool-permission bypass required because a one-shot child has
     // no interactive approval channel and must never block on input.
     buildSubagentOneShotCommand({ model, effort, prompt }) {

@@ -1,0 +1,194 @@
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { startNodePerformanceDiagnostics } from "./nodePerformanceDiagnostics";
+import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
+import {
+  PerformanceEvidenceWriter,
+  type PerformanceWriterStats,
+} from "./performanceEvidenceWriter";
+
+const roots: string[] = [];
+afterEach(async () => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
+async function outputDirectory(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "node-performance-"));
+  roots.push(root);
+  return root;
+}
+
+describe("opt-in Node performance recording", () => {
+  it("does not open files or start timers when disabled", () => {
+    const interval = vi.spyOn(globalThis, "setInterval");
+    expect(startNodePerformanceDiagnostics("server", {})).toBeUndefined();
+    expect(interval).not.toHaveBeenCalled();
+  });
+
+  it("appends Electron app metrics to sample lines format-v2-additively", async () => {
+    const root = await outputDirectory();
+    let samples = 0;
+    const recorder = startNodePerformanceDiagnostics(
+      "desktop-main",
+      {
+        PORACODE_PERF_OUTPUT_DIR: root,
+        PORACODE_PERF_INTERVAL_MS: "100",
+      },
+      {
+        sampleAppMetrics: () =>
+          samples++ === 0
+            ? null
+            : {
+                sampledMonotonicMs: 12_345,
+                processes: [
+                  {
+                    pid: process.pid,
+                    type: "Browser",
+                    cpuPercent: 1.5,
+                    cpuCumulativeSeconds: 0.25,
+                    workingSetKiB: 65_536,
+                  },
+                ],
+              },
+      },
+    )!;
+    try {
+      await delay(130);
+    } finally {
+      await recorder.stop();
+    }
+    const files = await readdir(root);
+    expect(files).toHaveLength(1);
+    const records = (await readFile(join(root, files[0]!), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    // The start line carries no appMetrics and keeps its v2 shape.
+    expect(records[0]).toMatchObject({ kind: "start", formatVersion: 2 });
+    expect(records[0].appMetrics).toBeUndefined();
+    const withMetrics = records.filter((record: Record<string, unknown>) => record.appMetrics);
+    expect(withMetrics.length).toBeGreaterThanOrEqual(1);
+    expect(withMetrics[0].appMetrics).toMatchObject({
+      sampledMonotonicMs: 12_345,
+      processes: [{ pid: process.pid, type: "Browser", cpuPercent: 1.5 }],
+    });
+  });
+
+  it.each([
+    { PORACODE_PERF_OUTPUT_DIR: "relative" },
+    { PORACODE_PERF_INTERVAL_MS: "0" },
+    { PORACODE_PERF_MAX_BYTES: "999999999999" },
+  ])("rejects invalid configuration without exposing environment values", async (override) => {
+    const root = await outputDirectory();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(
+      startNodePerformanceDiagnostics("server", {
+        PORACODE_PERF_OUTPUT_DIR: root,
+        ...override,
+        SYNTHETIC_SECRET: "private-fixture-value",
+      }),
+    ).toBeUndefined();
+    expect(await readdir(root)).toEqual([]);
+    expect(warning).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(warning.mock.calls)).not.toContain("private-fixture-value");
+  });
+
+  it("records a real periodic sample and drains its own file on stop", async () => {
+    const root = await outputDirectory();
+    const recorder = startNodePerformanceDiagnostics("server", {
+      PORACODE_PERF_OUTPUT_DIR: root,
+      PORACODE_PERF_INTERVAL_MS: "100",
+      SYNTHETIC_SECRET: "private-fixture-value",
+    })!;
+    const sender = new SupervisorIpcSender({
+      queueDiagnostics: recorder.queueCapture,
+      send: (_message, done) => {
+        done(null);
+        return true;
+      },
+      onError: () => {},
+    });
+    recorder.observeIpcQueue("supervisor-to-host", () => sender.getQueueDiagnostics());
+    sender.reply({ replyTo: "private-fixture-value", ok: true, data: null });
+    try {
+      await delay(130);
+    } finally {
+      await recorder.stop();
+    }
+    const files = await readdir(root);
+    expect(files).toHaveLength(1);
+    const text = await readFile(join(root, files[0]!), "utf8");
+    const records = text
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(records[0]).toMatchObject({
+      kind: "start",
+      formatVersion: 2,
+      processSampleFormatVersion: 1,
+      ipcQueueSampleFormatVersion: 1,
+      role: "server",
+      pid: process.pid,
+      intervalMs: 100,
+    });
+    expect(records.filter((record) => record.kind === "sample").length).toBeGreaterThanOrEqual(2);
+    for (const record of records.filter((entry) => entry.kind === "sample")) {
+      expect(record).toMatchObject({
+        formatVersion: 2,
+        processSampleFormatVersion: 1,
+        ipcQueues: {
+          queues: [
+            {
+              name: "supervisor-to-host",
+              status: "observed",
+              sample: {
+                formatVersion: 1,
+                sendAttempts: 1,
+                waitingMessages: 0,
+                oldestQueuedMessageAgeMs: null,
+              },
+            },
+          ],
+        },
+      });
+    }
+    expect(records.at(-1)).toMatchObject({ kind: "end", complete: true });
+    expect(text).not.toContain("private-fixture-value");
+    expect(text).not.toContain(root);
+    await recorder.stop();
+    expect(await readFile(join(root, files[0]!), "utf8")).toBe(text);
+    sender.reply({ replyTo: "after-recording-stopped", ok: true, data: null });
+    expect(sender.getQueueDiagnostics()).toBeUndefined();
+  });
+
+  it("does not hold application shutdown indefinitely on stalled diagnostic output", async () => {
+    const root = await outputDirectory();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const originalFinish = PerformanceEvidenceWriter.prototype.finish;
+    const held = Promise.withResolvers<PerformanceWriterStats>();
+    let writer: PerformanceEvidenceWriter | undefined;
+    vi.spyOn(PerformanceEvidenceWriter.prototype, "finish").mockImplementation(
+      function (this: PerformanceEvidenceWriter) {
+        writer = this;
+        return held.promise;
+      },
+    );
+    vi.useFakeTimers();
+    const recorder = startNodePerformanceDiagnostics("backend", {
+      PORACODE_PERF_OUTPUT_DIR: root,
+    })!;
+    const stopped = recorder.stop();
+    await vi.advanceTimersByTimeAsync(500);
+    await stopped;
+    expect(warning).toHaveBeenCalledTimes(1);
+    expect(warning.mock.calls[0]?.[0]).toContain("cannot qualify a performance gate");
+    vi.useRealTimers();
+    // The injected stall belongs to the fixture; release and join it before cleanup.
+    const final = await originalFinish.call(writer!, "shutdown");
+    held.resolve(final);
+  });
+});

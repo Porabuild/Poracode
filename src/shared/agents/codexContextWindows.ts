@@ -1,5 +1,16 @@
 import type { AgentCapability, LabeledOption } from "@/shared/contracts";
-import { parseContextWindowTokens } from "@/shared/contextWindow";
+import {
+  parseContextWindowInput,
+  parseStoredContextWindowOptions,
+  type ContextWindowOption,
+} from "@/shared/contextWindowOptions";
+export {
+  parseContextWindowInput,
+  contextWindowIdFromTokens,
+  contextWindowLabelFromId,
+  serializeContextWindows,
+  contextWindowsEqual,
+} from "@/shared/contextWindowOptions";
 
 /** Agent-settings key storing the user's Codex context-window list as JSON. */
 export const CODEX_CONTEXT_WINDOWS_SETTING_KEY = "contextWindows";
@@ -9,34 +20,7 @@ export const DEFAULT_CODEX_CONTEXT_SIZE = "400k";
 
 const AUTO_COMPACT_RATIO = 0.95;
 
-export interface CodexContextWindow {
-  id: string;
-  label: string;
-  tokens: number;
-}
-
-export function parseContextWindowInput(raw: string): CodexContextWindow | undefined {
-  const tokens = parseContextWindowTokens(raw);
-  if (tokens === undefined) return undefined;
-  const id = contextWindowIdFromTokens(tokens);
-  return { id, label: contextWindowLabelFromId(id), tokens };
-}
-
-export function contextWindowIdFromTokens(tokens: number): string {
-  if (tokens >= 1_000_000 && tokens % 10_000 === 0) {
-    const millions = tokens / 1_000_000;
-    const text = Number.isInteger(millions)
-      ? String(millions)
-      : String(Math.round(millions * 100) / 100);
-    return `${text}m`;
-  }
-  if (tokens % 1_000 === 0) return `${tokens / 1_000}k`;
-  return String(tokens);
-}
-
-export function contextWindowLabelFromId(id: string): string {
-  return id.endsWith("m") ? `${id.slice(0, -1)}M` : id;
-}
+export type CodexContextWindow = ContextWindowOption;
 
 export const DEFAULT_CODEX_CONTEXT_WINDOWS: readonly CodexContextWindow[] = [
   parseContextWindowInput("272k")!,
@@ -45,31 +29,7 @@ export const DEFAULT_CODEX_CONTEXT_WINDOWS: readonly CodexContextWindow[] = [
 ];
 
 export function parseStoredContextWindows(value: unknown): CodexContextWindow[] {
-  if (typeof value !== "string" || !value.trim()) {
-    return [...DEFAULT_CODEX_CONTEXT_WINDOWS];
-  }
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [...DEFAULT_CODEX_CONTEXT_WINDOWS];
-    const windows = new Map<number, CodexContextWindow>();
-    for (const entry of parsed) {
-      const window =
-        typeof entry === "string"
-          ? parseContextWindowInput(entry)
-          : typeof entry === "number"
-            ? parseContextWindowInput(String(entry))
-            : undefined;
-      if (window) windows.set(window.tokens, window);
-    }
-    if (windows.size === 0) return [...DEFAULT_CODEX_CONTEXT_WINDOWS];
-    return [...windows.values()].sort((a, b) => a.tokens - b.tokens);
-  } catch {
-    return [...DEFAULT_CODEX_CONTEXT_WINDOWS];
-  }
-}
-
-export function serializeContextWindows(windows: readonly CodexContextWindow[]): string {
-  return JSON.stringify(windows.map((window) => window.id));
+  return parseStoredContextWindowOptions(value, DEFAULT_CODEX_CONTEXT_WINDOWS);
 }
 
 export function resolveCodexContextWindows(
@@ -83,15 +43,6 @@ export function resolveDefaultCodexContextSize(windows: readonly CodexContextWin
     return DEFAULT_CODEX_CONTEXT_SIZE;
   }
   return windows[0]?.id ?? DEFAULT_CODEX_CONTEXT_SIZE;
-}
-
-export function contextWindowsEqual(
-  left: readonly CodexContextWindow[],
-  right: readonly CodexContextWindow[],
-): boolean {
-  return (
-    left.length === right.length && left.every((window, index) => window.id === right[index]?.id)
-  );
 }
 
 /**

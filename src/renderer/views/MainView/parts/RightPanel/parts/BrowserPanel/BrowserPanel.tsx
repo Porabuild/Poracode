@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Tooltip } from "@heroui/react";
+import { Spinner, Tooltip } from "@heroui/react";
+import { useRendererActionStore } from "@/renderer/state/rendererActionStore";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Check,
@@ -10,8 +11,15 @@ import {
   PictureInPicture2,
   X,
 } from "lucide-react";
-import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
-import { isMac, readBridge } from "@/renderer/bridge";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { readBridge } from "@/renderer/bridge";
+import {
+  createBrowserTab,
+  runBrowserNavigation,
+  printBrowserTab,
+} from "@/renderer/actions/browserActions";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
@@ -23,15 +31,29 @@ import { BrowserBookmarkBar } from "./parts/BrowserBookmarkBar";
 import { BrowserEmptyState } from "./parts/BrowserEmptyState";
 import { BrowserTabStrip } from "./parts/BrowserTabStrip";
 import { BrowserToolbar } from "./parts/BrowserToolbar";
+import { RemoteBrowserMirror } from "./RemoteBrowserMirror";
 import { extractBrowserToWindow, injectBrowserToMain } from "./browserWindowActions";
 import { useElementPicker } from "./hooks/useElementPicker";
+
+import { BrowserTabWebview } from "./parts/BrowserTabWebview";
+import { BrowserDownloadsPage } from "./parts/BrowserDownloadsPage";
+import { BrowserPasswordsPage } from "./parts/BrowserPasswordsPage";
+import { BrowserDeviceToolbar } from "./parts/BrowserDeviceToolbar";
+import { BrowserFindBar } from "./parts/BrowserFindBar";
+import { BrowserImportModal } from "./parts/BrowserImportModal";
+import { useBrowserFindStore } from "@/renderer/state/browserFindStore";
 
 const DEFAULT_HOME = "https://duckduckgo.com";
 
 export function BrowserPanel(props: { visible: boolean; surface?: "main" | "window" }) {
   const { t } = useLingui();
+  const movingWindow = useRendererActionStore((state) => !!state.pending["browser:window"]);
+  const compact = useCompactLayout();
   const tabs = useBrowserPanelStore((s) => s.tabs);
+  const residentTabs = useBrowserPanelStore((s) => s.residentTabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
+  const activeTab = tabs.find((tab) => tab.tabId === activeTabId);
+  const initialized = useBrowserPanelStore((s) => s.initialized);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
   const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
@@ -40,6 +62,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
   const isWindowSurface = props.surface === "window";
+  const nativeBrowserWebContents = hasClientCapability("nativeBrowserWebContents");
   const visible = props.visible || browserOverlayOpen || isWindowSurface;
   const [menuPreviewDataUrl, setMenuPreviewDataUrl] = useState<string | null>(null);
   const {
@@ -54,10 +77,12 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   const hasActiveTab = tabs.length > 0 && activeTabId !== null;
   const rootRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (browserOverlayOpen || isWindowSurface) rootRef.current?.focus({ preventScroll: true });
+  }, [browserOverlayOpen, isWindowSurface]);
+
   const createTab = useCallback(() => {
-    void readBridge()
-      .browserCreateTab({ url: DEFAULT_HOME, activate: true })
-      .catch(() => {});
+    createBrowserTab(DEFAULT_HOME);
   }, []);
 
   // Attached imperatively (rather than a JSX onKeyDown) because this container
@@ -68,19 +93,44 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     const el = rootRef.current;
     if (!el) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!activeTabId || !isBrowserReloadShortcut(event)) return;
+      if (!activeTabId || activeTab?.internalPage) return;
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === "f" &&
+        nativeBrowserWebContents
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        useBrowserFindStore.getState().open(activeTabId);
+        return;
+      }
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === "p" &&
+        nativeBrowserWebContents
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        void printBrowserTab(activeTabId);
+        return;
+      }
+      if (!isBrowserReloadShortcut(event)) return;
       event.preventDefault();
       event.stopPropagation();
       const bridge = readBridge();
       if (event.shiftKey) {
-        bridge.browserHardReload({ tabId: activeTabId }).catch(() => {});
+        runBrowserNavigation(activeTabId, () => bridge.browserHardReload({ tabId: activeTabId }));
         return;
       }
-      bridge.browserReload({ tabId: activeTabId }).catch(() => {});
+      runBrowserNavigation(activeTabId, () => bridge.browserReload({ tabId: activeTabId }));
     };
     el.addEventListener("keydown", handleKeyDown);
     return () => el.removeEventListener("keydown", handleKeyDown);
-  }, [activeTabId]);
+  }, [activeTabId, activeTab?.internalPage, nativeBrowserWebContents]);
 
   const onPick = useCallback(() => {
     void startPicker();
@@ -91,18 +141,11 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   }, [tabs.length]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !initialized) return;
     if (tabs.length > 0) return;
     if (everHadTabsRef.current) return;
-    // Small grace window so persisted tabs restored by main don't race with
-    // an auto-create on cold start.
-    const timer = setTimeout(() => {
-      if (useBrowserPanelStore.getState().tabs.length === 0 && !everHadTabsRef.current) {
-        void createTab();
-      }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [createTab, visible, tabs.length]);
+    createTab();
+  }, [createTab, visible, initialized, tabs.length]);
 
   const isFullscreenOverlay = browserOverlayOpen && browserOverlayMaximized;
   const hasWindowHeader = isFullscreenOverlay || isWindowSurface;
@@ -115,20 +158,42 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     setBrowserPanelOpen(true);
     setRightPanelTab("browser");
   };
-  const extractButton = (
+  const extractButton = nativeBrowserWebContents ? (
     <button
       type="button"
       className={headerButtonClass}
       title={t`Move browser to window`}
       aria-label={t`Move browser to window`}
       onClick={extractBrowserToWindow}
+      disabled={movingWindow}
+      aria-busy={movingWindow}
     >
-      <PictureInPicture2 className="size-3.5" />
+      {movingWindow ? <Spinner size="sm" /> : <PictureInPicture2 className="size-3.5" />}
     </button>
+  ) : null;
+  const toolbar = (
+    <BrowserToolbar
+      onPick={onPick}
+      pickerActive={pickerActive}
+      pickerTargets={threadTargets}
+      hasPendingPick={pendingPickerAttachment !== null}
+      pendingPickAnchor={
+        pendingPickerAttachment &&
+        typeof pendingPickerAttachment.anchorX === "number" &&
+        typeof pendingPickerAttachment.anchorY === "number"
+          ? { x: pendingPickerAttachment.anchorX, y: pendingPickerAttachment.anchorY }
+          : null
+      }
+      onChoosePickTarget={chooseTargetForPendingPick}
+      onCancelPendingPick={cancelPendingPick}
+      onMenuPreviewChange={setMenuPreviewDataUrl}
+    />
   );
+  const tabStrip = hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />;
   return (
     <div
       ref={rootRef}
+      tabIndex={-1}
       data-poracode-browser=""
       role="group"
       aria-label={t`Browser`}
@@ -143,7 +208,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           } flex shrink-0 items-center gap-1 border-b border-[color:var(--border)] bg-[var(--content-background)] px-2`}
           style={hasWindowHeader ? overlayHeaderStyle() : { height: "32px" }}
         >
-          {isMac() && hasWindowHeader ? (
+          {hasMacWindowChrome() && hasWindowHeader ? (
             <div className={macosTrafficLightGutterClass} aria-hidden />
           ) : null}
           {hasWindowHeader ? (
@@ -162,8 +227,10 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
               title={t`Move browser back to main window`}
               aria-label={t`Move browser back to main window`}
               onClick={injectBrowserToMain}
+              disabled={movingWindow}
+              aria-busy={movingWindow}
             >
-              <PanelRightOpen className="size-3.5" />
+              {movingWindow ? <Spinner size="sm" /> : <PanelRightOpen className="size-3.5" />}
             </button>
           ) : browserPanelOpen ? (
             <>
@@ -215,34 +282,40 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           )}
         </div>
       ) : null}
-      <BrowserToolbar
-        onPick={onPick}
-        pickerActive={pickerActive}
-        pickerTargets={threadTargets}
-        hasPendingPick={pendingPickerAttachment !== null}
-        pendingPickAnchor={
-          pendingPickerAttachment &&
-          typeof pendingPickerAttachment.anchorX === "number" &&
-          typeof pendingPickerAttachment.anchorY === "number"
-            ? { x: pendingPickerAttachment.anchorX, y: pendingPickerAttachment.anchorY }
-            : null
-        }
-        onChoosePickTarget={chooseTargetForPendingPick}
-        onCancelPendingPick={cancelPendingPick}
-        onMenuPreviewChange={setMenuPreviewDataUrl}
-      />
-      {hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />}
-      <BrowserBookmarkBar />
+      {compact ? null : toolbar}
+      {compact ? null : tabStrip}
+      {compact ? null : <BrowserBookmarkBar />}
+      {nativeBrowserWebContents ? <BrowserDeviceToolbar /> : null}
       <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
-        {tabs.map((tab) => (
-          <BrowserTabWebview
-            key={tab.tabId}
-            tabId={tab.tabId}
-            initialSrc={tab.url}
-            visible={visible && !menuPreviewDataUrl && tab.tabId === activeTabId}
-          />
-        ))}
-        {menuPreviewDataUrl ? (
+        {nativeBrowserWebContents ? (
+          residentTabs
+            .filter((tab) => !tab.internalPage)
+            .map((tab) => (
+              <BrowserTabWebview
+                key={tab.tabId}
+                tabId={tab.tabId}
+                initialSrc={tab.url}
+                {...(tab.deviceEmulation ? { emulation: tab.deviceEmulation } : {})}
+                visible={visible && tab.tabId === activeTabId}
+                {...(menuPreviewDataUrl && tab.tabId === activeTabId
+                  ? { previewDataUrl: menuPreviewDataUrl }
+                  : {})}
+              />
+            ))
+        ) : (
+          <RemoteBrowserMirror activeTabId={activeTabId} visible={visible && !menuPreviewDataUrl} />
+        )}
+        {nativeBrowserWebContents && activeTab?.internalPage === "downloads" ? (
+          <div className="absolute inset-0">
+            <BrowserDownloadsPage />
+          </div>
+        ) : nativeBrowserWebContents && activeTab?.internalPage === "passwords" ? (
+          <div className="absolute inset-0">
+            <BrowserPasswordsPage />
+          </div>
+        ) : null}
+        {nativeBrowserWebContents ? <BrowserFindBar /> : null}
+        {menuPreviewDataUrl && !nativeBrowserWebContents ? (
           <img
             src={menuPreviewDataUrl}
             alt=""
@@ -256,6 +329,14 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           </div>
         ) : null}
       </div>
+      {compact ? (
+        <div className="poracode-mobile-browser-chrome" data-mobile-browser-chrome="">
+          {tabStrip}
+          <BrowserBookmarkBar />
+          {toolbar}
+        </div>
+      ) : null}
+      {nativeBrowserWebContents ? <BrowserImportModal /> : null}
     </div>
   );
 }
@@ -342,65 +423,6 @@ function BrowserDeviceCodeButton() {
         </span>
       </Tooltip.Content>
     </Tooltip>
-  );
-}
-
-function BrowserTabWebview(props: { tabId: string; initialSrc: string; visible: boolean }) {
-  const ref = useRef<HTMLWebViewElement | null>(null);
-  // Snapshot the first URL: later navigations update the tab, never the
-  // webview's `src` (re-setting it would reload the page).
-  const [initialSrc] = useState(props.initialSrc);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let cancelled = false;
-    const onDomReady = () => {
-      if (cancelled) return;
-      let webContentsId: number;
-      try {
-        webContentsId = el.getWebContentsId();
-      } catch {
-        return;
-      }
-      readBridge()
-        .browserAttachWebContents({ tabId: props.tabId, webContentsId })
-        .catch(() => {});
-    };
-    el.addEventListener("dom-ready", onDomReady);
-    return () => {
-      cancelled = true;
-      el.removeEventListener("dom-ready", onDomReady);
-    };
-  }, [props.tabId]);
-
-  useEffect(() => {
-    if (!props.visible) return;
-    const el = ref.current;
-    if (!el) return;
-    let webContentsId: number;
-    try {
-      webContentsId = el.getWebContentsId();
-    } catch {
-      return;
-    }
-    readBridge()
-      .browserAttachWebContents({ tabId: props.tabId, webContentsId })
-      .catch(() => {});
-  }, [props.tabId, props.visible]);
-
-  return (
-    <webview
-      ref={ref}
-      data-tab-id={props.tabId}
-      partition={BROWSER_SESSION_PARTITION}
-      src={initialSrc || "about:blank"}
-      // Electron's React type says boolean, but React warns unless this custom
-      // element attribute is serialized as a string.
-      allowpopups={"true" as unknown as boolean}
-      className="absolute inset-0 size-full"
-      style={{ display: props.visible ? "flex" : "none" }}
-    />
   );
 }
 

@@ -193,6 +193,7 @@ const CODEX_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
 
 export const codexDefaultCapabilities: AgentCapability = {
   models: [],
+  contextSizeChangeReloadsSession: true,
   efforts: [],
   modelEfforts: {},
   modes: ["agent", "plan"],

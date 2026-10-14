@@ -1,235 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
-import type {
-  ProjectLocation,
-  ResolvedMcpServer,
-  RuntimeEvent,
-  ThreadConfig,
-} from "@/shared/contracts";
-import type {
-  CreateStructuredSessionInput,
-  StructuredSessionListener,
-  StructuredSessionUpdate,
-} from "../base";
+import type { ThreadConfig, ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { cursorSdkAgentId, CursorSdkSession } from "./sdkSession";
-import { CursorSdkWorkerRpcError } from "./sdkWorkerClient";
+import { CursorSdkWorkerRpcError, CursorSdkWorkerStartupError } from "./sdkWorkerClient";
 import type {
-  CursorSdkWorkerAgentMessage,
-  CursorSdkWorkerEvent,
-  CursorSdkWorkerInitializeInput,
   CursorSdkWorkerInitializeResult,
-  CursorSdkWorkerProbeResult,
-  CursorSdkWorkerStartInput,
   CursorSdkWorkerStartResult,
 } from "./sdkWorkerProtocol";
+import {
+  projectLocation,
+  baseConfig,
+  input,
+  FakeWorker,
+  recordingListener,
+  createSession,
+  createSessionWithWorkers,
+  resultEvent,
+  deferred,
+} from "./sdkSession.testFixtures";
 
-const projectLocation: ProjectLocation = { kind: "posix", path: "/repo" };
-const baseConfig: ThreadConfig = {
-  model: "composer[test=one]",
-  effort: "high",
-  mode: "agent",
-  approvalPolicy: "default",
-  sandboxMode: "workspace-write",
-};
-const initialMcp: ResolvedMcpServer[] = [
-  {
-    id: "docs-id",
-    name: "docs",
-    timeoutMs: 10_000,
-    transport: {
-      type: "stdio",
-      command: "node",
-      args: ["docs.js"],
-      env: { TOKEN: "opaque" },
-    },
-  },
-];
-
-function input(
-  overrides: Partial<CreateStructuredSessionInput> = {},
-): CreateStructuredSessionInput {
-  return {
-    threadId: "thread-123456789",
-    projectLocation,
-    config: baseConfig,
-    agentSettings: { structuredRuntime: "sdk" },
-    env: { PROJECT_VALUE: "yes" },
-    mcpServers: initialMcp,
-    presentationMode: "gui",
-    ...overrides,
-  };
-}
-
-class FakeWorker {
-  private listeners = new Set<(event: CursorSdkWorkerEvent) => void>();
-  private transportErrorListeners = new Set<(error: Error) => void>();
-
-  readonly initialize = vi.fn<
-    (input: CursorSdkWorkerInitializeInput) => Promise<CursorSdkWorkerInitializeResult>
-  >(async (_input) => ({
-    agentId: "agent-1",
-    model: { id: "composer" },
-  }));
-  readonly start = vi.fn<(input: CursorSdkWorkerStartInput) => Promise<CursorSdkWorkerStartResult>>(
-    async (_input) => ({ runId: "run-1" }),
-  );
-  readonly cancel = vi.fn<(runId?: string) => Promise<{ cancelled: boolean }>>(async (_runId) => ({
-    cancelled: true,
-  }));
-  readonly reload = vi.fn<() => Promise<void>>(async () => {});
-  readonly listMessages = vi.fn<
-    (input?: { limit?: number; offset?: number }) => Promise<CursorSdkWorkerAgentMessage[]>
-  >(async (_input) => [
-    {
-      type: "user",
-      uuid: "user-1",
-      agent_id: "agent-1",
-      message: { role: "user", content: [{ type: "text", text: "hello" }] },
-    },
-    {
-      type: "assistant",
-      uuid: "assistant-1",
-      agent_id: "agent-1",
-      message: { role: "assistant", content: [{ type: "text", text: "hi" }] },
-    },
-  ]);
-  readonly listModels = vi.fn<(apiKey?: string) => Promise<CursorSdkWorkerProbeResult>>(
-    async () => ({
-      models: [
-        {
-          id: "composer",
-          displayName: "Composer",
-          parameters: [
-            {
-              id: "effort",
-              values: [
-                { value: "medium", displayName: "Medium" },
-                { value: "high", displayName: "High" },
-              ],
-            },
-          ],
-        },
-      ],
-      sdkVersion: "1.0.24",
-      source: "configured" as const,
-    }),
-  );
-  readonly dispose = vi.fn<() => Promise<void>>(async () => {});
-
-  onEvent(listener: (event: CursorSdkWorkerEvent) => void): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  onTransportError(listener: (error: Error) => void): () => void {
-    this.transportErrorListeners.add(listener);
-    return () => this.transportErrorListeners.delete(listener);
-  }
-
-  emit(event: CursorSdkWorkerEvent): void {
-    for (const listener of this.listeners) listener(event);
-  }
-
-  crash(error: Error): void {
-    for (const listener of this.transportErrorListeners) listener(error);
-  }
-
-  snapshotListeners(): {
-    emit(event: CursorSdkWorkerEvent): void;
-    crash(error: Error): void;
-  } {
-    const eventListeners = [...this.listeners];
-    const transportErrorListeners = [...this.transportErrorListeners];
-    return {
-      emit: (event) => {
-        for (const listener of eventListeners) listener(event);
-      },
-      crash: (error) => {
-        for (const listener of transportErrorListeners) listener(error);
-      },
-    };
-  }
-}
-
-function recordingListener() {
-  const updates: StructuredSessionUpdate[] = [];
-  const events: RuntimeEvent[] = [];
-  const errors: string[] = [];
-  let closes = 0;
-  const listener: StructuredSessionListener = {
-    onClose: () => {
-      closes += 1;
-    },
-    onError: (message) => errors.push(message),
-    onUpdate: (update) => updates.push(update),
-    onRuntimeEvent: (event) => events.push(event),
-  };
-  return {
-    listener,
-    updates,
-    events,
-    errors,
-    get closes() {
-      return closes;
-    },
-  };
-}
-
-async function createSession(
-  worker = new FakeWorker(),
-  inputOverrides: Partial<CreateStructuredSessionInput> = {},
-) {
-  const spawnWorker = vi.fn<(input: unknown) => Promise<FakeWorker>>(async () => worker);
-  let id = 0;
-  const session = await CursorSdkSession.create(input(inputOverrides), {
-    spawnWorker,
-    newId: () => `id-${++id}`,
-  });
-  return { session, worker, spawnWorker };
-}
-
-async function createSessionWithWorkers(
-  workers: readonly FakeWorker[],
-  inputOverrides: Partial<CreateStructuredSessionInput> = {},
-) {
-  let workerIndex = 0;
-  const spawnWorker = vi.fn<(input: unknown) => Promise<FakeWorker>>(async () => {
-    const worker = workers[workerIndex++];
-    if (!worker) throw new Error("No fake Cursor SDK worker remains.");
-    return worker;
-  });
-  let id = 0;
-  const session = await CursorSdkSession.create(input(inputOverrides), {
-    spawnWorker,
-    newId: () => `id-${++id}`,
-  });
-  return { session, spawnWorker };
-}
-
-function resultEvent(
-  status: "finished" | "error" | "cancelled" = "finished",
-  runId = "run-1",
-): CursorSdkWorkerEvent {
-  return {
-    type: "result",
-    requestId: "request-1",
-    runId,
-    result: {
-      id: runId,
-      status,
-      ...(status === "error" ? { error: { message: "backend failed", code: "backend" } } : {}),
-    },
-  };
-}
-
-function deferred<Value>() {
-  let resolve!: (value: Value | PromiseLike<Value>) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<Value>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
-    reject = rejectPromise;
-  });
-  return { promise, resolve, reject };
-}
+// Session fixtures must not inherit the developer's installed SDK pin.
+vi.mock("./sdkInstallPin", () => ({ readCursorSdkInstallPin: () => undefined }));
 
 describe("CursorSdkSession", () => {
   it("spawns the isolated worker and creates a fresh durable local agent", async () => {
@@ -1279,6 +1069,94 @@ describe("CursorSdkSession", () => {
     expect(recorded.updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
   });
 
+  it("shares disposal completion and retries the owned worker after failed shutdown", async () => {
+    const { session, worker } = await createSession();
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    const cleanup = deferred<void>();
+    worker.dispose.mockReturnValueOnce(cleanup.promise);
+    const first = session.dispose();
+    expect(session.dispose()).toBe(first);
+    expect(recorded.closes).toBe(0);
+    cleanup.reject(new Error("Still alive"));
+    await expect(first).rejects.toThrow("Cursor SDK session shutdown failed");
+    expect(recorded.closes).toBe(0);
+    await session.dispose();
+    expect(worker.dispose).toHaveBeenCalledTimes(2);
+    expect(recorded.closes).toBe(1);
+  });
+
+  it("retains failed replacement cleanup until disposal confirms its exit", async () => {
+    const originalWorker = new FakeWorker();
+    const candidate = new FakeWorker();
+    candidate.initialize.mockRejectedValue(new Error("Initialization failed"));
+    candidate.dispose.mockRejectedValue(new Error("Candidate still alive"));
+    const { session } = await createSessionWithWorkers([originalWorker, candidate]);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+    await session.startTurn("change safety", { ...baseConfig, sandboxMode: "danger-full-access" });
+    await expect(session.dispose()).rejects.toThrow("Cursor SDK session shutdown failed");
+    expect(recorded.closes).toBe(0);
+    candidate.dispose.mockResolvedValue(undefined);
+    await session.dispose();
+    expect(originalWorker.dispose).toHaveBeenCalledTimes(1);
+    expect(candidate.dispose).toHaveBeenCalledTimes(3);
+    expect(recorded.closes).toBe(1);
+  });
+
+  it.each(["initial", "replacement"])(
+    "retains a failed %s worker boot until shutdown can be confirmed",
+    async (phase) => {
+      const { session, spawnWorker, worker } = await createSession();
+      const recorded = recordingListener();
+      session.setListener(recorded.listener);
+      if (phase === "replacement") {
+        await session.activate();
+        await session.openThread(baseConfig);
+      }
+      const failedWorker = new FakeWorker();
+      const cleanupError = new Error("Boot worker still alive");
+      failedWorker.dispose.mockRejectedValue(cleanupError);
+      const startupError = new CursorSdkWorkerStartupError(
+        new Error("Worker boot failed"),
+        cleanupError,
+        failedWorker,
+      );
+      spawnWorker.mockRejectedValueOnce(startupError);
+      const startup =
+        phase === "initial"
+          ? session.activate()
+          : session.startTurn("change safety", {
+              ...baseConfig,
+              sandboxMode: "danger-full-access",
+            });
+      const outcome = await startup.catch((error: unknown) => error);
+      expect(outcome).toBe(phase === "initial" ? startupError : undefined);
+      await expect(session.dispose()).rejects.toThrow("Cursor SDK session shutdown failed");
+      expect(recorded.closes).toBe(0);
+      failedWorker.dispose.mockResolvedValue(undefined);
+      await session.dispose();
+      expect(failedWorker.dispose).toHaveBeenCalledTimes(2);
+      expect(worker.dispose).toHaveBeenCalledTimes(phase === "replacement" ? 1 : 0);
+      expect(recorded.closes).toBe(1);
+    },
+  );
+
+  it("starts worker disposal even if the run cancel RPC never acknowledges", async () => {
+    const { session, worker } = await createSession();
+    await session.activate();
+    await session.openThread(baseConfig);
+    const turn = session.startTurn("long task", baseConfig);
+    await vi.waitFor(() => expect(worker.start).toHaveBeenCalledOnce());
+    worker.cancel.mockReturnValue(new Promise(() => {}));
+    await session.dispose();
+    await turn;
+    expect(worker.dispose).toHaveBeenCalledTimes(1);
+  });
+
   it("disposes an active run without leaking late events", async () => {
     const { session, worker } = await createSession();
     const recorded = recordingListener();
@@ -1307,6 +1185,6 @@ describe("CursorSdkSession", () => {
       type: "turn.completed",
       state: "cancelled",
     });
-    expect((session as unknown as { steerTurn?: unknown }).steerTurn).toBeUndefined();
+    expect(session.steerTurn).toBeTypeOf("function");
   });
 });

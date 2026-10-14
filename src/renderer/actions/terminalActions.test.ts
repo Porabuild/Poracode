@@ -7,6 +7,7 @@ const bridge = vi.hoisted(() => ({
   startShell: vi.fn<(payload: unknown) => Promise<void>>(),
   writeTerminal: vi.fn<(payload: { threadId: string; data: string }) => Promise<void>>(),
   closeThread: vi.fn<(payload: { threadId: string }) => Promise<void>>(),
+  setRendererEventInterests: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 const supervisorHandlers: Array<(event: SupervisorEvent) => void> = [];
@@ -94,42 +95,57 @@ describe("runProjectAction", () => {
     runProjectAction(project.id, "dev");
     const tab = useDevTerminalStore.getState().tabs[0]!;
 
-    supervisorHandlers.forEach((handler) =>
-      handler({ type: "thread-output", threadId: tab.id, data: "PS> ", outputLength: 4 }),
-    );
-    const command = bridge.writeTerminal.mock.calls[0]?.[0].data ?? "";
-    const token = /poracode-shell-complete=([^:]+):/u.exec(command)?.[1];
-    expect(token).toBeTruthy();
-    supervisorHandlers.forEach((handler) =>
-      handler({
-        type: "thread-output",
-        threadId: tab.id,
-        data: command,
-        outputLength: command.length,
-      }),
-    );
-    supervisorHandlers.forEach((handler) =>
-      handler({
-        type: "thread-output",
-        threadId: tab.id,
-        data: "command failed\r\n",
-        outputLength: command.length + 16,
-      }),
-    );
-    const marker = `\u001B]777;poracode-shell-complete=${token}:1\u0007`;
-    supervisorHandlers.forEach((handler) =>
-      handler({
-        type: "thread-output",
-        threadId: tab.id,
-        data: marker,
-        outputLength: marker.length,
-      }),
-    );
+    vi.useFakeTimers();
+    try {
+      supervisorHandlers.forEach((handler) =>
+        handler({
+          type: "thread-output",
+          threadId: tab.id,
+          data: "PS> ",
+          outputLength: 4,
+          terminalInstanceId: "gen-test",
+        }),
+      );
+      vi.advanceTimersByTime(250);
+      const command = bridge.writeTerminal.mock.calls[0]?.[0].data ?? "";
+      const token = /poracode-shell-complete=([^:]+):/u.exec(command)?.[1];
+      expect(token).toBeTruthy();
+      supervisorHandlers.forEach((handler) =>
+        handler({
+          type: "thread-output",
+          threadId: tab.id,
+          data: command,
+          outputLength: command.length,
+          terminalInstanceId: "gen-test",
+        }),
+      );
+      supervisorHandlers.forEach((handler) =>
+        handler({
+          type: "thread-output",
+          threadId: tab.id,
+          data: "command failed\r\n",
+          outputLength: command.length + 16,
+          terminalInstanceId: "gen-test",
+        }),
+      );
+      const marker = `\u001B]777;poracode-shell-complete=${token}:1\u0007`;
+      supervisorHandlers.forEach((handler) =>
+        handler({
+          type: "thread-output",
+          threadId: tab.id,
+          data: marker,
+          outputLength: marker.length,
+          terminalInstanceId: "gen-test",
+        }),
+      );
 
-    expect(useDevTerminalStore.getState().runningTabs[tab.id]).toBeUndefined();
-    expect(useDevTerminalStore.getState().tabs).toContainEqual(tab);
-    expect(useThreadOutputStore.getState().readTail(tab.id, 100_000)).toContain("command failed");
-    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: tab.id });
+      expect(useDevTerminalStore.getState().runningTabs[tab.id]).toBeUndefined();
+      expect(useDevTerminalStore.getState().tabs).toContainEqual(tab);
+      expect(useThreadOutputStore.getState().readTail(tab.id, 100_000)).toContain("command failed");
+      expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: tab.id });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("clears retained output when rerunning the action", () => {

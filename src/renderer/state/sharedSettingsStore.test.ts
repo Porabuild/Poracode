@@ -2,7 +2,15 @@ import { MAX_CUSTOM_THEMES } from "@/shared/customThemes";
 import { THEME_SPECS } from "@/renderer/theme/themePresets";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
-import { useSharedSettings, waitForPendingSharedSettings } from "./sharedSettingsStore";
+import type { SharedSettings } from "@/shared/settings";
+import { normalizeSharedSettings } from "@/shared/settings";
+import {
+  applyExternalSharedSettings,
+  flushSharedSettings,
+  useSharedSettings,
+  waitForPendingSharedSettings,
+  whenSharedSettingsHydrated,
+} from "./sharedSettingsStore";
 
 const originalPoracodeBridge = window.poracode;
 
@@ -47,6 +55,19 @@ describe("sharedSettingsStore", () => {
       enabledMcpServers: {},
       installedPlugins: {},
     });
+  });
+
+  it("persists a new terminal family once and ignores an unchanged selection", () => {
+    useSharedSettings.setState({ terminalFontFamily: "" });
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    useSharedSettings.getState().setTerminalFontFamily("Menlo");
+    expect(JSON.parse(localStorage.getItem("poracode-shared-settings")!)).toMatchObject({
+      terminalFontFamily: "Menlo",
+    });
+    writes.mockClear();
+    useSharedSettings.getState().setTerminalFontFamily("Menlo");
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
   });
 
   it("defaults theme to dark", () => {
@@ -118,9 +139,72 @@ describe("sharedSettingsStore", () => {
     expect(barrierFinished).toBe(true);
   });
 
+  it("rejects an explicit persistence confirmation when the queued host write failed", async () => {
+    let rejectWrite!: (error: unknown) => void;
+    const refusal = new Error("Profile dependency is unavailable");
+    const setSharedSettings = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectWrite = reject;
+        }),
+    );
+    window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+    useSharedSettings.getState().setThemeMode("light");
+    const confirmation = flushSharedSettings({ requireSuccess: true });
+    queueMicrotask(() => rejectWrite(refusal));
+    await expect(confirmation).rejects.toBe(refusal);
+    // Passive drain callers retain their previous non-throwing contract.
+    await expect(waitForPendingSharedSettings()).resolves.toBeUndefined();
+  });
+
+  it("serializes whole-document writes and coalesces queued updates to the newest state", async () => {
+    const releases: Array<() => void> = [];
+    const writes: SharedSettings[] = [];
+    const setSharedSettings = vi.fn<(settings: SharedSettings) => Promise<void>>((settings) => {
+      writes.push(settings);
+      return new Promise<void>((resolve) => releases.push(resolve));
+    });
+    window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+
+    useSharedSettings.getState().setThemeMode("light");
+    useSharedSettings.getState().setThemeMode("system");
+    useSharedSettings.getState().setThemeMode("dark");
+    await Promise.resolve();
+    expect(setSharedSettings).toHaveBeenCalledTimes(1);
+    expect(writes[0]?.themeMode).toBe("light");
+
+    releases.shift()!();
+    await vi.waitFor(() => expect(setSharedSettings).toHaveBeenCalledTimes(2));
+    expect(writes[1]?.themeMode).toBe("dark");
+    let drained = false;
+    const barrier = waitForPendingSharedSettings().then(() => {
+      drained = true;
+    });
+    await Promise.resolve();
+    expect(drained).toBe(false);
+    releases.shift()!();
+    await barrier;
+    expect(drained).toBe(true);
+  });
+
   it("updates the stale thread unload timing", () => {
     useSharedSettings.getState().setStaleThreadUnloadMinutes(30);
     expect(useSharedSettings.getState().staleThreadUnloadMinutes).toBe(30);
+  });
+
+  it("marks owner-pushed settings hydrated without echo", async () => {
+    useSharedSettings.setState({ sharedSettingsHydrated: false });
+    let done = false;
+    const waiter = whenSharedSettingsHydrated().then(() => {
+      done = true;
+    });
+    applyExternalSharedSettings({ themeMode: "light" });
+    await waiter;
+    expect(done).toBe(true);
+    expect(useSharedSettings.getState()).toMatchObject({
+      themeMode: "light",
+      sharedSettingsHydrated: true,
+    });
   });
 
   it("updates and persists follow-up behavior", () => {
@@ -300,6 +384,58 @@ describe("sharedSettingsStore", () => {
     expect(persistedPlugins()).toEqual({});
   });
 
+  it("reorders existing saved favorites, persists their unchanged shape and ignores stale or unchanged moves", () => {
+    const saved = normalizeSharedSettings({
+      favoriteModels: [
+        { agentKind: "agent", modelId: "first", presentationMode: "terminal" },
+        { agentKind: "agent", modelId: "other-mode", presentationMode: "gui" },
+        { agentKind: "agent", modelId: "last", presentationMode: "terminal" },
+      ],
+    }).favoriteModels;
+    useSharedSettings.setState({ favoriteModels: saved });
+    const ordered = [saved[2]!, saved[0]!];
+    useSharedSettings.getState().reorderFavoriteModels(ordered);
+    const expected = [saved[2], saved[1], saved[0]];
+    expect(useSharedSettings.getState().favoriteModels).toEqual(expected);
+    const disk = JSON.parse(localStorage.getItem("poracode-shared-settings")!);
+    expect(normalizeSharedSettings(disk).favoriteModels).toEqual(expected);
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    useSharedSettings.getState().reorderFavoriteModels(ordered);
+    expect(writes).not.toHaveBeenCalled();
+    // A drag started before a favorite was removed must not restore it, and
+    // a newly added favorite must retain its existing slot.
+    const added = { agentKind: "agent", modelId: "new", presentationMode: "terminal" as const };
+    useSharedSettings.setState({ favoriteModels: [saved[0]!, added] });
+    useSharedSettings.getState().reorderFavoriteModels(ordered);
+    expect(useSharedSettings.getState().favoriteModels).toEqual([saved[0], added]);
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
+  });
+
+  it("removes saved recent references once while retaining other presentations and usage history", () => {
+    const saved = normalizeSharedSettings({
+      recentModels: [
+        { agentKind: "agent", modelId: "model", presentationMode: "terminal" },
+        { agentKind: "agent", modelId: "model", presentationMode: "gui" },
+        { agentKind: "other", modelId: "model", presentationMode: "terminal" },
+      ],
+    }).recentModels;
+    useSharedSettings.setState({ recentModels: saved });
+    const usage = useSharedSettings.getState().agentSelectionUsage;
+    const favorites = useSharedSettings.getState().favoriteModels;
+    useSharedSettings.getState().removeRecentModels([saved[0]!]);
+    const expected = saved.slice(1);
+    expect(useSharedSettings.getState().recentModels).toEqual(expected);
+    const disk = JSON.parse(localStorage.getItem("poracode-shared-settings")!);
+    expect(normalizeSharedSettings(disk).recentModels).toEqual(expected);
+    expect(useSharedSettings.getState().agentSelectionUsage).toBe(usage);
+    expect(useSharedSettings.getState().favoriteModels).toBe(favorites);
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    useSharedSettings.getState().removeRecentModels([saved[0]!]);
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
+  });
+
   describe("toggleFavoriteModelAnyMode", () => {
     it("adds a favorite under the fallback mode when none exists", () => {
       const nowFavorite = useSharedSettings
@@ -398,5 +534,104 @@ describe("sharedSettingsStore", () => {
 
     expect(useSharedSettings.getState().agentSettings["cursor:work"]).toBeUndefined();
     expect(useSharedSettings.getState().providerOrder).toEqual(["cursor"]);
+  });
+
+  describe("host resource admission limits", () => {
+    beforeEach(() => {
+      useSharedSettings.setState({
+        hostResourceAdmission: {
+          maxActiveAgentSessions: 0,
+          maxActiveTerminalShells: 0,
+          maxActiveGenerationHelpers: 0,
+        },
+      });
+    });
+
+    it("updates one execution-slot limit without touching the others", () => {
+      const state = useSharedSettings.getState();
+      state.setHostResourceAdmissionSetting("maxActiveAgentSessions", 4);
+      state.setHostResourceAdmissionSetting("maxActiveTerminalShells", 2);
+      state.setHostResourceAdmissionSetting("maxActiveGenerationHelpers", 1);
+
+      expect(useSharedSettings.getState().hostResourceAdmission).toEqual({
+        maxActiveAgentSessions: 4,
+        maxActiveTerminalShells: 2,
+        maxActiveGenerationHelpers: 1,
+      });
+    });
+
+    it("persists the field and accepts 0 and the maximum safe integer", () => {
+      useSharedSettings
+        .getState()
+        .setHostResourceAdmissionSetting("maxActiveAgentSessions", Number.MAX_SAFE_INTEGER);
+      useSharedSettings.getState().setHostResourceAdmissionSetting("maxActiveTerminalShells", 0);
+
+      expect(JSON.parse(localStorage.getItem("poracode-shared-settings") ?? "null")).toMatchObject({
+        hostResourceAdmission: {
+          maxActiveAgentSessions: Number.MAX_SAFE_INTEGER,
+          maxActiveTerminalShells: 0,
+          maxActiveGenerationHelpers: 0,
+        },
+      });
+    });
+
+    it("refuses negative, fractional, non-finite, and unsafe values", () => {
+      useSharedSettings.setState({
+        hostResourceAdmission: {
+          maxActiveAgentSessions: 7,
+          maxActiveTerminalShells: 7,
+          maxActiveGenerationHelpers: 7,
+        },
+      });
+      const setLimit = useSharedSettings.getState().setHostResourceAdmissionSetting;
+
+      setLimit("maxActiveAgentSessions", -1);
+      setLimit("maxActiveAgentSessions", 1.5);
+      setLimit("maxActiveAgentSessions", Number.NaN);
+      setLimit("maxActiveAgentSessions", Number.POSITIVE_INFINITY);
+      setLimit("maxActiveAgentSessions", Number.MAX_SAFE_INTEGER + 1);
+
+      expect(useSharedSettings.getState().hostResourceAdmission.maxActiveAgentSessions).toBe(7);
+    });
+
+    it("keeps configured limits when an older whole snapshot omits the field", () => {
+      useSharedSettings.getState().setHostResourceAdmissionSetting("maxActiveAgentSessions", 3);
+
+      applyExternalSharedSettings({ themeMode: "light" });
+
+      expect(useSharedSettings.getState().hostResourceAdmission.maxActiveAgentSessions).toBe(3);
+    });
+
+    it("preserves unknown sub-keys of a newer writer across an edit", () => {
+      useSharedSettings.setState({
+        hostResourceAdmission: {
+          maxActiveAgentSessions: 1,
+          maxActiveTerminalShells: 1,
+          maxActiveGenerationHelpers: 1,
+          futureAdmissionKnob: 9,
+        } as SharedSettings["hostResourceAdmission"],
+      });
+
+      useSharedSettings.getState().setHostResourceAdmissionSetting("maxActiveAgentSessions", 5);
+
+      expect(useSharedSettings.getState().hostResourceAdmission).toMatchObject({
+        futureAdmissionKnob: 9,
+        maxActiveAgentSessions: 5,
+      });
+    });
+
+    it("forwards the field through the persistence bridge", async () => {
+      const setSharedSettings = vi.fn<() => Promise<void>>(() => Promise.resolve());
+      window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+
+      useSharedSettings.getState().setHostResourceAdmissionSetting("maxActiveTerminalShells", 6);
+      await waitForPendingSharedSettings();
+
+      expect(setSharedSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hostResourceAdmission: expect.objectContaining({ maxActiveTerminalShells: 6 }),
+        }),
+      );
+    });
   });
 });

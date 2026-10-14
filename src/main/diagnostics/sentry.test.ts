@@ -1,10 +1,11 @@
+import Module from "node:module";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
   app: { isPackaged: false },
 }));
 
-import { initializeMainSentry, isSentryConfigured } from "./sentry";
+import { captureMainException, initializeMainSentry, isSentryConfigured } from "./sentry";
 
 const originalDsn = process.env.SENTRY_DSN;
 const originalDevOverride = process.env.SENTRY_ENABLE_DEV;
@@ -34,5 +35,29 @@ describe("main Sentry configuration", () => {
     };
     expect(isSentryConfigured(options)).toBe(false);
     expect(initializeMainSentry(options)).toBe(false);
+  });
+});
+
+describe("captureMainException", () => {
+  it("does not load the Sentry SDK when main Sentry was never initialized", () => {
+    // Loading @sentry/electron/main is ~100ms of synchronous main-thread work;
+    // a disabled reporter must not pay it on the first captured error.
+    const moduleLoader = Module as unknown as {
+      _load: (request: string, ...rest: unknown[]) => unknown;
+    };
+    const loadSpy = vi.spyOn(moduleLoader, "_load");
+    try {
+      process.env.SENTRY_DSN = " ";
+      expect(initializeMainSentry({ appVersion: "test", isDev: false, channel: "nightly" })).toBe(
+        false,
+      );
+
+      captureMainException(new Error("updater failed"), { "poracode.feature_area": "update" });
+
+      const requests = loadSpy.mock.calls.map(([request]) => request);
+      expect(requests.some((request) => request.startsWith("@sentry/"))).toBe(false);
+    } finally {
+      loadSpy.mockRestore();
+    }
   });
 });

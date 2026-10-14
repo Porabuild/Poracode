@@ -1,4 +1,7 @@
 import type { KeyboardEvent, RefObject } from "react";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
+import { guiSlashCommand } from "@/renderer/components/providers/standardGuiSlashCommands";
 import type {
   AgentSlashCommand,
   AgentStatus,
@@ -27,6 +30,8 @@ export type SlashCommandLookupContext = {
   agentKind?: AgentStatus["kind"] | undefined;
   presentationMode?: ThreadPresentationMode | undefined;
   runtimeLabel?: string | undefined;
+  /** Existing GUI conversations can open an independent side conversation. */
+  supportsSideChat?: boolean | undefined;
 };
 
 /**
@@ -47,6 +52,7 @@ function activeGuiSlashCommands(
 }
 
 const EMPTY_SLASH_COMMANDS: AgentSlashCommand[] = [];
+export const SIDE_CHAT_COMMAND_PREFIX = /^\s*\/btw(?:\s+|$)/iu;
 
 function withoutSkillCommands(
   commands: readonly AgentSlashCommand[] | undefined,
@@ -214,6 +220,13 @@ export function resolveAvailableSlashCommands(
     providerSkillsAuthoritative,
     context?.disabledSkillNames ?? [],
   );
+  const sideCommands =
+    context?.presentationMode === "gui" && context.supportsSideChat
+      ? [guiSlashCommand("btw", i18n._(msg`Ask a question in a separate side chat`))]
+      : [];
+  const reserved = new Set(sideCommands.map((command) => command.id.toLowerCase()));
+  const isUnreserved = (command: AgentSlashCommand) =>
+    !reserved.has((command.skillName ?? command.id).toLowerCase());
   if (context?.presentationMode === "terminal") {
     const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
     return [...dedupeBaseCommands(base, skills), ...skills];
@@ -222,16 +235,23 @@ export function resolveAvailableSlashCommands(
     const registration = activeGuiSlashCommands(context);
     if (registration) {
       return [
-        ...registration.buildCommands({
-          hasEffort: context.hasEffort ?? false,
-          supportsFast: context.supportsFast ?? false,
-        }),
-        ...skills,
+        ...sideCommands,
+        ...registration
+          .buildCommands({
+            hasEffort: context.hasEffort ?? false,
+            supportsFast: context.supportsFast ?? false,
+          })
+          .filter(isUnreserved),
+        ...skills.filter(isUnreserved),
       ];
     }
   }
   const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
-  return [...dedupeBaseCommands(base, skills), ...skills];
+  return [
+    ...sideCommands,
+    ...dedupeBaseCommands(base, skills).filter(isUnreserved),
+    ...skills.filter(isUnreserved),
+  ];
 }
 
 export function resolveLocalSlashCommandAction(
@@ -239,6 +259,10 @@ export function resolveLocalSlashCommandAction(
   context: SlashCommandLookupContext,
 ): LocalSlashCommandAction | null {
   if (context.presentationMode === "terminal") return null;
+  if (context.presentationMode === "gui" && context.supportsSideChat) {
+    const match = SIDE_CHAT_COMMAND_PREFIX.exec(input);
+    if (match) return { kind: "open-side-chat", prompt: input.slice(match[0].length).trim() };
+  }
   const registration = activeGuiSlashCommands(context);
   return registration ? registration.resolveLocalAction(input) : null;
 }

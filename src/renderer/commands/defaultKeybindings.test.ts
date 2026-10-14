@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   COMPOSER_CONTROL_COMMAND_IDS,
   DEFAULT_KEYBINDINGS,
@@ -6,8 +6,11 @@ import {
 } from "@/shared/keybindings";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { bindingForPlatform, canonicalizeKeybinding, type PlatformName } from "./keybindingMatcher";
-import { buildCommandRegistry, buildWhenContext } from "./registry";
+import { buildCommandRegistry, buildWhenContext, isCommandAvailable } from "./registry";
 import { evaluateWhenClause } from "./when";
 
 const PLATFORMS: PlatformName[] = ["darwin", "win32", "linux"];
@@ -112,21 +115,21 @@ describe("default keybindings", () => {
         composerFocus: true,
       }),
     ).toBe(false);
-    expect(evaluateWhenClause(bindings["thread.search.open"]?.when, idleThreadContext)).toBe(true);
+    expect(evaluateWhenClause(bindings["palette.open"]?.when, idleThreadContext)).toBe(true);
     expect(
-      evaluateWhenClause(bindings["thread.search.open"]?.when, {
+      evaluateWhenClause(bindings["palette.open"]?.when, {
         ...idleThreadContext,
         panelFocus: true,
       }),
     ).toBe(false);
     expect(
-      evaluateWhenClause(bindings["thread.search.open"]?.when, {
+      evaluateWhenClause(bindings["palette.open"]?.when, {
         ...idleThreadContext,
         browserFocus: true,
       }),
     ).toBe(false);
     expect(
-      evaluateWhenClause(bindings["thread.search.open"]?.when, {
+      evaluateWhenClause(bindings["palette.open"]?.when, {
         ...idleThreadContext,
         composerFocus: true,
       }),
@@ -198,6 +201,63 @@ describe("default keybindings", () => {
       expect(evaluateWhenClause(when, { composerFocus: true })).toBe(false);
       expect(evaluateWhenClause(when, { browserFocus: true })).toBe(false);
     }
+
+    // The markdown preview toggle lives in the editor surface — the source view
+    // (Monaco's hidden textarea reports inputFocus, so editorFocus must win) or
+    // the preview render (focus usually resting on <body>) — but never where a
+    // paste-style chord carries meaning, never for non-markdown files (where the
+    // chord must stay unswallowed), and never while the editor is closed.
+    const previewToggle = bindings["editor.toggle-markdown-preview"]?.when;
+    const previewContext = { editorSurfaceOpen: true, markdownActive: true };
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, editorFocus: true })).toBe(true);
+    expect(evaluateWhenClause(previewToggle, previewContext)).toBe(true);
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, inputFocus: true })).toBe(false);
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, composerFocus: true })).toBe(
+      false,
+    );
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, terminalFocus: true })).toBe(
+      false,
+    );
+    expect(evaluateWhenClause(previewToggle, { ...previewContext, browserFocus: true })).toBe(
+      false,
+    );
+    expect(evaluateWhenClause(previewToggle, { editorSurfaceOpen: true, editorFocus: true })).toBe(
+      false,
+    );
+    expect(evaluateWhenClause(previewToggle, { editorSurfaceOpen: true })).toBe(false);
+    expect(evaluateWhenClause(previewToggle, {})).toBe(false);
+  });
+
+  it("keeps the markdown preview toggle unavailable while the editor surface is closed", () => {
+    // Closing the editor clears overlayMode but leaves activePath behind, so a
+    // bare markdownActive would keep the chord live with no editor visible.
+    useFileEditorStore.setState({
+      rootContext: {
+        projectId: "project-1",
+        projectName: "Poracode",
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        rootLabel: "Poracode",
+      },
+      overlayMode: null,
+      tabs: ["README.md"],
+      activePath: "README.md",
+      previewTab: null,
+      markdownPreviewPath: "README.md",
+      buffers: {},
+      refreshToken: 0,
+      pendingReveal: null,
+    });
+
+    const command = buildCommandRegistry().find(
+      (item) => item.id === "editor.toggle-markdown-preview",
+    );
+    const closedContext = buildWhenContext(null);
+    expect(closedContext.markdownActive).toBe(true);
+    expect(closedContext.editorSurfaceOpen).toBe(false);
+    expect(isCommandAvailable(command!, closedContext)).toBe(false);
+
+    useFileEditorStore.setState({ overlayMode: "fullscreen" });
+    expect(isCommandAvailable(command!, buildWhenContext(null))).toBe(true);
   });
 
   it("treats the focused split draft pane as draft context", () => {
@@ -233,5 +293,91 @@ describe("default keybindings", () => {
     expect(context.hasProject).toBe(true);
     expect(starCommand).toBeDefined();
     expect(evaluateWhenClause(starCommand?.when, context)).toBe(true);
+  });
+});
+
+describe("command execution context", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+    useFileEditorStore.setState({ tabs: [], activePath: null });
+    useFindFocusStore.setState({ settingsFocusToken: 0, treeFocusToken: 0 });
+    useDevTerminalStore.setState({
+      activeProjectId: null,
+      activeWorktreePath: null,
+      tabs: [],
+      activeTabId: null,
+    });
+  });
+
+  it("cycles editor tabs from the originating target after focus moves", () => {
+    document.body.innerHTML = `
+      <div class="monaco-editor"><button id="origin">Editor</button></div>
+      <input id="palette" />
+    `;
+    const origin = document.getElementById("origin");
+    document.getElementById("palette")?.focus();
+    useFileEditorStore.setState({ tabs: ["one.ts", "two.ts"], activePath: "one.ts" });
+
+    const command = buildCommandRegistry().find((item) => item.id === "tab.next");
+    void command?.run(undefined, { target: origin });
+
+    expect(useFileEditorStore.getState().activePath).toBe("two.ts");
+  });
+
+  it("opens Find on the originating surface after focus moves", () => {
+    document.body.innerHTML = `
+      <div data-poracode-find-scope="settings"><button id="origin">Settings</button></div>
+      <input id="palette" />
+    `;
+    const origin = document.getElementById("origin");
+    document.getElementById("palette")?.focus();
+
+    const command = buildCommandRegistry().find((item) => item.id === "find.open");
+    void command?.run(undefined, { target: origin });
+
+    expect(useFindFocusStore.getState().settingsFocusToken).toBe(1);
+  });
+
+  it("cycles terminal tabs from the originating target after focus moves", () => {
+    document.body.innerHTML = `
+      <div class="xterm"><button id="origin">Terminal</button></div>
+      <input id="palette" />
+    `;
+    const origin = document.getElementById("origin");
+    document.getElementById("palette")?.focus();
+    useDevTerminalStore.setState({
+      activeProjectId: "project-1",
+      activeWorktreePath: null,
+      tabs: [
+        { id: "one", projectId: "project-1", title: "One", createdAt: "2026-01-01" },
+        { id: "two", projectId: "project-1", title: "Two", createdAt: "2026-01-02" },
+      ],
+      activeTabId: "two",
+    });
+
+    const command = buildCommandRegistry().find((item) => item.id === "tab.previous");
+    void command?.run(undefined, { target: origin });
+
+    expect(useDevTerminalStore.getState().activeTabId).toBe("one");
+  });
+
+  it("focuses the address bar in the originating browser instance", () => {
+    document.body.innerHTML = `
+      <div data-poracode-browser>
+        <button id="origin">Browser</button>
+        <input data-poracode-browser-address value="https://poracode.dev" />
+      </div>
+      <input id="palette" />
+    `;
+    const origin = document.getElementById("origin");
+    const address = document.querySelector<HTMLInputElement>("[data-poracode-browser-address]");
+    document.getElementById("palette")?.focus();
+
+    const command = buildCommandRegistry().find((item) => item.id === "browser.focus-address-bar");
+    void command?.run(undefined, { target: origin });
+
+    expect(document.activeElement).toBe(address);
+    expect(address?.selectionStart).toBe(0);
+    expect(address?.selectionEnd).toBe(address?.value.length);
   });
 });

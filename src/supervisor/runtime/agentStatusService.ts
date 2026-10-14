@@ -20,16 +20,21 @@ import { effectiveAgentSettings } from "@/shared/machineSettings";
 import { localMachineKey, type AgentEnv } from "@/shared/machines";
 import { normalizeSharedSettings } from "@/shared/settings";
 import {
-  buildWindowsWslLoginCommand,
   getWindowsSystemCommand,
   invalidateExecutablePathCache,
   primeExecutablePathCache,
-  resolveAgentEnvContext,
   type AgentAdapter,
   type AgentEnvContext,
 } from "../agents/base";
 import { clearFastModeCache } from "../agents/claude/fastModeCache";
+import {
+  AgentStatusPublication,
+  type AgentStatusPublicationTicket,
+  type AgentStatusTarget,
+} from "./agentStatusPublication";
 import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
+
+import { AgentDiscoveryCancelledError, runAbortableDetection } from "./agentDetectionCancellation";
 
 const execFileAsync = promisify(execFile);
 
@@ -94,14 +99,54 @@ const execFileAsync = promisify(execFile);
 // v29 advertises session-local MCP tools for Command Code.
 // v30 refreshes terminal MCP capabilities across supported CLIs.
 // v32 invalidates capabilities from the removed persistent MCP proxy prototype.
-// v33 discovers the OpenCode 2 provider and re-probes its per-provider
-// credential lists alongside auth state.
-// v34 re-probes skill slash commands so cached skill invocations pick up the
-// provider's current form.
-// v35 re-probes catalogs after restoring compatibility with servers that removed
-// the plugin activation endpoint; cached empty catalogs are no longer valid.
-// v36 re-probes native account catalogs after restoring the CLI database path.
-export const STATUS_CACHE_VERSION = 36;
+// v33 combines V2 model family/pricing metadata with MCP and live-voice capabilities.
+// v34 re-probes the Cursor SDK once so its resolved installation gets recorded:
+// an SDK variant can now report `installed` from that record with an unknown
+// auth state instead of losing the install when a probe reaches no verdict.
+// v35 invalidates both pre-merge parents: V2 v34 lacks OpenCode 2 discovery,
+// while master v33 lacks V2's resolved SDK installation and capability metadata.
+// v36 re-probes Muse on Windows natively: cached statuses that reported
+// `installed: false` because detection routed through WSL must be re-probed
+// against the Windows host now that Muse ships a native Windows build.
+// v37 rebuilds Cursor ACP GUI capabilities: parameterized model picker
+// exposes bare model ids plus Effort / Fast / Context / Thinking controls.
+// v38 refreshes derived model catalogs and their declared Fast capabilities.
+// v39 adds provider-declared `threadTitleCommands` (Muse `/goal <objective>`),
+// so cached statuses without them would keep titling goal threads raw.
+// v40 invalidates the post-v35 parents: V2 v39 caches still hold skill
+// invocations in the pre-`invocationForSkill` form, and master v34 lacks V2's
+// SDK installation and capability metadata, so every cache below v40 re-probes.
+// v41 refreshes profile-scoped auth, native resource discovery, negotiated modes
+// and model identities that older snapshots collapsed into family defaults.
+// v42 preserves adapter identities in profile detection; inventories that
+// omitted profiles after rejecting a base identity must be re-probed.
+// v43 refreshes negotiated reasoning controls previously suppressed in GUI inventories.
+// v44 refreshes raw flat composite model inventories and their legacy composite
+// Fast declarations: family-relation projection derives from fresh capability
+// data, so caches carrying the stale flat composite rows must re-probe.
+// v46 refreshes presentation-scoped family relations and provider default visibility.
+// Older valid-shaped snapshots must not retain obsolete menus or control bindings.
+// v47 refreshes surface-scoped family intent declarations before deliberate edits.
+// v48 re-probes confirmed empty per-model effort ladders so models without
+// an effort selector cannot inherit unsupported global/CLI choices. This also
+// invalidates the integrated v47 inventory and the prior branch's v41 cache.
+// v49 combines native-account catalogs and the current provider protocol with
+// V2 model-family/effort metadata. Both integrated parents (v48 and v36) must
+// re-probe; renderer persisted copy advances independently to v45.
+// v50 discovers Command Code's native ACP Chat surface and session MCP support.
+// v51 completes native effort catalogs, including models beyond the ACP sweep.
+// v52 refreshes structured-runtime readiness after the minimum SDK and worker capabilities advance.
+// v53 refreshes restricted working-window choices while retaining native model defaults.
+// v54 refreshes editable working-window catalogs from provider settings.
+// v55 publishes context-reload consequences for every composer surface.
+// v56 discards model catalogs that included disconnected configured providers.
+// v57 refreshes installer commands that explicitly finish and verify package setup.
+// v58 re-probes catalog-native reasoning choices and current MSP model metadata.
+// v59 derives accepted-model Fast availability (including composite pairs)
+// and orders permissions least to most permissive, preserving v58 catalogs.
+// v60 advertises Muse's launch-scoped MCP wiring in both presentations, so
+// cached Muse statuses that hid every MCP toggle must be re-probed.
+export const STATUS_CACHE_VERSION = 60;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
@@ -125,31 +170,6 @@ function machineAgentSettingsFor(
 ): Record<string, boolean | string> | undefined {
   const merged = effectiveAgentSettings(settings, localMachineKey(env), agentKind);
   return Object.keys(merged).length > 0 ? merged : undefined;
-}
-
-async function detectAdapterInstall(
-  adapter: AgentAdapter,
-  context: AgentEnvContext,
-): Promise<AgentStatus> {
-  const executionContext = await resolveAgentEnvContext(adapter, context);
-  const status = await adapter.detectInstall(executionContext);
-  if (
-    context.envKind !== "windows" ||
-    executionContext.envKind !== "wsl" ||
-    !executionContext.wslDistro ||
-    !status.loginCommand
-  ) {
-    return status;
-  }
-  return {
-    ...status,
-    loginCommandDisplay: status.loginCommand,
-    loginCommand: buildWindowsWslLoginCommand(
-      adapter,
-      executionContext.wslDistro,
-      status.loginCommand,
-    ),
-  };
 }
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
@@ -212,45 +232,6 @@ function parseCachedStatuses(entries: unknown[] | undefined): AgentStatus[] {
   return results;
 }
 
-function filterWslStatusesForDistros(
-  statuses: readonly AgentStatus[],
-  distros: readonly string[],
-): AgentStatus[] {
-  if (distros.length === 0) {
-    return [];
-  }
-  const distroSet = new Set(distros);
-  return statuses.filter(
-    (status) => status.envDistro !== undefined && distroSet.has(status.envDistro),
-  );
-}
-
-function statusEnvKey(status: AgentStatus): string {
-  return `${status.kind}|${status.envKind ?? ""}|${status.envDistro ?? ""}`;
-}
-
-function mergeScopedStatuses(
-  existingWindows: readonly AgentStatus[],
-  existingWsl: readonly AgentStatus[],
-  probed: readonly AgentStatus[],
-): { windows: AgentStatus[]; wsl: AgentStatus[] } {
-  const byKey = new Map<string, AgentStatus>();
-  for (const status of existingWindows) byKey.set(statusEnvKey(status), status);
-  for (const status of existingWsl) byKey.set(statusEnvKey(status), status);
-  for (const status of probed) byKey.set(statusEnvKey(status), status);
-
-  const windows: AgentStatus[] = [];
-  const wsl: AgentStatus[] = [];
-  for (const status of byKey.values()) {
-    if (status.envKind === "wsl") {
-      wsl.push(status);
-    } else {
-      windows.push(status);
-    }
-  }
-  return { windows, wsl };
-}
-
 export async function detectWslAgentStatuses(
   adapters: Iterable<AgentAdapter>,
   distros: readonly string[],
@@ -260,12 +241,14 @@ export async function detectWslAgentStatuses(
     agentKind: string,
     distro: string,
   ) => Record<string, boolean | string> | undefined,
+  signal?: AbortSignal,
 ): Promise<AgentStatus[]> {
   const adapterList = [...adapters];
   const statuses = await Promise.all(
     distros.map(async (distro) => {
       return Promise.all(
         adapterList.map(async (adapter) => {
+          signal?.throwIfAborted();
           const settings = agentSettingsFor?.(adapter.kind, distro);
           const ctx: AgentEnvContext = {
             envKind: "wsl",
@@ -289,7 +272,14 @@ export async function detectWslAgentStatuses(
               let timeout: NodeJS.Timeout | undefined;
               const abort = new AbortController();
               const detected = await Promise.race([
-                adapter.detectInstall({ ...ctx, signal: abort.signal }),
+                runAbortableDetection(
+                  () =>
+                    adapter.detectInstall({
+                      ...ctx,
+                      signal: signal ? AbortSignal.any([signal, abort.signal]) : abort.signal,
+                    }),
+                  signal,
+                ),
                 new Promise<never>((_, reject) => {
                   timeout = setTimeout(() => {
                     abort.abort();
@@ -306,6 +296,7 @@ export async function detectWslAgentStatuses(
               });
               status = { ...detected, envKind: "wsl" as const, envDistro: distro };
             } catch (error) {
+              if (signal?.aborted) throw error;
               console.error(
                 `[supervisor] detectInstall(${adapter.kind}, wsl:${distro}) failed`,
                 error,
@@ -360,6 +351,9 @@ export function parseWslRegistryDistributionNames(stdout: string): string[] {
 const WSL_DISTRO_CACHE_TTL_MS = 30_000;
 
 export class AgentStatusService {
+  private readonly publication = new AgentStatusPublication();
+  private readonly fullDetectionJobs = new Map<AgentStatusPublicationTicket, AbortController>();
+  private readonly scopedDetectionJobs = new Set<{ ticket: AgentStatusPublicationTicket }>();
   private pendingDetection: Promise<DetectionResults> | undefined;
   private startupDetectionLaunched = false;
   private startupDetectionWslDistros = new Set<string>();
@@ -411,36 +405,26 @@ export class AgentStatusService {
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     const wslDistros = [...new Set(payload.wslDistros)];
-    const cached = this.readCachedStatuses(wslDistros);
+    const accepted = this.readAcceptedStatuses(wslDistros);
     this.detectStartupAgentStatusesBackground(wslDistros);
-    return cached;
+    return accepted;
   }
 
   /**
-   * Synchronous view of one provider's native capabilities as the last
-   * detection sweep persisted them — the same source `getAgentStatuses` serves
-   * the renderer composer and the Crossagents MCP roster from. The subagent
-   * spawn/create_thread paths validate against this so a selection accepted by
-   * `list_agents`/`get_agent` is accepted by the executor too, instead of
-   * racing the adapter's in-memory capabilities (which stay at their empty
-   * defaults until this session's probe completes). Returns `undefined` when
-   * there is no cache entry or the provider isn't installed + authenticated in
-   * it. Returns `null` when a populated cache says the provider is unavailable,
-   * and `undefined` only when no cache exists yet.
+   * The same accepted native view served to GUI/REST/MCP consumers, including
+   * completed probes while other adapters or WSL are still detecting. The
+   * owned snapshot never exposes mutable adapter capabilities. Undefined means
+   * no verdict for this target; null means an accepted unavailable verdict.
    */
   getCachedCapabilities(kind: AgentKind): AgentCapability | null | undefined {
-    const { windows, fromCache } = this.readCachedStatuses([]);
-    if (!fromCache) return undefined;
-    const status = windows.find(
-      (s) => s.kind === kind && s.installed && s.authState === "authenticated",
-    );
-    return status?.capabilities ?? null;
+    const status = this.readAcceptedStatuses([]).windows.find((entry) => entry.kind === kind);
+    if (!status) return undefined;
+    return status.installed && status.authState === "authenticated" ? status.capabilities : null;
   }
 
   /** Return the last detected installed version for one native or WSL provider. */
   getCachedVersion(kind: AgentKind, wslDistro?: string): string | undefined {
-    const cached = this.readCachedStatuses(wslDistro ? [wslDistro] : []);
-    if (!cached.fromCache) return undefined;
+    const cached = this.readAcceptedStatuses();
     const statuses = wslDistro ? cached.wsl : cached.windows;
     return statuses.find(
       (status) =>
@@ -448,6 +432,32 @@ export class AgentStatusService {
         status.installed &&
         (wslDistro === undefined || status.envDistro?.toLowerCase() === wslDistro.toLowerCase()),
     )?.version;
+  }
+
+  /** Registry changes retire both active probes and the previously ready view. */
+  invalidateAgentStatuses(): void {
+    this.publication.invalidate();
+    this.clearDiskCache();
+    this.startupDetectionLaunched = false;
+    this.startupDetectionWslDistros.clear();
+  }
+
+  /** Cancel full discovery sweeps without interrupting scoped install/login probes. */
+  cancelAgentDiscovery(): AgentStatusesResponse {
+    const cancelled = this.fullDetectionJobs.size > 0;
+    for (const [ticket, controller] of this.fullDetectionJobs) {
+      this.publication.retire(ticket);
+      controller.abort(new AgentDiscoveryCancelledError());
+    }
+    if (cancelled) {
+      this.startupDetectionLaunched = false;
+      this.startupDetectionWslDistros.clear();
+      // A queued full sweep may have superseded an in-flight install/login
+      // probe. Restore only targets no longer claimed by another request.
+      for (const job of [...this.scopedDetectionJobs].reverse())
+        job.ticket = this.publication.resumeUnclaimed(job.ticket);
+    }
+    return this.readAcceptedStatuses();
   }
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
@@ -465,19 +475,13 @@ export class AgentStatusService {
     // Full Settings refresh must not keep serving the previous sweep. Drop the
     // on-disk status file first so `getAgentStatuses` / `getCachedCapabilities`
     // cannot return stale models while the new probe runs, then rewrite it.
-    this.clearDiskCache();
+    this.invalidateAgentStatuses();
     this.startupDetectionLaunched = true;
     for (const distro of wslDistros) {
       this.startupDetectionWslDistros.add(distro);
     }
-    const previousDetection = this.pendingDetection;
-    const fresh = await this.runDetectionTask(async () => {
-      if (previousDetection) {
-        await previousDetection.catch(() => ({ windows: [], wsl: [] }));
-      }
-      return this.runDetection(wslDistros);
-    });
-    return { ...fresh, fromCache: false };
+    await this.queueFullDetection(wslDistros);
+    return { ...this.readAcceptedStatuses(wslDistros), fromCache: false };
   }
 
   /**
@@ -495,46 +499,64 @@ export class AgentStatusService {
     wslDistros: readonly string[],
     scope: RefreshAgentScope,
   ): Promise<AgentStatusesResponse> {
-    const existing = this.readCachedStatuses(wslDistros);
+    const existing = this.readAcceptedStatuses();
     // Without a baseline cache we have no merge target — fall back to a full
     // detection so the renderer ends up with a complete list. Callers
     // typically hit this path well after startup, so this is rare.
     if (!existing.fromCache) {
       this.startupDetectionLaunched = true;
-      const fresh = await this.runDetectionTask(() => this.runDetection(wslDistros));
-      return { ...fresh, fromCache: false };
+      for (const distro of wslDistros) this.startupDetectionWslDistros.add(distro);
+      await this.queueFullDetection(wslDistros, false);
+      return { ...this.readAcceptedStatuses(wslDistros), fromCache: false };
     }
 
     const allAdapters = [...this.options.adapters.values()];
     const adapterByKind = new Map(allAdapters.map((adapter) => [adapter.kind, adapter]));
-    const targetAdapters = scope.agentKinds
+    const targetAdapters = [...new Set(scope.agentKinds)]
       .map((kind) => adapterByKind.get(kind))
       .filter((adapter): adapter is AgentAdapter => adapter !== undefined);
 
     const targetEnvs = this.resolveScopedEnvs(scope.envs, wslDistros);
-    const settings = this.readSettings();
-    const disabled = new Set(settings.disabledAgents);
-
-    const probed = await Promise.all(
-      targetAdapters.flatMap((adapter) =>
-        targetEnvs.map((env) =>
-          this.probeScopedStatus(
-            adapter,
-            env,
-            disabled,
-            machineAgentSettingsFor(settings, env, adapter.kind),
-          ),
+    const job = {
+      ticket: this.publication.begin(
+        targetAdapters.flatMap((adapter) =>
+          targetEnvs.map((env) => this.statusTarget(adapter, env)),
         ),
       ),
-    );
-
-    for (const status of probed) {
-      this.options.emit({ type: "agent-status-updated", status });
+    };
+    this.scopedDetectionJobs.add(job);
+    try {
+      await this.runDetectionTask(async () => {
+        const settings = this.readSettings();
+        const disabled = new Set(settings.disabledAgents);
+        const results = await Promise.allSettled(
+          targetAdapters.flatMap((adapter) =>
+            targetEnvs.map(async (env) => {
+              const target = this.statusTarget(adapter, env);
+              if (!this.publication.owns(job.ticket, target)) return;
+              const status = await this.probeScopedStatus(
+                adapter,
+                env,
+                disabled,
+                machineAgentSettingsFor(settings, env, adapter.kind),
+              );
+              this.publishStatus(job.ticket, adapter, target, status, "agent-status-updated");
+            }),
+          ),
+        );
+        const failures = results.filter((result) => result.status === "rejected");
+        if (failures.length)
+          throw new AggregateError(
+            failures.map((result) => result.reason),
+            "Scoped agent detection failed",
+          );
+        this.completeDetection(job.ticket);
+        return this.readAcceptedStatuses();
+      });
+      return { ...this.readAcceptedStatuses(wslDistros), fromCache: false };
+    } finally {
+      this.scopedDetectionJobs.delete(job);
     }
-
-    const merged = mergeScopedStatuses(existing.windows, existing.wsl, probed);
-    this.writeDiskCache(merged.windows, merged.wsl);
-    return { ...merged, fromCache: false };
   }
 
   private resolveScopedEnvs(
@@ -542,7 +564,14 @@ export class AgentStatusService {
     wslDistros: readonly string[],
   ): RefreshAgentScopeEnv[] {
     if (envs && envs.length > 0) {
-      return envs;
+      return [
+        ...new Map(
+          envs.map((env) => [
+            JSON.stringify([env.kind, env.kind === "wsl" ? env.distro : null]),
+            env,
+          ]),
+        ).values(),
+      ];
     }
     const nativeEnv: RefreshAgentScopeEnv = { kind: "native" };
     return [
@@ -556,11 +585,23 @@ export class AgentStatusService {
     env: RefreshAgentScopeEnv,
     disabled: ReadonlySet<string>,
     agentSettings: Record<string, boolean | string> | undefined,
+    signal?: AbortSignal,
   ): Promise<AgentStatus> {
-    const isWsl = env.kind === "wsl";
+    signal?.throwIfAborted();
+    if (env.kind === "wsl") {
+      // Scoped and full requests share a queue. Use the same bounded,
+      // abortable WSL probe so a stalled scoped target cannot hold later jobs.
+      const [status] = await detectWslAgentStatuses(
+        [adapter],
+        [env.distro],
+        disabled,
+        undefined,
+        () => agentSettings,
+      );
+      if (!status) throw new Error("WSL detection returned no target status");
+      return status;
+    }
     const nativeEnvKind: "windows" | "posix" = process.platform === "win32" ? "windows" : "posix";
-    const envKind: "windows" | "posix" | "wsl" = isWsl ? "wsl" : nativeEnvKind;
-    const envDistro = isWsl ? env.distro : undefined;
 
     if (disabled.has(adapter.kind)) {
       return {
@@ -570,30 +611,25 @@ export class AgentStatusService {
         authState: "unknown",
         capabilities: adapter.capabilities,
         ...(adapter.update ? { update: adapter.update } : {}),
-        envKind,
-        ...(envDistro ? { envDistro } : {}),
+        envKind: nativeEnvKind,
       };
     }
-    const ctx: AgentEnvContext = isWsl
-      ? {
-          envKind: "wsl",
-          wslDistro: env.distro,
-          ...(agentSettings ? { agentSettings } : {}),
-        }
-      : {
-          envKind: nativeEnvKind,
-          ...(agentSettings ? { agentSettings } : {}),
-        };
+    const ctx: AgentEnvContext = {
+      envKind: nativeEnvKind,
+      ...(agentSettings ? { agentSettings } : {}),
+    };
     try {
-      const detected = await detectAdapterInstall(adapter, ctx);
+      const detected = await runAbortableDetection(
+        () => adapter.detectInstall({ ...ctx, ...(signal ? { signal } : {}) }),
+        signal,
+      );
       return {
         ...detected,
-        envKind,
-        ...(envDistro ? { envDistro } : {}),
+        envKind: nativeEnvKind,
       };
     } catch (error) {
-      const where = isWsl ? `wsl:${env.distro}` : "native";
-      console.error(`[supervisor] scoped detectInstall(${adapter.kind}, ${where}) failed`, error);
+      if (signal?.aborted) throw error;
+      console.error(`[supervisor] detectInstall(${adapter.kind}) failed`, error);
       return {
         kind: adapter.kind,
         label: adapter.label,
@@ -601,8 +637,7 @@ export class AgentStatusService {
         authState: "unknown",
         capabilities: adapter.capabilities,
         ...(adapter.update ? { update: adapter.update } : {}),
-        envKind,
-        ...(envDistro ? { envDistro } : {}),
+        envKind: nativeEnvKind,
       };
     }
   }
@@ -617,7 +652,7 @@ export class AgentStatusService {
    * event) avoids a startup race where the ThreadDraft renders "No supported
    * agents detected" before the cache event is received.
    */
-  private readCachedStatuses(wslDistros: readonly string[]): AgentStatusesResponse {
+  private readCachedStatuses(wslDistros?: readonly string[]): AgentStatusesResponse {
     try {
       const raw = readFileSync(this.options.statusCachePath, "utf8");
       const cache = JSON.parse(raw) as {
@@ -638,14 +673,26 @@ export class AgentStatusService {
       const windows = parseCachedStatuses(cache.windows)
         .filter((status) => status.envKind !== "wsl")
         .map((status) => this.withCachedCapabilityDefaults(status));
-      const wsl = filterWslStatusesForDistros(parseCachedStatuses(cache.wsl), wslDistros).map(
-        (status) => this.withCachedCapabilityDefaults(status),
-      );
+      const wsl = parseCachedStatuses(cache.wsl)
+        .filter((status) => status.envKind === undefined || status.envKind === "wsl")
+        .filter(
+          (status) =>
+            wslDistros === undefined ||
+            (status.envDistro !== undefined && wslDistros.includes(status.envDistro)),
+        )
+        .map((status) =>
+          status.envKind === undefined ? { ...status, envKind: "wsl" as const } : status,
+        )
+        .map((status) => this.withCachedCapabilityDefaults(status));
 
       return { windows, wsl, fromCache: true };
     } catch {
       return { windows: [], wsl: [], fromCache: false };
     }
+  }
+
+  private readAcceptedStatuses(wslDistros?: readonly string[]): AgentStatusesResponse {
+    return this.publication.view(this.readCachedStatuses(), wslDistros);
   }
 
   private withCachedCapabilityDefaults(status: AgentStatus): AgentStatus {
@@ -678,7 +725,7 @@ export class AgentStatusService {
     }
   }
 
-  private writeDiskCache(windows: AgentStatus[], wsl: AgentStatus[]): void {
+  private writeDiskCache(windows: AgentStatus[], wsl: AgentStatus[]): boolean {
     try {
       writeFileSync(
         this.options.statusCachePath,
@@ -690,8 +737,10 @@ export class AgentStatusService {
         }),
         "utf8",
       );
+      return true;
     } catch {
       // best-effort cache
+      return false;
     }
   }
 
@@ -700,11 +749,20 @@ export class AgentStatusService {
   }
 
   private runDetectionTask(task: () => Promise<DetectionResults>): Promise<DetectionResults> {
-    const pending = task().finally(() => {
-      if (this.pendingDetection === pending) {
-        this.pendingDetection = undefined;
-      }
-    });
+    const previous = this.pendingDetection;
+    // Set pending before the task can emit/reenter the service. Every request,
+    // including scoped refresh, shares this queue; publication ownership has
+    // already been reserved while earlier probes are still running.
+    const pending = Promise.resolve()
+      .then(async () => {
+        if (previous) await previous.catch(() => ({ windows: [], wsl: [] }));
+        return task();
+      })
+      .finally(() => {
+        if (this.pendingDetection === pending) {
+          this.pendingDetection = undefined;
+        }
+      });
     this.pendingDetection = pending;
     return pending;
   }
@@ -721,17 +779,94 @@ export class AgentStatusService {
       this.startupDetectionWslDistros.add(distro);
     }
     const detectionWslDistros = [...this.startupDetectionWslDistros];
-    const previousDetection = this.pendingDetection;
-    void this.runDetectionTask(async () => {
-      if (previousDetection) {
-        await previousDetection.catch(() => ({ windows: [], wsl: [] }));
-      }
-      return this.runDetection(detectionWslDistros);
+    void this.queueFullDetection(detectionWslDistros).catch((error) => {
+      if (error instanceof AgentDiscoveryCancelledError) return;
+      console.error("[supervisor] background agent detection failed", error);
     });
   }
 
-  private async runDetection(wslDistros: readonly string[]): Promise<DetectionResults> {
+  private statusTarget(adapter: AgentAdapter, env: RefreshAgentScopeEnv): AgentStatusTarget {
+    return {
+      kind: adapter.kind,
+      envKind: env.kind === "wsl" ? "wsl" : process.platform === "win32" ? "windows" : "posix",
+      ...(env.kind === "wsl" ? { envDistro: env.distro } : {}),
+    };
+  }
+
+  private queueFullDetection(
+    wslDistros: readonly string[],
+    cancellableDiscovery = true,
+  ): Promise<DetectionResults> {
     const adapters = [...this.options.adapters.values()];
+    const envs = this.resolveScopedEnvs(undefined, wslDistros);
+    const ticket = this.publication.begin(
+      adapters.flatMap((adapter) => envs.map((env) => this.statusTarget(adapter, env))),
+    );
+    const job = { ticket };
+    const controller = new AbortController();
+    // A scoped request may need a full baseline, but its install/login owner
+    // retains that job even when the user cancels discovery.
+    if (cancellableDiscovery) this.fullDetectionJobs.set(ticket, controller);
+    else this.scopedDetectionJobs.add(job);
+    return this.runDetectionTask(() =>
+      runAbortableDetection(
+        () => this.runDetection(wslDistros, adapters, job, controller.signal),
+        controller.signal,
+      ),
+    ).finally(() => {
+      this.fullDetectionJobs.delete(ticket);
+      this.scopedDetectionJobs.delete(job);
+    });
+  }
+
+  private publishStatus(
+    ticket: AgentStatusPublicationTicket,
+    adapter: AgentAdapter,
+    target: AgentStatusTarget,
+    status: AgentStatus,
+    eventType: "agent-detected" | "agent-status-updated",
+  ): void {
+    if (
+      this.options.adapters.get(adapter.kind) !== adapter ||
+      !this.publication.owns(ticket, target)
+    )
+      return;
+    // Reuse the cache schema/defaults. Schema parsing copies known fields and
+    // ignores adapter-private extras without mutating the adapter's object.
+    const parsed = cachedAgentStatusSchema.safeParse(status);
+    const accepted = this.publication.accept(
+      ticket,
+      target,
+      parsed.success ? this.withCachedCapabilityDefaults(parsed.data) : undefined,
+    );
+    if (accepted) this.options.emit({ type: eventType, status: accepted });
+  }
+
+  private emitDetectionList(ticket: AgentStatusPublicationTicket, env: "native" | "wsl"): void {
+    if (!this.publication.isActive(ticket)) return;
+    const accepted = this.readAcceptedStatuses();
+    this.options.emit(
+      env === "native"
+        ? { type: "windows-agent-statuses", statuses: accepted.windows }
+        : { type: "wsl-agent-statuses", statuses: accepted.wsl },
+    );
+  }
+
+  private completeDetection(ticket: AgentStatusPublicationTicket): void {
+    this.publication.complete(ticket);
+    if (!this.publication.canPersist(ticket)) return;
+    const accepted = this.readAcceptedStatuses();
+    if (this.writeDiskCache(accepted.windows, accepted.wsl)) this.publication.persisted(ticket);
+  }
+
+  private async runDetection(
+    wslDistros: readonly string[],
+    adapters: readonly AgentAdapter[],
+    job: { ticket: AgentStatusPublicationTicket },
+    signal: AbortSignal,
+  ): Promise<DetectionResults> {
+    signal.throwIfAborted();
+    if (!this.publication.isActive(job.ticket)) return this.readAcceptedStatuses();
     const settings = this.readSettings();
     const disabled = new Set(settings.disabledAgents);
 
@@ -750,92 +885,74 @@ export class AgentStatusService {
       await primeExecutablePathCache([...enabledBinaries, "gh"]);
     }
 
-    const nativeEnvKind: "windows" | "posix" = process.platform === "win32" ? "windows" : "posix";
-    const nativePromise = Promise.all(
+    signal.throwIfAborted();
+    const nativePromise = Promise.allSettled(
       adapters.map(async (adapter) => {
-        let status: AgentStatus;
-        if (disabled.has(adapter.kind)) {
-          status = {
-            kind: adapter.kind,
-            label: adapter.label,
-            installed: true,
-            authState: "unknown",
-            capabilities: adapter.capabilities,
-            envKind: nativeEnvKind,
-          };
-        } else {
-          try {
-            const agentSettings = machineAgentSettingsFor(
-              settings,
-              { kind: "native" },
-              adapter.kind,
-            );
-            const detected = await detectAdapterInstall(adapter, {
-              envKind: nativeEnvKind,
-              ...(agentSettings ? { agentSettings } : {}),
-            });
-            status = { ...detected, envKind: nativeEnvKind };
-          } catch (error) {
-            console.error(`[supervisor] detectInstall(${adapter.kind}) failed`, error);
-            status = {
-              kind: adapter.kind,
-              label: adapter.label,
-              installed: false,
-              authState: "unknown",
-              capabilities: adapter.capabilities,
-              envKind: nativeEnvKind,
-            };
-          }
-        }
+        const env = { kind: "native" } as const;
+        const target = this.statusTarget(adapter, env);
+        if (!this.publication.owns(job.ticket, target)) return;
+        const status = await this.probeScopedStatus(
+          adapter,
+          env,
+          disabled,
+          machineAgentSettingsFor(settings, env, adapter.kind),
+          signal,
+        );
         // Stream per adapter so the first-launch discovery screen can reveal
         // tiles in real time. The terminal `windows-agent-statuses` event
         // still fires below with the full list.
-        this.options.emit({ type: "agent-detected", status });
-        return status;
+        this.publishStatus(job.ticket, adapter, target, status, "agent-detected");
       }),
-    ).then((statuses) => {
-      this.options.emit({ type: "windows-agent-statuses", statuses });
-      return statuses;
+    ).then((results) => {
+      for (const result of results) {
+        if (result.status === "rejected" && !signal.aborted)
+          console.error("[supervisor] native detection failed", result.reason);
+      }
+      this.emitDetectionList(job.ticket, "native");
     });
 
-    const wslPromise = detectWslAgentStatuses(
-      adapters,
-      wslDistros,
-      disabled,
-      (status) => {
-        this.options.emit({ type: "agent-detected", status });
-      },
-      (agentKind, distro) => machineAgentSettingsFor(settings, { kind: "wsl", distro }, agentKind),
+    const wslPromise = Promise.allSettled(
+      wslDistros.flatMap((distro) =>
+        adapters.map(async (adapter) => {
+          const env = { kind: "wsl", distro } as const;
+          const target = this.statusTarget(adapter, env);
+          if (!this.publication.owns(job.ticket, target)) return;
+          await detectWslAgentStatuses(
+            [adapter],
+            [distro],
+            disabled,
+            (status) => this.publishStatus(job.ticket, adapter, target, status, "agent-detected"),
+            (agentKind) => machineAgentSettingsFor(settings, env, agentKind),
+            signal,
+          );
+        }),
+      ),
     )
-      .then((statuses) => {
-        this.options.emit({ type: "wsl-agent-statuses", statuses });
-        return statuses;
+      .then((results) => {
+        for (const result of results) {
+          if (result.status === "rejected" && !signal.aborted)
+            console.error("[supervisor] WSL detection failed", result.reason);
+        }
+        this.emitDetectionList(job.ticket, "wsl");
       })
       .catch((error) => {
         // Ensure the renderer always gets a terminal event for WSL — otherwise
         // its loading state would hang forever on detection failure. Emit an
         // empty list and surface the error in logs.
         console.error("[supervisor] detectWslAgentStatuses failed", error);
-        this.options.emit({ type: "wsl-agent-statuses", statuses: [] });
-        return [] as AgentStatus[];
+        this.emitDetectionList(job.ticket, "wsl");
       });
 
-    const [nativeResult, wslResult] = await Promise.allSettled([nativePromise, wslPromise]);
-    const nativeStatuses = nativeResult.status === "fulfilled" ? nativeResult.value : [];
-    const wslStatuses = wslResult.status === "fulfilled" ? wslResult.value : [];
+    const [nativeResult] = await Promise.allSettled([nativePromise, wslPromise]);
 
     // Native detection may have thrown before emitting — ensure the renderer
     // always gets a terminal windows-agent-statuses event.
     if (nativeResult.status === "rejected") {
       console.error("[supervisor] native detection failed", nativeResult.reason);
-      this.options.emit({ type: "windows-agent-statuses", statuses: [] });
+      this.emitDetectionList(job.ticket, "native");
     }
 
-    if (wslDistros.length === 0) {
-      this.options.emit({ type: "wsl-agent-statuses", statuses: [] });
-    }
-
-    this.writeDiskCache(nativeStatuses, wslStatuses);
-    return { windows: nativeStatuses, wsl: wslStatuses };
+    this.completeDetection(job.ticket);
+    return this.readAcceptedStatuses();
   }
 }

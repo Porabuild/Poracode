@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Check, ChevronDown, Hourglass, ListChecks, X } from "lucide-react";
+import { Check, Hourglass, ListChecks, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadDocksPlacement } from "@/shared/settings";
 import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
@@ -7,6 +7,7 @@ import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import type { ThreadTodoDockState, ThreadTodoStepStatus } from "./threadTodoState";
 import {
+  ThreadDockCollapseButton,
   ThreadDockHeader,
   ThreadDockIconButton,
   ThreadDockList,
@@ -77,15 +78,11 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
         actions={
           <>
             {showPlacementToggle ? <ThreadDocksPlacementToggle placement="composer" /> : null}
-            <ThreadDockIconButton
+            <ThreadDockCollapseButton
+              collapsed={collapsed}
               label={collapsed ? t`Expand todo dock` : t`Collapse todo dock`}
-              tooltip={collapsed ? t`Expand` : t`Collapse`}
               onPress={() => onCollapsedChange(!collapsed)}
-            >
-              <ChevronDown
-                className={`size-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-0"}`}
-              />
-            </ThreadDockIconButton>
+            />
             <ThreadDockIconButton label={t`Close plan`} danger onPress={onRetire}>
               <X className="size-3.5" />
             </ThreadDockIconButton>

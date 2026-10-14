@@ -4,12 +4,19 @@ import { parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
-import { buildActiveProjectsKey } from "@/renderer/state/projectKeys";
+import {
+  buildActiveProjectsKey,
+  buildBranchPrPrefetchThreadKeys,
+  diffProjectKeys,
+} from "@/renderer/state/projectKeys";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
 import {
   cleanupGitRefreshProjects,
@@ -49,6 +56,19 @@ export function useGitRefresh(storeHydrated: boolean) {
   // Subscribe only to the active-project identity/location key so draft config
   // writes do not invalidate the whole shell.
   const activeProjectsKey = useAppStore((state) => buildActiveProjectsKey(state.projects));
+  const reachableRemoteServersKey = useRemoteServersStore((state) =>
+    state.servers
+      .filter(
+        (server) =>
+          !isRemoteProjectStatusUnreachable(
+            { remoteServerId: remoteConnectionKey(server) },
+            state.runtime[remoteConnectionKey(server)]?.status,
+          ),
+      )
+      .map((server) => remoteConnectionKey(server))
+      .sort()
+      .join("\u0000"),
+  );
 
   useEffect(() => {
     // `activeProjectsKey` is this run's request identity: the project set
@@ -57,9 +77,15 @@ export function useGitRefresh(storeHydrated: boolean) {
     const requestKey = activeProjectsKey;
     const projectsSnapshot = useAppStore.getState().projects;
     if (buildActiveProjectsKey(projectsSnapshot) !== requestKey) return;
-    const activeProjects = projectsSnapshot.filter((project) => !project.disabled);
+    const allActiveProjects = projectsSnapshot.filter((project) => !project.disabled);
     if (!storeHydrated) return;
-    cleanupGitRefreshProjects(new Set(activeProjects.map((project) => project.id)));
+    cleanupGitRefreshProjects(new Set(allActiveProjects.map((project) => project.id)));
+    const reachableRemoteServerIds = new Set(
+      reachableRemoteServersKey.split("\u0000").filter(Boolean),
+    );
+    const activeProjects = allActiveProjects.filter(
+      (project) => !project.remoteServerId || reachableRemoteServerIds.has(project.remoteServerId),
+    );
     if (activeProjects.length === 0) return;
 
     let isActive = true;
@@ -131,13 +157,23 @@ export function useGitRefresh(storeHydrated: boolean) {
       syncPendingPrRefreshProjects(activeProjects);
     }
 
-    function prefetchVisibleBranchPrData() {
+    function prefetchVisibleBranchPrData(onlyProjectIds?: ReadonlySet<string>) {
       if (!isActive) return;
       // One bulk PR query keeps sidebar rows current when a thread becomes
       // visible (for example after "See more") without spawning one `gh pr
       // view` process per worktree. Do not put this on the view-change path:
       // plain thread switches must not spawn Git work while the panel is hidden.
       for (const project of activeProjects) {
+        if (onlyProjectIds && !onlyProjectIds.has(project.id)) continue;
+        if (
+          project.remoteServerId &&
+          isRemoteProjectStatusUnreachable(
+            project,
+            useRemoteServersStore.getState().runtime[project.remoteServerId]?.status,
+          )
+        ) {
+          continue;
+        }
         if (!shouldPollProject(project)) continue;
         void prefetchBranchPrData(project);
       }
@@ -180,11 +216,20 @@ export function useGitRefresh(storeHydrated: boolean) {
       (state) => [state.threads, state.view, state.projects],
       syncActiveWorktrees,
     );
-    const unsubBranchPrPrefetchApp = subscribeToFieldChanges(
-      useAppStore.subscribe,
-      (state) => [state.threads, state.projects],
-      prefetchVisibleBranchPrData,
-    );
+    const unsubBranchPrPrefetchApp = useAppStore.subscribe((state, prev) => {
+      if (state.projects !== prev.projects) {
+        prefetchVisibleBranchPrData();
+        return;
+      }
+      if (state.threads === prev.threads) return;
+      // Only projects whose PR-relevant thread fields changed: a turn ending in
+      // one project must not spawn `gh pr list` for every other project.
+      const changedProjectIds = diffProjectKeys(
+        buildBranchPrPrefetchThreadKeys(prev.threads),
+        buildBranchPrPrefetchThreadKeys(state.threads),
+      );
+      if (changedProjectIds.size > 0) prefetchVisibleBranchPrData(changedProjectIds);
+    });
     const unsubActiveWorktreeExperiments = subscribeToFieldChanges(
       useExperimentStore.subscribe,
       (state) => [state.experiments],
@@ -314,5 +359,5 @@ export function useGitRefresh(storeHydrated: boolean) {
       }
       cleanupGitRefreshProjects(new Set());
     };
-  }, [storeHydrated, activeProjectsKey]);
+  }, [storeHydrated, activeProjectsKey, reachableRemoteServersKey]);
 }

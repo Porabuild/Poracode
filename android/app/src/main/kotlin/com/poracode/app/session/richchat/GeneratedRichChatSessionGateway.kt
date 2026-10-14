@@ -1,0 +1,473 @@
+package com.poracode.app.session.richchat
+
+import com.poracode.app.chat.RichCheckpoint
+import com.poracode.app.chat.RichSnapshotMapping
+import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.RemoteRuntimeGapAck
+import com.poracode.app.model.RemoteRuntimeGapRead
+import com.poracode.app.session.history.historyItems
+import com.poracode.app.session.history.historyTail
+import com.poracode.app.session.history.historyTurns
+import com.poracode.app.transport.RemoteApiGateway
+import com.poracode.app.transport.RemoteBinaryResponse
+import com.poracode.app.transport.RemoteHistoryNoticeGateway
+import com.poracode.app.transport.richchat.AttachmentUploadBody
+import com.poracode.app.transport.richchat.BinaryRequestPlan
+import com.poracode.app.transport.richchat.RequestResolution
+import com.poracode.app.transport.richchat.RichChatBinaryBodyExecutor
+import com.poracode.app.transport.richchat.RichChatRemoteTransport
+import com.poracode.app.transport.richchat.RuntimeImagePathSegment
+import com.poracode.app.transport.richchat.TerminalStartInput
+import com.poracode.app.transport.richchat.ThreadGoalUpdate
+import com.poracode.app.transport.richchat.ThreadSteerInput
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
+/** Host-routed adapter that revalidates lease and exact capability around every call. */
+class GeneratedRichChatSessionGateway(
+    private val session: StateFlow<RichChatHostLease?>,
+    private val provider: RichChatGatewayProvider,
+    private val receivedAtEpochMs: () -> Long = { System.currentTimeMillis() },
+) : RichChatSessionGateway {
+    override suspend fun history(
+        lease: RichChatHostLease,
+        threadId: String,
+        targetTimelineEntryCount: Int,
+    ): RichChatHistorySnapshot = invoke(lease, RichChatCapability.Read, false) {
+        RichChatHistoryMapper.snapshot(
+            lease.connectionId,
+            core.historyTail(threadId, targetTimelineEntryCount),
+            receivedAtEpochMs(),
+        ).also { if (it.key.threadId != threadId) invalidResponse() }
+    }
+
+    override suspend fun olderItems(
+        lease: RichChatHostLease,
+        threadId: String,
+        beforePosition: Int,
+        limit: Int,
+        targetTimelineEntryCount: Int,
+    ): RichChatHistoryPage = invoke(lease, RichChatCapability.Read, false) {
+        RichChatHistoryMapper.page(
+            core.historyItems(
+                threadId,
+                beforePosition,
+                limit,
+                targetTimelineEntryCount,
+            ),
+        )
+    }
+
+    override suspend fun olderTurns(
+        lease: RichChatHostLease,
+        threadId: String,
+        cursor: String,
+        limit: Int,
+    ): RichChatTurnsPage = invoke(lease, RichChatCapability.Read, false) {
+        RichChatHistoryMapper.turnPage(core.historyTurns(threadId, cursor, limit))
+    }
+
+    override suspend fun runtimeGap(
+        lease: RichChatHostLease,
+        threadId: String,
+    ): RemoteRuntimeGapRead = invoke(lease, RichChatCapability.Read, false) {
+        noticeCore().threadRuntimeGap(threadId)
+    }
+
+    override suspend fun acknowledgeRuntimeGap(
+        lease: RichChatHostLease,
+        threadId: String,
+        episodeToken: String,
+        commandId: String,
+    ): RemoteRuntimeGapAck = invoke(lease, RichChatCapability.Operate, true) {
+        noticeCore().acknowledgeThreadRuntimeGap(threadId, episodeToken, commandId)
+    }
+
+    override suspend fun send(
+        lease: RichChatHostLease,
+        threadId: String,
+        prompt: String,
+        config: com.poracode.app.model.ThreadConfig,
+        segments: JsonArray?,
+        userMessageItemId: String?,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        core.sendThreadInput(threadId, prompt, config, segments, userMessageItemId)
+    }
+
+    override suspend fun interrupt(lease: RichChatHostLease, threadId: String) =
+        invoke(lease, RichChatCapability.Operate, true) { core.interruptThread(threadId) }
+
+    override suspend fun truncate(
+        lease: RichChatHostLease,
+        threadId: String,
+        itemId: String,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        rich.truncateRuntime(threadId, itemId)
+    }
+
+    override suspend fun updateGoal(
+        lease: RichChatHostLease,
+        threadId: String,
+        update: ThreadGoalUpdate,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        rich.updateThreadGoal(threadId, update)
+    }
+
+    override suspend fun setSteer(
+        lease: RichChatHostLease,
+        threadId: String,
+        input: ThreadSteerInput,
+    ) = invoke(lease, RichChatCapability.Operate, true) { rich.setSteer(threadId, input) }
+
+    override suspend fun clearSteer(lease: RichChatHostLease, threadId: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.clearSteer(threadId) }
+
+    override suspend fun queueFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        prompt: String,
+        config: JsonObject,
+        segments: JsonArray?,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        rich.queueFollowUp(
+            threadId,
+            buildJsonObject {
+                put("threadId", threadId)
+                put("prompt", prompt)
+                segments?.let { put("segments", it) }
+                put("config", config)
+            },
+        )
+    }
+
+    override suspend fun removeQueuedFollowUp(lease: RichChatHostLease, threadId: String, id: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.removeQueuedFollowUp(threadId, id) }
+
+    override suspend fun reorderQueuedFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        id: String,
+        beforeId: String?,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        rich.reorderQueuedFollowUp(threadId, id, beforeId)
+    }
+
+    override suspend fun editQueuedFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        rich.editQueuedFollowUp(threadId, JsonObject(payload + ("threadId" to JsonPrimitive(threadId))))
+    }
+
+    override suspend fun steerQueuedFollowUp(lease: RichChatHostLease, threadId: String, id: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.steerQueuedFollowUp(threadId, id) }
+
+    override suspend fun pauseFollowUps(lease: RichChatHostLease, threadId: String, id: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.pauseFollowUps(threadId, id) }
+
+    override suspend fun resumeFollowUps(lease: RichChatHostLease, threadId: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.resumeFollowUps(threadId) }
+
+    override suspend fun threadCommand(
+        lease: RichChatHostLease,
+        threadId: String,
+        command: JsonObject,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        val commandTransport = commands ?: unavailable("thread_command_transport")
+        commandTransport.execute(threadId, command)
+    }
+
+    override suspend fun closeThread(lease: RichChatHostLease, threadId: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.closeThread(threadId) }
+
+    override suspend fun resolveRequest(
+        lease: RichChatHostLease,
+        threadId: String,
+        resolution: RequestResolution,
+    ) = invoke(lease, RichChatCapability.ResolveRequests, true) {
+        rich.resolveRequest(threadId, resolution)
+    }
+
+    override suspend fun rollback(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) = invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
+        rich.rollbackThreadConversation(payload)
+    }
+
+    override suspend fun checkpointRevert(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) {
+        invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
+            rich.checkpointRevert(threadId, payload)
+        }
+    }
+
+    override suspend fun createCheckpoint(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ): RichCheckpoint = invokeThreadProcedure(
+        lease,
+        threadId,
+        payload,
+        RichChatCapability.Operate,
+        true,
+    ) { RichChatCheckpointResponseDecoder.decodeCheckpointResult(rich.createFileCheckpoint(payload), mutation = true) }
+
+    override suspend fun finalizeCheckpoint(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ): RichCheckpoint = invokeThreadProcedure(
+        lease,
+        threadId,
+        payload,
+        RichChatCapability.Operate,
+        true,
+    ) { RichChatCheckpointResponseDecoder.decodeCheckpointResult(rich.finalizeFileCheckpoint(payload), mutation = true) }
+
+    override suspend fun listCheckpoints(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ): RichCheckpointCollection = invokeThreadProcedure(
+        lease,
+        threadId,
+        payload,
+        RichChatCapability.Read,
+        false,
+    ) { RichChatCheckpointResponseDecoder.decodeCheckpointCollection(rich.listFileCheckpoints(payload), threadId) }
+
+    override suspend fun restoreCheckpoint(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) = invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
+        rich.restoreFileCheckpoint(payload)
+    }
+
+    override suspend fun stageInput(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) = invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
+        rich.stageThreadInput(payload)
+    }
+
+    override suspend fun listSessionActions(
+        lease: RichChatHostLease,
+        threadId: String,
+    ): List<String> = invoke(lease, RichChatCapability.Read, false) {
+        val result = rich.listThreadSessionActions(buildJsonObject { put("threadId", threadId) })
+        val actions = result["actions"] as? JsonArray ?: invalidResponse()
+        actions.map { action ->
+            ((action as? JsonObject)?.get("id") as? JsonPrimitive)
+                ?.takeIf { it.isString && it.content.isNotEmpty() }
+                ?.content
+                ?: invalidResponse()
+        }
+    }
+
+    override suspend fun invokeSessionAction(
+        lease: RichChatHostLease,
+        threadId: String,
+        actionId: String,
+        payload: JsonObject,
+    ): JsonObject {
+        val wirePayload = buildJsonObject {
+            put("threadId", threadId)
+            put("actionId", actionId)
+            put("payload", payload)
+        }
+        return invokeThreadProcedure(lease, threadId, wirePayload, RichChatCapability.Operate, true) {
+            rich.invokeThreadSessionAction(wirePayload)
+        }
+    }
+
+    override suspend fun uploadAttachment(
+        lease: RichChatHostLease,
+        threadId: String,
+        name: String,
+        contentType: String,
+        body: AttachmentUploadBody,
+    ): String = invoke(lease, RichChatCapability.Operate, true) {
+        rich.uploadAttachment(threadId, name, contentType, body)
+    }
+
+    override suspend fun localImagePlan(lease: RichChatHostLease, path: String): BinaryRequestPlan =
+        invokePlan(lease, RichChatCapability.Read) { rich.localImageRequest(path) }
+
+    override suspend fun runtimeImagePlan(
+        lease: RichChatHostLease,
+        threadId: String,
+        itemId: String,
+        path: List<RuntimeImagePathSegment>,
+    ): BinaryRequestPlan = invokePlan(lease, RichChatCapability.Read) {
+        rich.runtimeImageRequest(threadId, itemId, path)
+    }
+
+    override suspend fun loadLocalImage(
+        lease: RichChatHostLease,
+        path: String,
+    ): RemoteBinaryResponse = invoke(lease, RichChatCapability.Read, false) {
+        val executor = binary ?: unavailable("binary_transport")
+        executor.execute(rich.localImageRequest(path))
+    }
+
+    override suspend fun loadRuntimeImage(
+        lease: RichChatHostLease,
+        threadId: String,
+        itemId: String,
+        path: List<RuntimeImagePathSegment>,
+    ): RemoteBinaryResponse = invoke(lease, RichChatCapability.Read, false) {
+        val executor = binary ?: unavailable("binary_transport")
+        executor.execute(rich.runtimeImageRequest(threadId, itemId, path))
+    }
+
+    override suspend fun startTerminal(lease: RichChatHostLease, input: TerminalStartInput) =
+        invoke(lease, RichChatCapability.TerminalOperate, true) { rich.startTerminal(input) }
+
+    override suspend fun watchTerminal(
+        lease: RichChatHostLease,
+        request: RichTerminalWatchRequest,
+    ) = invoke(lease, RichChatCapability.TerminalRead, false) {
+        val socket = terminalWatch ?: unavailable("terminal_watch_transport")
+        socket.watch(request)
+    }
+
+    override suspend fun unwatchTerminal(lease: RichChatHostLease, terminalId: String) =
+        invoke(lease, RichChatCapability.TerminalRead, false) {
+            val socket = terminalWatch ?: unavailable("terminal_watch_transport")
+            socket.unwatch(terminalId)
+        }
+
+    override suspend fun writeTerminal(
+        lease: RichChatHostLease,
+        threadId: String,
+        data: String,
+    ) = invoke(lease, RichChatCapability.TerminalOperate, true) {
+        rich.writeTerminal(threadId, data)
+    }
+
+    override suspend fun resizeTerminal(
+        lease: RichChatHostLease,
+        threadId: String,
+        columns: Int,
+        rows: Int,
+    ) = invoke(lease, RichChatCapability.TerminalOperate, true) {
+        rich.resizeTerminal(threadId, columns, rows)
+    }
+
+    override suspend fun closeTerminal(lease: RichChatHostLease, threadId: String) =
+        invoke(lease, RichChatCapability.TerminalOperate, true) { rich.closeTerminal(threadId) }
+
+    private suspend fun <T> invokeThreadProcedure(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+        capability: RichChatCapability,
+        mutation: Boolean,
+        operation: suspend RichChatGatewayBundle.() -> T,
+    ): T {
+        if ((payload["threadId"] as? JsonPrimitive)?.content != threadId) {
+            throw RichChatGatewayException(400, "invalid_request", false)
+        }
+        return invoke(lease, capability, mutation, operation)
+    }
+
+    private fun RichChatGatewayBundle.noticeCore(): RemoteHistoryNoticeGateway =
+        core as? RemoteHistoryNoticeGateway
+            ?: throw RichChatGatewayException(501, "runtime_notice_transport", false)
+
+    private suspend fun <T> invoke(
+        lease: RichChatHostLease,
+        capability: RichChatCapability,
+        mutation: Boolean,
+        operation: suspend RichChatGatewayBundle.() -> T,
+    ): T {
+        requireCurrent(lease, capability)
+        val bundle = try {
+            provider.bundleFor(lease)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            throw RichChatGatewayException(0, "network", mutation)
+        } ?: throw RichChatGatewayException(409, "stale_lease", false)
+        if (mutation && bundle.mutationDelivery != RichChatMutationDelivery.SingleAttempt) {
+            throw RichChatGatewayException(500, "unsafe_retry_policy", false)
+        }
+        // B1: this bundle's connection declares the notice surface exactly when
+        // the lease's live descriptor advertised it. Reads never declare on an
+        // incapable host, and a declaring client is always the one that can
+        // render the notice.
+        bundle.core.declareRuntimeHistoryNotices(lease.noticesSupported)
+        requireCurrent(lease, capability)
+        val value = try {
+            bundle.operation()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: RichChatGatewayException) {
+            throw error
+        } catch (error: RemoteClientException) {
+            throw error.sanitized(mutation)
+        } catch (error: Exception) {
+            throw error.sanitized(mutation)
+        }
+        requireCurrent(lease, capability)
+        return value
+    }
+
+    private suspend fun <T> invokePlan(
+        lease: RichChatHostLease,
+        capability: RichChatCapability,
+        operation: RichChatGatewayBundle.() -> T,
+    ): T {
+        requireCurrent(lease, capability)
+        val bundle = try {
+            provider.bundleFor(lease)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            throw RichChatGatewayException(0, "network", false)
+        } ?: throw RichChatGatewayException(409, "stale_lease", false)
+        val value = try {
+            bundle.operation()
+        } catch (error: RichChatGatewayException) {
+            throw error
+        } catch (error: Exception) {
+            throw error.sanitized(false)
+        }
+        requireCurrent(lease, capability)
+        return value
+    }
+
+    private fun requireCurrent(lease: RichChatHostLease, capability: RichChatCapability) {
+        val current = session.value
+        if (current == null || current.key != lease.key) {
+            throw RichChatGatewayException(409, "stale_lease", false)
+        }
+        if (!current.online) throw RichChatGatewayException(0, "offline", false)
+        if (!current.ready) throw RichChatGatewayException(409, "session_not_ready", false)
+        if (capability.scope !in current.scopes) {
+            throw RichChatGatewayException(403, "missing_scope", false)
+        }
+    }
+
+    private fun invalidResponse(mutation: Boolean = false): Nothing = throw RichChatGatewayException(
+        500,
+        "invalid_response",
+        mutation,
+    )
+
+    private fun unavailable(code: String): Nothing = throw RichChatGatewayException(501, code, false)
+}

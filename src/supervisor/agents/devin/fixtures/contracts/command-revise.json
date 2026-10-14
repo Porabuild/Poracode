@@ -1,0 +1,5 @@
+{
+  "$comment": "Sanitized live wire capture, devin acp 3000.11.3 (2026-10-07). Confirmed route; the revised command text is variable, never to be executed without review.",
+  "request": { "sessionId": "fixture-session", "command": "ls", "note": "probe" },
+  "response": { "command": "ls -la" }
+}

@@ -32,6 +32,12 @@ describe("isHomeProjectId", () => {
 });
 
 describe("isHomeProject", () => {
+  it("recognizes a projected host Home scope without treating a regular remote project as Home", () => {
+    expect(
+      isHomeProject({ id: "remote:host:project:__lightcode_home__", remoteId: HOME_PROJECT_ID }),
+    ).toBe(true);
+    expect(isHomeProject({ id: "remote:host:project:repo", remoteId: "repo" })).toBe(false);
+  });
   it("returns true for a project with the home id", () => {
     expect(isHomeProject({ id: "__lightcode_home__" })).toBe(true);
   });

@@ -3,7 +3,7 @@
 // original public API surface so importers (sdkSession, tests) are unaffected.
 export { createClaudeMapperState, type ClaudeMapperState } from "./sdkCanonicalMappingState";
 export { startClaudeTurn, steerClaudeTurn } from "./canonicalMapping/turn";
-export { closeClaudeOpenItems } from "./canonicalMapping/textItems";
+export { closeClaudeOpenItems, closeClaudeGenerationItems } from "./canonicalMapping/textItems";
 export {
   ACCEPT_SUGGESTION_OPTION_PREFIX,
   mapClaudePermissionRequest,

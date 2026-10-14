@@ -495,14 +495,14 @@ describe("Copilot CLI MCP configuration", () => {
     );
   });
 
-  it("adds a protected @file to both launch and resume without putting secrets in argv", () => {
+  it("adds a protected @file to both launch and resume without putting secrets in argv", async () => {
     const adapter = createCopilotAdapter();
     const location = { kind: "windows" as const, path: "C:\\repo" };
-    const launch = adapter.buildLaunchArgv(location, { model: "gpt-5" }, "hello", undefined, {
+    const launch = await adapter.buildLaunchArgv(location, { model: "gpt-5" }, "hello", undefined, {
       resumeThreadId: "launch-session",
       mcpServers: servers,
     });
-    const resume = adapter.buildResumeArgv(
+    const resume = await adapter.buildResumeArgv(
       location,
       { model: "gpt-5" },
       "again",
@@ -518,7 +518,7 @@ describe("Copilot CLI MCP configuration", () => {
       expect(spec.args.join(" ")).not.toContain("remote-secret");
       expect(readFileSync(argument!.slice(1), "utf8")).toContain('"Vercel"');
       expect(Object.values(spec.env ?? {})).toContain("Bearer remote-secret");
-      spec.cleanup?.();
+      await spec.cleanup?.();
       expect(existsSync(argument!.slice(1))).toBe(false);
     }
   });

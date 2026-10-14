@@ -1,8 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { BrowserWindow, shell } from "electron";
+import { BrowserWindow, shell, type Session } from "electron";
 import {
   IPC_EVENT_CHANNELS,
   type BrowserEvent,
+  type BrowserCredentialInfo,
+  type BrowserDeviceEmulation,
+  type BrowserDownloadInfo,
+  type BrowserInternalPage,
+  type BrowserImportResult,
+  type BrowserImportSourceInfo,
+  type BrowserPrintResult,
   type BrowserState,
   type BrowserStartPickerResult,
   type BrowserTabGroupInfo,
@@ -11,11 +18,14 @@ import {
 import type { UsageLoginConfirmationAction, UsageLoginDeviceCode } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/shared/settings";
-import { dbGetState, dbSetState } from "../db";
-import { readSharedSettingsFile } from "../sharedSettingsFile";
+import type { ShellStateStore } from "../backend/BackendStateStore";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { saveClipboardImageFile } from "../attachments/localFiles";
 import { BrowserLoginCaptureCoordinator } from "./BrowserLoginCaptureCoordinator";
-import { BrowserTab, resolveWebContentsById } from "./BrowserTab";
+import { BrowserCredentialStore } from "./BrowserCredentialStore";
+import { BrowserDownloadManager } from "./BrowserDownloadManager";
+import { BrowserTab, resolveWebContentsById, type BrowserTabSnapshot } from "./BrowserTab";
+import { ChromiumImportService } from "./ChromiumImportService";
 import { BrowserTabGroups } from "./BrowserTabGroups";
 import { BrowserHistoryStore, fetchSearchSuggestions } from "./browserHistory";
 import { BrowserBookmarkStore, type BrowserBookmark } from "./browserBookmarks";
@@ -30,6 +40,21 @@ const ATTACH_TIMEOUT_MS = 8000;
 const AUTOMATION_GRACE_MS = 45_000;
 const INTERNAL_BROWSER_PROTOCOLS = new Set(["http:", "https:"]);
 const SYSTEM_BROWSER_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+const INTERNAL_PAGES: Record<
+  BrowserInternalPage,
+  { url: string; title: string; legacyUrls: readonly string[] }
+> = {
+  downloads: {
+    url: "poracode://downloads",
+    title: "Download history",
+    legacyUrls: ["chrome://downloads"],
+  },
+  passwords: {
+    url: "poracode://passwords",
+    title: "Password Manager",
+    legacyUrls: ["chrome://password-manager/passwords"],
+  },
+};
 
 interface PersistedTabsState {
   tabs: Array<{ url: string; title: string; groupId?: string }>;
@@ -57,6 +82,7 @@ type PickerPayload =
 interface BrowserPanelManagerOptions {
   isExtracted?: () => boolean;
   focusExtractedWindow?: () => void;
+  browserSession?: Session;
 }
 
 export class BrowserPanelManager {
@@ -70,8 +96,13 @@ export class BrowserPanelManager {
   private pendingPicker: PendingPicker | null = null;
   private unsubscribePicker: (() => void) | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly history = new BrowserHistoryStore();
-  private readonly bookmarks = new BrowserBookmarkStore();
+  private readonly history: BrowserHistoryStore;
+  private readonly bookmarks: BrowserBookmarkStore;
+  private readonly credentials: BrowserCredentialStore;
+  private readonly downloads: BrowserDownloadManager | null;
+  private readonly importer: ChromiumImportService | null;
+  private readonly internalPages = new Map<string, BrowserInternalPage>();
+  private readonly navigationOwners = new Map<string, object>();
   private restored = false;
   private automationActive = false;
   private readonly automationSessions = new Set<string>();
@@ -88,8 +119,26 @@ export class BrowserPanelManager {
   constructor(
     private readonly paths: PoracodePaths,
     private readonly browserUserAgent: string,
+    private readonly state: ShellStateStore,
     private readonly options: BrowserPanelManagerOptions = {},
   ) {
+    this.credentials = new BrowserCredentialStore(state);
+    this.history = new BrowserHistoryStore(state);
+    this.bookmarks = new BrowserBookmarkStore(state);
+    this.downloads = options.browserSession
+      ? new BrowserDownloadManager(options.browserSession, state, {
+          onEvent: (event) => {
+            if (event.type === "removed") {
+              this.emit({ type: "download-removed", downloadId: event.downloadId });
+            } else {
+              this.emit({ type: "download-updated", download: event.download });
+            }
+          },
+        })
+      : null;
+    this.importer = options.browserSession
+      ? new ChromiumImportService(options.browserSession, this.credentials)
+      : null;
     this.unsubscribePicker = onPickerCommit((commit) => {
       void this.onPickerCommit(commit);
     });
@@ -103,7 +152,7 @@ export class BrowserPanelManager {
         const groups = this.tabGroups.serialize();
         const state: PersistedTabsState = {
           tabs: this.tabs.map((t) => {
-            const s = t.snapshot();
+            const s = this.toInfo(t);
             const groupId = this.tabGroups.groupIdForTab(t.tabId);
             return { url: s.url, title: s.title, ...(groupId ? { groupId } : {}) };
           }),
@@ -112,7 +161,7 @@ export class BrowserPanelManager {
             : null,
           ...(groups ? { groups } : {}),
         };
-        dbSetState(PERSIST_KEY, JSON.stringify(state));
+        this.state.set(PERSIST_KEY, JSON.stringify(state));
       } catch {}
     }, PERSIST_DEBOUNCE_MS);
   }
@@ -122,7 +171,7 @@ export class BrowserPanelManager {
     this.restored = true;
     let parsed: PersistedTabsState | null = null;
     try {
-      const raw = dbGetState(PERSIST_KEY);
+      const raw = this.state.get(PERSIST_KEY);
       if (!raw) return;
       const candidate = JSON.parse(raw) as PersistedTabsState;
       if (!candidate || !Array.isArray(candidate.tabs)) return;
@@ -182,10 +231,13 @@ export class BrowserPanelManager {
     this.automationActive = false;
     this.clearPickerShortcut();
     this.loginCoordinator.cancelLoginConfirmations();
+    this.downloads?.dispose();
     for (const t of this.tabs) {
       void t.destroy();
     }
     this.tabs = [];
+    this.internalPages.clear();
+    this.navigationOwners.clear();
     this.activeTabId = null;
     this.hosts.clear();
   }
@@ -311,7 +363,7 @@ export class BrowserPanelManager {
    */
   async ensureTabReady(tabId: string): Promise<void> {
     this.markAutomationActivity();
-    const tab = this.findTab(tabId);
+    const tab = this.getTab(tabId);
     if (!tab || tab.isAttached()) return;
     await this.awaitAttach(tab);
   }
@@ -375,18 +427,22 @@ export class BrowserPanelManager {
     return true;
   }
 
-  private toInfo(t: BrowserTab): BrowserTabInfo {
-    const s = t.snapshot();
+  private toInfo(t: BrowserTab, s: BrowserTabSnapshot = t.snapshot()): BrowserTabInfo {
     const groupId = this.tabGroups.groupIdForTab(s.tabId);
+    const internalPage = this.internalPages.get(s.tabId);
+    const internal = internalPage ? INTERNAL_PAGES[internalPage] : null;
     return {
       tabId: s.tabId,
-      url: s.url,
-      title: s.title,
-      loading: s.loading,
-      canGoBack: s.canGoBack,
-      canGoForward: s.canGoForward,
+      url: internal?.url ?? s.url,
+      title: internal?.title ?? s.title,
+      loading: internal ? false : s.loading,
+      canGoBack: internal ? false : s.canGoBack,
+      canGoForward: internal ? false : s.canGoForward,
       devToolsOpen: s.devToolsOpen,
-      ...(s.faviconUrl ? { faviconUrl: s.faviconUrl } : {}),
+      zoomFactor: s.zoomFactor,
+      ...(internalPage ? { internalPage } : {}),
+      ...(!internal && s.deviceEmulation ? { deviceEmulation: s.deviceEmulation } : {}),
+      ...(!internal && s.faviconUrl ? { faviconUrl: s.faviconUrl } : {}),
       ...(groupId ? { groupId } : {}),
     };
   }
@@ -466,7 +522,7 @@ export class BrowserPanelManager {
   }
 
   attachWebContents(tabId: string, webContentsId: number): void {
-    const tab = this.findTab(tabId);
+    const tab = this.getTab(tabId);
     if (!tab) return;
     // Reject a host window's own WebContents by id first, before resolving it.
     for (const host of this.hosts) {
@@ -500,13 +556,18 @@ export class BrowserPanelManager {
       this.revealForUserOpen();
     }
     const tabId = `tab-${randomUUID()}`;
+    const internalPage = payload.url ? internalPageForUrl(payload.url) : undefined;
+    if (internalPage) this.internalPages.set(tabId, internalPage);
     const tab = new BrowserTab({
       tabId,
-      ...(payload.url ? { initialUrl: payload.url } : {}),
+      ...(payload.url && !internalPage ? { initialUrl: payload.url } : {}),
       userAgent: this.browserUserAgent,
-      onUpdate: (snap) => {
-        this.emit({ type: "tab-updated", tab: { ...snap } });
-        if (!snap.loading) this.history.record(snap.url, snap.title, Date.now());
+      onUpdate: (snapshot) => {
+        const info = this.toInfo(tab, snapshot);
+        this.emit({ type: "tab-updated", tab: info });
+        if (!info.loading && !info.internalPage) {
+          this.history.record(info.url, info.title, Date.now());
+        }
         this.schedulePersist();
       },
       onAttention: (id) => {
@@ -514,6 +575,12 @@ export class BrowserPanelManager {
       },
       onPopup: (_sourceTabId, popupUrl) => {
         void this.openLink(popupUrl).catch(() => {});
+      },
+      onFindRequested: (id) => {
+        this.emit({ type: "find-open-requested", tabId: id });
+      },
+      onFindResult: (id, result) => {
+        this.emit({ type: "find-result", result: { tabId: id, ...result } });
       },
     });
     this.tabs.push(tab);
@@ -532,7 +599,7 @@ export class BrowserPanelManager {
     this.schedulePersist();
     // Wait for the renderer to mount the <webview> and attach its webContents
     // so callers (e.g. MCP) can immediately use cdp / dialogs / network.
-    if (opts.awaitAttach !== false) {
+    if (opts.awaitAttach !== false && !internalPage) {
       await this.awaitAttach(tab);
     }
     return this.toInfo(tab);
@@ -570,6 +637,8 @@ export class BrowserPanelManager {
     if (idx < 0) return;
     const [tab] = this.tabs.splice(idx, 1);
     if (!tab) return;
+    this.internalPages.delete(tabId);
+    this.navigationOwners.delete(tabId);
     await tab.destroy();
     this.tabGroups.removeTab(tabId);
     if (this.activeTabId === tabId) {
@@ -583,11 +652,50 @@ export class BrowserPanelManager {
   async navigate(tabId: string, url: string): Promise<void> {
     const t = this.findTab(tabId);
     if (!t) throw new Error(`No browser tab: ${tabId}`);
-    await t.loadURL(url);
+    const internalPage = internalPageForUrl(url);
+    if (internalPage) {
+      this.navigationOwners.delete(tabId);
+      this.internalPages.set(tabId, internalPage);
+      this.emitState();
+      this.schedulePersist();
+      return;
+    }
+    const previousPage = this.internalPages.get(tabId);
+    const owner = {};
+    this.navigationOwners.set(tabId, owner);
+    this.internalPages.delete(tabId);
+    try {
+      await t.loadURL(url);
+      if (previousPage && this.navigationOwners.get(tabId) === owner && this.findTab(tabId) === t) {
+        this.emitState();
+        this.schedulePersist();
+      }
+    } catch (error) {
+      if (previousPage && this.navigationOwners.get(tabId) === owner && this.findTab(tabId) === t) {
+        this.internalPages.set(tabId, previousPage);
+        this.emitState();
+        this.schedulePersist();
+      }
+      throw error;
+    } finally {
+      if (this.navigationOwners.get(tabId) === owner) this.navigationOwners.delete(tabId);
+    }
+  }
+
+  async openInternalPage(page: BrowserInternalPage): Promise<BrowserTabInfo> {
+    const existing = this.tabs.find((tab) => this.internalPages.get(tab.tabId) === page);
+    if (existing) {
+      this.setActiveTab(existing.tabId);
+      return this.toInfo(existing);
+    }
+    return await this.createTab(
+      { url: INTERNAL_PAGES[page].url, activate: true },
+      { awaitAttach: false },
+    );
   }
 
   async back(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
+    const t = this.getTab(tabId);
     if (!t || !t.isAttached()) return;
     const wc = t.webContents;
     if (wc.navigationHistory.canGoBack()) {
@@ -596,7 +704,7 @@ export class BrowserPanelManager {
   }
 
   async forward(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
+    const t = this.getTab(tabId);
     if (!t || !t.isAttached()) return;
     const wc = t.webContents;
     if (wc.navigationHistory.canGoForward()) {
@@ -605,21 +713,118 @@ export class BrowserPanelManager {
   }
 
   async reload(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
+    const t = this.getTab(tabId);
     if (!t || !t.isAttached()) return;
     t.webContents.reload();
   }
 
   async hardReload(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
+    const t = this.getTab(tabId);
     if (!t) return;
     t.hardReload();
   }
 
   async toggleDevTools(tabId: string): Promise<void> {
-    const t = this.findTab(tabId);
+    const t = this.getTab(tabId);
     if (!t) return;
     t.toggleDevTools();
+  }
+
+  findInPage(
+    tabId: string,
+    text: string,
+    options: { forward: boolean; findNext: boolean; matchCase: boolean },
+  ): void {
+    this.getTab(tabId)?.findInPage(text, options);
+  }
+
+  stopFindInPage(
+    tabId: string,
+    action: "clearSelection" | "keepSelection" | "activateSelection",
+  ): void {
+    this.getTab(tabId)?.stopFindInPage(action);
+  }
+
+  async print(tabId: string): Promise<BrowserPrintResult> {
+    const tab = this.getTab(tabId);
+    if (!tab) return { ok: false };
+    return await tab.print();
+  }
+
+  setZoomFactor(tabId: string, zoomFactor: number): void {
+    this.getTab(tabId)?.setZoomFactor(zoomFactor);
+  }
+
+  setDeviceEmulation(tabId: string, emulation: BrowserDeviceEmulation | null): void {
+    this.getTab(tabId)?.setDeviceEmulation(emulation);
+  }
+
+  getDownloads(): BrowserDownloadInfo[] {
+    return this.downloads?.list() ?? [];
+  }
+
+  async downloadAction(
+    downloadId: string,
+    action: "pause" | "resume" | "cancel" | "remove" | "open" | "show-in-folder",
+  ): Promise<void> {
+    if (!this.downloads) return;
+    if (action === "pause") this.downloads.pause(downloadId);
+    else if (action === "resume") this.downloads.resume(downloadId);
+    else if (action === "cancel") this.downloads.cancel(downloadId);
+    else if (action === "remove") this.downloads.remove(downloadId);
+    else if (action === "open") {
+      if (!(await this.downloads.open(downloadId))) throw new Error("Unable to open download");
+    } else if (!this.downloads.reveal(downloadId)) {
+      throw new Error("Unable to show download in folder");
+    }
+  }
+
+  listCredentials(): BrowserCredentialInfo[] {
+    return this.credentials.list();
+  }
+
+  getCredentialPassword(id: string): string | null {
+    return this.credentials.get(id)?.password ?? null;
+  }
+
+  async upsertCredential(input: {
+    id?: string;
+    origin: string;
+    username: string;
+    password: string;
+  }): Promise<BrowserCredentialInfo> {
+    const credential = await this.credentials.upsert(input);
+    this.emit({ type: "credentials-updated" });
+    return credential;
+  }
+
+  async deleteCredential(id: string): Promise<void> {
+    if (await this.credentials.delete(id)) this.emit({ type: "credentials-updated" });
+  }
+
+  async listImportSources(): Promise<BrowserImportSourceInfo[]> {
+    return (await this.importer?.listSources()) ?? [];
+  }
+
+  async importBrowserData(input: {
+    sourceId: string;
+    passwords: boolean;
+    cookies: boolean;
+    acknowledgeProtectedData: boolean;
+  }): Promise<BrowserImportResult> {
+    if (!this.importer) {
+      return {
+        passwordsImported: 0,
+        cookiesImported: 0,
+        passwordsSkipped: 0,
+        cookiesSkipped: 0,
+        protectedItemsSkipped: 0,
+        errors: ["browser-import-unavailable"],
+      };
+    }
+    const result = await this.importer.importData(input);
+    if (result.passwordsImported > 0) this.emit({ type: "credentials-updated" });
+    return result;
   }
 
   async clearHistory(tabId: string): Promise<void> {
@@ -643,19 +848,27 @@ export class BrowserPanelManager {
   }
 
   async clearCookies(tabId: string): Promise<void> {
+    if (this.options.browserSession) {
+      await this.options.browserSession.clearStorageData({ storages: ["cookies"] });
+      return;
+    }
     const t = this.findTab(tabId);
     if (!t) return;
     await t.clearCookies();
   }
 
   async clearCache(tabId: string): Promise<void> {
+    if (this.options.browserSession) {
+      await this.options.browserSession.clearCache();
+      return;
+    }
     const t = this.findTab(tabId);
     if (!t) return;
     await t.clearCache();
   }
 
   async capturePng(tabId: string): Promise<Buffer | null> {
-    const t = this.findTab(tabId);
+    const t = this.getTab(tabId);
     if (!t || !t.isAttached()) return null;
     return await t.capturePng();
   }
@@ -724,10 +937,11 @@ export class BrowserPanelManager {
   }
 
   getActiveTab(): BrowserTab | null {
-    return this.activeTabId ? (this.findTab(this.activeTabId) ?? null) : null;
+    return this.activeTabId ? this.getTab(this.activeTabId) : null;
   }
 
   getTab(tabId: string): BrowserTab | null {
+    if (this.internalPages.has(tabId)) return null;
     return this.findTab(tabId) ?? null;
   }
 
@@ -735,7 +949,7 @@ export class BrowserPanelManager {
     threadId: string;
     tabId: string;
   }): Promise<BrowserStartPickerResult> {
-    const tab = this.findTab(payload.tabId);
+    const tab = this.getTab(payload.tabId);
     if (!tab) {
       return { ok: false, error: `No browser tab: ${payload.tabId}` };
     }
@@ -746,7 +960,8 @@ export class BrowserPanelManager {
       return { ok: false, error: "Picker already active" };
     }
     return await new Promise<BrowserStartPickerResult>((resolve) => {
-      this.pendingPicker = { threadId: payload.threadId, tabId: payload.tabId, resolve };
+      const pendingPicker = { threadId: payload.threadId, tabId: payload.tabId, resolve };
+      this.pendingPicker = pendingPicker;
       this.bindPickerShortcut(tab);
       const wc = tab.webContents;
       // Only focus if not already focused — `webContents.focus()` can shift
@@ -757,11 +972,11 @@ export class BrowserPanelManager {
       const script = buildPickerScript(payload.tabId, PICKER_COMMIT_ORIGIN);
       wc.executeJavaScript(script, false)
         .then((pickerPayload: unknown) => {
-          if (!isPickerPayload(pickerPayload)) return;
+          if (this.pendingPicker !== pendingPicker || !isPickerPayload(pickerPayload)) return;
           void this.onPickerCommit({ tabId: payload.tabId, payload: pickerPayload });
         })
         .catch((err) => {
-          if (this.pendingPicker && this.pendingPicker.tabId === payload.tabId) {
+          if (this.pendingPicker === pendingPicker) {
             this.clearPickerShortcut();
             this.pendingPicker = null;
             resolve({ ok: false, error: (err as Error).message ?? "Picker injection failed" });
@@ -828,19 +1043,13 @@ export class BrowserPanelManager {
     // The user clicked the element in the picker, so it's already inside the
     // viewport. Capture from the renderer's painted bitmap via
     // `webContents.capturePage` — no scrolling, no CDP off-surface path, and
-    // no visible flicker. `pick.rect` is viewport-relative as captured by the
-    // picker script.
+    // no visible flicker. Convert the picker's layout CSS bounds at the native
+    // tab boundary, preserving their original values for attachment metadata.
     const rect = pick.rect;
-    const clip = {
-      x: Math.max(0, Math.floor(rect.x)),
-      y: Math.max(0, Math.floor(rect.y)),
-      width: Math.max(1, Math.ceil(rect.width)),
-      height: Math.max(1, Math.ceil(rect.height)),
-    };
-    const bytes = await tab.capturePng(clip);
+    const bytes = await tab.captureElementPng(rect);
 
     const data = new Uint8Array(bytes);
-    const path = saveClipboardImageFile(this.paths, {
+    const path = await saveClipboardImageFile(this.paths, {
       threadId,
       data,
       extension: "png",
@@ -861,6 +1070,14 @@ export class BrowserPanelManager {
 function isEscapeKeyDown(input: Electron.Input): boolean {
   if (input.type !== "keyDown") return false;
   return input.key === "Escape" || input.key === "Esc" || input.code === "Escape";
+}
+
+function internalPageForUrl(url: string): BrowserInternalPage | undefined {
+  const normalized = url.trim().replace(/\/+$/, "");
+  return (Object.keys(INTERNAL_PAGES) as BrowserInternalPage[]).find((key) => {
+    const page = INTERNAL_PAGES[key];
+    return page.url === normalized || page.legacyUrls.includes(normalized);
+  });
 }
 
 function isPickerPayload(value: unknown): value is PickerPayload {

@@ -1,3 +1,4 @@
+import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import type { Project } from "@/shared/contracts";
 import {
   useCurrentThreadIds,
@@ -20,8 +21,11 @@ import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
 export function SidebarProjectThreadList(props: { project: Project; sortMode: ThreadSortMode }) {
   const { project, sortMode } = props;
   const isThreadVisible = useWorkspaceThreadFilter();
+  const auxiliaryIds = useAuxiliaryThreadWindows((s) => s.hiddenThreadIds);
   // No-op for real projects; hides Home threads filed under other workspaces.
-  const projectThreads = useProjectThreads(project.id).filter(isThreadVisible);
+  const projectThreads = useProjectThreads(project.id).filter(
+    (thread) => !auxiliaryIds.has(thread.id) && isThreadVisible(thread),
+  );
   const experimentCandidateOrder = useExperimentCandidateOrder(project.id);
   const collapsedWorktrees = useSidebarUiStore((s) => s.collapsedWorktrees);
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);

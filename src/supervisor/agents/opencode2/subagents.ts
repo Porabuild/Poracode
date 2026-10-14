@@ -1,5 +1,7 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { V2Event } from "./clientTypes";
+import { readNonNegativeInteger } from "../contextUsage";
+import { openCode2ToolPayload, type OpenCode2ToolItemState } from "./toolPayload";
 import {
   closeOpenCode2Items,
   createOpenCode2MapperState,
@@ -11,7 +13,11 @@ import {
 
 interface ChildSession {
   state: OpenCode2MapperState;
-  parentItemId?: string;
+  parentTool?: OpenCode2ToolItemState;
+  /** Out-of-step operations can reannounce stable rows across continuations. */
+  operationIds: Set<string>;
+  /** Recovery can relink older invocations before returning to the active one. */
+  stepCounts: WeakMap<OpenCode2ToolItemState, number>;
   pending: V2Event[];
 }
 
@@ -44,7 +50,7 @@ export class OpenCode2Subagents {
     if (sessionID === this.root.sessionID) return this.link(event, this.root);
     const child = this.children.get(sessionID);
     if (!child) return [];
-    if (!child.parentItemId) {
+    if (!child.parentTool) {
       child.pending.push(event);
       return [];
     }
@@ -60,8 +66,8 @@ export class OpenCode2Subagents {
   close(): RuntimeEvent[] {
     const events: RuntimeEvent[] = [];
     for (const child of this.children.values()) {
-      if (child.parentItemId)
-        events.push(...this.tag(closeOpenCode2Items(child.state), child.parentItemId));
+      if (child.parentTool)
+        events.push(...this.tag(closeOpenCode2Items(child.state), child.parentTool.itemId));
     }
     this.children.clear();
     return events;
@@ -72,7 +78,7 @@ export class OpenCode2Subagents {
     if (!child) {
       const state = createOpenCode2MapperState(this.root.threadId);
       setOpenCode2SessionId(state, sessionID, { fresh: true });
-      child = { state, pending: [] };
+      child = { state, pending: [], operationIds: new Set(), stepCounts: new WeakMap() };
       this.children.set(sessionID, child);
     }
     return child;
@@ -90,14 +96,50 @@ export class OpenCode2Subagents {
     const tool = parent.messages.get(event.data.assistantMessageID)?.tools.get(event.data.id);
     if (!tool || !["task", "subagent"].includes(tool.name.toLowerCase())) return [];
     const child = this.ensure(childID);
-    child.parentItemId = tool.itemId;
+    child.parentTool = tool;
     const pending = child.pending;
     child.pending = [];
-    return pending.flatMap((entry) => this.map(entry));
+    return [...pending.flatMap((entry) => this.map(entry)), ...this.updateProgress(child)];
   }
 
   private mapChild(child: ChildSession, event: V2Event): RuntimeEvent[] {
-    return this.tag(mapOpenCode2Event(event, child.state), child.parentItemId!);
+    const events = this.tag(mapOpenCode2Event(event, child.state), child.parentTool!.itemId);
+    const parent = child.parentTool!;
+    let stepCount = child.stepCounts.get(parent) ?? 0;
+    const operation =
+      event.type === "session.skill.activated" ||
+      event.type === "session.shell.started" ||
+      event.type === "session.shell.ended";
+    // Ordinary starts are fenced by the mapper's announcement/completion state.
+    for (const entry of events) {
+      if (entry.type !== "item.started") continue;
+      if (operation) {
+        if (child.operationIds.has(entry.itemId)) continue;
+        child.operationIds.add(entry.itemId);
+      }
+      stepCount += 1;
+    }
+    child.stepCounts.set(parent, stepCount);
+    // Child rows are gated while their panel is closed. Publish the count on
+    // the parent tool as well so the main transcript still sees live progress.
+    events.push(...this.updateProgress(child));
+    return events;
+  }
+
+  private updateProgress(child: ChildSession): RuntimeEvent[] {
+    const parent = child.parentTool;
+    if (!parent) return [];
+    const stepCount = child.stepCounts.get(parent) ?? 0;
+    if (stepCount <= (readNonNegativeInteger(parent.progress.stepCount) ?? 0)) return [];
+    parent.progress = { ...parent.progress, stepCount };
+    return [
+      {
+        type: "item.updated",
+        threadId: this.root.threadId,
+        itemId: parent.itemId,
+        payload: openCode2ToolPayload(parent),
+      },
+    ];
   }
 
   private tag(events: RuntimeEvent[], parentItemId: string): RuntimeEvent[] {

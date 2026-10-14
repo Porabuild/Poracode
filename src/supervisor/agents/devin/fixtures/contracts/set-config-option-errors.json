@@ -1,0 +1,53 @@
+{
+  "$comment": "Sanitized live session/set_config_option error captures, devin acp 3000.11.3 (2026-10-07). Exact codes, messages and data shapes preserved.",
+  "errors": [
+    {
+      "case": "boolean value on a select option",
+      "request": {
+        "sessionId": "fixture-session",
+        "configId": "model",
+        "value": { "type": "boolean", "value": true }
+      },
+      "error": {
+        "code": -32602,
+        "message": "Invalid params",
+        "data": {
+          "error": "invalid type: boolean `true`, expected a string",
+          "json": {},
+          "phase": "deserialization"
+        }
+      }
+    },
+    {
+      "case": "unknown select value",
+      "request": {
+        "sessionId": "fixture-session",
+        "configId": "model",
+        "value": "bogus-model-value"
+      },
+      "error": {
+        "code": -32602,
+        "message": "Invalid value 'bogus-model-value' for config option 'model'",
+        "data": "Invalid value 'bogus-model-value' for config option 'model'"
+      }
+    },
+    {
+      "case": "unknown config id",
+      "request": {
+        "sessionId": "fixture-session",
+        "configId": "does-not-exist",
+        "value": "anything"
+      },
+      "error": {
+        "code": -32002,
+        "message": "Resource not found",
+        "data": { "uri": "Unknown config_id: does-not-exist" }
+      }
+    },
+    {
+      "case": "unknown extension method",
+      "request": { "method": "_cognition.ai/probeNonexistent", "params": {} },
+      "error": { "code": -32601, "message": "Method not found" }
+    }
+  ]
+}

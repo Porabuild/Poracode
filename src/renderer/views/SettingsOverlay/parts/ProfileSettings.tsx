@@ -7,6 +7,7 @@ import type {
   ProfileTokenProvider,
 } from "@/shared/contracts";
 import { isRemoteSession } from "@/renderer/bridge";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
   Button,
   LightballTabs,
@@ -41,6 +42,7 @@ function toEntry(p: ProfileTokenProvider): ProfileBreakdownEntry {
 /** Profile + usage statistics, rendered as a Settings section. */
 export function ProfileSettings() {
   const { t } = useLingui();
+  const compact = useCompactLayout();
   const data = useProfileData();
   // Sharing takes a native clipboard screenshot of the page (copyShareImage),
   // which has no remote equivalent; hide the affordance rather than surface a
@@ -124,12 +126,26 @@ export function ProfileSettings() {
           <Trans>Share</Trans>
         </Button>
       )}
-      <Button size="sm" variant="ghost" onPress={() => setEditOpen(true)} className="gap-1.5">
-        <Pencil className="size-4" />
-        <Trans>Edit</Trans>
-      </Button>
+      {!compact && (
+        <Button size="sm" variant="ghost" onPress={() => setEditOpen(true)} className="gap-1.5">
+          <Pencil className="size-4" />
+          <Trans>Edit</Trans>
+        </Button>
+      )}
     </>
   );
+
+  const compactEditAction = compact ? (
+    <Button
+      isIconOnly
+      size="sm"
+      variant="ghost"
+      aria-label={t`Edit`}
+      onPress={() => setEditOpen(true)}
+    >
+      <Pencil className="size-4" />
+    </Button>
+  ) : null;
 
   return (
     <div className="mx-auto w-full max-w-[760px] pb-8">
@@ -141,6 +157,7 @@ export function ProfileSettings() {
           selection={data.selection}
           onSelect={data.setSelection}
           filter={accountFilter}
+          identityAction={compactEditAction}
           actions={headerActions}
         />
         <div className="flex flex-col gap-3">

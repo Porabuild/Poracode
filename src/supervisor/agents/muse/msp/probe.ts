@@ -10,6 +10,8 @@ export interface MuseProbedCatalogModel {
   label: string;
   contextLimit: number | null;
   isDefault: boolean;
+  efforts?: string[];
+  defaultEffort?: string;
 }
 
 export interface MuseProbedCatalog {
@@ -17,6 +19,7 @@ export interface MuseProbedCatalog {
   source: string;
   providerId: string;
   profileId: string | null;
+  sessionMcpSupported?: boolean;
 }
 
 export interface ProbeMuseModelCatalogOptions {
@@ -54,6 +57,8 @@ function parseMuseCatalog(result: Record<string, unknown>): MuseProbedCatalog {
       label: model.displayLabel,
       contextLimit: model.contextLimit,
       isDefault: model.isDefault,
+      ...(model.efforts ? { efforts: model.efforts } : {}),
+      ...(model.defaultEffort ? { defaultEffort: model.defaultEffort } : {}),
     })),
     source: parsed.source,
     providerId: parsed.providerId,
@@ -106,8 +111,9 @@ async function readSettledMuseCatalog(
 /**
  * Ask a throwaway `muse serve --no-session-log` host for its `model/list`
  * catalog: the only installed-binary source for the models the host will
- * accept in `session/setModel`. Unauthenticated hosts answer with an empty
- * `bundledCatalog`; failures (spawn error, timeout, abort) resolve to
+ * accept in `session/setModel`. This is a host snapshot, which can come from
+ * its persisted catalog without a network refresh. Unauthenticated hosts may
+ * answer with bundled rows; failures (spawn error, timeout, abort) resolve to
  * `undefined` so detection falls back to the static list. Never touches
  * auth and writes nothing to disk (ephemeral host).
  */
@@ -142,6 +148,7 @@ export async function probeMuseModelCatalog(
       const init = await client!.initialize(
         options.clientName ?? "poracode_probe",
         options.clientVersion ?? "1.0.0",
+        ["sessionMcp"],
       );
       // The pin is advisory (schema is additive-open): warn on drift so a
       // silently incompatible host is visible in logs, but keep probing.
@@ -155,10 +162,11 @@ export async function probeMuseModelCatalog(
             `pinned version ${MSP_SCHEMA_VERSION}.`,
         );
       }
-      return await readSettledMuseCatalog(client!, {
+      const catalog = await readSettledMuseCatalog(client!, {
         ...(options.signal ? { signal: options.signal } : {}),
         settleMs: options.settleMs ?? MUSE_CATALOG_SETTLE_MS,
       });
+      return { ...catalog, sessionMcpSupported: init.grantedCapabilities.includes("sessionMcp") };
     })();
 
     const abortPromise = options.signal

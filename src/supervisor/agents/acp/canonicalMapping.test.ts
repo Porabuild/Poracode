@@ -11,6 +11,7 @@ import {
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
   PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "./canonicalMapping";
+import { PORACODE_ACP_USAGE_BREAKDOWN_META_KEY } from "./canonicalMapping/usageMeta";
 
 /**
  * Smoke tests for the generic ACP → canonical RuntimeEvent mapper.
@@ -25,6 +26,34 @@ function note(update: SessionNotification["update"]): SessionNotification {
 }
 
 describe("mapAcpSessionUpdate", () => {
+  it("closes only the current content owner at a declared message boundary", () => {
+    const state = createAcpMapperState("boundary-thread");
+    state.openAssistantItemId = "root-before";
+    state.subAgentContentItems.set("child", { openAssistantItemId: "child-before" });
+    const events = mapAcpSessionUpdate(
+      {
+        sessionId: "native",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "next message" },
+          _meta: { [PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY]: "owner" },
+        },
+      },
+      state,
+    );
+    expect(events).toContainEqual({
+      type: "item.completed",
+      threadId: "boundary-thread",
+      itemId: "root-before",
+    });
+    expect(events).not.toContainEqual({
+      type: "item.completed",
+      threadId: "boundary-thread",
+      itemId: "child-before",
+    });
+    expect(state.subAgentContentItems.get("child")?.openAssistantItemId).toBe("child-before");
+  });
+
   it("maps provider-normalized ACP goal metadata independently from empty text boundaries", () => {
     const state = createAcpMapperState("t-goal");
     const set = mapAcpSessionUpdate(
@@ -2680,6 +2709,126 @@ describe("mapAcpSessionUpdate", () => {
       },
     ]);
   });
+
+  it("decorates usage_update with a provider-annotated input/output breakdown", () => {
+    const state = createAcpMapperState("t-usage-breakdown");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "usage_update",
+        used: 12_733,
+        size: 262_000,
+        _meta: {
+          [PORACODE_ACP_USAGE_BREAKDOWN_META_KEY]: { inputTokens: 12_659, outputTokens: 74 },
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "context.updated",
+        threadId: "t-usage-breakdown",
+        usage: {
+          usedTokens: 12_733,
+          maxTokens: 262_000,
+          breakdown: [
+            { id: "input", label: "Input", tokens: 12_659 },
+            { id: "output", label: "Output", tokens: 74 },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it("keeps usage_update without an annotation byte-identical to the prior shape", () => {
+    const state = createAcpMapperState("t-usage-no-meta");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "usage_update",
+        used: 71_000,
+        size: 200_000,
+        _meta: { unrelated: "value" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "context.updated",
+        threadId: "t-usage-no-meta",
+        usage: { usedTokens: 71_000, maxTokens: 200_000 },
+      },
+    ]);
+  });
+
+  it("drops a usage_update breakdown that does not sum to the authoritative used count", () => {
+    const state = createAcpMapperState("t-usage-mismatch");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "usage_update",
+        used: 12_733,
+        size: 262_000,
+        _meta: {
+          [PORACODE_ACP_USAGE_BREAKDOWN_META_KEY]: { inputTokens: 12_000, outputTokens: 74 },
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "context.updated",
+        threadId: "t-usage-mismatch",
+        usage: { usedTokens: 12_733, maxTokens: 262_000 },
+      },
+    ]);
+  });
+
+  it("never lets injected breakdown metadata change occupancy", () => {
+    const state = createAcpMapperState("t-usage-hostile");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "usage_update",
+        // No authoritative `used`: a breakdown must not backfill it via its
+        // sum. Cast through unknown: the wire can omit `used` even though the
+        // SDK types require it.
+        size: 262_000,
+        _meta: {
+          [PORACODE_ACP_USAGE_BREAKDOWN_META_KEY]: { inputTokens: 12_659, outputTokens: 74 },
+        },
+      } as unknown as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "context.updated",
+        threadId: "t-usage-hostile",
+        usage: { maxTokens: 262_000 },
+      },
+    ]);
+  });
+
+  it("maps a zero used count with an all-zero breakdown without breakdown entries", () => {
+    const state = createAcpMapperState("t-usage-zero");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "usage_update",
+        used: 0,
+        size: 262_000,
+        _meta: { [PORACODE_ACP_USAGE_BREAKDOWN_META_KEY]: { inputTokens: 0, outputTokens: 0 } },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "context.updated",
+        threadId: "t-usage-zero",
+        usage: { usedTokens: 0, maxTokens: 262_000 },
+      },
+    ]);
+  });
 });
 
 describe("mapAcpPermissionRequest", () => {
@@ -2994,6 +3143,145 @@ describe("mapAcpPermissionRequest", () => {
 
     expect(event).toMatchObject({ requestType: "apply_patch_approval" });
   });
+
+  function seedToolCall(
+    state: ReturnType<typeof createAcpMapperState>,
+    toolCallId: string,
+    rawInput: unknown,
+    title = "Running command",
+    kind = "execute",
+  ) {
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title,
+        kind,
+        status: "in_progress",
+        rawInput,
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+  }
+
+  function permissionEvent(
+    state: ReturnType<typeof createAcpMapperState>,
+    toolCall: Record<string, unknown>,
+    options: Array<{ optionId: string; name: string; kind: "allow_once" | "reject_once" }> = [
+      { optionId: "allow", name: "Allow once", kind: "allow_once" },
+    ],
+  ) {
+    return mapAcpPermissionRequest(
+      {
+        sessionId: "s1",
+        toolCall,
+        options,
+      } as Parameters<typeof mapAcpPermissionRequest>[0],
+      state,
+      "acp-perm-meta",
+    );
+  }
+
+  it("shows permission text from authoritative same-tool metadata", () => {
+    const state = createAcpMapperState("t-perm-authoritative");
+    seedToolCall(state, "tool-live", {
+      command: "printf Q16_REAL > marker.txt",
+      cwd: "/work",
+    });
+    const event = permissionEvent(state, {
+      toolCallId: "tool-live",
+      title: "Running command",
+      kind: "execute",
+    });
+    expect(event).toMatchObject({
+      requestType: "command_execution_approval",
+      payload: {
+        details: {
+          displayName: "command",
+          input: { command: "printf Q16_REAL > marker.txt", cwd: "/work" },
+        },
+      },
+    });
+  });
+
+  it("keeps an explicit request command ahead of retained metadata", () => {
+    const state = createAcpMapperState("t-perm-explicit");
+    seedToolCall(state, "tool-live", { command: "from-state", cwd: "/state" });
+    const event = permissionEvent(state, {
+      toolCallId: "tool-live",
+      title: "Running command",
+      kind: "execute",
+      rawInput: { command: "from-request" },
+    });
+    expect(event).toMatchObject({
+      payload: { details: { input: { command: "from-request", cwd: "/state" } } },
+    });
+  });
+
+  it("presents a retained file target when the request omits it", () => {
+    const state = createAcpMapperState("t-perm-path");
+    seedToolCall(state, "tool-read", { file_path: "/outside/shot.png" }, "Read", "read");
+    const event = permissionEvent(state, {
+      toolCallId: "tool-read",
+      title: "Read",
+      kind: "read",
+    });
+    expect(event).toMatchObject({
+      requestType: "tool_call_approval",
+      payload: { details: { input: { file_path: "/outside/shot.png" } } },
+    });
+  });
+
+  it("shows permission text only from authoritative same-tool metadata, not a prompt, option label, title, or another tool", () => {
+    const state = createAcpMapperState("t-perm-guess");
+    seedToolCall(state, "tool-other", { command: "FOREIGN_COMMAND_SHOULD_NOT_APPEAR" });
+    seedToolCall(state, "tool-placeholder", {});
+    expect(state.toolCallItems.get("tool-placeholder")?.payload.command).toBe("Running command");
+
+    const guessed = permissionEvent(
+      state,
+      {
+        toolCallId: "tool-placeholder",
+        title: "Running command",
+        kind: "execute",
+        content: [
+          {
+            type: "content",
+            content: {
+              type: "text",
+              text: "The user asked to run printf PRINTF_GUESS_SHOULD_NOT_APPEAR",
+            },
+          },
+        ],
+      },
+      [
+        {
+          optionId: "allow",
+          name: "Allow printf PRINTF_GUESS_SHOULD_NOT_APPEAR",
+          kind: "allow_once",
+        },
+      ],
+    );
+    const payload = (guessed as { payload?: { summary?: unknown; details?: unknown } }).payload;
+    expect(JSON.stringify(payload?.summary ?? "")).not.toContain("PRINTF_GUESS_SHOULD_NOT_APPEAR");
+    expect(JSON.stringify(payload?.summary ?? "")).not.toContain(
+      "FOREIGN_COMMAND_SHOULD_NOT_APPEAR",
+    );
+    expect(JSON.stringify(payload?.details ?? {})).not.toContain("PRINTF_GUESS_SHOULD_NOT_APPEAR");
+    expect(JSON.stringify(payload?.details ?? {})).not.toContain(
+      "FOREIGN_COMMAND_SHOULD_NOT_APPEAR",
+    );
+    expect(JSON.stringify(payload?.details ?? {})).not.toContain("Running command");
+
+    const foreign = permissionEvent(state, {
+      toolCallId: "tool-missing",
+      title: "tool",
+      kind: "other",
+    });
+    expect(JSON.stringify(foreign)).not.toContain("FOREIGN_COMMAND_SHOULD_NOT_APPEAR");
+    expect(JSON.stringify(foreign)).not.toContain("PRINTF_GUESS_SHOULD_NOT_APPEAR");
+  });
+
   it("drops background task wait text chunks without opening an assistant message", () => {
     const state = createAcpMapperState("t-wait-task");
 

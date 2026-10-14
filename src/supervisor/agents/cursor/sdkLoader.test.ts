@@ -15,7 +15,7 @@ import type { CursorSdkLoadOptions } from "./sdkPackageDiscovery";
 const TEST_PLATFORM: NodeJS.Platform = "linux";
 const TEST_ARCH = "x64";
 const TEST_HELPER = "@cursor/sdk-linux-x64";
-const TEST_SDK_VERSION = "1.0.24";
+const TEST_SDK_VERSION = "1.0.37";
 const createdDirectories: string[] = [];
 
 interface FakePackageOptions {
@@ -160,6 +160,127 @@ describe("loadCursorSdk discovery", () => {
     expect(loaded.packageRoot).toBe(fake.packageRoot);
   });
 
+  it("resolves a recorded installation without probing any package manager", async () => {
+    const fake = await makeFakePackage();
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: {},
+          pinnedRoot: { packageRoot: fake.packageRoot, source: "global-npm" },
+        }),
+        {
+          // A host whose executable-derived inference finds nothing (the
+          // packaged app's case) — the recorded root is the only survivor.
+          executablePath: "/nonexistent/app-bundle/executable",
+          resolvePackageManagerRoots: async () => {
+            throw new Error("a recorded installation must not need a package-manager probe");
+          },
+        },
+      ),
+    );
+
+    expect(loaded.source).toBe("global-npm");
+    expect(loaded.packageRoot).toBe(fake.packageRoot);
+  });
+
+  it("prefers a project installation over a recorded one", async () => {
+    const recorded = await makeFakePackage();
+    const inProject = await makeFakePackage();
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: inProject.root,
+          includeGlobal: false,
+          pinnedRoot: { packageRoot: recorded.packageRoot, source: "global-npm" },
+        }),
+      ),
+    );
+
+    expect(loaded.source).toBe("project");
+    expect(loaded.packageRoot).toBe(inProject.packageRoot);
+  });
+
+  it("prefers a freshly observable install over a valid recorded one", async () => {
+    const recorded = await makeFakePackage();
+    const observed = await makeFakePackage();
+
+    // The recorded root is still a working installation, but a candidate this
+    // pass observes directly (here via NODE_PATH) must outrank it, so an
+    // upgraded active install is picked up without anyone forgetting the pin.
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          includeGlobal: true,
+          env: { NODE_PATH: join(observed.root, "node_modules") },
+          pinnedRoot: { packageRoot: recorded.packageRoot, source: "global-npm" },
+        }),
+        {
+          resolvePackageManagerRoots: async () => {
+            throw new Error("an observable installation must not need a package-manager probe");
+          },
+        },
+      ),
+    );
+
+    expect(loaded.source).toBe("node-path");
+    expect(loaded.packageRoot).toBe(observed.packageRoot);
+  });
+
+  it("keeps looking when a recorded root is gone instead of failing the load", async () => {
+    const observed = await makeFakePackage();
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+    const gone = join(
+      await realpath(await mkdtemp(join(tmpdir(), "poracode-cursor-gone-"))),
+      "node_modules",
+      "@cursor",
+      "sdk",
+    );
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: { NODE_PATH: join(observed.root, "node_modules") },
+          pinnedRoot: { packageRoot: gone, source: "global-npm" },
+        }),
+        { executablePath: "/nonexistent/app-bundle/executable" },
+      ),
+    );
+
+    expect(loaded.packageRoot).toBe(observed.packageRoot);
+  });
+
+  it("treats a recorded root holding something else as a miss, not a broken package", async () => {
+    const observed = await makeFakePackage();
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+    const squatter = await makeFakePackage({ packageName: "@other/thing" });
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: { NODE_PATH: join(observed.root, "node_modules") },
+          pinnedRoot: { packageRoot: squatter.packageRoot, source: "global-npm" },
+        }),
+        { executablePath: "/nonexistent/app-bundle/executable" },
+      ),
+    );
+
+    // An untracked candidate with a bad manifest is a hard `package_invalid`;
+    // a recorded one must degrade to ordinary discovery instead.
+    expect(loaded.packageRoot).toBe(observed.packageRoot);
+  });
+
   it("discovers NODE_PATH and explicit global installations", async () => {
     const fromNodePath = await makeFakePackage();
     const fromExplicitRoot = await makeFakePackage();
@@ -293,20 +414,19 @@ describe("loadCursorSdk compatibility checks", () => {
     });
   });
 
-  it("rejects SDK versions older than the audited local-agent API", async () => {
-    const fake = await makeFakePackage({ version: "1.0.23", helperVersion: "1.0.23" });
+  it.each(["1.0.23", "1.0.31", "1.0.36"])("rejects pre-upgrade SDK %s", async (version) => {
+    const fake = await makeFakePackage({ version, helperVersion: version });
     const result = await loadCursorSdk(baseOptions({ configuredPath: fake.packageRoot }));
 
     expect(result).toEqual({
       ok: false,
       diagnostic: {
         code: "version_incompatible",
-        message:
-          "Cursor SDK 1.0.23 is not compatible with this integration; install version 1.0.24 or later in the stable 1.x series.",
+        message: `Cursor SDK ${version} is not compatible with this integration; install version 1.0.37 or later in the stable 1.x series.`,
         recoverable: true,
         details: {
-          detectedVersion: "1.0.23",
-          supportedRange: ">=1.0.24 <2.0.0",
+          detectedVersion: version,
+          supportedRange: ">=1.0.37 <2.0.0",
         },
       },
     });
@@ -442,10 +562,12 @@ describe("Cursor SDK version and runtime diagnostics", () => {
 
   it("accepts audited stable 1.x releases and rejects older, prerelease, and other majors", () => {
     expect(isSupportedCursorSdkVersion("1.0.23")).toBe(false);
-    expect(isSupportedCursorSdkVersion("1.0.24")).toBe(true);
+    expect(isSupportedCursorSdkVersion("1.0.31")).toBe(false);
+    expect(isSupportedCursorSdkVersion("1.0.36")).toBe(false);
+    expect(isSupportedCursorSdkVersion("1.0.37")).toBe(true);
     expect(isSupportedCursorSdkVersion("1.1.0")).toBe(true);
     expect(isSupportedCursorSdkVersion("1.99.4")).toBe(true);
-    expect(isSupportedCursorSdkVersion("1.0.24-beta.1")).toBe(false);
+    expect(isSupportedCursorSdkVersion("1.0.37-beta.1")).toBe(false);
     expect(isSupportedCursorSdkVersion("0.99.0")).toBe(false);
     expect(isSupportedCursorSdkVersion("2.0.0")).toBe(false);
   });

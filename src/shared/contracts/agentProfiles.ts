@@ -1,9 +1,14 @@
 import { z } from "zod";
 import {
+  devinProfileDependencies,
+  devinProfileAcceptsDependents,
+} from "../agents/devin/profileDependencies";
+import {
   agentInstanceEnvVarSchema,
   agentInstanceIdSchema,
   baseAgentKind,
   type AgentDriverKind,
+  type AgentInstanceConfig,
 } from "./agentInstance";
 
 /**
@@ -34,12 +39,20 @@ export interface AgentProfileDriver {
    * environments (Claude) omit it.
    */
   credentialEnvVar?: string;
+  /** Provider-declared direct dependencies; shared code never parses their config. */
+  dependencies?(instance: AgentInstanceConfig): readonly string[];
+  acceptsDependents?(instance: AgentInstanceConfig): boolean;
 }
 
 export const AGENT_PROFILE_DRIVERS: readonly AgentProfileDriver[] = [
   { driver: "claude" },
   { driver: "codex" },
   { driver: "cursor", credentialEnvVar: "CURSOR_API_KEY" },
+  {
+    driver: "devin",
+    dependencies: devinProfileDependencies,
+    acceptsDependents: devinProfileAcceptsDependents,
+  },
 ];
 
 const BY_DRIVER = new Map(AGENT_PROFILE_DRIVERS.map((entry) => [entry.driver, entry]));
@@ -81,6 +94,20 @@ export function parseAgentProfileKind(
 /** Instance id of a profile kind, for any registered profile driver. */
 export function extractAgentProfileInstanceId(kind: string): string | undefined {
   return parseAgentProfileKind(kind)?.instanceId;
+}
+
+/**
+ * Drops the leading driver word supervisor profile labels are built with
+ * (`Claude ${displayName}`) so nested UI shows the profile's own name under
+ * its base agent ("Claude Qwen" → "Qwen"). Labels without that prefix — and
+ * labels that are only the prefix — are returned trimmed but whole.
+ */
+export function stripAgentProfileBasePrefix(label: string, kind: string): string {
+  const trimmed = label.trim();
+  const driver = baseAgentKind(kind);
+  if (!trimmed.toLowerCase().startsWith(`${driver.toLowerCase()} `)) return trimmed;
+  const rest = trimmed.slice(driver.length).trim();
+  return rest || trimmed;
 }
 
 /**

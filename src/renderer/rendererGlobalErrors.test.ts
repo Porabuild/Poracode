@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isIgnorableRejection,
   isIgnorableWindowError,
+  isOpaqueScriptError,
   isResizeObserverLoopError,
   isViewTransitionInvalidStateError,
   isViewTransitionSkippedError,
@@ -27,6 +28,27 @@ describe("rendererGlobalErrors", () => {
     });
 
     expect(isIgnorableWindowError(event)).toBe(true);
+  });
+
+  it("ignores Safari's opaque script error diagnostic", () => {
+    const event = new ErrorEvent("error", { message: "Script error." });
+
+    expect(isOpaqueScriptError(event)).toBe(true);
+    expect(isIgnorableWindowError(event)).toBe(true);
+  });
+
+  it("keeps script errors with actionable exception details fatal", () => {
+    const error = new Error("Script error.");
+    const event = new ErrorEvent("error", {
+      message: "Script error.",
+      error,
+      filename: "http://localhost/app.js",
+      lineno: 42,
+      colno: 7,
+    });
+
+    expect(isOpaqueScriptError(event)).toBe(false);
+    expect(isIgnorableWindowError(event)).toBe(false);
   });
 
   it("recognizes view-transition skipped AbortError rejections", () => {

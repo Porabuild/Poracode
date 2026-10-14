@@ -1,0 +1,8 @@
+{
+  "type": "terminal-watch",
+  "id": "terminal-fixture-001",
+  "cursorSync": {
+    "version": 1,
+    "watchId": "watch-fixture-001"
+  }
+}

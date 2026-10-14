@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpDown } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { overlaySidebarSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useNotesStore } from "@/renderer/state/notesStore";
 import {
   readStoredBoolean,
@@ -28,12 +29,15 @@ const clampRatio = (n: number) => Math.min(MAX_RATIO, Math.max(MIN_RATIO, n));
 export function NotesPanel(props: { projectId: string }) {
   const { projectId } = props;
   const { t } = useLingui();
+  const compact = useCompactLayout();
   const ensureLoaded = useNotesStore((s) => s.ensureLoaded);
   const flush = useNotesStore((s) => s.flush);
   const status = useNotesStore((s) => s.byProject[projectId]?.status ?? "unloaded");
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [topRatio, setTopRatio] = useState(() => clampRatio(readStoredNumber(RATIO_KEY, 0.6)));
+  const [topRatio, setTopRatio] = useState(() =>
+    clampRatio(readStoredNumber(RATIO_KEY, compact ? 0.48 : 0.6)),
+  );
   const [notesFirst, setNotesFirst] = useState(() => readStoredBoolean(ORDER_KEY, true));
 
   useEffect(() => {
@@ -92,7 +96,7 @@ export function NotesPanel(props: { projectId: string }) {
         <NotesEditor projectId={projectId} />
       </div>
       <div
-        className="group/divider relative z-10 flex h-px shrink-0 items-center justify-center bg-[color:var(--border)]"
+        className="lc-notes-divider group/divider relative z-10 flex h-px shrink-0 items-center justify-center bg-[color:var(--border)]"
         style={{ order: 1 }}
       >
         <div

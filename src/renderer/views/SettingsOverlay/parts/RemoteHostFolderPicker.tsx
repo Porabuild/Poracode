@@ -70,7 +70,7 @@ export function RemoteHostFolderPicker(props: {
       <Modal.Container size="lg" scroll="inside">
         <Modal.Dialog className="sm:max-w-[640px]">
           <Modal.CloseTrigger />
-          <Modal.Header>
+          <Modal.Header data-direct-modal-icon="">
             <Modal.Icon className="bg-default text-foreground">
               <Server className="size-5" />
             </Modal.Icon>

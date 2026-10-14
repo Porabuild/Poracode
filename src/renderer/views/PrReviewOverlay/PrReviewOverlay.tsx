@@ -1,13 +1,24 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ArrowLeft, Columns2, ExternalLink, RefreshCw, Rows2 } from "lucide-react";
-import { Link, toast } from "@heroui/react";
+import { ArrowLeft, Columns2, ExternalLink, MessageSquare, RefreshCw, Rows2 } from "lucide-react";
+import { Button, Link, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import type { PrDetails, PrFile, Project, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
+import { SidebarContext } from "@/renderer/views/MainView/parts/AppShell/AppShell";
+
+const alwaysExpandedSidebar = {
+  isCollapsed: false,
+  isOverlay: false,
+  closingOverlay: false,
+  collapse: () => {},
+  expand: () => {},
+};
 import { usePrTitle, usePrUrl, usePrViewerDidAuthor } from "@/renderer/state/gitSelectors";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { PrReviewSidebar } from "./parts/PrReviewSidebar";
@@ -131,6 +142,8 @@ export function PrReviewOverlay(props: {
   const { project, prNumber, locationOverride, worktreePath, skipLocalSync, prKey, onClose } =
     props;
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
+  const [compactPage, setCompactPage] = useState<"files" | "review">("files");
   const effectiveLocation = locationOverride ?? project.location;
   const cacheKey = `${project.id}#${prNumber}`;
 
@@ -196,9 +209,52 @@ export function PrReviewOverlay(props: {
 
   const showDiffControls = activeTab === "changes";
 
+  function selectFilePage(path: string) {
+    setActiveTab("changes");
+    setSelectedFile((curr) => (curr === path ? null : path));
+    if (compactLayout) setCompactPage("review");
+  }
+
+  function openReviewPage() {
+    setCompactPage("review");
+  }
+
+  function compactBack() {
+    if (compactPage === "review") {
+      setCompactPage("files");
+      return;
+    }
+    onClose();
+  }
+
+  const sidebar = (
+    <PrReviewSidebar
+      files={files ?? []}
+      selectedFile={selectedFile}
+      loading={loading}
+      projectId={project.id}
+      projectLocation={effectiveLocation}
+      prKey={prKey}
+      worktreePath={worktreePath}
+      {...(skipLocalSync ? { skipLocalSync: true } : {})}
+      onSelectFile={selectFilePage}
+      onClose={onClose}
+      onRefresh={() => void load()}
+      hideFooterNav={compactLayout}
+    />
+  );
+
   return (
     <PageLayout
       title={t`PR Review`}
+      compactTitle={
+        compactPage === "review"
+          ? prTitle || (prNumber ? `#${prNumber}` : t`PR Review`)
+          : t`PR Review`
+      }
+      compactBackLabel={compactPage === "files" ? t`Return to app` : t`Back`}
+      onCompactBack={compactBack}
+      mobileNavigation
       contentHeaderChildren={
         <>
           <div className="flex min-w-0 shrink items-center gap-2 pl-1.5 leading-none">
@@ -289,44 +345,80 @@ export function PrReviewOverlay(props: {
           </div>
         </>
       }
-      sidebar={
-        <PrReviewSidebar
-          files={files ?? []}
-          selectedFile={selectedFile}
-          loading={loading}
-          projectId={project.id}
-          projectLocation={effectiveLocation}
-          prKey={prKey}
-          worktreePath={worktreePath}
-          {...(skipLocalSync ? { skipLocalSync: true } : {})}
-          onSelectFile={(path) => {
-            setActiveTab("changes");
-            setSelectedFile((curr) => (curr === path ? null : path));
-          }}
-          onClose={onClose}
-          onRefresh={() => void load()}
-        />
-      }
+      sidebar={compactLayout ? null : sidebar}
       content={
-        <PrReviewContent
-          contentRef={contentRef}
-          metaInHeader={metaInHeader}
-          prKey={prKey}
-          cacheKey={cacheKey}
-          details={details}
-          files={files}
-          rawDiff={rawDiff}
-          activeTab={activeTab}
-          onActiveTabChange={setActiveTab}
-          checksStatus={combinedChecksStatus}
-          effectiveLocation={effectiveLocation}
-          prNumber={prNumber}
-          projectId={project.id}
-          loading={loading}
-          onLoad={() => void load()}
-          selectedFile={selectedFile}
-          diffMode={diffMode}
-        />
+        compactLayout && compactPage === "files" ? (
+          <SidebarContext.Provider value={alwaysExpandedSidebar}>
+            <div className="relative flex h-full min-h-0 flex-col">
+              <div className="m-page-content shrink-0 px-[var(--m-page-inline)] pt-2">
+                <Button fullWidth variant="ghost" className="m-more-row" onPress={openReviewPage}>
+                  <span className="m-more-row__icon">
+                    <MessageSquare className="size-4" />
+                  </span>
+                  <span className="m-more-row__body">
+                    <strong>
+                      <Trans>Conversation</Trans>
+                    </strong>
+                  </span>
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1">{sidebar}</div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-start px-[var(--m-page-inline)]">
+                <MobileCircleButton
+                  className="pointer-events-auto"
+                  aria-label={t`Refresh`}
+                  isDisabled={loading}
+                  onPress={() => void load()}
+                >
+                  <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+                </MobileCircleButton>
+              </div>
+            </div>
+          </SidebarContext.Provider>
+        ) : (
+          <div className="relative flex h-full min-h-0 flex-col">
+            <PrReviewContent
+              contentRef={contentRef}
+              metaInHeader={metaInHeader}
+              prKey={prKey}
+              cacheKey={cacheKey}
+              details={details}
+              files={files}
+              rawDiff={rawDiff}
+              activeTab={activeTab}
+              onActiveTabChange={setActiveTab}
+              checksStatus={combinedChecksStatus}
+              effectiveLocation={effectiveLocation}
+              prNumber={prNumber}
+              projectId={project.id}
+              loading={loading}
+              onLoad={() => void load()}
+              selectedFile={selectedFile}
+              diffMode={diffMode}
+            />
+            {compactLayout ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex items-end justify-between gap-[var(--m-floating-control-gap)] px-[var(--m-page-inline)]">
+                <MobileCircleButton
+                  className="pointer-events-auto"
+                  aria-label={t`Refresh`}
+                  isDisabled={loading}
+                  onPress={() => void load()}
+                >
+                  <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+                </MobileCircleButton>
+                <div className="pointer-events-auto min-w-0">
+                  <SubmitReviewPopover
+                    projectLocation={effectiveLocation}
+                    prNumber={prNumber}
+                    hidden={viewerDidAuthor === true}
+                    triggerPresentation="touch"
+                    onSubmitted={() => void load()}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )
       }
     />
   );
