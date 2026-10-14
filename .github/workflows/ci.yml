@@ -92,6 +92,9 @@ jobs:
       - name: Release version regression tests
         run: node --test scripts/resolve-release-version.test.mjs
 
+      - name: macOS notarization dependency regression tests
+        run: node --test scripts/mac-notarization-dependency.test.mjs
+
       - name: Architecture boundary audit and analyzer tests
         run: pnpm run architecture:check
 
