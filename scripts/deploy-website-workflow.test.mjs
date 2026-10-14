@@ -107,8 +107,7 @@ vercel() {
   shift
   local url="$1"
   shift
-  [ -n "$VERCEL_TOKEN" ] && [ "$1" = "--token=$VERCEL_TOKEN" ] || return 1
-  shift
+  [ -n "$VERCEL_TOKEN" ] || return 1
   [ "$1" = -- ] || return 1
   shift
   case "$url" in "$DEPLOYMENT_URL/.well-known/"*) ;; *) return 1 ;; esac

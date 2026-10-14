@@ -95,7 +95,9 @@ jobs:
               # The immutable URL is protected by Vercel SSO. Use the existing
               # deployment credentials; the canonical App Links origin below
               # must still be readable without authentication.
-              vercel curl "$url" --token="$VERCEL_TOKEN" -- "${curl_options[@]}"
+              # The pinned curl parser forwards --token to native curl. The
+              # CLI reads VERCEL_TOKEN directly from the step environment.
+              vercel curl "$url" -- "${curl_options[@]}"
             else
               curl "$url" "${curl_options[@]}"
             fi
