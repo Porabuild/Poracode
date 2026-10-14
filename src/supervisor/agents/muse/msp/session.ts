@@ -7,12 +7,9 @@ import type {
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import {
-  batchWslCommandsAsync,
   createKnownSessionRef,
   mergeSpawnEnv,
-  quotePosixShellArg,
   type CreateStructuredSessionInput,
   type StartTurnOptions,
   type StructuredSessionHandle,
@@ -35,12 +32,12 @@ import {
   createMuseMspItemMapperState,
   mapMuseMspDelta,
   mapMuseMspGoalChanged,
-  mapMuseMspItem,
   type MuseMspItem,
 } from "./canonicalMapping";
-import { MuseMspClient, spawnMuseServeHost } from "./client";
+import { MuseMspClient, spawnMuseServeHost, type SpawnMuseServeHostOptions } from "./client";
+import { stopMuseServeHost } from "./hostLifecycle";
 import {
-  MSP_SCHEMA_VERSION,
+  assertMspSchemaVersion,
   MspRpcError,
   parseMspModelListResult,
   type MspModelListResult,
@@ -67,6 +64,8 @@ import {
 } from "./localCommands";
 import { buildMuseTurnInput } from "./turnInput";
 import { buildMuseMspMcpServers } from "../mcpLaunch";
+import { MuseSubagentTranscripts } from "./subagentTranscripts";
+import { MuseSubagentObserver } from "./subagentObserver";
 import { msg } from "@/shared/messages";
 import { isFullBypassApprovalPolicy } from "@/shared/agents/unrestrictedPermissions";
 
@@ -147,6 +146,8 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   readonly launchOptions;
   private listener: StructuredSessionListener = NOOP_LISTENER;
   private readonly mapper;
+  private readonly subagents;
+  private readonly subagentObserver;
   private readonly planAggregator;
   private readonly approvalDecisions;
   private readonly pendingRequests = new Map<string, PendingRequest>();
@@ -179,6 +180,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     private readonly child: ChildProcess,
     private readonly client: MuseMspClient,
     private readonly hostCookie: string,
+    observerOptions: SpawnMuseServeHostOptions,
   ) {
     this.launchOptions = {
       suppressResumeConfigOverrides: true,
@@ -188,6 +190,18 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     const mcpServers = buildMuseMspMcpServers(input.mcpServers ?? []);
     this.sessionMcpServers = Object.keys(mcpServers).length > 0 ? mcpServers : undefined;
     this.mapper = createMuseMspItemMapperState(input.threadId);
+    this.subagentObserver = new MuseSubagentObserver(
+      input.projectLocation,
+      observerOptions,
+      (method, params) => this.subagents.handleNotification(method, params),
+      () => this.subagents.onViewDisconnected(),
+    );
+    this.subagents = new MuseSubagentTranscripts(
+      input.projectLocation,
+      this.subagentObserver,
+      this.mapper,
+      (events) => this.emitMany(events),
+    );
     this.planAggregator = createPlanAggregator(input.threadId, "muse-plan");
     this.approvalDecisions = new MuseMspApprovalDecisions(
       client,
@@ -216,11 +230,17 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       hosted.child,
       new MuseMspClient(hosted.transport),
       hosted.hostCookie,
+      {
+        ...(executablePath ? { executablePath } : {}),
+        ...(extraEnv ? { extraEnv } : {}),
+        serveArgs: buildMuseServeArgs(undefined),
+        label: "[muse-subagent-view]",
+      },
     );
   }
 
   ownsProviderSession(providerSessionId: string): boolean {
-    return this.ownedSessionIds.has(providerSessionId);
+    return this.ownedSessionIds.has(providerSessionId) || this.subagents.owns(providerSessionId);
   }
 
   setListener(listener: StructuredSessionListener): void {
@@ -243,11 +263,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       "1.0.0",
       this.sessionMcpServers ? ["sessionMcp"] : undefined,
     );
-    if (result.schema.version !== MSP_SCHEMA_VERSION) {
-      throw new Error(
-        `Muse MSP schema version ${result.schema.version} is incompatible with supported version ${MSP_SCHEMA_VERSION}.`,
-      );
-    }
+    assertMspSchemaVersion(result.schema.version);
     this.sessionMcpGranted = result.grantedCapabilities.includes("sessionMcp");
     this.activated = true;
   }
@@ -304,6 +320,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       this.applyTodoListChanged({ todoList: session["todoList"] });
     }
     this.hydrateResumeSnapshot(result);
+    this.subagents.open(sessionId, result);
     if (this.activeTurnId) this.emitTurnStarted(this.activeTurnId);
     this.publishUpdate();
     return sessionId;
@@ -696,6 +713,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
 
   private async disposeOnce(): Promise<void> {
     this.disposed = true;
+    this.emitMany(this.subagents.dispose());
     this.clearPendingCompact();
     this.emitMany(closePlanAggregator(this.planAggregator));
     for (const requestId of this.pendingRequests.keys()) {
@@ -729,10 +747,10 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   }
 
   private async releaseHostOnce(): Promise<void> {
-    this.client.dispose();
+    this.emitMany(this.subagents.dispose());
     const stops = await Promise.allSettled([
-      awaitProcessTermination(this.child, { ownedProcessGroup: process.platform !== "win32" }),
-      this.killSurvivingWslHost(),
+      stopMuseServeHost(this.input.projectLocation, this.child, this.client, this.hostCookie),
+      this.subagentObserver.dispose(),
     ]);
     const failures = stops.filter((stop) => stop.status === "rejected");
     if (failures.length) {
@@ -741,23 +759,6 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         "Muse MSP shutdown failed.",
       );
     }
-  }
-
-  /**
-   * Terminating the Windows-side `wsl.exe` wrapper cannot be relied on to
-   * signal the Linux-side `muse serve` it launched — a surviving host keeps
-   * its sessions locked (`session/resume` then fails `sessionInUse` forever)
-   * and leaks CPU. The host carries a unique cookie in its environ; sweep
-   * /proc for it and kill what matches, then confirm no owned host remains.
-   */
-  private async killSurvivingWslHost(): Promise<void> {
-    const location = this.input.projectLocation;
-    if (location.kind !== "wsl") return;
-    const findOwned = `grep -Fls -- ${quotePosixShellArg(this.hostCookie)} /proc/[0-9]*/environ 2>/dev/null | tr -dc '0-9\\n '`;
-    const [result] = await batchWslCommandsAsync(location.distro, [
-      `pids=$(${findOwned}); [ -z "$pids" ] || kill -9 $pids 2>/dev/null; i=0; while [ "$i" -lt 30 ]; do pids=$(${findOwned}); [ -z "$pids" ] && exit 0; sleep 0.1; i=$((i + 1)); done; exit 1`,
-    ]);
-    if (!result?.ok) throw new Error("Muse MSP WSL host termination could not be confirmed.");
   }
 
   private requireSessionId(): string {
@@ -824,6 +825,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   }
 
   private handleNotification(method: string, params: Record<string, unknown>): void {
+    if (!this.disposed && this.subagents.handleNotification(method, params)) return;
     if (this.disposed || (this.sessionId && params["sessionId"] !== this.sessionId)) return;
     switch (method) {
       case "turn/started": {
@@ -868,7 +870,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
             : method === "item/updated"
               ? "updated"
               : "completed";
-        this.emitMany(mapMuseMspItem(this.mapper, item as MuseMspItem, phase));
+        this.emitMany(this.subagents.mapItem(item as MuseMspItem, phase));
         if (stringValue(item["kind"]) === "compaction") this.settleCompactItem(item, phase);
         return;
       }

@@ -47,6 +47,7 @@ describe("MSP schema fixture", () => {
       "initialize",
       "model/list",
       "session/compact",
+      "session/read",
       "session/resume",
       "session/setApprovalMode",
       "session/setModel",
@@ -56,6 +57,7 @@ describe("MSP schema fixture", () => {
       "turn/steer",
       "userInput/answer",
       "userInput/cancel",
+      "view/subscribe",
     ]) {
       expect(
         schema.methods?.[method],
