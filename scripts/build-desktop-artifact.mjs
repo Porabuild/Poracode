@@ -26,6 +26,10 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanRuntimeExternals } from "./runtime-externals.mjs";
+import {
+  MAC_NOTARIZE_VERSION,
+  verifyMacNotarizationDependency,
+} from "./mac-notarization-dependency.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -337,6 +341,10 @@ async function main() {
     // 4. Generate stage package.json.
     const rootPkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8"));
     const stagePkg = buildStagePackageJson(rootPkg);
+    if (platform === "mac") {
+      // This flat npm stage does not inherit the root pnpm dependency overrides.
+      stagePkg.overrides = { "@electron/notarize": MAC_NOTARIZE_VERSION };
+    }
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
 
     // 5. Stage the initial electron-builder config.
@@ -373,6 +381,12 @@ async function main() {
     //    npm runs native build scripts by default, so electron/better-sqlite3/
     //    node-pty all build without pnpm's build-gating flags.
     run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error"], { cwd: stageRoot });
+    if (platform === "mac") {
+      const notarizeVersion = verifyMacNotarizationDependency(stageRoot);
+      console.log(
+        `[stage] verified macOS notarization dependency: @electron/notarize@${notarizeVersion}`,
+      );
+    }
 
     pruneStageBinaries(stageRoot);
     // SQLite and node-pty ship N-API prebuilds; afterPack keeps the target architecture.
