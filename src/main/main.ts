@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
-import { app, dialog } from "electron";
+import { app } from "electron";
 import { preparePoracodeDataRoot } from "@/host/poracodeData";
 import { registerLocalFileProtocolScheme } from "./attachments/localFiles";
 import { registerPickerProtocolScheme } from "./browser";
@@ -243,11 +243,9 @@ registerLocalFileProtocolScheme();
 registerPickerProtocolScheme();
 
 if (!hasSingleInstanceLock) {
-  // Never-silent refusal (P2): disclose who holds the profile before quitting.
-  // A modal error box (not just the console) because Finder-launched copies
-  // have no terminal to read — the user would otherwise see nothing at all.
-  const refusal = reportSingleInstanceRefusal(app.getPath("userData"));
-  dialog.showErrorBox("Poracode is already running", refusal);
+  // Electron has forwarded this launch to the running app's second-instance
+  // handler, which restores its window. Keep diagnostics without a modal.
+  reportSingleInstanceRefusal(app.getPath("userData"));
   app.quit();
 } else {
   app.on("second-instance", (_event, commandLine) => {
