@@ -247,6 +247,8 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
         "browser-extract-window-bounds",
         "browser-panel-tabs-v1",
         "browser-history-v1",
+        "browser-credentials-v1",
+        "browser-downloads-v1",
         "browser-bookmarks-v1",
         "browser-bookmark-bar-visible-v1",
       ]);

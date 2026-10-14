@@ -283,6 +283,23 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   browserRemoveBookmark: "local-shell: this window's browser bookmarks",
   browserSetBookmarkBarVisible: "local-shell: this window's bookmark bar visibility",
   browserRecentHistory: "local-shell: this window's browser history",
+  browserOpenInternalPage: "local-shell: local download and credential pages have no remote mirror",
+  browserFindInPage: "local-shell: searches this desktop's native browser webContents",
+  browserStopFindInPage: "local-shell: clears a native browser find session on this desktop",
+  browserPrint: "local-shell: opens this desktop's native print dialog",
+  browserSetZoomFactor: "local-shell: controls the zoom of this desktop's native browser view",
+  browserSetDeviceEmulation: "local-shell: emulates a device in this desktop's native browser view",
+  browserGetDownloads: "local-shell: enumerates downloads owned by this desktop's browser session",
+  browserDownloadAction: "local-shell: controls native downloads and files on this machine",
+  browserListCredentials:
+    "local-shell: reads metadata from this desktop's encrypted credential store",
+  browserGetCredentialPassword:
+    "local-shell: decrypts a password using this desktop's secret storage",
+  browserUpsertCredential: "local-shell: encrypts and saves a credential on this desktop",
+  browserDeleteCredential: "local-shell: removes a credential from this desktop's encrypted store",
+  browserListImportSources: "local-shell: discovers browser profiles on this machine's filesystem",
+  browserImportData:
+    "local-shell: reads local browser profiles using this machine's OS secret storage",
   browserExtractToWindow: "local-shell: reparents a view inside this desktop window",
   browserInjectToMain: "local-shell: injects scripts into this window's browser views",
 

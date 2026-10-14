@@ -65,7 +65,11 @@ import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
 // so every client/host leg refuses the previous generation before dispatch.
 // Evaluation helpers are additive host-only names; they never enter the remote
 // procedure allowlist.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:0f84ec4fde26d69b097c0d89c0a191203993bd39ecde60962bf0c0eb80faacd0`;
+// Browser management adds only main-local procedure names and optional tab
+// metadata. Existing payloads and transports remain valid; old peers reject
+// unknown names before side effects, so hop 18 stays compatible. Browser import
+// and decrypted passwords are intentionally absent from the remote allowlist.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:a144a73cf1ac7032f5a619ea4ba8080122a8cca40386365ed49ded324cf4cfa4`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

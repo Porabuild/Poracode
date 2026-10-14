@@ -41,6 +41,24 @@ describe("BackendStateStore", () => {
     expect(closed).toHaveBeenCalledOnce();
   });
 
+  it("acknowledges durable writes after the backend commits and propagates failures", async () => {
+    const transaction = Promise.withResolvers<never>();
+    const callDatabase = vi.fn<BackendDatabaseCaller["callDatabase"]>(() => transaction.promise);
+    const store = new BackendStateStore({ callDatabase });
+    const saving = store.setDurable("credentials", "sealed");
+    expect(store.get("credentials")).toBeNull();
+    transaction.resolve(undefined as never);
+    await saving;
+    expect(store.get("credentials")).toBe("sealed");
+    callDatabase.mockRejectedValueOnce(new Error("Disk unavailable"));
+    await expect(store.setDurable("credentials", "replacement")).rejects.toThrow(
+      "Disk unavailable",
+    );
+    expect(store.get("credentials")).toBe("sealed");
+    await store.close();
+    await expect(store.setDurable("credentials", "late")).rejects.toThrow("closed");
+  });
+
   it("reports failed writes without an unhandled rejection or blocking shutdown", async () => {
     const error = new Error("Backend host unavailable.");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

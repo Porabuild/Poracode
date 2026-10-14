@@ -1,3 +1,4 @@
+import { browserDeviceEmulationEqual } from "@/shared/browserDeviceEmulation";
 import { create } from "zustand";
 import {
   browserPresentationBase,
@@ -152,7 +153,7 @@ export const useBrowserPanelStore = create<BrowserPanelState>((set, get) => ({
     const idx = base.tabs.findIndex((t) => t.tabId === tab.tabId);
     const tabs = base.tabs.slice();
     if (idx < 0) tabs.push(tab);
-    else tabs[idx] = { ...tabs[idx]!, ...tab };
+    else tabs[idx] = tab;
     s.setState({ ...base, tabs });
   },
   setActive: (tabId) => set((state) => (state.activeTabId === tabId ? {} : { activeTabId: tabId })),
@@ -260,6 +261,9 @@ function tabInfoEqual(a: BrowserTabInfo, b: BrowserTabInfo): boolean {
     a.canGoBack === b.canGoBack &&
     a.canGoForward === b.canGoForward &&
     a.devToolsOpen === b.devToolsOpen &&
+    a.internalPage === b.internalPage &&
+    a.zoomFactor === b.zoomFactor &&
+    browserDeviceEmulationEqual(a.deviceEmulation, b.deviceEmulation) &&
     a.groupId === b.groupId
   );
 }

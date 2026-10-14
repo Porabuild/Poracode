@@ -1,4 +1,7 @@
 import { readBridge } from "@/renderer/bridge";
+import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 import type { BrowserState } from "@/shared/ipc";
 import { useBrowserPanelStore, browserActionKey } from "@/renderer/state/browserPanelStore";
 import { runRendererAction } from "@/renderer/state/rendererActionStore";
@@ -11,6 +14,20 @@ import {
 
 let activationQueue: Promise<void> | null = null;
 let activationOwnerRevision = -1;
+
+export async function printBrowserTab(tabId: string): Promise<void> {
+  try {
+    const result = await runRendererAction(`browser:print:${tabId}`, () =>
+      readBridge().browserPrint({ tabId }),
+    );
+    if (!result.ok && !/\bcancel(?:ed|led)\b/i.test(result.error ?? "")) {
+      toast.danger(i18n._(msg`Unable to print this page.`));
+    }
+  } catch {
+    toast.danger(i18n._(msg`Unable to print this page.`));
+  }
+}
+
 /** Select from resident state; keep queued host activations in click order. */
 export function activateBrowserTab(tabId: string): void {
   const store = useBrowserPanelStore.getState();

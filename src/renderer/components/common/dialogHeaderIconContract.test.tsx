@@ -149,12 +149,12 @@ describe("dialog Header producer admission", () => {
       issues.push(...audit.issues.map((issue) => `${path}:${issue}`));
     }
     expect(issues).toEqual([]);
-    // Saved run details adds one unmarked modal; retain the exact producer inventory.
-    expect(sites).toHaveLength(37);
-    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(32);
+    // Include saved run details and the browser import/credential editor modals.
+    expect(sites).toHaveLength(39);
+    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(34);
     expect(sites.filter((site) => site.family === "AlertDialog")).toHaveLength(5);
     expect(sites.filter((site) => site.marked)).toHaveLength(6);
-    expect(sites.filter((site) => !site.marked)).toHaveLength(31);
+    expect(sites.filter((site) => !site.marked)).toHaveLength(33);
   });
 
   it.each([

@@ -803,6 +803,10 @@ msgstr "3000"
 msgid "30d"
 msgstr "30天"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "4K"
+msgstr "4K"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7天"
@@ -1025,6 +1029,10 @@ msgstr "添加"
 msgid "Add a local project"
 msgstr "添加本地项目"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Add a password or import one from another browser."
+msgstr "添加密码或从其他浏览器导入。"
+
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Add a project"
@@ -1133,6 +1141,10 @@ msgstr "添加模型"
 msgid "Add one manually or import from another agent."
 msgstr "手动添加一个，或从其他代理导入。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Add password"
+msgstr "添加密码"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
 msgstr "添加模式"
@@ -1227,6 +1239,10 @@ msgstr "采用旧连接"
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt legacy connection"
 msgstr "采用旧版连接"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Advanced"
+msgstr "高级"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
@@ -2188,11 +2204,12 @@ msgstr "蓝色"
 msgid "Bold"
 msgstr "加粗"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmark this page"
 msgstr "将此页加入书签"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Bookmarks"
 msgstr "书签"
 
@@ -2286,6 +2303,10 @@ msgstr "将 {0} 的所有运行时更新到最新"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "将其移回此面板，或跳转到正在运行它的窗口。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Bring saved passwords and cookies over from an installed browser."
+msgstr "从已安装的浏览器导入已保存的密码和 Cookie。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Bring Uncommitted Changes"
 msgstr "带上未提交的更改"
@@ -2358,7 +2379,7 @@ msgstr "浏览器已在单独的窗口中打开"
 msgid "Browser MCP enabled for this thread"
 msgstr "为此线程启用浏览器 MCP"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Browser menu"
 msgstr "浏览器菜单"
 
@@ -2498,6 +2519,8 @@ msgstr "无法在此界面使用所选模型配置"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -2514,6 +2537,10 @@ msgstr "取消"
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 msgid "Cancel agent discovery"
 msgstr "取消智能体发现"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Cancel download"
+msgstr "取消下载"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -2561,6 +2588,7 @@ msgstr "已取消"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Cancelled"
 msgstr "已取消"
@@ -2842,6 +2870,10 @@ msgstr "请选择至少两个候选项并输入提示。"
 msgid "Choose color for {label}"
 msgstr "为{label}选择颜色"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Choose data to bring over to the built-in browser."
+msgstr "选择要导入内置浏览器的数据。"
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose how Poracode performs manual merges and automatic PR merges."
@@ -2997,21 +3029,33 @@ msgstr "全部清除"
 msgid "Clear archived threads from {dateLabel}"
 msgstr "清除 {dateLabel} 的已归档线程"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear browsing data"
+msgstr "清除浏览数据"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Clear browsing history"
 msgstr "清除浏览历史记录"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Clear Browsing History"
 msgstr "清除浏览历史记录"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-msgid "Clear Cache"
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear cache"
 msgstr "清除缓存"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
-msgid "Clear Cookies"
+#~ msgid "Clear Cache"
+#~ msgstr "清除缓存"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Clear cookies"
 msgstr "清除 Cookie"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#~ msgid "Clear Cookies"
+#~ msgstr "清除 Cookie"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Clear day"
@@ -3130,6 +3174,10 @@ msgstr "关闭 Crossagents"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Close Crossagents panel"
 msgstr "关闭 Crossagents 面板"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Close device toolbar"
+msgstr "关闭设备工具栏"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -3268,6 +3316,10 @@ msgstr "关闭选项卡"
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Close tab switcher"
 #~ msgstr "关闭标签页切换器"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Close the source browser before importing. On macOS, allow access to its Safe Storage key when Keychain asks."
+msgstr "导入前请关闭来源浏览器。在 macOS 上，当钥匙串询问时，请允许访问该浏览器的 Safe Storage 密钥。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Close thread"
@@ -3607,6 +3659,7 @@ msgstr "已完成"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/utils/prStatus.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Completed"
 msgstr "已完成"
 
@@ -4003,6 +4056,10 @@ msgstr "控制哪些文件出现在 @file 提及搜索中。可在各项目的�
 msgid "Conversation"
 msgstr "对话"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Cookies"
+msgstr "Cookie"
+
 #: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -4046,7 +4103,7 @@ msgstr "将所有 Lightcode 数据复制到 Poracode。Poracode 将重新启动�
 msgid "Copy code"
 msgstr "复制代码"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Copy Current URL"
 msgstr "复制当前网址"
 
@@ -4093,6 +4150,10 @@ msgstr "复制配对链接"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy pairing token"
 msgstr "复制配对令牌"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Copy password"
+msgstr "复制密码"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -4792,6 +4853,7 @@ msgstr "将工作委派给其他 AI 智能体。"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
@@ -4872,6 +4934,14 @@ msgstr "删除文件"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 msgid "Delete run"
 msgstr "删除运行"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Delete saved password"
+msgstr "删除已保存的密码"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Delete saved password?"
+msgstr "删除已保存的密码？"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Delete schedule"
@@ -5084,6 +5154,10 @@ msgstr "开发"
 msgid "Development-only overrides. Only visible in the PORACODE DEV build."
 msgstr "仅开发覆盖。仅在 PORACODE DEV 版本中可见。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Device preset"
+msgstr "设备预设"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
@@ -5169,6 +5243,10 @@ msgstr "Devin 会提出修订后的命令；在任何内容运行之前由你审
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Devin's own login (default)"
 msgstr "Devin 自己的登录（默认）"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Dimensions:"
+msgstr "尺寸："
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -5419,9 +5497,26 @@ msgstr "完成（{doneCount}）"
 msgid "Done ({remainingSeconds}s)"
 msgstr "完成（{remainingSeconds}秒）"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Download failed"
+msgstr "下载失败"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Download history"
+msgstr "下载记录"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Download image"
 msgstr "下载图片"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Download progress"
+msgstr "下载进度"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Downloading"
+msgstr "正在下载"
 
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -5447,6 +5542,14 @@ msgstr "正在下载语音模型..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Downloading… {0}%"
 msgstr "正在下载… {0}%"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Downloads"
+msgstr "下载内容"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Downloads from the built-in browser are saved in this history."
+msgstr "内置浏览器中的下载内容会保存在此记录中。"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -5564,6 +5667,10 @@ msgstr "编辑目标"
 msgid "Edit MCP server"
 msgstr "编辑 MCP 服务器"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Edit password"
+msgstr "编辑密码"
+
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "编辑资料"
@@ -5572,6 +5679,10 @@ msgstr "编辑资料"
 #: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
 msgid "Edit queued follow-up"
 msgstr "编辑排队消息"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Edit saved password"
+msgstr "编辑已保存的密码"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -6377,6 +6488,10 @@ msgstr "{projectName}的文件"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "与这些 glob 匹配的文件在 @file 提及搜索中隐藏。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Files you download appear here"
+msgstr "您下载的文件会显示在这里"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Fill in all required workflow inputs."
 msgstr "请填写所有必需的工作流输入。"
@@ -6417,6 +6532,11 @@ msgstr "在聊天中查找"
 #: src/renderer/components/find/GitFindBar.tsx
 msgid "Find in diff"
 msgstr "在差异中查找"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Find in page"
+msgstr "在页面中查找"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Find in terminal"
@@ -6694,6 +6814,10 @@ msgstr "频率"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Friday at 4:00 PM"
 msgstr "星期五下午 4:00"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "From"
+msgstr "来源"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "From this project"
@@ -7017,7 +7141,7 @@ msgstr "用户名"
 msgid "Handle"
 msgstr "用户名"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Hard Reload"
 msgstr "硬重载"
 
@@ -7111,6 +7235,10 @@ msgstr "从每个提供商的模型选择器中隐藏您不使用的模型。"
 msgid "Hide panel"
 msgstr "隐藏面板"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Hide password"
+msgstr "隐藏密码"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Hide runtime debug panel"
 msgstr "隐藏运行时调试面板"
@@ -7142,7 +7270,7 @@ msgstr "隐藏终端"
 msgid "High"
 msgstr "高"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "历史记录"
 
@@ -7249,6 +7377,10 @@ msgstr "小时"
 msgid "HTTP (streamable)"
 msgstr "HTTP（流式）"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "https://example.com"
+msgstr "https://example.com"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
@@ -7260,6 +7392,10 @@ msgstr "https://github.com/owner/repo.git"
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "色调"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "I understand that protected browser data may be skipped."
+msgstr "我了解受保护的浏览器数据可能会被跳过。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Icon color"
@@ -7325,6 +7461,7 @@ msgid "Images"
 msgstr "图片"
 
 #. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Import"
 msgstr "导入"
@@ -7337,9 +7474,22 @@ msgstr "再次导入"
 msgid "Import and restart"
 msgstr "导入并重新启动"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Import browser data"
+msgstr "导入浏览器数据"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "导入冲突"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import cookies"
+msgstr "导入 Cookie"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Import cookies and passwords"
+msgstr "导入 Cookie 和密码"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -7358,6 +7508,10 @@ msgstr "导入外部智能体技能"
 msgid "Import external skills"
 msgstr "导入外部技能"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import from your browser"
+msgstr "从浏览器导入"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import Lightcode data"
 msgstr "导入 Lightcode 数据"
@@ -7374,6 +7528,10 @@ msgstr "导入 MCP 服务器"
 msgid "Import method"
 msgstr "导入方式"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import passwords"
+msgstr "导入密码"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import selected"
 msgstr "导入所选项"
@@ -7381,6 +7539,10 @@ msgstr "导入所选项"
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
 msgid "Import sessions"
 msgstr "导入会话"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Import source"
+msgstr "导入来源"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 msgid "Import theme"
@@ -7421,9 +7583,20 @@ msgstr "已导入 {0} 个技能。"
 msgid "Imported 1 skill."
 msgstr "已导入 1 个技能。"
 
+#. placeholder {0}: credential.source
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Imported from {0}"
+msgstr "已从 {0} 导入"
+
 #: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
 msgid "Imported from an existing CLI session — text only, tool calls are not shown."
 msgstr "从现有 CLI 会话导入 — 仅文本，不显示工具调用。"
+
+#. placeholder {0}: result.passwordsImported
+#. placeholder {1}: result.cookiesImported
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Imported passwords: {0}. Imported cookies: {1}."
+msgstr "已导入密码：{0}。已导入 Cookie：{1}。"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Imported session"
@@ -7804,6 +7977,7 @@ msgstr "内部命令和代理"
 #~ msgid "Interrupt"
 #~ msgstr "中断"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 msgid "Interrupted"
 msgstr "已中断"
@@ -7827,6 +8001,26 @@ msgstr "间隔单位"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Invalid configuration — kept, but disabled"
 msgstr "配置无效——已保留，但已停用"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPad Air"
+msgstr "iPad Air"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPad Mini"
+msgstr "iPad Mini"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone 15 Pro"
+msgstr "iPhone 15 Pro"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone 15 Pro Max"
+msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "iPhone SE"
+msgstr "iPhone SE"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
@@ -7944,6 +8138,14 @@ msgstr "AI 生成的提交信息和拉取请求摘要所使用的语言。线程
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "语音模型在转录编辑器口述输入时应预期的语言。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Laptop"
+msgstr "Laptop"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Laptop L"
+msgstr "Laptop L"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
@@ -8266,6 +8468,10 @@ msgstr "从 {branch} 拉取之前需要暂存（stash）本地更改"
 msgid "Local chat history was reverted. The provider may still use the removed messages."
 msgstr "本地聊天记录已回退。提供商仍可能使用已移除的消息。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Local password protection"
+msgstr "本地密码保护"
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -8355,6 +8561,10 @@ msgstr "最长连续天数"
 msgid "Longest task"
 msgstr "最长任务"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Looking for browser profiles…"
+msgstr "正在查找浏览器配置文件…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "正在查找开发服务器…"
@@ -8402,6 +8612,10 @@ msgstr "管理 MCP 服务器"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
 #~ msgstr "通过 OpenCode 原生插件管理器管理软件包。更改将全局应用于所选环境，包括终端插件。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Manage passwords"
+msgstr "管理密码"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Manage plugins"
@@ -9439,8 +9653,8 @@ msgstr "新建计划"
 #~ msgid "New session title"
 #~ msgstr "新会话标题"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "新标签页"
 
@@ -9719,6 +9933,10 @@ msgstr "{0}没有可用的差异"
 msgid "No diff for {visiblePath}"
 msgstr "{visiblePath}没有差异"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "No downloads match your search"
+msgstr "没有与搜索匹配的下载内容"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No eligible conversations in this project."
 msgstr "此项目中没有符合条件的对话。"
@@ -9748,7 +9966,7 @@ msgstr "未找到 GitHub CLI 帐户。使用<0>gh auth login</0>登录，或<1>�
 #~ msgid "No goal for this thread."
 #~ msgstr "此线程没有目标。"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "No history yet"
 msgstr "暂无历史记录"
 
@@ -9881,6 +10099,10 @@ msgstr "尚未安装插件包。"
 msgid "No paired devices yet."
 msgstr "还没有已配对的设备。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "No passwords match your search"
+msgstr "没有与搜索匹配的密码"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "没有模式。"
@@ -9991,6 +10213,10 @@ msgstr "尚无运行记录。"
 msgid "No runtime items yet for this thread."
 msgstr "该线程还没有运行时项目。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "No saved passwords"
+msgstr "没有已保存的密码"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "尚未连接任何服务器。"
@@ -10048,6 +10274,10 @@ msgstr "未提供摘要。"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "未检测到支持的代理"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "No supported browser profiles were found on this device."
+msgstr "在此设备上未找到受支持的浏览器配置文件。"
 
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "No tags — the entry stops influencing tag affinity."
@@ -10399,6 +10629,10 @@ msgstr "打开 Crossagent：{0}"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
 msgstr "打开对话框"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Open downloaded file"
+msgstr "打开已下载的文件"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open experiment"
@@ -10926,9 +11160,35 @@ msgstr "作为该配置文件专属的用户配置传递给 Devin。它不会隔
 #~ msgid "Passphrase (optional)"
 #~ msgstr "密码短语（可选）"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Password"
-#~ msgstr "密码"
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password"
+msgstr "密码"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Password copied."
+msgstr "密码已复制。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Password manager"
+msgstr "密码管理器"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Password manager section"
+msgstr "密码管理器部分"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Passwords"
+msgstr "密码"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Passwords and autofill"
+msgstr "密码和自动填充"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Passwords are encrypted in Poracode's local credential store. Password values are requested only when you reveal, copy, or edit them."
+msgstr "密码在 Poracode 的本地凭据存储中加密。只有在您显示、复制或编辑密码时，才会请求密码值。"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
@@ -10996,6 +11256,10 @@ msgstr "暂停"
 #~ msgid "Pause {0}"
 #~ msgstr "暂停 {0}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Pause download"
+msgstr "暂停下载"
+
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "暂停目标"
@@ -11003,6 +11267,7 @@ msgstr "暂停目标"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "已暂停"
@@ -11160,6 +11425,10 @@ msgstr "已固定"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Pinned task routes"
 msgstr "已固定的任务路由"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Pixel 8"
+msgstr "Pixel 8"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -11530,6 +11799,10 @@ msgstr "先前的会话；请重新登录以用于新线程。"
 msgid "Previous tab"
 msgstr "上一个选项卡"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Print"
+msgstr "打印"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "隐私政策"
@@ -11727,6 +12000,10 @@ msgstr "提示"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Proposed plan"
 msgstr "拟议计划"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Protected browser data"
+msgstr "受保护的浏览器数据"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -12364,6 +12641,7 @@ msgid "Remove action"
 msgstr "删除动作"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Remove bookmark"
 msgstr "移除书签"
@@ -12405,6 +12683,10 @@ msgstr "移除 Cursor SDK API 密钥"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "移除环境变量"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Remove from download history"
+msgstr "从下载记录中移除"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Remove from favorites"
@@ -12688,6 +12970,10 @@ msgstr "将侧边栏磨砂效果重置为默认"
 msgid "Reset to default"
 msgstr "重置为默认"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Reset zoom"
+msgstr "重置缩放"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "调整浏览器抽屉的大小"
@@ -12731,6 +13017,18 @@ msgstr "调整分割大小"
 msgid "Resize terminal panel"
 msgstr "调整终端面板大小"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport"
+msgstr "调整视口大小"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport height"
+msgstr "调整视口高度"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabWebview.tsx
+msgid "Resize viewport width"
+msgstr "调整视口宽度"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useConflictResolver.ts
 msgid "Resolve conflicts in this worktree. First inspect Git status and the active operation; the file list below may be stale. Compare both sides and the base, preserving intended behavior and unrelated edits. During rebase, verify what ours/theirs refer to. Handle rename/delete, binary, and generated-file conflicts using repository conventions. If intent is ambiguous, ask before discarding changes. Validate the resolution with appropriate checks, then stage only resolved paths. Do not commit, continue or abort the operation, or push. Report resolutions, checks, and remaining conflicts.\n"
 "\n"
@@ -12750,6 +13048,10 @@ msgstr "解决变基或合并期间的合并冲突。"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Resolving…"
 msgstr "正在处理…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Responsive"
+msgstr "响应式"
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Restart Poracode"
@@ -12791,6 +13093,10 @@ msgstr "继续"
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Resume {label}"
 #~ msgstr "继续 {label}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Resume download"
+msgstr "继续下载"
 
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
@@ -12902,6 +13208,10 @@ msgstr "在文件资源管理器中显示"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Reveal in file tree"
 msgstr "在文件树中显示"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Reveal password"
+msgstr "显示密码"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -13037,6 +13347,10 @@ msgstr "右面板"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "右键点击以切换环"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Rotate viewport"
+msgstr "旋转视口"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -13254,6 +13568,10 @@ msgstr "与 Devin 相同的登录"
 msgid "Same provider order on all machines"
 msgstr "所有设备使用相同的提供方顺序"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Samsung Galaxy S24 Ultra"
+msgstr "Samsung Galaxy S24 Ultra"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "饱和度与亮度"
@@ -13268,6 +13586,7 @@ msgstr "饱和度与亮度"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -13348,6 +13667,10 @@ msgstr "已保存的凭据在所有设备间共享。"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Saved font"
 msgstr "已保存的字体"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Saved password actions"
+msgstr "已保存密码操作"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
@@ -13533,6 +13856,10 @@ msgstr "搜索分支..."
 msgid "Search categories"
 msgstr "搜索分类"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Search downloads"
+msgstr "搜索下载内容"
+
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "搜索文件"
@@ -13569,6 +13896,10 @@ msgstr "搜索模型..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "搜索或输入地址"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Search passwords"
+msgstr "搜索密码"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins"
@@ -13926,7 +14257,7 @@ msgstr "在本会话启动时已固定 — 如需更改插件，请开始新线�
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -14038,11 +14369,11 @@ msgstr "显示智能体发现界面"
 msgid "Show all"
 msgstr "显示全部"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "显示书签栏"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show Bookmark Bar"
 msgstr "显示书签栏"
 
@@ -14064,6 +14395,10 @@ msgstr "显示编辑器"
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 msgid "Show context usage details"
 msgstr "显示上下文使用详细信息"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Show device toolbar"
+msgstr "显示设备工具栏"
 
 #: src/renderer/components/thread/ThreadDocksPlacementToggle.tsx
 msgid "Show docks above the composer"
@@ -14094,6 +14429,10 @@ msgstr "显示图片"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
 msgstr "在文件资源管理器中显示"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Show in folder"
+msgstr "在文件夹中显示"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
@@ -14468,9 +14807,18 @@ msgstr "方案 {0}"
 #~ msgid "Solution {ordinal}"
 #~ msgstr "方案 {ordinal}"
 
+#. placeholder {0}: result.protectedItemsSkipped
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Some browser data was skipped. Protected items skipped: {0}."
+msgstr "某些浏览器数据已被跳过。跳过的受保护项目：{0}。"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "一些检查失败或待处理。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Some Chromium browsers protect cookies and passwords with App-Bound Encryption. Poracode does not bypass that protection. Data the operating system does not make available will be skipped."
+msgstr "某些 Chromium 浏览器使用 App-Bound Encryption 保护 Cookie 和密码。Poracode 不会绕过此保护。操作系统不提供的数据将被跳过。"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Some contributions could not be loaded"
@@ -15017,6 +15365,14 @@ msgstr "支持快速模式"
 msgid "Surface"
 msgstr "表面"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Surface Duo"
+msgstr "Surface Duo"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Surface Pro 7"
+msgstr "Surface Pro 7"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "切换笔记和待办事项"
@@ -15172,7 +15528,7 @@ msgstr "Tailscale HTTPS"
 msgid "Tailscale URL"
 msgstr "Tailscale URL"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Take Screenshot"
 msgstr "截图"
 
@@ -16161,6 +16517,11 @@ msgstr "当检查点快照可用时，这会删除稍后的消息并恢复文件
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
 msgstr "这会从主机移除该环境。服务器的子工作区不会被删除。"
 
+#. placeholder {0}: pendingDelete?.origin
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "This removes the saved password for <0>{0}</0> from Poracode."
+msgstr "这会从 Poracode 中删除 <0>{0}</0> 的已保存密码。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This removes the schedule and all its saved run results."
 msgstr "此操作将删除计划及其所有已保存的运行结果。"
@@ -16667,6 +17028,10 @@ msgstr "无法复制配对令牌。"
 msgid "Unable to copy Tailscale URL."
 msgstr "无法复制 Tailscale URL。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Unable to copy the password."
+msgstr "无法复制密码。"
+
 #: src/renderer/actions/experimentActions.ts
 msgid "Unable to create the candidate worktree."
 msgstr "无法创建候选项工作树。"
@@ -16680,6 +17045,10 @@ msgstr "无法创建拉取请求：{0}"
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "无法创建 WSL 工作树目录“{path}”"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to delete the saved password."
+msgstr "无法删除已保存的密码。"
+
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to delete the worktree."
 #~ msgstr "无法删除 worktree。"
@@ -16687,6 +17056,18 @@ msgstr "无法创建 WSL 工作树目录“{path}”"
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "无法确定实验的源分支。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to edit the saved password."
+msgstr "无法编辑已保存的密码。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Unable to find browser data to import."
+msgstr "无法找到要导入的浏览器数据。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
+msgid "Unable to import browser data."
+msgstr "无法导入浏览器数据。"
 
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -16704,9 +17085,17 @@ msgstr "无法安装{0}。"
 msgid "Unable to load diff."
 msgstr "无法加载差异。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Unable to load downloads."
+msgstr "无法加载下载内容。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to load remote access pairing."
 msgstr "无法加载远程访问配对。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to load saved passwords."
+msgstr "无法加载已保存的密码。"
 
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to load thread."
@@ -16747,6 +17136,10 @@ msgstr "无法在编辑器中打开文件"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "无法与该桌面配对。"
+
+#: src/renderer/actions/browserActions.ts
+msgid "Unable to print this page."
+msgstr "无法打印此页面。"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Unable to probe the SSH host."
@@ -16832,6 +17225,10 @@ msgstr "无法解析实验候选项的提交"
 #~ msgid "Unable to restore the SSH connection."
 #~ msgstr "无法恢复 SSH 连接。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
+msgid "Unable to reveal the password."
+msgstr "无法显示密码。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to revoke remote session."
 msgstr "无法撤销远程会话。"
@@ -16852,6 +17249,10 @@ msgstr "无法保存图像。"
 #: src/renderer/commands/registry.ts
 msgid "Unable to save the file"
 msgstr "无法保存文件"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Unable to save the password."
+msgstr "无法保存密码。"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -16936,6 +17337,10 @@ msgstr "无法更新远程访问。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update Tailscale HTTPS."
 msgstr "无法更新 Tailscale HTTPS。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+msgid "Unable to update the download."
+msgstr "无法更新下载内容。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update the public URL."
@@ -17547,6 +17952,10 @@ msgstr "用于新的交互式终端面板会话。"
 msgid "user@host"
 msgstr "user@host"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Username"
+msgstr "用户名"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
 msgstr "使用本机上 Devin 自己的登录。请从 Devin 基础页面登录或登出——它始终是唯一的全局登录。"
@@ -17649,6 +18058,18 @@ msgstr "仅查看 — 此连接无法管理项目。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Viewer"
 msgstr "查看者"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport height"
+msgstr "视口高度"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport scale"
+msgstr "视口缩放"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
+msgid "Viewport width"
+msgstr "视口宽度"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Violet"
@@ -17815,10 +18236,15 @@ msgid "Web server"
 msgstr "Web 服务器"
 
 #. External link to the product website
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Website"
 msgstr "网站"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
+msgid "Website origin"
+msgstr "网站来源"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
@@ -18228,10 +18654,16 @@ msgstr "您贮藏的本地更改已重新应用。"
 msgid "z.ai"
 msgstr "z.ai"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
+msgid "Zoom"
+msgstr "缩放"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom in"
 msgstr "放大"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Zoom out"
 msgstr "缩小"
