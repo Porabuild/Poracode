@@ -158,7 +158,12 @@ export default defineConfig(
       // Standalone headless remote server (no Electron). Forks the same
       // supervisor.cjs and reuses the same RemoteAccessServer as the desktop.
       // See docs/REMOTE_ARCHITECTURE.md.
-      entry: { server: "src/server/cli.ts" },
+      // The manifest captures the worker in the server's code/dependency closure
+      // so SSH and standalone installations carry the same async read runtime.
+      entry: {
+        server: "src/server/cli.ts",
+        databaseReadWorker: "src/host/db/databaseReadWorker.ts",
+      },
       clean: false,
       plugins: [runtimeDeclaration("src/server/cli.ts", "server")],
       ...cliShared,

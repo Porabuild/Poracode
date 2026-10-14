@@ -1,3 +1,11 @@
+import { getSqlite } from "@/host/db/connection";
+import { readRuntimeSnapshot } from "@/host/db/runtimeReadSnapshot";
+import { assertLegacySnapshotWithinReservation } from "./legacyReadPrecheck";
+import type { ThreadRuntimeSummary } from "@/host/db/runtimeItems";
+import { DatabaseReadUnavailableError } from "@/host/db/databaseReadProtocol";
+import { readLegacyShellCatalog, readLegacyThreadCatalog } from "@/host/db/legacyCatalogReads";
+import { readDatabaseAsync } from "@/host/db/asyncReads";
+import { readCommittedRuntimeSnapshot } from "@/host/db/runtimeSnapshotRead";
 import { HISTORY_DETAILS_VERSION } from "@/shared/remote/historyPresentation";
 import { THREAD_HISTORY_RESUME_VERSION } from "@/shared/remote/historyResume";
 import {
@@ -37,23 +45,10 @@ import {
   beginRuntimeFence,
   dbGetProjects,
   dbGetThread,
-  dbGetThreadCompletedTurns,
-  dbGetThreadContextUsage,
-  dbGetThreadRuntimeSummariesCommitted,
   dbGetThreadRuntimeItemsPage,
-  dbReadLatestThreadGoalItem,
-  dbReadThreadRuntimeItems,
-  dbReadThreadRuntimeItemsPage,
-  dbGetThreadTerminalScrollback,
-  dbGetThreads,
-  dbGetThreadsPage,
   flushRuntimeFence,
-  readRuntimeFence,
+  readRuntimeFenceAsync,
 } from "@/host/db";
-import {
-  LEGACY_RUNTIME_PAGE_LIMIT,
-  LEGACY_RUNTIME_PAGE_TARGET_ENTRIES,
-} from "@/host/db/runtimeTimelineReads";
 import { RemoteHttpError } from "../auth";
 import { mapFenceRefusal, mapPersistenceRefusal } from "./persistenceRefusals";
 import type { RemoteServerContext } from "./context";
@@ -76,11 +71,10 @@ export function sortOrderForThread(threads: readonly Thread[], threadId: string)
  */
 function runtimeSummariesFor(
   threads: readonly Thread[],
+  stored: Record<string, ThreadRuntimeSummary>,
 ): RemoteShellSnapshot["runtimeSummariesByThread"] {
   const visibleThreads = threads.filter((thread) => !thread.archived);
-  const runtimeSummaries = dbGetThreadRuntimeSummariesCommitted(
-    visibleThreads.map((thread) => thread.id),
-  );
+  const runtimeSummaries = stored;
   const summariesByThread: RemoteShellSnapshot["runtimeSummariesByThread"] = {};
   for (const thread of visibleThreads) {
     const summary = runtimeSummaries[thread.id] ?? { itemCount: 0 };
@@ -206,37 +200,47 @@ export function buildShellSnapshot(
   ctx: RemoteServerContext,
   options: { threadListLimit?: number } = {},
 ): RemoteShellSnapshot {
-  let threads: Thread[];
-  let threadsNextCursor: string | null | undefined;
-  let summariesByThread: RemoteShellSnapshot["runtimeSummariesByThread"];
-  let gitSummariesByThread: RemoteShellSnapshot["gitSummariesByThread"];
-  if (options.threadListLimit === undefined) {
-    threads = dbGetThreads();
-    // The unbounded list observed the FULL catalog, so it can vouch for
-    // absence: drop inventory entries whose thread row is gone (deletions
-    // have no dedicated event). A bounded page cannot, so it never prunes.
-    const knownThreadIds = new Set(threads.map((thread) => thread.id));
+  return projectShellSnapshot(ctx, readLegacyShellCatalog(options), options, ctx.seq, true);
+}
+
+export async function buildShellSnapshotAsync(
+  ctx: RemoteServerContext,
+  options: { threadListLimit?: number } = {},
+): Promise<RemoteShellSnapshot> {
+  const snapshotSeq = ctx.seq;
+  const data = await readDatabaseAsync("legacyShellCatalog", [options], () =>
+    readRuntimeSnapshot(getSqlite(), () => {
+      assertLegacySnapshotWithinReservation(options);
+      return readLegacyShellCatalog(options);
+    }),
+  );
+  return projectShellSnapshot(ctx, data, options, snapshotSeq, ctx.seq === snapshotSeq);
+}
+
+function projectShellSnapshot(
+  ctx: RemoteServerContext,
+  data: ReturnType<typeof readLegacyShellCatalog>,
+  options: { threadListLimit?: number },
+  snapshotSeq: number,
+  mayPrune: boolean,
+): RemoteShellSnapshot {
+  const { projects, summaries, nextCursor: threadsNextCursor } = data;
+  if (options.threadListLimit === undefined && mayPrune) {
+    const knownThreadIds = new Set(data.threads.map((thread) => thread.id));
     ctx.sessionConfigInventory.retainThreads(knownThreadIds);
     ctx.threadLiveReadState.retainThreads(knownThreadIds);
-    threads = threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread));
-    summariesByThread = runtimeSummariesFor(threads);
-    gitSummariesByThread = ctx.options.gitSummaries?.() ?? {};
-  } else {
-    const page = dbGetThreadsPage({ limit: options.threadListLimit });
-    threads = page.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread));
-    summariesByThread = runtimeSummariesFor(threads);
-    gitSummariesByThread = gitSummariesFor(ctx, threads);
-    threadsNextCursor = page.nextCursor;
   }
-  const projects = dbGetProjects();
+  const threads = data.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread));
+  const summariesByThread = runtimeSummariesFor(threads, summaries);
+  const gitSummariesByThread =
+    options.threadListLimit === undefined
+      ? (ctx.options.gitSummaries?.() ?? {})
+      : gitSummariesFor(ctx, threads);
   const gitState = ctx.options.gitState
     ? projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot())
     : undefined;
-  // Capture the sequence after every synchronous read (summaries barrier
-  // included) so the cursor never lags content that the snapshot already
-  // contains. Shell summaries are projections, so a degraded barrier still
-  // serves the committed prefix here.
-  const snapshotSeq = ctx.seq;
+  // Async readers pin before dispatch. Never move the cursor past mutations
+  // that may have occurred after the worker took its SQLite snapshot.
   return remoteShellSnapshotSchema.parse(
     withStableUpdatedAt("shell", {
       snapshotSeq,
@@ -259,12 +263,9 @@ export function buildThreadListPage(
   ctx: RemoteServerContext,
   input: { cursor?: string; limit: number },
 ): RemoteThreadListPage {
-  let page: ReturnType<typeof dbGetThreadsPage>;
+  let data;
   try {
-    page = dbGetThreadsPage({
-      limit: input.limit,
-      ...(input.cursor !== undefined ? { cursor: input.cursor } : {}),
-    });
+    data = readLegacyThreadCatalog(input);
   } catch {
     throw new RemoteHttpError(
       "invalid_thread_cursor",
@@ -272,9 +273,36 @@ export function buildThreadListPage(
       400,
     );
   }
+  return projectThreadListPage(ctx, data);
+}
+
+export async function buildThreadListPageAsync(
+  ctx: RemoteServerContext,
+  input: { cursor?: string; limit: number },
+): Promise<RemoteThreadListPage> {
+  let data;
+  try {
+    data = await readDatabaseAsync("legacyThreadCatalog", [input], () =>
+      readLegacyThreadCatalog(input),
+    );
+  } catch (error) {
+    if (error instanceof DatabaseReadUnavailableError) throw mapPersistenceRefusal(error);
+    throw new RemoteHttpError(
+      "invalid_thread_cursor",
+      "The thread list cursor is not recognized by this host.",
+      400,
+    );
+  }
+  return projectThreadListPage(ctx, data);
+}
+
+function projectThreadListPage(
+  ctx: RemoteServerContext,
+  page: ReturnType<typeof readLegacyThreadCatalog>,
+): RemoteThreadListPage {
   return remoteThreadListPageSchema.parse({
     threads: page.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread)),
-    runtimeSummariesByThread: runtimeSummariesFor(page.threads),
+    runtimeSummariesByThread: runtimeSummariesFor(page.threads, page.summaries),
     gitSummariesByThread: gitSummariesFor(ctx, page.threads),
     nextCursor: page.nextCursor,
   });
@@ -387,45 +415,32 @@ export async function buildThreadSnapshot(
   if (fenceResult.kind !== "committed") {
     throw mapFenceRefusal(threadId, fenceResult);
   }
-  let runtimePage: ReturnType<typeof dbReadThreadRuntimeItemsPage> | null = null;
-  let runtimeItems: ReturnType<typeof dbReadThreadRuntimeItems>;
-  let latestGoal: ReturnType<typeof dbReadLatestThreadGoalItem>;
-  let completedTurns: ReturnType<typeof dbGetThreadCompletedTurns>;
-  let contextUsage: ReturnType<typeof dbGetThreadContextUsage>;
-  let runtimeNotice: ReturnType<typeof readRuntimeHistoryNoticeForRead>;
+  let history;
   try {
-    ({ runtimePage, runtimeItems, latestGoal, completedTurns, contextUsage, runtimeNotice } =
-      readRuntimeFence(fenceToken, () => {
-        const page = options.runtimePage
-          ? dbReadThreadRuntimeItemsPage(
-              threadId,
-              undefined,
-              LEGACY_RUNTIME_PAGE_LIMIT,
-              options.targetTimelineEntryCount ?? LEGACY_RUNTIME_PAGE_TARGET_ENTRIES,
-            )
-          : null;
-        return {
-          runtimePage: page,
-          runtimeItems: page?.items ?? dbReadThreadRuntimeItems(threadId),
-          latestGoal: page ? dbReadLatestThreadGoalItem(threadId) : null,
-          completedTurns: dbGetThreadCompletedTurns(threadId),
-          contextUsage: dbGetThreadContextUsage(threadId),
-          // B1: the notice read and its declared-reader gate share this
-          // synchronous fenced turn with the transcript read, so an
-          // acknowledgement cannot land between them.
-          runtimeNotice: readRuntimeHistoryNoticeForRead(
-            ctx,
-            threadId,
-            options.noticesDeclared === true,
-          ),
-        };
-      }));
+    history = await readRuntimeFenceAsync(fenceToken, async () => {
+      const runtimeNotice = readRuntimeHistoryNoticeForRead(
+        ctx,
+        threadId,
+        options.noticesDeclared === true,
+      );
+      const readOptions = {
+        ...(options.runtimePage !== undefined ? { runtimePage: options.runtimePage } : {}),
+        ...(options.targetTimelineEntryCount !== undefined
+          ? { targetTimelineEntryCount: options.targetTimelineEntryCount }
+          : {}),
+        terminalScrollback: readsTerminal && !options.omitScrollback,
+        omitScrollback: options.omitScrollback === true,
+      };
+      const data = await readDatabaseAsync("runtimeSnapshot", [threadId, readOptions], () =>
+        readCommittedRuntimeSnapshot(threadId, readOptions),
+      );
+      return { ...data, runtimeNotice };
+    });
   } catch (error) {
-    // A contaminated thread must not be served as a short transcript with a
-    // fresh cursor (the client would replay and double-apply the gap). Refuse
-    // with a retryable typed error instead.
     throw mapPersistenceRefusal(error);
   }
+  const { runtimePage, runtimeItems, latestGoal, completedTurns, contextUsage, runtimeNotice } =
+    history;
   const runtimeItemsWithGoal =
     latestGoal && !runtimeItems.some((item) => item.id === latestGoal.id)
       ? [latestGoal, ...runtimeItems]
@@ -434,10 +449,7 @@ export async function buildThreadSnapshot(
   // Stored history and latest host-projected controls are independent of
   // supervisor/agent readiness. Live terminal contents arrive through the
   // separately subscribed terminal watch; a cold snapshot uses its durable tail.
-  const terminalScrollback =
-    readsTerminal && !options.omitScrollback
-      ? dbGetThreadTerminalScrollback(threadId) || undefined
-      : undefined;
+  const terminalScrollback = history.terminalScrollback || undefined;
   const backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? [])];
   const followUpQueue = readsTerminal ? null : ctx.threadLiveReadState.queueFor(threadId);
 
@@ -478,7 +490,7 @@ export async function buildThreadRuntimeItemsPage(
   if (!dbGetThread(input.threadId)) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
-  let page: ReturnType<typeof dbReadThreadRuntimeItemsPage>;
+  let page: Awaited<ReturnType<typeof dbGetThreadRuntimeItemsPage>>;
   try {
     page = await dbGetThreadRuntimeItemsPage(
       input.threadId,

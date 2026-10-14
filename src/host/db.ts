@@ -121,6 +121,7 @@ export {
   isRuntimeDurableGapReserveLatched,
   lookupRuntimeNotice,
   readRuntimeFence,
+  readRuntimeFenceAsync,
   releaseRuntimeFence,
   runRuntimeControlWrite,
   runThreadRuntimeMutation,

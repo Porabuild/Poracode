@@ -76,9 +76,9 @@ vi.mock("@/host/db", () => {
       pendingEvents: 0,
       pendingBytes: 0,
     })),
-    readRuntimeFence: vi.fn<(token: unknown, read: () => unknown) => unknown>((_token, read) =>
-      read(),
-    ),
+    readRuntimeFenceAsync: vi.fn<
+      (token: unknown, read: () => Promise<unknown>) => Promise<unknown>
+    >((_token, read) => read()),
     releaseRuntimeFence: vi.fn<() => void>(),
     dbGetThreadRuntimeSummariesCommitted: vi.fn<(...args: unknown[]) => unknown>(() => ({})),
     dbGetThreadTerminalScrollback: vi.fn<(...args: unknown[]) => unknown>(() => ""),
@@ -99,6 +99,13 @@ vi.mock("@/host/db", () => {
     bumpProfileDataGeneration: vi.fn<(...args: unknown[]) => unknown>(),
   };
 });
+
+vi.mock("@/host/db/legacyCatalogReads", async () => import("./server/snapshotReads.testFixtures"));
+vi.mock("@/host/db/runtimeSnapshotRead", async () => import("./server/snapshotReads.testFixtures"));
+vi.mock("@/host/db/asyncReads", async (original) => ({
+  ...(await original<typeof import("@/host/db/asyncReads")>()),
+  readDatabaseAsync: (await import("./server/snapshotReads.testFixtures")).readFixtureDatabaseAsync,
+}));
 
 const servers: RemoteAccessServer[] = [];
 const tempDirs: string[] = [];

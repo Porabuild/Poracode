@@ -35,7 +35,45 @@ import {
 import type { RemoteServerContext } from "./context";
 import { RemoteHttpError } from "../auth";
 import { projectGitStateSnapshotForRemote } from "./gitStateProjection";
-import { withStableUpdatedAt } from "./stableUpdatedAt";
+import {
+  CATALOG_SHELL_TIMESTAMP_PLACEHOLDER,
+  createCatalogShellPageBody,
+  serializeCatalogShellPageBody,
+  stampCatalogShellPageBody,
+  type CatalogShellPageBody,
+} from "./catalogShellBody";
+
+/** Host projections captured before dispatch; workers never access live host state. */
+type CatalogReadContext = Pick<RemoteServerContext, "seq"> & {
+  readonly options: {
+    readonly gitSummaries?: RemoteServerContext["options"]["gitSummaries"];
+    readonly gitState?: Pick<
+      NonNullable<RemoteServerContext["options"]["gitState"]>,
+      "getSnapshot"
+    >;
+  };
+};
+
+export function captureCatalogReadProjection(ctx: CatalogReadContext, includeGitState = false) {
+  return {
+    seq: ctx.seq,
+    gitSummaries: ctx.options.gitSummaries?.() ?? {},
+    ...(includeGitState && ctx.options.gitState
+      ? { gitState: projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot()) }
+      : {}),
+  };
+}
+
+export type CatalogReadProjection = ReturnType<typeof captureCatalogReadProjection>;
+
+export function restoreCatalogReadProjection(input: CatalogReadProjection): CatalogReadContext {
+  return {
+    seq: input.seq,
+    options: {
+      gitSummaries: () => input.gitSummaries,
+    },
+  };
+}
 
 export interface CatalogReadNegotiation {
   readonly declared: boolean;
@@ -81,10 +119,9 @@ function runtimeSummariesFor(
 }
 
 function gitSummariesFor(
-  ctx: RemoteServerContext,
+  all: NonNullable<RemoteShellSnapshot["gitSummariesByThread"]>,
   threads: readonly Thread[],
 ): RemoteShellSnapshot["gitSummariesByThread"] {
-  const all = ctx.options.gitSummaries?.() ?? {};
   const ids = new Set(threads.map((thread) => thread.id));
   const sliced: NonNullable<RemoteShellSnapshot["gitSummariesByThread"]> = {};
   for (const [threadId, summary] of Object.entries(all)) {
@@ -168,7 +205,7 @@ function threadContinuationCursor(input: {
 }
 
 export function buildCatalogThreadListPage(
-  ctx: RemoteServerContext,
+  ctx: CatalogReadContext,
   negotiation: CatalogReadNegotiation,
   cursor: string | undefined,
 ): string {
@@ -213,7 +250,7 @@ export function buildCatalogThreadListPage(
         runtimeSummariesByThread: negotiation.summaries
           ? runtimeSummariesFor(rows)
           : ({} as RemoteThreadListPage["runtimeSummariesByThread"]),
-        gitSummariesByThread: gitSummariesFor(ctx, rows),
+        gitSummariesByThread: gitSummariesFor(ctx.options.gitSummaries?.() ?? {}, rows),
       }),
     )}\n`;
   return serializeCatalogRowsWithinExactCaps({
@@ -235,7 +272,7 @@ export function buildCatalogThreadListPage(
 }
 
 export function buildCatalogProjectListPage(
-  ctx: RemoteServerContext,
+  ctx: CatalogReadContext,
   negotiation: CatalogReadNegotiation,
   cursor: string | undefined,
 ): string {
@@ -291,9 +328,18 @@ export function buildCatalogProjectListPage(
 }
 
 export function buildCatalogShellSnapshotPage(
-  ctx: RemoteServerContext,
+  ctx: CatalogReadContext,
   negotiation: CatalogReadNegotiation,
 ): string {
+  return stampCatalogShellPageBody(
+    readCatalogShellSnapshotPage(captureCatalogReadProjection(ctx, true), negotiation),
+  );
+}
+
+export function readCatalogShellSnapshotPage(
+  projection: CatalogReadProjection,
+  negotiation: CatalogReadNegotiation,
+): CatalogShellPageBody {
   const caps = negotiation.caps;
   const threadPhase1 = dbReadCatalogThreadPhase1({
     mode: "page",
@@ -323,53 +369,57 @@ export function buildCatalogShellSnapshotPage(
   const projects = dbReadCatalogProjectPhase2(projectPack.packed.map((row) => row.id));
   const threadsMore = threadPack.hasMore || threadPhase1.moreBeyondWindow;
   const projectsMore = projectPack.hasMore || projectPhase1.moreBeyondWindow;
-  const snapshotSeq = ctx.seq;
-  const gitState = ctx.options.gitState
-    ? projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot())
-    : undefined;
+  const snapshotSeq = projection.seq;
+  const gitState = projection.gitState;
 
   const buildPayload = (
     threadSlice: readonly Thread[],
     projectSlice: typeof projects,
   ): RemoteShellSnapshot =>
-    boundedShellSnapshotSchema.parse(
-      withStableUpdatedAt("shell", {
-        snapshotSeq,
-        reads: CATALOG_READS_CAPABILITY,
-        projects: projectSlice,
-        threads: threadSlice,
-        threadsNextCursor:
-          threadSlice.length > 0 && (threadsMore || threadSlice.length < threads.length)
-            ? threadContinuationCursor({
-                mode: "page",
-                order: negotiation.order,
-                last: threadPack.packed[threadSlice.length - 1]!,
-                frontier: undefined,
-              })
-            : null,
-        projectsNextCursor:
-          projectSlice.length > 0 && (projectsMore || projectSlice.length < projects.length)
-            ? encodeCatalogProjectPaintCursor({
-                sortOrder: projectPack.packed[projectSlice.length - 1]!.sortOrder,
-                id: projectPack.packed[projectSlice.length - 1]!.id,
-              })
-            : null,
-        runtimeSummariesByThread: negotiation.summaries
-          ? runtimeSummariesFor(threadSlice)
-          : ({} as RemoteShellSnapshot["runtimeSummariesByThread"]),
-        gitSummariesByThread: gitSummariesFor(ctx, threadSlice),
-        ...(gitState ? { gitState } : {}),
-      }),
-    );
+    boundedShellSnapshotSchema.parse({
+      snapshotSeq,
+      reads: CATALOG_READS_CAPABILITY,
+      projects: projectSlice,
+      threads: threadSlice,
+      threadsNextCursor:
+        threadSlice.length > 0 && (threadsMore || threadSlice.length < threads.length)
+          ? threadContinuationCursor({
+              mode: "page",
+              order: negotiation.order,
+              last: threadPack.packed[threadSlice.length - 1]!,
+              frontier: undefined,
+            })
+          : null,
+      projectsNextCursor:
+        projectSlice.length > 0 && (projectsMore || projectSlice.length < projects.length)
+          ? encodeCatalogProjectPaintCursor({
+              sortOrder: projectPack.packed[projectSlice.length - 1]!.sortOrder,
+              id: projectPack.packed[projectSlice.length - 1]!.id,
+            })
+          : null,
+      runtimeSummariesByThread: negotiation.summaries
+        ? runtimeSummariesFor(threadSlice)
+        : ({} as RemoteShellSnapshot["runtimeSummariesByThread"]),
+      gitSummariesByThread: gitSummariesFor(projection.gitSummaries, threadSlice),
+      ...(gitState ? { gitState } : {}),
+      updatedAt: CATALOG_SHELL_TIMESTAMP_PLACEHOLDER,
+    });
 
+  const finish = (threadCount: number, projectCount: number): CatalogShellPageBody =>
+    createCatalogShellPageBody(
+      buildPayload(threads.slice(0, threadCount), projects.slice(0, projectCount)),
+    );
   const serialize = (threadCount: number, projectCount: number): string =>
-    `${JSON.stringify(buildPayload(threads.slice(0, threadCount), projects.slice(0, projectCount)))}\n`;
+    serializeCatalogShellPageBody(
+      finish(threadCount, projectCount),
+      CATALOG_SHELL_TIMESTAMP_PLACEHOLDER,
+    );
   const fits = (threadCount: number, projectCount: number): boolean =>
     catalogSizesFit(measureCatalogBody(serialize(threadCount, projectCount)), caps);
 
   const threadCount = threads.length;
   const projectCount = projects.length;
-  if (fits(threadCount, projectCount)) return serialize(threadCount, projectCount);
+  if (fits(threadCount, projectCount)) return finish(threadCount, projectCount);
   if (!fits(0, 0)) throw catalogEnvelopeTooLarge(measureCatalogBody(serialize(0, 0)), caps);
 
   if (threadCount > 0) {
@@ -377,22 +427,22 @@ export function buildCatalogShellSnapshotPage(
       throw threadOversized(threadPack.packed[0]!, measureCatalogBody(serialize(1, 0)), caps);
     }
     const threadsBest = maxFittingCount(1, threadCount, (count) => fits(count, projectCount));
-    if (threadsBest !== null) return serialize(threadsBest, projectCount);
-    if (projectCount === 0) return serialize(1, 0);
+    if (threadsBest !== null) return finish(threadsBest, projectCount);
+    if (projectCount === 0) return finish(1, 0);
     // A single thread fits but no project fits alongside it. Never drop a whole
     // section silently: refuse the project explicitly instead.
     const projectsWithOneThread = maxFittingCount(1, projectCount, (count) => fits(1, count));
     if (projectsWithOneThread === null) {
       throw projectOversized(projectPack.packed[0]!, measureCatalogBody(serialize(1, 1)), caps);
     }
-    return serialize(1, projectsWithOneThread);
+    return finish(1, projectsWithOneThread);
   }
 
   const projectsBest = maxFittingCount(1, projectCount, (count) => fits(0, count));
   if (projectsBest === null) {
     throw projectOversized(projectPack.packed[0]!, measureCatalogBody(serialize(0, 1)), caps);
   }
-  return serialize(0, projectsBest);
+  return finish(0, projectsBest);
 }
 
 /** Largest count in `[low, high]` satisfying `fits`; null when even `low`

@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase, initDatabase } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
@@ -179,7 +179,7 @@ describe.skipIf(!sqliteAvailable)("legacy admitted reads", () => {
     const res = new FakeResponse();
     const pending = handleLegacyAdmittedShellSnapshot(callFor(context(admission), res));
     // The response is written but not finished: the lease is still held.
-    await Promise.resolve();
+    await vi.waitFor(() => expect(res.body).toContain('"threads"'));
     expect(admission.usage().active).toBe(1);
     expect(res.body).toContain('"threads"');
     expect(res.body).not.toContain('"reads"');

@@ -9,6 +9,7 @@ import {
   remoteTimelineEntryCountSchema,
 } from "@/shared/remote";
 import { RemoteHttpError } from "../auth";
+import { readDatabaseAsync } from "@/host/db/asyncReads";
 import { writeNegotiatedJson } from "./httpCompression";
 import { requirePathParam, type HttpRouteCall } from "./httpRouteHandlers.shared";
 import { writeJson, writeNegotiatedJsonResponse } from "./httpResponses";
@@ -199,12 +200,17 @@ export async function handleBoundedThreadTurns(call: HttpRouteCall): Promise<voi
   const limit = parseTurnsLimit(url, negotiation);
   let body: string;
   try {
-    body = buildBoundedCompletedTurnPage({
+    const input = {
       threadId,
       limit,
       caps: negotiation.caps,
       ...(cursorIdx !== undefined ? { cursorIdx } : {}),
-    });
+    };
+    body = await readDatabaseAsync("completedTurnPage", [input], () =>
+      buildBoundedCompletedTurnPage(input),
+    );
+    // An acknowledgement can create a notice during the worker read.
+    readRuntimeHistoryNoticeForRead(ctx, threadId, negotiation.noticesDeclared);
   } catch (error) {
     if (error instanceof HistoryItemTooLargeError) {
       writeJson(res, 422, historyItemTooLargeBodySchema.parse(error.body));

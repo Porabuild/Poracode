@@ -70,7 +70,7 @@ import {
  *    propagation samples per rename.
  *  - burst phase (all N clients fully concurrent): 9 ops per client =
  *    file creation + baseline read + file write + its read-back + fixture read + notes write/read +
- *    settings write + full snapshot read.
+ *    settings write + bounded snapshot read containing the complete fixture.
  *  - impairment scenario (helpers/sharedHostImpairmentScenario.ts): stalled
  *    receiver during terminal streaming + concurrent mutations, then
  *    disconnect/replay through lastSeenSeq.

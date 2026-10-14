@@ -25,6 +25,7 @@ import {
   dbUpsertThread,
 } from "@/host/db";
 import type { BackendDatabaseCall } from "@/shared/backendHostProtocol";
+import { readDatabaseAsync } from "./asyncReads";
 
 /**
  * Runs the renderer-persistence subset on the backend host's SQLite connection.
@@ -39,11 +40,11 @@ import type { BackendDatabaseCall } from "@/shared/backendHostProtocol";
 export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknown> {
   switch (call.name) {
     case "dbGetProjects":
-      return dbGetProjects();
+      return readDatabaseAsync("projects", [], dbGetProjects);
     case "dbGetThreads":
-      return dbGetThreads();
+      return readDatabaseAsync("threads", [], dbGetThreads);
     case "dbGetState":
-      return dbGetState(call.payload);
+      return readDatabaseAsync("state", [call.payload], () => dbGetState(call.payload));
     case "dbSetState":
       return dbSetState(call.payload.key, call.payload.value);
     case "dbUpsertProject":
@@ -69,11 +70,12 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
       );
     case "dbGetThreadsPage": {
       const { limit, cursor, projectId } = call.payload;
-      return dbGetThreadsPage({
+      const input = {
         limit,
         ...(cursor !== undefined ? { cursor } : {}),
         ...(projectId !== undefined ? { projectId } : {}),
-      });
+      };
+      return readDatabaseAsync("threadsPage", [input], () => dbGetThreadsPage(input));
     }
     case "dbGetLatestThreadGoalItem":
       return dbGetLatestThreadGoalItem(call.payload.threadId);
@@ -84,7 +86,9 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
     case "dbReplaceThreadRuntimeItems":
       return dbReplaceThreadRuntimeItems(call.payload.threadId, call.payload.items);
     case "dbGetThreadCompletedTurns":
-      return dbGetThreadCompletedTurns(call.payload.threadId);
+      return readDatabaseAsync("completedTurns", [call.payload.threadId], () =>
+        dbGetThreadCompletedTurns(call.payload.threadId),
+      );
     case "dbReplaceThreadCompletedTurns":
       return dbReplaceThreadCompletedTurns(call.payload.threadId, call.payload.turns);
     case "dbReplaceThreadRuntimeSnapshot":
@@ -95,13 +99,19 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
         call.payload.contextUsage,
       );
     case "dbGetThreadContextUsage":
-      return dbGetThreadContextUsage(call.payload.threadId);
+      return readDatabaseAsync("contextUsage", [call.payload.threadId], () =>
+        dbGetThreadContextUsage(call.payload.threadId),
+      );
     case "dbGetProjectNotes":
-      return dbGetProjectNotes(call.payload.projectId);
+      return readDatabaseAsync("notes", [call.payload.projectId], () =>
+        dbGetProjectNotes(call.payload.projectId),
+      );
     case "dbSetProjectNotes":
       return dbSetProjectNotes(call.payload);
     case "getScheduleRuns":
-      return dbListScheduleRuns(call.payload.id);
+      return readDatabaseAsync("scheduleRuns", [call.payload.id], () =>
+        dbListScheduleRuns(call.payload.id),
+      );
     case "appendUsageEvents":
       return dbAppendUsageEvents(call.payload.events);
   }

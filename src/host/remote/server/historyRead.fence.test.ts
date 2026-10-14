@@ -48,17 +48,17 @@ vi.mock("@/host/db/runtimePersistenceRuntime", () => ({
       }
     );
   }),
-  readRuntimeFence: vi.fn<(token: RuntimeFenceToken, read: () => unknown) => unknown>(
-    (_token, read) => {
-      fence.readCalled = true;
-      fence.insideFence = true;
-      try {
-        return read();
-      } finally {
-        fence.insideFence = false;
-      }
-    },
-  ),
+  readRuntimeFenceAsync: vi.fn<
+    (token: RuntimeFenceToken, read: () => Promise<unknown>) => Promise<unknown>
+  >(async (_token, read) => {
+    fence.readCalled = true;
+    fence.insideFence = true;
+    try {
+      return await read();
+    } finally {
+      fence.insideFence = false;
+    }
+  }),
 }));
 
 vi.mock("@/host/db/projectsThreads", () => ({

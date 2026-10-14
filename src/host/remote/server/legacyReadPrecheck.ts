@@ -1,3 +1,4 @@
+import { LegacyReadTooLargeError } from "./legacyReadErrors";
 import { dbMeasureLegacyHistoryCharge, dbMeasureLegacySnapshotCharge } from "@/host/db";
 import type {
   LegacyHistoryChargeOptions,
@@ -8,7 +9,6 @@ import {
   LEGACY_READ_CHARGE_MEANING,
   LEGACY_READ_RESERVATION_MAX_BYTES,
   LEGACY_READ_TOO_LARGE_CODE,
-  type LegacyReadTooLargeBody,
 } from "@/shared/remote/legacyReadContract";
 
 /**
@@ -46,12 +46,7 @@ export function legacyHistoryReservationBytes(
   );
 }
 
-export class LegacyReadTooLargeError extends Error {
-  constructor(readonly body: LegacyReadTooLargeBody) {
-    super(`The legacy read reservation exceeds ${LEGACY_READ_RESERVATION_MAX_BYTES} bytes.`);
-    this.name = "LegacyReadTooLargeError";
-  }
-}
+export { LegacyReadTooLargeError } from "./legacyReadErrors";
 
 function refuse(
   resource: "catalog" | "thread-history",

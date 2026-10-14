@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import type { Project, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
@@ -332,6 +333,69 @@ describe("threadActions", () => {
       kind: "thread",
       panes: [secondThread.id],
     });
+  });
+
+  it("shows a slow GUI pane before history finishes and reconnects after its reader is adopted", async () => {
+    vi.useFakeTimers();
+    const history = Promise.withResolvers<void>();
+    hydrateThreadRuntimeItems.mockReturnValueOnce(history.promise);
+    const thread = makeThread({
+      id: "slow-gui",
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
+    });
+    useAppStore.setState({ threads: [thread] });
+    let reader: ReturnType<typeof runtimeInterestHydration.adoptRuntimeThreadReader> | undefined;
+    try {
+      openThread(thread.id);
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+      await vi.advanceTimersByTimeAsync(150);
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+      expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+      reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
+      history.resolve();
+      await reader.ready;
+      expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
+      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+    } finally {
+      history.resolve();
+      reader?.release();
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not reconnect or refocus a slow GUI pane after a newer navigation", async () => {
+    vi.useFakeTimers();
+    const history = Promise.withResolvers<void>();
+    hydrateThreadRuntimeItems.mockReturnValueOnce(history.promise);
+    const first = makeThread({
+      id: "departed-gui",
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
+    });
+    const second = makeThread({ id: "next-thread" });
+    useAppStore.setState({ threads: [first, second] });
+    let reader: ReturnType<typeof runtimeInterestHydration.adoptRuntimeThreadReader> | undefined;
+    try {
+      openThread(first.id);
+      await vi.advanceTimersByTimeAsync(150);
+      reader = runtimeInterestHydration.adoptRuntimeThreadReader(first.id);
+      openThread(second.id);
+      await vi.advanceTimersByTimeAsync(50);
+      history.resolve();
+      await reader.ready;
+      expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: [second.id] });
+      expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(second.id);
+      expect(useAppStore.getState().pendingThreadLaunches[first.id]).toBeUndefined();
+    } finally {
+      history.resolve();
+      reader?.release();
+      vi.useRealTimers();
+    }
   });
 
   it("releases a stalled first history read immediately when navigation leaves", async () => {

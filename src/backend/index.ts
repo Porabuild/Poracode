@@ -1,4 +1,5 @@
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { dirname, join } from "node:path";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
@@ -210,6 +211,7 @@ async function initialize(
   backendHost = new BackendHostCore({
     baseDir,
     dbPath,
+    databaseReadWorkerPath: join(dirname(supervisor.supervisorPath), "databaseReadWorker.cjs"),
     databaseSchemaMode: "migrate",
     markLiveThreadsInactiveOnOpen: true,
     // Desktop main resolves the fence from the same canonical root mapping as

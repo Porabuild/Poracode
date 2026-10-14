@@ -1,3 +1,5 @@
+import { readDatabaseAsync } from "@/host/db/asyncReads";
+import { mapPersistenceRefusal } from "./persistenceRefusals";
 import {
   CATALOG_PAGE_MAX_LIMIT,
   CATALOG_PROJECT_PAGE_DEFAULT_LIMIT,
@@ -14,15 +16,17 @@ import {
   type CatalogEffectiveCaps,
 } from "./catalogPageBudget";
 import {
+  captureCatalogReadProjection,
   buildCatalogProjectListPage,
-  buildCatalogShellSnapshotPage,
+  readCatalogShellSnapshotPage,
   buildCatalogThreadListPage,
   type CatalogReadNegotiation,
 } from "./catalogPageBuilders";
+import { stampCatalogShellPageBody } from "./catalogShellBody";
 import { writeNegotiatedJson } from "./httpCompression";
 import { writeJson, writeNegotiatedJsonResponse } from "./httpResponses";
 import type { HttpRouteCall } from "./httpRouteHandlers.shared";
-import { buildShellSnapshot, buildThreadListPage } from "./snapshots";
+import { buildShellSnapshotAsync, buildThreadListPageAsync } from "./snapshots";
 
 /**
  * B4 catalog HTTP composition. C0 wires these handlers into the route table:
@@ -208,17 +212,17 @@ function mapCursorError(error: unknown, kind: "thread" | "project"): unknown {
 async function writeBoundedCatalogResponse(
   call: HttpRouteCall,
   kind: "thread" | "project",
-  build: () => string,
+  build: () => string | Promise<string>,
 ): Promise<void> {
   let body: string;
   try {
-    body = build();
+    body = await build();
   } catch (error) {
     if (error instanceof CatalogItemTooLargeError) {
       writeJson(call.res, 422, catalogItemTooLargeBodySchema.parse(error.body));
       return;
     }
-    throw mapCursorError(error, kind);
+    throw mapPersistenceRefusal(mapCursorError(error, kind));
   }
   await writeNegotiatedJson(call.req, call.res, 200, body);
 }
@@ -260,12 +264,17 @@ export async function handleCatalogShellSnapshot(call: HttpRouteCall): Promise<v
       req,
       res,
       200,
-      buildShellSnapshot(ctx, parseLegacyShellSnapshotOptions(url)),
+      await buildShellSnapshotAsync(ctx, parseLegacyShellSnapshotOptions(url)),
     );
     return;
   }
-  await writeBoundedCatalogResponse(call, "thread", () =>
-    buildCatalogShellSnapshotPage(ctx, negotiation),
+  const projection = captureCatalogReadProjection(ctx, true);
+  await writeBoundedCatalogResponse(call, "thread", async () =>
+    stampCatalogShellPageBody(
+      await readDatabaseAsync("catalogShell", [projection, negotiation], () =>
+        readCatalogShellSnapshotPage(projection, negotiation),
+      ),
+    ),
   );
 }
 
@@ -288,13 +297,17 @@ export async function handleCatalogThreadList(call: HttpRouteCall): Promise<void
       req,
       res,
       200,
-      buildThreadListPage(ctx, { limit, ...(cursor !== null ? { cursor } : {}) }),
+      await buildThreadListPageAsync(ctx, { limit, ...(cursor !== null ? { cursor } : {}) }),
     );
     return;
   }
   const cursor = url.searchParams.get("cursor");
   await writeBoundedCatalogResponse(call, "thread", () =>
-    buildCatalogThreadListPage(ctx, negotiation, cursor ?? undefined),
+    readDatabaseAsync(
+      "catalogThreadPage",
+      [captureCatalogReadProjection(ctx), negotiation, cursor ?? undefined],
+      () => buildCatalogThreadListPage(ctx, negotiation, cursor ?? undefined),
+    ),
   );
 }
 
@@ -312,6 +325,8 @@ export async function handleCatalogProjectList(call: HttpRouteCall): Promise<voi
   }
   const cursor = url.searchParams.get("cursor");
   await writeBoundedCatalogResponse(call, "project", () =>
-    buildCatalogProjectListPage(ctx, negotiation, cursor ?? undefined),
+    readDatabaseAsync("catalogProjectPage", [negotiation, cursor ?? undefined], () =>
+      buildCatalogProjectListPage(ctx, negotiation, cursor ?? undefined),
+    ),
   );
 }

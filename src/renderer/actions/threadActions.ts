@@ -62,6 +62,7 @@ import {
 let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
 let cancelPendingThreadOpen: (() => void) | null = null;
+const THREAD_OPEN_HISTORY_WAIT_MS = 150;
 
 function nextThreadOpenRequest(): number {
   cancelPendingThreadOpen?.();
@@ -289,7 +290,7 @@ export function openThread(
   // Phase 2 (deferred): perform the real pane swap that mounts the target
   // thread. Kept behind a frame so the highlight paints first; the previous
   // pane stays visible until the new one mounts (no blank flash).
-  const applyOpen = () => {
+  const applyOpen = (reopenRuntime = true) => {
     // Superseded by a newer openThread — that call owns the pending id and will
     // clear it, so leave it untouched here.
     if (requestId !== openThreadRequestId) return false;
@@ -321,21 +322,24 @@ export function openThread(
       }
     });
 
-    if (threadRuntimeReopenEnabled && thread?.status === "inactive") {
+    if (reopenRuntime && threadRuntimeReopenEnabled && thread?.status === "inactive") {
       reopenStoredThread(threadId);
     }
     return true;
   };
 
-  // As in 1.8.2, prepare the first chunk before replacing the current pane.
+  // Prepare the first chunk before replacing the current pane when it is fast.
+  // A slow host read must still reveal the pane's existing loading state.
   // Retain its live stream too, so the mounted reader adopts this baseline
   // across the interest grace period instead of starting a second recovery.
   if (thread?.presentationMode === "gui" && !hasHydratedThreadRuntimeItems(threadId)) {
     let unsubscribe = () => {};
     let active = true;
     let opened = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const retire = () => {
       active = false;
+      clearTimeout(timeoutId);
       unsubscribe();
       if (cancelPendingThreadOpen === cancel) cancelPendingThreadOpen = null;
     };
@@ -360,12 +364,29 @@ export function openThread(
       )
         cancel();
     });
-    const finishOpen = () => {
-      if (!active) return;
+    const finishOpen = (reopenRuntime: boolean) => {
+      if (!active || opened) return;
+      clearTimeout(timeoutId);
       opened = true;
-      if (!applyOpen()) return cancel();
+      if (!applyOpen(reopenRuntime)) return cancel();
     };
-    void reader.ready.then(finishOpen, finishOpen);
+    timeoutId = setTimeout(() => finishOpen(false), THREAD_OPEN_HISTORY_WAIT_MS);
+    const finishRead = () => {
+      if (!opened) return finishOpen(true);
+      // The pane can adopt the reader while the baseline is still pending.
+      // Reconnect only after that read settles, while this navigation still
+      // owns the visible pane; a late read must not restart a departed thread.
+      const state = useAppStore.getState();
+      if (
+        requestId === openThreadRequestId &&
+        state.view.kind === "thread" &&
+        state.view.panes.includes(threadId) &&
+        threadRuntimeReopenEnabled
+      ) {
+        reopenStoredThread(threadId);
+      }
+    };
+    void reader.ready.then(finishRead, finishRead);
     return;
   }
   // Defer the heavy pane swap one frame so the urgent highlight commit paints

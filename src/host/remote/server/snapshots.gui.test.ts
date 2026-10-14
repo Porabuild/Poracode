@@ -50,11 +50,13 @@ vi.mock("@/host/db", () => ({
       ? { kind: "committed", persistSeq: 0, pendingEvents: 0, pendingBytes: 0 }
       : fence.outcome,
   ),
-  readRuntimeFence: vi.fn<(token: RuntimeFenceToken, read: () => unknown) => unknown>(
-    (_token, read) => read(),
-  ),
+  readRuntimeFenceAsync: vi.fn<
+    (token: RuntimeFenceToken, read: () => Promise<unknown>) => Promise<unknown>
+  >((_token, read) => read()),
   releaseRuntimeFence: vi.fn<() => void>(),
 }));
+
+vi.mock("@/host/db/runtimeSnapshotRead", async () => import("./snapshotReads.testFixtures"));
 
 const thread: Thread = {
   id: "snapshot-gui",

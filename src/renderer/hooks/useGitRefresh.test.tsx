@@ -1,5 +1,6 @@
+import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { threadSchema, type Project, type Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -226,5 +227,83 @@ describe("useGitRefresh branch PR prefetch triggers", () => {
     expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledTimes(1);
     expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledWith(otherProject);
     unmount();
+  });
+});
+
+describe("useGitRefresh background fetch capacity", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    bridgeMock.gitFetch.mockReset().mockResolvedValue(undefined);
+    bridgeMock.gitWatchProject.mockResolvedValue(undefined);
+    bridgeMock.gitUnwatchProject.mockResolvedValue(undefined);
+    bridgeMock.onSupervisorEvent.mockReturnValue(vi.fn());
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useAppStore.setState({
+      projects: Array.from({ length: 8 }, (_, index) => ({
+        ...localProject,
+        id: `project-${index}`,
+        location: { kind: "posix", path: `/repo-${index}` },
+      })),
+      threads: [],
+      view: { kind: "home" },
+    });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("limits long fetches and avoids duplicating waiting projects on later polls", async () => {
+    const firstFetch = Promise.withResolvers<void>();
+    bridgeMock.gitFetch.mockReturnValueOnce(firstFetch.promise);
+    const { unmount } = renderHook(() => useGitRefresh(true));
+    try {
+      await act(() => vi.advanceTimersByTimeAsync(5_000));
+      expect(bridgeMock.gitFetch).toHaveBeenCalledOnce();
+      await act(() => vi.advanceTimersByTimeAsync(10 * 60_000));
+      expect(bridgeMock.gitFetch).toHaveBeenCalledOnce();
+      firstFetch.reject(new Error("origin unreachable"));
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(bridgeMock.gitFetch).toHaveBeenCalledTimes(8);
+    } finally {
+      firstFetch.resolve();
+      unmount();
+      await act(() => vi.advanceTimersByTimeAsync(0));
+    }
+  });
+
+  it("shares capacity across effect replacements and skips obsolete queued projects", async () => {
+    const firstFetch = Promise.withResolvers<void>();
+    bridgeMock.gitFetch.mockReturnValueOnce(firstFetch.promise);
+    const { unmount } = renderHook(() => useGitRefresh(true));
+    try {
+      await act(() => vi.advanceTimersByTimeAsync(5_000));
+      expect(bridgeMock.gitFetch).toHaveBeenCalledOnce();
+      act(() => {
+        useAppStore.setState({ projects: [localProject] });
+      });
+      await act(() => vi.advanceTimersByTimeAsync(5_000));
+      expect(bridgeMock.gitFetch).toHaveBeenCalledOnce();
+      firstFetch.resolve();
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(bridgeMock.gitFetch).toHaveBeenCalledTimes(2);
+      expect(bridgeMock.gitFetch).toHaveBeenLastCalledWith({
+        projectLocation: localProject.location,
+        remote: "origin",
+        prune: true,
+      });
+      expect(gitRefreshMocks.refreshGitProject).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: "project-0" }),
+        "fetch",
+        "full",
+        expect.anything(),
+      );
+    } finally {
+      firstFetch.resolve();
+      unmount();
+      await act(() => vi.advanceTimersByTimeAsync(0));
+    }
   });
 });

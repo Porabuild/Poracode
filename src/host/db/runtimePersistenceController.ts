@@ -681,6 +681,10 @@ export class RuntimePersistenceController {
     return this.fenceControl.readFenced(token, read);
   }
 
+  readFencedAsync<T>(token: RuntimeFenceToken, read: () => T | Promise<T>): Promise<T> {
+    return this.fenceControl.readFencedAsync(token, read);
+  }
+
   releaseFence(token: RuntimeFenceToken): void {
     this.fenceControl.releaseFence(token);
   }
