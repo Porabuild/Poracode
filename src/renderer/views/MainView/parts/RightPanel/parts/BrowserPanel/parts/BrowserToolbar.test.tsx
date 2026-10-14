@@ -44,6 +44,25 @@ describe("BrowserToolbar", () => {
     } as never);
   });
 
+  it("shows the current page URL when the active tab predates the toolbar", () => {
+    render(
+      <BrowserToolbar
+        onPick={() => {}}
+        pickerActive={false}
+        pickerTargets={[]}
+        hasPendingPick={false}
+        pendingPickAnchor={null}
+        onChoosePickTarget={() => {}}
+        onCancelPendingPick={() => {}}
+        onMenuPreviewChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByPlaceholderText("Search or enter address")).toHaveValue(
+      "https://example.com",
+    );
+  });
+
   it("keeps nav and address usable on compact without desktop-only chrome", () => {
     layout.compact = true;
 
