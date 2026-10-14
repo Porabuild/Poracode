@@ -3,9 +3,8 @@
  * (`Android37CapableHistoryJourneyInstrumentedTest`).
  *
  * The journey needs a disposable GUI thread that already holds a retained,
- * committed canonical prefix AND genuine durable crash evidence (an armed
- * boot epoch plus a surviving thread touch), so the next production boot
- * resolves a real `suspect` / `unclean-epoch` history gap for it. Both halves
+ * committed canonical prefix AND a recorded oversized-event refusal, so the
+ * next production boot resolves an exact history gap for it. Both halves
  * are produced through the same production DB APIs the host uses:
  * `dbApplyThreadRuntimeEvents` (canonical admission, which arms the epoch and
  * touches the thread before accepting) plus `dbFlushThreadRuntimeWrites`
@@ -255,8 +254,7 @@ export function capableHistoryPrefixEvents(params: CapableHistorySeedParams): Ru
 
 /**
  * The event accepted in the same boot immediately before the SIGKILL: it makes
- * the crash lose real accepted work, which is exactly what the surviving touch
- * marks suspect on the next boot.
+ * the crash lose real accepted work alongside the recorded refusal.
  */
 export function capableHistoryLostEvent(params: CapableHistorySeedParams): RuntimeEvent {
   return {
@@ -299,11 +297,11 @@ export function checkCapableHistoryVerifyResult(
   if (result.threadId !== params.threadId) {
     problems.push(`verify reported thread ${result.threadId}, expected ${params.threadId}`);
   }
-  if (result.contaminationReason !== "unclean-epoch") {
-    problems.push(`contamination is ${String(result.contaminationReason)}, expected unclean-epoch`);
+  if (result.contaminationReason !== "oversize") {
+    problems.push(`contamination is ${String(result.contaminationReason)}, expected oversize`);
   }
-  if (!result.gapRowAbsent) {
-    problems.push("an exact gap row exists; the crash was meant to leave touch-only evidence");
+  if (result.gapRowAbsent) {
+    problems.push("the recorded oversized-event gap is absent");
   }
   if (!result.noticeAbsent) {
     problems.push("a durable notice already exists before the device acknowledgement");
@@ -312,13 +310,16 @@ export function checkCapableHistoryVerifyResult(
     problems.push(`descriptor read failed: ${result.descriptorError}`);
   }
   if (result.descriptor === null) {
-    problems.push("no suspect descriptor resolved from the surviving touch");
+    problems.push("no exact descriptor resolved from the recorded refusal");
   } else {
-    if (result.descriptor.source !== "suspect") {
-      problems.push(`descriptor source is ${result.descriptor.source}, expected suspect`);
+    if (result.descriptor.source !== "exact") {
+      problems.push(`descriptor source is ${result.descriptor.source}, expected exact`);
     }
-    if (result.descriptor.reason !== "unclean-epoch") {
-      problems.push(`descriptor reason is ${result.descriptor.reason}, expected unclean-epoch`);
+    if (result.descriptor.reason !== "oversize") {
+      problems.push(`descriptor reason is ${result.descriptor.reason}, expected oversize`);
+    }
+    if (result.descriptor.refusedEvents < 1 || result.descriptor.refusedBytes < 9 * 1024 * 1024) {
+      problems.push("the descriptor does not retain the oversized-event refusal counts");
     }
   }
   for (const item of result.items) {

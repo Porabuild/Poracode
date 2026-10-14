@@ -9,10 +9,10 @@
  *     Opens the disposable host DB through the production connection, creates
  *     the fixture project and GUI thread, commits the retained canonical
  *     prefix through `dbApplyThreadRuntimeEvents` + `dbFlushThreadRuntimeWrites`,
- *     accepts one further event without flushing it, prints
+ *     accepts one further event without flushing it, records an oversized
+ *     event refusal through production admission, prints
  *     `CAPABLE_HISTORY_SEED_ARMED`, and stays alive until the parent SIGKILLs
- *     it. The kill loses the unflushed event but leaves the armed epoch and the
- *     thread touch: a genuine durable gap.
+ *     it. The kill loses the unflushed event but preserves the recorded gap.
  *
  *   verify <dbPath> <paramsJson>
  *     Read-only reopen: never arms and never writes, so closing it cannot
@@ -80,6 +80,18 @@ async function seedAndWait(dbPath: string, params: CapableHistorySeedParams): Pr
   const lost = dbApplyThreadRuntimeEvents(params.threadId, [capableHistoryLostEvent(params)]);
   if (lost.kind !== "accepted") {
     throw new Error(`lost-event admission was refused (${lost.kind}: ${String(lost.reason)}).`);
+  }
+  const refused = dbApplyThreadRuntimeEvents(params.threadId, [
+    {
+      type: "content.delta",
+      threadId: params.threadId,
+      itemId: params.lostItemId,
+      stream: "assistant_text",
+      delta: "x".repeat(9 * 1024 * 1024),
+    },
+  ]);
+  if (refused.kind !== "refused" || refused.reason !== "oversize") {
+    throw new Error("The oversized event did not record the required persistence refusal.");
   }
   console.log(
     `${CAPABLE_HISTORY_SEED_ARMED_MARKER} ${JSON.stringify({
