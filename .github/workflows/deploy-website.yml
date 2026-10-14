@@ -27,6 +27,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: mobile-web
     env:
+      # pnpm 12 ignores the legacy global-store install override. Keep every
+      # install and exec under Vercel on a project-local store so the traced
+      # server files are included in the prebuilt deployment.
+      PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_LANDING_PROJECT_ID }}
     steps:

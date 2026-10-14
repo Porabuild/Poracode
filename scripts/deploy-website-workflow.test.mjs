@@ -7,6 +7,8 @@ import { parse } from "yaml";
 import { GET as androidLinks } from "../website/src/app/.well-known/assetlinks.json/route.ts";
 import { GET as appleLinks } from "../website/src/app/.well-known/apple-app-site-association/route.ts";
 
+const rootPackage = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+
 const workflow = parse(
   await readFile(new URL("../.github/workflows/deploy-website.yml", import.meta.url), "utf8"),
 );
@@ -19,6 +21,41 @@ const verification = workflow.jobs.web.steps.find(
 const teamId = "ABCDE12345";
 const fingerprint = Array(32).fill("AB").join(":");
 const otherFingerprint = Array(32).fill("CD").join(":");
+
+void test("website build overrides the workspace global store through pnpm's environment", async () => {
+  const scratchRoot = new URL("../tmp/", import.meta.url);
+  await mkdir(scratchRoot, { recursive: true });
+  const fixture = await mkdtemp(new URL("website-pnpm-config-", scratchRoot));
+  try {
+    await writeFile(
+      resolve(fixture, "package.json"),
+      JSON.stringify({ private: true, packageManager: rootPackage.packageManager }),
+    );
+    await writeFile(resolve(fixture, "pnpm-workspace.yaml"), "enableGlobalVirtualStore: true\n");
+    const env = { ...process.env };
+    delete env.PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE;
+    delete env.pnpm_config_enable_global_virtual_store;
+    delete env.PNPM_CONFIG_VIRTUAL_STORE_TYPE;
+    delete env.pnpm_config_virtual_store_type;
+    const configured = spawnSync("pnpm", ["config", "get", "enableGlobalVirtualStore"], {
+      cwd: fixture,
+      env,
+      encoding: "utf8",
+    });
+    assert.equal(configured.status, 0, configured.stderr);
+    assert.equal(configured.stdout.trim(), "true");
+
+    const build = spawnSync("pnpm", ["config", "get", "enableGlobalVirtualStore"], {
+      cwd: fixture,
+      env: { ...env, ...workflow.jobs.web.env },
+      encoding: "utf8",
+    });
+    assert.equal(build.status, 0, build.stderr);
+    assert.equal(build.stdout.trim(), "false");
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
 
 async function routeDocuments(fingerprints) {
   const settings = {
