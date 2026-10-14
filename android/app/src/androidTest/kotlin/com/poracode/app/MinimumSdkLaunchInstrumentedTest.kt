@@ -25,6 +25,13 @@ class MinimumSdkLaunchInstrumentedTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
         ActivityScenario.launch(MainActivity::class.java).use {
+            // RESUMED does not wait for the session's credential bootstrap on IO.
+            compose.waitUntil(30_000) {
+                runCatching {
+                    compose.onNodeWithText(context.getString(R.string.pair_scan_card_title))
+                        .assertIsDisplayed()
+                }.isSuccess
+            }
             compose.onNodeWithText(context.getString(R.string.pair_scan_card_title))
                 .assertIsDisplayed()
         }
