@@ -268,15 +268,15 @@ describe("capable-history seed specification", () => {
     const params = defaultCapableHistorySeedParams();
     return {
       threadId: params.threadId,
-      contaminationReason: "unclean-epoch",
-      gapRowAbsent: true,
+      contaminationReason: "oversize",
+      gapRowAbsent: false,
       noticeAbsent: true,
       descriptor: {
-        token: "gap2:s1",
-        source: "suspect",
-        reason: "unclean-epoch",
-        refusedEvents: 0,
-        refusedBytes: 0,
+        token: "gap2:e11111111-1111-4111-8111-111111111111",
+        source: "exact",
+        reason: "oversize",
+        refusedEvents: 1,
+        refusedBytes: 9 * 1024 * 1024,
       },
       descriptorError: null,
       liveThreadStatus: "inactive",
@@ -299,7 +299,7 @@ describe("capable-history seed specification", () => {
     };
   }
 
-  it("accepts crash evidence with a retained prefix and no premature notice", () => {
+  it("accepts a recorded refusal with a retained prefix and no premature notice", () => {
     expect(
       checkCapableHistoryVerifyResult(goodVerify(), defaultCapableHistorySeedParams()),
     ).toEqual([]);
@@ -337,7 +337,7 @@ describe("capable-history seed specification", () => {
 });
 
 describe.skipIf(!sqliteAvailable)("capable-history crash seed fixture", () => {
-  it("forks the seeder, SIGKILLs it, and reopens to a suspect gap with the committed prefix", async () => {
+  it("forks the seeder, SIGKILLs it, and reopens to an exact gap with the committed prefix", async () => {
     if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
     const repoRoot = findRepoRoot();
     const dir = tempDir();
@@ -360,7 +360,7 @@ describe.skipIf(!sqliteAvailable)("capable-history crash seed fixture", () => {
       timeoutMs: 25_000,
     });
     expect(checkCapableHistoryVerifyResult(verified, params)).toEqual([]);
-    expect(verified.descriptor?.source).toBe("suspect");
+    expect(verified.descriptor?.source).toBe("exact");
     expect(verified.items.map((item) => item.itemId)).toEqual([
       params.userItemId,
       params.assistantItemId,
