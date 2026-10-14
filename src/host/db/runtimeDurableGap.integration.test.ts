@@ -128,7 +128,7 @@ describe.skipIf(!sqliteAvailable)(
       expect(touchEpochs(A)).toEqual([1]);
     });
 
-    it("a GET-only boot on a crashed armed database resolves suspect with zero writes", async () => {
+    it("a GET-only boot reads retained history after an unclean shutdown with zero writes", async () => {
       // Boot 1 arms and touches A, then "crashes" without the close hook.
       const crashBoot = new RuntimeDurableGapStore();
       crashBoot.bind(getSqlite());
@@ -136,15 +136,13 @@ describe.skipIf(!sqliteAvailable)(
       crashBoot.touch(A);
       closeDatabase();
 
-      // Boot 2 only reads: the virtual boot epoch marks the surviving touch.
+      // Boot 2 only reads: the surviving touch does not block retained history.
       initDatabase(dbPath);
       const epochBefore = epochRow();
       const touchesBefore = touchEpochs(A);
       const before = totalChanges();
-      expect(getRuntimeContamination(A)?.reason).toBe("unclean-epoch");
-      await expect(dbGetThreadRuntimeItems(A)).rejects.toBeInstanceOf(
-        RuntimePersistenceContaminatedError,
-      );
+      expect(getRuntimeContamination(A)).toBeNull();
+      await expect(dbGetThreadRuntimeItems(A)).resolves.toEqual([]);
       expect(epochRow()).toEqual(epochBefore);
       expect(touchEpochs(A)).toEqual(touchesBefore);
       expect(totalChanges()).toBe(before);

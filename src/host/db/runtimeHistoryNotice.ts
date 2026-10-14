@@ -3,7 +3,6 @@ import {
   isRuntimeHistoryEpisodeId,
   parseRuntimeHistoryNoticeToken,
   runtimeHistoryNoticeExactToken,
-  runtimeHistoryNoticeSuspectToken,
   runtimeHistoryNoticeTokensEqual,
   type RuntimeHistoryGapAcknowledgeResult,
   type RuntimeHistoryGapDescriptor,
@@ -31,13 +30,13 @@ import {
  * `runtimeDurableGap.ts`; this module never arms and never touches. It reads
  * the current episode through the injected `resolve` port (the same ordering
  * the admission path uses) and, for the acknowledgement precondition, compares
- * the opaque exact/suspect token before any write.
+ * the opaque exact token before any write. Legacy suspect notices remain
+ * readable when they recorded refused events.
  *
  * Acknowledgement transaction (one synchronous SQL transaction):
  * - exact token: `DELETE FROM thread_runtime_gaps WHERE thread_id AND
  *   episode_id` — exactly one row, else the whole transaction rolls back;
- * - suspect token: asserts no exact gap row appeared after the precondition;
- * - both: `DELETE FROM thread_runtime_epoch_touches WHERE thread_id AND epoch
+ * - `DELETE FROM thread_runtime_epoch_touches WHERE thread_id AND epoch
  *   != <current boot epoch>` — the current boot's touch is preserved so a live
  *   producer stays covered;
  * - upsert the one-row-per-thread notice, accumulating counters (refused
@@ -96,7 +95,6 @@ interface NoticeRow {
 const SELECT_NOTICE_ROW =
   "SELECT acknowledged_token, source, reason, refused_events, refused_bytes, acknowledged_count, first_acknowledged_at, last_acknowledged_at FROM thread_runtime_gap_notices WHERE thread_id = ?";
 const SELECT_NOTICE_EXISTS = "SELECT 1 AS ok FROM thread_runtime_gap_notices WHERE thread_id = ?";
-const SELECT_GAP_EXISTS = "SELECT 1 AS ok FROM thread_runtime_gaps WHERE thread_id = ?";
 const DELETE_GAP_BY_EPISODE =
   "DELETE FROM thread_runtime_gaps WHERE thread_id = ? AND episode_id = ?";
 const DELETE_FOREIGN_TOUCHES =
@@ -146,31 +144,20 @@ export class RuntimeHistoryNoticeStore {
       );
     }
     if (resolution.kind === "clean") return null;
-    if (resolution.kind === "exact") {
-      if (!isRuntimeHistoryEpisodeId(resolution.episodeId)) {
-        throw new RuntimePersistenceGapIdentityError(
-          threadId,
-          "the persisted gap row has no valid episode UUID",
-        );
-      }
-      return {
+    if (!isRuntimeHistoryEpisodeId(resolution.episodeId)) {
+      throw new RuntimePersistenceGapIdentityError(
         threadId,
-        token: runtimeHistoryNoticeExactToken(resolution.episodeId),
-        source: "exact",
-        reason: resolution.reason,
-        refusedEvents: resolution.refusedEvents,
-        refusedBytes: resolution.refusedBytes,
-        createdAt: resolution.createdAt,
-      };
+        "the persisted gap row has no valid episode UUID",
+      );
     }
     return {
       threadId,
-      token: runtimeHistoryNoticeSuspectToken(resolution.epoch),
-      source: "suspect",
-      reason: "unclean-epoch",
-      refusedEvents: 0,
-      refusedBytes: 0,
-      createdAt: resolution.touchedAt,
+      token: runtimeHistoryNoticeExactToken(resolution.episodeId),
+      source: "exact",
+      reason: resolution.reason,
+      refusedEvents: resolution.refusedEvents,
+      refusedBytes: resolution.refusedBytes,
+      createdAt: resolution.createdAt,
     };
   }
 
@@ -253,15 +240,11 @@ export class RuntimeHistoryNoticeStore {
     try {
       notice = withScopedBusyTimeout(this.sqlite, () =>
         this.sqlite.transaction(() => {
-          if (descriptor.source === "exact") {
-            if (requested.kind !== "exact") throw new EpisodeChangedRollback();
-            const deleted = this.sqlite
-              .prepare(DELETE_GAP_BY_EPISODE)
-              .run(threadId, requested.episodeId).changes;
-            if (deleted !== 1) throw new EpisodeChangedRollback();
-          } else if (this.sqlite.prepare(SELECT_GAP_EXISTS).get(threadId) !== undefined) {
-            throw new EpisodeChangedRollback();
-          }
+          if (requested.kind !== "exact") throw new EpisodeChangedRollback();
+          const deleted = this.sqlite
+            .prepare(DELETE_GAP_BY_EPISODE)
+            .run(threadId, requested.episodeId).changes;
+          if (deleted !== 1) throw new EpisodeChangedRollback();
           this.sqlite.prepare(DELETE_FOREIGN_TOUCHES).run(threadId, currentEpoch);
           this.sqlite
             .prepare(UPSERT_NOTICE)

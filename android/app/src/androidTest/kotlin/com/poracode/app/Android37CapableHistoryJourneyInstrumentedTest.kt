@@ -148,15 +148,15 @@ class Android37CapableHistoryJourneyInstrumentedTest {
         captureCompose("capable-history-paired.png")
 
         // 2. Open the seeded GUI thread: the fenced declared read fails and the
-        // truthful suspect descriptor becomes the visible recovery action.
+        // recorded refusal descriptor becomes the visible recovery action.
         waitForText(THREAD_TITLE, 60_000)
         compose.onNodeWithText(THREAD_TITLE).performClick()
         compose.waitUntil(60_000) {
             application.richChat.chat.state.value.historyNotice.descriptor != null
         }
         val descriptor = application.richChat.chat.state.value.historyNotice.descriptor!!
-        assertEquals("suspect", descriptor.source)
-        assertEquals("unclean-epoch", descriptor.reason)
+        assertEquals("exact", descriptor.source)
+        assertEquals("oversize", descriptor.reason)
         waitForText(context.getString(R.string.rich_chat_history_notice_title), 30_000)
         waitForText(context.getString(R.string.rich_chat_history_notice_ack), 30_000)
         assertTrue(
@@ -184,8 +184,8 @@ class Android37CapableHistoryJourneyInstrumentedTest {
         }
         val notice = application.richChat.chat.state.value.historyNotice.notice!!
         assertEquals("history-incomplete", notice.kind)
-        assertEquals("suspect", notice.source)
-        assertEquals("unclean-epoch", notice.reason)
+        assertEquals("exact", notice.source)
+        assertEquals("oversize", notice.reason)
         assertEquals(1L, notice.acknowledgedCount)
 
         // 4. Retained prefix plus persistent notice, proven on the RENDERED

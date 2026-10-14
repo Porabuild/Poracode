@@ -930,6 +930,17 @@ export const DATABASE_MIGRATIONS = [
     rollback: "forward-only",
     migrate: migrateScheduleAutomation,
   },
+  {
+    version: 60,
+    name: "remove unconfirmed runtime history notices",
+    // Only restart suspicion is removed; committed history and recorded losses stay valid.
+    rollback: "forward-only",
+    migrate: (sqlite) => {
+      sqlite.exec(`DELETE FROM thread_runtime_gap_notices
+        WHERE source = 'suspect' AND reason = 'unclean-epoch'
+          AND refused_events = 0 AND refused_bytes = 0`);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;

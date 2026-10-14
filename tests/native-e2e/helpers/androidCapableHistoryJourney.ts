@@ -430,7 +430,7 @@ export async function runCapableHistoryJourney(
     secrets.push(runnerToken);
 
     // Pre-ack host truth: a capable host with a real durable gap refuses the
-    // fenced declared read and reports the suspect descriptor.
+    // fenced declared read and reports the recorded refusal descriptor.
     const preGap = await readRuntimeGap({
       httpBaseUrl: launch.httpBaseUrl,
       accessToken: runnerToken,
@@ -438,8 +438,8 @@ export async function runCapableHistoryJourney(
     });
     if (
       preGap.status !== 200 ||
-      preGap.body?.gap?.source !== "suspect" ||
-      preGap.body.gap.reason !== "unclean-epoch" ||
+      preGap.body?.gap?.source !== "exact" ||
+      preGap.body.gap.reason !== "oversize" ||
       preGap.body.notice !== null
     ) {
       throw capableHistoryJourneyError("precondition-gap-mismatch", JSON.stringify(preGap.body));

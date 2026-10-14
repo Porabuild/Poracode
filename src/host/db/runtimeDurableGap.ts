@@ -15,10 +15,8 @@ import {
  * - `arm()` commits the boot's root epoch with `armed = 1` before any canonical
  *   event can be admitted; `touch(T)` commits one row per thread per boot
  *   before the first accepted event of that thread in that boot.
- * - `resolve(T)` is bounded and read-only: one primary-key gap lookup, then one
- *   primary-key touch lookup. It never writes and never arms. A connection that
- *   has not armed uses a virtual boot epoch so a crashed boot's evidence is
- *   still visible.
+ * - `resolve(T)` is bounded and read-only: one primary-key gap lookup. It never
+ *   writes or arms, and ignores restart markers without a recorded refusal.
  * - `persistGap` writes exact refusal evidence and throws on storage failure;
  *   the connection owner turns that into a bounded pending obligation. The
  *   first insert of a gap row allocates a persisted random UUID `episode_id`;
@@ -27,9 +25,8 @@ import {
  * - `disarmAfterCleanClose` deletes only this boot's touches and clears the
  *   armed flag in one transaction. It is a no-op when this boot never armed:
  *   a boot that could not arm must not erase the prior unclean state.
- * - A surviving touch whose epoch is not the current boot is unrepaired
- *   evidence: touches are deleted only by their own boot's clean close or an
- *   authoritative rebase. An exact gap row wins over any touch, in any epoch.
+ * - A surviving touch alone does not prove lost history. Only an exact gap
+ *   row blocks transcript reads or admission after a restart.
  */
 
 const EPOCH_ROW_ID = 1;
@@ -39,8 +36,6 @@ export type RuntimeDurableGapDatabase = InstanceType<typeof Database>;
 const SELECT_EPOCH_ROW = "SELECT epoch, armed FROM runtime_persistence_epoch WHERE id = ?";
 const SELECT_GAP_ROW =
   "SELECT reason, refused_events, refused_bytes, epoch, created_at, episode_id FROM thread_runtime_gaps WHERE thread_id = ?";
-const SELECT_FOREIGN_TOUCH =
-  "SELECT epoch, touched_at FROM thread_runtime_epoch_touches WHERE thread_id = ? AND (? IS NULL OR epoch != ?) ORDER BY epoch LIMIT 1";
 const SELECT_THREAD_ROW = "SELECT 1 AS ok FROM threads WHERE id = ?";
 
 /** Derived resolution cache bound; entries are recomputable, never evidence. */
@@ -94,7 +89,6 @@ export type RuntimeDurableGapResolution =
       episodeId: string | null;
       createdAt: number;
     }
-  | { kind: "suspect"; epoch: number; touchedAt: number }
   | { kind: "error"; error: unknown };
 
 /**
@@ -163,11 +157,8 @@ export class RuntimeDurableGapStore {
       const epoch = row?.epoch ?? 0;
       const priorArmed = (row?.armed ?? 0) === 1;
       this.boot = { epoch, priorArmed, priorEpoch: epoch };
-      // A persisted armed=1 boot did not cleanly close, so its touches (epoch
-      // E) are suspect for a connection that never arms: the virtual current
-      // epoch is E + 1. A cleanly closed row (armed=0) has no touches of its
-      // own, so the virtual epoch is E and only older unrepaired touches are
-      // suspect. No writes are reachable from here.
+      // Attribute a gap recorded before this connection arms to its next boot
+      // epoch when the prior boot did not cleanly close. Binding never writes.
       this.virtualEpoch = priorArmed ? epoch + 1 : epoch;
       return { boot: this.boot, armed: false };
     } catch (error) {
@@ -263,9 +254,8 @@ export class RuntimeDurableGapStore {
   }
 
   /**
-   * Bounded, read-only resolution for one thread. Exact gap evidence wins over
-   * touches in any epoch; otherwise any touch whose epoch is not the current
-   * boot (or any touch at all when the boot could not arm) is suspect.
+   * Bounded, read-only resolution for one thread. Only recorded refusal
+   * evidence blocks history; surviving touches alone do not prove a gap.
    */
   resolve(threadId: string): RuntimeDurableGapResolution {
     const cached = this.resolutionCache.get(threadId);
@@ -305,15 +295,7 @@ export class RuntimeDurableGapStore {
           createdAt: gap.created_at,
         };
       } else {
-        const currentEpoch = this.armed ? this.currentEpoch : this.virtualEpoch;
-        const touch = sqlite
-          .prepare(SELECT_FOREIGN_TOUCH)
-          .get(threadId, currentEpoch, currentEpoch) as
-          | { epoch: number; touched_at: number }
-          | undefined;
-        resolution = touch
-          ? { kind: "suspect", epoch: touch.epoch, touchedAt: touch.touched_at }
-          : { kind: "clean" };
+        resolution = { kind: "clean" };
       }
       this.cacheResolution(threadId, resolution);
       return resolution;

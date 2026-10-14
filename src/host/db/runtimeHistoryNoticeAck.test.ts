@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { RuntimeEvent } from "@/shared/contracts";
-import { parseRuntimeHistoryNoticeToken } from "@/shared/runtimeHistoryNotice";
 import type { RuntimeHistoryGapAcknowledgeResult } from "@/shared/runtimeHistoryNotice";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
   dbFlushThreadRuntimeWrites,
+  dbGetThreadRuntimeItems,
   dbTruncateThreadRuntimeAfter,
 } from "./runtimeItems";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "./runtimeItems.testFixtures";
@@ -307,33 +307,22 @@ describe.skipIf(!sqliteAvailable)(
       expect(runtimePersistenceController.lookupRuntimeNotice(A)).toEqual({ kind: "notice" });
     });
 
-    it("a suspect episode is acknowledgeable with an opaque epoch token", async () => {
-      // This boot touches B (epoch 1); an older crashed boot's surviving touch
-      // (epoch 0) is the suspect episode. The current touch must survive the ack.
+    it("a foreign touch needs no acknowledgement and a legacy suspect token is stale", async () => {
       runtimePersistenceController.armThreadForLaunch(B);
       getSqlite()
         .prepare(
           "INSERT INTO thread_runtime_epoch_touches (thread_id, epoch, touched_at) VALUES (?, 0, 1)",
         )
         .run(B);
-      const descriptor = runtimePersistenceController.getThreadRuntimeGapDescriptor(B);
-      expect(descriptor).toMatchObject({ source: "suspect", reason: "unclean-epoch" });
-      expect(parseRuntimeHistoryNoticeToken(descriptor!.token)).toMatchObject({ kind: "suspect" });
-      const applied = await runtimePersistenceController.acknowledgeThreadRuntimeGap(
-        B,
-        descriptor!.token,
-      );
-      expect(applied).toMatchObject({ outcome: "applied" });
       expect(runtimePersistenceController.getThreadRuntimeGapDescriptor(B)).toBeNull();
-      expect(noticeRow(B)).toMatchObject({
-        source: "suspect",
-        acknowledged_token: descriptor!.token,
-      });
-      expect(
-        getSqlite()
-          .prepare("SELECT epoch FROM thread_runtime_epoch_touches WHERE thread_id = ?")
-          .all(B),
-      ).toEqual([{ epoch: 1 }]);
+      const before = itemDigest(B);
+      const result = await runtimePersistenceController.acknowledgeThreadRuntimeGap(B, "gap2:s0");
+      expect(result).toEqual({ outcome: "stale", current: null });
+      expect(noticeRow(B)).toBeUndefined();
+      expect(itemDigest(B)).toBe(before);
+      expect(dbApplyThreadRuntimeEvents(B, [started(B, "after-restart")]).kind).toBe("accepted");
+      await dbFlushThreadRuntimeWrites(B);
+      await expect(dbGetThreadRuntimeItems(B)).resolves.toMatchObject([{ id: "after-restart" }]);
     });
   },
 );

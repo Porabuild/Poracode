@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
+import { existsSync } from "node:fs";
 import type { AgentCapability } from "@/shared/contracts";
 
 const execFileAsyncMock = vi.hoisted(() =>
@@ -28,6 +29,11 @@ vi.mock("node:child_process", async () => {
       [promisify.custom]: execFileAsyncMock,
     }),
   };
+});
+
+vi.mock("node:fs", async () => {
+  const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+  return { ...actual, existsSync: vi.fn<typeof actual.existsSync>(actual.existsSync) };
 });
 
 import {
@@ -122,6 +128,31 @@ describe("detectAgentInstall version probe", () => {
       ["--version"],
       expect.anything(),
     );
+  });
+
+  it("detects an already-resolved Windows executable without a second PATH lookup", async () => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    const binary = "C:\\tools\\fixture agent.exe";
+    vi.mocked(existsSync).mockReturnValueOnce(true);
+    execFileAsyncMock.mockResolvedValue({ stdout: "v2.0.28\n" });
+
+    const status = await detectAgentInstall({ envKind: "windows" }, { ...spec, binary });
+    expect(status).toMatchObject({ installed: true, executablePath: binary, version: "2.0.28" });
+    expect(execFileAsyncMock).toHaveBeenCalledExactlyOnceWith(
+      binary,
+      ["--version"],
+      expect.anything(),
+    );
+    expect(
+      spawnSyncMock.mock.calls.filter(([command]) => String(command).endsWith("where.exe")),
+    ).toHaveLength(0);
+
+    vi.mocked(existsSync).mockReturnValueOnce(false);
+    execFileAsyncMock.mockClear();
+    const missing = await detectAgentInstall({ envKind: "windows" }, { ...spec, binary });
+    expect(missing.installed).toBe(false);
+    expect(missing.executablePath).toBeUndefined();
+    expect(execFileAsyncMock).not.toHaveBeenCalled();
   });
 
   it("extracts the full semver from a v-prefixed version string", async () => {
