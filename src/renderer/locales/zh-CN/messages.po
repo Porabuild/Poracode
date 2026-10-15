@@ -1892,6 +1892,10 @@ msgstr "已通过身份验证"
 msgid "Authentication"
 msgstr "认证"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Authentication is unavailable or the token could not be renewed."
+msgstr "身份验证不可用或令牌无法续期。"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
@@ -14599,6 +14603,10 @@ msgstr "显示语音输入按钮"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "正在显示 {0, plural, other {# 个技能}}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Showing last successful usage from {lastUpdated}."
+msgstr "正在显示最后成功获取的用量数据，时间为 {lastUpdated}。"
+
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
 msgstr "显示前 {CATEGORY_RESULT_LIMIT} 个结果。请缩小搜索范围。"
@@ -17903,6 +17911,10 @@ msgstr "用量已过期。请刷新更新。"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
 msgstr "不支持使用"
+
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Usage refresh failed"
+msgstr "用量刷新失败"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx

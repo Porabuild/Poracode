@@ -49,4 +49,30 @@ describe("refreshAndMergeProviderUsage", () => {
 
     await expect(refreshAndMergeProviderUsage("codex")).resolves.toBeUndefined();
   });
+
+  it("updates failure details when the last successful reading is unchanged", () => {
+    const snapshot: UsageSnapshot = {
+      ...okSnapshot("fixture"),
+      status: "error",
+      error: "HTTP 502",
+    };
+    useProviderUsageStore.getState().mergeSnapshot(snapshot);
+
+    useProviderUsageStore.getState().mergeSnapshot({ ...snapshot, error: "HTTP 503" });
+
+    expect(useProviderUsageStore.getState().snapshots.fixture?.error).toBe("HTTP 503");
+  });
+
+  it("updates retry deadlines when receiving the same retained usage in a batch", () => {
+    const snapshot: UsageSnapshot = {
+      ...okSnapshot("fixture"),
+      status: "rate-limited",
+      rateLimitedUntil: 10,
+    };
+    useProviderUsageStore.getState().setSnapshots([snapshot]);
+
+    useProviderUsageStore.getState().setSnapshots([{ ...snapshot, rateLimitedUntil: 20 }]);
+
+    expect(useProviderUsageStore.getState().snapshots.fixture?.rateLimitedUntil).toBe(20);
+  });
 });

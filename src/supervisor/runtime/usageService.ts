@@ -41,6 +41,7 @@ import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 // v10 rejects snapshots that could survive account retirement during enrichment
 // and refreshes explicit zero/balance-only usage omitted by earlier collectors.
 // v11 makes Muse browser sessions authoritative and scopes quota to the selected session/team.
+// Existing v11 readings remain valid when refresh failures retain their status and diagnostics.
 const USAGE_CACHE_VERSION = 11;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
@@ -399,25 +400,16 @@ export class UsageService {
     }
     const prev = this.snapshots.get(snap.providerId);
     if (!prev || !hasDisplayableUsage(prev)) return snap;
-    // Rate-limited: keep showing the last good windows, but adopt the new fetch
-    // time and rate-limit deadline so the poller still honors the backoff —
-    // otherwise the preserved snapshot's old `fetchedAt` would read as "due" and
-    // immediately re-hit the 429.
+    const preserved = { ...prev, status: snap.status };
+    delete preserved.error;
+    delete preserved.rateLimitedUntil;
+    if (snap.error) preserved.error = snap.error;
+    // Keep the reading's timestamp while carrying the failed attempt's backoff.
     if (snap.status === "rate-limited") {
-      return {
-        ...prev,
-        status: snap.status,
-        fetchedAt: snap.fetchedAt,
-        ...(snap.rateLimitedUntil !== undefined ? { rateLimitedUntil: snap.rateLimitedUntil } : {}),
-      };
+      preserved.rateLimitedUntil =
+        snap.rateLimitedUntil ?? snap.fetchedAt + DEFAULT_RATE_LIMIT_COOLDOWN_MS;
     }
-    // Declared auth misses after a prior good read are treated like transient
-    // stale-while-revalidate failures. Keep the old fetchedAt so the footer
-    // still reflects when the displayed numbers were actually obtained and the
-    // next refresh cycle keeps trying to recover.
-    if (preserveAuthMiss) return prev;
-    // Plain transient error: keep the prior snapshot unchanged.
-    return prev;
+    return preserved;
   }
 
   /** Collect a supervisor-local (SQLite/process-backed) provider; never throws into the refresh. */

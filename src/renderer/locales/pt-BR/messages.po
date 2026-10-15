@@ -1892,6 +1892,10 @@ msgstr "Autenticado"
 msgid "Authentication"
 msgstr "Autenticação"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Authentication is unavailable or the token could not be renewed."
+msgstr "A autenticação está indisponível ou não foi possível renovar o token."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
@@ -14600,6 +14604,10 @@ msgstr "Mostrar botão de entrada de voz"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Exibindo {0, plural, one {# skill} other {# skills}}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Showing last successful usage from {lastUpdated}."
+msgstr "Exibindo os últimos dados de uso obtidos em {lastUpdated}."
+
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
 msgstr "Exibindo os primeiros {CATEGORY_RESULT_LIMIT} resultados. Refine sua busca."
@@ -17904,6 +17912,10 @@ msgstr "O uso está desatualizado. Atualize os dados."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
 msgstr "Uso não suportado"
+
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Usage refresh failed"
+msgstr "Falha ao atualizar o uso"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx

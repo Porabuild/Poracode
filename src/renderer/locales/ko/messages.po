@@ -1892,6 +1892,10 @@ msgstr "인증됨"
 msgid "Authentication"
 msgstr "인증"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Authentication is unavailable or the token could not be renewed."
+msgstr "인증을 사용할 수 없거나 토큰을 갱신하지 못했습니다."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
@@ -14600,6 +14604,10 @@ msgstr "음성 입력 버튼 표시"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "{0, plural, other {#개 스킬 표시 중}}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Showing last successful usage from {lastUpdated}."
+msgstr "마지막으로 가져온 사용량({lastUpdated})을 표시합니다."
+
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
 msgstr "처음 {CATEGORY_RESULT_LIMIT}개의 결과를 표시합니다. 검색 범위를 좁혀 보세요."
@@ -17904,6 +17912,10 @@ msgstr "사용량이 오래되었습니다. 새로고침하세요."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
 msgstr "사용량 지원 안 됨"
+
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Usage refresh failed"
+msgstr "사용량 새로 고침 실패"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx

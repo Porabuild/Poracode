@@ -1892,6 +1892,10 @@ msgstr "Аутентифицировано"
 msgid "Authentication"
 msgstr "Аутентификация"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Authentication is unavailable or the token could not be renewed."
+msgstr "Аутентификация недоступна или не удалось обновить токен."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
@@ -14600,6 +14604,10 @@ msgstr "Показывать кнопку голосового ввода"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Показано {0, plural, one {# навык} few {# навыка} many {# навыков} other {# навыка}}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Showing last successful usage from {lastUpdated}."
+msgstr "Показаны последние успешно полученные данные об использовании от {lastUpdated}."
+
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
 msgstr "Показаны первые {CATEGORY_RESULT_LIMIT} результатов. Уточните запрос."
@@ -17904,6 +17912,10 @@ msgstr "Данные использования устарели. Обновит
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
 msgstr "Использование не поддерживается"
+
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Usage refresh failed"
+msgstr "Не удалось обновить данные об использовании"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx

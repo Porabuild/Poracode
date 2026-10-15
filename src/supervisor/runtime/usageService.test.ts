@@ -828,6 +828,7 @@ describe("UsageService", () => {
     const snap = cached.snapshots.find((s) => s.providerId === "claude");
     // Last good windows survive the transient 429...
     expect(snap?.status).toBe("rate-limited");
+    expect(snap?.fetchedAt).toBe(NOW);
     expect(snap?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
     // ...and the new backoff deadline is carried so polling stays gated.
     expect(snap?.rateLimitedUntil).toBe(NOW + 3 * 60_000 + 1800 * 1000);
@@ -854,9 +855,57 @@ describe("UsageService", () => {
     const refreshed = await service.refreshProviderUsage({ providerIds: ["claude"] });
     const snap = refreshed.snapshots.find((s) => s.providerId === "claude");
 
-    expect(snap?.status).toBe("ok");
+    expect(snap?.status).toBe("auth-missing");
     expect(snap?.fetchedAt).toBe(NOW);
     expect(snap?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
+  });
+
+  it("retains v11 cached readings with failure diagnostics until a successful refresh", async () => {
+    const cachePath = tempCachePath();
+    const settingsPath = tempCachePath();
+    writeFileSync(settingsPath, JSON.stringify({ usage: { autoRefresh: false } }));
+    const previous: UsageSnapshot = {
+      providerId: "fixture",
+      status: "ok",
+      windows: [{ id: "weekly", label: "Weekly", usedPercent: 42 }],
+      credits: { balance: 20 },
+      fetchedAt: NOW - 6 * 60 * 60_000,
+    };
+    writeFileSync(cachePath, JSON.stringify({ version: 11, snapshots: [previous] }));
+    let failed = true;
+    const options = {
+      emit: () => {},
+      cachePath,
+      settingsPath,
+      host: makeHost({}),
+      providerIds: ["fixture"],
+      localCollectors: [
+        {
+          id: "fixture",
+          collect: async (nowMs: number): Promise<UsageSnapshot> =>
+            failed
+              ? {
+                  providerId: "fixture",
+                  status: "error",
+                  windows: [],
+                  fetchedAt: nowMs,
+                  error: "HTTP 503",
+                }
+              : { ...previous, fetchedAt: nowMs },
+        },
+      ],
+    };
+    const service = new UsageService(options);
+
+    const failure = await service.refreshProviderUsage({});
+    expect(failure.snapshots).toEqual([{ ...previous, status: "error", error: "HTTP 503" }]);
+
+    const restarted = new UsageService(options);
+    expect((await restarted.getProviderUsage({})).snapshots).toEqual(failure.snapshots);
+
+    failed = false;
+    const recovered = await restarted.refreshProviderUsage({});
+    expect(recovered.snapshots).toEqual([{ ...previous, fetchedAt: NOW }]);
   });
 
   it("still reports first-time Claude auth-missing when there is no last-good usage", async () => {

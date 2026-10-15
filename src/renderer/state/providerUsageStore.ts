@@ -30,6 +30,8 @@ function snapshotEqual(a: UsageSnapshot | undefined, b: UsageSnapshot): boolean 
     a.status !== b.status ||
     a.plan !== b.plan ||
     a.fetchedAt !== b.fetchedAt ||
+    a.error !== b.error ||
+    a.rateLimitedUntil !== b.rateLimitedUntil ||
     !creditsEqual(a.credits, b.credits) ||
     a.windows.length !== b.windows.length
   ) {
