@@ -97,7 +97,10 @@ function makeService(detectInstall: AgentAdapter["detectInstall"]): {
   };
 }
 
-function makeMultiAdapterService(adapters: AgentAdapter[]): {
+function makeMultiAdapterService(
+  adapters: AgentAdapter[],
+  prepareWslEnvironment?: (distro: string) => Promise<void>,
+): {
   service: AgentStatusService;
   statusCachePath: string;
   settingsPath: string;
@@ -112,6 +115,7 @@ function makeMultiAdapterService(adapters: AgentAdapter[]): {
     settingsPath,
     statusCachePath,
     emit,
+    ...(prepareWslEnvironment ? { prepareWslEnvironment } : {}),
   });
   return { service, statusCachePath, settingsPath, emit };
 }
@@ -165,18 +169,23 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
   it("runs startup detection again when a new WSL distro is requested", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
     const adapter = makeAdapter("codex", "Codex", detectInstall);
-    const { service, emit } = makeMultiAdapterService([adapter]);
+    const prepareWslEnvironment = vi
+      .fn<(distro: string) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const { service, emit } = makeMultiAdapterService([adapter], prepareWslEnvironment);
 
     await service.getAgentStatuses({ wslDistros: [] });
     await vi.waitFor(() => {
       expect(detectInstall).toHaveBeenCalledTimes(1);
     });
+    expect(prepareWslEnvironment).not.toHaveBeenCalled();
 
     await service.getAgentStatuses({ wslDistros: ["Ubuntu"] });
 
     await vi.waitFor(() => {
       expect(detectInstall).toHaveBeenCalledTimes(3);
     });
+    expect(prepareWslEnvironment).toHaveBeenCalledExactlyOnceWith("Ubuntu");
     const detected = emit.mock.calls
       .map(([event]) => event)
       .filter((event) => event.type === "agent-detected")
@@ -184,6 +193,72 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detected).toContainEqual(
       expect.objectContaining({ kind: "codex", envKind: "wsl", envDistro: "Ubuntu" }),
     );
+  });
+
+  it.each(["full", "cold-native", "scoped-default", "scoped-native", "scoped-wsl"])(
+    "prepares exactly the WSL environments resolved for %s discovery",
+    async (mode) => {
+      const prepareWslEnvironment = vi
+        .fn<(distro: string) => Promise<void>>()
+        .mockResolvedValue(undefined);
+      const preparedAtProbe: boolean[] = [];
+      const detectInstall = vi.fn<AgentAdapter["detectInstall"]>(async (ctx) => {
+        if (ctx?.envKind === "wsl")
+          preparedAtProbe.push(prepareWslEnvironment.mock.calls.length > 0);
+        return makeStatus();
+      });
+      const { service } = makeMultiAdapterService(
+        [makeAdapter("codex", "Codex", detectInstall)],
+        prepareWslEnvironment,
+      );
+      if (mode.startsWith("scoped")) await service.refreshAgentStatuses({ wslDistros: [] });
+      const envs =
+        mode === "scoped-wsl"
+          ? [{ kind: "wsl" as const, distro: "Ubuntu" }]
+          : mode.endsWith("native")
+            ? [{ kind: "native" as const }]
+            : [];
+
+      await service.refreshAgentStatuses({
+        wslDistros: mode === "scoped-wsl" ? [] : ["Ubuntu"],
+        ...(mode !== "full" ? { scope: { agentKinds: ["codex"], envs } } : {}),
+      });
+
+      expect(prepareWslEnvironment.mock.calls).toEqual(
+        mode === "scoped-native" ? [] : [["Ubuntu"]],
+      );
+      expect(preparedAtProbe).toEqual(mode === "scoped-native" ? [] : [true]);
+    },
+  );
+
+  it("does not begin WSL probes after discovery is cancelled during preparation", async () => {
+    const preparation = Promise.withResolvers<void>();
+    const started = Promise.withResolvers<void>();
+    const prepareWslEnvironment = vi.fn<(distro: string) => Promise<void>>(() => {
+      started.resolve();
+      return preparation.promise;
+    });
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
+    const { service, emit } = makeMultiAdapterService(
+      [makeAdapter("codex", "Codex", detectInstall)],
+      prepareWslEnvironment,
+    );
+    const refresh = service
+      .refreshAgentStatuses({ wslDistros: ["Ubuntu"] })
+      .catch((error) => error);
+    await started.promise;
+
+    service.cancelAgentDiscovery();
+    await expect(refresh).resolves.toMatchObject({ message: "Agent discovery cancelled" });
+    preparation.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(detectInstall.mock.calls.every(([ctx]) => ctx?.envKind !== "wsl")).toBe(true);
+    expect(
+      emit.mock.calls.some(
+        ([event]) => event.type === "agent-detected" && event.status.envKind === "wsl",
+      ),
+    ).toBe(false);
   });
 
   it("keeps explicit refresh able to probe again", async () => {

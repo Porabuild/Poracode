@@ -315,7 +315,7 @@ export async function buildAgentStatuses(
   const wslDistros = [
     ...new Set(
       dbGetProjects().flatMap((project) =>
-        project.location.kind === "wsl" ? [project.location.distro] : [],
+        !project.disabled && project.location.kind === "wsl" ? [project.location.distro] : [],
       ),
     ),
   ];
@@ -356,7 +356,7 @@ export async function buildAgentSlashCommands(
   const wslDistros = [
     ...new Set(
       dbGetProjects().flatMap((project) =>
-        project.location.kind === "wsl" ? [project.location.distro] : [],
+        !project.disabled && project.location.kind === "wsl" ? [project.location.distro] : [],
       ),
     ),
   ];

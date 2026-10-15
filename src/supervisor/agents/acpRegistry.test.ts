@@ -1212,6 +1212,7 @@ describe("ACP registry installs", () => {
 
     const result = await autoUpdateAcpRegistryAgents({
       registry,
+      wslDistros: [],
       baseDir: dir,
       ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
@@ -1260,6 +1261,7 @@ describe("ACP registry installs", () => {
 
     const result = await autoUpdateAcpRegistryAgents({
       registry: antigravityRegistry("1.0.0"),
+      wslDistros: [],
       baseDir: dir,
       ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
@@ -1272,96 +1274,104 @@ describe("ACP registry installs", () => {
     ).toMatchObject({ version: "0.9.0", installKind: "first-class" });
   });
 
-  it("reports settings changes when one environment update succeeds and another fails", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-registry-"));
-    const settingsPath = join(dir, "settings.json");
-    writeFileSync(
-      settingsPath,
-      JSON.stringify({
-        acpRegistryInstalledAgents: {
-          "binary-agent": {
-            id: "binary-agent",
-            name: "Binary Agent",
-            version: "0.9.0",
-            installedAt: new Date(0).toISOString(),
-            adapterKind: "acp-generic:binary-agent",
-            installKind: "generic",
-            installations: {
-              native: {
-                version: "0.9.0",
-                target: nativeTarget,
-                installedAt: new Date(0).toISOString(),
-              },
-              wsl: {
-                Ubuntu: {
+  it.each([{ wslDistros: [] }, { wslDistros: ["Ubuntu"] }])(
+    "limits automatic updates to active WSL distros: $wslDistros",
+    async ({ wslDistros }) => {
+      const dir = mkdtempSync(join(tmpdir(), "poracode-acp-registry-"));
+      const settingsPath = join(dir, "settings.json");
+      writeFileSync(
+        settingsPath,
+        JSON.stringify({
+          acpRegistryInstalledAgents: {
+            "binary-agent": {
+              id: "binary-agent",
+              name: "Binary Agent",
+              version: "0.9.0",
+              installedAt: new Date(0).toISOString(),
+              adapterKind: "acp-generic:binary-agent",
+              installKind: "generic",
+              installations: {
+                native: {
                   version: "0.9.0",
-                  target: "linux-x86_64",
+                  target: nativeTarget,
                   installedAt: new Date(0).toISOString(),
+                },
+                wsl: {
+                  Ubuntu: {
+                    version: "0.9.0",
+                    target: "linux-x86_64",
+                    installedAt: new Date(0).toISOString(),
+                  },
                 },
               },
             },
           },
-        },
-        agentInstances: {
-          "binary-agent": {
-            id: "binary-agent",
-            driver: "acp-generic",
-            displayName: "Binary Agent",
-            version: "0.9.0",
-            enabled: true,
-            config: { binary: "binary-agent", authMode: "none" },
+          agentInstances: {
+            "binary-agent": {
+              id: "binary-agent",
+              driver: "acp-generic",
+              displayName: "Binary Agent",
+              version: "0.9.0",
+              enabled: true,
+              config: { binary: "binary-agent", authMode: "none" },
+            },
           },
-        },
-      }),
-      "utf8",
-    );
-    const registry: AcpRegistryListResult = {
-      version: "1.0.0",
-      agents: [
-        {
-          id: "binary-agent",
-          name: "Binary Agent",
-          version: "1.0.0",
-          description: "Binary agent via ACP",
-          distribution: {
-            binary: {
-              [nativeTarget]: {
-                archive: "https://example.com/binary-agent.zip",
-                cmd: process.platform === "win32" ? "binary-agent.exe" : "binary-agent",
+        }),
+        "utf8",
+      );
+      const registry: AcpRegistryListResult = {
+        version: "1.0.0",
+        agents: [
+          {
+            id: "binary-agent",
+            name: "Binary Agent",
+            version: "1.0.0",
+            description: "Binary agent via ACP",
+            distribution: {
+              binary: {
+                [nativeTarget]: {
+                  archive: "https://example.com/binary-agent.zip",
+                  cmd: process.platform === "win32" ? "binary-agent.exe" : "binary-agent",
+                },
               },
             },
           },
-        },
-      ],
-    };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
-    );
-    try {
-      const result = await autoUpdateAcpRegistryAgents({
-        registry,
-        baseDir: dir,
-        ...fileSettingsTarget(settingsPath),
-        iconsDir: join(dir, "acp-icons"),
-      });
+        ],
+      };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
+      );
+      try {
+        const result = await autoUpdateAcpRegistryAgents({
+          registry,
+          wslDistros,
+          baseDir: dir,
+          ...fileSettingsTarget(settingsPath),
+          iconsDir: join(dir, "acp-icons"),
+        });
 
-      expect(result.updated).toEqual([]);
-      expect(result.changed).toEqual(["binary-agent"]);
-      expect(result.failed).toEqual([
-        expect.objectContaining({ id: "binary-agent", error: expect.any(String) }),
-      ]);
-      expect(
-        readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["binary-agent"]
-          ?.installations,
-      ).toMatchObject({
-        native: { version: "1.0.0" },
-        wsl: { Ubuntu: { version: "0.9.0" } },
-      });
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
+        expect(result.updated).toEqual(wslDistros.length === 0 ? ["binary-agent"] : []);
+        expect(result.changed).toEqual(["binary-agent"]);
+        const failure = expect.objectContaining({ id: "binary-agent", error: expect.any(String) });
+        expect(result.failed).toEqual(wslDistros.length === 0 ? [] : [failure]);
+        expect(
+          batchWslCommandsAsyncMock.mock.calls.every(([distro]) =>
+            wslDistros.includes(String(distro)),
+          ),
+        ).toBe(true);
+        expect(
+          readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["binary-agent"]
+            ?.installations,
+        ).toMatchObject({
+          native: { version: "1.0.0" },
+          wsl: { Ubuntu: { version: "0.9.0" } },
+        });
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+  );
 
   it("auto-update skips installs that are already current", async () => {
     const dir = mkdtempSync(join(tmpdir(), "poracode-acp-registry-"));
@@ -1412,6 +1422,7 @@ describe("ACP registry installs", () => {
 
     const result = await autoUpdateAcpRegistryAgents({
       registry,
+      wslDistros: [],
       baseDir: dir,
       ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
@@ -1473,6 +1484,7 @@ describe("ACP registry installs", () => {
 
     const result = await autoUpdateAcpRegistryAgents({
       registry,
+      wslDistros: [],
       baseDir: dir,
       ...fileSettingsTarget(settingsPath),
       iconsDir: join(dir, "acp-icons"),
@@ -1541,13 +1553,51 @@ describe("ACP registry install layout repair", () => {
     batchWslCommandsAsyncMock.mockClear();
   });
 
+  it("preserves a legacy WSL layout until that distro is requested", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-acp-layout-"));
+    const settingsPath = writeLegacyLayoutSettings(dir);
+
+    await expect(
+      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath), wslDistros: [] }),
+    ).resolves.toBe(true);
+    await expect(
+      repairAcpRegistryInstallLayouts({
+        ...fileSettingsTarget(settingsPath),
+        wslDistros: ["Debian"],
+      }),
+    ).resolves.toBe(false);
+    expect(batchWslCommandsAsyncMock).not.toHaveBeenCalled();
+    expect(
+      readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["antigravity-acp"]
+        ?.installations?.wsl?.Ubuntu?.layoutVersion,
+    ).toBeUndefined();
+
+    batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: true, stdout: "" }]);
+    await expect(
+      repairAcpRegistryInstallLayouts({
+        ...fileSettingsTarget(settingsPath),
+        wslDistros: ["Ubuntu"],
+      }),
+    ).resolves.toBe(true);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledExactlyOnceWith("Ubuntu", [
+      "chmod -R 755 '/home/tester/.poracode/acp-registry/antigravity-acp/1.0.0/bin'",
+    ]);
+    expect(
+      readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["antigravity-acp"]
+        ?.installations?.wsl?.Ubuntu?.layoutVersion,
+    ).toBe(2);
+  });
+
   it("marks a pre-layout WSL install executable once and stamps both environments", async () => {
     const dir = mkdtempSync(join(tmpdir(), "poracode-acp-layout-"));
     const settingsPath = writeLegacyLayoutSettings(dir);
     batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: true, stdout: "" }]);
 
     await expect(
-      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+      repairAcpRegistryInstallLayouts({
+        ...fileSettingsTarget(settingsPath),
+        wslDistros: ["Ubuntu"],
+      }),
     ).resolves.toBe(true);
 
     expect(batchWslCommandsAsyncMock).toHaveBeenCalledExactlyOnceWith("Ubuntu", [
@@ -1574,7 +1624,10 @@ describe("ACP registry install layout repair", () => {
 
     // Stamped records never touch the distro again.
     await expect(
-      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+      repairAcpRegistryInstallLayouts({
+        ...fileSettingsTarget(settingsPath),
+        wslDistros: ["Ubuntu"],
+      }),
     ).resolves.toBe(false);
     expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(1);
   });
@@ -1585,7 +1638,10 @@ describe("ACP registry install layout repair", () => {
     batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
 
     await expect(
-      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+      repairAcpRegistryInstallLayouts({
+        ...fileSettingsTarget(settingsPath),
+        wslDistros: ["Ubuntu"],
+      }),
     ).resolves.toBe(true);
 
     const record =
@@ -1595,7 +1651,10 @@ describe("ACP registry install layout repair", () => {
 
     batchWslCommandsAsyncMock.mockResolvedValueOnce([{ ok: true, stdout: "" }]);
     await expect(
-      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+      repairAcpRegistryInstallLayouts({
+        ...fileSettingsTarget(settingsPath),
+        wslDistros: ["Ubuntu"],
+      }),
     ).resolves.toBe(true);
     expect(
       readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents["antigravity-acp"]
@@ -1609,7 +1668,10 @@ describe("ACP registry install layout repair", () => {
     const before = readFileSync(settingsPath, "utf8");
 
     await expect(
-      repairAcpRegistryInstallLayouts({ ...fileSettingsTarget(settingsPath) }),
+      repairAcpRegistryInstallLayouts({
+        ...fileSettingsTarget(settingsPath),
+        wslDistros: ["Ubuntu"],
+      }),
     ).resolves.toBe(false);
 
     expect(batchWslCommandsAsyncMock).not.toHaveBeenCalled();

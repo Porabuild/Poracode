@@ -4,12 +4,24 @@ import {
   ThreadLiveReadState,
 } from "@/host/remote/server/threadLiveReadState";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SessionConfigOptions, Thread, ThreadRuntimeSnapshot } from "@/shared/contracts";
+import type {
+  Project,
+  SessionConfigOptions,
+  Thread,
+  ThreadRuntimeSnapshot,
+} from "@/shared/contracts";
+import { agentStatusSchema } from "@/shared/contracts";
 import type { RuntimeFenceToken } from "@/host/db/runtimePersistenceTypes";
 import type { RemoteServerContext } from "./context";
 import { SessionConfigInventory } from "./sessionConfigInventory";
-import { buildShellSnapshot, buildThreadListPage, buildThreadSnapshot } from "./snapshots";
-import { dbGetThread, dbGetThreads, dbGetThreadsPage } from "@/host/db";
+import {
+  buildAgentStatuses,
+  buildAgentSlashCommands,
+  buildShellSnapshot,
+  buildThreadListPage,
+  buildThreadSnapshot,
+} from "./snapshots";
+import { dbGetProjects, dbGetThread, dbGetThreads, dbGetThreadsPage } from "@/host/db";
 
 vi.mock("@/host/db", () => ({
   dbGetThreads: vi.fn<() => Thread[]>(() => []),
@@ -17,7 +29,7 @@ vi.mock("@/host/db", () => ({
     threads: [],
     nextCursor: null,
   })),
-  dbGetProjects: vi.fn<() => never[]>(() => []),
+  dbGetProjects: vi.fn<() => Project[]>(() => []),
   dbGetThreadRuntimeSummariesCommitted: vi.fn<() => Record<string, never>>(() => ({})),
   dbGetThread: vi.fn<() => Thread | undefined>(),
   dbReadThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
@@ -110,9 +122,49 @@ function context(
 }
 
 beforeEach(() => {
+  vi.mocked(dbGetProjects).mockReturnValue([]);
   vi.mocked(dbGetThread).mockReturnValue(dbRow());
   vi.mocked(dbGetThreads).mockReturnValue([dbRow()]);
   vi.mocked(dbGetThreadsPage).mockReturnValue({ threads: [dbRow()], nextCursor: null });
+});
+
+describe("agent snapshot WSL scope", () => {
+  it.each([false, true])(
+    "only probes enabled project distros (WSL enabled: %s)",
+    async (enabled) => {
+      vi.mocked(dbGetProjects).mockReturnValue([
+        { id: "native", location: { kind: "windows", path: "C:\\repo" } },
+        { id: "disabled", disabled: true, location: { kind: "wsl", distro: "Ubuntu" } },
+        { id: "active", disabled: !enabled, location: { kind: "wsl", distro: "Debian" } },
+        { id: "duplicate", disabled: !enabled, location: { kind: "wsl", distro: "Debian" } },
+      ] as Project[]);
+      const callSupervisor = vi
+        .fn<RemoteServerContext["options"]["callSupervisor"]>()
+        .mockResolvedValue({
+          windows: [
+            agentStatusSchema.parse({
+              kind: "demo",
+              label: "Demo",
+              installed: true,
+              authState: "unknown",
+              capabilities: {},
+            }),
+          ],
+          wsl: [],
+          fromCache: true,
+        } as never);
+      const ctx = context(new SessionConfigInventory(), callSupervisor);
+      const expected = { wslDistros: enabled ? ["Debian"] : [] };
+
+      await buildAgentStatuses(ctx);
+      await buildAgentSlashCommands(ctx, "demo");
+
+      expect(callSupervisor.mock.calls).toEqual([
+        ["getAgentStatuses", expected],
+        ["getAgentStatuses", expected],
+      ]);
+    },
+  );
 });
 
 describe("session-config pull enrichment", () => {

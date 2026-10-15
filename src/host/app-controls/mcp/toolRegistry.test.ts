@@ -1948,6 +1948,22 @@ describe("Poracode app control tools — agents", () => {
     expect(supervisor.refreshAgentStatuses).toHaveBeenCalled();
     expect(supervisor.getAgentStatuses).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    "list_installed_agents excludes disabled WSL projects (refresh: %s)",
+    async (refresh) => {
+      const projects = [
+        { id: "native", location: { kind: "windows", path: "C:\\repo" } },
+        { id: "disabled", disabled: true, location: { kind: "wsl", distro: "Ubuntu" } },
+      ] as Project[];
+      const { ctx, supervisor } = context({ projects });
+
+      await dispatchTool("list_installed_agents", { refresh }, ctx);
+
+      const request = refresh ? supervisor.refreshAgentStatuses : supervisor.getAgentStatuses;
+      expect(request).toHaveBeenCalledExactlyOnceWith({ wslDistros: [] });
+    },
+  );
 });
 
 describe("Poracode app control tools — files", () => {

@@ -20,7 +20,7 @@ export const agentTools: ToolDomain = {
   handlers: {
     list_installed_agents: async (args, ctx) => {
       const { refresh } = listArgsSchema.parse(args);
-      // Detection scans the native host plus every WSL distro backing a project,
+      // Detection scans the native host plus WSL distros backing enabled projects,
       // exactly like the app's own callers (see buildAgentStatuses / MainView).
       const wslDistros = wslDistrosFromProjects(ctx);
       const payload = { wslDistros };
@@ -38,13 +38,15 @@ export const agentTools: ToolDomain = {
   },
 };
 
-/** Distinct WSL distros backing the user's projects (native env needs none). */
+/** Distinct WSL distros backing enabled projects (native env needs none). */
 function wslDistrosFromProjects(ctx: AppControlsToolContext): string[] {
   return [
     ...new Set(
       ctx
         .getProjects()
-        .flatMap((project) => (project.location.kind === "wsl" ? [project.location.distro] : [])),
+        .flatMap((project) =>
+          !project.disabled && project.location.kind === "wsl" ? [project.location.distro] : [],
+        ),
     ),
   ];
 }
