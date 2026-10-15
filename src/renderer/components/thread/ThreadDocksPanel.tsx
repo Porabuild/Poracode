@@ -19,7 +19,6 @@ import { useThreadGalleryImages } from "./useThreadGalleryImages";
 import { selectThreadGoalDockItem } from "./threadGoalState";
 import {
   useThreadDocksSummary,
-  useVisibleThreadBackgroundTasks,
   useVisibleThreadGoalDockState,
   useVisibleThreadTodoDockState,
 } from "./useThreadDocksSummary";
@@ -48,7 +47,6 @@ export function ThreadDocksPanel({
   const setOrder = useSharedSettings((s) => s.setThreadDocksOrder);
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const summary = useThreadDocksSummary(threadId, goalDockState, todoDockState);
-  const visibleBackgroundTasks = useVisibleThreadBackgroundTasks(threadId);
   const gallery = useThreadGalleryImages(threadId);
   const focus = usePanelStore((s) => s.threadDocksFocus);
   const docksShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
@@ -70,7 +68,7 @@ export function ThreadDocksPanel({
     (focus === "goal" && goalDockState !== null) ||
     (focus === "plan" && todoDockState !== null) ||
     (focus === "agents" && summary.agentCount > 0) ||
-    (focus === "backgroundTasks" && visibleBackgroundTasks.length > 0) ||
+    (focus === "backgroundTasks" && summary.backgroundTaskCount > 0) ||
     (focus === "images" && gallery.length > 0);
 
   // A bubble click names the active section. Scroll only when that selection
@@ -117,7 +115,7 @@ export function ThreadDocksPanel({
         />
       ) : null,
     backgroundTasks:
-      visibleBackgroundTasks.length > 0 ? (
+      summary.backgroundTaskCount > 0 ? (
         <ThreadBackgroundTasksDock threadId={threadId} placement="right" />
       ) : null,
     images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} threadId={threadId} /> : null,

@@ -1188,7 +1188,7 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
-  it("refuses relaunches that would end a live background command, then allows them once it drains", async () => {
+  it("refuses rollback and defers a resize while a background command is live, then relaunches once it drains", async () => {
     const firstQuery = createFakeQuery();
     const resumedQuery = createFakeQuery();
     mockSdk.query.mockReturnValueOnce(firstQuery.runtime).mockReturnValueOnce(resumedQuery.runtime);
@@ -1222,9 +1222,11 @@ describe("ClaudeSdkSession", () => {
     const widerWindow: ThreadConfig = { ...config, contextSize: "200k" };
     await expect(session.rollbackThread(1)).rejects.toThrow("Stop the background tasks first");
     await expect(session.createRevertAnchor(1)).rejects.toThrow("Stop the background tasks first");
-    await expect(session.startTurn("follow up", widerWindow)).rejects.toThrow(
-      "Stop the background tasks first",
-    );
+    // A resize waits for the command; the prompt still runs on the live process.
+    await session.startTurn("resize later", widerWindow);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-resize", "ok"));
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
     expect(firstQuery.runtime.close).not.toHaveBeenCalled();
     expect(mockSdk.query).toHaveBeenCalledTimes(1);
     expect(session.getBackgroundTasks()).toEqual([

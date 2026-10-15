@@ -124,6 +124,27 @@ final class RuntimeBackgroundTasksReduceTests: XCTestCase {
     XCTAssertNil(decode(event(tasks: [.object(bad)])))
   }
 
+  func testOptionalStringBoundsCountUnicodeScalarsLikeZod() {
+    let astral = "\u{1F600}"
+    func parses(_ key: String, _ value: JSONValue) -> Bool {
+      var object = task("a", "command", "d")
+      object[key] = value
+      return decode(event(tasks: [.object(object)])) != nil
+    }
+    func action(id: String = "stop", key: String = "taskId", value: String = "a") -> JSONValue {
+      .object(["id": .string(id), "payload": .object([key: .string(value)])])
+    }
+    // 4096 scalars is 8192 UTF-16 units: the contract still accepts it.
+    XCTAssertTrue(parses("progress", .string(String(repeating: astral, count: 4096))))
+    XCTAssertFalse(parses("progress", .string(String(repeating: astral, count: 4097))))
+    XCTAssertTrue(parses("stopAction", action(id: String(repeating: astral, count: 120))))
+    XCTAssertFalse(parses("stopAction", action(id: String(repeating: astral, count: 121))))
+    XCTAssertTrue(parses("stopAction", action(key: String(repeating: astral, count: 120))))
+    XCTAssertFalse(parses("stopAction", action(key: String(repeating: astral, count: 121))))
+    XCTAssertTrue(parses("stopAction", action(value: String(repeating: astral, count: 512))))
+    XCTAssertFalse(parses("stopAction", action(value: String(repeating: astral, count: 513))))
+  }
+
   func testStrictSchemaRejections() {
     // tasks key missing (required by the wire schema)
     XCTAssertNil(decode(event(tasks: nil)))

@@ -54,8 +54,7 @@ export class ClaudeBackgroundTaskControls {
     )
       return true;
     if (!("task_id" in message) || !("run_id" in message)) return false;
-    const previous = this.tasks.get(message.task_id);
-    return !!(previous?.runId && message.run_id && message.run_id < previous.runId);
+    return this.isStaleRun(message.task_id, message.run_id);
   }
 
   observe(message: SDKMessage): boolean {
@@ -90,32 +89,18 @@ export class ClaudeBackgroundTaskControls {
       return false;
     if (typeof message.task_id !== "string" || !message.task_id) return false;
     if ("ambient" in message && message.ambient === true) return false;
+    // Callers normally drop stale frames via shouldIgnore; observing one anyway must
+    // not let an old run's notification confirm the newer run's Stop.
+    if (this.isStaleRun(message.task_id, message.run_id)) return false;
     const previous = this.tasks.get(message.task_id);
-    if (previous?.runId && message.run_id && message.run_id < previous.runId) return false;
     if (message.subtype === "task_notification") {
       if (previous) this.stops.get(previous.token)?.resolve();
       this.tasks.delete(message.task_id);
       return false;
     }
     const info = this.taskInfo(message.task_id, message.run_id);
-    if (message.subtype === "task_started") {
-      const tool = message.tool_use_id
-        ? this.state.toolItemsById.get(message.tool_use_id)
-        : undefined;
-      if (tool?.toolName === "Monitor") {
-        (this.state.backgroundTaskKinds ??= new Map()).set(message.task_id, "other");
-        const reclassified = this.state.reportedBackgroundTasks?.some(
-          (task) => task.taskId === message.task_id && task.kind !== "other",
-        );
-        if (reclassified) {
-          this.state.reportedBackgroundTasks = this.state.reportedBackgroundTasks!.map((task) =>
-            task.taskId === message.task_id ? { ...task, kind: "other" } : task,
-          );
-        }
-        return reclassified === true || (previous !== info && this.isListed(message.task_id));
-      }
+    if (message.subtype === "task_started")
       return previous !== info && this.isListed(message.task_id);
-    }
     const progressKey = JSON.stringify([
       message.description,
       message.last_tool_name,
@@ -224,7 +209,7 @@ export class ClaudeBackgroundTaskControls {
 
   private taskInfo(taskId: string, runId?: string, rosterIds?: ReadonlySet<string>): TaskInfo {
     const previous = this.tasks.get(taskId);
-    if (previous?.runId && runId && runId < previous.runId) return previous;
+    if (previous && this.isStaleRun(taskId, runId)) return previous;
     if (previous && (!runId || !previous.runId || runId === previous.runId)) {
       if (runId) previous.runId = runId;
       return previous;
@@ -239,6 +224,12 @@ export class ClaudeBackgroundTaskControls {
     this.tasks.set(taskId, info);
     this.evictUntracked(taskId, rosterIds);
     return info;
+  }
+
+  /** The SDK promises one task's run ids sort in open order by plain string comparison. */
+  private isStaleRun(taskId: string, runId: string | undefined): boolean {
+    const current = this.tasks.get(taskId)?.runId;
+    return !!(current && runId && runId < current);
   }
 
   private isListed(taskId: string): boolean {

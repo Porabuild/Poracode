@@ -96,6 +96,29 @@ export function clearBackgroundTasks(state: ClaudeMapperState): RuntimeEvent[] {
   return backgroundTasksChangedEvent(state, []);
 }
 
+/**
+ * A Monitor's roster entry can look like a Bash task, and its roster entry may
+ * arrive before this launch event; reclassify it so its result stays awaited.
+ */
+export function classifyBackgroundTaskLaunch(
+  message: SDKMessage,
+  state: ClaudeMapperState,
+): RuntimeEvent[] {
+  const obj = message as { task_id?: unknown; tool_use_id?: unknown };
+  const taskId = readNonEmptyString(obj.task_id);
+  const toolUseId = readNonEmptyString(obj.tool_use_id);
+  if (!taskId || !toolUseId || state.toolItemsById.get(toolUseId)?.toolName !== "Monitor") {
+    return [];
+  }
+  (state.backgroundTaskKinds ??= new Map()).set(taskId, "other");
+  const tasks = state.reportedBackgroundTasks ?? [];
+  if (!tasks.some((task) => task.taskId === taskId && task.kind !== "other")) return [];
+  state.reportedBackgroundTasks = tasks.map((task) =>
+    task.taskId === taskId ? { ...task, kind: "other" } : task,
+  );
+  return backgroundTasksChangedEvent(state, state.reportedBackgroundTasks);
+}
+
 /** Commands left running do not hold a response open; subagents, monitors and unknown work do. */
 export function hasAwaitedBackgroundWork(state: ClaudeMapperState): boolean {
   if ((state.activeSubAgentTaskToTool?.size ?? 0) > 0) return true;

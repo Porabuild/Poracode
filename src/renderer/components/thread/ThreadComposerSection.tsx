@@ -79,9 +79,9 @@ import { useThread } from "@/renderer/state/useThread";
 import { ComposerBubbleRow } from "./ComposerBubbleRow";
 import { SideChatBubble } from "./SideChat/SideChatBubble";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
-import { ThreadDockBubbles } from "./ThreadDockBubbles";
+import { ThreadBackgroundTasksBubble, ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
-import { useThreadBackgroundTasks, useThreadDocksSummary } from "./useThreadDocksSummary";
+import { useThreadDocksSummary } from "./useThreadDocksSummary";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { ProviderSessionControls } from "../providers/providerSessionControls";
 import { useThreadInterrupt } from "./useThreadInterrupt";
@@ -582,14 +582,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     canShowRuntimeChrome &&
     docksInComposer &&
     docksSummary.backgroundTaskCount > 0;
-  const liveBackgroundTaskCount = useThreadBackgroundTasks(thread.id).length;
-  // A hidden composer task dock keeps only its recovery bubble.
-  const showHiddenTasksBubble =
-    !hideInfoDocks &&
-    canShowRuntimeChrome &&
-    docksInComposer &&
-    liveBackgroundTaskCount > 0 &&
-    docksSummary.backgroundTaskCount === 0;
   const collapseTerminalComposerSetting = useSharedSettings((s) => s.collapseTerminalComposer);
   const [composerCollapsed, setComposerCollapsed] = useState(
     compactLayout || collapseTerminalComposerSetting,
@@ -984,16 +976,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
               <SideChatBubble threadId={thread.id} />
               {showDockBubbles ? (
                 <ThreadDockBubbles summary={docksSummary} threadId={thread.id} />
-              ) : showHiddenTasksBubble ? (
-                <ThreadDockBubbles
-                  summary={docksSummary}
-                  threadId={thread.id}
-                  placement="composer"
-                  kinds={["backgroundTasks"]}
-                />
               ) : null}
               {!hideInfoDocks && canShowRuntimeChrome && docksInComposer ? (
-                <ThreadImagesBubble threadId={thread.id} />
+                <>
+                  {/* A hidden composer task dock keeps only its recovery bubble. */}
+                  <ThreadBackgroundTasksBubble threadId={thread.id} placement="composer" />
+                  <ThreadImagesBubble threadId={thread.id} />
+                </>
               ) : null}
               {awaitingWorktree ? null : (
                 <ThreadChangesBubble

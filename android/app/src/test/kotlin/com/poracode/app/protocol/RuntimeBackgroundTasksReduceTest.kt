@@ -5,14 +5,17 @@ import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.asObjectOrNull
 import com.poracode.app.model.string
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -117,6 +120,36 @@ class RuntimeBackgroundTasksReduceTest {
         assertNull(RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + ("startedAt" to JsonPrimitive("123"))))))))
         val invalidAction = buildJsonObject { put("id", "stop"); put("payload", buildJsonObject { put("task", 1) }) }
         assertNull(RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + ("stopAction" to invalidAction)))))))
+    }
+
+    @Test
+    fun optionalStringBoundsCountCodePointsLikeZod() {
+        val astral = "\uD83D\uDE00"
+        fun parses(extra: Pair<String, JsonElement>) =
+            RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + extra))))) != null
+        fun action(id: String, key: String = "taskId", value: String = "a") = "stopAction" to buildJsonObject {
+            put("id", id)
+            put("payload", buildJsonObject { put(key, value) })
+        }
+        // 4096 code points is 8192 UTF-16 units: the contract still accepts it.
+        assertTrue(parses("progress" to JsonPrimitive(astral.repeat(4096))))
+        assertFalse(parses("progress" to JsonPrimitive(astral.repeat(4097))))
+        assertTrue(parses(action(astral.repeat(120))))
+        assertFalse(parses(action(astral.repeat(121))))
+        assertTrue(parses(action("stop", key = astral.repeat(120))))
+        assertFalse(parses(action("stop", key = astral.repeat(121))))
+        assertTrue(parses(action("stop", value = astral.repeat(512))))
+        assertFalse(parses(action("stop", value = astral.repeat(513))))
+    }
+
+    @Test
+    fun unchangedEnrichedLevelKeepsTheSameDomainState() {
+        val array = RemoteJson.parseToJsonElement(readFixture("runtime-events.json")) as JsonArray
+        val entry = array.last { it.asObjectOrNull()?.string("type") == "background_tasks.changed" }.asObjectOrNull()!!
+        val parsed = RuntimeEventReducer.parseRuntimeEvent(entry)!!
+        val domain = RuntimeDomainReducer.apply(parsed, parsed.threadId!!, ThreadRuntimeDomainState())
+        val again = RuntimeEventReducer.parseRuntimeEvent(entry)!!
+        assertSame(domain, RuntimeDomainReducer.apply(again, again.threadId!!, domain))
     }
 
     @Test

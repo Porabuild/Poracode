@@ -1625,7 +1625,7 @@ describe("ThreadView", () => {
     expect(screen.getByLabelText("Background tasks")).toContainElement(placementButtons[0]!);
     const backgroundDock = screen.getByLabelText("Background tasks");
     expect(backgroundDock.querySelector("svg.lucide-activity")).not.toBeNull();
-    expect(backgroundDock.querySelector(".poracode-pixel-loader")).toBeNull();
+    expect(backgroundDock.querySelectorAll(".poracode-pixel-loader")).toHaveLength(1);
     expect(backgroundDock.querySelector("svg.lucide-terminal")).toBeNull();
 
     fireEvent.click(placementButtons[0]!);

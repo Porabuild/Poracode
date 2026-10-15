@@ -120,6 +120,7 @@ describe("ThreadImagesBubble", () => {
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeStructuralVersionByThread: {},
+      runtimeBackgroundTasksByThread: {},
     });
     useRemoteServersStore.setState({
       servers: [],
@@ -319,6 +320,12 @@ describe("ThreadImagesBubble", () => {
 
   it("follows the persisted dock order beside informational bubbles", () => {
     seedThreadWithImages("t-gallery");
+    // The task bubble counts the live roster, not the summary.
+    useAppStore.setState({
+      runtimeBackgroundTasksByThread: {
+        "t-gallery": [{ taskId: "task-1", kind: "command", description: "pnpm test" }],
+      },
+    });
     useSharedSettings.setState({
       threadDocksOrder: ["images", "backgroundTasks", "goal", "plan", "agents"],
     });

@@ -87,7 +87,8 @@ enum RuntimeEventDecoder {
             // `tasks` is required and must be an array of strict task objects
             // (TS `backgroundTaskSchema`: taskId min 1, kind enum
             // "command" | "other", description string; an empty array is a
-            // valid host-driven drain). Unknown fields are stripped.
+            // valid host-driven drain). Unknown fields are stripped. String
+            // bounds count Unicode scalars, like Zod and the generated runtime.
             guard let threadId = object["threadId"]?.stringValue,
                   case .array(let taskValues)? = object["tasks"]
             else { return nil }
@@ -105,17 +106,17 @@ enum RuntimeEventDecoder {
                     }
                 }
                 if let progress = taskObject["progress"] {
-                    guard let text = progress.stringValue, text.utf16.count <= 4096 else { return nil }
+                    guard let text = progress.stringValue, text.unicodeScalars.count <= 4096 else { return nil }
                 }
                 var stopAction: RemoteBackgroundTaskStopAction?
                 if let action = taskObject["stopAction"] {
                     guard case .object(let fields) = action,
-                          let id = fields["id"]?.stringValue, !id.isEmpty, id.utf16.count <= 120,
+                          let id = fields["id"]?.stringValue, !id.isEmpty, id.unicodeScalars.count <= 120,
                           case .object(let params)? = fields["payload"]
                     else { return nil }
                     var payload: [String: String] = [:]
                     for (key, value) in params {
-                        guard key.utf16.count <= 120, let text = value.stringValue, text.utf16.count <= 512 else { return nil }
+                        guard key.unicodeScalars.count <= 120, let text = value.stringValue, text.unicodeScalars.count <= 512 else { return nil }
                         payload[key] = text
                     }
                     stopAction = RemoteBackgroundTaskStopAction(id: id, payload: payload)

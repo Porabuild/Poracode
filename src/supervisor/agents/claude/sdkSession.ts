@@ -151,6 +151,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private currentConfig: ThreadConfig;
   private appliedModel: string | undefined;
   private appliedContextWindow: number | undefined;
+  // Launch-time size: a relaunch deferred behind background work keeps this model variant.
+  private appliedContextSize: string | undefined;
   private sessionHasHistory = false;
   private appliedPermissionMode: PermissionMode | undefined;
   private appliedSandboxDisabled = false;
@@ -359,13 +361,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.disposed) return;
     // The CLI reads its auto-compact window at launch: applyFlagSettings does
     // not change the effective window (verified with SDK/CLI 0.3.296/2.1.296).
+    // A relaunch would end the CLI's background tasks, so while any are live
+    // the turn runs on the current process and the first turn after they
+    // drain applies the new window.
     if (
       this.queryRuntime &&
-      resolveClaudeContextWindowTokens(config.contextSize) !== this.appliedContextWindow
+      resolveClaudeContextWindowTokens(config.contextSize) !== this.appliedContextWindow &&
+      !this.hasLiveBackgroundWork()
     ) {
-      this.assertRestartKeepsBackgroundWork(
-        "Changing the context size restarts Claude, which would end running background tasks.",
-      );
       this.currentConfig = config;
       this.reopenQuery(this.sessionHasHistory ? this.sessionId : undefined, this.activeResumeAt);
       void this.requireQuery().then(
@@ -623,7 +626,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * never affects an in-flight turn.
    */
   private async syncModel(runtime: Query, config: ThreadConfig): Promise<void> {
-    const model = applyClaudeContextSuffix(config.model, config.contextSize);
+    const model = applyClaudeContextSuffix(config.model, this.appliedContextSize);
     if (model === this.appliedModel) return;
     try {
       await runtime.setModel(model);
@@ -757,20 +760,16 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.pendingRequests.size > 0) {
       throw new Error("Claude SDK rollback is unavailable while a request is pending.");
     }
-    this.assertRestartKeepsBackgroundWork(
-      "Claude SDK rollback restarts Claude, which would end running background tasks.",
-    );
+    // The CLI owns its background tasks: a relaunch would silently end them.
+    if (this.hasLiveBackgroundWork()) {
+      throw new Error(
+        "Claude SDK rollback restarts Claude, which would end running background tasks. Stop the background tasks first, then try again.",
+      );
+    }
     if (!this.sessionId) {
       throw new Error("Claude SDK rollback requires an open session.");
     }
     return this.sessionId;
-  }
-
-  /** The CLI owns its background tasks: a relaunch would silently end them. */
-  private assertRestartKeepsBackgroundWork(reason: string): void {
-    if (this.hasLiveBackgroundWork()) {
-      throw new Error(`${reason} Stop the background tasks first, then try again.`);
-    }
   }
 
   /** Restart with launch-only controls, optionally retaining a rollback anchor. */
@@ -1191,11 +1190,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         await wslPrime;
       }
       const permissionMode = basePermissionModeForConfig(this.currentConfig);
-      const contextWindow = resolveClaudeContextWindowTokens(this.currentConfig.contextSize);
-      const model = applyClaudeContextSuffix(
-        this.currentConfig.model,
-        this.currentConfig.contextSize,
-      );
+      const contextSize = this.currentConfig.contextSize;
+      const contextWindow = resolveClaudeContextWindowTokens(contextSize);
+      const model = applyClaudeContextSuffix(this.currentConfig.model, contextSize);
       // The SDK's spawn options determine PATH for the child. Prefer the project-scoped shell env
       // captured by `primeProjectShellEnv` (fnm / asdf / mise / volta cd-hooks
       // applied at the project root) over Electron's `process.env`, which on
@@ -1324,7 +1321,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         forwardSubagentText: true,
         canUseTool: this.canUseTool,
         onElicitation: this.onElicitation,
-        env: { ...env, ...claudeContextWindowEnv(this.currentConfig.contextSize) },
+        env: { ...env, ...claudeContextWindowEnv(contextSize) },
         ...(this.currentConfig.effort
           ? {
               // `ultracode` is not a model-level effort value — the CLI rejects
@@ -1346,6 +1343,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.mcpServers.initialize(this.queryRuntime, mcpServers);
       this.appliedModel = model;
       this.appliedContextWindow = contextWindow;
+      this.appliedContextSize = contextSize;
       // The CLI can silently fall back when settings forbid Bypass. Confirm
       // that mode through the control API before disabling the saved sandbox.
       this.appliedPermissionMode =
@@ -1582,10 +1580,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // session-state idle must not settle the thread — the deferred update
       // owns the settling status (and preserves an error outcome). Non-settling
       // states (working, needs_approval) still pass through.
-      if (
-        mapped.status !== "idle" ||
-        (!this.hasPendingTurn() && this.currentStatus !== "error")
-      ) {
+      if (mapped.status !== "idle" || (!this.hasPendingTurn() && this.currentStatus !== "error")) {
         this.emitUpdate(mapped);
       }
       // A running state while a drained completion sits in its grace window

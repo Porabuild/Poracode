@@ -343,20 +343,11 @@ enum RuntimeEventReducer {
         eventType: String,
         incoming: [RuntimeBackgroundTask]?
     ) {
-        let mappedIncoming = incoming?.map {
-            RemoteBackgroundTaskIdentity(taskId: $0.taskId, kind: $0.kind, description: $0.description, startedAt: $0.startedAt, lastProgressAt: $0.lastProgressAt, progress: $0.progress, stopAction: $0.stopAction)
-        }
-        let mappedPrevious = domain.backgroundTasks?.map {
-            RemoteBackgroundTaskIdentity(taskId: $0.taskId, kind: $0.kind, description: $0.description, startedAt: $0.startedAt, lastProgressAt: $0.lastProgressAt, progress: $0.progress, stopAction: $0.stopAction)
-        }
-        let next = RemoteBackgroundTaskReduce.apply(
+        domain.backgroundTasks = RemoteBackgroundTaskReduce.apply(
             eventType: eventType,
-            incoming: mappedIncoming,
-            previous: mappedPrevious
+            incoming: incoming,
+            previous: domain.backgroundTasks
         )
-        domain.backgroundTasks = next?.map {
-            RuntimeBackgroundTask(taskId: $0.taskId, kind: $0.kind, description: $0.description, startedAt: $0.startedAt, lastProgressAt: $0.lastProgressAt, progress: $0.progress, stopAction: $0.stopAction)
-        }
     }
 
     /// Hydrate domain from a history snapshot (contextUsage, completedTurns, pending requests).

@@ -163,7 +163,8 @@ internal object RuntimeEventValidators {
     /**
      * Zod `backgroundTaskSchema` parity: taskId min(1), kind is the closed
      * "command"|"other" enum, description any string. Unknown fields are
-     * stripped upstream (x-poracode-unknownFields), so extra keys pass.
+     * stripped upstream (x-poracode-unknownFields), so extra keys pass. String
+     * bounds count code points, like Zod and the generated runtime.
      */
     fun validateBackgroundTask(task: JsonElement): Boolean {
         val obj = task.asObjectOrNull() ?: return false
@@ -182,19 +183,21 @@ internal object RuntimeEventValidators {
         }
         if (obj.containsKey("progress")) {
             val progress = obj.strictString("progress") ?: return false
-            if (progress.length > 4096) return false
+            if (progress.codePointLength() > 4096) return false
         }
         if (obj.containsKey("stopAction")) {
             val action = obj["stopAction"] as? JsonObject ?: return false
             val id = action.strictString("id") ?: return false
-            if (id.isEmpty() || id.length > 120) return false
+            if (id.isEmpty() || id.codePointLength() > 120) return false
             val payload = action["payload"] as? JsonObject ?: return false
             if (payload.any { (key, value) ->
-                key.length > 120 || value.strictStringOrNull()?.let { it.length <= 512 } != true
+                key.codePointLength() > 120 || value.strictStringOrNull()?.let { it.codePointLength() <= 512 } != true
             }) return false
         }
         return true
     }
+
+    private fun String.codePointLength(): Int = codePointCount(0, length)
 
     sealed class OptionalString {
         data object Absent : OptionalString()

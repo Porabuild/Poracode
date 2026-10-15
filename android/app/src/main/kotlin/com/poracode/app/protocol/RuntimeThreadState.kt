@@ -36,16 +36,9 @@ data class ThreadRuntimeDomainState(
  * launched it (`background_tasks.changed` payload, TS `backgroundTaskSchema`).
  * `kind` is a coarse, provider-agnostic class ("command" | "other") validated
  * at parse time and stored verbatim; sub-agent runs are not reported here.
+ * The generated reduce identity is the domain type, so no field mapping drifts.
  */
-data class BackgroundTask(
-    val taskId: String,
-    val kind: String,
-    val description: String,
-    val startedAt: Double? = null,
-    val lastProgressAt: Double? = null,
-    val progress: String? = null,
-    val stopAction: com.poracode.remote.v3.generated.RemoteBackgroundTaskStopAction? = null,
-)
+typealias BackgroundTask = com.poracode.remote.v3.generated.RemoteBackgroundTaskIdentity
 
 data class OpenRuntimeRequest(
     val requestId: String,
@@ -163,29 +156,12 @@ object RuntimeDomainReducer {
         eventType: String,
         incoming: List<BackgroundTask>,
     ): ThreadRuntimeDomainState {
-        val mappedIncoming = incoming.map {
-            com.poracode.remote.v3.generated.RemoteBackgroundTaskIdentity(
-                it.taskId,
-                it.kind,
-                it.description,
-                it.startedAt, it.lastProgressAt, it.progress, it.stopAction,
-            )
-        }
-        val mappedPrevious = state.backgroundTasks?.map {
-            com.poracode.remote.v3.generated.RemoteBackgroundTaskIdentity(
-                it.taskId,
-                it.kind,
-                it.description,
-                it.startedAt, it.lastProgressAt, it.progress, it.stopAction,
-            )
-        }
         val next = com.poracode.remote.v3.generated.RemoteBackgroundTaskReduce.apply(
             eventType,
-            mappedIncoming,
-            mappedPrevious,
+            incoming,
+            state.backgroundTasks,
         )
-        val mappedNext = next?.map { BackgroundTask(it.taskId, it.kind, it.description, it.startedAt, it.lastProgressAt, it.progress, it.stopAction) }
-        return if (mappedNext == state.backgroundTasks) state else state.copy(backgroundTasks = mappedNext)
+        return if (next == state.backgroundTasks) state else state.copy(backgroundTasks = next)
     }
 
     fun mergeContextUsage(

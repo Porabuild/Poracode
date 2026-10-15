@@ -56,15 +56,8 @@ struct RuntimeThreadDomainState: Sendable, Equatable {
 /// launched it (`background_tasks.changed` payload; TS `backgroundTaskSchema`).
 /// `kind` is a coarse, provider-agnostic class ("command" | "other") validated
 /// at parse time and stored verbatim; sub-agent runs are not reported here.
-struct RuntimeBackgroundTask: Sendable, Equatable {
-    var taskId: String
-    var kind: String
-    var description: String
-    var startedAt: Double? = nil
-    var lastProgressAt: Double? = nil
-    var progress: String? = nil
-    var stopAction: RemoteBackgroundTaskStopAction? = nil
-}
+/// The generated reduce identity is the domain type, so no field mapping drifts.
+typealias RuntimeBackgroundTask = RemoteBackgroundTaskIdentity
 
 /// Provider-agnostic context-window occupancy (`context.updated` / snapshot.contextUsage).
 struct ThreadContextUsage: Sendable, Equatable {

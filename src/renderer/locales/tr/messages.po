@@ -15775,6 +15775,10 @@ msgstr "aracı"
 msgid "The agent"
 msgstr "Temsilci"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The agent session reloads to apply the new context size; the conversation is kept."
+msgstr "Yeni bağlam boyutunu uygulamak için ajan oturumu yeniden yüklenir; konuşma korunur."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
 #~ msgstr "Aşağıdaki API anahtarı bu profil için Cursor CLI, ACP ve SDK tarafından kullanılır."
@@ -16004,8 +16008,8 @@ msgid "The MCP server is invalid."
 msgstr "MCP sunucusu geçersiz."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
-msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
-msgstr "Yeni bağlam boyutu bir sonraki mesajınızdan itibaren geçerli olur. Bu mesaj gönderilmeden önce aracı oturumu yeniden yüklenir; konuşma korunur."
+#~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+#~ msgstr "Yeni bağlam boyutu bir sonraki mesajınızdan itibaren geçerli olur. Bu mesaj gönderilmeden önce aracı oturumu yeniden yüklenir; konuşma korunur."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."

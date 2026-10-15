@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { ClaudeBackgroundTaskControls } from "./backgroundTaskControls";
 import { createClaudeMapperState } from "./sdkCanonicalMappingState";
-import { hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
 
 const task = { taskId: "server", kind: "command" as const, description: "Start admin UI" };
 const message = (subtype: string, fields: Record<string, unknown> = {}) =>
@@ -98,21 +97,22 @@ describe("Claude background task controls", () => {
     expect(controls.shouldIgnore(message("task_notification", { run_id: "run-2" }))).toBe(false);
   });
 
-  it("keeps Monitor results awaited even if its roster arrives before its launch event", () => {
-    const { controls, state } = setup();
-    state.reportedBackgroundTasks = [task];
-    state.liveBackgroundTaskIds = new Set([task.taskId]);
-    expect(hasAwaitedBackgroundWork(state)).toBe(false);
-    state.toolItemsById.set("tool-monitor", {
-      itemId: "monitor",
-      itemType: "tool_call",
-      toolName: "Monitor",
-      input: {},
-      partialInputJson: "",
+  it("keeps a newer run's Stop pending when an older run's notification is observed", async () => {
+    const { controls, action } = setup();
+    controls.observe(message("task_started", { run_id: "run-2" }));
+    controls.reconcile([task]);
+    const current = controls.decorate([task])[0]!.stopAction!;
+    expect(current.payload.token).not.toBe(action.payload.token);
+    let settled = false;
+    const pending = controls.invoke(current.id, current.payload).then(() => {
+      settled = true;
     });
-    controls.observe(message("task_started", { tool_use_id: "tool-monitor" }));
-    expect(state.reportedBackgroundTasks[0]!.kind).toBe("other");
-    expect(hasAwaitedBackgroundWork(state)).toBe(true);
+    controls.observe(message("task_notification", { status: "stopped" }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(false);
+    controls.observe(message("task_notification", { run_id: "run-2", status: "stopped" }));
+    await pending;
+    expect(settled).toBe(true);
   });
 
   it("publishes metadata only for listed tasks while keeping unlisted runs for a later roster", async () => {

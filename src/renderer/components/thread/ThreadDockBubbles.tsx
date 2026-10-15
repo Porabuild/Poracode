@@ -18,36 +18,32 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 import { ThreadGoalStatusIcon } from "./ThreadGoalStatusIcon";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useGoalElapsedSeconds } from "./threadGoalTiming";
-import { useThreadBackgroundTasks, type ThreadDocksSummary } from "./useThreadDocksSummary";
+import {
+  useThreadBackgroundTasks,
+  useVisibleThreadBackgroundTasks,
+  type ThreadDocksSummary,
+} from "./useThreadDocksSummary";
 
 /**
  * Compact stand-ins for the informational docks while they live in the right
  * panel: one 28px glass pill per dock with content, showing the single most
  * useful number (goal elapsed, plan progress, running agents, running tasks).
  * Clicking opens the Docks tab scrolled to that section; clicking the active
- * one closes the panel again. With composer placement, `kinds` narrows the row
- * to the hidden-task recovery bubble, which restores the dock in place.
+ * one closes the panel again.
  */
 export function ThreadDockBubbles({
   summary,
   threadId,
-  placement = "right",
-  kinds,
 }: {
   summary: ThreadDocksSummary;
   threadId: string;
-  placement?: ThreadDocksPlacement;
-  kinds?: readonly ThreadDockKind[];
 }) {
   const { t } = useLingui();
   const panelShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   const order = useSharedSettings((s) => s.threadDocksOrder);
-  const docksInComposer = placement === "composer";
-  // Hiding the dock must not hide the only way to rediscover still-running work.
-  const liveTaskCount = useThreadBackgroundTasks(threadId).length;
-  const tasksHidden = liveTaskCount > 0 && summary.backgroundTaskCount === 0;
-  // Visible docks share one panel. A hidden task dock retains an unpressed
-  // recovery bubble so its name describes the next click accurately.
+  // The bubbles are one group for one panel: while the Docks tab is showing,
+  // every bubble is pressed and clicking any of them hides the panel, so the
+  // "Hide <dock>" name always describes what the click does.
   const isActive = (_kind: ThreadDockKind) => panelShowing;
 
   const bubbles: Record<ThreadDockKind, ReactNode> = {
@@ -80,29 +76,56 @@ export function ThreadDockBubbles({
           <span className="[font-variant-numeric:tabular-nums]">{summary.agentCount}</span>
         </DockBubble>
       ) : null,
-    backgroundTasks:
-      liveTaskCount > 0 ? (
-        <DockBubble
-          key="backgroundTasks"
-          kind="backgroundTasks"
-          label={t`Background tasks`}
-          active={!tasksHidden && !docksInComposer && isActive("backgroundTasks")}
-          onPress={() => {
-            useThreadBackgroundTasksDockStore.getState().show(threadId);
-            // Composer placement restores the dock in place; there is no panel section.
-            if (docksInComposer) return;
-            if (tasksHidden) usePanelStore.getState().openThreadDocksPanel("backgroundTasks");
-            else toggleThreadDocksPanel("backgroundTasks");
-          }}
-          icon={<Activity className="size-3.5 shrink-0 text-muted" />}
-        >
-          <span className="[font-variant-numeric:tabular-nums]">{liveTaskCount}</span>
-        </DockBubble>
-      ) : null,
+    backgroundTasks: (
+      <ThreadBackgroundTasksBubble
+        key="backgroundTasks"
+        threadId={threadId}
+        active={panelShowing}
+      />
+    ),
     images: <ThreadImagesBubble key="images" threadId={threadId} />,
   };
 
-  return <>{order.map((kind) => (!kinds || kinds.includes(kind) ? bubbles[kind] : null))}</>;
+  return <>{order.map((kind) => bubbles[kind])}</>;
+}
+
+/**
+ * Live task count. Hiding the dock must not hide the only way to rediscover
+ * still-running work, so a hidden dock keeps an unpressed recovery bubble whose
+ * name describes the next click. With composer placement the bubble appears
+ * only while the dock is hidden and restores it in place; there is no panel.
+ */
+export function ThreadBackgroundTasksBubble({
+  threadId,
+  placement = "right",
+  active = false,
+}: {
+  threadId: string;
+  placement?: ThreadDocksPlacement;
+  /** Whether the Docks panel is showing; right placement only. */
+  active?: boolean;
+}) {
+  const { t } = useLingui();
+  const liveTaskCount = useThreadBackgroundTasks(threadId).length;
+  const tasksHidden = useVisibleThreadBackgroundTasks(threadId).length === 0;
+  const docksInComposer = placement === "composer";
+  if (liveTaskCount === 0 || (docksInComposer && !tasksHidden)) return null;
+  return (
+    <DockBubble
+      kind="backgroundTasks"
+      label={t`Background tasks`}
+      active={!tasksHidden && !docksInComposer && active}
+      onPress={() => {
+        useThreadBackgroundTasksDockStore.getState().show(threadId);
+        if (docksInComposer) return;
+        if (tasksHidden) usePanelStore.getState().openThreadDocksPanel("backgroundTasks");
+        else toggleThreadDocksPanel("backgroundTasks");
+      }}
+      icon={<Activity className="size-3.5 shrink-0 text-muted" />}
+    >
+      <span className="[font-variant-numeric:tabular-nums]">{liveTaskCount}</span>
+    </DockBubble>
+  );
 }
 
 function GoalBubble({ state, active }: { state: ThreadGoalDockState; active: boolean }) {
