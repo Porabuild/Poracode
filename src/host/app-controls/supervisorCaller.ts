@@ -75,6 +75,7 @@ export function createAppControlsSupervisorCaller(
     ghCreatePr: (payload) => call("ghCreatePr", payload),
     ghPostPrComment: (payload) => call("ghPostPrComment", payload),
     ghMergePr: (payload) => call("ghMergePr", payload),
+    ghMergePrAtHead: (payload) => call("ghMergePrAtHead", payload),
     ghClosePr: (payload) => call("ghClosePr", payload),
     ghReopenPr: (payload) => call("ghReopenPr", payload),
     ghMarkPrReady: (payload) => call("ghMarkPrReady", payload),

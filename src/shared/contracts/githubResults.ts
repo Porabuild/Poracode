@@ -243,6 +243,7 @@ export const ghGetPrDiffResultSchema = z.object({
 
 export const ghGetPrDetailsResultSchema = z.object({
   details: prDetailsSchema,
+  pr: prDataSchema.optional(),
 });
 
 export const ghGetPrReviewThreadsResultSchema = z.object({

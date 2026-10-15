@@ -1303,12 +1303,33 @@ application { mainClass.set("HarnessKt") }
         "utf8",
       );
       expect(() =>
-        execFileSync(gradleWrapper, ["--no-daemon", "--console=plain", "-p", directory, "run"], {
-          cwd: repositoryRoot,
-          encoding: "utf8",
-          stdio: "pipe",
-          timeout: 300_000,
-        }),
+        execFileSync(
+          process.platform === "win32"
+            ? process.env.JAVA_HOME
+              ? join(process.env.JAVA_HOME, "bin/java.exe")
+              : "java"
+            : gradleWrapper,
+          [
+            ...(process.platform === "win32"
+              ? [
+                  "-classpath",
+                  join(repositoryRoot, "android/gradle/wrapper/gradle-wrapper.jar"),
+                  "org.gradle.wrapper.GradleWrapperMain",
+                ]
+              : []),
+            "--no-daemon",
+            "--console=plain",
+            "-p",
+            directory,
+            "run",
+          ],
+          {
+            cwd: repositoryRoot,
+            encoding: "utf8",
+            stdio: "pipe",
+            timeout: 300_000,
+          },
+        ),
       ).not.toThrow();
     } finally {
       rmSync(directory, { recursive: true, force: true });

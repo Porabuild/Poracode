@@ -3542,6 +3542,7 @@ msgstr "Kommentar gepostet"
 msgid "commented"
 msgstr "kommentiert"
 
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
@@ -3581,6 +3582,10 @@ msgstr "Commit-Nachrichtengenerierung"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Commit options"
 msgstr "Commit-Optionen"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Commit the intended current-worktree changes with a clear subject and explanation."
+msgstr "Die vorgesehenen Änderungen im aktuellen Worktree mit einem klaren Betreff und einer Erläuterung committen."
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Commit, PR, and review composers"
@@ -4411,6 +4416,7 @@ msgstr "Neuen Branch erstellen"
 msgid "Create new branch..."
 msgstr "Neuen Branch erstellen..."
 
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
@@ -6524,6 +6530,10 @@ msgstr "Skills nach Status filtern"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "Filter"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Finalize"
+msgstr "Abschließen"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -12073,6 +12083,10 @@ msgstr "Öffentliche URL"
 msgid "Public URL updated."
 msgstr "Öffentliche URL aktualisiert."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Publish the current worktree with a proper PR description and before/after UI screenshots."
+msgstr "Den aktuellen Worktree mit einer aussagekräftigen PR-Beschreibung und Vorher-/Nachher-Screenshots der UI veröffentlichen."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
 msgstr "Pull"
@@ -13319,6 +13333,10 @@ msgstr "Review-Darstellung"
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Review recovery"
 msgstr "Wiederherstellung prüfen"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
+msgstr "Prüfen, manuell testen, Fehler beheben, committen, pushen, einen PR erstellen und nach erfolgreichen Prüfungen mergen."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"

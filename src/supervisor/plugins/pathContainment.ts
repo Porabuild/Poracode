@@ -18,9 +18,9 @@ export { relativePathInside } from "@/shared/pathContainment";
 export function normalizeWindowsNamespacePath(path: string): string {
   let normalized = path;
   if (normalized.startsWith("\\\\?\\UNC\\")) normalized = `\\\\${normalized.slice(8)}`;
-  else if (normalized.startsWith("\\\\?\\")) normalized = normalized.slice(4);
+  else if (/^\\\\\?\\[a-z]:[\\/]/iu.test(normalized)) normalized = normalized.slice(4);
   else if (normalized.startsWith("//?/UNC/")) normalized = `//${normalized.slice(8)}`;
-  else if (normalized.startsWith("//?/")) normalized = normalized.slice(4);
+  else if (/^\/\/\?\/[a-z]:\//iu.test(normalized)) normalized = normalized.slice(4);
   return normalized;
 }
 

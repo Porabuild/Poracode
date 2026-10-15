@@ -14,6 +14,7 @@ import { showUserNotification } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
+import { projectGitReadModelIntoLegacyStore } from "./state/gitReadModelLegacyProjection";
 import { openThread } from "./actions/threadActions";
 import { applyForwardedRemoteThreadCommand } from "./actions/remoteThreadCommandApplication";
 import { isProjectedRemoteEntityId } from "./state/remoteProjection";
@@ -319,7 +320,10 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
         applyForwardedRemoteThreadCommand(command);
       }),
       readBridge().onGitStateChanged((patch) => {
-        useGitReadModelStore.getState().applyPatch(patch);
+        const previous = useGitReadModelStore.getState();
+        if (patch.revision <= previous.revision) return;
+        previous.applyPatch(patch);
+        projectGitReadModelIntoLegacyStore(useGitReadModelStore.getState(), previous);
       }),
       readBridge().onUserNotification((notification) => {
         showUserNotification(notification);

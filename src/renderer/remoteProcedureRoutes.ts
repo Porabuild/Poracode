@@ -96,6 +96,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // Host-owned destructive-retirement check (housekeeping purge)
   closeThreadConfirmed:
     "local-shell: host-owned confirmed-retirement close for destructive housekeeping; the renderer never issues it and no remote route exists",
+  ghMergePrAtHead:
+    "local-shell: app-controls invokes this host's guarded merge directly; older supervisors reject its distinct name and no remote route exists",
 
   // The schedule coordinator invokes these helpers on its own supervisor.
   // Remote clients control schedules through the schedule registry routes.

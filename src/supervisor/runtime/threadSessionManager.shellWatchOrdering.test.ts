@@ -4,7 +4,8 @@ import { expect, it, vi } from "vitest";
 import type { TerminalSnapshot } from "@/shared/contracts";
 
 vi.mock("../nodePty", () => ({ ensureNodePtySpawnHelperExecutable: () => undefined }));
-vi.mock("@/shared/processTree", () => ({ terminateProcessTree: () => undefined }));
+const ptyExit = vi.hoisted(() => ({ fire: () => {} }));
+vi.mock("@/shared/processTree", () => ({ terminateProcessTree: () => ptyExit.fire() }));
 vi.mock("../agents/base", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../agents/base")>()),
   primeProjectShellEnv: async () => undefined,
@@ -12,6 +13,9 @@ vi.mock("../agents/base", async (importOriginal) => ({
 vi.mock("node-pty", () => ({
   spawn: () => {
     const exitHandlers: Array<(event: { exitCode: number | null }) => void> = [];
+    ptyExit.fire = () => {
+      for (const handler of [...exitHandlers]) handler({ exitCode: 0 });
+    };
     return {
       pid: process.pid,
       cols: 80,

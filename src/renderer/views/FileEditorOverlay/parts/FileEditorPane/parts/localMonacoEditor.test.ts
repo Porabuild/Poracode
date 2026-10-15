@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const runtime = vi.hoisted(() => ({
   editor: {},
@@ -39,6 +39,10 @@ vi.mock("monaco-editor/language/typescript/ts.worker?worker", () => ({
 }));
 
 describe("local editor runtime", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   it("uses the installed package's actual TypeScript feature namespace", async () => {
     // jsdom lacks this browser clipboard capability; keep the Monaco module
     // and its namespace unmocked while declaring unavailable clipboard paste.

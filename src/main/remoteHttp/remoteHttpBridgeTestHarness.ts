@@ -172,6 +172,7 @@ export function createQueuedCloningBridgePortPair(): QueuedCloningBridgePortPair
       close() {
         if (end.closed) return;
         end.closed = true;
+        end.queue.length = 0;
         const target = ends[peerOf(side)];
         setTimeout(() => {
           for (const listener of [...target.closeListeners]) listener();

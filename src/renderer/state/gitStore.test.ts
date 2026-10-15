@@ -358,6 +358,33 @@ describe("gitStore batch updates", () => {
     expect(secondPrData["/wt/b"]?.updatedAt).toBe("2026-04-04T02:00:00.000Z");
   });
 
+  it.each(["single", "batch"])("preserves a merged PR after a late %s refresh", (mode) => {
+    const merged: PrData = { ...basePr, state: "merged" };
+    useGitStore.getState().setPrData("/wt/a", merged);
+    const apply = (pr: PrData) => {
+      if (mode === "single") useGitStore.getState().setPrData("/wt/a", pr);
+      else useGitStore.getState().setPrDataBatch({ "/wt/a": pr });
+    };
+
+    apply(basePr);
+    expect(useGitStore.getState().prData["/wt/a"]).toBe(merged);
+
+    const next = { ...basePr, number: 43, url: "https://github.com/owner/repo/pull/43" };
+    apply(next);
+    expect(useGitStore.getState().prData["/wt/a"]).toBe(next);
+  });
+
+  it("preserves merged PR details after a late refresh", () => {
+    const merged = { ...basePrDetails, mergedAt: "2026-04-04T00:10:00.000Z" };
+    useGitStore.getState().setPrDetails("p1#42", merged);
+    useGitStore.getState().setPrDetails("p1#42", basePrDetails);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(merged);
+
+    const updated = { ...merged, body: "Updated after merge" };
+    useGitStore.getState().setPrDetails("p1#42", updated);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(updated);
+  });
+
   it("skips replacing unchanged PR details", () => {
     useGitStore.getState().setPrDetails("p1#42", basePrDetails);
     const firstDetails = useGitStore.getState().prDetails;

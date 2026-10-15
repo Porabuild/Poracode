@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   sshRuntimeManifestFileName,
@@ -338,9 +339,9 @@ describe("SSH environment worker service", () => {
           "--experimental-transform-types",
           "--disable-warning=ExperimentalWarning",
           "--import",
-          resolve("scripts/remote-v3-ts-register.mjs"),
+          pathToFileURL(resolve("scripts/remote-v3-ts-register.mjs")).href,
           "--import",
-          resolve("src/host/ssh/sshColdWorkTestRegister.mjs"),
+          pathToFileURL(resolve("src/host/ssh/sshColdWorkTestRegister.mjs")).href,
         ],
         stdio: ["ignore", "pipe", "pipe", "ipc"],
       },

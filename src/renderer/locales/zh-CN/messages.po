@@ -3542,6 +3542,7 @@ msgstr "评论已发布"
 msgid "commented"
 msgstr "评论了"
 
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
@@ -3581,6 +3582,10 @@ msgstr "提交消息生成"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Commit options"
 msgstr "提交选项"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Commit the intended current-worktree changes with a clear subject and explanation."
+msgstr "提交当前工作树中的预期更改，并提供清晰的标题和说明。"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Commit, PR, and review composers"
@@ -4411,6 +4416,7 @@ msgstr "创建新分支"
 msgid "Create new branch..."
 msgstr "创建新分支..."
 
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
@@ -6524,6 +6530,10 @@ msgstr "按状态筛选技能"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "筛选条件"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Finalize"
+msgstr "完成收尾"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -12072,6 +12082,10 @@ msgstr "公共 URL"
 msgid "Public URL updated."
 msgstr "公共 URL 已更新。"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Publish the current worktree with a proper PR description and before/after UI screenshots."
+msgstr "发布当前工作树，附上恰当的 PR 描述以及界面更改前后的截图。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
 msgstr "拉取"
@@ -13318,6 +13332,10 @@ msgstr "评审显示"
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Review recovery"
 msgstr "查看恢复"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
+msgstr "审查、手动测试、修复、提交、推送、创建 PR，并在检查通过后合并。"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"

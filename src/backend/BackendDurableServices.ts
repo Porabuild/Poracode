@@ -246,6 +246,7 @@ export class BackendDurableServices {
       }),
     });
     this.appControls = new AppControlsMcpIngress({
+      gitState: this.gitStateService,
       scheduleService: this.scheduleService,
       getThread: dbGetThread,
       getThreads: dbGetThreads,

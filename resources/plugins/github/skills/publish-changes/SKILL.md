@@ -7,6 +7,10 @@ description: "Commit work, push a branch, and open a pull request with an accura
 
 Get finished work onto a branch and into a pull request.
 
+Inside a Poracode project, use `create-pr` for the complete workflow, including title/description quality, manual
+verification, before/after UI screenshot upload, and synchronization through Poracode's `git_*` and `gh_*` tools.
+Use `commit` for committing only, and `finalize` only when the user requests review, QA, fixes, publication, and merge.
+
 ## Before committing
 
 Committing and pushing are the user's call. Do them when asked, not because the work looks done.

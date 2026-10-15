@@ -66,6 +66,17 @@ function details(conclusion = ""): PrDetails {
   };
 }
 
+function summary(overrides: Partial<PrData> = {}) {
+  return {
+    pr: pr(overrides),
+    headBranch: "feature/unified",
+    additions: 0,
+    deletions: 0,
+    repository: "poracode/repo",
+    reviewRequested: false,
+  };
+}
+
 function executor(): GitStateExecutor {
   return {
     gitFetch: vi.fn<GitStateExecutor["gitFetch"]>(async () => undefined),
@@ -330,6 +341,295 @@ describe("GitStateService", () => {
       ],
     ).toBe(key);
     expect(patches).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes merged core state when polling an existing review bundle without a branch", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    await service.refreshPullRequestForBranch(project.id, "feature/unified");
+    vi.mocked(fakeExecutor.ghGetPrDetails).mockResolvedValue({
+      details: details("SUCCESS"),
+      pr: pr({ state: "merged", checksStatus: "SUCCESS" }),
+    });
+
+    await service.refreshPullRequestReviewBundle({ projectId: project.id, prNumber: 42 });
+
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    expect(service.getSnapshot().pullRequests[key]?.data.state).toBe("merged");
+    expect(service.getSnapshot().pullRequests[key]?.data.checksStatus).toBe("SUCCESS");
+  });
+
+  it("keeps the previous core state when an older host returns details without pr", async () => {
+    const { service } = createService();
+    await service.refreshPullRequestForBranch(project.id, "feature/unified");
+    await service.refreshPullRequestReviewBundle({ projectId: project.id, prNumber: 42 });
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    expect(service.getSnapshot().pullRequests[key]?.data.state).toBe("open");
+    expect(service.getSnapshot().pullRequests[key]?.details?.number).toBe(42);
+  });
+
+  it("advances an existing review bundle to a newly fetched head without a branch poll", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      pr({ headSha: "a".repeat(40) }),
+    );
+    vi.mocked(fakeExecutor.ghGetPrDetails).mockResolvedValue({
+      details: details(),
+      pr: pr({ headSha: "b".repeat(40) }),
+    });
+    vi.mocked(fakeExecutor.ghGetPrDiff).mockResolvedValue({ diff: "new head diff" });
+    await service.refreshPullRequestReviewBundle({ projectId: project.id, prNumber: 42 });
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    expect(service.getSnapshot().pullRequests[key]?.data.headSha).toBe("b".repeat(40));
+    expect(service.getSnapshot().pullRequests[key]?.diff).toBe("new head diff");
+  });
+
+  it("keeps a newer merge observation when an older review bundle finishes", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    await service.refreshPullRequestForBranch(project.id, "feature/unified");
+    const diff = Promise.withResolvers<{ diff: string }>();
+    vi.mocked(fakeExecutor.ghGetPrDetails).mockResolvedValue({ details: details(), pr: pr() });
+    vi.mocked(fakeExecutor.ghGetPrDiff).mockReturnValue(diff.promise);
+    const refreshing = service.refreshPullRequestReviewBundle({
+      projectId: project.id,
+      prNumber: 42,
+    });
+    await vi.waitFor(() => expect(fakeExecutor.ghGetPrDiff).toHaveBeenCalledOnce());
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      pr({ state: "merged", checksStatus: "SUCCESS" }),
+      details("SUCCESS"),
+    );
+    diff.resolve({ diff: "old diff" });
+    await refreshing;
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    expect(service.getSnapshot().pullRequests[key]?.data.state).toBe("merged");
+    expect(service.getSnapshot().pullRequests[key]?.details?.checks[0]?.conclusion).toBe("SUCCESS");
+  });
+
+  it("reads post-mutation status after a pre-mutation target refresh finishes", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    const source =
+      Promise.withResolvers<Awaited<ReturnType<GitStateExecutor["gitGetWorktreeSourceBranch"]>>>();
+    vi.mocked(fakeExecutor.getGitStatus)
+      .mockResolvedValueOnce({ ...status(), ahead: 1 })
+      .mockResolvedValueOnce(status());
+    vi.mocked(fakeExecutor.gitGetWorktreeSourceBranch).mockReturnValueOnce(source.promise);
+    const target = { projectId: project.id, worktreePath: "/repo/.poracode/worktrees/a" };
+    const oldRefresh = service.refreshTarget(target);
+    await vi.waitFor(() => expect(fakeExecutor.gitGetWorktreeSourceBranch).toHaveBeenCalledOnce());
+    const freshRefresh = service.refreshTarget({ ...target, afterMutation: true });
+    source.resolve({ sourceBranch: "main", commitsAhead: 1, sourceAhead: 0 });
+    await Promise.all([oldRefresh, freshRefresh]);
+    expect(fakeExecutor.getGitStatus).toHaveBeenCalledTimes(2);
+    expect(
+      service.getSnapshot().targets[gitTargetKey({ hostId: "host-1", ...target })]?.status?.ahead,
+    ).toBe(0);
+  });
+
+  it("publishes review resources when a concurrent poll returns unchanged core state", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    await service.refreshPullRequestForBranch(project.id, "feature/unified");
+    const diff = Promise.withResolvers<{ diff: string }>();
+    vi.mocked(fakeExecutor.ghGetPrDetails).mockResolvedValue({ details: details(), pr: pr() });
+    vi.mocked(fakeExecutor.ghGetPrDiff).mockReturnValue(diff.promise);
+    const refreshing = service.refreshPullRequestReviewBundle({
+      projectId: project.id,
+      prNumber: 42,
+    });
+    await vi.waitFor(() => expect(fakeExecutor.ghGetPrDiff).toHaveBeenCalledOnce());
+    await service.refreshPullRequestForBranch(project.id, "feature/unified");
+    diff.resolve({ diff: "current diff" });
+    await refreshing;
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    expect(service.getSnapshot().pullRequests[key]?.diff).toBe("current diff");
+    expect(service.getSnapshot().pullRequests[key]?.details?.number).toBe(42);
+  });
+
+  it("does not reattach an older PR when its branch refresh finishes after creation", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    vi.mocked(fakeExecutor.ghGetPrForBranch).mockResolvedValue(pr({ number: 6, state: "merged" }));
+    const target = { projectId: project.id, worktreePath: "/repo/.poracode/worktrees/a" };
+    await service.refreshTarget(target);
+    const oldDetails = Promise.withResolvers<{ details: PrDetails }>();
+    vi.mocked(fakeExecutor.ghGetPrDetails).mockReturnValue(oldDetails.promise);
+    const refreshing = service.refreshPullRequestForBranch(project.id, "feature/unified", {
+      includeDetails: true,
+    });
+    await vi.waitFor(() => expect(fakeExecutor.ghGetPrDetails).toHaveBeenCalledOnce());
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      pr({ number: 7 }),
+      undefined,
+      { replaceBranch: true },
+    );
+    oldDetails.resolve({ details: { ...details(), number: 6 } });
+    await refreshing;
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 7 });
+    expect(
+      service.getSnapshot().targets[gitTargetKey({ hostId: "host-1", ...target })]?.pullRequestKey,
+    ).toBe(key);
+  });
+
+  it("keeps a merge observation when an older refresh for the same PR finishes", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    await service.refreshPullRequestForBranch(project.id, "feature/unified");
+    const oldDetails = Promise.withResolvers<{ details: PrDetails }>();
+    vi.mocked(fakeExecutor.ghGetPrDetails).mockReturnValue(oldDetails.promise);
+    const refreshing = service.refreshPullRequestForBranch(project.id, "feature/unified", {
+      includeDetails: true,
+    });
+    await vi.waitFor(() => expect(fakeExecutor.ghGetPrDetails).toHaveBeenCalledOnce());
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      pr({ state: "merged", checksStatus: "SUCCESS" }),
+      details("SUCCESS"),
+    );
+    oldDetails.resolve({ details: details() });
+    await refreshing;
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    expect(service.getSnapshot().pullRequests[key]?.data.state).toBe("merged");
+    expect(service.getSnapshot().pullRequests[key]?.details?.checks[0]?.conclusion).toBe("SUCCESS");
+  });
+
+  it("attaches an explicitly created PR to targets on a reused branch", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    vi.mocked(fakeExecutor.ghGetPrForBranch).mockResolvedValue(pr({ number: 6, state: "merged" }));
+    const target = { projectId: project.id, worktreePath: "/repo/.poracode/worktrees/a" };
+    await service.refreshTarget(target);
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      pr({ number: 7 }),
+      undefined,
+      { replaceBranch: true },
+    );
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 7 });
+    expect(
+      service.getSnapshot().targets[gitTargetKey({ hostId: "host-1", ...target })]?.pullRequestKey,
+    ).toBe(key);
+  });
+
+  it.each(["branch", "list", "watch", "bundle"] as const)(
+    "keeps a known merge when a later %s read returns stale open state",
+    async (source) => {
+      const { service, executor: fakeExecutor } = createService();
+      const watch = { projectId: project.id, headBranch: "feature/unified" };
+      service.applyObservedPullRequest(
+        watch,
+        pr({ state: "merged", checksStatus: "SUCCESS" }),
+        details("SUCCESS"),
+      );
+      vi.mocked(fakeExecutor.ghGetPrDetails).mockResolvedValue({ details: details(), pr: pr() });
+      vi.mocked(fakeExecutor.ghListPullRequests).mockResolvedValue({
+        pullRequests: [summary()],
+      });
+
+      if (source === "branch") {
+        await service.refreshPullRequestForBranch(project.id, watch.headBranch, {
+          includeDetails: true,
+        });
+      } else if (source === "list") {
+        await service.refreshProjectPullRequests(project.id);
+      } else if (source === "watch") {
+        service.applyObservedPullRequest(watch, pr(), details());
+      } else {
+        await service.refreshPullRequestReviewBundle({ projectId: project.id, prNumber: 42 });
+      }
+
+      const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+      expect(service.getSnapshot().pullRequests[key]?.data.state).toBe("merged");
+      expect(service.getSnapshot().pullRequests[key]?.details?.checks[0]?.conclusion).toBe(
+        "SUCCESS",
+      );
+    },
+  );
+
+  it("does not reattach an older PR when its project list finishes after creation", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    const watch = { projectId: project.id, headBranch: "feature/unified" };
+    service.applyObservedPullRequest(watch, pr({ number: 6, state: "merged" }));
+    const list =
+      Promise.withResolvers<Awaited<ReturnType<GitStateExecutor["ghListPullRequests"]>>>();
+    vi.mocked(fakeExecutor.ghListPullRequests).mockReturnValue(list.promise);
+    const refreshing = service.refreshProjectPullRequests(project.id);
+    service.applyObservedPullRequest(watch, pr({ number: 7 }), undefined, { replaceBranch: true });
+    list.resolve({
+      pullRequests: [summary({ number: 6, state: "merged" })],
+    });
+    await refreshing;
+
+    const branchKey = pullRequestBranchKey(
+      { hostId: "host-1", projectId: project.id },
+      watch.headBranch,
+    );
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 7 });
+    expect(service.getSnapshot().pullRequestKeyByBranch[branchKey]).toBe(key);
+  });
+
+  it.each(["branch", "list"] as const)(
+    "keeps a created PR when a subsequent %s read returns an older PR on its branch",
+    async (source) => {
+      const { service, executor: fakeExecutor } = createService();
+      const watch = { projectId: project.id, headBranch: "feature/unified" };
+      service.applyObservedPullRequest(watch, pr({ number: 6, state: "merged" }));
+      service.applyObservedPullRequest(watch, pr({ number: 7 }), undefined, {
+        replaceBranch: true,
+      });
+      vi.mocked(fakeExecutor.ghGetPrForBranch).mockResolvedValue(
+        pr({ number: 6, state: "merged" }),
+      );
+      vi.mocked(fakeExecutor.ghListPullRequests).mockResolvedValue({
+        pullRequests: [summary({ number: 6, state: "merged" })],
+      });
+      if (source === "branch")
+        await service.refreshPullRequestForBranch(project.id, watch.headBranch);
+      else await service.refreshProjectPullRequests(project.id);
+      const branchKey = pullRequestBranchKey(
+        { hostId: "host-1", projectId: project.id },
+        watch.headBranch,
+      );
+      const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 7 });
+      expect(service.getSnapshot().pullRequestKeyByBranch[branchKey]).toBe(key);
+    },
+  );
+
+  it.each([
+    [6, 7],
+    [7, 6],
+  ])("selects the latest PR from a project list ordered %s, %s", async (first, second) => {
+    const { service, executor: fakeExecutor } = createService();
+    vi.mocked(fakeExecutor.ghListPullRequests).mockResolvedValue({
+      pullRequests: [summary({ number: first }), summary({ number: second })],
+    });
+    await service.refreshProjectPullRequests(project.id);
+    const branchKey = pullRequestBranchKey(
+      { hostId: "host-1", projectId: project.id },
+      "feature/unified",
+    );
+    expect(service.getSnapshot().pullRequestKeyByBranch[branchKey]).toBe(
+      pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 7 }),
+    );
+  });
+
+  it("keeps a merge association when an older empty branch lookup finishes", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    await service.refreshPullRequestForBranch(project.id, "feature/unified");
+    const lookup = Promise.withResolvers<PrData | null>();
+    vi.mocked(fakeExecutor.ghGetPrForBranch).mockReturnValue(lookup.promise);
+    const refreshing = service.refreshPullRequestForBranch(project.id, "feature/unified");
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      pr({ state: "merged" }),
+    );
+    lookup.resolve(null);
+    await refreshing;
+    const branchKey = pullRequestBranchKey(
+      { hostId: "host-1", projectId: project.id },
+      "feature/unified",
+    );
+    expect(service.getSnapshot().pullRequestKeyByBranch[branchKey]).toBe(
+      pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 }),
+    );
   });
 
   it("refreshes visible interests on a host timer without renderer focus", async () => {

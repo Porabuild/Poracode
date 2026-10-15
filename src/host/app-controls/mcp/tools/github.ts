@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { GhGetPrDetailsResult, ProjectLocation } from "@/shared/contracts";
 import { branchNameFromRemoteRef } from "@/shared/gitUtils";
 import {
   capDiff,
@@ -35,6 +35,10 @@ const mergePrArgsSchema = z.object({
   projectId: z.string().min(1),
   prNumber: z.number().int().min(1),
   method: z.enum(["merge", "squash", "rebase"]).optional(),
+  expectedHeadSha: z
+    .string()
+    .regex(/^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/)
+    .optional(),
 });
 const updatePrArgsSchema = z.object({
   projectId: z.string().min(1),
@@ -48,7 +52,7 @@ export const githubTools: ToolDomain = {
     {
       name: "gh_list_prs",
       description:
-        "List the project's GitHub pull requests (with author, additions/deletions, review status, and the viewer's login) via the `gh` CLI. Read-only.",
+        "List the project's GitHub pull requests (with author, additions/deletions, review status, and the viewer's login) via the `gh` CLI and refresh Poracode's open PR list. Read-only.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -59,7 +63,7 @@ export const githubTools: ToolDomain = {
     {
       name: "gh_get_pr",
       description:
-        "Read one pull request. Returns its details by default; pass include to add checks, files, and/or the unified diff (diff is capped at 80000 characters). Read-only.",
+        "Read one pull request and synchronize its current state and checks with Poracode's UI. Returns core pr state and details; pass include to add checks, files, and/or the unified diff (diff is capped at 80000 characters). Older hosts may omit pr. Read-only.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -111,7 +115,7 @@ export const githubTools: ToolDomain = {
     {
       name: "gh_merge_pr",
       description:
-        "HIGHLY CONSEQUENTIAL: merge a pull request into its base branch (method: merge, squash, or rebase; default merge). This changes the shared repository and usually cannot be undone. Require explicit user confirmation before calling.",
+        "Merge a pull request into its base branch (method: merge, squash, or rebase; defaults to the user's Poracode setting). The user must explicitly request the merge, including by invoking finalize through merge; that request is authorization without another confirmation. Pass expectedHeadSha from the verified head to atomically reject a concurrent push. Never bypass branch protection. Read back pr.state: GitHub may queue a merge instead of completing it immediately.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -120,6 +124,7 @@ export const githubTools: ToolDomain = {
           projectId: projectIdProp,
           prNumber: { type: "integer", minimum: 1 },
           method: { type: "string", enum: ["merge", "squash", "rebase"] },
+          expectedHeadSha: { type: "string", pattern: "^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$" },
         },
       },
     },
@@ -145,6 +150,7 @@ export const githubTools: ToolDomain = {
       const { projectId } = listPrsArgsSchema.parse(args);
       const projectLocation = requireProject(ctx, projectId).location;
       await requireGh(ctx, projectLocation);
+      await ctx.gitState?.refreshProjectPullRequests(projectId, { afterMutation: true });
       const result = await ctx.supervisor.ghListPullRequests({ projectLocation });
       return { projectId, count: result.pullRequests.length, ...result };
     },
@@ -153,8 +159,14 @@ export const githubTools: ToolDomain = {
       const projectLocation = requireProject(ctx, projectId).location;
       await requireGh(ctx, projectLocation);
       const want = new Set(include ?? ["details"]);
-      const { details } = await ctx.supervisor.ghGetPrDetails({ projectLocation, prNumber });
-      const out: Record<string, unknown> = { projectId, prNumber, details };
+      const { details, pr } = await ctx.supervisor.ghGetPrDetails({ projectLocation, prNumber });
+      if (pr)
+        ctx.gitState?.applyObservedPullRequest(
+          { projectId, headBranch: details.headBranch },
+          pr,
+          details,
+        );
+      const out: Record<string, unknown> = { projectId, prNumber, details, ...(pr ? { pr } : {}) };
       // Details land the head branch checks need; the rest run concurrently.
       const [checks, files, diff] = await Promise.all([
         want.has("checks")
@@ -213,26 +225,50 @@ export const githubTools: ToolDomain = {
         body,
         isDraft: draft ?? false,
       });
-      return { projectId, created: true, pr };
+      ctx.gitState?.applyObservedPullRequest({ projectId, headBranch: branch }, pr, undefined, {
+        replaceBranch: true,
+      });
+      return {
+        projectId,
+        created: true,
+        pr,
+        ...(await syncPullRequest(ctx, projectId, pr.number)),
+      };
     },
     gh_pr_comment: async (args, ctx) => {
       const { projectId, prNumber, body } = commentArgsSchema.parse(args);
       const projectLocation = requireProject(ctx, projectId).location;
       await requireGh(ctx, projectLocation);
       const comment = await ctx.supervisor.ghPostPrComment({ projectLocation, prNumber, body });
-      return { projectId, prNumber, posted: true, comment };
+      return {
+        projectId,
+        prNumber,
+        posted: true,
+        comment,
+        ...(await syncPullRequest(ctx, projectId, prNumber)),
+      };
     },
     gh_merge_pr: async (args, ctx) => {
-      const { projectId, prNumber, method } = mergePrArgsSchema.parse(args);
+      const { projectId, prNumber, method, expectedHeadSha } = mergePrArgsSchema.parse(args);
       const projectLocation = requireProject(ctx, projectId).location;
       await requireGh(ctx, projectLocation);
-      await ctx.supervisor.ghMergePr({
+      const mergeMethod = method ?? ctx.settings.read().prMergeMethod;
+      const payload = {
         projectLocation,
         prNumber,
-        method: method ?? "merge",
+        method: mergeMethod,
         admin: false,
-      });
-      return { projectId, prNumber, merged: true, method: method ?? "merge" };
+      };
+      if (expectedHeadSha) await ctx.supervisor.ghMergePrAtHead({ ...payload, expectedHeadSha });
+      else await ctx.supervisor.ghMergePr(payload);
+      const state = await syncPullRequest(ctx, projectId, prNumber);
+      return {
+        projectId,
+        prNumber,
+        method: mergeMethod,
+        ...(state.pr ? { merged: state.pr.state === "merged" } : {}),
+        ...state,
+      };
     },
     gh_update_pr: async (args, ctx) => {
       const { projectId, prNumber, action, rebase } = updatePrArgsSchema.parse(args);
@@ -256,10 +292,51 @@ export const githubTools: ToolDomain = {
           });
           break;
       }
-      return { projectId, prNumber, action, done: true };
+      return {
+        projectId,
+        prNumber,
+        action,
+        done: true,
+        ...(await syncPullRequest(ctx, projectId, prNumber)),
+      };
     },
   },
 };
+
+async function syncPullRequest(
+  ctx: AppControlsToolContext,
+  projectId: string,
+  prNumber: number,
+): Promise<Partial<GhGetPrDetailsResult> & { syncWarning?: string }> {
+  let syncWarning: string | undefined;
+  try {
+    await ctx.gitState?.refreshProjectPullRequests(projectId, { afterMutation: true });
+  } catch (error) {
+    ctx.reportError?.(error);
+    syncWarning =
+      "The PR operation completed, but refreshing Poracode's open PR list failed. Retry gh_list_prs.";
+  }
+  try {
+    const result = await ctx.supervisor.ghGetPrDetails({
+      projectLocation: requireProject(ctx, projectId).location,
+      prNumber,
+    });
+    if (result.pr) {
+      ctx.gitState?.applyObservedPullRequest(
+        { projectId, headBranch: result.details.headBranch },
+        result.pr,
+        result.details,
+      );
+    }
+    return { ...result, ...(syncWarning ? { syncWarning } : {}) };
+  } catch (error) {
+    ctx.reportError?.(error);
+    return {
+      syncWarning:
+        "The operation completed, but refreshing Poracode's PR state failed. Retry gh_get_pr.",
+    };
+  }
+}
 
 /** Fail fast with a clear message when the `gh` CLI is not available for this runtime. */
 async function requireGh(

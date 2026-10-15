@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
-import { buildSyntheticCliEntry } from "./cliTestBundle";
+import { buildCliProcessFixture, buildSyntheticCliEntry } from "./cliTestBundle";
 import { expectOwned, stopOwnedChild, withinDeadline } from "./cliTestHelpers";
 import { ensureDeclaredAssetsDir } from "./testDeclaredAssets";
 
@@ -31,7 +31,10 @@ let entry: string;
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), "poracode-cli-startup-deadline-"));
   entry = join(directory, "server.cjs");
-  await buildSyntheticCliEntry(entry);
+  await Promise.all([
+    buildSyntheticCliEntry(entry),
+    buildCliProcessFixture(join(directory, "fixture.cjs"), "cliStartupDeadline"),
+  ]);
 });
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
 
@@ -54,21 +57,12 @@ function runFixture(profile: string, mode: string, options: { readonly deadlineM
     NODE_PATH: fileURLToPath(new URL("../../node_modules/", import.meta.url)),
   };
   delete environment.NODE_OPTIONS;
-  const child = fork(
-    fileURLToPath(new URL("./fixtures/cliStartupDeadline.mjs", import.meta.url)),
-    [entry, profile, mode],
-    {
-      execPath: process.execPath,
-      execArgv: [
-        "--experimental-transform-types",
-        "--disable-warning=ExperimentalWarning",
-        "--import",
-        fileURLToPath(new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url)),
-      ],
-      env: environment,
-      stdio: ["ignore", "ignore", "pipe", "ipc"],
-    },
-  );
+  const child = fork(join(directory, "fixture.cjs"), [entry, profile, mode], {
+    execPath: process.execPath,
+    execArgv: [],
+    env: environment,
+    stdio: ["ignore", "ignore", "pipe", "ipc"],
+  });
   let output = "";
   let spawnError: Error | undefined;
   child.stderr?.on("data", (bytes: Buffer) => {

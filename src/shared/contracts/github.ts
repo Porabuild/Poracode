@@ -343,6 +343,12 @@ export const ghMergePrPayloadSchema = z.object({
 });
 export type GhMergePrPayload = z.infer<typeof ghMergePrPayloadSchema>;
 
+/** Separate internal name so older supervisors reject rather than drop the head precondition. */
+export const ghMergePrAtHeadPayloadSchema = ghMergePrPayloadSchema.extend({
+  expectedHeadSha: z.string().regex(/^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/),
+});
+export type GhMergePrAtHeadPayload = z.infer<typeof ghMergePrAtHeadPayloadSchema>;
+
 export const ghClosePrPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   prNumber: z.number().int().min(1),
@@ -414,6 +420,8 @@ export type GhGetPrDetailsPayload = z.infer<typeof ghGetPrDetailsPayloadSchema>;
 
 export interface GhGetPrDetailsResult {
   details: PrDetails;
+  /** Core state from the same reading; absent on older hosts. */
+  pr?: PrData;
 }
 
 export interface GhGetPrReviewThreadsResult {

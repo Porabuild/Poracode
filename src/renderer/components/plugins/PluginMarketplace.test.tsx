@@ -42,7 +42,7 @@ describe("PluginMarketplace", () => {
     fireEvent.click(screen.getByRole("button", { name: "GitHub Install" }));
 
     expect(useSharedSettings.getState().installedPlugins.github).toMatchObject({
-      version: "1.1.0",
+      version: "1.2.0",
       enabled: true,
     });
     expect(onOpen).toHaveBeenLastCalledWith("github");

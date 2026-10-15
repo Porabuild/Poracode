@@ -68,7 +68,8 @@ describe("remote v3 native binding generator", () => {
         // flat reorder command. Host-scoped usage adds two procedures and four roots.
         // Regenerate native authority from all combined schemas.
         // Optional context-reload facts also add one generated Swift chunk.
-        sourceHash: "sha256:65f613d5d836834bb617321333407caf4857e7adcb83f6ab95d87ab1dcff4fc9",
+        // Optional core PR state preserves the previous details-only result shape.
+        sourceHash: "sha256:1acb61e4db3e7b08af35be93ea4be0526912ff8553321637a021323dc6b29013",
         manifestHash: "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40",
         counts: {
           routes: 100,

@@ -10,7 +10,11 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
-import { summaryBackfillMissed, useGitStore } from "@/renderer/state/gitStore";
+import {
+  isMergedPrRegression,
+  summaryBackfillMissed,
+  useGitStore,
+} from "@/renderer/state/gitStore";
 import { buildBranchNamePrKey, buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -540,6 +544,7 @@ export async function refreshSinglePr(params: {
   prNumber?: number;
 }): Promise<PrData | null | undefined> {
   const bridge = readBridge();
+  const previousPr = useGitStore.getState().prData[params.prKey];
   const prPromise = bridge
     .ghGetPrForBranch({ projectLocation: params.projectLocation, branch: params.branch })
     .catch(() => undefined);
@@ -550,6 +555,10 @@ export async function refreshSinglePr(params: {
           .catch(() => undefined)
       : Promise.resolve(undefined);
   const [pr, details] = await Promise.all([prPromise, detailsPromise]);
+  const currentPr = useGitStore.getState().prData[params.prKey];
+  if (isMergedPrRegression(currentPr, pr, previousPr)) {
+    return currentPr;
+  }
   if (pr !== undefined) {
     useGitStore.getState().setPrData(params.prKey, pr);
   }
@@ -918,7 +927,7 @@ export async function refreshGitProject(
         // Worktree-thread PRs only need `ghAvailable`; project PR also needs
         // `status.branch`. They run concurrently with everything above.
         const prUpdates: Record<string, PrData | null> = {};
-        const prNumberUpdates = new Map<string, number | undefined>();
+        const previousPrs: Record<string, PrData | null | undefined> = {};
         const wtThreads = getActiveWorktreeBranchThreads(project.id);
 
         const wtPrPromises = wtThreads.map(async (t) => {
@@ -926,15 +935,12 @@ export async function refreshGitProject(
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
           if (!ghAvailable || !t.worktreeBranch || !t.worktreePath) return;
           try {
+            previousPrs[t.worktreePath] = useGitStore.getState().prData[t.worktreePath];
             const pr = await readBridge().ghGetPrForBranch({
               projectLocation: project.location,
               branch: t.worktreeBranch,
             });
             prUpdates[t.worktreePath] = pr;
-            const newPrNumber = pr?.number ?? undefined;
-            if (newPrNumber !== t.prNumber) {
-              prNumberUpdates.set(t.id, newPrNumber);
-            }
           } catch (err) {
             console.warn(
               `[git-refresh] ghGetPrForBranch failed (worktree) project=${project.id} branch=${t.worktreeBranch}`,
@@ -950,11 +956,13 @@ export async function refreshGitProject(
           const platform = status.remoteInfo?.platform;
           if (platform !== "github" && platform !== "unknown") return;
           try {
+            const prKey = buildBranchPrKey(project.id);
+            previousPrs[prKey] = useGitStore.getState().prData[prKey];
             const pr = await readBridge().ghGetPrForBranch({
               projectLocation: project.location,
               branch: status.branch,
             });
-            prUpdates[buildBranchPrKey(project.id)] = pr;
+            prUpdates[prKey] = pr;
           } catch (err) {
             console.warn(
               `[git-refresh] ghGetPrForBranch failed (project) project=${project.id} branch=${status.branch}`,
@@ -971,8 +979,19 @@ export async function refreshGitProject(
         ]);
 
         if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
+        for (const [key, pr] of Object.entries(prUpdates)) {
+          if (isMergedPrRegression(useGitStore.getState().prData[key], pr, previousPrs[key])) {
+            delete prUpdates[key];
+          }
+        }
         if (Object.keys(prUpdates).length > 0) {
           useGitStore.getState().setPrDataBatch(prUpdates);
+        }
+        const prNumberUpdates = new Map<string, number | undefined>();
+        for (const thread of wtThreads) {
+          if (!thread.worktreePath || !Object.hasOwn(prUpdates, thread.worktreePath)) continue;
+          const prNumber = prUpdates[thread.worktreePath]?.number;
+          if (prNumber !== thread.prNumber) prNumberUpdates.set(thread.id, prNumber);
         }
         if (prNumberUpdates.size > 0) {
           useAppStore.setState((state) => {

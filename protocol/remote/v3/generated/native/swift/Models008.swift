@@ -60,15 +60,18 @@ public struct ProcedureghGetPrDetailsResultU2DDetails_9f1da8cf54: Codable, Senda
   }
 }
 
-public struct ProcedureghGetPrDetailsResult_567aa4ef7f: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedureghGetPrDetailsResult_36d27df213: Codable, Sendable, RemoteModelMetadata {
   public var details: ProcedureghGetPrDetailsResultU2DDetails_9f1da8cf54
+  public var pr: RemoteField<ProcedureghCreatePrResult_a4457c545e> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "details", typeName: "ProcedureghGetPrDetailsResultU2DDetails_9f1da8cf54", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "pr", typeName: "ProcedureghCreatePrResult_a4457c545e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case details = "details"
+    case pr = "pr"
   }
 }
 

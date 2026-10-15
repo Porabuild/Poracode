@@ -2103,13 +2103,13 @@ describe("SupervisorRuntime thread input", () => {
     const runtime = makeRuntime((event) => {
       emitted.push(event);
     });
-    let rejectActivation: ((error: Error) => void) | undefined;
-    const activate = vi.fn<() => Promise<void>>(
-      () =>
-        new Promise<void>((_resolve, reject) => {
-          rejectActivation = reject;
-        }),
-    );
+    const activationStarted = Promise.withResolvers<void>();
+    const activation = Promise.withResolvers<void>();
+    void activation.promise.catch(() => undefined);
+    const activate = vi.fn<() => Promise<void>>(() => {
+      activationStarted.resolve();
+      return activation.promise;
+    });
     const openThread = vi.fn<() => Promise<string>>().mockResolvedValue("session-1");
     const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const interruptTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
@@ -2179,7 +2179,8 @@ describe("SupervisorRuntime thread input", () => {
     try {
       // Stop must race an in-flight activation, not an arbitrary number of
       // preparation microtasks before the provider factory has run.
-      await vi.waitFor(() => expect(activate).toHaveBeenCalledTimes(1));
+      await activationStarted.promise;
+      expect(activate).toHaveBeenCalledTimes(1);
       expect(adapter.createStructuredSession).toHaveBeenCalledTimes(1);
       expect(dispose).not.toHaveBeenCalled();
       expect(runtime.sessions.has("thread-gui-activate-stop")).toBe(false);
@@ -2208,7 +2209,7 @@ describe("SupervisorRuntime thread input", () => {
     } finally {
       // Release the provider gate even if a boundary assertion fails, so
       // teardown cannot be stranded on an unpublished startup handle.
-      rejectActivation?.(new Error("ACP connection closed"));
+      activation.reject(new Error("ACP connection closed"));
       await startPromise.catch(() => undefined);
     }
 

@@ -366,7 +366,13 @@ describe("worker-backed SQLite reads", () => {
 
   it("keeps later runtime writes and same-thread mutations outside a worker's pinned prefix", async () => {
     enableAsyncDatabaseReads(dbPath, delayedWorkerPath);
+    await Promise.all(
+      Array.from({ length: 2 }, () =>
+        readDatabaseAsync("runtimeItems", ["fast"], () => dbReadThreadRuntimeItems("fast")),
+      ),
+    );
     applyRuntimeEvents("slow", [started("slow", "first"), delta("slow", "prefix", "first")]);
+    writeFileSync(`${dbPath}.hold-slow-query`, "hold until the parallel read finishes");
     const reading = dbGetThreadRuntimeItems("slow");
     void reading.catch(() => undefined);
     // The public read pins synchronously, before its first await.
@@ -375,8 +381,13 @@ describe("worker-backed SQLite reads", () => {
     const mutation = runThreadRuntimeMutation("slow", "truncate", () => {
       mutated = true;
     });
-    expect(await dbGetThreadRuntimeItems("fast")).toEqual([]);
-    expect(mutated).toBe(false);
+    try {
+      await vi.waitFor(() => expect(existsSync(`${dbPath}.slow-query-active`)).toBe(true));
+      expect(await dbGetThreadRuntimeItems("fast")).toEqual([]);
+      expect(mutated).toBe(false);
+    } finally {
+      rmSync(`${dbPath}.hold-slow-query`, { force: true });
+    }
     const items = await reading;
     expect(items[0]?.streams.assistant_text).toBe("prefix");
     await mutation;

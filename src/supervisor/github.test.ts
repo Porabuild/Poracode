@@ -970,6 +970,20 @@ describe("GitHubService", () => {
   });
 
   describe("mergePr", () => {
+    it("guards the merge against a different head commit", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "" });
+      const sha = "a".repeat(40);
+      await new GitHubService().mergePr(location, 42, "squash", false, sha);
+      expect(buildAgentCommandMock.mock.calls[0]![2]).toEqual([
+        "pr",
+        "merge",
+        "42",
+        "--squash",
+        "--match-head-commit",
+        sha,
+      ]);
+    });
+
     it("merges with the specified method without deleting branches", async () => {
       execFileAsyncMock.mockResolvedValue({ stdout: "" });
 
@@ -1238,6 +1252,49 @@ describe("GitHubService", () => {
       const ghArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
       expect(ghArgs).toContain("20");
     });
+  });
+
+  it("reads exact-number core state and details from the same GitHub response", async () => {
+    execFileAsyncMock.mockResolvedValue({
+      stdout: JSON.stringify({
+        number: 609,
+        state: "MERGED",
+        title: "Fix",
+        body: "Why",
+        url: "https://github.com/owner/repo/pull/609",
+        baseRefName: "main",
+        headRefName: "feature/x",
+        headRefOid: "a".repeat(40),
+        isDraft: false,
+        updatedAt: "2026-10-15T12:00:00Z",
+        statusCheckRollup: [{ name: "CI", status: "COMPLETED", conclusion: "SUCCESS" }],
+      }),
+    });
+    const result = await new GitHubService().getPrDetails(location, 609);
+    expect(result).toMatchObject({
+      pr: { number: 609, state: "merged", checksStatus: "SUCCESS", headSha: "a".repeat(40) },
+      details: { number: 609, headBranch: "feature/x", body: "Why" },
+    });
+    const ghArgs = buildAgentCommandMock.mock.calls[0]![2];
+    expect(ghArgs.slice(0, 3)).toEqual(["pr", "view", "609"]);
+    expect(ghArgs[ghArgs.indexOf("--json") + 1]).toContain("headRefOid");
+  });
+
+  it("retains viewer authorship in exact-number PR reads", async () => {
+    execFileAsyncMock.mockImplementation(async (_cmd, args) => ({
+      stdout:
+        (args as string[])[0] === "api"
+          ? "octocat\n"
+          : JSON.stringify({
+              number: 609,
+              state: "OPEN",
+              title: "Fix",
+              headRefName: "feature",
+              author: { login: "octocat" },
+            }),
+    }));
+    const result = await new GitHubService().getPrDetails(location, 609);
+    expect(result.pr?.viewerDidAuthor).toBe(true);
   });
 
   describe("getPrChecks", () => {

@@ -3542,6 +3542,7 @@ msgstr "Yorum gönderildi"
 msgid "commented"
 msgstr "yorum yaptı"
 
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
@@ -3581,6 +3582,10 @@ msgstr "Commit Mesajı Oluşturma"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Commit options"
 msgstr "Commit seçenekleri"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Commit the intended current-worktree changes with a clear subject and explanation."
+msgstr "Geçerli çalışma ağacındaki amaçlanan değişiklikleri açık bir başlık ve açıklamayla commit edin."
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Commit, PR, and review composers"
@@ -4411,6 +4416,7 @@ msgstr "Yeni şube oluştur"
 msgid "Create new branch..."
 msgstr "Yeni şube oluştur..."
 
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
@@ -6524,6 +6530,10 @@ msgstr "Becerileri duruma göre filtrele"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "Filtreler"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Finalize"
+msgstr "Sonlandır"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -12073,6 +12083,10 @@ msgstr "Genel URL"
 msgid "Public URL updated."
 msgstr "Genel URL güncellendi."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Publish the current worktree with a proper PR description and before/after UI screenshots."
+msgstr "Geçerli çalışma ağacını uygun bir PR açıklaması ve arayüzün önceki ve sonraki ekran görüntüleriyle yayımlayın."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
 msgstr "Çek"
@@ -13319,6 +13333,10 @@ msgstr "İnceleme görünümü"
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Review recovery"
 msgstr "Kurtarmayı incele"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
+msgstr "İnceleyin, elle test edin, düzeltin, commit edin, gönderin, PR oluşturun ve kontroller geçtikten sonra birleştirin."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"

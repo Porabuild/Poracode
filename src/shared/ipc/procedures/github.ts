@@ -22,6 +22,7 @@ import {
   ghListWorkflowsPayloadSchema,
   ghMarkPrReadyPayloadSchema,
   ghMergePrPayloadSchema,
+  ghMergePrAtHeadPayloadSchema,
   ghPostPrCommentPayloadSchema,
   ghReopenPrPayloadSchema,
   ghRerunWorkflowRunPayloadSchema,
@@ -83,6 +84,7 @@ import type {
   GhListWorkflowsResult,
   GhMarkPrReadyPayload,
   GhMergePrPayload,
+  GhMergePrAtHeadPayload,
   GhPostPrCommentPayload,
   GhReopenPrPayload,
   GhRerunWorkflowRunPayload,
@@ -185,6 +187,12 @@ export const githubProcedures = {
     "ghMergePr",
     "supervisor",
     ghMergePrPayloadSchema,
+    omittedResultSchema,
+  ),
+  ghMergePrAtHead: definePayloadProcedure<GhMergePrAtHeadPayload, void, "supervisor">(
+    "ghMergePrAtHead",
+    "supervisor",
+    ghMergePrAtHeadPayloadSchema,
     omittedResultSchema,
   ),
   ghClosePr: definePayloadProcedure<GhClosePrPayload, void, "supervisor">(

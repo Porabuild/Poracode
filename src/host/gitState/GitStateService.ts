@@ -33,6 +33,10 @@ function mergePullRequestState(input: {
   readonly details: PrDetails | undefined;
   readonly at: string;
 }): PullRequestState {
+  // GitHub cannot reopen a merged PR; lagging reads must not undo that observation.
+  if (input.existing?.data.state === "merged" && input.data.state !== "merged") {
+    return input.existing;
+  }
   return {
     ...input.existing,
     ref: input.ref,
@@ -107,44 +111,51 @@ export class GitStateService {
     void this.refreshInterestedProject(event.projectId);
   }
 
-  async refreshProject(projectId: string): Promise<void> {
+  async refreshProject(
+    projectId: string,
+    options: { readonly afterMutation?: boolean | undefined } = {},
+  ): Promise<void> {
     const project = this.requireProject(projectId);
-    await this.dedupe(`project:${projectId}`, async () => {
-      const result = await this.options.executor.gitProjectSnapshot({
-        projectLocation: project.location,
-        includeGhCheck: true,
-      });
-      if (this.disposed) return;
-      const refreshedAt = this.timestamp();
-      const projectRef = { hostId: this.options.hostId, projectId };
-      const projectKey = gitProjectKey(projectRef);
-      const targetRef: GitTargetRef = projectRef;
-      const targetKey = gitTargetKey(targetRef);
-      this.publish({
-        projects: {
-          [projectKey]: {
-            ref: projectRef,
-            ...(result.status ? { status: result.status } : {}),
-            ...(result.branches ? { branches: result.branches } : {}),
-            ...(result.worktrees ? { worktrees: result.worktrees } : {}),
-            ...(result.ghAvailable !== null ? { ghAvailable: result.ghAvailable } : {}),
-            refreshedAt,
+    await this.dedupe(
+      `project:${projectId}`,
+      async () => {
+        const result = await this.options.executor.gitProjectSnapshot({
+          projectLocation: project.location,
+          includeGhCheck: true,
+        });
+        if (this.disposed) return;
+        const refreshedAt = this.timestamp();
+        const projectRef = { hostId: this.options.hostId, projectId };
+        const projectKey = gitProjectKey(projectRef);
+        const targetRef: GitTargetRef = projectRef;
+        const targetKey = gitTargetKey(targetRef);
+        this.publish({
+          projects: {
+            [projectKey]: {
+              ref: projectRef,
+              ...(result.status ? { status: result.status } : {}),
+              ...(result.branches ? { branches: result.branches } : {}),
+              ...(result.worktrees ? { worktrees: result.worktrees } : {}),
+              ...(result.ghAvailable !== null ? { ghAvailable: result.ghAvailable } : {}),
+              refreshedAt,
+            },
           },
-        },
-        targets: {
-          [targetKey]: {
-            ...this.snapshot.targets[targetKey],
-            ref: targetRef,
-            ...(result.status ? { status: result.status } : {}),
-            refreshedAt,
+          targets: {
+            [targetKey]: {
+              ...this.snapshot.targets[targetKey],
+              ref: targetRef,
+              ...(result.status ? { status: result.status } : {}),
+              refreshedAt,
+            },
           },
-        },
-      });
+        });
 
-      if (result.status?.branch && result.ghAvailable !== false) {
-        await this.refreshPullRequestForBranch(projectId, result.status.branch);
-      }
-    });
+        if (result.status?.branch && result.ghAvailable !== false) {
+          await this.refreshPullRequestForBranch(projectId, result.status.branch, options);
+        }
+      },
+      options.afterMutation,
+    );
   }
 
   async refreshTarget(input: {
@@ -152,9 +163,10 @@ export class GitStateService {
     readonly worktreePath?: string | undefined;
     readonly branch?: string | undefined;
     readonly includePrDetails?: boolean | undefined;
+    readonly afterMutation?: boolean | undefined;
   }): Promise<void> {
     if (!input.worktreePath) {
-      await this.refreshProject(input.projectId);
+      await this.refreshProject(input.projectId, input);
       return;
     }
     const project = this.requireProject(input.projectId);
@@ -164,84 +176,120 @@ export class GitStateService {
       worktreePath: input.worktreePath,
     };
     const targetKey = gitTargetKey(targetRef);
-    await this.dedupe(`target:${targetKey}`, async () => {
-      const projectLocation = buildWorktreeLocation(project.location, input.worktreePath!);
-      const status = await this.options.executor.getGitStatus({ projectLocation });
-      if (this.disposed) return;
-      const branch = input.branch ?? status.branch;
-      const sourceInfo = branch
-        ? await this.options.executor
-            .gitGetWorktreeSourceBranch({
-              projectLocation: project.location,
-              branch,
-            })
-            .catch(() => undefined)
-        : undefined;
-      if (this.disposed) return;
-      this.publish({
-        targets: {
-          [targetKey]: {
-            ...this.snapshot.targets[targetKey],
-            ref: targetRef,
-            status,
-            ...(sourceInfo ? { sourceInfo } : {}),
-            refreshedAt: this.timestamp(),
+    await this.dedupe(
+      `target:${targetKey}`,
+      async () => {
+        const projectLocation = buildWorktreeLocation(project.location, input.worktreePath!);
+        const status = await this.options.executor.getGitStatus({ projectLocation });
+        if (this.disposed) return;
+        const branch = input.branch ?? status.branch;
+        const sourceInfo = branch
+          ? await this.options.executor
+              .gitGetWorktreeSourceBranch({
+                projectLocation: project.location,
+                branch,
+              })
+              .catch(() => undefined)
+          : undefined;
+        if (this.disposed) return;
+        this.publish({
+          targets: {
+            [targetKey]: {
+              ...this.snapshot.targets[targetKey],
+              ref: targetRef,
+              status,
+              ...(sourceInfo ? { sourceInfo } : {}),
+              refreshedAt: this.timestamp(),
+            },
           },
-        },
-      });
-      if (branch) {
-        await this.refreshPullRequestForBranch(input.projectId, branch, {
-          includeDetails: input.includePrDetails,
         });
-      }
-    });
+        if (branch) {
+          await this.refreshPullRequestForBranch(input.projectId, branch, {
+            includeDetails: input.includePrDetails,
+            afterMutation: input.afterMutation,
+          });
+        }
+      },
+      input.afterMutation,
+    );
   }
 
   async refreshPullRequestForBranch(
     projectId: string,
     branch: string,
-    options: { readonly includeDetails?: boolean | undefined } = {},
+    options: {
+      readonly includeDetails?: boolean | undefined;
+      readonly afterMutation?: boolean | undefined;
+    } = {},
   ): Promise<PullRequestState["data"] | null> {
     const project = this.requireProject(projectId);
     const projectRef = { hostId: this.options.hostId, projectId };
     const branchKey = pullRequestBranchKey(projectRef, branch);
-    return this.dedupe(`pr-branch:${branchKey}:${Boolean(options.includeDetails)}`, async () => {
-      const data = await this.options.executor.ghGetPrForBranch({
-        projectLocation: project.location,
-        branch,
-      });
-      if (this.disposed) return null;
-      if (!data) {
-        this.publish({
-          pullRequestKeyByBranch: { [branchKey]: null },
-          targets: this.targetsForBranch(projectId, branch, null),
+    return this.dedupe(
+      `pr-branch:${branchKey}:${Boolean(options.includeDetails)}`,
+      async () => {
+        const initialBranchKey = this.snapshot.pullRequestKeyByBranch[branchKey];
+        const initialPullRequests = this.snapshot.pullRequests;
+        const data = await this.options.executor.ghGetPrForBranch({
+          projectLocation: project.location,
+          branch,
         });
-        return null;
-      }
+        if (this.disposed) return null;
+        if (this.snapshot.pullRequestKeyByBranch[branchKey] !== initialBranchKey) {
+          const currentKey = this.snapshot.pullRequestKeyByBranch[branchKey];
+          return currentKey ? (this.snapshot.pullRequests[currentKey]?.data ?? null) : null;
+        }
+        const current = initialBranchKey ? this.snapshot.pullRequests[initialBranchKey] : undefined;
+        if (
+          current &&
+          ((!data && current.data.state === "merged") ||
+            (data && current.data.number > data.number))
+        ) {
+          return current.data;
+        }
+        if (!data) {
+          this.publish({
+            pullRequestKeyByBranch: { [branchKey]: null },
+            targets: this.targetsForBranch(projectId, branch, null),
+          });
+          return null;
+        }
 
-      const ref = { ...projectRef, prNumber: data.number };
-      const key = pullRequestKey(ref);
-      const existing = this.snapshot.pullRequests[key];
-      const fetchedAt = this.timestamp();
-      const details = options.includeDetails
-        ? await this.options.executor
-            .ghGetPrDetails({
-              projectLocation: project.location,
-              prNumber: data.number,
-            })
-            .then((result) => result.details)
-            .catch(() => undefined)
-        : undefined;
-      if (this.disposed) return null;
-      this.publish({
-        pullRequests: {
-          [key]: mergePullRequestState({ existing, ref, data, details, at: fetchedAt }),
-        },
-        pullRequestKeyByBranch: { [branchKey]: key },
-        targets: this.targetsForBranch(projectId, branch, key),
-      });
-      return data;
-    });
+        const ref = { ...projectRef, prNumber: data.number };
+        const key = pullRequestKey(ref);
+        const fetchedAt = this.timestamp();
+        const details = options.includeDetails
+          ? await this.options.executor
+              .ghGetPrDetails({
+                projectLocation: project.location,
+                prNumber: data.number,
+              })
+              .then((result) => result.details)
+              .catch(() => undefined)
+          : undefined;
+        if (this.disposed) return null;
+        if (this.snapshot.pullRequestKeyByBranch[branchKey] !== initialBranchKey) {
+          const currentKey = this.snapshot.pullRequestKeyByBranch[branchKey];
+          return currentKey ? (this.snapshot.pullRequests[currentKey]?.data ?? null) : null;
+        }
+        const latest = this.snapshot.pullRequests[key];
+        if (
+          latest &&
+          latest.data !== initialPullRequests[key]?.data &&
+          JSON.stringify(latest.data) !== JSON.stringify(data)
+        )
+          return latest.data;
+        this.publish({
+          pullRequests: {
+            [key]: mergePullRequestState({ existing: latest, ref, data, details, at: fetchedAt }),
+          },
+          pullRequestKeyByBranch: { [branchKey]: key },
+          targets: this.targetsForBranch(projectId, branch, key),
+        });
+        return data;
+      },
+      options.afterMutation,
+    );
   }
 
   /**
@@ -253,12 +301,14 @@ export class GitStateService {
    *
    * The branch alias is left alone when it already points at a different PR:
    * that means a newer PR for the same head branch was discovered elsewhere,
-   * and the watched PR must not steal the branch back.
+   * and the watched PR must not steal the branch back. An explicit creation
+   * can replace that association when a branch is reused for a new PR.
    */
   applyObservedPullRequest(
     watch: { readonly projectId: string; readonly headBranch: string },
     data: PullRequestState["data"],
     details?: PrDetails,
+    options: { readonly replaceBranch?: boolean } = {},
   ): void {
     if (this.disposed) return;
     const projectRef = { hostId: this.options.hostId, projectId: watch.projectId };
@@ -266,7 +316,8 @@ export class GitStateService {
     const key = pullRequestKey(ref);
     const branchKey = pullRequestBranchKey(projectRef, watch.headBranch);
     const existingBranchKey = this.snapshot.pullRequestKeyByBranch[branchKey];
-    const ownsBranch = existingBranchKey === undefined || existingBranchKey === key;
+    const ownsBranch =
+      options.replaceBranch || existingBranchKey === undefined || existingBranchKey === key;
     this.publish({
       pullRequests: {
         [key]: mergePullRequestState({
@@ -305,6 +356,8 @@ export class GitStateService {
         await this.refreshProjectPullRequests(input.projectId);
       }
       if (this.disposed) return;
+      const initialCore = this.snapshot.pullRequests[key]?.data;
+      const initialDetails = this.snapshot.pullRequests[key]?.details;
       const [details, files, diff, reviews] = await Promise.allSettled([
         this.options.executor.ghGetPrDetails({
           projectLocation: project.location,
@@ -334,18 +387,32 @@ export class GitStateService {
           `Pull request ${input.projectId}#${input.prNumber} has no core state; refresh its branch or project list first.`,
         );
       }
+      const coreChanged =
+        existing.data !== initialCore &&
+        JSON.stringify(existing.data) !== JSON.stringify(initialCore);
+      const readHead = details.value.pr?.headSha ?? initialCore?.headSha;
+      if (coreChanged && readHead && existing.data.headSha && readHead !== existing.data.headSha)
+        return;
+      const staleMergeRead =
+        existing.data.state === "merged" &&
+        details.value.pr !== undefined &&
+        details.value.pr.state !== "merged";
+      const updateCore = details.value.pr && !coreChanged && !staleMergeRead;
+      const updateDetails = !coreChanged && !staleMergeRead && existing.details === initialDetails;
       const fetchedAt = this.timestamp();
       this.publish({
         pullRequests: {
           [key]: {
             ...existing,
-            details: details.value.details,
+            ...(updateCore ? { data: details.value.pr } : {}),
+            ...(updateDetails ? { details: details.value.details } : {}),
             files: files.value.files,
             diff: diff.value.diff,
             reviewThreads: reviews.value.threads,
             freshness: {
               ...existing.freshness,
-              details: fetchedAt,
+              ...(updateCore ? { core: fetchedAt } : {}),
+              ...(updateDetails ? { details: fetchedAt } : {}),
               files: fetchedAt,
               diff: fetchedAt,
               reviewThreads: fetchedAt,
@@ -356,45 +423,64 @@ export class GitStateService {
     });
   }
 
-  async refreshProjectPullRequests(projectId: string): Promise<void> {
+  async refreshProjectPullRequests(
+    projectId: string,
+    options: { readonly afterMutation?: boolean | undefined } = {},
+  ): Promise<void> {
     const project = this.requireProject(projectId);
     const projectRef = { hostId: this.options.hostId, projectId };
     const projectKey = gitProjectKey(projectRef);
-    await this.dedupe(`pr-list:${projectKey}`, async () => {
-      const result = await this.options.executor.ghListPullRequests({
-        projectLocation: project.location,
-      });
-      if (this.disposed) return;
-      const refreshedAt = this.timestamp();
-      const pullRequests: Record<string, PullRequestState> = {};
-      const aliases: Record<string, string> = {};
-      const keys: string[] = [];
-      for (const summary of result.pullRequests) {
-        const ref = { ...projectRef, prNumber: summary.pr.number };
-        const key = pullRequestKey(ref);
-        const existing = this.snapshot.pullRequests[key];
-        keys.push(key);
-        pullRequests[key] = {
-          ...existing,
-          ref,
-          data: summary.pr,
-          freshness: { ...existing?.freshness, core: refreshedAt },
-        };
-        aliases[pullRequestBranchKey(projectRef, summary.headBranch)] = key;
-      }
-      this.publish({
-        pullRequests,
-        pullRequestKeyByBranch: aliases,
-        projectPullRequestLists: {
-          [projectKey]: {
-            project: projectRef,
-            pullRequestKeys: keys,
-            ...(result.viewerLogin ? { viewerLogin: result.viewerLogin } : {}),
-            refreshedAt,
+    await this.dedupe(
+      `pr-list:${projectKey}`,
+      async () => {
+        const initialBranchKeys = this.snapshot.pullRequestKeyByBranch;
+        const result = await this.options.executor.ghListPullRequests({
+          projectLocation: project.location,
+        });
+        if (this.disposed) return;
+        const refreshedAt = this.timestamp();
+        const pullRequests: Record<string, PullRequestState> = {};
+        const aliases: Record<string, string> = {};
+        const keys: string[] = [];
+        for (const summary of result.pullRequests) {
+          const ref = { ...projectRef, prNumber: summary.pr.number };
+          const key = pullRequestKey(ref);
+          const existing = this.snapshot.pullRequests[key];
+          keys.push(key);
+          pullRequests[key] = mergePullRequestState({
+            existing,
+            ref,
+            data: summary.pr,
+            details: undefined,
+            at: refreshedAt,
+          });
+          const branchKey = pullRequestBranchKey(projectRef, summary.headBranch);
+          const currentKey = aliases[branchKey] ?? this.snapshot.pullRequestKeyByBranch[branchKey];
+          const current = currentKey
+            ? (pullRequests[currentKey] ?? this.snapshot.pullRequests[currentKey])
+            : undefined;
+          if (
+            this.snapshot.pullRequestKeyByBranch[branchKey] === initialBranchKeys[branchKey] &&
+            (!current || current.data.number <= summary.pr.number)
+          ) {
+            aliases[branchKey] = key;
+          }
+        }
+        this.publish({
+          pullRequests,
+          pullRequestKeyByBranch: aliases,
+          projectPullRequestLists: {
+            [projectKey]: {
+              project: projectRef,
+              pullRequestKeys: keys,
+              ...(result.viewerLogin ? { viewerLogin: result.viewerLogin } : {}),
+              refreshedAt,
+            },
           },
-        },
-      });
-    });
+        });
+      },
+      options.afterMutation,
+    );
   }
 
   async refreshInterests(
@@ -526,10 +612,13 @@ export class GitStateService {
     );
   }
 
-  private dedupe<T>(key: string, task: () => Promise<T>): Promise<T> {
+  private dedupe<T>(key: string, task: () => Promise<T>, afterMutation = false): Promise<T> {
     this.assertOpen();
     const existing = this.inFlight.get(key);
-    if (existing) return existing as Promise<T>;
+    if (existing) {
+      if (!afterMutation) return existing as Promise<T>;
+      return existing.catch(() => undefined).then(() => this.dedupe(key, task, true));
+    }
     return this.track(task, key);
   }
 
