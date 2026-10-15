@@ -306,7 +306,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
               value={effectiveDesktopId}
               includeLocal={!browserRuntime}
               onChange={setRequestedDesktopId}
-              buttonClassName="h-7 min-h-7 max-w-[12rem] gap-1 rounded-full border border-[color:var(--border)] bg-[var(--content-background)] px-2.5 shadow-sm"
+              buttonClassName="h-7 min-h-7 max-w-[12rem] rounded-full border border-[color:var(--border)] bg-[var(--content-background)] px-2.5 shadow-sm"
               opensUpward
             />
           ) : null}
