@@ -269,6 +269,66 @@ describe("CodexStdioTransport", () => {
 });
 
 describe("CodexSubAgentRouter", () => {
+  it("completes a child thought before its parent overlay while preserving a live child command", () => {
+    const router = createRouterWithChild();
+    const notify = (method: string, params: Record<string, unknown>) =>
+      router.routeChildNotification(
+        method,
+        { threadId: "child-thread", ...params },
+        "provider-thread",
+      );
+    const startedThought = notify("item/started", {
+      item: { id: "child-thought", type: "reasoning" },
+    })?.find((event) => event.type === "item.started");
+    const startedCommand = notify("item/started", {
+      item: { id: "child-command", type: "commandExecution", command: "long-running-command" },
+    })?.find((event) => event.type === "item.started");
+    expect(startedThought).toMatchObject({ itemType: "reasoning", parentItemId: "parent-item" });
+    expect(startedCommand).toMatchObject({
+      itemType: "command_execution",
+      parentItemId: "parent-item",
+    });
+
+    const completed = notify("turn/completed", {
+      turn: { id: "child-turn", status: "completed" },
+    });
+    expect(completed).toEqual([
+      { type: "item.completed", threadId: "local-thread", itemId: startedThought?.itemId },
+      {
+        type: "item.completed",
+        threadId: "local-thread",
+        itemId: "parent-item",
+        payload: { status: "success" },
+      },
+    ]);
+    expect(
+      notify("item/commandExecution/outputDelta", {
+        itemId: "child-command",
+        delta: "late child output",
+      }),
+    ).toEqual([
+      {
+        type: "content.delta",
+        threadId: "local-thread",
+        itemId: startedCommand?.itemId,
+        stream: "command_output",
+        delta: "late child output",
+      },
+    ]);
+    expect(
+      notify("item/completed", {
+        item: { id: "child-command", type: "commandExecution", status: "completed", exitCode: 0 },
+      }),
+    ).toEqual([
+      {
+        type: "item.completed",
+        threadId: "local-thread",
+        itemId: startedCommand?.itemId,
+        payload: { status: "success", exitCode: 0 },
+      },
+    ]);
+  });
+
   it("creates the subagent parent from app-server activity and flushes buffered child output", () => {
     const router = new CodexSubAgentRouter("local-thread");
     router.setDefaultModelSettings("gpt-5.6-sol", "medium");
@@ -2717,6 +2777,68 @@ describe("CodexStructuredSession", () => {
       },
     });
     expect(updates).toContainEqual({ status: "idle", attention: "none" });
+  });
+
+  it("keeps a background command live while completing thoughts after overlapping turns", () => {
+    const { onMessage, runtimeEvents, updates } = makeNotificationSession();
+    const notify = (method: string, params: Record<string, unknown>) =>
+      onMessage({ jsonrpc: "2.0", method, params: { threadId: "provider-thread", ...params } });
+
+    notify("turn/started", { turn: { id: "turn-a", status: "inProgress" } });
+    notify("turn/started", { turn: { id: "turn-b", status: "inProgress" } });
+    notify("item/started", {
+      turnId: "turn-b",
+      item: { id: "thought-b", type: "reasoning" },
+    });
+    notify("item/started", {
+      turnId: "turn-b",
+      item: { id: "command-b", type: "commandExecution", command: "long-running-command" },
+    });
+    const started = runtimeEvents.filter((event) => event.type === "item.started");
+    expect(started.map((event) => event.itemType)).toEqual(["reasoning", "command_execution"]);
+    const thoughtId = started[0]!.itemId;
+    const commandId = started[1]!.itemId;
+    updates.length = 0;
+
+    notify("turn/completed", { turn: { id: "turn-a", status: "completed" } });
+    // A duplicate stale completion must also leave the surviving turn alone.
+    notify("turn/completed", { turn: { id: "turn-a", status: "completed" } });
+    expect(runtimeEvents.filter((event) => event.type === "item.completed")).toEqual([]);
+    expect(updates).toEqual([]);
+    notify("item/reasoning/summaryTextDelta", {
+      turnId: "turn-b",
+      itemId: "thought-b",
+      delta: "Still checking",
+    });
+    expect(runtimeEvents.at(-1)).toMatchObject({
+      type: "content.delta",
+      itemId: thoughtId,
+      stream: "reasoning_text",
+      delta: "Still checking",
+    });
+
+    notify("turn/completed", { turn: { id: "turn-b", status: "completed" } });
+    expect(runtimeEvents.filter((event) => event.type === "item.completed")).toEqual([
+      { type: "item.completed", threadId: "local-thread", itemId: thoughtId },
+    ]);
+
+    notify("item/commandExecution/outputDelta", { itemId: "command-b", delta: "late output" });
+    expect(runtimeEvents.at(-1)).toEqual({
+      type: "content.delta",
+      threadId: "local-thread",
+      itemId: commandId,
+      stream: "command_output",
+      delta: "late output",
+    });
+    notify("item/completed", {
+      item: { id: "command-b", type: "commandExecution", status: "completed", exitCode: 0 },
+    });
+    expect(runtimeEvents.at(-1)).toMatchObject({
+      type: "item.completed",
+      itemId: commandId,
+      payload: { status: "success", exitCode: 0 },
+    });
+    expect(runtimeEvents.filter((event) => event.type === "item.started")).toHaveLength(2);
   });
 
   it("settles idle on a server-authoritative idle status even if a completion was missed", () => {

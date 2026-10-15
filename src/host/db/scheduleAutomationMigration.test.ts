@@ -8,6 +8,9 @@ describe("schema 58 schedule upgrade", () => {
     try {
       sqlite.exec(`CREATE TABLE app_state (key TEXT PRIMARY KEY, value TEXT);
         INSERT INTO app_state VALUES ('schema_version', '58');
+        CREATE TABLE thread_runtime_items (thread_id TEXT, item_id TEXT, position INTEGER,
+          type TEXT, state TEXT, parent_item_id TEXT);
+        CREATE TABLE thread_completed_turns (thread_id TEXT, anchor_item_id TEXT);
         CREATE TABLE thread_runtime_gap_notices (source TEXT, reason TEXT, refused_events INTEGER, refused_bytes INTEGER);
         CREATE TABLE scheduled_tasks (id TEXT PRIMARY KEY, config TEXT, recurrence TEXT, next_run_at TEXT);
         CREATE TABLE scheduled_task_runs (id TEXT PRIMARY KEY, schedule_id TEXT, thread_id TEXT,
@@ -27,7 +30,7 @@ describe("schema 58 schedule upgrade", () => {
       runDatabaseMigrations(sqlite, 58);
       expect(
         sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-      ).toEqual({ value: "60" });
+      ).toEqual({ value: "61" });
       expect(
         sqlite
           .prepare(

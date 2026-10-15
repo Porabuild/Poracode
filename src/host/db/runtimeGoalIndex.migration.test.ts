@@ -2,8 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { DATABASE_MIGRATIONS, runDatabaseMigrations } from "./migrations";
-import { createSchema53PayloadOriginDatabase } from "./runtimePayloadOrigins.testFixtures";
+import { runDatabaseMigrations } from "./migrations";
+import {
+  createSchema53PayloadOriginDatabase,
+  migrateSchema53FixtureThrough,
+} from "./runtimePayloadOrigins.testFixtures";
 import { nativeBindingEnv } from "./runtimeItems.testFixtures";
 
 let directory: string;
@@ -25,16 +28,7 @@ afterEach(() => {
 it("upgrades the historical schema57 without rewriting rows and indexes goal hits and misses", () => {
   const db = createSchema53PayloadOriginDatabase(join(directory, "state.sqlite"));
   sqlite = db;
-  for (const migration of DATABASE_MIGRATIONS.filter(
-    ({ version }) => version > 53 && version <= 57,
-  )) {
-    db.transaction(() => {
-      migration.migrate(db);
-      db.prepare("UPDATE app_state SET value = ? WHERE key = 'schema_version'").run(
-        String(migration.version),
-      );
-    })();
-  }
+  migrateSchema53FixtureThrough(db, 57);
   expect(
     db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'idx_runtime_items_thread_goal'").get(),
   ).toBeUndefined();
@@ -50,7 +44,7 @@ it("upgrades the historical schema57 without rewriting rows and indexes goal hit
     db.prepare("SELECT * FROM thread_runtime_items ORDER BY thread_id, position").all(),
   ).toEqual(before);
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "60",
+    value: "61",
   });
   const query =
     "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? AND type = 'goal' ORDER BY position DESC LIMIT 1";
