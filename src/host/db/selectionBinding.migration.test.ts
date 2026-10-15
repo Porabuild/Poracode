@@ -7,7 +7,10 @@ import {
   describeMigrationRollbackPolicy,
   runDatabaseMigrations,
 } from "./migrations";
-import { createSchema53PayloadOriginDatabase } from "./runtimePayloadOrigins.testFixtures";
+import {
+  createSchema53PayloadOriginDatabase,
+  migrateSchema53FixtureThrough,
+} from "./runtimePayloadOrigins.testFixtures";
 import { nativeBindingEnv } from "./runtimeItems.testFixtures";
 
 let directory: string;
@@ -29,15 +32,7 @@ afterEach(() => {
 it("advances the actual historical schema-56 prefix without backfilling selection data", () => {
   const db = createSchema53PayloadOriginDatabase(join(directory, "state.sqlite"));
   sqlite = db;
-  for (const version of [54, 55, 56]) {
-    const migration = DATABASE_MIGRATIONS.find((entry) => entry.version === version)!;
-    db.transaction(() => {
-      migration.migrate(db);
-      db.prepare("UPDATE app_state SET value = ? WHERE key = 'schema_version'").run(
-        String(version),
-      );
-    })();
-  }
+  migrateSchema53FixtureThrough(db, 56);
   // Raw bytes include both legacy controls and unsupported forward metadata.
   // A schema boundary does not authorize model reinterpretation or repair.
   const rawConfig =
@@ -67,7 +62,7 @@ it("advances the actual historical schema-56 prefix without backfilling selectio
   });
   runDatabaseMigrations(db, 57);
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "60",
+    value: "61",
   });
   expect(db.prepare("SELECT * FROM threads ORDER BY id").all()).toStrictEqual(beforeThreads);
   expect(db.prepare("SELECT * FROM projects ORDER BY id").all()).toStrictEqual(beforeProjects);

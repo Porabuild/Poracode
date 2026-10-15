@@ -941,6 +941,28 @@ export const DATABASE_MIGRATIONS = [
           AND refused_events = 0 AND refused_bytes = 0`);
     },
   },
+  {
+    version: 61,
+    name: "settle reasoning in completed runtime turns",
+    // Repair legacy lifecycle state without changing the row format or text;
+    // older readers accept completed thoughts, so rollback remains compatible.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      sqlite.exec(`UPDATE thread_runtime_items AS thought
+        SET state = 'completed'
+        FROM (
+          SELECT turn.thread_id, MAX(anchor.position) AS position
+          FROM thread_completed_turns AS turn
+          JOIN thread_runtime_items AS anchor
+            ON anchor.thread_id = turn.thread_id AND anchor.item_id = turn.anchor_item_id
+          GROUP BY turn.thread_id
+        ) AS settled
+        WHERE thought.type = 'reasoning' AND thought.state != 'completed'
+          AND thought.parent_item_id IS NULL
+          AND thought.thread_id = settled.thread_id
+          AND thought.position <= settled.position`);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;

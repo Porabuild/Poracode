@@ -120,6 +120,17 @@ export function mapCodexNotification(
       });
       delete state.turnPlanItemId;
     }
+    if (turnSettled) {
+      // Codex can start a reasoning item without sending its completion (for
+      // example, a final thought with no visible summary). Finish it before
+      // dropping its mapping, or the persisted row shimmers forever. A sibling
+      // turn's completion cannot close reasoning that may still be streaming.
+      for (const [codexItemId, itemType] of state.itemTypeMap) {
+        if (itemType !== "reasoning") continue;
+        const itemId = state.itemIdMap.get(codexItemId);
+        if (itemId) events.push({ type: "item.completed", threadId, itemId });
+      }
+    }
     // Report the completing notification's own turn id — with concurrent turns
     // the server's completion order need not match `currentTurnId`.
     const turnId = readTurnId(params) ?? state.currentTurnId ?? `t-${Date.now()}`;

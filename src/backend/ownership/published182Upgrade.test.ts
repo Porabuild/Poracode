@@ -85,7 +85,7 @@ it("promotes the actual released schema42 and preserves history through schema59
     const db = initDatabase(promoted.dbPath);
     vi.restoreAllMocks();
     expect(db.prepare("SELECT value FROM app_state WHERE key='schema_version'").get()).toEqual({
-      value: "60",
+      value: "61",
     });
     expect(db.pragma("integrity_check")).toEqual([{ integrity_check: "ok" }]);
     expect(db.pragma("foreign_key_check")).toEqual([]);

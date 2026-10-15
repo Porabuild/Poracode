@@ -57,6 +57,23 @@ export function createSchema53PayloadOriginDatabase(path: string): InstanceType<
   return sqlite;
 }
 
+/** Advance the frozen schema53 fixture only through the requested historical prefix. */
+export function migrateSchema53FixtureThrough(
+  sqlite: InstanceType<typeof Database>,
+  throughVersion: number,
+): void {
+  for (const migration of DATABASE_MIGRATIONS.filter(
+    ({ version }) => version > 53 && version <= throughVersion,
+  )) {
+    sqlite.transaction(() => {
+      migration.migrate(sqlite);
+      sqlite
+        .prepare("UPDATE app_state SET value = ? WHERE key = 'schema_version'")
+        .run(String(migration.version));
+    })();
+  }
+}
+
 /** Byte receipts include raw JSON, canonical BLOB bytes, tail/state and gap/notice evidence. */
 export function captureSchema53PayloadOriginEvidence(
   sqlite: InstanceType<typeof Database>,
