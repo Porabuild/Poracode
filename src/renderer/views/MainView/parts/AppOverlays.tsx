@@ -113,7 +113,11 @@ export function AppOverlays() {
       <WelcomeOverlay />
       <WhatsNewOverlay />
       <AgentDiscoveryOverlay />
-      <OverlayShell open={settingsOpen} onExited={() => usePanelStore.getState().closeSettings()}>
+      <OverlayShell
+        open={settingsOpen}
+        instantEnter
+        onExited={() => usePanelStore.getState().closeSettings()}
+      >
         <Suspense fallback={<OverlayLoader />}>
           <DeferredSettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
         </Suspense>
@@ -137,6 +141,7 @@ export function AppOverlays() {
       </OverlayShell>
       <OverlayShell
         open={gitOverlayVisible}
+        instantEnter
         onExited={() => usePanelStore.getState().setGitOverlayOpen(false)}
       >
         {gitReviewContext && gitReviewProject && (
@@ -193,6 +198,7 @@ export function AppOverlays() {
       </OverlayShell>
       <OverlayShell
         open={prReviewVisible}
+        instantEnter
         onExited={() => usePanelStore.getState().setPrReviewContext(null)}
       >
         {prReviewContext && prReviewProject && (
@@ -255,6 +261,7 @@ export function AppOverlays() {
       </OverlayShell>
       <OverlayShell
         open={fileEditorOverlayMode === "fullscreen"}
+        instantEnter
         onExited={() => setFileEditorOverlayMode(null)}
       >
         {fileEditorRootContext ? (

@@ -1,5 +1,5 @@
 import { startDatabaseReadProcess } from "./databaseReadProcess";
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { isMainThread, parentPort, workerData } from "node:worker_threads";
 import { getSqlite, initReadOnlyDatabase } from "./connection";
 import { executeDatabaseRead, type DatabaseReadOperation } from "./databaseReadOperations";
@@ -12,7 +12,13 @@ if (isMainThread) {
   initReadOnlyDatabase(workerData.dbPath);
   const port = parentPort!;
   getSqlite().function("block_read_fixture", (ms: number) => {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+    const holdPath = `${workerData.dbPath}.hold-slow-query`;
+    const signal = new Int32Array(new SharedArrayBuffer(4));
+    if (existsSync(holdPath)) {
+      while (existsSync(holdPath)) Atomics.wait(signal, 0, 0, 10);
+    } else {
+      Atomics.wait(signal, 0, 0, ms);
+    }
     return 1;
   });
   port.on("message", (request: { id: number; operation: DatabaseReadOperation; args: never }) => {
