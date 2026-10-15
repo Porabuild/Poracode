@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 
 /**
  * Strict 16-variant runtime event schema (TS `runtimeEventSchema` parity).
@@ -307,6 +308,17 @@ object RuntimeEventSchema {
                         taskId = obj.strictString("taskId")!!,
                         kind = obj.strictString("kind")!!,
                         description = obj.strictString("description")!!,
+                        startedAt = (obj["startedAt"] as? JsonPrimitive)?.doubleOrNull,
+                        lastProgressAt = (obj["lastProgressAt"] as? JsonPrimitive)?.doubleOrNull,
+                        progress = obj.strictString("progress"),
+                        stopAction = (obj["stopAction"] as? JsonObject)?.let { action ->
+                            com.poracode.remote.v3.generated.RemoteBackgroundTaskStopAction(
+                                action.strictString("id")!!,
+                                (action["payload"] as JsonObject).mapValues { (_, value) ->
+                                    (value as JsonPrimitive).content
+                                },
+                            )
+                        },
                     )
                 }
                 CanonicalRuntimeEvent.BackgroundTasksChanged(threadId, parsed, objectMap)

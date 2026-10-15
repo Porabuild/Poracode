@@ -6,6 +6,50 @@ describe("background-task reduce", () => {
   const a = { taskId: "a", kind: "command" as const, description: "one" };
   const b = { taskId: "b", kind: "other" as const, description: "two" };
 
+  it("accepts old task lists and retains progress-only and capability changes", () => {
+    const rich = {
+      ...a,
+      startedAt: 123,
+      lastProgressAt: 456,
+      progress: "Ready",
+      stopAction: { id: "stop.v1", payload: { task: "a", token: "run-1" } },
+    };
+    const reduce = (incoming: typeof rich) =>
+      backgroundTaskReduceAction({
+        eventType: "background_tasks.changed",
+        incoming: [incoming],
+        previous: [rich],
+      });
+    expect(
+      backgroundTaskReduceAction({
+        eventType: "background_tasks.changed",
+        incoming: [rich],
+        previous: [a],
+      }),
+    ).toBe("replace");
+    expect(reduce({ ...rich, lastProgressAt: 457 })).toBe("replace");
+    expect(reduce({ ...rich, progress: "Checking" })).toBe("replace");
+    expect(
+      reduce({
+        ...rich,
+        stopAction: { ...rich.stopAction, payload: { ...rich.stopAction.payload, token: "run-2" } },
+      }),
+    ).toBe("replace");
+    expect(
+      reduce({
+        ...rich,
+        stopAction: { ...rich.stopAction, payload: { token: "run-1", task: "a" } },
+      }),
+    ).toBe("noop");
+    expect(
+      backgroundTaskReduceAction({
+        eventType: "background_tasks.changed",
+        incoming: [a],
+        previous: [rich],
+      }),
+    ).toBe("replace");
+  });
+
   it("retains previous tasks when an event omits its incoming list", () => {
     const input = { eventType: "background_tasks.changed", incoming: null, previous: [a] };
     expect(backgroundTaskReduceAction(input)).toBe("noop");

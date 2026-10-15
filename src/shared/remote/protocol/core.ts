@@ -21,6 +21,9 @@ import { gitStatePatchSchema } from "../../gitState";
 // open to old clients.
 // v14 adds automation recurrence/status discriminators and run-result controls.
 // Exact-match pairing prevents old closed-enum clients from partially decoding schedules.
+// Optional background-task timing/progress and opaque Stop actions remain additive
+// within v14: old readers ignore them; old hosts omit them and keep tasks read-only.
+// Task kinds, session actions, persisted data and compatibility ranges are unchanged.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 

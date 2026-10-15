@@ -1624,7 +1624,8 @@ describe("ThreadView", () => {
     expect(placementButtons).toHaveLength(1);
     expect(screen.getByLabelText("Background tasks")).toContainElement(placementButtons[0]!);
     const backgroundDock = screen.getByLabelText("Background tasks");
-    expect(backgroundDock.querySelector(".poracode-pixel-loader")).not.toBeNull();
+    expect(backgroundDock.querySelector("svg.lucide-activity")).not.toBeNull();
+    expect(backgroundDock.querySelector(".poracode-pixel-loader")).toBeNull();
     expect(backgroundDock.querySelector("svg.lucide-terminal")).toBeNull();
 
     fireEvent.click(placementButtons[0]!);
@@ -1640,7 +1641,7 @@ describe("ThreadView", () => {
     const backgroundBubble = screen.getByRole("button", { name: "Hide Background tasks" });
     expect(backgroundBubble).toHaveClass("poracode-floating-chrome--bubble");
     expect(backgroundBubble).toHaveAttribute("aria-pressed", "true");
-    expect(backgroundBubble.querySelector("svg.lucide-activity")).toHaveClass(
+    expect(backgroundBubble.querySelector("svg.lucide-activity")).not.toHaveClass(
       "motion-safe:animate-pulse",
     );
     expect(backgroundBubble.querySelector("svg.lucide-loader-circle")).toBeNull();

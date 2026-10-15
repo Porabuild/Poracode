@@ -25,6 +25,7 @@ import { mockDelegatedAgentRecoveryGate } from "./smoke-delegated-agent-recovery
 import { runWelcomeDismissalScenario } from "./smoke-welcome.mjs";
 import { verifyProjectMcpImport } from "./smoke-mcp-import.mjs";
 import { mockEditorMediaGate } from "./smoke-editor-media.mjs";
+import { hasAccessibleControlLabel } from "./smoke-control-label.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
@@ -1648,10 +1649,7 @@ async function runMockGate(client, gate, fixture) {
       const result = await evaluate(
         client,
         `(() => ({
-          unlabeled: [...document.querySelectorAll("button,input,textarea")].filter((el) => {
-            const label = el.getAttribute("aria-label") || el.getAttribute("title") || el.getAttribute("placeholder") || el.textContent?.trim();
-            return !label;
-          }).length,
+          unlabeled: [...document.querySelectorAll("button,input,textarea")].filter((el) => !(${hasAccessibleControlLabel.toString()})(el)).length,
           dark: document.documentElement.classList.contains("dark"),
         }))()`,
       );

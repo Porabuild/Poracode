@@ -29,10 +29,16 @@ export function emitKotlinBackgroundTaskReduce(
     })
     .join("\n");
   return `${HEADER.join("\n")}
+data class RemoteBackgroundTaskStopAction(val id: String, val payload: Map<String, String>)
+
 data class RemoteBackgroundTaskIdentity(
     val taskId: String,
     val kind: String,
     val description: String,
+    val startedAt: Double? = null,
+    val lastProgressAt: Double? = null,
+    val progress: String? = null,
+    val stopAction: RemoteBackgroundTaskStopAction? = null,
 )
 
 enum class RemoteBackgroundTaskReduceAction { ${spec.actions.map((action) => action[0]!.toUpperCase() + action.slice(1)).join(", ")} }

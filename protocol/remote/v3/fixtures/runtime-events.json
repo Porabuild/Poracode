@@ -100,6 +100,27 @@
     ]
   },
   {
+    "type": "background_tasks.changed",
+    "threadId": "thread-fixture-001",
+    "tasks": [
+      {
+        "taskId": "task-fixture-001",
+        "kind": "command",
+        "description": "pnpm test",
+        "startedAt": 1770000000000,
+        "lastProgressAt": 1770000010000,
+        "progress": "Server ready",
+        "stopAction": {
+          "id": "background-task.stop.v1",
+          "payload": {
+            "taskId": "task-fixture-001",
+            "token": "run-fixture-001"
+          }
+        }
+      }
+    ]
+  },
+  {
     "type": "request.opened",
     "threadId": "thread-fixture-001",
     "requestId": "request-fixture-001",

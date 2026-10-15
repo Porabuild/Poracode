@@ -417,10 +417,22 @@ export type ThreadContextUsage = z.infer<typeof threadContextUsageSchema>;
  */
 export const backgroundTaskKindSchema = z.enum(["command", "other"]);
 export type BackgroundTaskKind = z.infer<typeof backgroundTaskKindSchema>;
+/** A provider-declared, instance-bound action using the existing session-action transport. */
+export const backgroundTaskStopActionSchema = z.object({
+  id: z.string().min(1).max(120),
+  payload: z.record(z.string().max(120), z.string().max(512)),
+});
 export const backgroundTaskSchema = z.object({
   taskId: z.string().min(1),
   kind: backgroundTaskKindSchema,
   description: z.string(),
+  /** Host-observed task start, in Unix milliseconds; absent on older hosts. */
+  startedAt: z.number().finite().nonnegative().optional(),
+  /** Last provider-reported progress, excluding membership updates and heartbeats. */
+  lastProgressAt: z.number().finite().nonnegative().optional(),
+  progress: z.string().max(4096).optional(),
+  /** Absent when the live provider cannot stop this task independently. */
+  stopAction: backgroundTaskStopActionSchema.optional(),
 });
 export type BackgroundTask = z.infer<typeof backgroundTaskSchema>;
 

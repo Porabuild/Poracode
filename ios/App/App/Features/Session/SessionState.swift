@@ -60,6 +60,10 @@ struct RuntimeBackgroundTask: Sendable, Equatable {
     var taskId: String
     var kind: String
     var description: String
+    var startedAt: Double? = nil
+    var lastProgressAt: Double? = nil
+    var progress: String? = nil
+    var stopAction: RemoteBackgroundTaskStopAction? = nil
 }
 
 /// Provider-agnostic context-window occupancy (`context.updated` / snapshot.contextUsage).

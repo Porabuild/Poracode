@@ -65,7 +65,7 @@ class RuntimeBackgroundTasksReduceTest {
         val array = RemoteJson.parseToJsonElement(readFixture("runtime-events.json")) as JsonArray
         val entry = array
             .map { it.asObjectOrNull() }
-            .single { it?.string("type") == "background_tasks.changed" }!!
+            .first { it?.string("type") == "background_tasks.changed" }!!
         val parsed = RuntimeEventReducer.parseRuntimeEvent(entry)
         assertNotNull(parsed)
         assertEquals("thread-fixture-001", parsed!!.threadId)
@@ -99,6 +99,24 @@ class RuntimeBackgroundTasksReduceTest {
                 ),
             ),
         )
+    }
+
+    @Test
+    fun sharedEnrichedFixturePreservesOptionalControlsAndProgress() {
+        val array = RemoteJson.parseToJsonElement(readFixture("runtime-events.json")) as JsonArray
+        val entry = array.last { it.asObjectOrNull()?.string("type") == "background_tasks.changed" }.asObjectOrNull()!!
+        val parsed = RuntimeEventReducer.parseRuntimeEvent(entry)!!
+        val rich = parsed.tasks!!.single()
+        assertEquals(1770000000000.0, rich.startedAt)
+        assertEquals(1770000010000.0, rich.lastProgressAt)
+        assertEquals("Server ready", rich.progress)
+        assertEquals("run-fixture-001", rich.stopAction!!.payload["token"])
+        val old = BackgroundTask(rich.taskId, rich.kind, rich.description)
+        val domain = ThreadRuntimeDomainState(backgroundTasks = listOf(old))
+        assertEquals(listOf(rich), RuntimeDomainReducer.apply(parsed, parsed.threadId!!, domain).backgroundTasks)
+        assertNull(RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + ("startedAt" to JsonPrimitive("123"))))))))
+        val invalidAction = buildJsonObject { put("id", "stop"); put("payload", buildJsonObject { put("task", 1) }) }
+        assertNull(RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + ("stopAction" to invalidAction)))))))
     }
 
     @Test

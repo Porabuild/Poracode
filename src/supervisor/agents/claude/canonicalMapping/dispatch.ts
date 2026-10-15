@@ -40,7 +40,7 @@ import {
   isSubAgentParentTool,
 } from "./toolClassification";
 import { startToolItem, syncSubAgentModelProgress } from "./toolItems";
-import { applyBackgroundTasksChanged } from "./backgroundTasks";
+import { applyBackgroundTasksChanged, forgetBackgroundTask } from "./backgroundTasks";
 import { toolPayload } from "./toolPayload";
 import { createClaudeUsageSpentEvent, readClaudeAssistantSpendTokens } from "./usageSpent";
 import { workflowFromToolUseResult } from "./workflowOutput";
@@ -645,6 +645,7 @@ function mapClaudeSdkMessageInner(
 
   if (message.type === "system" && message.subtype === "task_notification") {
     events.push(...applyTaskNotification(message, state));
+    events.push(...forgetBackgroundTask(state, message.task_id));
     return events;
   }
 

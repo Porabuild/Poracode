@@ -22,7 +22,8 @@ import { ThreadErrorDock } from "@/renderer/components/thread/ThreadErrorDock";
 import { ThreadGoalDock } from "@/renderer/components/thread/ThreadGoalDock";
 import { ThreadAuthRequiredDock } from "@/renderer/components/thread/ThreadAuthRequiredDock";
 import { ThreadBackgroundTasksDock } from "@/renderer/components/thread/ThreadBackgroundTasksDock";
-import { useVisibleThreadBackgroundTasks } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useThreadBackgroundTasks } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { ThreadTodoDock } from "@/renderer/components/thread/ThreadTodoDock";
 import {
   resolveThreadAuthState,
@@ -98,7 +99,8 @@ export function ComposerInfoChips(props: {
     authState: props.agentStatus?.authState,
     errorDockStates: props.errorDockStates,
   });
-  const backgroundTasks = useVisibleThreadBackgroundTasks(threadId);
+  // Counts hidden tasks too: the chip is how a dismissed task set comes back.
+  const backgroundTasks = useThreadBackgroundTasks(threadId);
   const completedSteps =
     props.todoDockState?.steps.filter((step) => step.status === "completed").length ?? 0;
 
@@ -319,6 +321,9 @@ export function ComposerInfoChips(props: {
             closePanel();
             return;
           }
+          if (chip.key === "backgroundTasks") {
+            useThreadBackgroundTasksDockStore.getState().show(threadId);
+          }
           setClosingChip(null);
           setOpenChip(chip.key);
         }}
@@ -379,6 +384,7 @@ export function ComposerInfoChips(props: {
               threadId={threadId}
               placement="composer"
               showPlacementToggle
+              onDismiss={closePanel}
             />
           ) : null}
           {panelKey === "errors"

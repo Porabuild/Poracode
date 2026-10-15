@@ -12,7 +12,7 @@
  */
 
 export const BACKGROUND_TASK_REDUCE_ID = "backgroundTaskReduce" as const;
-export const BACKGROUND_TASK_REDUCE_SPEC_VERSION = 2 as const;
+export const BACKGROUND_TASK_REDUCE_SPEC_VERSION = 3 as const;
 
 export const BACKGROUND_TASK_REDUCE_EVENTS = [
   "background_tasks.changed",

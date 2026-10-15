@@ -41,6 +41,10 @@ data class BackgroundTask(
     val taskId: String,
     val kind: String,
     val description: String,
+    val startedAt: Double? = null,
+    val lastProgressAt: Double? = null,
+    val progress: String? = null,
+    val stopAction: com.poracode.remote.v3.generated.RemoteBackgroundTaskStopAction? = null,
 )
 
 data class OpenRuntimeRequest(
@@ -164,6 +168,7 @@ object RuntimeDomainReducer {
                 it.taskId,
                 it.kind,
                 it.description,
+                it.startedAt, it.lastProgressAt, it.progress, it.stopAction,
             )
         }
         val mappedPrevious = state.backgroundTasks?.map {
@@ -171,6 +176,7 @@ object RuntimeDomainReducer {
                 it.taskId,
                 it.kind,
                 it.description,
+                it.startedAt, it.lastProgressAt, it.progress, it.stopAction,
             )
         }
         val next = com.poracode.remote.v3.generated.RemoteBackgroundTaskReduce.apply(
@@ -178,7 +184,7 @@ object RuntimeDomainReducer {
             mappedIncoming,
             mappedPrevious,
         )
-        val mappedNext = next?.map { BackgroundTask(it.taskId, it.kind, it.description) }
+        val mappedNext = next?.map { BackgroundTask(it.taskId, it.kind, it.description, it.startedAt, it.lastProgressAt, it.progress, it.stopAction) }
         return if (mappedNext == state.backgroundTasks) state else state.copy(backgroundTasks = mappedNext)
     }
 

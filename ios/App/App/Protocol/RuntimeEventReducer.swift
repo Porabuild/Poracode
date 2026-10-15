@@ -344,10 +344,10 @@ enum RuntimeEventReducer {
         incoming: [RuntimeBackgroundTask]?
     ) {
         let mappedIncoming = incoming?.map {
-            RemoteBackgroundTaskIdentity(taskId: $0.taskId, kind: $0.kind, description: $0.description)
+            RemoteBackgroundTaskIdentity(taskId: $0.taskId, kind: $0.kind, description: $0.description, startedAt: $0.startedAt, lastProgressAt: $0.lastProgressAt, progress: $0.progress, stopAction: $0.stopAction)
         }
         let mappedPrevious = domain.backgroundTasks?.map {
-            RemoteBackgroundTaskIdentity(taskId: $0.taskId, kind: $0.kind, description: $0.description)
+            RemoteBackgroundTaskIdentity(taskId: $0.taskId, kind: $0.kind, description: $0.description, startedAt: $0.startedAt, lastProgressAt: $0.lastProgressAt, progress: $0.progress, stopAction: $0.stopAction)
         }
         let next = RemoteBackgroundTaskReduce.apply(
             eventType: eventType,
@@ -355,7 +355,7 @@ enum RuntimeEventReducer {
             previous: mappedPrevious
         )
         domain.backgroundTasks = next?.map {
-            RuntimeBackgroundTask(taskId: $0.taskId, kind: $0.kind, description: $0.description)
+            RuntimeBackgroundTask(taskId: $0.taskId, kind: $0.kind, description: $0.description, startedAt: $0.startedAt, lastProgressAt: $0.lastProgressAt, progress: $0.progress, stopAction: $0.stopAction)
         }
     }
 

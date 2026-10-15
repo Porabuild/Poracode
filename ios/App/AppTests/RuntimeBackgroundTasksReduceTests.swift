@@ -100,6 +100,30 @@ final class RuntimeBackgroundTasksReduceTests: XCTestCase {
     )
   }
 
+  func testSharedEnrichedFixturePreservesOptionalControlsAndProgress() throws {
+    let array = try JSONDecoding.decode([JSONValue].self, from: loadFixture("runtime-events.json"))
+    let entry = try XCTUnwrap(array.last { value in
+      guard case .object(let object) = value else { return false }
+      return object["type"]?.stringValue == "background_tasks.changed"
+    })
+    guard case .object(let object) = entry else { return XCTFail("expected object") }
+    let parsed = try XCTUnwrap(decode(object))
+    let rich = try XCTUnwrap(parsed.backgroundTasks?.first)
+    XCTAssertEqual(rich.startedAt, 1770000000000)
+    XCTAssertEqual(rich.lastProgressAt, 1770000010000)
+    XCTAssertEqual(rich.progress, "Server ready")
+    XCTAssertEqual(rich.stopAction?.payload["token"], "run-fixture-001")
+    var domain = RuntimeThreadDomainState(backgroundTasks: [RuntimeBackgroundTask(taskId: rich.taskId, kind: rich.kind, description: rich.description)])
+    RuntimeEventReducer.applyDomain(event: parsed, threadId: try XCTUnwrap(parsed.threadId), domain: &domain)
+    XCTAssertEqual(domain.backgroundTasks, parsed.backgroundTasks)
+    var bad = task("a", "command", "d")
+    bad["startedAt"] = .string("123")
+    XCTAssertNil(decode(event(tasks: [.object(bad)])))
+    bad.removeValue(forKey: "startedAt")
+    bad["stopAction"] = .object(["id": .string("stop"), "payload": .object(["task": .number(1)])])
+    XCTAssertNil(decode(event(tasks: [.object(bad)])))
+  }
+
   func testStrictSchemaRejections() {
     // tasks key missing (required by the wire schema)
     XCTAssertNil(decode(event(tasks: nil)))

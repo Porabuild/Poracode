@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 
 /**
  * Strict Zod-parity field readers for the 15-variant runtime event schema.
@@ -171,6 +172,27 @@ internal object RuntimeEventValidators {
         val kind = obj.strictString("kind") ?: return false
         if (kind !in BACKGROUND_TASK_KINDS) return false
         if (obj.strictString("description") == null) return false
+        for (key in listOf("startedAt", "lastProgressAt")) {
+            if (obj.containsKey(key)) {
+                val value = obj[key] as? JsonPrimitive ?: return false
+                if (value.isString) return false
+                val number = value.doubleOrNull ?: return false
+                if (!number.isFinite() || number < 0) return false
+            }
+        }
+        if (obj.containsKey("progress")) {
+            val progress = obj.strictString("progress") ?: return false
+            if (progress.length > 4096) return false
+        }
+        if (obj.containsKey("stopAction")) {
+            val action = obj["stopAction"] as? JsonObject ?: return false
+            val id = action.strictString("id") ?: return false
+            if (id.isEmpty() || id.length > 120) return false
+            val payload = action["payload"] as? JsonObject ?: return false
+            if (payload.any { (key, value) ->
+                key.length > 120 || value.strictStringOrNull()?.let { it.length <= 512 } != true
+            }) return false
+        }
         return true
     }
 

@@ -229,6 +229,8 @@ async function performThreadInputSubmitPending(
       store.touchThread(thread.id);
       return;
     }
+    // Admission must settle before the rollback notifies store subscribers.
+    releasePendingInput?.();
     rollbackOptimisticWorking();
     throw error;
   }

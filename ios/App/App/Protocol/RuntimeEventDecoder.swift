@@ -99,9 +99,30 @@ enum RuntimeEventDecoder {
                       kind == "command" || kind == "other",
                       let description = taskObject["description"]?.stringValue
                 else { return nil }
-                tasks.append(
-                    RuntimeBackgroundTask(taskId: taskId, kind: kind, description: description)
-                )
+                for key in ["startedAt", "lastProgressAt"] {
+                    if let value = taskObject[key] {
+                        guard let number = value.numberValue, number.isFinite, number >= 0 else { return nil }
+                    }
+                }
+                if let progress = taskObject["progress"] {
+                    guard let text = progress.stringValue, text.utf16.count <= 4096 else { return nil }
+                }
+                var stopAction: RemoteBackgroundTaskStopAction?
+                if let action = taskObject["stopAction"] {
+                    guard case .object(let fields) = action,
+                          let id = fields["id"]?.stringValue, !id.isEmpty, id.utf16.count <= 120,
+                          case .object(let params)? = fields["payload"]
+                    else { return nil }
+                    var payload: [String: String] = [:]
+                    for (key, value) in params {
+                        guard key.utf16.count <= 120, let text = value.stringValue, text.utf16.count <= 512 else { return nil }
+                        payload[key] = text
+                    }
+                    stopAction = RemoteBackgroundTaskStopAction(id: id, payload: payload)
+                }
+                tasks.append(RuntimeBackgroundTask(taskId: taskId, kind: kind, description: description,
+                    startedAt: taskObject["startedAt"]?.numberValue, lastProgressAt: taskObject["lastProgressAt"]?.numberValue,
+                    progress: taskObject["progress"]?.stringValue, stopAction: stopAction))
             }
             return .init(
                 type: type,

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
 import { Activity, Bot, ListChecks } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
-import type { ThreadDockKind } from "@/shared/settings";
+import type { ThreadDockKind, ThreadDocksPlacement } from "@/shared/settings";
 import { toggleThreadDocksPanel } from "@/renderer/actions/panelActions";
 import {
   floatingGlassActiveClass,
@@ -11,34 +11,43 @@ import {
   floatingGlassSurfaceClass,
 } from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import { ThreadGoalStatusIcon } from "./ThreadGoalStatusIcon";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useGoalElapsedSeconds } from "./threadGoalTiming";
-import type { ThreadDocksSummary } from "./useThreadDocksSummary";
+import { useThreadBackgroundTasks, type ThreadDocksSummary } from "./useThreadDocksSummary";
 
 /**
  * Compact stand-ins for the informational docks while they live in the right
  * panel: one 28px glass pill per dock with content, showing the single most
  * useful number (goal elapsed, plan progress, running agents, running tasks).
  * Clicking opens the Docks tab scrolled to that section; clicking the active
- * one closes the panel again.
+ * one closes the panel again. With composer placement, `kinds` narrows the row
+ * to the hidden-task recovery bubble, which restores the dock in place.
  */
 export function ThreadDockBubbles({
   summary,
   threadId,
+  placement = "right",
+  kinds,
 }: {
   summary: ThreadDocksSummary;
   threadId: string;
+  placement?: ThreadDocksPlacement;
+  kinds?: readonly ThreadDockKind[];
 }) {
   const { t } = useLingui();
   const panelShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   const order = useSharedSettings((s) => s.threadDocksOrder);
-  // The bubbles are one group for one panel: while the Docks tab is showing,
-  // every bubble is pressed and clicking any of them hides the panel, so the
-  // "Hide <dock>" name always describes what the click does.
+  const docksInComposer = placement === "composer";
+  // Hiding the dock must not hide the only way to rediscover still-running work.
+  const liveTaskCount = useThreadBackgroundTasks(threadId).length;
+  const tasksHidden = liveTaskCount > 0 && summary.backgroundTaskCount === 0;
+  // Visible docks share one panel. A hidden task dock retains an unpressed
+  // recovery bubble so its name describes the next click accurately.
   const isActive = (_kind: ThreadDockKind) => panelShowing;
 
   const bubbles: Record<ThreadDockKind, ReactNode> = {
@@ -72,21 +81,28 @@ export function ThreadDockBubbles({
         </DockBubble>
       ) : null,
     backgroundTasks:
-      summary.backgroundTaskCount > 0 ? (
+      liveTaskCount > 0 ? (
         <DockBubble
           key="backgroundTasks"
           kind="backgroundTasks"
           label={t`Background tasks`}
-          active={isActive("backgroundTasks")}
-          icon={<Activity className="size-3.5 shrink-0 text-muted motion-safe:animate-pulse" />}
+          active={!tasksHidden && !docksInComposer && isActive("backgroundTasks")}
+          onPress={() => {
+            useThreadBackgroundTasksDockStore.getState().show(threadId);
+            // Composer placement restores the dock in place; there is no panel section.
+            if (docksInComposer) return;
+            if (tasksHidden) usePanelStore.getState().openThreadDocksPanel("backgroundTasks");
+            else toggleThreadDocksPanel("backgroundTasks");
+          }}
+          icon={<Activity className="size-3.5 shrink-0 text-muted" />}
         >
-          <span className="[font-variant-numeric:tabular-nums]">{summary.backgroundTaskCount}</span>
+          <span className="[font-variant-numeric:tabular-nums]">{liveTaskCount}</span>
         </DockBubble>
       ) : null,
     images: <ThreadImagesBubble key="images" threadId={threadId} />,
   };
 
-  return <>{order.map((kind) => bubbles[kind])}</>;
+  return <>{order.map((kind) => (!kinds || kinds.includes(kind) ? bubbles[kind] : null))}</>;
 }
 
 function GoalBubble({ state, active }: { state: ThreadGoalDockState; active: boolean }) {
@@ -114,6 +130,7 @@ function DockBubble({
   active,
   icon,
   children,
+  onPress,
 }: {
   kind: ThreadDockKind;
   label: string;
@@ -121,6 +138,7 @@ function DockBubble({
   active: boolean;
   icon: ReactNode;
   children?: ReactNode;
+  onPress?: () => void;
 }) {
   const { t } = useLingui();
   const bubble = (
@@ -132,7 +150,7 @@ function DockBubble({
       className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors ${
         active ? `${floatingGlassActiveClass} ${floatingGlassBubbleActiveClass}` : ""
       }`}
-      onClick={() => toggleThreadDocksPanel(kind)}
+      onClick={onPress ?? (() => toggleThreadDocksPanel(kind))}
     >
       {icon}
       {children}

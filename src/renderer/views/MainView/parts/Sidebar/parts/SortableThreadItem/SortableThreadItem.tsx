@@ -9,6 +9,7 @@ import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProvid
 import { ThreadContextMenu } from "@/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu";
 import { DraftIndicator } from "../DraftIndicator";
 import { InlineRenameInput } from "../InlineRenameInput";
+import { ThreadBackgroundTaskIndicator } from "./parts/ThreadBackgroundTaskIndicator";
 import {
   ThreadItemBottomSuffix,
   ThreadItemSuffix,
@@ -155,6 +156,10 @@ export function SortableThreadItem(props: {
                 <span className="flex h-[18px] items-center gap-1.5">
                   <span className="min-w-0 flex-1 truncate">{titleContent}</span>
                   {hasDraft && <DraftIndicator />}
+                  <ThreadBackgroundTaskIndicator
+                    threadId={thread.id}
+                    isWorking={statusTone === "working"}
+                  />
                   <span className="flex shrink-0 items-center gap-1 text-muted">
                     <ThreadItemTopSuffix {...suffixProps} mobileControls={compactLayout} />
                   </span>
@@ -172,6 +177,10 @@ export function SortableThreadItem(props: {
               <span className="flex items-center gap-1.5">
                 <span className="min-w-0 flex-1 truncate">{titleNode}</span>
                 {hasDraft && <DraftIndicator />}
+                <ThreadBackgroundTaskIndicator
+                  threadId={thread.id}
+                  isWorking={statusTone === "working"}
+                />
                 {compactLayout ? (
                   <span className="flex shrink-0 items-center text-muted">
                     <ThreadItemTopSuffix {...suffixProps} mobileControls />
