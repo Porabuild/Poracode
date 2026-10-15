@@ -2211,7 +2211,7 @@ describe("mapCodexNotification — 0.153 protocol items", () => {
     });
   });
 
-  it("keeps mapping agent messages that carry async questions", () => {
+  it("preserves async questions as a non-blocking reply form with fallback text", () => {
     const state = createCodexMapperState("t-codex");
     const events = mapCodexNotification(
       "item/started",
@@ -2232,7 +2232,84 @@ describe("mapCodexNotification — 0.153 protocol items", () => {
     expect(events[0]).toMatchObject({
       type: "item.started",
       itemType: "assistant_message",
-      payload: { content: [{ kind: "text", text: "Working on it." }] },
+      payload: {
+        content: [{ kind: "text", text: "Working on it." }],
+        replyForm: {
+          questions: [
+            {
+              id: "q0",
+              question: "Which scope?",
+              options: [
+                { optionId: "A", label: "A" },
+                { optionId: "B", label: "B" },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    expect(events.some((event) => event.type === "request.opened")).toBe(false);
+  });
+
+  it.each([true, false])(
+    "keeps questions delivered only on completion (started: %s)",
+    (started) => {
+      const state = createCodexMapperState("t-codex");
+      if (started)
+        mapCodexNotification(
+          "item/started",
+          { item: { id: "async", type: "agentMessage", text: "" } },
+          state,
+        );
+      const events = mapCodexNotification(
+        "item/completed",
+        {
+          item: {
+            id: "async",
+            type: "agentMessage",
+            text: "",
+            delivery: "async",
+            questions: [{ title: "Which scope?", options: null }],
+          },
+        },
+        state,
+      );
+      expect(events.find((event) => event.type === "item.completed")).toMatchObject({
+        payload: {
+          replyForm: { questions: [{ id: "q0", question: "Which scope?", options: null }] },
+        },
+      });
+    },
+  );
+
+  it("ignores malformed async questions and keeps valid free-text questions", () => {
+    const state = createCodexMapperState("t-codex");
+    const events = mapCodexNotification(
+      "item/started",
+      {
+        item: {
+          id: "async",
+          type: "agentMessage",
+          text: "Fallback",
+          questions: [
+            null,
+            { title: " " },
+            { title: "Project?", options: [null, "", "A", "A"] },
+            { title: "Details?", options: null },
+          ],
+        },
+      },
+      state,
+    );
+    expect(events[0]).toMatchObject({
+      payload: {
+        replyForm: {
+          questions: [
+            { id: "q2", question: "Project?", options: [{ optionId: "A", label: "A" }] },
+            { id: "q3", question: "Details?", options: null },
+          ],
+        },
+      },
     });
   });
 });

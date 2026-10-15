@@ -11,6 +11,8 @@ export function QuestionOptionRow(props: {
   onKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
   /** Single-select forms can mark the saved choice without changing row shape. */
   selected?: boolean;
+  /** Inline questionnaires keep long choices readable in narrow chat panes. */
+  wrapLabel?: boolean;
   /** When defined, the row renders a checkbox marker (multi-select). */
   checked?: boolean;
 }) {
@@ -52,7 +54,11 @@ export function QuestionOptionRow(props: {
         {`${index + 1}.`}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium text-foreground">{option.label}</span>
+        <span
+          className={`block text-xs font-medium text-foreground ${props.wrapLabel ? "whitespace-normal break-words" : "truncate"}`}
+        >
+          {option.label}
+        </span>
         {option.description ? (
           <span className="block overflow-hidden text-[11px] leading-snug text-[color:var(--muted)] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
             {option.description}

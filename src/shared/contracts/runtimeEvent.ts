@@ -103,8 +103,27 @@ export type CanonicalContentBlock = z.infer<typeof canonicalContentBlockSchema>;
 
 // ── Per-item payload shapes ──────────────────────────────────────────
 
+export const messageReplyFormSchema = z.object({
+  questions: z
+    .array(
+      z.object({
+        id: z.string(),
+        question: z.string(),
+        options: z.array(z.object({ optionId: z.string(), label: z.string() })).nullable(),
+      }),
+    )
+    .min(1),
+});
+export type MessageReplyForm = z.infer<typeof messageReplyFormSchema>;
+
 export const messageItemPayloadSchema = z.object({
   content: z.array(canonicalContentBlockSchema),
+  /**
+   * Non-blocking questions answered through ordinary thread input. Additive:
+   * old persisted messages omit this field; older clients retain the text
+   * fallback in content. No storage or wire version bump is needed.
+   */
+  replyForm: messageReplyFormSchema.optional(),
   // Marks `content` as the display source of truth for a completed message,
   // overriding any accumulated `assistant_text` stream — set only by provider
   // mappers whose final payload can legitimately differ from what streamed

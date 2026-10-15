@@ -133,6 +133,42 @@ describe("working state during prompt admission", () => {
     useAppStore.setState({ threads: [], projects: [], view: { kind: "home" } });
   });
 
+  it.each(["idle", "working"] as const)(
+    "reconciles accepted in-place input to live %s state",
+    async (status) => {
+      const working: Thread = { ...idle, status: "working", attention: "working" };
+      useAppStore.setState({ threads: [working] });
+      mocks.reconcile.mockImplementationOnce(async () => {
+        useAppStore.getState().reconcileRuntimeSnapshots([
+          {
+            ...idleRuntimeSnapshot(),
+            status,
+            attention: status === "working" ? "working" : "none",
+          },
+        ]);
+        return true;
+      });
+      await performThreadInputSubmit({
+        thread: working,
+        prompt: "Answer: A",
+        transport: {
+          sendThreadInput: async () => {
+            // The old turn completes without a new working admission for the
+            // native steer. Its idle frame cannot settle a still-pending send.
+            useAppStore.getState().updateThreadRuntime(idle.id, {
+              status: "idle",
+              attention: "none",
+              canResumeWithConfig: true,
+            });
+            expect(currentThread().status).toBe("working");
+          },
+        },
+      });
+      expect(mocks.reconcile).toHaveBeenCalledExactlyOnceWith(working);
+      expect(currentThread().status).toBe(status);
+    },
+  );
+
   it.each(["catalog", "history", "reconcile"] as const)(
     "preserves a draft launch through a stale %s read before the launch action begins",
     (source) => {

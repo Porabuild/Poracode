@@ -1,0 +1,327 @@
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "@heroui/react";
+import { AppProvider } from "@/renderer/components/ui/provider";
+import {
+  performThreadInputSubmit,
+  submitThreadInput,
+} from "@/renderer/actions/threadRuntimeActions";
+import { useAppStore } from "@/renderer/state/appStore";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import type { MessageReplyForm, Thread } from "@/shared/contracts";
+import { isVisibleRuntimeItem } from "../../chatPaneSelectors";
+import { AssistantMessage } from "./AssistantMessage";
+
+vi.mock("@/renderer/actions/threadRuntimeActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadRuntimeActions")>()),
+  submitThreadInput: vi.fn<typeof submitThreadInput>(),
+}));
+vi.mock("@/renderer/analytics/posthog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/analytics/posthog")>()),
+  captureThreadPromptSubmitted: vi.fn<() => void>(),
+}));
+
+const thread: Thread = {
+  id: "reply-thread",
+  projectId: "project",
+  title: "Reply",
+  agentKind: "claude",
+  config: { model: "test-model" },
+  status: "working",
+  attention: "working",
+  canResumeWithConfig: true,
+  archived: false,
+  done: false,
+  starred: false,
+  presentationMode: "gui",
+  createdAt: "2026-10-15T00:00:00Z",
+  updatedAt: "2026-10-15T00:00:00Z",
+};
+const form: MessageReplyForm = {
+  questions: [
+    {
+      id: "scope",
+      question: "Which scope?",
+      options: [
+        { optionId: "A", label: "A" },
+        { optionId: "B", label: "B" },
+      ],
+    },
+  ],
+};
+function message(replyForm = form): RuntimeChatItem {
+  return {
+    id: "question",
+    type: "assistant_message",
+    state: "completed",
+    payload: { content: [{ kind: "text", text: "Which scope?\n- A\n- B" }], replyForm },
+    streams: {},
+  };
+}
+function seed(items: RuntimeChatItem[]) {
+  useAppStore.setState({
+    threads: [thread],
+    runtimeItemIdsByThread: { [thread.id]: items.map((item) => item.id) },
+    runtimeItemsByIdByThread: {
+      [thread.id]: Object.fromEntries(items.map((item) => [item.id, item])),
+    },
+    runtimeRequestsByThread: {},
+  });
+}
+function show(item = message()) {
+  seed([item]);
+  return render(
+    <AppProvider>
+      <AssistantMessage threadId={thread.id} item={item} isTurnActive />
+    </AppProvider>,
+  );
+}
+
+describe("non-blocking message reply forms", () => {
+  beforeEach(() => {
+    vi.mocked(submitThreadInput).mockReset().mockResolvedValue(undefined);
+  });
+
+  it("renders selectable choices while work continues, gates blank submit, and sends a normal reply", async () => {
+    show();
+    expect((screen.getByRole("button", { name: "Submit" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.submit(screen.getByRole("option", { name: /A/ }).closest("form")!);
+    expect(submitThreadInput).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("option", { name: /A/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() =>
+      expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(thread.id, "Which scope?\nA"),
+    );
+    expect(useAppStore.getState().threads[0]?.status).toBe("working");
+    expect(useAppStore.getState().runtimeRequestsByThread).toEqual({});
+    await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+  });
+
+  it("collects multiple answers, including free text, before sending", async () => {
+    show(
+      message({
+        questions: [...form.questions, { id: "detail", question: "Details?", options: null }],
+      }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: /B/ }));
+    expect((screen.getByRole("button", { name: "Submit" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "  custom detail  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() =>
+      expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(
+        thread.id,
+        "Which scope?\nB\n\nDetails?\ncustom detail",
+      ),
+    );
+  });
+
+  it("submits a custom answer with Enter and prevents a second in-flight send", async () => {
+    let complete!: () => void;
+    vi.mocked(submitThreadInput).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          complete = resolve;
+        }),
+    );
+    show();
+    const input = screen.getByPlaceholderText("Or write a custom answer");
+    fireEvent.change(input, { target: { value: "  another scope  " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.submit(input.closest("form")!);
+    expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(
+      thread.id,
+      "Which scope?\nanother scope",
+    );
+    await act(async () => complete());
+  });
+
+  it.each([false, true])(
+    "uses the option activated with Enter, without a stale choice (previous: %s)",
+    async (previous) => {
+      show();
+      if (previous) fireEvent.click(screen.getByRole("option", { name: /A/ }));
+      fireEvent.keyDown(screen.getByRole("option", { name: /B/ }), { key: "Enter" });
+      await waitFor(() =>
+        expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(thread.id, "Which scope?\nB"),
+      );
+    },
+  );
+
+  it("keeps assistant context visible and uses question text for accessible names", () => {
+    const item = message();
+    item.payload = {
+      ...(item.payload as object),
+      content: [{ kind: "text", text: "The repository requires a scope choice." }],
+    };
+    show(item);
+    expect(screen.getByText("The repository requires a scope choice.")).toBeTruthy();
+    expect(screen.getByRole("listbox", { name: "Which scope?" })).toBeTruthy();
+    expect(screen.queryByText("scope")).toBeNull();
+  });
+
+  it("keeps child-agent questions as text instead of replying to the root thread", () => {
+    show({ ...message(), parentItemId: "child-tool" });
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(screen.getByText(/Which scope\?/)).toBeTruthy();
+  });
+
+  it("keeps the answer available for retry after a definite send failure", async () => {
+    const notify = vi.spyOn(toast, "danger").mockImplementation(() => "toast");
+    vi.mocked(submitThreadInput).mockRejectedValueOnce(new Error("Disconnected"));
+    show();
+    fireEvent.click(screen.getByRole("option", { name: /A/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(notify).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() => expect(submitThreadInput).toHaveBeenCalledTimes(2));
+    notify.mockRestore();
+  });
+
+  it("does not retire a form for a real failed optimistic input, including after remount", async () => {
+    const item = message();
+    const view = show(item);
+    await act(async () => {
+      await expect(
+        performThreadInputSubmit({
+          thread,
+          prompt: "A",
+          transport: {
+            sendThreadInput: async () => {
+              throw new Error("Disconnected");
+            },
+          },
+        }),
+      ).rejects.toThrow("Disconnected");
+    });
+    expect(screen.getByRole("listbox")).toBeTruthy();
+    view.unmount();
+    render(
+      <AppProvider>
+        <AssistantMessage threadId={thread.id} item={item} isTurnActive />
+      </AppProvider>,
+    );
+    expect(screen.getByRole("listbox")).toBeTruthy();
+    await act(async () => {
+      await performThreadInputSubmit({
+        thread,
+        prompt: "A",
+        transport: { sendThreadInput: async () => {} },
+      });
+    });
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("ignores a rejected reply's late canonical echo after backpressure recovery", async () => {
+    const item = message();
+    const view = show(item);
+    let userMessageItemId = "";
+    await act(async () => {
+      await expect(
+        performThreadInputSubmit({
+          thread,
+          prompt: "A",
+          transport: {
+            sendThreadInput: async (input) => {
+              userMessageItemId = input.userMessageItemId!;
+              throw new Error("Disconnected");
+            },
+          },
+        }),
+      ).rejects.toThrow("Disconnected");
+    });
+    act(() => {
+      useAppStore.getState().applyRuntimeEvent(thread.id, {
+        type: "item.started",
+        threadId: thread.id,
+        itemId: userMessageItemId,
+        itemType: "user_message",
+        payload: { content: [{ kind: "text", text: "A" }] },
+      });
+    });
+    view.unmount();
+    render(
+      <AppProvider>
+        <AssistantMessage threadId={thread.id} item={item} isTurnActive />
+      </AppProvider>,
+    );
+    expect((screen.getByRole("option", { name: /A/ }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("disables replies across remount while delivery is pending, then allows retry after failure", async () => {
+    const item = message();
+    const view = show(item);
+    let rejectSend!: (error: Error) => void;
+    let delivery!: Promise<unknown>;
+    await act(async () => {
+      delivery = performThreadInputSubmit({
+        thread,
+        prompt: "A",
+        transport: {
+          sendThreadInput: () =>
+            new Promise<void>((_resolve, reject) => {
+              rejectSend = reject;
+            }),
+        },
+      }).catch((error: unknown) => error);
+    });
+    view.unmount();
+    render(
+      <AppProvider>
+        <AssistantMessage threadId={thread.id} item={item} isTurnActive />
+      </AppProvider>,
+    );
+    expect((screen.getByRole("option", { name: /A/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.submit(screen.getByRole("option", { name: /A/ }).closest("form")!);
+    expect(submitThreadInput).not.toHaveBeenCalled();
+    await act(async () => {
+      rejectSend(new Error("Disconnected"));
+      await delivery;
+    });
+    expect((screen.getByRole("option", { name: /A/ }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("retires the form after a typed reply, including after remounting from persisted items", () => {
+    const item = message();
+    const reply: RuntimeChatItem = {
+      id: "reply",
+      type: "user_message",
+      state: "completed",
+      payload: { content: [{ kind: "text", text: "A" }] },
+      streams: {},
+    };
+    seed([item, reply]);
+    render(
+      <AppProvider>
+        <AssistantMessage threadId={thread.id} item={item} isTurnActive={false} />
+      </AppProvider>,
+    );
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(screen.getByText(/Which scope\?/)).toBeTruthy();
+  });
+
+  it("keeps an unanswered form available after the provider finishes", () => {
+    const item = message();
+    seed([item]);
+    useAppStore.setState({ threads: [{ ...thread, status: "idle", attention: "none" }] });
+    render(
+      <AppProvider>
+        <AssistantMessage threadId={thread.id} item={item} isTurnActive={false} />
+      </AppProvider>,
+    );
+    fireEvent.click(screen.getByRole("option", { name: /A/ }));
+    expect((screen.getByRole("button", { name: "Submit" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  });
+
+  it("keeps question-only messages visible", () => {
+    const item = { ...message(), payload: { content: [], replyForm: form } };
+    expect(isVisibleRuntimeItem(item)).toBe(true);
+    show(item);
+    expect(screen.getByRole("listbox")).toBeTruthy();
+  });
+});

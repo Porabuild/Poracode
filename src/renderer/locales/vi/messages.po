@@ -3992,6 +3992,7 @@ msgstr "Sử dụng ngữ cảnh"
 msgid "Context windows"
 msgstr "Cửa sổ ngữ cảnh"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Continue"
@@ -15285,6 +15286,7 @@ msgstr "Tác nhân phụ"
 #~ msgid "Subagents enabled for this thread"
 #~ msgstr "Đã bật tác nhân phụ cho chủ đề này"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MessageReplyForm.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx

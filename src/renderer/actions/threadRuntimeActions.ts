@@ -35,6 +35,7 @@ import {
   reconcileThreadCommandOutcome,
 } from "./threadCommandOutcomeActions";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
+import type { ThreadInputDelivery } from "@/renderer/state/threadInputDelivery";
 
 /** Resolve a thread and its on-disk project location from the store. */
 function resolveThreadProjectLocation(
@@ -125,7 +126,10 @@ async function performThreadInputSubmitPending(
       threadId: thread.id,
       itemId: optimisticUserMessageItemId,
       itemType: "user_message",
-      payload: { content: buildPromptContentBlocks(prompt, segments) },
+      payload: {
+        content: buildPromptContentBlocks(prompt, segments),
+        clientInputDelivery: "pending",
+      },
     });
     store.applyRuntimeEvent(thread.id, {
       type: "item.completed",
@@ -140,8 +144,18 @@ async function performThreadInputSubmitPending(
     });
     markedWorking = true;
   }
+  const markDelivery = (delivery: ThreadInputDelivery): void => {
+    if (!optimisticUserMessageItemId) return;
+    store.applyRuntimeEvent(thread.id, {
+      type: "item.updated",
+      threadId: thread.id,
+      itemId: optimisticUserMessageItemId,
+      payload: { clientInputDelivery: delivery },
+    });
+  };
   const rollbackOptimisticWorking = (resumeFailed = false): void => {
     if (!markedWorking) return;
+    markDelivery("failed");
     store.updateThreadRuntime(thread.id, {
       status: resumeFailed ? "error" : thread.status,
       attention: resumeFailed ? "error" : thread.attention,
@@ -171,6 +185,7 @@ async function performThreadInputSubmitPending(
     // error still propagates so callers classify it instead of painting a
     // definite failure.
     if (isRemoteCommandOutcomeUncertainError(error)) {
+      markDelivery("uncertain");
       releasePendingInput?.();
       notifyThreadCommandOutcomeUncertain();
       await reconcileThreadCommandOutcome(thread);
@@ -200,18 +215,30 @@ async function performThreadInputSubmitPending(
       } catch (resumeError) {
         // The relaunch already reconciled an uncertain start (and never
         // resends); rolling back here would force-close a turn that may exist.
-        if (isRemoteCommandOutcomeUncertainError(resumeError)) throw resumeError;
+        if (isRemoteCommandOutcomeUncertainError(resumeError)) {
+          markDelivery("uncertain");
+          throw resumeError;
+        }
         rollbackOptimisticWorking(true);
         throw resumeError;
       } finally {
         if (connectionToken) store.finishThreadConnecting(thread.id, connectionToken);
       }
       // The relaunch captures its own prompt-submitted event.
+      markDelivery("accepted");
       store.touchThread(thread.id);
       return;
     }
     rollbackOptimisticWorking();
     throw error;
+  }
+  markDelivery("accepted");
+  if (thread.status === "working") {
+    // Native in-place input may keep the same turn and emit no new working
+    // admission. Release only this accepted input, then read live state so a
+    // completion that raced the send acknowledgement can settle the renderer.
+    releasePendingInput?.();
+    await reconcileThreadCommandOutcome(thread);
   }
   captureThreadPromptSubmitted(thread, prompt, segments);
   store.touchThread(thread.id);
