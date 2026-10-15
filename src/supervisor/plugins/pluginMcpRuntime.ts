@@ -52,6 +52,8 @@ export interface PluginMcpRuntimeContext {
   projectLocation?: ProjectLocation;
   /** Packages already supplied by the selected provider's native plugin runtime. */
   nativePluginNames?: ReadonlySet<string>;
+  /** Live built-in policy reads do not need to stage external launch transports. */
+  includeExternalServers?: boolean;
 }
 
 export interface ResolvedPluginMcpServers {
@@ -207,6 +209,7 @@ export function resolvePluginMcpServers(
     if (!isBuiltInToolPlugin(plugin)) {
       plugin.poracode.builtInMcpServerIds.forEach((id) => builtInMcpServerIds.add(id));
     }
+    if (context.includeExternalServers === false) continue;
 
     const data = pluginDataDirectory(context.pluginDataRoot, plugin.name);
     let dataReady: boolean | undefined;

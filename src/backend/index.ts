@@ -39,6 +39,10 @@ let backendHost: BackendHostCore | null = null;
 let desktopServices: BackendDesktopServices | null = null;
 let environments: ComposedHostEnvironments | null = null;
 let supervisorExtraEnv: Record<string, string> = {};
+// The existing start-supervisor message supplies the native MCP environment.
+// Backend-owned loopback calls can arrive earlier than main's startup gate.
+const supervisorEnvironmentReady = Promise.withResolvers<void>();
+void supervisorEnvironmentReady.promise.catch(() => undefined);
 const requests = new AsyncWorkTracker();
 const initialization = new AsyncWorkTracker();
 let shuttingDown = false;
@@ -49,6 +53,7 @@ let runtimeWorkJoined = false;
 function stopRuntimeWork(): Promise<void> {
   if (runtimeStop) return runtimeStop;
   acceptingRequests = false;
+  supervisorEnvironmentReady.reject(new Error("Backend host is shutting down."));
   nativeThreadActivity.dispose();
   const barrier = Promise.withResolvers<void>();
   runtimeStop = barrier.promise;
@@ -230,7 +235,7 @@ async function initialize(
       // crash respawns) settles the app-controls ingress before its env is
       // resolved, not only the explicit main-process start operation.
       prepareLaunch: async () => {
-        await desktopServicesReady.promise;
+        await Promise.all([desktopServicesReady.promise, supervisorEnvironmentReady.promise]);
         await desktopServices?.prepareSupervisor();
       },
       reportError,
@@ -330,12 +335,14 @@ async function executeRequest(
   switch (request.operation) {
     case "start-supervisor":
       supervisorExtraEnv = request.payload.extraEnv;
+      supervisorEnvironmentReady.resolve();
       await desktopServices?.prepareSupervisor();
       await host.startSupervisor();
       await desktopServices?.startBackgroundServices();
       return null;
     case "restart-supervisor":
       supervisorExtraEnv = request.payload.extraEnv;
+      supervisorEnvironmentReady.resolve();
       await desktopServices?.prepareSupervisor();
       await host.restartSupervisor();
       await desktopServices?.startBackgroundServices();

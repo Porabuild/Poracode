@@ -3001,6 +3001,10 @@ msgstr "Claude {0} 프로필이 저장되었습니다."
 msgid "Claude Code"
 msgstr "Claude Code"
 
+#: src/renderer/components/providers/claude/ChromeSettings.tsx
+msgid "Claude in Chrome"
+msgstr "Chrome의 Claude"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile config directory"
 msgstr "Claude 프로필 구성 디렉터리"
@@ -17920,6 +17924,10 @@ msgstr "WebGPU 가속 사용"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Use workflow from"
 msgstr "워크플로 사용 위치"
+
+#: src/renderer/components/providers/claude/ChromeSettings.tsx
+msgid "Use your Claude browser extension in Chrome, Brave, or other supported browsers. Applies to new or restarted chats; unavailable in WSL."
+msgstr "Chrome, Brave 등 지원되는 브라우저에서 Claude 확장 프로그램을 사용합니다. 새로 시작하거나 다시 시작한 채팅에 적용되며, WSL에서는 사용할 수 없습니다."
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"

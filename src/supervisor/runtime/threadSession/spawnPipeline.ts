@@ -32,6 +32,7 @@ import {
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import { msg } from "@/shared/messages";
 import type { AgentNativePlugin } from "@/supervisor/agents/base";
+import { agentSettingsEnvironment } from "../../agents/base/settingEnvironment";
 import {
   resolveBrowserMcpHttpConfigForLaunch,
   type BrowserMcpHttpConfig,
@@ -654,6 +655,7 @@ export class SpawnPipeline {
       launchConfig,
       resolvedMcpServers,
       mcpIdentity,
+      mcpLaunchSnapshot,
       payload.sessionRef,
       requestedPresentation,
       executionWorkspaceScope,
@@ -1140,6 +1142,7 @@ export class SpawnPipeline {
       launchConfig,
       resolvedMcpServers,
       mcpIdentity,
+      mcpLaunchSnapshot,
       session.sessionRef,
       session.presentationMode,
       executionWorkspaceScope,
@@ -1599,6 +1602,7 @@ export class SpawnPipeline {
     crossagentThreadId,
     adapter,
     presentationMode,
+    isCurrent,
   }: {
     location: ProjectLocation;
     config: ThreadConfig;
@@ -1607,6 +1611,8 @@ export class SpawnPipeline {
     crossagentThreadId?: string;
     adapter?: AgentAdapter;
     presentationMode?: ThreadPresentationMode;
+    /** A live resolver must not mutate a retired thread's MCP credentials. */
+    isCurrent?: () => boolean;
   }): Promise<ResolvedMcpServer[]> {
     const providerSessionCrossagents = usesProviderSessionCrossagentRouting(
       adapter,
@@ -1635,6 +1641,7 @@ export class SpawnPipeline {
       mcpLaunchSnapshot,
       identity,
     );
+    if (isCurrent && !isCurrent()) return [];
     const crossagentMcp = crossagentThreadId
       ? await this.resolveCrossagentMcpForLaunch(
           crossagentThreadId,
@@ -1803,22 +1810,12 @@ export class SpawnPipeline {
       return {};
     }
 
-    const agentValues = this.ctx.resolveAgentSettings(adapter, location);
-    const env: Record<string, string> = {};
-    for (const definition of settingDefs) {
-      if (definition.platforms && !definition.platforms.includes(process.platform)) {
-        continue;
-      }
-      const value = agentValues[definition.key] ?? definition.default;
-      if (definition.type === "toggle") {
-        if (value) {
-          Object.assign(env, definition.env);
-        }
-      } else if (definition.type === "select") {
-        env[definition.envVar] = String(value);
-      }
-    }
-    return env;
+    // PTY setting definitions use the host platform, including WSL-routed launches.
+    return agentSettingsEnvironment(
+      settingDefs,
+      this.ctx.resolveAgentSettings(adapter, location),
+      process.platform,
+    );
   }
 
   private requireAdapter(kind: AgentKind): AgentAdapter {
@@ -1837,6 +1834,7 @@ export class SpawnPipeline {
     config: ThreadConfig,
     mcpServers: readonly ResolvedMcpServer[],
     mcpIdentity: McpThreadIdentity | undefined,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
     sessionRef?: SessionRef,
     presentationMode?: ThreadPresentationMode,
     workspaceScope?: ApprovedThreadWorkspaceScope,
@@ -1860,6 +1858,36 @@ export class SpawnPipeline {
         ...(mcpServers.length > 0 || adapter.capabilities.mcpConfigSource === "agentSettings"
           ? { mcpServers }
           : {}),
+        resolveMcpServersForTurn: async (turnConfig, isCurrent) => {
+          if (!isCurrent()) return [];
+          const contributions = await this.ctx.options.resolvePluginLaunchContributions?.(
+            projectLocation,
+            agentKind,
+            { includeExternalServers: false },
+          );
+          if (!isCurrent()) return [];
+          const snapshot = {
+            ...mcpLaunchSnapshot,
+            pluginBuiltInMcpServerIds:
+              contributions?.builtInMcpServerIds ??
+              mcpLaunchSnapshot.pluginBuiltInMcpServerIds ??
+              [],
+          };
+          return this.resolveMcpServersForLaunch({
+            location: projectLocation,
+            config: effectiveLaunchConfig(
+              turnConfig,
+              snapshot.disabledBuiltInMcpServerIds,
+              snapshot.pluginBuiltInMcpServerIds,
+            ),
+            mcpLaunchSnapshot: snapshot,
+            ...(mcpIdentity ? { identity: mcpIdentity } : {}),
+            crossagentThreadId: threadId,
+            adapter,
+            isCurrent,
+            ...(presentationMode ? { presentationMode } : {}),
+          });
+        },
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
         ...(this.ctx.options.readHostDiagnostics

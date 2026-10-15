@@ -98,6 +98,9 @@ import type { PoracodeChannel } from "./channel";
 // Version 17: the hop's checked invocation envelope (renderer-supplied
 // version, asserted by main before dispatch); this leg's exact-equality
 // gates are unchanged (see `clientHostHop.ts`).
+// Native MCP startup waits for the existing start-supervisor environment
+// payload. Previous initialize/start envelopes, including empty env, remain
+// valid; this ordering fix requires no wire-version change.
 export const BACKEND_HOST_PROTOCOL_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export const BACKEND_DATABASE_PROCEDURE_NAMES = [
