@@ -129,6 +129,16 @@ const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
   // \s* so they match painted and stripped renderings alike.
   claude: [
     {
+      // Native browser access now starts enabled. Claude introduces the
+      // extension's site permissions once before admitting the first prompt;
+      // confirming this introduction does not approve a browser action.
+      needle:
+        /Site.level\s*permissions[\s\S]*Chrome\s*extension[\s\S]*Enter\s*to\s*confirm[\s\S]*Esc\s*to\s*cancel/i,
+      response: "\r",
+      reason: "claude: confirm browser integration introduction",
+      maxFires: 2,
+    },
+    {
       needle: /Choose\s*the\s*text\s*style/i,
       response: "\r",
       reason: "claude: accept default theme on first-run onboarding",

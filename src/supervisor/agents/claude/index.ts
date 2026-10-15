@@ -37,6 +37,7 @@ import { ClaudeSdkSession } from "./sdkSession";
 import { createClaudeSessionImport } from "./sessionImport";
 import { resolveNativeTildePath } from "../base/sessionFs";
 import { claudeMcpLaunch } from "./mcp";
+import { claudeNativeChromeArgs } from "./nativeChrome";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
   getClaudePluginPaths,
@@ -371,7 +372,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       const assignedId = randomUUID();
       const args = buildClaudeArgs(config, prompt, undefined, assignedId);
       const mcp = await claudeMcpLaunch(location, launchOptions?.mcpServers);
-      args.splice(claudeExtraArgsPosition(args, prompt), 0, ...mcp.args);
+      args.splice(
+        claudeExtraArgsPosition(args, prompt),
+        0,
+        ...claudeNativeChromeArgs(location, launchOptions?.agentSettings),
+        ...mcp.args,
+      );
       const env = claudeContextWindowEnv(config.contextSize, await profileEnv(location));
       return {
         ...mcp,
@@ -384,7 +390,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
       const mcp = await claudeMcpLaunch(location, launchOptions?.mcpServers);
-      args.splice(claudeExtraArgsPosition(args, prompt), 0, ...mcp.args);
+      args.splice(
+        claudeExtraArgsPosition(args, prompt),
+        0,
+        ...claudeNativeChromeArgs(location, launchOptions?.agentSettings),
+        ...mcp.args,
+      );
       const env = claudeContextWindowEnv(config.contextSize, await profileEnv(location));
       return { ...mcp, binary: "claude", args, ...(env ? { env } : {}) };
     },

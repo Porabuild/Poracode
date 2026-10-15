@@ -295,6 +295,16 @@ export interface CreateStructuredSessionInput {
   baseSpawnEnv?: Record<string, string>;
   mcpIdentity?: McpThreadIdentity;
   mcpServers?: readonly ResolvedMcpServer[];
+  /**
+   * Resolve live built-in MCP access for a turn, honoring the launch snapshot's
+   * disables and tool restrictions. External servers retain their launch scope.
+   * Sessions with live MCP controls may call this before admitting new input.
+   * Fence every side effect with isCurrent after asynchronous preparation.
+   */
+  resolveMcpServersForTurn?(
+    config: ThreadConfig,
+    isCurrent: () => boolean,
+  ): Promise<readonly ResolvedMcpServer[]>;
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
   /**

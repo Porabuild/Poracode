@@ -5,11 +5,13 @@ import {
   ClaudeProfileSettings,
 } from "../settings/ClaudeProfileSettings";
 import { ClaudeContextWindowSettings } from "./ContextWindowSettings";
+import { ClaudeChromeSettings } from "./ChromeSettings";
 
 export function ClaudeAgentSettingsPanel(props: NativeAgentSettingsPanelProps) {
   const instanceId = extractClaudeProfileInstanceId(props.agentKind);
   return (
     <>
+      <ClaudeChromeSettings agentKind={props.agentKind} />
       <ClaudeContextWindowSettings agentKind={props.agentKind} wslDistros={props.wslDistros} />
       {instanceId === undefined ? (
         <ClaudeProfileSettings onOpenProfile={props.onOpenProfile} />

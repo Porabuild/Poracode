@@ -3,6 +3,61 @@ import { applyClaudeContextSuffix, buildClaudeArgs } from "./argv";
 import { createClaudeAdapter } from "./index";
 
 describe("applyClaudeContextSuffix", () => {
+  it.each([
+    [true, false],
+    [false, false],
+    [true, true],
+    [false, true],
+  ] as const)(
+    "uses browser choice %s before the prompt and MCP delimiter (MCP: %s) on launch and resume",
+    async (choice, withMcp) => {
+      const adapter = createClaudeAdapter();
+      const location = { kind: "posix", path: "/tmp/claude-browser" } as const;
+      const options = {
+        agentSettings: { chromeIntegration: choice },
+        ...(withMcp
+          ? {
+              mcpServers: [
+                {
+                  id: "fixture",
+                  name: "fixture",
+                  timeoutMs: 30000,
+                  transport: {
+                    type: "http" as const,
+                    url: "http://127.0.0.1:12345/mcp",
+                    headers: {},
+                  },
+                },
+              ],
+            }
+          : {}),
+      };
+      const flag = choice ? "--chrome" : "--no-chrome";
+      const launch = await adapter.buildLaunchArgv(
+        location,
+        { model: "sonnet" },
+        "Continue",
+        undefined,
+        options,
+      );
+      const resume = await adapter.buildResumeArgv(
+        location,
+        { model: "sonnet" },
+        "Continue",
+        { providerSessionId: "existing", discoveredAt: "2026-10-14T00:00:00Z" },
+        options,
+      );
+      for (const spec of [launch, resume]) {
+        expect(spec.args).toContain(flag);
+        expect(spec.args.indexOf(flag)).toBeLessThan(spec.args.indexOf("Continue"));
+        const delimiter = spec.args.indexOf("--");
+        expect(delimiter >= 0).toBe(withMcp);
+        expect(spec.args.indexOf(flag)).toBeLessThan(delimiter < 0 ? spec.args.length : delimiter);
+        await spec.cleanup?.();
+        expect(spec.args.at(-1)).toBe("Continue");
+      }
+    },
+  );
   it("derives the suffix from contextSize for built-in models", () => {
     expect(applyClaudeContextSuffix("claude-opus-5", "1m")).toBe("claude-opus-5[1m]");
     expect(applyClaudeContextSuffix("claude-opus-4-8", "1m")).toBe("claude-opus-4-8[1m]");

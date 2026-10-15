@@ -3000,6 +3000,10 @@ msgstr "Claude {0} プロファイルが保存されました。"
 msgid "Claude Code"
 msgstr "Claude Code"
 
+#: src/renderer/components/providers/claude/ChromeSettings.tsx
+msgid "Claude in Chrome"
+msgstr "Chrome の Claude"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile config directory"
 msgstr "Claude プロファイル設定ディレクトリ"
@@ -17918,6 +17922,10 @@ msgstr "WebGPU アクセラレーションを使用する"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Use workflow from"
 msgstr "ワークフローの参照元"
+
+#: src/renderer/components/providers/claude/ChromeSettings.tsx
+msgid "Use your Claude browser extension in Chrome, Brave, or other supported browsers. Applies to new or restarted chats; unavailable in WSL."
+msgstr "Chrome、Brave などの対応ブラウザーで Claude 拡張機能を使用します。新規または再起動したチャットに適用されます。WSL では利用できません。"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"

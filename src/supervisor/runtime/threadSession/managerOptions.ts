@@ -114,6 +114,7 @@ export interface ThreadSessionManagerOptions {
   resolvePluginLaunchContributions?(
     projectLocation: ProjectLocation,
     agentKind: AgentKind,
+    options?: { includeExternalServers: boolean },
   ): Promise<{
     mcpServers: McpServer[];
     builtInMcpServerIds: BuiltInMcpServerId[];

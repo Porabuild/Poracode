@@ -523,7 +523,7 @@ export class SupervisorRuntime {
       },
       applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
       prepareMcpToolFilters,
-      resolvePluginLaunchContributions: async (projectLocation, agentKind) => {
+      resolvePluginLaunchContributions: async (projectLocation, agentKind, selection) => {
         const adapter = this.adapters.get(agentKind);
         const envContext =
           projectLocation.kind === "wsl"
@@ -550,6 +550,7 @@ export class SupervisorRuntime {
             hostPlatform: process.platform,
             projectLocation,
             nativePluginNames: new Set(nativePlugins.map((plugin) => plugin.name)),
+            includeExternalServers: selection?.includeExternalServers ?? true,
           },
         );
         return {

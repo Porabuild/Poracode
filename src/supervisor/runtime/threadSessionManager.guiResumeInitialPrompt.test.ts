@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind, PromptSegment, SessionRef } from "@/shared/contracts";
+import { decodeThreadIdentity } from "@/shared/browserMcpThread";
+import * as browserMcp from "../agents/browserMcp";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type {
   AgentAdapter,
@@ -76,6 +78,8 @@ afterEach(async () => {
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 function deferred<T = void>(): {
@@ -166,7 +170,10 @@ function createAdapter(structured: StructuredSessionHandle): {
 function createManager(
   adapter: AgentAdapter,
   emit: (event: SupervisorEvent) => void,
-  preparation: Pick<ThreadSessionManagerOptions, "resolvePluginLaunchContributions"> = {},
+  preparation: Pick<
+    ThreadSessionManagerOptions,
+    "resolvePluginLaunchContributions" | "crossagentMcp"
+  > = {},
 ): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-gui-resume-prompt-"));
   tempDirs.push(tempDir);
@@ -241,6 +248,150 @@ function startResumedThread(
     ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
   });
 }
+
+describe("live built-in MCP resolution", () => {
+  it.each([true, false])(
+    "does not mutate a replacement's Crossagents credentials after old browser preparation (%s)",
+    async (oldCrossagentMcp) => {
+      const policies = new Map<string, readonly string[]>();
+      const register = vi.fn<NonNullable<ThreadSessionManagerOptions["crossagentMcp"]>["register"]>(
+        (threadId, disabledTools = []) => {
+          policies.set(threadId, disabledTools);
+          return {
+            url: "http://127.0.0.1:12346/mcp",
+            token: "fixture-token",
+            headers: { Authorization: "Bearer fixture-token" },
+          };
+        },
+      );
+      const unregister = vi.fn<(threadId: string) => void>((threadId) => {
+        policies.delete(threadId);
+      });
+      const { adapter, createStructuredSession: factory } =
+        createAdapter(createStructuredSession());
+      const manager = createManager(adapter, () => {}, {
+        crossagentMcp: {
+          register,
+          registerProviderSession: register,
+          unregister,
+          cancelForeground: vi.fn<(threadId: string) => void>(),
+          cancelAll: vi.fn<(threadId: string) => void>(),
+          resolveChildRequest: vi
+            .fn<NonNullable<ThreadSessionManagerOptions["crossagentMcp"]>["resolveChildRequest"]>()
+            .mockReturnValue(false),
+        },
+      });
+      const launch = {
+        threadId: THREAD_ID,
+        projectLocation: PROJECT_LOCATION,
+        agentKind: AGENT_KIND,
+        prompt: "",
+        initialSize: INITIAL_SIZE,
+        presentationMode: "gui" as const,
+      };
+      await manager.startThread({
+        ...launch,
+        config: { model: "fixture-model", crossagentMcp: oldCrossagentMcp },
+      });
+      const old = manager.sessions.get(THREAD_ID);
+      const resolve = factory.mock.calls[0]![0].resolveMcpServersForTurn!;
+      const prepared = deferred<browserMcp.BrowserMcpHttpConfig | undefined>();
+      const browser = vi
+        .spyOn(browserMcp, "resolveBrowserMcpHttpConfigForLaunch")
+        .mockImplementation(async (_location, enabled) => (enabled ? prepared.promise : undefined));
+      const pending = resolve(
+        { model: "fixture-model", browserMcp: true, crossagentMcp: oldCrossagentMcp },
+        () => manager.sessions.get(THREAD_ID) === old,
+      );
+      await vi.waitFor(() => expect(browser).toHaveBeenCalledOnce());
+      await manager.closeThread({ threadId: THREAD_ID });
+      await manager.startThread({
+        ...launch,
+        config: { model: "fixture-model", crossagentMcp: true },
+        disabledBuiltInMcpTools: { crossagents: ["spawn_thread"] },
+      });
+      expect(policies.get(THREAD_ID)).toEqual(["spawn_thread"]);
+      prepared.resolve(undefined);
+      await pending;
+      expect(policies.get(THREAD_ID)).toEqual(["spawn_thread"]);
+    },
+  );
+
+  it("refreshes plugin enablement on a resumed thread while retaining tool restrictions and identity", async () => {
+    vi.stubEnv("PORACODE_BROWSER_MCP_URL", "http://127.0.0.1:12345");
+    vi.stubEnv("PORACODE_BROWSER_MCP_TOKEN", "fixture-token");
+    const { adapter, createStructuredSession: factory } = createAdapter(createStructuredSession());
+    const contributions = vi
+      .fn<NonNullable<ThreadSessionManagerOptions["resolvePluginLaunchContributions"]>>()
+      .mockResolvedValue({
+        mcpServers: [],
+        builtInMcpServerIds: [],
+        nativePlugins: [],
+      });
+    const manager = createManager(adapter, () => {}, {
+      resolvePluginLaunchContributions: contributions,
+    });
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model" },
+      prompt: "",
+      sessionRef: OWNED_REF,
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+      disabledBuiltInMcpTools: { browser: ["eval"] },
+    });
+    const resolve = factory.mock.calls[0]![0].resolveMcpServersForTurn!;
+    expect(
+      (await resolve({ model: "fixture-model" }, () => true)).some(
+        (server) => server.id === "browser",
+      ),
+    ).toBe(false);
+    contributions.mockResolvedValue({
+      mcpServers: [],
+      builtInMcpServerIds: ["browser"],
+      nativePlugins: [],
+    });
+    const browser = (await resolve({ model: "fixture-model" }, () => true)).find(
+      (server) => server.id === "browser",
+    );
+    expect(browser?.transport.type).toBe("http");
+    if (browser?.transport.type !== "http") throw new Error("browser server missing");
+    expect(decodeThreadIdentity(browser.transport.url)).toEqual({
+      threadId: THREAD_ID,
+      disabledTools: ["eval"],
+    });
+    expect(browser.transport.headers).toEqual({ Authorization: "Bearer fixture-token" });
+    expect(factory).toHaveBeenCalledOnce();
+  });
+
+  it("keeps launch-time server disables authoritative after a plugin is enabled", async () => {
+    vi.stubEnv("PORACODE_BROWSER_MCP_URL", "http://127.0.0.1:12345");
+    vi.stubEnv("PORACODE_BROWSER_MCP_TOKEN", "fixture-token");
+    const { adapter, createStructuredSession: factory } = createAdapter(createStructuredSession());
+    const manager = createManager(adapter, () => {}, {
+      resolvePluginLaunchContributions: async () => ({
+        mcpServers: [],
+        builtInMcpServerIds: ["browser"],
+        nativePlugins: [],
+      }),
+    });
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model", browserMcp: true },
+      prompt: "",
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+      disabledBuiltInMcpServerIds: ["browser"],
+    });
+    const resolve = factory.mock.calls[0]![0].resolveMcpServersForTurn!;
+    const servers = await resolve({ model: "fixture-model", browserMcp: true }, () => true);
+    expect(servers.some((server) => server.id === "browser")).toBe(false);
+  });
+});
 
 describe("GUI resume initial prompt admission", () => {
   it("admits an explicit resume prompt exactly once against the exact owned reference", async () => {

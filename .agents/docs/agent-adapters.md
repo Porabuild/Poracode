@@ -61,6 +61,11 @@ rule is about control flow and data shape.
 
 Existing extension points built on the same pattern:
 
+- `CreateStructuredSessionInput.resolveMcpServersForTurn` lets a session with
+  live MCP controls resolve built-in servers before admitting a turn. The
+  supervisor owns thread and plugin enablement, launch-time disables and tool
+  restrictions; external servers keep their launch snapshot. Providers own
+  applying the resolved set to their native runtime.
 - Message payloads declare `turnIndependent: true` when a conversation stream
   publishes messages outside an agent turn. The renderer persists and renders
   them without reopening the agent's work timer. Providers own this

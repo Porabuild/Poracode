@@ -1,5 +1,5 @@
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -323,6 +323,31 @@ describe("mcp runtime", () => {
     if (!plugin) throw new Error("plugin failed to load");
     return plugin;
   }
+
+  it("reads live built-in policy without staging external plugin servers", async () => {
+    const plugin = await loadWithServers("live-policy", {
+      main: { type: "stdio", command: "server" },
+    });
+    plugin.poracode.builtInMcpServerIds = ["browser"];
+    const pluginDataRoot = join(root, "plugin-data");
+    const live = resolvePluginMcpServers([plugin], installed("live-policy"), {
+      pluginDataRoot,
+      includeExternalServers: false,
+    });
+    expect(live).toEqual({ servers: [], builtInMcpServerIds: ["browser"], diagnostics: [] });
+    expect(existsSync(join(pluginDataRoot, plugin.name))).toBe(false);
+    expect(
+      resolvePluginMcpServers([plugin], installed("live-policy"), {
+        pluginDataRoot,
+        includeExternalServers: false,
+        nativePluginNames: new Set([plugin.name]),
+      }).builtInMcpServerIds,
+    ).toEqual([]);
+    expect(
+      resolvePluginMcpServers([plugin], installed("live-policy"), { pluginDataRoot }).servers,
+    ).toHaveLength(1);
+    expect(existsSync(join(pluginDataRoot, plugin.name))).toBe(true);
+  });
 
   it("expands placeholders only in args, env values, and cwd", async () => {
     const plugin = await loadWithServers("expansion", {

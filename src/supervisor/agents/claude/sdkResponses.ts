@@ -1,4 +1,6 @@
 import type {
+  ElicitationRequest,
+  ElicitationResult,
   PermissionMode,
   PermissionResult,
   PermissionUpdate,
@@ -28,7 +30,14 @@ export type PendingQuestion = {
   resolve: (result: PermissionResult) => void;
 };
 
-export type PendingRequest = PendingPermission | PendingQuestion;
+export type PendingElicitation = {
+  kind: "elicitation";
+  request: ElicitationRequest;
+  resolve: (result: ElicitationResult) => void;
+  cleanup: () => void;
+};
+
+export type PendingRequest = PendingPermission | PendingQuestion | PendingElicitation;
 
 interface PermissionDecision {
   kind: "accept" | "acceptForSession" | "decline" | "cancel";

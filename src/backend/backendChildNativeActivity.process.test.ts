@@ -122,6 +122,13 @@ setInterval(() => {}, 1000);
       });
       expect(initializeReply.ok).toBe(true);
 
+      await send(child, {
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        id: "start-1",
+        operation: "start-supervisor",
+        payload: { extraEnv: {} },
+      });
+
       const burstReply = await send(child, {
         version: BACKEND_HOST_PROTOCOL_VERSION,
         id: "burst-1",

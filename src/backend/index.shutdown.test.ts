@@ -16,6 +16,8 @@ const state = vi.hoisted(() => ({
   supervisor: vi.fn<() => Promise<unknown>>(),
   stopSupervisor: vi.fn<() => Promise<void>>(),
   stopServices: vi.fn<() => Promise<void>>(),
+  prepareLaunch: null as (() => Promise<void>) | null,
+  resolveExtraEnv: null as (() => Record<string, string>) | null,
 }));
 
 vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
@@ -33,8 +35,21 @@ vi.mock("./BackendHostCore", () => ({
   },
   BackendHostCore: class {
     supervisorClient = { call: state.supervisor };
-    constructor() {
+    constructor(options: {
+      supervisor: {
+        prepareLaunch(): Promise<void>;
+        resolveExtraEnv(): Record<string, string>;
+      };
+    }) {
       state.closed = false;
+      state.prepareLaunch = options.supervisor.prepareLaunch;
+      state.resolveExtraEnv = options.supervisor.resolveExtraEnv;
+    }
+    async startSupervisor() {
+      await state.prepareLaunch!();
+    }
+    async restartSupervisor() {
+      await state.prepareLaunch!();
     }
     disposeSupervisor = state.stopSupervisor;
     closeDatabase() {
@@ -52,6 +67,10 @@ vi.mock("./BackendDesktopServices", () => ({
     callSupervisor = state.supervisor;
     dispose = state.stopServices;
     async prepareSupervisor() {}
+    async startBackgroundServices() {}
+    getSupervisorExtraEnv() {
+      return { PORACODE_APP_MCP_URL: "http://127.0.0.1:12345" };
+    }
   },
 }));
 const ownedEvents = ["message", "disconnect", "SIGINT", "SIGTERM"] as const;
@@ -66,6 +85,8 @@ beforeEach(async () => {
   state.order = [];
   state.sent = [];
   state.requestNative = null;
+  state.prepareLaunch = null;
+  state.resolveExtraEnv = null;
   state.service.mockReset().mockResolvedValue(null);
   state.supervisor.mockReset().mockResolvedValue(null);
   state.stopSupervisor.mockReset().mockResolvedValue(undefined);
@@ -130,6 +151,59 @@ function initialize(): void {
 function dispose(id = "dispose"): void {
   deliver({ version: BACKEND_HOST_PROTOCOL_VERSION, id, operation: "dispose", payload: {} });
 }
+
+it.each(["start-supervisor", "restart-supervisor"] as const)(
+  "holds a lazy launch until %s supplies the native MCP environment",
+  async (operation) => {
+    initialize();
+    await reply("initialize");
+    const launched = vi.fn<() => void>();
+    const launch = state.prepareLaunch!().then(launched);
+    await delay(20);
+    expect(launched).not.toHaveBeenCalled();
+    const extraEnv = {
+      PORACODE_CHROME_MCP_URL: "http://127.0.0.1:23456",
+      PORACODE_CHROME_MCP_TOKEN: "fixture-token",
+    };
+    deliver({
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      id: "start",
+      operation,
+      payload: { extraEnv },
+    });
+    await reply("start");
+    await launch;
+    expect(launched).toHaveBeenCalledOnce();
+    expect(state.resolveExtraEnv!()).toEqual({
+      ...extraEnv,
+      PORACODE_APP_MCP_URL: "http://127.0.0.1:12345",
+    });
+  },
+);
+
+it("accepts the previous startup wire shape with no native MCP environment", async () => {
+  initialize();
+  await reply("initialize");
+  const launch = state.prepareLaunch!();
+  deliver({
+    version: BACKEND_HOST_PROTOCOL_VERSION,
+    id: "start",
+    operation: "start-supervisor",
+    payload: { extraEnv: {} },
+  });
+  await expect(reply("start")).resolves.toMatchObject({ ok: true });
+  await launch;
+  expect(state.resolveExtraEnv!()).toEqual({ PORACODE_APP_MCP_URL: "http://127.0.0.1:12345" });
+});
+
+it("cancels a lazy launch waiting for main's environment when the backend stops", async () => {
+  initialize();
+  await reply("initialize");
+  const launch = state.prepareLaunch!();
+  dispose();
+  await expect(launch).rejects.toThrow("Backend host is shutting down.");
+  await expect(reply("dispose")).resolves.toMatchObject({ ok: true });
+});
 
 async function reply(id: string) {
   await vi.waitFor(() =>

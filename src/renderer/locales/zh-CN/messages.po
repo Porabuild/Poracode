@@ -3001,6 +3001,10 @@ msgstr "Claude {0} 配置文件已保存。"
 msgid "Claude Code"
 msgstr "Claude Code"
 
+#: src/renderer/components/providers/claude/ChromeSettings.tsx
+msgid "Claude in Chrome"
+msgstr "Chrome 中的 Claude"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile config directory"
 msgstr "Claude 配置文件配置目录"
@@ -17919,6 +17923,10 @@ msgstr "使用WebGPU加速"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Use workflow from"
 msgstr "使用以下来源的工作流"
+
+#: src/renderer/components/providers/claude/ChromeSettings.tsx
+msgid "Use your Claude browser extension in Chrome, Brave, or other supported browsers. Applies to new or restarted chats; unavailable in WSL."
+msgstr "在 Chrome、Brave 或其他受支持的浏览器中使用 Claude 浏览器扩展。适用于新建或重启的聊天；WSL 不支持。"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"

@@ -3,6 +3,8 @@ import { claudeContextWindowEnv, resolveClaudeContextWindowTokens } from "./cont
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
+  ElicitationResult,
+  OnElicitation,
   Options as ClaudeQueryOptions,
   PermissionMode,
   PermissionResult,
@@ -78,7 +80,16 @@ import {
   isGoalMutationPrompt,
   type ClaudeForegroundSteerState,
 } from "./steerDelivery";
-import { projectCwd, spawnClaudeInWsl, spawnClaudeNative } from "./sdkSpawn";
+import {
+  claudeSdkPermissionArgs,
+  projectCwd,
+  spawnClaudeInWsl,
+  spawnClaudeNative,
+} from "./sdkSpawn";
+import { ClaudeSdkMcpServers } from "./sdkMcp";
+import { claudeSdkNativeChromeArgs } from "./nativeChrome";
+import { mapClaudeElicitationRequest, normalizeClaudeElicitationResponse } from "./sdkElicitation";
+import { claudeSdkSettingsEnv } from "./sdkSettings";
 import { buildSdkUserMessage } from "./sdkPrompt";
 import {
   basePermissionModeForConfig,
@@ -141,6 +152,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private appliedContextWindow: number | undefined;
   private sessionHasHistory = false;
   private appliedPermissionMode: PermissionMode | undefined;
+  private appliedSandboxDisabled = false;
+  private readonly mcpServers: ClaudeSdkMcpServers;
   private appliedUltracode = false;
   private appliedFast = false;
   private currentStatus: ThreadStatus = "idle";
@@ -194,6 +207,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   private constructor(input: CreateStructuredSessionInput) {
     this.input = input;
+    this.mcpServers = new ClaudeSdkMcpServers(input.resolveMcpServersForTurn);
     this.currentConfig = input.config;
     this.mapperState = createClaudeMapperState(input.threadId);
   }
@@ -348,17 +362,22 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.beginTurn(prompt, config, segments, options);
 
     const query = await this.requireQuery();
+    const isCurrent = () =>
+      !this.disposed && generation === this.submissionGeneration && query === this.queryRuntime;
+    if (!isCurrent()) return;
+    await this.mcpServers.sync(query, config, isCurrent);
+    if (!isCurrent()) return;
     await this.syncModel(query, config);
+    if (!isCurrent()) return;
     const permissionMode = permissionModeForConfig(config);
     if (permissionMode !== this.appliedPermissionMode || config.mode === "plan") {
-      try {
-        await query.setPermissionMode(permissionMode);
-        this.appliedPermissionMode = permissionMode;
-      } catch {
-        // Same best-effort rule as model updates.
-      }
+      await query.setPermissionMode(permissionMode);
+      this.appliedPermissionMode = permissionMode;
     }
 
+    if (!isCurrent()) return;
+    await this.syncSandbox(query, config);
+    if (!isCurrent()) return;
     await this.syncUltracodeFlag(query);
     await this.syncFastMode(query);
 
@@ -428,6 +447,16 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.emitRuntimeEvents(steerClaudeTurn(this.mapperState, prompt, segments, userMessageItemId));
     try {
       await this.steerDelivery.serialize(async () => {
+        if (this.disposed || generation !== this.submissionGeneration) return;
+        const query = await this.requireQuery();
+        await this.mcpServers.sync(
+          query,
+          config,
+          () =>
+            !this.disposed &&
+            generation === this.submissionGeneration &&
+            query === this.queryRuntime,
+        );
         if (this.disposed || generation !== this.submissionGeneration) return;
         const message = await buildSdkUserMessage(
           prompt,
@@ -586,6 +615,16 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     } catch {
       // Older SDK transports can reject live model updates; the launch model still applies.
     }
+  }
+
+  private async syncSandbox(runtime: Query, config: ThreadConfig): Promise<void> {
+    const disabled = permissionModeForConfig(config) === "bypassPermissions";
+    if (disabled === this.appliedSandboxDisabled) return;
+    // Bypass is Poracode's full-access choice. Inheriting a project's Bash
+    // sandbox here prevents native browser launches even after tool approval.
+    // Clearing our flag on exit restores the user's saved sandbox settings.
+    await runtime.applyFlagSettings({ sandbox: disabled ? { enabled: false } : null });
+    this.appliedSandboxDisabled = disabled;
   }
 
   /**
@@ -761,6 +800,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.interruptInFlight = true;
+    this.cancelPendingRequests("User cancelled tool execution.");
     try {
       if (this.queryRuntime) {
         await interruptClaudeQuery(this.queryRuntime, this.steerDelivery.supported);
@@ -771,6 +811,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   forceCompleteTurn(): void {
+    this.cancelPendingRequests("User cancelled tool execution.");
     if (this.steerDelivery.hasPending && this.queryRuntime) {
       void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
     }
@@ -802,6 +843,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   async resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): Promise<void> {
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
+    if (pending.kind === "elicitation") {
+      const result = normalizeClaudeElicitationResponse(pending.request, response);
+      this.settleElicitation(requestId, result);
+      return;
+    }
     this.pendingRequests.delete(requestId);
 
     if (pending.kind === "question") {
@@ -815,7 +861,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             outcome: "cancelled",
           },
         ]);
-        this.emitUpdate({ status: "working", attention: "working" });
+        this.updatePendingRequestStatus();
         return;
       }
       const rawAnswers = rawQuestionAnswers(response, pending);
@@ -841,7 +887,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           answers: rawAnswers,
         }),
       ]);
-      this.emitUpdate({ status: "working", attention: "working" });
+      this.updatePendingRequestStatus();
       return;
     }
 
@@ -870,7 +916,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           outcome: "accepted",
         },
       ]);
-      this.emitUpdate({ status: "working", attention: "working" });
+      this.updatePendingRequestStatus();
       return;
     }
 
@@ -886,7 +932,67 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         outcome: "declined",
       },
     ]);
-    this.emitUpdate({ status: "working", attention: "working" });
+    this.updatePendingRequestStatus();
+  }
+
+  private hasPendingTurn(): boolean {
+    return (
+      this.currentTurnInFlight ||
+      this.deferredCompletion.hasPending ||
+      this.pendingSteers.length > 0 ||
+      this.steerDelivery.hasPending
+    );
+  }
+
+  private updatePendingRequestStatus(): void {
+    if (this.disposed) return;
+    const pending = this.pendingRequests.values().next().value;
+    const status = !pending
+      ? this.hasPendingTurn()
+        ? "working"
+        : "idle"
+      : pending.kind === "permission"
+        ? "needs_approval"
+        : "needs_reply";
+    this.emitUpdate({ status, attention: status === "idle" ? "none" : status });
+  }
+
+  private settleElicitation(requestId: ThreadServerRequestId, result: ElicitationResult): void {
+    const pending = this.pendingRequests.get(requestId);
+    if (!pending || pending.kind !== "elicitation") return;
+    this.pendingRequests.delete(requestId);
+    pending.cleanup();
+    pending.resolve(result);
+    this.emitRuntimeEvents([
+      {
+        type: "request.resolved",
+        threadId: this.input.threadId,
+        requestId: String(requestId),
+        outcome:
+          result.action === "accept"
+            ? "answered"
+            : result.action === "decline"
+              ? "declined"
+              : "cancelled",
+      },
+    ]);
+    this.updatePendingRequestStatus();
+  }
+
+  private cancelToolRequest(requestId: ThreadServerRequestId): void {
+    const pending = this.pendingRequests.get(requestId);
+    if (!pending || pending.kind === "elicitation") return;
+    this.pendingRequests.delete(requestId);
+    pending.resolve({ behavior: "deny", message: "User cancelled tool execution." });
+    this.emitRuntimeEvents([
+      {
+        type: "request.resolved",
+        threadId: this.input.threadId,
+        requestId: String(requestId),
+        outcome: "cancelled",
+      },
+    ]);
+    this.updatePendingRequestStatus();
   }
 
   private startGoalTracking(): void {
@@ -956,9 +1062,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.promptQueue.close();
   }
 
-  private cancelPendingRequests(): void {
+  private cancelPendingRequests(message = "Session closed."): void {
     for (const [requestId, pending] of this.pendingRequests) {
-      pending.resolve({ behavior: "deny", message: "Session closed." });
+      if (pending.kind === "elicitation") {
+        pending.cleanup();
+        pending.resolve({ action: "cancel" });
+      } else {
+        pending.resolve({ behavior: "deny", message });
+      }
       this.emitRuntimeEvents([
         {
           type: "request.resolved",
@@ -1074,11 +1185,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           ? {
               CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
               BROWSER: "/bin/true",
+              ...claudeSdkSettingsEnv(this.input.projectLocation, this.input.agentSettings),
               ...(this.input.env ?? {}),
             }
           : {
               ...(posixEnv ?? process.env),
               CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
+              ...claudeSdkSettingsEnv(this.input.projectLocation, this.input.agentSettings),
               ...(this.input.env ?? {}),
             };
       // Posix builds ship without the SDK's bundled `claude` SEA binary
@@ -1141,13 +1254,22 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           spawnClaudeCodeProcess = (spawnOptions) =>
             this.spawnTrackedProcess(
               () =>
-                spawnChild(spawnOptions.command, spawnOptions.args, {
-                  cwd: spawnOptions.cwd,
-                  env: spawnOptions.env,
-                  signal: spawnOptions.signal,
-                  stdio: ["pipe", "pipe", "pipe"],
-                  detached: true,
-                }) as unknown as SpawnedProcess,
+                spawnChild(
+                  spawnOptions.command,
+                  claudeSdkPermissionArgs(
+                    spawnOptions.args,
+                    process.getuid?.(),
+                    spawnOptions.env.IS_SANDBOX === "1" ||
+                      Boolean(spawnOptions.env.CLAUDE_CODE_BUBBLEWRAP),
+                  ),
+                  {
+                    cwd: spawnOptions.cwd,
+                    env: spawnOptions.env,
+                    signal: spawnOptions.signal,
+                    stdio: ["pipe", "pipe", "pipe"],
+                    detached: true,
+                  },
+                ) as unknown as SpawnedProcess,
               true,
             );
           break;
@@ -1159,16 +1281,20 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         systemPrompt: { type: "preset", preset: "claude_code" },
         settingSources: ["user", "project", "local"],
         permissionMode,
-        ...(permissionMode === "bypassPermissions"
-          ? { allowDangerouslySkipPermissions: true }
-          : {}),
+        // Like the terminal launch, allow the user to select Bypass later;
+        // the selected permission mode and native policy checks still apply.
+        allowDangerouslySkipPermissions: true,
         ...(resumeSessionId ? { resume: resumeSessionId } : {}),
         ...(resumeSessionAt ? { resumeSessionAt } : {}),
         ...(!resumeSessionId && this.sessionId ? { sessionId: this.sessionId } : {}),
         includePartialMessages: true,
-        extraArgs: { "replay-user-messages": null },
+        extraArgs: {
+          "replay-user-messages": null,
+          ...claudeSdkNativeChromeArgs(this.input.projectLocation, this.input.agentSettings),
+        },
         forwardSubagentText: true,
         canUseTool: this.canUseTool,
+        onElicitation: this.onElicitation,
         env: { ...env, ...claudeContextWindowEnv(this.currentConfig.contextSize) },
         ...(this.currentConfig.effort
           ? {
@@ -1188,9 +1314,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
       if (this.disposed) throw new Error("ClaudeSdkSession was disposed during query creation.");
       this.queryRuntime = query({ prompt: this.promptQueue, options });
+      this.mcpServers.initialize(this.queryRuntime, mcpServers);
       this.appliedModel = model;
       this.appliedContextWindow = contextWindow;
-      this.appliedPermissionMode = permissionMode;
+      // The CLI can silently fall back when settings forbid Bypass. Confirm
+      // that mode through the control API before disabling the saved sandbox.
+      this.appliedPermissionMode =
+        permissionMode === "bypassPermissions" ? undefined : permissionMode;
+      this.appliedSandboxDisabled = false;
       void this.refreshSlashCommands(this.queryRuntime);
       void this.syncUltracodeFlag(this.queryRuntime);
       void this.syncFastMode(this.queryRuntime);
@@ -1246,6 +1377,27 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       });
   }
 
+  private readonly onElicitation: OnElicitation = async (request, { signal }) => {
+    if (this.disposed || signal.aborted) return { action: "cancel" };
+    const requestId = `claude-elicitation-${randomUUID()}` as ThreadServerRequestId;
+    const event = mapClaudeElicitationRequest(this.input.threadId, String(requestId), request);
+    if (!event) return { action: "cancel" };
+    return await new Promise<ElicitationResult>((resolve) => {
+      const cancel = () => {
+        this.settleElicitation(requestId, { action: "cancel" });
+      };
+      this.pendingRequests.set(requestId, {
+        kind: "elicitation",
+        request,
+        resolve,
+        cleanup: () => signal.removeEventListener("abort", cancel),
+      });
+      signal.addEventListener("abort", cancel, { once: true });
+      this.updatePendingRequestStatus();
+      this.emitRuntimeEvents([event]);
+    });
+  };
+
   private readonly canUseTool: CanUseTool = async (toolName, toolInput, callbackOptions) => {
     if (this.disposed) return { behavior: "deny", message: "Session closed." };
     if (toolName === "AskUserQuestion") {
@@ -1261,8 +1413,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         callbackOptions.signal.addEventListener(
           "abort",
           () => {
-            if (!this.pendingRequests.delete(requestId)) return;
-            resolve({ behavior: "deny", message: "User cancelled tool execution." });
+            this.cancelToolRequest(requestId);
           },
           { once: true },
         );
@@ -1273,7 +1424,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             questions,
           }),
         ]);
-        this.emitUpdate({ status: "needs_reply", attention: "needs_reply" });
+        this.updatePendingRequestStatus();
       });
     }
 
@@ -1289,8 +1440,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       callbackOptions.signal.addEventListener(
         "abort",
         () => {
-          if (!this.pendingRequests.delete(requestId)) return;
-          resolve({ behavior: "deny", message: "User cancelled tool execution." });
+          this.cancelToolRequest(requestId);
         },
         { once: true },
       );
@@ -1311,7 +1461,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           ...(callbackOptions.suggestions ? { suggestions: callbackOptions.suggestions } : {}),
         }),
       ]);
-      this.emitUpdate({ status: "needs_approval", attention: "needs_approval" });
+      this.updatePendingRequestStatus();
     });
   };
 
@@ -1381,19 +1531,26 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.captureSkillNames(message.skills);
     }
 
+    if (message.type === "system" && message.subtype === "elicitation_complete") {
+      for (const [requestId, pending] of this.pendingRequests) {
+        if (
+          pending.kind === "elicitation" &&
+          pending.request.mode === "url" &&
+          pending.request.serverName === message.mcp_server_name &&
+          pending.request.elicitationId === message.elicitation_id
+        ) {
+          this.settleElicitation(requestId, { action: "accept" });
+        }
+      }
+    }
+
     if (message.type === "system" && message.subtype === "session_state_changed") {
       const mapped = mapSessionState(message.state);
       // While a turn completion is deferred behind live background tasks, a
       // session-state idle must not settle the thread — the deferred update
       // owns the settling status (and preserves an error outcome). Non-settling
       // states (working, needs_approval) still pass through.
-      if (
-        mapped.status !== "idle" ||
-        (!this.deferredCompletion.hasPending &&
-          !this.currentTurnInFlight &&
-          this.pendingSteers.length === 0 &&
-          !this.steerDelivery.hasPending)
-      ) {
+      if (mapped.status !== "idle" || !this.hasPendingTurn()) {
         this.emitUpdate(mapped);
       }
       // A running state while a drained completion sits in its grace window
