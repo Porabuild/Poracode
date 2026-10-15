@@ -32,8 +32,7 @@ export function ContextSizeReloadPopover(props: {
       body={
         <>
           <Trans>
-            The new context size applies from your next message. The agent session reloads before
-            that message is sent; the conversation is kept.
+            The agent session reloads to apply the new context size; the conversation is kept.
           </Trans>
           {props.stopsSubagents ? (
             <p className="mt-2">

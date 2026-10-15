@@ -5,8 +5,9 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { EMPTY_BOTTOM_PANEL_DOCKS, usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import type { AgentStatus } from "@/shared/contracts";
+import type { AgentStatus, BackgroundTask, Thread } from "@/shared/contracts";
 import {
+  selectThreadIsWaitingForBackground,
   useIsProjectGitPanelActive,
   useIsWorktreeFilesPanelActive,
   useIsWorktreeGitPanelActive,
@@ -170,5 +171,55 @@ describe("thread agent statuses", () => {
     );
 
     expect(result.current.map((status) => status.kind)).toEqual(["ubuntu-agent"]);
+  });
+});
+
+describe("selectThreadIsWaitingForBackground", () => {
+  const task: BackgroundTask = { taskId: "monitor", kind: "other", description: "Watch logs" };
+  const state = (openTurn: boolean | undefined, tasks: BackgroundTask[] = [task]) => ({
+    runtimeOpenTurnByThread: openTurn === undefined ? {} : { t1: openTurn },
+    runtimeBackgroundTasksByThread: { t1: tasks },
+  });
+  const thread = (
+    status: Thread["status"],
+    attention: Thread["attention"] = "none",
+  ): Pick<Thread, "id" | "status" | "attention"> => ({ id: "t1", status, attention });
+
+  it("waits while the provider holds a closed turn working for listed tasks", () => {
+    expect(selectThreadIsWaitingForBackground(state(false), thread("working"), false)).toBe(true);
+  });
+
+  it("does not treat a lingering task kind on a settled thread as waiting", () => {
+    for (const status of ["idle", "finished"] as const) {
+      expect(selectThreadIsWaitingForBackground(state(false), thread(status), false)).toBe(false);
+    }
+  });
+
+  it("keeps pending foreground input out of the waiting state", () => {
+    expect(selectThreadIsWaitingForBackground(state(false), thread("working"), true, true)).toBe(
+      false,
+    );
+  });
+
+  it("waits on known native-agent or workflow activity after the turn closed", () => {
+    for (const status of ["working", "idle", "finished"] as const) {
+      expect(selectThreadIsWaitingForBackground(state(false, []), thread(status), true)).toBe(true);
+    }
+  });
+
+  it("never masks an open turn, attention, errors or inactive threads", () => {
+    expect(selectThreadIsWaitingForBackground(state(true), thread("working"), true)).toBe(false);
+    expect(selectThreadIsWaitingForBackground(state(undefined), thread("working"), true)).toBe(
+      false,
+    );
+    for (const status of ["error", "inactive", "needs_reply", "needs_approval"] as const) {
+      expect(selectThreadIsWaitingForBackground(state(false), thread(status), true)).toBe(false);
+    }
+    for (const attention of ["needs_reply", "needs_approval", "error"] as const) {
+      expect(
+        selectThreadIsWaitingForBackground(state(false), thread("working", attention), true),
+      ).toBe(false);
+    }
+    expect(selectThreadIsWaitingForBackground(state(false), undefined, true)).toBe(false);
   });
 });

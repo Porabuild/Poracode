@@ -300,15 +300,7 @@ object RuntimeEventSchema {
                 // `tasks` is required and must be an array of strict task
                 // objects; an empty array is valid (host-driven drain).
                 val tasks = objectMap["tasks"] as? JsonArray ?: return null
-                val parsed = tasks.map { task ->
-                    if (!RuntimeEventValidators.validateBackgroundTask(task)) return null
-                    val obj = task.asObjectOrNull()!!
-                    BackgroundTask(
-                        taskId = obj.strictString("taskId")!!,
-                        kind = obj.strictString("kind")!!,
-                        description = obj.strictString("description")!!,
-                    )
-                }
+                val parsed = RuntimeBackgroundTaskDecoder.decode(tasks) ?: return null
                 CanonicalRuntimeEvent.BackgroundTasksChanged(threadId, parsed, objectMap)
             }
             else -> null

@@ -1,12 +1,18 @@
 // GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.
 // Background-task reduce machine rendered from the declarative spec in
-// src/shared/remote/contract/backgroundTaskReduceSpec.ts (spec version 2).
+// src/shared/remote/contract/backgroundTaskReduceSpec.ts (spec version 3).
 package com.poracode.remote.v3.generated
+
+data class RemoteBackgroundTaskStopAction(val id: String, val payload: Map<String, String>)
 
 data class RemoteBackgroundTaskIdentity(
     val taskId: String,
     val kind: String,
     val description: String,
+    val startedAt: Double? = null,
+    val lastProgressAt: Double? = null,
+    val progress: String? = null,
+    val stopAction: RemoteBackgroundTaskStopAction? = null,
 )
 
 enum class RemoteBackgroundTaskReduceAction { Replace, Drain, Noop }

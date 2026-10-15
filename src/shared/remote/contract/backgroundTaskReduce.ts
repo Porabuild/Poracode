@@ -14,6 +14,12 @@ export type BackgroundTaskIdentity = {
   readonly taskId: string;
   readonly kind: BackgroundTaskReduceKind;
   readonly description: string;
+  readonly startedAt?: number | undefined;
+  readonly lastProgressAt?: number | undefined;
+  readonly progress?: string | undefined;
+  readonly stopAction?:
+    | { readonly id: string; readonly payload: Readonly<Record<string, string>> }
+    | undefined;
 };
 
 export function backgroundTasksEqual(
@@ -27,8 +33,22 @@ export function backgroundTasksEqual(
     (task, index) =>
       task.taskId === right[index]!.taskId &&
       task.kind === right[index]!.kind &&
-      task.description === right[index]!.description,
+      task.description === right[index]!.description &&
+      task.startedAt === right[index]!.startedAt &&
+      task.lastProgressAt === right[index]!.lastProgressAt &&
+      task.progress === right[index]!.progress &&
+      task.stopAction?.id === right[index]!.stopAction?.id &&
+      actionPayloadsEqual(task.stopAction?.payload, right[index]!.stopAction?.payload),
   );
+}
+
+function actionPayloadsEqual(
+  left: Readonly<Record<string, string>> | undefined,
+  right: Readonly<Record<string, string>> | undefined,
+): boolean {
+  if (!left || !right) return left === right;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
 }
 
 export function backgroundTaskReduceAction(input: {

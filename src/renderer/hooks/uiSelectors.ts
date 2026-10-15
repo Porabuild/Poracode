@@ -15,6 +15,8 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { getThreadMap } from "@/renderer/state/useThread";
+import { hasPendingThreadInput } from "@/renderer/state/pendingThreadInput";
 import { createArrayKeyedMap } from "@/renderer/state/derivations";
 import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
@@ -55,6 +57,49 @@ export function useThreadHasBackgroundActivity(threadId: string): boolean {
   );
   const hasLiveWorkflow = useThreadHasLiveWorkflow(threadId);
   return hasActiveNativeSubAgent || hasLiveWorkflow;
+}
+
+/**
+ * Whether a thread's foreground turn has closed while the provider still holds
+ * it open for background work. The provider's own hold is authoritative: a
+ * `working` status after the turn closed with tasks still listed, or known
+ * live native-agent/workflow activity. Task `kind` is iconography only, so an
+ * idle thread with a lingering task is not "waiting". Attention, errors and
+ * inactive threads are never masked.
+ */
+export function selectThreadIsWaitingForBackground(
+  state: Pick<
+    ReturnType<typeof useAppStore.getState>,
+    "runtimeOpenTurnByThread" | "runtimeBackgroundTasksByThread"
+  >,
+  thread: Pick<Thread, "id" | "status" | "attention"> | undefined,
+  hasBackgroundActivity: boolean,
+  inputPending = false,
+): boolean {
+  if (inputPending) return false;
+  if (!thread || state.runtimeOpenTurnByThread[thread.id] !== false) return false;
+  if (thread.attention === "needs_approval" || thread.attention === "needs_reply") return false;
+  if (thread.attention === "error") return false;
+  const { status } = thread;
+  if (status === "working" && (state.runtimeBackgroundTasksByThread[thread.id]?.length ?? 0) > 0) {
+    return true;
+  }
+  return (
+    hasBackgroundActivity && (status === "working" || status === "idle" || status === "finished")
+  );
+}
+
+export function useThreadIsWaitingForBackground(threadId: string): boolean {
+  const hasBackgroundActivity = useThreadHasBackgroundActivity(threadId);
+  return useAppStore((s) => {
+    if (s.runtimeOpenTurnByThread[threadId] !== false) return false;
+    return selectThreadIsWaitingForBackground(
+      s,
+      getThreadMap(s.threads).get(threadId),
+      hasBackgroundActivity,
+      hasPendingThreadInput(threadId),
+    );
+  });
 }
 
 export function useActiveNativeSubAgentThreadIds(threads: readonly Thread[]): readonly string[] {

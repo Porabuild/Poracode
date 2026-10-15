@@ -100,6 +100,51 @@ final class RuntimeBackgroundTasksReduceTests: XCTestCase {
     )
   }
 
+  func testSharedEnrichedFixturePreservesOptionalControlsAndProgress() throws {
+    let array = try JSONDecoding.decode([JSONValue].self, from: loadFixture("runtime-events.json"))
+    let entry = try XCTUnwrap(array.last { value in
+      guard case .object(let object) = value else { return false }
+      return object["type"]?.stringValue == "background_tasks.changed"
+    })
+    guard case .object(let object) = entry else { return XCTFail("expected object") }
+    let parsed = try XCTUnwrap(decode(object))
+    let rich = try XCTUnwrap(parsed.backgroundTasks?.first)
+    XCTAssertEqual(rich.startedAt, 1770000000000)
+    XCTAssertEqual(rich.lastProgressAt, 1770000010000)
+    XCTAssertEqual(rich.progress, "Server ready")
+    XCTAssertEqual(rich.stopAction?.payload["token"], "run-fixture-001")
+    var domain = RuntimeThreadDomainState(backgroundTasks: [RuntimeBackgroundTask(taskId: rich.taskId, kind: rich.kind, description: rich.description)])
+    RuntimeEventReducer.applyDomain(event: parsed, threadId: try XCTUnwrap(parsed.threadId), domain: &domain)
+    XCTAssertEqual(domain.backgroundTasks, parsed.backgroundTasks)
+    var bad = task("a", "command", "d")
+    bad["startedAt"] = .string("123")
+    XCTAssertNil(decode(event(tasks: [.object(bad)])))
+    bad.removeValue(forKey: "startedAt")
+    bad["stopAction"] = .object(["id": .string("stop"), "payload": .object(["task": .number(1)])])
+    XCTAssertNil(decode(event(tasks: [.object(bad)])))
+  }
+
+  func testOptionalStringBoundsCountUnicodeScalarsLikeZod() {
+    let astral = "\u{1F600}"
+    func parses(_ key: String, _ value: JSONValue) -> Bool {
+      var object = task("a", "command", "d")
+      object[key] = value
+      return decode(event(tasks: [.object(object)])) != nil
+    }
+    func action(id: String = "stop", key: String = "taskId", value: String = "a") -> JSONValue {
+      .object(["id": .string(id), "payload": .object([key: .string(value)])])
+    }
+    // 4096 scalars is 8192 UTF-16 units: the contract still accepts it.
+    XCTAssertTrue(parses("progress", .string(String(repeating: astral, count: 4096))))
+    XCTAssertFalse(parses("progress", .string(String(repeating: astral, count: 4097))))
+    XCTAssertTrue(parses("stopAction", action(id: String(repeating: astral, count: 120))))
+    XCTAssertFalse(parses("stopAction", action(id: String(repeating: astral, count: 121))))
+    XCTAssertTrue(parses("stopAction", action(key: String(repeating: astral, count: 120))))
+    XCTAssertFalse(parses("stopAction", action(key: String(repeating: astral, count: 121))))
+    XCTAssertTrue(parses("stopAction", action(value: String(repeating: astral, count: 512))))
+    XCTAssertFalse(parses("stopAction", action(value: String(repeating: astral, count: 513))))
+  }
+
   func testStrictSchemaRejections() {
     // tasks key missing (required by the wire schema)
     XCTAssertNil(decode(event(tasks: nil)))

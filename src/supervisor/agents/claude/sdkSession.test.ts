@@ -1188,6 +1188,165 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
+  it("refuses rollback and defers a resize while a background command is live, then relaunches once it drains", async () => {
+    const firstQuery = createFakeQuery();
+    const resumedQuery = createFakeQuery();
+    mockSdk.query.mockReturnValueOnce(firstQuery.runtime).mockReturnValueOnce(resumedQuery.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-restart",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+
+    await session.startTurn("start the dev server", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "started"));
+    firstQuery.emitMessage(
+      sdkBackgroundTasksChanged(openedSessionId, [
+        { task_id: "server", task_type: "local_bash", description: "pnpm dev" },
+      ]),
+    );
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "idle" });
+
+    const widerWindow: ThreadConfig = { ...config, contextSize: "200k" };
+    await expect(session.rollbackThread(1)).rejects.toThrow("Stop the background tasks first");
+    await expect(session.createRevertAnchor(1)).rejects.toThrow("Stop the background tasks first");
+    // A resize waits for the command; the prompt still runs on the live process.
+    await session.startTurn("resize later", widerWindow);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-resize", "ok"));
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(firstQuery.runtime.close).not.toHaveBeenCalled();
+    expect(mockSdk.query).toHaveBeenCalledTimes(1);
+    expect(session.getBackgroundTasks()).toEqual([
+      expect.objectContaining({ taskId: "server", kind: "command" }),
+    ]);
+
+    // The unchanged window keeps using the live process.
+    await session.startTurn("follow up", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-2", "ok"));
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(mockSdk.query).toHaveBeenCalledTimes(1);
+
+    firstQuery.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+    await flushAsyncWork();
+    await expect(session.rollbackThread(1)).resolves.toEqual({
+      providerSessionId: openedSessionId,
+      messages: [],
+    });
+    expect(firstQuery.runtime.close).toHaveBeenCalledTimes(1);
+    expect(mockSdk.query).toHaveBeenCalledTimes(2);
+
+    await session.dispose();
+  });
+
+  it("releases an ended process's background tasks so a relaunch is not refused", async () => {
+    const firstQuery = createFakeQuery();
+    const nextQuery = createFakeQuery();
+    mockSdk.query.mockReturnValueOnce(firstQuery.runtime).mockReturnValueOnce(nextQuery.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-ended",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+    await session.startTurn("start the dev server", config);
+    firstQuery.emitMessage(
+      sdkBackgroundTasksChanged(openedSessionId, [
+        { task_id: "server", task_type: "local_bash", description: "pnpm dev" },
+      ]),
+    );
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+
+    (firstQuery.runtime as unknown as { close: () => void }).close();
+    await flushAsyncWork();
+    expect(session.getBackgroundTasks()).toEqual([]);
+    expect(
+      runtimeEvents.filter((event) => event.type === "background_tasks.changed").at(-1),
+    ).toEqual({ type: "background_tasks.changed", threadId: "thread-claude-bg-ended", tasks: [] });
+
+    await session.startTurn("follow up", { ...config, contextSize: "200k" });
+    expect(mockSdk.query).toHaveBeenCalledTimes(2);
+
+    await session.dispose();
+  });
+
+  it("does not republish an unchanged roster for sub-agent metadata while a command is listed", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-quiet",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+    await session.startTurn("start the server and review", config);
+    fake.emitMessage(
+      sdkBackgroundTasksChanged(openedSessionId, [
+        { task_id: "server", task_type: "local_bash", description: "pnpm dev" },
+      ]),
+    );
+    await flushAsyncWork();
+    const published = () =>
+      runtimeEvents.filter((event) => event.type === "background_tasks.changed").length;
+    const before = published();
+    expect(before).toBeGreaterThan(0);
+
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "agent-1", "toolu_agent"));
+    fake.emitMessage(
+      sdkBackgroundTasksChanged(openedSessionId, [
+        { task_id: "server", task_type: "local_bash", description: "pnpm dev" },
+        { task_id: "agent-1", task_type: "local_agent", description: "review" },
+      ]),
+    );
+    for (const tools of [1, 2, 3]) {
+      fake.emitMessage({
+        type: "system",
+        subtype: "task_progress",
+        session_id: openedSessionId,
+        task_id: "agent-1",
+        description: "review",
+        last_tool_name: "Read",
+        usage: { total_tokens: tools * 100, tool_uses: tools, duration_ms: tools },
+      } as unknown as SDKMessage);
+    }
+    await flushAsyncWork();
+    expect(published()).toBe(before);
+
+    await session.dispose();
+  });
+
   it("refreshes current SDK context usage after result messages", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);
@@ -1652,7 +1811,7 @@ describe("ClaudeSdkSession", () => {
     }
   });
 
-  it("holds the working status behind a plain backgrounded command until the level signal drains", async () => {
+  it("settles the response while an independent command remains listed", async () => {
     vi.useFakeTimers();
     try {
       const fake = createFakeQuery();
@@ -1685,19 +1844,43 @@ describe("ClaudeSdkSession", () => {
       );
       fake.emitMessage(sdkSuccessResult(openedSessionId));
       await vi.advanceTimersByTimeAsync(0);
-      expect(updates.at(-1)).toMatchObject({ status: "working" });
-      expect(runtimeEvents).toContainEqual({
-        type: "background_tasks.changed",
-        threadId: "thread-claude-bg-bash",
-        tasks: [{ taskId: "bash-1", kind: "command", description: "pnpm test" }],
-      });
+      expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+      expect(runtimeEvents).toContainEqual(
+        expect.objectContaining({
+          type: "background_tasks.changed",
+          threadId: "thread-claude-bg-bash",
+          tasks: [
+            expect.objectContaining({
+              taskId: "bash-1",
+              kind: "command",
+              description: "pnpm test",
+              startedAt: expect.any(Number),
+            }),
+          ],
+        }),
+      );
       expect(session.getBackgroundTasks()).toEqual([
-        { taskId: "bash-1", kind: "command", description: "pnpm test" },
+        expect.objectContaining({ taskId: "bash-1", kind: "command", description: "pnpm test" }),
       ]);
 
-      // Still working while the command runs — even well past the grace window.
+      // The server does not keep notifications and queued follow-ups waiting.
+      fake.emitMessage({
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: openedSessionId,
+        tasks: null,
+      } as unknown as SDKMessage);
+      fake.emitMessage({
+        type: "system",
+        subtype: "task_notification",
+        session_id: openedSessionId,
+        task_id: "bash-1",
+        status: "running",
+      } as unknown as SDKMessage);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(session.getBackgroundTasks()).toHaveLength(1);
       await vi.advanceTimersByTimeAsync(60_000);
-      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
 
       fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
       await vi.advanceTimersByTimeAsync(0);
@@ -1707,13 +1890,22 @@ describe("ClaudeSdkSession", () => {
         tasks: [],
       });
       expect(session.getBackgroundTasks()).toEqual([]);
-      // Held through the resume grace so a wake-up to consume the result keeps
-      // the thread continuously live; settles idle if nothing resumes.
+      // Draining an independent command does not reopen the finished response.
       await vi.advanceTimersByTimeAsync(4_999);
-      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
       await vi.advanceTimersByTimeAsync(1);
       expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
 
+      // A native wake-up still opens a new response without losing the process.
+      fake.emitMessage(
+        sdkAssistantMessage(openedSessionId, "assistant-wake", "background job done"),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(updates.at(-1)).toMatchObject({ status: "idle" });
+      expect(mockSdk.query).toHaveBeenCalledTimes(1);
       await session.dispose();
     } finally {
       vi.useRealTimers();
@@ -1787,7 +1979,7 @@ describe("ClaudeSdkSession", () => {
     }
   });
 
-  it("preserves an error result through the deferral", async () => {
+  it("shows an error immediately while background tasks remain live", async () => {
     vi.useFakeTimers();
     try {
       const fake = createFakeQuery();
@@ -1812,7 +2004,7 @@ describe("ClaudeSdkSession", () => {
       fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
       fake.emitMessage(sdkErrorResult(openedSessionId));
       await vi.advanceTimersByTimeAsync(0);
-      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
 
       fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
       await vi.advanceTimersByTimeAsync(5_000);
@@ -1902,7 +2094,7 @@ describe("ClaudeSdkSession", () => {
     expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
   });
 
-  it("keeps a deferred error outcome intact across a suppressed session-state idle", async () => {
+  it("preserves an immediate error across a later session-state idle", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);
     const updates: StructuredSessionUpdate[] = [];
@@ -1925,15 +2117,15 @@ describe("ClaudeSdkSession", () => {
     fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
     fake.emitMessage(sdkErrorResult(openedSessionId));
     await flushAsyncWork();
-    expect(updates.at(-1)).toMatchObject({ status: "working" });
+    expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
 
     fake.emitMessage(sdkSystemMessage("session_state_changed", openedSessionId, { state: "idle" }));
     await flushAsyncWork();
-    expect(updates.at(-1)).toMatchObject({ status: "working" });
+    expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
 
     fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
     await flushAsyncWork();
-    // The drain grace holds the settle; dispose flushes it unconditionally.
+    // A terminal background notification must not erase the response failure.
     await session.dispose();
     expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
     expect(updates.some((update) => update.status === "idle")).toBe(false);

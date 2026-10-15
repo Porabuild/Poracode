@@ -13,15 +13,22 @@ export interface TurnTiming {
 export function ChatTurnElapsedFooter({
   turn,
   isPaused = false,
+  isWaitingForBackground = false,
 }: {
   turn: TurnTiming;
   isPaused?: boolean;
+  isWaitingForBackground?: boolean;
 }) {
+  const { t } = useLingui();
   return (
     <div className="mx-auto w-full max-w-[920px]">
       <Surface variant="transparent" className={chatMessageSurfaceClass}>
         <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <WorkingFor turn={turn} isPaused={isPaused} />
+          {isWaitingForBackground ? (
+            <span className="text-muted" aria-live="polite">{t`Waiting for background tasks`}</span>
+          ) : (
+            <WorkingFor turn={turn} isPaused={isPaused} />
+          )}
         </div>
       </Surface>
     </div>

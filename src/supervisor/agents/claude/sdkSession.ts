@@ -48,7 +48,8 @@ import {
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { DeferredTurnCompletion } from "./deferredTurnCompletion";
-import { clearBackgroundTasks } from "./canonicalMapping/backgroundTasks";
+import { clearBackgroundTasks, hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
+import { ClaudeBackgroundTaskControls } from "./backgroundTaskControls";
 import { isSubAgentParentTool } from "./canonicalMapping/toolClassification";
 import { applyClaudeContextSuffix } from "./argv";
 import {
@@ -150,6 +151,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private currentConfig: ThreadConfig;
   private appliedModel: string | undefined;
   private appliedContextWindow: number | undefined;
+  // Launch-time size: a relaunch deferred behind background work keeps this model variant.
+  private appliedContextSize: string | undefined;
   private sessionHasHistory = false;
   private appliedPermissionMode: PermissionMode | undefined;
   private appliedSandboxDisabled = false;
@@ -178,6 +181,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   // thread finished mid-work. Hold the completion status here until the
   // live-task registry drains; flush it if the stream stops first.
   private readonly deferredCompletion = new DeferredTurnCompletion();
+  private readonly backgroundTaskControls: ClaudeBackgroundTaskControls;
   // Grace timer between the last task_notification draining the registry and
   // the deferred completion actually flushing. The SDK usually wakes the model
   // right after that notification to consume the results; flushing idle in
@@ -210,6 +214,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.mcpServers = new ClaudeSdkMcpServers(input.resolveMcpServersForTurn);
     this.currentConfig = input.config;
     this.mapperState = createClaudeMapperState(input.threadId);
+    this.backgroundTaskControls = new ClaudeBackgroundTaskControls(this.mapperState, () =>
+      this.disposed ? undefined : this.queryRuntime,
+    );
   }
 
   static create(input: CreateStructuredSessionInput): Promise<ClaudeSdkSession> {
@@ -239,7 +246,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   getBackgroundTasks(): readonly BackgroundTask[] {
-    return this.mapperState.reportedBackgroundTasks ?? [];
+    return this.backgroundTaskControls.decorate(this.mapperState.reportedBackgroundTasks ?? []);
+  }
+
+  listSessionActions() {
+    return this.backgroundTaskControls.listActions();
+  }
+
+  invokeSessionAction(actionId: string, payload: unknown): Promise<Record<string, unknown>> {
+    return this.backgroundTaskControls.invoke(actionId, payload);
   }
 
   private emitUpdate(update: StructuredSessionUpdate): void {
@@ -346,9 +361,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.disposed) return;
     // The CLI reads its auto-compact window at launch: applyFlagSettings does
     // not change the effective window (verified with SDK/CLI 0.3.296/2.1.296).
+    // A relaunch would end the CLI's background tasks, so while any are live
+    // the turn runs on the current process and the first turn after they
+    // drain applies the new window.
     if (
       this.queryRuntime &&
-      resolveClaudeContextWindowTokens(config.contextSize) !== this.appliedContextWindow
+      resolveClaudeContextWindowTokens(config.contextSize) !== this.appliedContextWindow &&
+      !this.hasLiveBackgroundWork()
     ) {
       this.currentConfig = config;
       this.reopenQuery(this.sessionHasHistory ? this.sessionId : undefined, this.activeResumeAt);
@@ -607,7 +626,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * never affects an in-flight turn.
    */
   private async syncModel(runtime: Query, config: ThreadConfig): Promise<void> {
-    const model = applyClaudeContextSuffix(config.model, config.contextSize);
+    const model = applyClaudeContextSuffix(config.model, this.appliedContextSize);
     if (model === this.appliedModel) return;
     try {
       await runtime.setModel(model);
@@ -741,6 +760,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.pendingRequests.size > 0) {
       throw new Error("Claude SDK rollback is unavailable while a request is pending.");
     }
+    // The CLI owns its background tasks: a relaunch would silently end them.
+    if (this.hasLiveBackgroundWork()) {
+      throw new Error(
+        "Claude SDK rollback restarts Claude, which would end running background tasks. Stop the background tasks first, then try again.",
+      );
+    }
     if (!this.sessionId) {
       throw new Error("Claude SDK rollback requires an open session.");
     }
@@ -812,6 +837,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   forceCompleteTurn(): void {
     this.cancelPendingRequests("User cancelled tool execution.");
+    this.backgroundTaskControls.reset();
     if (this.steerDelivery.hasPending && this.queryRuntime) {
       void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
     }
@@ -1015,6 +1041,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   dispose(): Promise<void> {
+    this.backgroundTaskControls.reset();
     if (this.disposal) return this.disposal;
     const firstDisposal = !this.disposed;
     this.disposed = true;
@@ -1140,6 +1167,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.streamStarted) return;
     this.streamStarted = true;
     this.steerDelivery.supported = false;
+    this.backgroundTaskControls.reset();
     this.activeResumeAt = resumeSessionAt;
     // The `background_tasks_changed` level is per CLI process: it is not
     // emitted at startup, so a restarted query (rollback re-spawns the CLI)
@@ -1162,11 +1190,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         await wslPrime;
       }
       const permissionMode = basePermissionModeForConfig(this.currentConfig);
-      const contextWindow = resolveClaudeContextWindowTokens(this.currentConfig.contextSize);
-      const model = applyClaudeContextSuffix(
-        this.currentConfig.model,
-        this.currentConfig.contextSize,
-      );
+      const contextSize = this.currentConfig.contextSize;
+      const contextWindow = resolveClaudeContextWindowTokens(contextSize);
+      const model = applyClaudeContextSuffix(this.currentConfig.model, contextSize);
       // The SDK's spawn options determine PATH for the child. Prefer the project-scoped shell env
       // captured by `primeProjectShellEnv` (fnm / asdf / mise / volta cd-hooks
       // applied at the project root) over Electron's `process.env`, which on
@@ -1295,7 +1321,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         forwardSubagentText: true,
         canUseTool: this.canUseTool,
         onElicitation: this.onElicitation,
-        env: { ...env, ...claudeContextWindowEnv(this.currentConfig.contextSize) },
+        env: { ...env, ...claudeContextWindowEnv(contextSize) },
         ...(this.currentConfig.effort
           ? {
               // `ultracode` is not a model-level effort value — the CLI rejects
@@ -1317,6 +1343,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.mcpServers.initialize(this.queryRuntime, mcpServers);
       this.appliedModel = model;
       this.appliedContextWindow = contextWindow;
+      this.appliedContextSize = contextSize;
       // The CLI can silently fall back when settings forbid Bypass. Confirm
       // that mode through the control API before disabling the saved sandbox.
       this.appliedPermissionMode =
@@ -1346,6 +1373,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
               this.emitUpdate({ status: "idle", attention: "none" });
             }
             this.flushDeferredCompletion();
+            this.releaseEndedProcessTasks();
           }
         } catch (error) {
           if (runtime !== this.queryRuntime) return;
@@ -1362,6 +1390,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             this.reportError(message);
             this.emitRuntimeEvents([{ type: "error", threadId: this.input.threadId, message }]);
             this.flushDeferredCompletion();
+            this.releaseEndedProcessTasks();
           }
         }
       })
@@ -1497,6 +1526,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   private handleSdkMessage(message: SDKMessage): void {
+    if (this.backgroundTaskControls.shouldIgnore(message)) return;
     // Locally queued input is not provider history: Stop can clear it before
     // the SDK consumes it. A main-thread echo/reply confirms it was admitted.
     if (
@@ -1550,7 +1580,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // session-state idle must not settle the thread — the deferred update
       // owns the settling status (and preserves an error outcome). Non-settling
       // states (working, needs_approval) still pass through.
-      if (mapped.status !== "idle" || !this.hasPendingTurn()) {
+      if (mapped.status !== "idle" || (!this.hasPendingTurn() && this.currentStatus !== "error")) {
         this.emitUpdate(mapped);
       }
       // A running state while a drained completion sits in its grace window
@@ -1609,11 +1639,24 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         return;
       }
     }
+    const backgroundTaskDetailsChanged = this.backgroundTaskControls.observe(message);
     const events = mapClaudeSdkMessage(
       message,
       this.mapperState,
       resultState ? { resultState } : undefined,
     );
+    if (
+      backgroundTaskDetailsChanged &&
+      !events.some((event) => event.type === "background_tasks.changed")
+    ) {
+      const tasks = this.mapperState.reportedBackgroundTasks ?? [];
+      if (tasks.length > 0)
+        events.push({
+          type: "background_tasks.changed",
+          threadId: this.input.threadId,
+          tasks: [...tasks],
+        });
+    }
     this.emitRuntimeEvents(events);
     if (message.type === "result") {
       void this.refreshContextUsage();
@@ -1653,7 +1696,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         }
       }
       if (this.startPendingSteer()) return;
-      if (this.hasLiveBackgroundWork()) {
+      if (!failed && !wasInterrupted && hasAwaitedBackgroundWork(this.mapperState)) {
         this.deferredCompletion.defer(completion);
       } else {
         this.emitUpdate(completion);
@@ -1663,11 +1706,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * Whether any background work the model will be woken for is still live:
+   * Whether the CLI still owns live work, for process reuse and goal tracking:
    * sub-agent runs (edge-tracked, closed by `task_notification`) or any task in
    * the CLI's `background_tasks_changed` level set — plain backgrounded Bash
-   * and watchers included. The turn is not over for the user while either is
-   * running, so the held idle must wait for both to drain.
+   * and watchers included. Independent commands may outlive a completed response.
    */
   private hasLiveBackgroundWork(): boolean {
     return (
@@ -1692,12 +1734,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * flushes when the grace expires.
    */
   private flushDeferredCompletionIfDrained(): void {
-    if (this.hasLiveBackgroundWork()) return;
+    if (hasAwaitedBackgroundWork(this.mapperState)) return;
     // A goal held open across a clean turn end also drains here, so the
     // pending goal alone is enough to arm the flush, or the dock would sit
     // active until the session ends.
     if (this.steerDelivery.hasPending) return;
-    if (!this.deferredCompletion.hasPending && !this.mapperState.pendingGoalCompletionOnTaskDrain) {
+    if (
+      !this.deferredCompletion.hasPending &&
+      (!this.mapperState.pendingGoalCompletionOnTaskDrain || this.hasLiveBackgroundWork())
+    ) {
       return;
     }
     this.scheduleDeferredFlush();
@@ -1707,7 +1752,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.deferredFlushTimer !== undefined) return;
     this.deferredFlushTimer = setTimeout(() => {
       this.deferredFlushTimer = undefined;
-      if (this.disposed || this.hasLiveBackgroundWork() || this.steerDelivery.hasPending) return;
+      if (
+        this.disposed ||
+        hasAwaitedBackgroundWork(this.mapperState) ||
+        this.steerDelivery.hasPending
+      )
+        return;
       this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
       const update = this.deferredCompletion.take();
       if (update) this.emitUpdate(update);
@@ -1719,6 +1769,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       clearTimeout(this.deferredFlushTimer);
       this.deferredFlushTimer = undefined;
     }
+  }
+
+  /** The level set is per process; an ended stream must not leave restarts blocked. */
+  private releaseEndedProcessTasks(): void {
+    this.backgroundTaskControls.reset();
+    this.mapperState.activeSubAgentTaskToTool?.clear();
+    this.mapperState.activeSubAgentToolToTask?.clear();
+    this.emitRuntimeEvents(clearBackgroundTasks(this.mapperState));
   }
 
   /**
@@ -1771,6 +1829,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   private emitRuntimeEvents(events: RuntimeEvent[]): void {
     if (events.length === 0) return;
+    events = events.map((event) => {
+      if (event.type !== "background_tasks.changed") return event;
+      const tasks = this.backgroundTaskControls.decorate(event.tasks);
+      this.backgroundTaskControls.reconcile(tasks);
+      return { ...event, tasks };
+    });
     if (!this.listener?.onRuntimeEvent) {
       this.bufferedRuntimeEvents.push(...events);
       return;

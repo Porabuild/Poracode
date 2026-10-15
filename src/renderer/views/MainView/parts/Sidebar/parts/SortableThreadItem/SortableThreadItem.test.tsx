@@ -206,7 +206,11 @@ const project: Project = {
 describe("SortableThreadItem", () => {
   beforeEach(() => {
     layoutMock.compact = false;
-    useAppStore.setState({ threads: [], provisioningWorktreeThreadIds: {} });
+    useAppStore.setState({
+      threads: [],
+      provisioningWorktreeThreadIds: {},
+      runtimeBackgroundTasksByThread: {},
+    });
     sortableRefMock.mockClear();
     sortableHandleRefMock.mockClear();
     sortableOptionsMock.mockClear();
@@ -239,6 +243,100 @@ describe("SortableThreadItem", () => {
 
     expect(getStatusToneMock).toHaveBeenCalledWith(thread, { hasBackgroundActivity: true });
   });
+
+  it.each([
+    { layout: "grouped", compact: false, flat: false },
+    { layout: "flat", compact: false, flat: true },
+    { layout: "compact", compact: true, flat: false },
+  ])(
+    "shows detached task activity in $layout rows without changing the provider tone",
+    ({ compact, flat }) => {
+      layoutMock.compact = compact;
+      getStatusToneMock.mockReturnValue("active");
+      useAppStore.setState({
+        runtimeBackgroundTasksByThread: {
+          "thread-1": [{ taskId: "server", kind: "command", description: "Admin server" }],
+        },
+      });
+      render(
+        <SortableThreadItem
+          thread={makeThread()}
+          threadIndex={1}
+          project={project}
+          showWorktreeBadge={false}
+          editingThreadId={null}
+          setEditingThreadId={vi.fn<(id: string | null) => void>()}
+          group="project-entries:project-1"
+          {...(flat ? { projectTag: <span>{project.name}</span> } : {})}
+        />,
+      );
+      expect(screen.getByRole("img", { name: "Running background tasks: 1" })).toBeInTheDocument();
+      expect(screen.getByTestId("provider-icon")).toHaveAttribute("data-tone", "active");
+    },
+  );
+
+  it("updates the indicator from this thread's live task roster", () => {
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+    expect(
+      screen.queryByRole("img", { name: /Running background tasks:/ }),
+    ).not.toBeInTheDocument();
+    act(() => {
+      useAppStore.setState({
+        runtimeBackgroundTasksByThread: {
+          "thread-1": [{ taskId: "server", kind: "command", description: "Admin server" }],
+          other: [{ taskId: "watcher", kind: "other", description: "Watch files" }],
+        },
+      });
+    });
+    expect(screen.getByRole("img", { name: "Running background tasks: 1" })).toBeInTheDocument();
+    act(() => {
+      useAppStore.setState({
+        runtimeBackgroundTasksByThread: {
+          other: [{ taskId: "watcher", kind: "other", description: "Watch files" }],
+        },
+      });
+    });
+    expect(
+      screen.queryByRole("img", { name: /Running background tasks:/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each(["working", "attention", "error"])(
+    "preserves %s treatment when tasks are running",
+    (tone) => {
+      getStatusToneMock.mockReturnValue(tone);
+      useAppStore.setState({
+        runtimeBackgroundTasksByThread: {
+          "thread-1": [{ taskId: "server", kind: "command", description: "Admin server" }],
+        },
+      });
+      render(
+        <SortableThreadItem
+          thread={makeThread()}
+          threadIndex={1}
+          project={project}
+          showWorktreeBadge={false}
+          editingThreadId={null}
+          setEditingThreadId={vi.fn<(id: string | null) => void>()}
+          group="project-entries:project-1"
+        />,
+      );
+      expect(screen.getByTestId("provider-icon")).toHaveAttribute("data-tone", tone);
+      expect(screen.queryAllByRole("img", { name: "Running background tasks: 1" })).toHaveLength(
+        tone === "working" ? 0 : 1,
+      );
+    },
+  );
 
   it("shows the draft dot after the title when the thread has an unsent draft", () => {
     useThreadHasDraftMock.mockReturnValue(true);
