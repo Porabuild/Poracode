@@ -248,6 +248,11 @@ export const appProcedures = {
     RemoteAccessPairingInfo,
     "main-local"
   >("setRemoteAccessEnabled", "main-local", setRemoteAccessEnabledPayloadSchema),
+  setRemoteAccessLanEnabled: definePayloadProcedure<
+    z.infer<typeof setRemoteAccessEnabledPayloadSchema>,
+    RemoteAccessPairingInfo,
+    "main-local"
+  >("setRemoteAccessLanEnabled", "main-local", setRemoteAccessEnabledPayloadSchema),
   revokeRemoteAccessSession: definePayloadProcedure<
     z.infer<typeof revokeRemoteAccessSessionPayloadSchema>,
     { revoked: boolean },

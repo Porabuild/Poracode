@@ -119,7 +119,14 @@ export async function performDesktopRemoteAccessStart(
     // The always-on instance pins the LOOPBACK bind regardless of bind-mode
     // env: a disabled desktop must never expose a wide listener just because
     // it is running (V5 plan 2.5 completion).
-    const remoteHost = attempt.loopbackOnly ? DEFAULT_REMOTE_ACCESS_HOST : remoteAccessHost();
+    const lanEnabled =
+      !attempt.loopbackOnly &&
+      readSharedSettingsFile(options.paths.settingsPath).remoteAccessLanEnabled;
+    const remoteHost = attempt.loopbackOnly
+      ? DEFAULT_REMOTE_ACCESS_HOST
+      : remoteAccessHost(
+          lanEnabled ? { defaultMode: "lan", plaintextLanAcknowledged: true } : undefined,
+        );
     const port = await resolveRemoteAccessPort({ host: remoteHost });
     // Dedicated persistent origin secret + configured HTTPS base → the
     // browser-forward child-origin identity. A malformed explicit
@@ -244,6 +251,7 @@ export async function performDesktopRemoteAccessStart(
       // contained by the sink (warn + drop), never the request path.
       audit: createRemoteAuditLog(options.paths.baseDir),
       host: remoteHost,
+      ...(lanEnabled ? { plaintextLanAcknowledged: true } : {}),
       port,
       advertisedHost,
       ...(advertisedResolution.advertisedBaseUrl

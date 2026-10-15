@@ -1509,6 +1509,10 @@ msgstr "Дозвольте доступ до камери для цього са
 msgid "Allow eval"
 msgstr "Дозволити eval"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+msgstr "Дозволити сполученим пристроям підключатися через IP-адреси локальної мережі та Tailscale. Якщо TLS не налаштовано, використовується HTTP. Вмикайте лише в довірених мережах."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
 msgstr "Дозволити заміну конфліктних керованих навичок"
@@ -3878,6 +3882,7 @@ msgstr "Підключитися до віддаленого сервера"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "Підключено"
 
@@ -5391,6 +5396,7 @@ msgstr "Відключити"
 #~ msgstr "Відключити сервер"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
 msgstr "Відключено"
 
@@ -8132,6 +8138,10 @@ msgstr "Kimi Code не вдалося оновити облікові дані, 
 msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
 msgstr "Kimi Code завершив хід, не повернувши відповіді. Перезапустіть гілку та повторіть спробу."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "LAN"
+msgstr "LAN"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8154,6 +8164,15 @@ msgstr "Ноутбук"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Ноутбук L"
+
+#. placeholder {0}: formatSessionTime(session.lastConnectedAt)
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: {0}"
+msgstr "Останнє підключення: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: unknown"
+msgstr "Останнє підключення: невідомо"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
@@ -9538,6 +9557,10 @@ msgstr "Потребує відновлення"
 msgid "Needs reply"
 msgstr "Потребує відповіді"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Network access"
+msgstr "Доступ через мережу"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Нейтрально"
@@ -10552,6 +10575,10 @@ msgstr "Лише коли немає фокусу"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Вручну можна запускати лише робочі процеси з тригером workflow_dispatch."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Only works on this computer."
+msgstr "Працює лише на цьому комп’ютері."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
@@ -15560,6 +15587,10 @@ msgstr "Системні сповіщення"
 #~ msgstr "Вкладки ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale"
+msgstr "Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
 msgstr "Tailscale HTTPS"
 
@@ -17378,6 +17409,10 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Не вдалося оновити конфігурацію MCP для CLI. Оновіть і перевірте конфігурацію перед повторною спробою."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update network access."
+msgstr "Не вдалося оновити доступ через мережу."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Не вдалося оновити віддалений доступ."
 
@@ -17955,6 +17990,10 @@ msgstr "Використовуйте цей обліковий запис для
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "Використати цю папку"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Use this link on devices connected to the same network."
+msgstr "Використовуйте це посилання на пристроях, підключених до тієї самої мережі."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

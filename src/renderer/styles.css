@@ -979,6 +979,14 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   font-size: 0.75rem;
 }
 
+.poracode-remote-access-toggle-group .toggle-button {
+  --toggle-button-fg: var(--muted);
+  --toggle-button-fg-selected: var(--foreground);
+  --toggle-button-bg-selected: var(--default-hover);
+  --toggle-button-bg-selected-hover: var(--default-hover);
+  --toggle-button-bg-selected-pressed: var(--default-hover);
+}
+
 .menu-item {
   min-height: 1.75rem;
   gap: 0.5rem;

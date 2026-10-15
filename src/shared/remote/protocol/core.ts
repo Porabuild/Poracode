@@ -21,6 +21,7 @@ import { gitStatePatchSchema } from "../../gitState";
 // open to old clients.
 // v14 adds automation recurrence/status discriminators and run-result controls.
 // Exact-match pairing prevents old closed-enum clients from partially decoding schedules.
+// Optional pairing endpoints and session presence are additive; old payloads stay valid.
 // Optional background-task timing/progress and opaque Stop actions remain additive
 // within v14: old readers ignore them; old hosts omit them and keep tasks read-only.
 // Task kinds, session actions, persisted data and compatibility ranges are unchanged.
@@ -628,6 +629,8 @@ export const remoteAccessSessionSchema = z.object({
   client: remoteClientMetadataSchema.optional(),
   issuedAt: z.string().min(1),
   expiresAt: z.string().min(1),
+  connected: z.boolean().optional(),
+  lastConnectedAt: z.string().datetime().optional(),
 });
 export type RemoteAccessSessionSummary = z.infer<typeof remoteAccessSessionSchema>;
 

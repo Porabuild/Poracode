@@ -125,10 +125,14 @@ export function remoteTrustedProxyAddresses(
  */
 export function remoteAccessBindRefusal(
   host: string,
-  input?: { readonly env?: NodeJS.ProcessEnv; readonly tlsConfigured?: boolean },
+  input?: {
+    readonly env?: NodeJS.ProcessEnv;
+    readonly tlsConfigured?: boolean;
+    readonly plaintextLanAcknowledged?: boolean;
+  },
 ): string | null {
   if (classifyBindHostExposure(host) !== "lan") return null;
-  if (plaintextLanAcknowledged(input?.env)) return null;
+  if (input?.plaintextLanAcknowledged ?? plaintextLanAcknowledged(input?.env)) return null;
   if (input?.tlsConfigured) return null;
   const trimmed = host.trim();
   const surface = isWildcardBindHost(host) ? `${trimmed} (all interfaces)` : trimmed;
@@ -166,6 +170,9 @@ export function detectTailnetIpv4Address(
 export interface RemoteAccessBindInput {
   readonly env?: NodeJS.ProcessEnv;
   readonly interfaces?: NetworkInterfaceMap;
+  /** Desktop preference, used only when no environment override is set. */
+  readonly defaultMode?: RemoteAccessBindMode;
+  readonly plaintextLanAcknowledged?: boolean;
   /** Gate 6 item 4.2: whether TLS material is configured (cert + key set).
    * A TLS-backed wildcard bind does not need the plaintext acknowledgement. */
   readonly tlsConfigured?: boolean;
@@ -234,7 +241,7 @@ export function resolveRemoteAccessBind(
 ): RemoteAccessBindResolution {
   const env = input.env ?? process.env;
   const warnings: string[] = [];
-  const acknowledged = plaintextLanAcknowledged(env);
+  const acknowledged = input.plaintextLanAcknowledged ?? plaintextLanAcknowledged(env);
   const tlsConfigured = input.tlsConfigured ?? remoteTlsConfigured(env);
 
   const explicitHost = readTrimmedEnv("PORACODE_REMOTE_ACCESS_HOST", env);
@@ -252,7 +259,11 @@ export function resolveRemoteAccessBind(
       source: "explicit-host",
       plaintextLanAcknowledged: acknowledged,
       tlsConfigured,
-      refusalReason: remoteAccessBindRefusal(explicitHost, { env, tlsConfigured }),
+      refusalReason: remoteAccessBindRefusal(explicitHost, {
+        env,
+        tlsConfigured,
+        plaintextLanAcknowledged: acknowledged,
+      }),
       warnings,
     };
   }
@@ -264,7 +275,7 @@ export function resolveRemoteAccessBind(
       `Unknown ${REMOTE_BIND_MODE_ENV} value "${rawMode}" (expected ${REMOTE_ACCESS_BIND_MODES.join(" | ")}); using the loopback default.`,
     );
   }
-  const effectiveMode: RemoteAccessBindMode = mode ?? "loopback";
+  const effectiveMode: RemoteAccessBindMode = mode ?? input.defaultMode ?? "loopback";
   const source = mode === undefined ? "default" : "bind-mode";
 
   if (effectiveMode === "tailnet") {
@@ -306,7 +317,11 @@ export function resolveRemoteAccessBind(
       source,
       plaintextLanAcknowledged: acknowledged,
       tlsConfigured,
-      refusalReason: remoteAccessBindRefusal(LAN_BIND_HOST, { env, tlsConfigured }),
+      refusalReason: remoteAccessBindRefusal(LAN_BIND_HOST, {
+        env,
+        tlsConfigured,
+        plaintextLanAcknowledged: acknowledged,
+      }),
       warnings,
     };
   }
@@ -335,8 +350,8 @@ function warnBindOnce(message: string): void {
  * config-level resolution behind both composition roots). Logs the
  * resolution's warnings loudly (once each per process) and throws the
  * refusal when the resolved bind is refused. */
-export function remoteAccessHost(): string {
-  const resolution = resolveRemoteAccessBind();
+export function remoteAccessHost(input?: RemoteAccessBindInput): string {
+  const resolution = resolveRemoteAccessBind(input);
   for (const warning of resolution.warnings) warnBindOnce(warning);
   if (resolution.refusalReason) throw new Error(`[poracode] ${resolution.refusalReason}`);
   return resolution.host;
@@ -387,7 +402,14 @@ export async function resolveRemoteAccessPort(input?: {
   const rangeEnd = input?.rangeEnd ?? MAX_AUTO_REMOTE_ACCESS_PORT;
   const isAvailable = input?.isAvailable ?? canListen;
   for (let port = rangeStart; port <= rangeEnd; port += 1) {
-    if (await isAvailable(port, host)) return port;
+    if (!(await isAvailable(port, host))) continue;
+    // Windows can admit a wildcard listener beside another host's loopback
+    // listener. The managed renderer must reach this same server on loopback.
+    if (isWildcardBindHost(host)) {
+      if (!(await isAvailable(port, DEFAULT_REMOTE_ACCESS_HOST))) continue;
+      if (host.includes(":") && !(await isAvailable(port, "::1"))) continue;
+    }
+    return port;
   }
 
   throw Object.assign(new Error(`listen EADDRINUSE: address already in use ${host}:${rangeEnd}`), {

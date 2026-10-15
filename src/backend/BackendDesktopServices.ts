@@ -548,6 +548,10 @@ export class BackendDesktopServices {
         ) as Promise<BackendServiceResult<Name>>;
       case "getRemoteAccessTailscaleStatus":
         return this.requireRemote().getTailscaleStatus() as Promise<BackendServiceResult<Name>>;
+      case "setRemoteAccessLanEnabled":
+        return this.requireRemote().setLanEnabled(
+          (payload as { enabled: boolean }).enabled,
+        ) as Promise<BackendServiceResult<Name>>;
       case "setRemoteAccessTailscaleHttps":
         return this.requireRemote().setTailscaleHttps(
           (payload as { enabled: boolean }).enabled,

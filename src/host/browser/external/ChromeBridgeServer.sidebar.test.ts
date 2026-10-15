@@ -10,6 +10,7 @@ import {
   RemoteAccessServer,
   type RemoteAccessServerOptions,
 } from "@/host/remote/RemoteAccessServer";
+import { generateSelfSignedTlsMaterial } from "@/host/remote/server/tlsMaterial";
 import {
   CHROME_SIDEBAR_EXTENSION_IDS,
   CHROME_SIDEBAR_PROTOCOL_VERSION as SIDEBAR,
@@ -31,7 +32,9 @@ type BootstrapIssuer = NonNullable<
   ConstructorParameters<typeof ChromeBridgeServer>[0]["getChatBootstrap"]
 >;
 
-async function startHost(options: { advertisedHost?: string } = {}) {
+async function startHost(
+  options: { advertisedHost?: string; tls?: RemoteAccessServerOptions["tls"] } = {},
+) {
   const root = mkdtempSync(join(tmpdir(), "poracode-sidebar-"));
   cleanups.push(() => rmSync(root, { force: true, recursive: true }));
   const server = new RemoteAccessServer({
@@ -41,6 +44,7 @@ async function startHost(options: { advertisedHost?: string } = {}) {
     host: "127.0.0.1",
     port: 0,
     ...(options.advertisedHost ? { advertisedHost: options.advertisedHost } : {}),
+    ...(options.tls ? { tls: options.tls } : {}),
     callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
   });
   await server.start();
@@ -384,17 +388,27 @@ describe("sidebar bootstrap compatibility and authentication", () => {
     expect(host.issue).toHaveBeenCalledTimes(12);
   });
 
-  it("does not mint an unusable credential when the server is not plain-http loopback", async () => {
+  it("uses the loopback endpoint when the server advertises a LAN address", async () => {
     const host = await startHost({ advertisedHost: "192.0.2.10" });
+    const client = await connect(host, { sidebarBootstrapVersion: SIDEBAR });
+    const { bootstrap } = await requestBootstrap(client, "lan");
+    expect(bootstrap?.endpoint).toBe(host.server.getInfo()!.loopbackHttpBaseUrl);
+    expect(bootstrap?.endpoint).toMatch(/^http:\/\/127\.0\.0\.1:/);
+  });
+
+  it("does not mint an unusable credential when the server is not plain-http loopback", async () => {
+    const host = await startHost({ tls: generateSelfSignedTlsMaterial() });
     const issuePairing = vi.spyOn(
       (host.server as unknown as { auth: { issuePairingCredential: () => unknown } }).auth,
       "issuePairingCredential",
     );
     const client = await connect(host, { sidebarBootstrapVersion: SIDEBAR });
-    expect((await requestBootstrap(client, "lan")).bootstrap).toBeNull();
+    expect((await requestBootstrap(client, "tls")).bootstrap).toBeNull();
     expect(issuePairing).not.toHaveBeenCalled();
     // The co-located desktop renderer keeps its existing credential path.
-    expect(host.server.mintLoopbackRendererCredential()?.endpoint).toContain("192.0.2.10");
+    expect(host.server.mintLoopbackRendererCredential()?.endpoint).toMatch(
+      /^https:\/\/127\.0\.0\.1:/,
+    );
   });
 
   it.skipIf(process.platform === "win32")(

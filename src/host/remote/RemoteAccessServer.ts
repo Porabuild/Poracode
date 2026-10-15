@@ -286,6 +286,10 @@ export class RemoteAccessServer {
     this.security = new RemoteServerSecurity({
       getHttpBaseUrl: () => this.info?.httpBaseUrl,
       getLocalHttpBaseUrl: () => this.info?.localHttpBaseUrl,
+      getDirectHttpBaseUrls: () =>
+        [this.info?.localHttpBaseUrl, this.info?.tailnetHttpBaseUrl].filter(
+          (value) => value !== undefined,
+        ),
       options,
       auth: this.auth,
     });
@@ -546,7 +550,16 @@ export class RemoteAccessServer {
   }
 
   listAccessSessions(): RemoteAccessSessionSummary[] {
-    return this.auth.listAccessSessions();
+    const connectedSessions = new Set<string>();
+    for (const [socket, session] of this.clients) {
+      if (socket.readyState === WebSocket.OPEN && session.expiresAtMs > Date.now()) {
+        connectedSessions.add(session.sessionId);
+      }
+    }
+    return this.auth.listAccessSessions().map((session) => ({
+      ...session,
+      connected: connectedSessions.has(session.id),
+    }));
   }
 
   /** Last-resort sync drain for process-fatal handlers (V6 A.8). */

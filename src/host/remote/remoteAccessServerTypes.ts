@@ -234,6 +234,9 @@ export function resolveControlReserve(
 export interface RemoteAccessServerInfo {
   readonly httpBaseUrl: string;
   readonly localHttpBaseUrl: string;
+  readonly loopbackHttpBaseUrl?: string;
+  readonly lanHttpBaseUrl?: string;
+  readonly tailnetHttpBaseUrl?: string;
   readonly tailscaleHttpBaseUrl?: string;
   readonly wsBaseUrl: string;
   readonly pairingUrl: string;
@@ -293,6 +296,8 @@ export interface RemoteAccessServerOptions {
    * configured or the `PORACODE_ALLOW_PLAINTEXT_LAN=1` acknowledgement is set
    * (Gate 6 items 4.1/4.2), whoever supplied the host. */
   readonly host: string;
+  /** Explicit desktop Settings opt-in to unencrypted LAN access. */
+  readonly plaintextLanAcknowledged?: boolean;
   /**
    * Gate 6 item 4.2 (TLS): HTTPS material for the listener. When set, the
    * server listens HTTPS, advertises `https` origins, and carries the leaf

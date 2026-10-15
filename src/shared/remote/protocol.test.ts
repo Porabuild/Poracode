@@ -6,6 +6,7 @@ import {
   REMOTE_SETTINGS_KEYS,
   pickRemoteSettings,
   remotePushRegistrationSchema,
+  remoteAccessPairingInfoSchema,
   remoteSettingsPatchSchema,
   remoteShellSnapshotSchema,
   remoteTerminalCursorSchema,
@@ -17,11 +18,37 @@ import {
 } from "./protocol";
 
 describe("device-local terminal settings", () => {
+  it("never exposes network enablement in the remote-editable settings subset", () => {
+    expect(REMOTE_SETTINGS_KEYS).not.toContain("remoteAccessLanEnabled");
+    expect(pickRemoteSettings(defaultSharedSettings)).not.toHaveProperty("remoteAccessLanEnabled");
+  });
   it("excludes the font preference from native/browser remote settings", () => {
     expect(REMOTE_SETTINGS_KEYS).not.toContain("terminalFontFamily");
     expect(
       pickRemoteSettings({ ...defaultSharedSettings, terminalFontFamily: "Menlo" }),
     ).not.toHaveProperty("terminalFontFamily");
+  });
+});
+
+describe("pairing presence compatibility", () => {
+  it("accepts pairing info from before endpoint choices and connection metadata existed", () => {
+    const legacy = {
+      status: "ready",
+      httpBaseUrl: "http://127.0.0.1:49152/",
+      localHttpBaseUrl: "http://127.0.0.1:49152",
+      wsBaseUrl: "ws://127.0.0.1:49152/ws",
+      pairingUrl: "http://127.0.0.1:49152/#token=lc_pair_legacy",
+      pairingExpiresAt: "2026-10-15T10:00:00.000Z",
+      sessions: [
+        {
+          id: "legacy-session",
+          scopes: ["session:read"],
+          issuedAt: "2026-10-15T09:00:00.000Z",
+          expiresAt: "2026-10-16T09:00:00.000Z",
+        },
+      ],
+    };
+    expect(remoteAccessPairingInfoSchema.parse(legacy)).toEqual(legacy);
   });
 });
 
