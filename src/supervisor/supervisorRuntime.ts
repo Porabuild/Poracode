@@ -286,6 +286,8 @@ export class SupervisorRuntime {
       settingsPath: this.settingsPath,
       statusCachePath: paths.statusCachePath,
       emit,
+      prepareWslEnvironment: (distro) =>
+        this.agentRegistryService.prepareWslRegistryInstallations(distro),
     });
     this.pluginRegistry = new PluginRegistry({
       bundledPluginsDir: () => process.env.PORACODE_BUNDLED_PLUGINS_DIR?.trim() || undefined,

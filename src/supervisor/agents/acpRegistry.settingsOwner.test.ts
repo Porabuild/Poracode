@@ -383,7 +383,9 @@ describe("ACP registry persistence through the settings owner", () => {
       return [{ ok: true }];
     });
 
-    await expect(repairAcpRegistryInstallLayouts(owned.target)).resolves.toBe(true);
+    await expect(
+      repairAcpRegistryInstallLayouts({ ...owned.target, wslDistros: ["Fixture"] }),
+    ).resolves.toBe(true);
 
     const raw = owned.raw();
     expect(Object.keys(raw.acpRegistryInstalledAgents).sort()).toEqual([
@@ -439,7 +441,9 @@ describe("ACP registry persistence through the settings owner", () => {
       await expect(
         cacheLocalAcpRegistryIcons({ ...owned.target, iconsDir: join(root, "icons") }),
       ).rejects.toThrow(error);
-      await expect(repairAcpRegistryInstallLayouts(owned.target)).rejects.toThrow(error);
+      await expect(
+        repairAcpRegistryInstallLayouts({ ...owned.target, wslDistros: ["Fixture"] }),
+      ).rejects.toThrow(error);
 
       expect(closeThreadsForAgentKind).not.toHaveBeenCalled();
       expect(cacheAcpRegistryIconMock).not.toHaveBeenCalled();

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentKind,
   AgentStatus,
@@ -30,6 +30,12 @@ const acpRegistryMocks = vi.hoisted(() => ({
   installAcpRegistryAgent: vi.fn<typeof import("../agents/acpRegistry").installAcpRegistryAgent>(),
   readAcpRegistrySettings: vi.fn<typeof import("../agents/acpRegistry").readAcpRegistrySettings>(),
   removeAcpRegistryAgent: vi.fn<typeof import("../agents/acpRegistry").removeAcpRegistryAgent>(),
+  pruneWslAcpRegistryPendingDeletes:
+    vi.fn<typeof import("../agents/acpRegistry").pruneWslAcpRegistryPendingDeletes>(),
+  repairAcpRegistryInstallLayouts:
+    vi.fn<typeof import("../agents/acpRegistry").repairAcpRegistryInstallLayouts>(),
+  pruneAcpRegistryPendingDeletes:
+    vi.fn<typeof import("../agents/acpRegistryInstallDir").pruneAcpRegistryPendingDeletes>(),
 }));
 
 const getLatestVersionForAdapterMock = vi.hoisted(() =>
@@ -69,6 +75,16 @@ vi.mock("../agents/acpRegistry", async (importOriginal) => {
     installAcpRegistryAgent: acpRegistryMocks.installAcpRegistryAgent,
     readAcpRegistrySettings: acpRegistryMocks.readAcpRegistrySettings,
     removeAcpRegistryAgent: acpRegistryMocks.removeAcpRegistryAgent,
+    pruneWslAcpRegistryPendingDeletes: acpRegistryMocks.pruneWslAcpRegistryPendingDeletes,
+    repairAcpRegistryInstallLayouts: acpRegistryMocks.repairAcpRegistryInstallLayouts,
+  };
+});
+
+vi.mock("../agents/acpRegistryInstallDir", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../agents/acpRegistryInstallDir")>();
+  return {
+    ...actual,
+    pruneAcpRegistryPendingDeletes: acpRegistryMocks.pruneAcpRegistryPendingDeletes,
   };
 });
 
@@ -424,6 +440,31 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
     acpRegistryInstalledAgents: {},
   } satisfies ReturnType<typeof import("../agents/acpRegistry").readAcpRegistrySettings>;
 
+  beforeEach(() => {
+    acpRegistryMocks.pruneAcpRegistryPendingDeletes.mockReset().mockResolvedValue(undefined);
+    acpRegistryMocks.pruneWslAcpRegistryPendingDeletes.mockReset().mockResolvedValue(undefined);
+    acpRegistryMocks.repairAcpRegistryInstallLayouts.mockReset().mockResolvedValue(false);
+    acpRegistryMocks.readAcpRegistrySettings.mockReset().mockReturnValue({
+      ...settings,
+      acpRegistryInstalledAgents: {
+        demo: {
+          id: "demo",
+          name: "Demo",
+          version: "1.0.0",
+          installedAt: "now",
+          adapterKind: "acp-generic:demo",
+          installKind: "generic",
+          installations: {
+            wsl: {
+              Ubuntu: { version: "1.0.0", target: "linux-x86_64", installedAt: "now" },
+              Debian: { version: "1.0.0", target: "linux-x86_64", installedAt: "now" },
+            },
+          },
+        },
+      },
+    });
+  });
+
   function createService(
     activeWslDistros: string[],
     initialAdapters: Map<AgentKind, AgentAdapter> = new Map(),
@@ -432,12 +473,16 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
     const refreshAgentStatuses = vi
       .fn<AgentStatusService["refreshAgentStatuses"]>()
       .mockResolvedValue({ windows: [], wsl: [], fromCache: false });
+    const getAgentStatuses = vi
+      .fn<AgentStatusService["getAgentStatuses"]>()
+      .mockResolvedValue({ windows: [], wsl: [], fromCache: true });
     const listWslDistros = vi
       .fn<AgentStatusService["listWslDistros"]>()
       .mockResolvedValue(["Ubuntu"]);
     const agentStatusService = {
       invalidateAgentStatuses: vi.fn<() => void>(),
       refreshAgentStatuses,
+      getAgentStatuses,
       listWslDistros,
     } as unknown as AgentStatusService;
     const service = new AgentRegistryService({
@@ -453,8 +498,70 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
       getActiveWslProjectDistros: () => activeWslDistros,
       closeThreadsForAgentKind,
     });
-    return { closeThreadsForAgentKind, listWslDistros, refreshAgentStatuses, service };
+    return {
+      closeThreadsForAgentKind,
+      listWslDistros,
+      refreshAgentStatuses,
+      getAgentStatuses,
+      service,
+    };
   }
+
+  it("keeps recorded WSL installs asleep at startup and during native discovery", async () => {
+    const { service } = createService([]);
+
+    await service.pruneAcpRegistryLeftoversOnLaunch();
+    await service.repairAcpRegistryInstallLayoutsOnLaunch();
+    await service.getAgentStatuses({ wslDistros: [] });
+    await service.refreshAgentStatuses({
+      wslDistros: ["Ubuntu"],
+      scope: { agentKinds: ["acp-generic:demo"], envs: [{ kind: "native" }] },
+    });
+
+    expect(acpRegistryMocks.pruneAcpRegistryPendingDeletes).toHaveBeenCalledExactlyOnceWith(
+      "/data",
+    );
+    expect(acpRegistryMocks.pruneWslAcpRegistryPendingDeletes).not.toHaveBeenCalled();
+    expect(acpRegistryMocks.repairAcpRegistryInstallLayouts).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ wslDistros: [] }),
+    );
+  });
+
+  it("joins maintenance for the requested distro before probing it and runs it once", async () => {
+    const sweep = Promise.withResolvers<void>();
+    acpRegistryMocks.pruneWslAcpRegistryPendingDeletes.mockReturnValue(sweep.promise);
+    const { service } = createService(["Ubuntu"]);
+
+    const requests = [
+      service.prepareWslRegistryInstallations("Ubuntu"),
+      service.prepareWslRegistryInstallations("Ubuntu"),
+    ];
+    expect(acpRegistryMocks.pruneWslAcpRegistryPendingDeletes).toHaveBeenCalledExactlyOnceWith(
+      "Ubuntu",
+    );
+    expect(acpRegistryMocks.repairAcpRegistryInstallLayouts).not.toHaveBeenCalled();
+    sweep.resolve();
+    await Promise.all(requests);
+    await service.prepareWslRegistryInstallations("Ubuntu");
+
+    expect(acpRegistryMocks.pruneWslAcpRegistryPendingDeletes).toHaveBeenCalledTimes(1);
+    expect(acpRegistryMocks.repairAcpRegistryInstallLayouts).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ wslDistros: ["Ubuntu"] }),
+    );
+  });
+
+  it("prepares a requested WSL distro without sweeping the other installs", async () => {
+    const { service } = createService([]);
+
+    await service.prepareWslRegistryInstallations("Debian");
+
+    expect(acpRegistryMocks.pruneWslAcpRegistryPendingDeletes).toHaveBeenCalledExactlyOnceWith(
+      "Debian",
+    );
+    expect(acpRegistryMocks.repairAcpRegistryInstallLayouts).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ wslDistros: ["Debian"] }),
+    );
+  });
 
   it("propagates a partial multi-environment registry update that changed settings", async () => {
     const registry = { version: "1.0.0", agents: [] };

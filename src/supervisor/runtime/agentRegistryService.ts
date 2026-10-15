@@ -110,6 +110,8 @@ export interface AgentRegistryServiceDeps {
  * unchanged.
  */
 export class AgentRegistryService {
+  private readonly wslRegistryMaintenance = new Map<string, Promise<void>>();
+
   /** Short-lived per-kind cache for resolved provider accounts, so reopening
    * the settings page doesn't re-run a possibly process-spawning probe. */
   private readonly agentAccountCache = new Map<
@@ -450,25 +452,33 @@ export class AgentRegistryService {
   }
 
   /**
-   * Delete install directories a previous session had to park because the agent
-   * binary was still locked (see `removeAcpRegistryInstallDir`). Distros with
-   * recorded WSL installs sweep their own side — the Windows sweep cannot reach
-   * into a distro where a running server forced the same park.
+   * Delete native install directories parked while an agent binary was locked.
+   * WSL cleanup waits until the distro is requested.
    */
   async pruneAcpRegistryLeftoversOnLaunch(): Promise<void> {
     await pruneAcpRegistryPendingDeletes(this.deps.baseDir);
-    const wslDistros = new Set(
-      Object.values(
-        readAcpRegistrySettings(this.deps.settingsPath).acpRegistryInstalledAgents,
-      ).flatMap((record) => Object.keys(record.installations?.wsl ?? {})),
-    );
-    await Promise.all(
-      [...wslDistros].map((distro) =>
-        pruneWslAcpRegistryPendingDeletes(distro).catch((error) => {
+  }
+
+  async prepareWslRegistryInstallations(distro: string): Promise<void> {
+    let maintenance = this.wslRegistryMaintenance.get(distro);
+    if (!maintenance) {
+      maintenance = (async () => {
+        const records = readAcpRegistrySettings(this.deps.settingsPath).acpRegistryInstalledAgents;
+        if (!Object.values(records).some((record) => record.installations?.wsl?.[distro])) return;
+        await pruneWslAcpRegistryPendingDeletes(distro).catch((error) => {
           console.warn(`[supervisor] WSL ACP leftover sweep failed for ${distro}`, error);
-        }),
-      ),
-    );
+        });
+        await repairAcpRegistryInstallLayouts({
+          settingsPath: this.deps.settingsPath,
+          settingsWriter: this.deps.settingsWriter,
+          wslDistros: [distro],
+        }).catch((error) => {
+          console.warn(`[supervisor] WSL ACP install layout repair failed for ${distro}`, error);
+        });
+      })();
+      this.wslRegistryMaintenance.set(distro, maintenance);
+    }
+    await maintenance;
   }
 
   /**
@@ -482,6 +492,7 @@ export class AgentRegistryService {
       const changed = await repairAcpRegistryInstallLayouts({
         settingsPath: this.deps.settingsPath,
         settingsWriter: this.deps.settingsWriter,
+        wslDistros: [],
       });
       if (changed) await this.propagateAcpRegistryChange();
     } catch (error) {
@@ -504,6 +515,7 @@ export class AgentRegistryService {
       settingsWriter: this.deps.settingsWriter,
       iconsDir: this.deps.acpIconsDir,
       firstClassAgents: this.firstClassRegistryAgents(),
+      wslDistros: this.deps.getActiveWslProjectDistros(),
     });
     if (autoUpdate.changed.length > 0) changed = true;
     if (changed) await this.propagateAcpRegistryChange();

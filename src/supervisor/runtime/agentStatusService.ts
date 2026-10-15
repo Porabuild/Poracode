@@ -330,6 +330,8 @@ export interface AgentStatusServiceOptions {
   settingsPath: string;
   statusCachePath: string;
   emit(event: SupervisorEvent): void;
+  /** Repair recorded WSL installations only when detection actually probes their distro. */
+  prepareWslEnvironment?: (distro: string) => Promise<void>;
 }
 
 interface DetectionResults {
@@ -591,6 +593,8 @@ export class AgentStatusService {
   ): Promise<AgentStatus> {
     signal?.throwIfAborted();
     if (env.kind === "wsl") {
+      await this.options.prepareWslEnvironment?.(env.distro);
+      signal?.throwIfAborted();
       // Scoped and full requests share a queue. Use the same bounded,
       // abortable WSL probe so a stalled scoped target cannot hold later jobs.
       const [status] = await detectWslAgentStatuses(
@@ -918,6 +922,9 @@ export class AgentStatusService {
         adapters.map(async (adapter) => {
           const env = { kind: "wsl", distro } as const;
           const target = this.statusTarget(adapter, env);
+          if (!this.publication.owns(job.ticket, target)) return;
+          await this.options.prepareWslEnvironment?.(distro);
+          signal.throwIfAborted();
           if (!this.publication.owns(job.ticket, target)) return;
           await detectWslAgentStatuses(
             [adapter],

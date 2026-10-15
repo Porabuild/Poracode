@@ -75,8 +75,8 @@ export function wslAcpRegistryAgentInstallDir(
 /**
  * Sweep WSL-side `.pending-delete-*` dirs parked by
  * {@link removeAcpRegistryInstallDir} when a running ACP server held the binary
- * lock. The Windows-side launch sweep cannot reach into a distro, so recorded
- * WSL installs get this equivalent at launch. Best-effort.
+ * lock. WSL installs get this sweep when their distro is requested, so an idle
+ * installation does not boot WSL at launch. Best-effort.
  */
 export async function pruneWslAcpRegistryPendingDeletes(distro: string): Promise<void> {
   const home = await resolveWslHomeDirectoryAsync(distro).catch(() => undefined);
@@ -107,17 +107,19 @@ function stampInstallationLayout(installation: AcpRegistryInstallation): AcpRegi
 }
 
 /**
- * Launch-time layout migration for already-extracted registry artifacts (see
+ * Layout migration for already-extracted registry artifacts (see
  * `ACP_REGISTRY_INSTALL_LAYOUT_VERSION`). Each recorded installation is brought
  * to the current layout once and stamped, so a healthy record costs nothing on
- * later launches. WSL installs get their `bin/` tree marked executable in the
- * distro; native installs were extracted by the host's own unzip/tar, which
+ * later launches. Requested WSL distros get their `bin/` tree marked executable;
+ * native installs were extracted by the host's own unzip/tar, which
  * keep the archive's mode bits, and package (`npx`/`uvx`) installs have no
  * extracted layout — both are stamped as-is. A failed WSL repair is left
- * unstamped and retried on the next launch. Returns whether settings changed.
+ * unstamped and retried on later WSL use. Unrequested distros retain their
+ * existing layout version; the settings shape is unchanged. Returns whether
+ * settings changed.
  */
 export async function repairAcpRegistryInstallLayouts(
-  input: AcpRegistrySettingsTarget,
+  input: AcpRegistrySettingsTarget & { wslDistros: readonly string[] },
 ): Promise<boolean> {
   const settings = readStoredAcpRegistrySettings(input.settingsPath);
   let changed = false;
@@ -140,6 +142,7 @@ export async function repairAcpRegistryInstallLayouts(
       changed = true;
     }
     for (const [distro, installation] of Object.entries(installations.wsl ?? {})) {
+      if (!input.wslDistros.includes(distro)) continue;
       if (!installationNeedsLayoutRepair(installation)) continue;
       const binary = config?.environmentCommands?.wsl?.[distro]?.binary;
       if (binary?.startsWith("/")) {
@@ -963,6 +966,7 @@ export async function autoUpdateAcpRegistryAgents(
     baseDir: string;
     iconsDir: string;
     firstClassAgents?: Readonly<Record<string, AgentKind>>;
+    wslDistros: readonly string[];
   },
 ): Promise<{
   updated: string[];
@@ -1008,7 +1012,9 @@ export async function autoUpdateAcpRegistryAgents(
         ]
       : [{ target: { kind: "native" }, version: record.version }];
     const targetsToUpdate = targets.filter(
-      ({ version }) => version !== agent.version || correctedArgs !== configuredArgs,
+      ({ target, version }) =>
+        (target.kind !== "wsl" || input.wslDistros.includes(target.distro)) &&
+        (version !== agent.version || correctedArgs !== configuredArgs),
     );
     if (targetsToUpdate.length === 0) continue;
     let failedUpdate = false;
