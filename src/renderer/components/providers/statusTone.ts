@@ -11,7 +11,7 @@ export type StatusTone =
 
 export function getStatusTone(
   thread: Pick<Thread, "status" | "done">,
-  opts?: { hasBackgroundActivity?: boolean },
+  opts?: { hasBackgroundActivity?: boolean; isWaitingForBackground?: boolean },
 ): StatusTone {
   if (thread.done) {
     return "done";
@@ -24,6 +24,12 @@ export function getStatusTone(
   if (thread.status === "needs_approval" || thread.status === "needs_reply") {
     return "attention";
   }
+
+  if (
+    opts?.isWaitingForBackground &&
+    (thread.status === "working" || thread.status === "idle" || thread.status === "finished")
+  )
+    return "active";
 
   if (thread.status === "launching" || thread.status === "working") {
     return "working";

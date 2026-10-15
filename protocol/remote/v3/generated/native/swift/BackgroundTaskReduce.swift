@@ -1,16 +1,33 @@
 // GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.
 // Background-task reduce machine rendered from the declarative spec in
-// src/shared/remote/contract/backgroundTaskReduceSpec.ts (spec version 2).
+// src/shared/remote/contract/backgroundTaskReduceSpec.ts (spec version 3).
 import Foundation
+
+public struct RemoteBackgroundTaskStopAction: Equatable, Sendable {
+  public var id: String
+  public var payload: [String: String]
+  public init(id: String, payload: [String: String]) {
+    self.id = id
+    self.payload = payload
+  }
+}
 
 public struct RemoteBackgroundTaskIdentity: Equatable, Sendable {
   public var taskId: String
   public var kind: String
   public var description: String
-  public init(taskId: String, kind: String, description: String) {
+  public var startedAt: Double?
+  public var lastProgressAt: Double?
+  public var progress: String?
+  public var stopAction: RemoteBackgroundTaskStopAction?
+  public init(taskId: String, kind: String, description: String, startedAt: Double? = nil, lastProgressAt: Double? = nil, progress: String? = nil, stopAction: RemoteBackgroundTaskStopAction? = nil) {
     self.taskId = taskId
     self.kind = kind
     self.description = description
+    self.startedAt = startedAt
+    self.lastProgressAt = lastProgressAt
+    self.progress = progress
+    self.stopAction = stopAction
   }
 }
 

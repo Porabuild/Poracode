@@ -1509,6 +1509,10 @@ msgstr "Дозвольте доступ до камери для цього са
 msgid "Allow eval"
 msgstr "Дозволити eval"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+msgstr "Дозволити сполученим пристроям підключатися через IP-адреси локальної мережі та Tailscale. Якщо TLS не налаштовано, використовується HTTP. Вмикайте лише в довірених мережах."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
 msgstr "Дозволити заміну конфліктних керованих навичок"
@@ -2117,7 +2121,7 @@ msgstr "Фоновий процес не запущено"
 msgid "Background process restarted"
 msgstr "Фоновий процес перезапущено"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "Фонове завдання"
 
@@ -3124,7 +3128,6 @@ msgstr "Клонування…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -3884,6 +3887,7 @@ msgstr "Підключитися до віддаленого сервера"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "Підключено"
 
@@ -5398,6 +5402,7 @@ msgstr "Відключити"
 #~ msgstr "Відключити сервер"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
 msgstr "Відключено"
 
@@ -7276,6 +7281,10 @@ msgstr "Сховати бічну панель"
 msgid "Hide skills from {0}"
 msgstr "Приховати навички з {0}"
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Hide tasks; they keep running"
+msgstr "Приховати завдання; вони продовжать виконуватися"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -8139,6 +8148,10 @@ msgstr "Kimi Code не вдалося оновити облікові дані, 
 msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
 msgstr "Kimi Code завершив хід, не повернувши відповіді. Перезапустіть гілку та повторіть спробу."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "LAN"
+msgstr "LAN"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8162,9 +8175,22 @@ msgstr "Ноутбук"
 msgid "Laptop L"
 msgstr "Ноутбук L"
 
+#. placeholder {0}: formatSessionTime(session.lastConnectedAt)
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: {0}"
+msgstr "Останнє підключення: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: unknown"
+msgstr "Останнє підключення: невідомо"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
 msgstr "Остання оцінка:"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Last progress {elapsed} ago"
+msgstr "Останнє оновлення {elapsed} тому"
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -9541,6 +9567,10 @@ msgstr "Потребує відновлення"
 msgid "Needs reply"
 msgstr "Потребує відповіді"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Network access"
+msgstr "Доступ через мережу"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Нейтрально"
@@ -10144,6 +10174,10 @@ msgstr "QR-код сполучення Poracode не знайдено."
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
 msgstr "Ще немає профілю з власним ізольованим входом. Установіть профілю «Власний ізольований вхід» і увійдіть там спершу; він з'явиться тут."
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No progress reported"
+msgstr "Немає даних про перебіг виконання"
+
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
 #~ msgstr "Немає проєктів"
@@ -10551,6 +10585,10 @@ msgstr "Лише коли немає фокусу"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Вручну можна запускати лише робочі процеси з тригером workflow_dispatch."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Only works on this computer."
+msgstr "Працює лише на цьому комп’ютері."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
@@ -13532,6 +13570,14 @@ msgstr "виконується"
 msgid "Running"
 msgstr "Виконується"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadBackgroundTaskIndicator.tsx
+msgid "Running background tasks: {count}"
+msgstr "Фонових завдань виконується: {count}"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Running for {elapsed}"
+msgstr "Виконується {elapsed}"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Running now"
 msgstr "Виконується зараз"
@@ -15203,6 +15249,10 @@ msgstr "Зупинити"
 msgid "Stop {0}"
 msgstr "Зупинити {0}"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stop {label}"
+msgstr "Зупинити {label}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "Зупинити переспрямування"
@@ -15220,6 +15270,7 @@ msgid "Stop syncing"
 msgstr "Припинити синхронізацію"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stop task"
 msgstr "Зупинити завдання"
 
@@ -15239,6 +15290,14 @@ msgstr "Зупинити голосове введення"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "Умова зупинки"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping {label}…"
+msgstr "Зупинення: {label}…"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping task…"
+msgstr "Зупинення завдання…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -15546,6 +15605,10 @@ msgstr "Системні сповіщення"
 #~ msgstr "Вкладки ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale"
+msgstr "Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
 msgstr "Tailscale HTTPS"
 
@@ -15760,6 +15823,10 @@ msgstr "агент"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "The agent"
 msgstr "Агент"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The agent session reloads to apply the new context size; the conversation is kept."
+msgstr "Сеанс агента перезавантажується, щоб застосувати новий розмір контексту; розмова зберігається."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -15990,8 +16057,8 @@ msgid "The MCP server is invalid."
 msgstr "Сервер MCP недопустимий."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
-msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
-msgstr "Новий розмір контексту застосовується з наступного повідомлення. Сесія агента перезавантажиться перед його надсиланням; розмову буде збережено."
+#~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+#~ msgstr "Новий розмір контексту застосовується з наступного повідомлення. Сесія агента перезавантажиться перед його надсиланням; розмову буде збережено."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
@@ -16179,6 +16246,10 @@ msgstr "Збережена конфігурація недійсна. Збере
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "цільовий провайдер"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task has not confirmed that it stopped. Try again."
+msgstr "Завдання ще не підтвердило зупинення. Спробуйте ще раз."
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
@@ -17356,6 +17427,10 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Не вдалося оновити конфігурацію MCP для CLI. Оновіть і перевірте конфігурацію перед повторною спробою."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update network access."
+msgstr "Не вдалося оновити доступ через мережу."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Не вдалося оновити віддалений доступ."
 
@@ -17934,6 +18009,10 @@ msgstr "Використовуйте цей обліковий запис для
 msgid "Use this folder"
 msgstr "Використати цю папку"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Use this link on devices connected to the same network."
+msgstr "Використовуйте це посилання на пристроях, підключених до тієї самої мережі."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
@@ -18199,6 +18278,11 @@ msgstr "очікування зупинки агента"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Waiting for approval"
 msgstr "Очікує на схвалення"
+
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Waiting for background tasks"
+msgstr "Очікування фонових завдань"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"

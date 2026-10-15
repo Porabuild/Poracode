@@ -34,22 +34,45 @@ enum class ProcedurereadThreadBackgroundTasksResultU2DItemU2DKind_32b2db2eaa {
     @SerialName("other") OTHER,
 }
 
+typealias ProcedurereadThreadBackgroundTasksResultU2DItemU2DStopActionU2DPayload_5cb1759d88 = Map<String, String>
+
 @Serializable
-data class ProcedurereadThreadBackgroundTasksResultU2DItem_1feabb5e4c(
+data class ProcedurereadThreadBackgroundTasksResultU2DItemU2DStopAction_4f39907576(
+    @SerialName("id") val id: String,
+    @SerialName("payload") val payload: ProcedurereadThreadBackgroundTasksResultU2DItemU2DStopActionU2DPayload_5cb1759d88,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, 120, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("payload", "ProcedurereadThreadBackgroundTasksResultU2DItemU2DStopActionU2DPayload_5cb1759d88", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedurereadThreadBackgroundTasksResultU2DItem_7dce940bfe(
     @SerialName("description") val description: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
     @SerialName("kind") val kind: ProcedurereadThreadBackgroundTasksResultU2DItemU2DKind_32b2db2eaa,
+    @SerialName("lastProgressAt") val lastProgressAt: RemoteField<Double> = RemoteField.Missing,
+    @SerialName("progress") val progress: RemoteField<String> = RemoteField.Missing,
+    @SerialName("startedAt") val startedAt: RemoteField<Double> = RemoteField.Missing,
+    @SerialName("stopAction") val stopAction: RemoteField<ProcedurereadThreadBackgroundTasksResultU2DItemU2DStopAction_4f39907576> = RemoteField.Missing,
     @SerialName("taskId") val taskId: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("description", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("kind", "ProcedurereadThreadBackgroundTasksResultU2DItemU2DKind_32b2db2eaa", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("lastProgressAt", "Double", false, false, 0.0, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("progress", "String", false, false, null, null, null, 4096, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("startedAt", "Double", false, false, 0.0, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("stopAction", "ProcedurereadThreadBackgroundTasksResultU2DItemU2DStopAction_4f39907576", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("taskId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
-typealias ProcedurereadThreadBackgroundTasksResult_17dfab19af = List<ProcedurereadThreadBackgroundTasksResultU2DItem_1feabb5e4c>
+typealias ProcedurereadThreadBackgroundTasksResult_00675d64d4 = List<ProcedurereadThreadBackgroundTasksResultU2DItem_7dce940bfe>
 
 @Serializable
 data class ProcedurerelocateProjectRequest_51fc061b3e(
@@ -420,15 +443,4 @@ data class ProceduresubagentSubscribeRequest_ff495aee3e(
             RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DType_a799b0e11e {
-    @SerialName("usage.spent") USAGEU2ESPENT,
-}
-
-@Serializable
-enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsageU2DCounterKind_91a5d2d349 {
-    @SerialName("cumulative") CUMULATIVE,
-    @SerialName("per-call") PERU2DCALL,
 }

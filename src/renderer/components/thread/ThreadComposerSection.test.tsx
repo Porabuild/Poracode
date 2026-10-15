@@ -27,6 +27,8 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
+import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import type { SaveClipboardImage } from "../composer/useAttachments";
@@ -412,6 +414,67 @@ describe("ThreadComposerSection", () => {
     const row = screen.getByRole("button", { name: "Review changes" }).closest(".flex-wrap");
     expect(row).toHaveClass("justify-end", "items-center", "*:pointer-events-auto");
     expect(wrapper).toContainElement(row as HTMLElement);
+  });
+
+  it("keeps the goal placement control and a compact recovery bubble after hiding composer tasks", () => {
+    useThreadBackgroundTasksDockStore.setState({ dismissedTasksKeyByThread: {} });
+    useAppStore.setState({
+      runtimeBackgroundTasksByThread: {
+        [guiThread.id]: [{ taskId: "server", kind: "command", description: "pnpm dev" }],
+      },
+    });
+    render(
+      <ThreadComposerSection
+        threadId={guiThread.id}
+        fallbackThread={guiThread}
+        agentStatus={codexGuiStatus}
+        projectLocation={{ kind: "windows", path: "C:\\repo" }}
+        paneCount={1}
+        terminalPaneRef={{ current: null }}
+        todoDockCollapsed={false}
+        docksPlacement="composer"
+        todoDockState={null}
+        goalDockState={{
+          sourceItemId: "goal-1",
+          itemState: "completed",
+          objective: "Ship the dock",
+          status: "active",
+          action: "set",
+        }}
+        errorDockStates={[]}
+        onGoalDockDismiss={() => undefined}
+        onDismissError={() => undefined}
+        onTodoDockCollapsedChange={() => undefined}
+      />,
+    );
+    const placementToggle = "Show docks in the right panel";
+    expect(document.querySelector('[data-dock-bubble="backgroundTasks"]')).toBeNull();
+    expect(
+      within(screen.getByLabelText("Background tasks")).getByRole("button", {
+        name: placementToggle,
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close background tasks" }));
+
+    expect(screen.queryByText("pnpm dev")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByLabelText("Thread goal dock")).getByRole("button", {
+        name: placementToggle,
+      }),
+    ).toBeInTheDocument();
+    const bubbles = document.querySelectorAll("[data-dock-bubble]");
+    expect([...bubbles].map((bubble) => bubble.getAttribute("data-dock-bubble"))).toEqual([
+      "backgroundTasks",
+    ]);
+    expect(bubbles[0]).toHaveTextContent("1");
+    expect(bubbles[0]).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(bubbles[0]!);
+
+    expect(screen.getByText("pnpm dev")).toBeInTheDocument();
+    expect(document.querySelector('[data-dock-bubble="backgroundTasks"]')).toBeNull();
+    expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
   });
 
   function composerElement(opts?: {

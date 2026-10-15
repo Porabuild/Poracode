@@ -1508,6 +1508,10 @@ msgstr "ブラウザ設定でこのサイトのカメラアクセスを許可し
 msgid "Allow eval"
 msgstr "評価を許可する"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+msgstr "ペアリング済みのデバイスがLANおよびTailscaleのIPアドレスで接続できるようにします。TLSが設定されていない場合、接続にはHTTPが使用されます。信頼できるネットワークでのみ有効にしてください。"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
 msgstr "競合する管理対象スキルの置き換えを許可"
@@ -2116,7 +2120,7 @@ msgstr "バックグラウンドプロセスが実行されていません"
 msgid "Background process restarted"
 msgstr "バックグラウンドプロセスが再起動されました"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "バックグラウンドタスク"
 
@@ -3123,7 +3127,6 @@ msgstr "クローン作成中…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -3883,6 +3886,7 @@ msgstr "リモートサーバーに接続"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "接続済み"
 
@@ -5397,6 +5401,7 @@ msgstr "切断"
 #~ msgstr "サーバーを切断"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
 msgstr "切断済み"
 
@@ -7275,6 +7280,10 @@ msgstr "サイドバーを隠す"
 msgid "Hide skills from {0}"
 msgstr "{0} のスキルを非表示"
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Hide tasks; they keep running"
+msgstr "タスクを非表示にする（実行は継続）"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -8138,6 +8147,10 @@ msgstr "別のプロセスが認証情報ファイルを使用しているため
 msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
 msgstr "Kimi Code は応答を返さずにターンを終了しました。スレッドを再起動して、もう一度お試しください。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "LAN"
+msgstr "LAN"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8161,9 +8174,22 @@ msgstr "Laptop"
 msgid "Laptop L"
 msgstr "Laptop L"
 
+#. placeholder {0}: formatSessionTime(session.lastConnectedAt)
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: {0}"
+msgstr "最終接続: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: unknown"
+msgstr "最終接続: 不明"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
 msgstr "前回の評価:"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Last progress {elapsed} ago"
+msgstr "最後の進捗報告は{elapsed}前"
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -9539,6 +9565,10 @@ msgstr "修復が必要"
 msgid "Needs reply"
 msgstr "返信が必要です"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Network access"
+msgstr "ネットワークアクセス"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "中立"
@@ -10142,6 +10172,10 @@ msgstr "Poracode のペアリング QR コードが見つかりません。"
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
 msgstr "専用の分離ログインを持つプロファイルはまだありません。先にプロファイルを「専用の分離ログイン」に設定してそこでサインインすると、ここに表示されます。"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No progress reported"
+msgstr "進捗の報告はありません"
+
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
 #~ msgstr "プロジェクトがありません"
@@ -10549,6 +10583,10 @@ msgstr "焦点が合っていないときのみ"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "workflow_dispatch トリガーがあるワークフローのみ手動で開始できます。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Only works on this computer."
+msgstr "このコンピューターでのみ使用できます。"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
@@ -13530,6 +13568,14 @@ msgstr "実行中"
 msgid "Running"
 msgstr "実行中"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadBackgroundTaskIndicator.tsx
+msgid "Running background tasks: {count}"
+msgstr "実行中のバックグラウンドタスク: {count}"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Running for {elapsed}"
+msgstr "実行時間：{elapsed}"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Running now"
 msgstr "実行中"
@@ -15201,6 +15247,10 @@ msgstr "停止"
 msgid "Stop {0}"
 msgstr "{0}を停止"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stop {label}"
+msgstr "{label} を停止"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "転送を停止"
@@ -15218,6 +15268,7 @@ msgid "Stop syncing"
 msgstr "同期を停止"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stop task"
 msgstr "タスクの停止"
 
@@ -15237,6 +15288,14 @@ msgstr "音声入力を停止する"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "停止条件"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping {label}…"
+msgstr "{label} を停止中…"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping task…"
+msgstr "タスクを停止中…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -15544,6 +15603,10 @@ msgstr "システム通知"
 #~ msgstr "タブ（{0}）"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale"
+msgstr "Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
 msgstr "Tailscale HTTPS"
 
@@ -15758,6 +15821,10 @@ msgstr "エージェント"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "The agent"
 msgstr "エージェント"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The agent session reloads to apply the new context size; the conversation is kept."
+msgstr "新しいコンテキストサイズを適用するためにエージェントのセッションが再読み込みされます。会話は保持されます。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -15988,8 +16055,8 @@ msgid "The MCP server is invalid."
 msgstr "MCPサーバーが無効です。"
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
-msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
-msgstr "新しいコンテキストサイズは次のメッセージから適用されます。そのメッセージを送信する前にエージェントのセッションが再読み込みされます。会話は保持されます。"
+#~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+#~ msgstr "新しいコンテキストサイズは次のメッセージから適用されます。そのメッセージを送信する前にエージェントのセッションが再読み込みされます。会話は保持されます。"
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
@@ -16177,6 +16244,10 @@ msgstr "保存済みの設定は無効です。保存済みの値は保持され
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "対象プロバイダー"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task has not confirmed that it stopped. Try again."
+msgstr "タスクの停止がまだ確認されていません。もう一度お試しください。"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
@@ -17354,6 +17425,10 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "ネイティブMCP設定を更新できませんでした。再試行する前に設定を再読み込みして確認してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update network access."
+msgstr "ネットワークアクセスを更新できませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "リモートアクセスを更新できません。"
 
@@ -17932,6 +18007,10 @@ msgstr "このアカウントを使用状況の追跡に使用するか、続行
 msgid "Use this folder"
 msgstr "このフォルダーを使用"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Use this link on devices connected to the same network."
+msgstr "同じネットワークに接続されたデバイスでこのリンクを使用してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
@@ -18197,6 +18276,11 @@ msgstr "エージェントが停止するのを待っています"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Waiting for approval"
 msgstr "承認待ち"
+
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Waiting for background tasks"
+msgstr "バックグラウンドタスクを待機中"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"

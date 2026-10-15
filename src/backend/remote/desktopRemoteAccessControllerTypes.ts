@@ -133,6 +133,7 @@ export interface DesktopRemoteAccessController {
     readonly browserExtension?: boolean;
   }): Promise<ManagedLoopbackBootstrap | null>;
   getTailscaleStatus(): Promise<RemoteAccessTailscaleStatus>;
+  setLanEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   setTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   startTailscale(): Promise<StartTailscaleResult>;
   setAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;

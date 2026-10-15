@@ -72,7 +72,9 @@ import { isRemoteProcedure } from "../remote/procedures";
 // and decrypted passwords are intentionally absent from the remote allowlist.
 // Guarded PR merges add a host-only name. Older supervisors reject that name;
 // the remote allowlist and existing merge payload stay unchanged, so hop 18 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:4b6539dbde25d8d8187cf9a96a925d8837034e5de5c34f98a566ef32098afa6c`;
+// Network access adds a main-local name. Existing names and payloads stay valid;
+// older peers reject the new name before dispatch, so the hop version stays 18.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:31e847936185682744e6ddea0d65a3fde3ea3406ee9c05732106ad97fb564cec`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps guarded merges internal and requires their expected head", () => {

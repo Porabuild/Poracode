@@ -1509,6 +1509,10 @@ msgstr "브라우저 설정에서 이 사이트의 카메라 접근을 허용하
 msgid "Allow eval"
 msgstr "평가 허용"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+msgstr "페어링된 기기가 LAN 및 Tailscale IP 주소로 연결하도록 허용합니다. TLS가 구성되지 않은 경우 HTTP를 사용합니다. 신뢰할 수 있는 네트워크에서만 활성화하세요."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
 msgstr "충돌하는 관리 스킬 교체 허용"
@@ -2117,7 +2121,7 @@ msgstr "백그라운드 프로세스가 실행되고 있지 않습니다."
 msgid "Background process restarted"
 msgstr "백그라운드 프로세스가 다시 시작되었습니다."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "백그라운드 작업"
 
@@ -3124,7 +3128,6 @@ msgstr "복제 중…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -3884,6 +3887,7 @@ msgstr "원격 서버에 연결"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "연결됨"
 
@@ -5398,6 +5402,7 @@ msgstr "연결 해제"
 #~ msgstr "서버 연결 해제"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
 msgstr "연결 끊김"
 
@@ -7276,6 +7281,10 @@ msgstr "사이드바 숨기기"
 msgid "Hide skills from {0}"
 msgstr "{0}의 스킬 숨기기"
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Hide tasks; they keep running"
+msgstr "작업 숨기기; 실행은 계속됩니다"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -8139,6 +8148,10 @@ msgstr "다른 프로세스에서 자격 증명 파일을 사용 중이어서 Ki
 msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
 msgstr "Kimi Code가 응답을 반환하지 않고 작업을 종료했습니다. 스레드를 다시 시작한 후 다시 시도하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "LAN"
+msgstr "LAN"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8162,9 +8175,22 @@ msgstr "Laptop"
 msgid "Laptop L"
 msgstr "Laptop L"
 
+#. placeholder {0}: formatSessionTime(session.lastConnectedAt)
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: {0}"
+msgstr "마지막 연결: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: unknown"
+msgstr "마지막 연결: 알 수 없음"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
 msgstr "마지막 평가:"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Last progress {elapsed} ago"
+msgstr "마지막 진행 보고: {elapsed} 전"
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -9541,6 +9567,10 @@ msgstr "복구 필요"
 msgid "Needs reply"
 msgstr "답장이 필요함"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Network access"
+msgstr "네트워크 액세스"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "중립"
@@ -10144,6 +10174,10 @@ msgstr "Poracode 페어링 QR 코드를 찾을 수 없습니다."
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
 msgstr "아직 자체 격리 로그인을 가진 프로필이 없습니다. 먼저 프로필을 \"자체 격리 로그인\"으로 설정하고 거기서 로그인하면 여기에 나타납니다."
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No progress reported"
+msgstr "보고된 진행 상황 없음"
+
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
 #~ msgstr "프로젝트 없음"
@@ -10551,6 +10585,10 @@ msgstr "포커스가 없을 때만"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "workflow_dispatch 트리거가 있는 워크플로만 수동으로 시작할 수 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Only works on this computer."
+msgstr "이 컴퓨터에서만 작동합니다."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
@@ -13532,6 +13570,14 @@ msgstr "실행 중"
 msgid "Running"
 msgstr "실행 중"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadBackgroundTaskIndicator.tsx
+msgid "Running background tasks: {count}"
+msgstr "실행 중인 백그라운드 작업: {count}"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Running for {elapsed}"
+msgstr "{elapsed} 동안 실행 중"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Running now"
 msgstr "지금 실행 중"
@@ -15203,6 +15249,10 @@ msgstr "중지"
 msgid "Stop {0}"
 msgstr "{0} 중지"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stop {label}"
+msgstr "{label} 중지"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "전달 중지"
@@ -15220,6 +15270,7 @@ msgid "Stop syncing"
 msgstr "동기화 중지"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stop task"
 msgstr "작업 중지"
 
@@ -15239,6 +15290,14 @@ msgstr "음성 입력 중지"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "중지 조건"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping {label}…"
+msgstr "{label} 중지 중…"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping task…"
+msgstr "작업 중지 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -15546,6 +15605,10 @@ msgstr "시스템 알림"
 #~ msgstr "탭({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale"
+msgstr "Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
 msgstr "Tailscale HTTPS"
 
@@ -15760,6 +15823,10 @@ msgstr "에이전트"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "The agent"
 msgstr "에이전트"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The agent session reloads to apply the new context size; the conversation is kept."
+msgstr "새 컨텍스트 크기를 적용하기 위해 에이전트 세션이 다시 로드됩니다. 대화는 유지됩니다."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -15990,8 +16057,8 @@ msgid "The MCP server is invalid."
 msgstr "MCP 서버가 올바르지 않습니다."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
-msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
-msgstr "새 컨텍스트 크기는 다음 메시지부터 적용됩니다. 해당 메시지를 보내기 전에 에이전트 세션을 다시 불러오며, 대화 내용은 유지됩니다."
+#~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+#~ msgstr "새 컨텍스트 크기는 다음 메시지부터 적용됩니다. 해당 메시지를 보내기 전에 에이전트 세션을 다시 불러오며, 대화 내용은 유지됩니다."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
@@ -16179,6 +16246,10 @@ msgstr "저장된 구성이 잘못되었습니다. 저장된 값은 유지되며
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "대상 공급자"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task has not confirmed that it stopped. Try again."
+msgstr "작업이 중지되었는지 아직 확인되지 않았습니다. 다시 시도하세요."
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
@@ -17356,6 +17427,10 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "네이티브 MCP 구성을 업데이트할 수 없습니다. 새로 고침하고 구성을 검토한 후 다시 시도하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update network access."
+msgstr "네트워크 액세스를 업데이트할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "원격 액세스를 업데이트할 수 없습니다."
 
@@ -17934,6 +18009,10 @@ msgstr "사용 추적을 위해 이 계정을 사용하거나 계속하기 전�
 msgid "Use this folder"
 msgstr "이 폴더 사용"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Use this link on devices connected to the same network."
+msgstr "같은 네트워크에 연결된 기기에서 이 링크를 사용하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
@@ -18199,6 +18278,11 @@ msgstr "에이전트가 중지되기를 기다리는 중"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Waiting for approval"
 msgstr "승인 대기 중"
+
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Waiting for background tasks"
+msgstr "백그라운드 작업 대기 중"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"

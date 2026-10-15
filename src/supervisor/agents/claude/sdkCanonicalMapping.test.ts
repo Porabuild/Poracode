@@ -19,6 +19,7 @@ import {
   parseClaudeQuestions,
   startClaudeTurn,
 } from "./sdkCanonicalMapping";
+import { hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
 
 function streamEvent(event: Record<string, unknown>): SDKMessage {
   return { type: "stream_event", session_id: "claude-session", event } as unknown as SDKMessage;
@@ -705,6 +706,47 @@ describe("sdkCanonicalMapping — prompt content", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("reclassifies a Monitor listed before its launch once, without resending the same roster", () => {
+    const state = createClaudeMapperState("thread-1");
+    const roster = {
+      type: "system",
+      subtype: "background_tasks_changed",
+      session_id: "claude-session",
+      tasks: [{ task_id: "watch", task_type: "local_bash", description: "tail log" }],
+    } as unknown as SDKMessage;
+    const reported = (events: RuntimeEvent[]) =>
+      events.filter((event) => event.type === "background_tasks.changed");
+    expect(reported(mapClaudeSdkMessage(roster, state))).toEqual([
+      expect.objectContaining({ tasks: [expect.objectContaining({ kind: "command" })] }),
+    ]);
+    expect(hasAwaitedBackgroundWork(state)).toBe(false);
+    state.toolItemsById.set("tool-monitor", {
+      itemId: "monitor",
+      itemType: "tool_call",
+      toolName: "Monitor",
+      input: {},
+      partialInputJson: "",
+    });
+    const started = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_started",
+        session_id: "claude-session",
+        task_id: "watch",
+        tool_use_id: "tool-monitor",
+        description: "tail log",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(reported(started)).toEqual([
+      expect.objectContaining({
+        tasks: [expect.objectContaining({ taskId: "watch", kind: "other" })],
+      }),
+    ]);
+    expect(hasAwaitedBackgroundWork(state)).toBe(true);
+    expect(reported(mapClaudeSdkMessage(roster, state))).toEqual([]);
   });
 
   it("replaces the live background task set wholesale and drops malformed entries", () => {

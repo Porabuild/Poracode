@@ -1509,6 +1509,10 @@ msgstr "Zezwól tej stronie na dostęp do kamery w ustawieniach przeglądarki i 
 msgid "Allow eval"
 msgstr "Zezwól na ewaluację"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+msgstr "Zezwalaj sparowanym urządzeniom na łączenie się przez adresy IP sieci LAN i Tailscale. Połączenia używają HTTP, jeśli nie skonfigurowano TLS. Włączaj tylko w zaufanych sieciach."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
 msgstr "Zezwalaj na zastępowanie konfliktowych zarządzanych umiejętności"
@@ -2117,7 +2121,7 @@ msgstr "Proces w tle nie jest uruchomiony"
 msgid "Background process restarted"
 msgstr "Proces w tle został wznowiony"
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "Zadanie w tle"
 
@@ -3124,7 +3128,6 @@ msgstr "Klonowanie…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -3884,6 +3887,7 @@ msgstr "Połącz z serwerem zdalnym"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "Połączono"
 
@@ -5398,6 +5402,7 @@ msgstr "Rozłącz"
 #~ msgstr "Rozłącz serwer"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
 msgstr "Rozłączono"
 
@@ -7276,6 +7281,10 @@ msgstr "Ukryj pasek boczny"
 msgid "Hide skills from {0}"
 msgstr "Ukryj umiejętności z {0}"
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Hide tasks; they keep running"
+msgstr "Ukryj zadania; nadal będą działać"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -8139,6 +8148,10 @@ msgstr "Kimi Code nie mógł zaktualizować danych logowania, ponieważ inny pro
 msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
 msgstr "Kimi Code zakończył turę bez zwrócenia odpowiedzi. Uruchom wątek ponownie i spróbuj jeszcze raz."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "LAN"
+msgstr "LAN"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8162,9 +8175,22 @@ msgstr "Laptop"
 msgid "Laptop L"
 msgstr "Laptop L"
 
+#. placeholder {0}: formatSessionTime(session.lastConnectedAt)
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: {0}"
+msgstr "Ostatnie połączenie: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: unknown"
+msgstr "Ostatnie połączenie: nieznane"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
 msgstr "Ostatnia ocena:"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Last progress {elapsed} ago"
+msgstr "Ostatni postęp {elapsed} temu"
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -9541,6 +9567,10 @@ msgstr "Wymaga naprawy"
 msgid "Needs reply"
 msgstr "Potrzebuje odpowiedzi"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Network access"
+msgstr "Dostęp do sieci"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Neutralny"
@@ -10144,6 +10174,10 @@ msgstr "Nie znaleziono kodu QR parowania Poracode."
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
 msgstr "Nie ma jeszcze profilu z własnym izolowanym loginem. Ustaw profilowi „Własny izolowany login” i zaloguj się tam najpierw; wtedy pojawi się tutaj."
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No progress reported"
+msgstr "Brak informacji o postępie"
+
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
 #~ msgstr "Brak projektów"
@@ -10551,6 +10585,10 @@ msgstr "Tylko gdy nieaktywne"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Tylko przepływy pracy z wyzwalaczem workflow_dispatch można uruchamiać ręcznie."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Only works on this computer."
+msgstr "Działa tylko na tym komputerze."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
@@ -13532,6 +13570,14 @@ msgstr "uruchomiony"
 msgid "Running"
 msgstr "W trakcie"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadBackgroundTaskIndicator.tsx
+msgid "Running background tasks: {count}"
+msgstr "Uruchomione zadania w tle: {count}"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Running for {elapsed}"
+msgstr "Działa od {elapsed}"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Running now"
 msgstr "Trwa uruchamianie"
@@ -15203,6 +15249,10 @@ msgstr "Zatrzymaj"
 msgid "Stop {0}"
 msgstr "Zatrzymaj {0}"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stop {label}"
+msgstr "Zatrzymaj {label}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "Zatrzymaj przekierowywanie"
@@ -15220,6 +15270,7 @@ msgid "Stop syncing"
 msgstr "Zatrzymaj synchronizację"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stop task"
 msgstr "Zatrzymaj zadanie"
 
@@ -15239,6 +15290,14 @@ msgstr "Zatrzymaj wprowadzanie głosowe"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "Zatrzymaj, gdy"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping {label}…"
+msgstr "Zatrzymywanie: {label}…"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping task…"
+msgstr "Zatrzymywanie zadania…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -15546,6 +15605,10 @@ msgstr "Powiadomienia systemowe"
 #~ msgstr "Karty ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale"
+msgstr "Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
 msgstr "Tailscale HTTPS"
 
@@ -15760,6 +15823,10 @@ msgstr "agent"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "The agent"
 msgstr "Agent"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The agent session reloads to apply the new context size; the conversation is kept."
+msgstr "Sesja agenta zostanie ponownie załadowana, aby zastosować nowy rozmiar kontekstu; rozmowa zostanie zachowana."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -15990,8 +16057,8 @@ msgid "The MCP server is invalid."
 msgstr "Serwer MCP jest nieprawidłowy."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
-msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
-msgstr "Nowy rozmiar kontekstu obowiązuje od następnej wiadomości. Sesja agenta zostanie ponownie załadowana przed jej wysłaniem; rozmowa zostanie zachowana."
+#~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+#~ msgstr "Nowy rozmiar kontekstu obowiązuje od następnej wiadomości. Sesja agenta zostanie ponownie załadowana przed jej wysłaniem; rozmowa zostanie zachowana."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
@@ -16179,6 +16246,10 @@ msgstr "Zapisana konfiguracja jest nieprawidłowa. Zapisane wartości są zachow
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "docelowego dostawcy"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task has not confirmed that it stopped. Try again."
+msgstr "Zadanie nie potwierdziło zatrzymania. Spróbuj ponownie."
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
@@ -17356,6 +17427,10 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Nie można zaktualizować natywnej konfiguracji MCP. Odśwież i sprawdź konfigurację przed ponowną próbą."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update network access."
+msgstr "Nie udało się zaktualizować dostępu do sieci."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Nie można zaktualizować dostępu zdalnego."
 
@@ -17934,6 +18009,10 @@ msgstr "Użyj tego konta do śledzenia użytkowania lub zmień użytkowników w 
 msgid "Use this folder"
 msgstr "Użyj tego folderu"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Use this link on devices connected to the same network."
+msgstr "Użyj tego linku na urządzeniach podłączonych do tej samej sieci."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
@@ -18199,6 +18278,11 @@ msgstr "czekanie, aż agent się zatrzyma"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Waiting for approval"
 msgstr "Oczekiwanie na zatwierdzenie"
+
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Waiting for background tasks"
+msgstr "Oczekiwanie na zadania w tle"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"

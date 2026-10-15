@@ -5,9 +5,12 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 
-const { useThreadHasBackgroundActivityMock } = vi.hoisted(() => ({
-  useThreadHasBackgroundActivityMock: vi.fn<(threadId: string) => boolean>(),
-}));
+const { useThreadHasBackgroundActivityMock, useThreadIsWaitingForBackgroundMock } = vi.hoisted(
+  () => ({
+    useThreadHasBackgroundActivityMock: vi.fn<(threadId: string) => boolean>(),
+    useThreadIsWaitingForBackgroundMock: vi.fn<(threadId: string) => boolean>(),
+  }),
+);
 
 vi.mock("@heroui/react", () => ({
   Tooltip: Object.assign((props: { children: ReactNode }) => <>{props.children}</>, {
@@ -25,6 +28,8 @@ vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
 vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useThreadHasBackgroundActivity: (threadId: string) =>
     useThreadHasBackgroundActivityMock(threadId),
+  useThreadIsWaitingForBackground: (threadId: string) =>
+    useThreadIsWaitingForBackgroundMock(threadId),
 }));
 
 vi.mock("@/renderer/state/useThread", () => ({
@@ -54,6 +59,26 @@ describe("ThreadHeaderStatusButton", () => {
     useAppStore.setState({ connectingThreadIds: {} });
     useThreadHasBackgroundActivityMock.mockReset();
     useThreadHasBackgroundActivityMock.mockReturnValue(true);
+    useThreadIsWaitingForBackgroundMock.mockReturnValue(false);
+  });
+
+  it("shows waiting without a thinking animation after the foreground response ends", () => {
+    useThreadIsWaitingForBackgroundMock.mockReturnValue(true);
+    const thread = makeThread("idle");
+    const { getByRole, getByTestId } = render(
+      <ThreadHeaderStatusButton
+        threadId={thread.id}
+        fallbackThread={thread}
+        fallbackAgentKind="claude"
+        agentLabel="Claude"
+      />,
+    );
+    expect(
+      getByRole("button", {
+        name: "Claude: Waiting for background tasks. Hover for status details.",
+      }),
+    ).toBeInTheDocument();
+    expect(getByTestId("provider-status")).toHaveAttribute("data-tone", "active");
   });
 
   it.each(["idle", "finished"] as const)(

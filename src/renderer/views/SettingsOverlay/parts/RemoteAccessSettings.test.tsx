@@ -12,12 +12,15 @@ const { bridgeMock, pairingChangedState, sharedSettingsState, toDataURLMock } = 
     onRemoteAccessPairingChanged:
       vi.fn<(listener: (info: RemoteAccessPairingInfo) => void) => () => void>(),
     getRemoteAccessTailscaleStatus: vi.fn<() => Promise<RemoteAccessTailscaleStatus>>(),
+    setRemoteAccessLanEnabled:
+      vi.fn<(payload: { enabled: boolean }) => Promise<RemoteAccessPairingInfo>>(),
     openExternal: vi.fn<(url: string) => Promise<void>>(),
   },
   pairingChangedState: {
     listener: null as ((info: RemoteAccessPairingInfo) => void) | null,
   },
   sharedSettingsState: {
+    remoteAccessLanEnabled: false,
     remoteAccessTailscaleHttps: true,
     remoteAccessAdvertisedUrl: "",
     remotePushEnabled: true,
@@ -50,11 +53,14 @@ function expiryFromNow(offsetMs: number): string {
 function readyInfo(
   token: string,
   pairingExpiresAt: string = expiryFromNow(10 * 60_000),
-): RemoteAccessPairingInfo {
+): Extract<RemoteAccessPairingInfo, { status: "ready" }> {
   return {
     status: "ready",
     httpBaseUrl: "https://desktop.tailnet.ts.net/",
     localHttpBaseUrl: "http://192.168.1.20:49152",
+    loopbackHttpBaseUrl: "http://127.0.0.1:49152",
+    lanHttpBaseUrl: "http://192.168.1.20:49152",
+    tailnetHttpBaseUrl: "http://100.64.1.20:49152",
     tailscaleHttpBaseUrl: "https://desktop.tailnet.ts.net",
     wsBaseUrl: "wss://desktop.tailnet.ts.net/",
     pairingUrl: `https://poracode.com/pair?host=https%3A%2F%2Fdesktop.tailnet.ts.net%2F#token=${token}`,
@@ -66,6 +72,8 @@ function readyInfo(
 describe("RemoteAccessSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sharedSettingsState.remoteAccessLanEnabled = false;
+    bridgeMock.setRemoteAccessLanEnabled.mockResolvedValue(readyInfo("lc_pair_lan"));
     bridgeMock.getRemoteAccessPairing.mockResolvedValue(readyInfo("lc_pair_test"));
     bridgeMock.refreshRemoteAccessPairing.mockImplementation(() =>
       bridgeMock.getRemoteAccessPairing(),
@@ -96,7 +104,7 @@ describe("RemoteAccessSettings", () => {
     expect(screen.queryByText("Prevent sleep")).not.toBeInTheDocument();
   });
 
-  it("switches the displayed endpoint and QR code from Tailscale to local", async () => {
+  it("switches the displayed endpoint and QR code from Tailscale to LAN", async () => {
     render(<RemoteAccessSettings />);
 
     expect(await screen.findByText("https://desktop.tailnet.ts.net")).toBeInTheDocument();
@@ -107,7 +115,7 @@ describe("RemoteAccessSettings", () => {
       );
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "Local" }));
+    fireEvent.click(screen.getByRole("radio", { name: "LAN" }));
 
     expect(await screen.findByText("http://192.168.1.20:49152")).toBeInTheDocument();
     await waitFor(() => {
@@ -116,6 +124,90 @@ describe("RemoteAccessSettings", () => {
         expect.any(Object),
       );
     });
+  });
+
+  it("keeps the local link on loopback and opens that selected endpoint", async () => {
+    render(<RemoteAccessSettings />);
+    fireEvent.click(await screen.findByRole("radio", { name: "Local" }));
+    expect(await screen.findByText("http://127.0.0.1:49152")).toBeInTheDocument();
+    expect(screen.getByText("Only works on this computer.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(bridgeMock.openExternal).toHaveBeenCalledWith(
+      "http://127.0.0.1:49152/#token=lc_pair_test",
+    );
+  });
+
+  it("offers the Tailscale IP when HTTPS serve is unavailable", async () => {
+    const info = readyInfo("lc_pair_tailnet");
+    Reflect.deleteProperty(info, "tailscaleHttpBaseUrl");
+    info.httpBaseUrl = `${info.localHttpBaseUrl}/`;
+    bridgeMock.getRemoteAccessPairing.mockResolvedValue(info);
+    render(<RemoteAccessSettings />);
+    expect(await screen.findByText("http://100.64.1.20:49152")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Tailscale" })).toBeChecked();
+  });
+
+  it("disables unavailable network links and enables LAN through its own switch", async () => {
+    const info = readyInfo("lc_pair_local");
+    Reflect.deleteProperty(info, "lanHttpBaseUrl");
+    Reflect.deleteProperty(info, "tailnetHttpBaseUrl");
+    Reflect.deleteProperty(info, "tailscaleHttpBaseUrl");
+    info.httpBaseUrl = "http://127.0.0.1:49152/";
+    info.localHttpBaseUrl = "http://127.0.0.1:49152";
+    bridgeMock.getRemoteAccessPairing.mockResolvedValue(info);
+    render(<RemoteAccessSettings />);
+    expect(await screen.findByRole("radio", { name: "LAN" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Tailscale" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("switch", { name: "Network access" }));
+    await waitFor(() => {
+      expect(bridgeMock.setRemoteAccessLanEnabled).toHaveBeenCalledWith({ enabled: true });
+    });
+    expect(await screen.findByText("lc_pair_lan")).toBeInTheDocument();
+  });
+
+  it("shows device presence and last connection time, and updates on disconnect", async () => {
+    const info = readyInfo("lc_pair_devices");
+    const lastConnectedAt = "2026-10-15T08:30:00.000Z";
+    info.sessions = [
+      {
+        id: "mac",
+        scopes: ["session:read"],
+        client: { label: "MacBook", deviceType: "desktop", os: "macOS" },
+        issuedAt: lastConnectedAt,
+        expiresAt: "2026-10-16T08:30:00.000Z",
+        connected: true,
+        lastConnectedAt,
+      },
+    ];
+    bridgeMock.getRemoteAccessPairing.mockResolvedValue(info);
+    render(<RemoteAccessSettings />);
+    fireEvent.click(await screen.findByRole("button", { name: /Paired devices/ }));
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(screen.getByText(/^Last connected:/)).not.toHaveTextContent("unknown");
+    act(() => {
+      pairingChangedState.listener?.({
+        ...info,
+        sessions: info.sessions.map((session) => ({ ...session, connected: false })),
+      });
+    });
+    expect(await screen.findByText("Disconnected")).toBeInTheDocument();
+    expect(screen.queryByText("Connected")).not.toBeInTheDocument();
+  });
+
+  it("does not invent a connection time for legacy paired devices", async () => {
+    const info = readyInfo("lc_pair_legacy_device");
+    info.sessions = [
+      {
+        id: "legacy",
+        scopes: ["session:read"],
+        issuedAt: "2026-10-15T08:30:00.000Z",
+        expiresAt: "2026-10-16T08:30:00.000Z",
+      },
+    ];
+    bridgeMock.getRemoteAccessPairing.mockResolvedValue(info);
+    render(<RemoteAccessSettings />);
+    fireEvent.click(await screen.findByRole("button", { name: /Paired devices/ }));
+    expect(await screen.findByText("Last connected: unknown")).toBeInTheDocument();
   });
 
   it("opens the canonical desktop client in a browser", async () => {

@@ -264,6 +264,7 @@ export function createLocalIpcHandlers(
     refreshRemoteAccessPairing: (payload) =>
       callService("refreshRemoteAccessPairing", payload?.preset ? { preset: payload.preset } : {}),
     setRemoteAccessEnabled: (payload) => callService("setRemoteAccessEnabled", payload),
+    setRemoteAccessLanEnabled: (payload) => callService("setRemoteAccessLanEnabled", payload),
     sshDiscoverHosts: () => options.sshConnectionManager.discoverHosts(),
     sshConnect: (payload) => options.sshConnectionManager.connect(payload),
     sshDisconnect: ({ connectionId }) => options.sshConnectionManager.disconnect(connectionId),

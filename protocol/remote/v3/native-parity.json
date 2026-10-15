@@ -9508,7 +9508,7 @@
             "note": "No dedicated native screen and no device journey: the operation is reached through the shared RuntimeEventSchema.kt, RuntimeThreadState.kt plumbing cited here."
           }
         },
-        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Both natives decode the event strictly and reduce it into session-scoped background-task state (replace/drain, not persisted, not rendered); no native client renders a background-tasks surface."
+        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Both natives decode the event strictly and reduce it into session-scoped background-task state, including optional timing, progress and opaque Stop actions (replace/drain, not persisted, not rendered). Native task controls remain planned; this compact dock enhancement is scoped to the existing desktop/web surface."
       },
       {
         "id": "request.opened",

@@ -71,7 +71,12 @@ class RuntimeEventStrictUnionTest {
         // The fixture's background_tasks.changed lands after session.exited, so
         // its single live task survives to the final domain state (exact payload).
         assertEquals(
-            listOf(BackgroundTask("task-fixture-001", "command", "pnpm test")),
+            listOf(BackgroundTask("task-fixture-001", "command", "pnpm test",
+                startedAt = 1770000000000.0, lastProgressAt = 1770000010000.0, progress = "Server ready",
+                stopAction = com.poracode.remote.v3.generated.RemoteBackgroundTaskStopAction(
+                    "background-task.stop.v1", mapOf("taskId" to "task-fixture-001", "token" to "run-fixture-001"),
+                ),
+            )),
             domain.backgroundTasks,
         )
         assertTrue(items.none { it.id == "task-fixture-001" })

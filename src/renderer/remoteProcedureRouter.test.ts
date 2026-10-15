@@ -594,6 +594,7 @@ describe("remote procedure routing registry", () => {
       pickFolder: expect.stringMatching(/^local-shell: /),
       relaunchApp: expect.stringMatching(/^local-shell: /),
       setRemoteAccessEnabled: expect.stringMatching(/^local-shell: /),
+      setRemoteAccessLanEnabled: expect.stringMatching(/^local-shell: /),
       getSharedSettings: expect.stringMatching(/^local-shell: /),
       browserNavigate: expect.stringMatching(/^local-shell: /),
       sshConnect: expect.stringMatching(/^local-shell: /),

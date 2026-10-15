@@ -1,3 +1,4 @@
+import { createServer, type AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_REMOTE_ACCESS_HOST,
@@ -92,6 +93,35 @@ describe("remote access config", () => {
     expect(isAvailable).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["0.0.0.0", "127.0.0.1"],
+    ["::", "127.0.0.1"],
+    ["::", "::1"],
+  ])("skips a wildcard port when %s would shadow another server on %s", async (host, occupied) => {
+    const isAvailable = vi.fn<(port: number, address: string) => Promise<boolean>>(
+      async (port, address) => (port === 52000 ? address !== occupied : true),
+    );
+    await expect(
+      resolveRemoteAccessPort({ host, rangeStart: 52000, rangeEnd: 52001, isAvailable }),
+    ).resolves.toBe(52001);
+    expect(isAvailable).toHaveBeenCalledWith(52000, occupied);
+  });
+
+  it("does not select a wildcard port already serving another loopback host", async () => {
+    const server = createServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address() as AddressInfo;
+    try {
+      await expect(
+        resolveRemoteAccessPort({ host: "0.0.0.0", rangeStart: port, rangeEnd: port }),
+      ).rejects.toMatchObject({ code: "EADDRINUSE" });
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
   it("falls back to automatic selection for an invalid environment port", async () => {
     process.env.PORACODE_REMOTE_ACCESS_PORT = "not-a-port";
 
@@ -136,6 +166,15 @@ describe("remote access config", () => {
 });
 
 describe("remote access bind modes (Gate 6 item 4.1)", () => {
+  it("accepts the desktop LAN opt-in while preserving explicit bind overrides", () => {
+    const input = { defaultMode: "lan" as const, plaintextLanAcknowledged: true };
+    expect(remoteAccessHost(input)).toBe(LAN_BIND_HOST);
+    expect(remoteAccessBindRefusal(LAN_BIND_HOST, input)).toBeNull();
+    expect(remoteAccessBindRefusal(LAN_BIND_HOST)).not.toBeNull();
+    process.env.PORACODE_REMOTE_ACCESS_HOST = "127.0.0.1";
+    expect(remoteAccessHost(input)).toBe("127.0.0.1");
+  });
+
   it("resolves the loopback default when no bind configuration is present", () => {
     const bind = resolveRemoteAccessBind();
     expect(bind).toMatchObject({

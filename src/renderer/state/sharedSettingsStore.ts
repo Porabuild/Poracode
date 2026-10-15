@@ -1313,6 +1313,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,
     remoteAccessEnabled: state.remoteAccessEnabled,
+    remoteAccessLanEnabled: state.remoteAccessLanEnabled,
     remoteAccessTailscaleHttps: state.remoteAccessTailscaleHttps,
     remoteAccessAdvertisedUrl: state.remoteAccessAdvertisedUrl,
     threadRemoveAction: state.threadRemoveAction,

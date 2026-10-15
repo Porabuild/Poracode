@@ -12,7 +12,10 @@ import {
 } from "@/renderer/browser/remoteBridge";
 import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
-import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
+import {
+  useThreadHasBackgroundActivity,
+  useThreadIsWaitingForBackground,
+} from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   hydrateThreadRuntimeItems,
@@ -378,7 +381,9 @@ export function ChatPane(props: ChatPaneProps) {
   // timer (so it keeps ticking "Working for ...") without touching `status` -
   // composer interrupt/steer and notifications stay on the raw status.
   const hasBackgroundActivity = useThreadHasBackgroundActivity(threadId);
-  const showWorkingTimer = isLive || hasBackgroundActivity;
+  const isWaitingForBackground = useThreadIsWaitingForBackground(threadId);
+  const showWorkingTimer =
+    isLive || (hasBackgroundActivity && thread.status !== "error" && thread.status !== "inactive");
   const hasOpenRuntimeRequest = useAppStore(
     (s) => (s.runtimeRequestsByThread[threadId]?.length ?? 0) > 0,
   );
@@ -549,7 +554,11 @@ export function ChatPane(props: ChatPaneProps) {
                 ) : isHydrating && !showWorkingTimer ? (
                   <ChatConnectingFooter />
                 ) : showTailLoader && tailTurn ? (
-                  <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
+                  <ChatTurnElapsedFooter
+                    turn={tailTurn}
+                    isPaused={isTurnPaused}
+                    isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
+                  />
                 ) : null
               }
               onWheelCapture={(event) => {

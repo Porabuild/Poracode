@@ -6,7 +6,13 @@ import type { Duplex } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 import { HttpServerConnections } from "@/shared/httpServerConnections";
 import { toWebSocketUrl } from "@/shared/remote";
-import { remoteAccessBindRefusal } from "./config";
+import {
+  classifyBindHostExposure,
+  detectTailnetIpv4Address,
+  isLoopbackBindHost,
+  isWildcardBindHost,
+  remoteAccessBindRefusal,
+} from "./config";
 import { normalizeHostForUrl } from "./server/security";
 import {
   DEFAULT_LISTEN_RETRY_ATTEMPTS,
@@ -39,6 +45,7 @@ export async function startListening(
   // resolution) so a programmatically supplied host cannot bypass it.
   const bindRefusal = remoteAccessBindRefusal(host.options.host, {
     tlsConfigured: host.tls !== null,
+    ...(host.options.plaintextLanAcknowledged ? { plaintextLanAcknowledged: true } : {}),
   });
   if (bindRefusal) throw new Error(`[poracode] ${bindRefusal}`);
   const maxAttempts = host.options.listenRetryAttempts ?? DEFAULT_LISTEN_RETRY_ATTEMPTS;
@@ -64,7 +71,19 @@ export async function startListening(
 
   const address = host.server.address() as AddressInfo;
   const localHttpBaseUrl = resolveLocalHttpBaseUrl(host, address.port);
+  const loopbackHost = isLoopbackBindHost(host.options.host)
+    ? host.options.host
+    : isWildcardBindHost(host.options.host)
+      ? host.options.host.includes(":")
+        ? "::1"
+        : "127.0.0.1"
+      : null;
   const httpBaseUrl = resolveHttpBaseUrl(host, address.port);
+  const tailnetHost = isWildcardBindHost(host.options.host)
+    ? detectTailnetIpv4Address()
+    : classifyBindHostExposure(host.options.host) === "tailnet"
+      ? host.options.host
+      : null;
   const pairingCredential = host.auth.issuePairingCredential({
     label: "Startup pairing",
   });
@@ -76,6 +95,18 @@ export async function startListening(
   host.info = {
     httpBaseUrl,
     localHttpBaseUrl,
+    ...(loopbackHost
+      ? {
+          loopbackHttpBaseUrl: `${host.tls ? "https" : "http"}://${normalizeHostForUrl(loopbackHost)}:${address.port}`,
+        }
+      : {}),
+    ...(classifyBindHostExposure(host.options.host) === "lan" &&
+    classifyBindHostExposure(new URL(localHttpBaseUrl).hostname) === "lan"
+      ? { lanHttpBaseUrl: localHttpBaseUrl }
+      : {}),
+    ...(tailnetHost
+      ? { tailnetHttpBaseUrl: `${host.tls ? "https" : "http"}://${tailnetHost}:${address.port}` }
+      : {}),
     ...(host.options.tailscaleHttpBaseUrl
       ? { tailscaleHttpBaseUrl: new URL(host.options.tailscaleHttpBaseUrl).origin }
       : {}),
