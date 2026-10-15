@@ -492,6 +492,8 @@ export const sharedSettingsSchema = z.object({
   closeToTray: z.boolean(),
   /** Enable the desktop's remote access server for paired mobile/browser clients. */
   remoteAccessEnabled: z.boolean(),
+  /** Explicit opt-in to LAN listening; older settings remain loopback-only. */
+  remoteAccessLanEnabled: z.boolean(),
   /**
    * Advertise a Tailscale MagicDNS HTTPS URL for remote access. When enabled and
    * the local Tailscale daemon is healthy, the app runs `tailscale serve` to
@@ -829,6 +831,7 @@ export const defaultSharedSettings: SharedSettings = {
   startMinimized: true,
   closeToTray: true,
   remoteAccessEnabled: false,
+  remoteAccessLanEnabled: false,
   remoteAccessTailscaleHttps: false,
   remoteAccessAdvertisedUrl: "",
   threadRemoveAction: "archive",

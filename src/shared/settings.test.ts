@@ -9,6 +9,17 @@ import {
 } from "./settings";
 
 describe("shared settings defaults", () => {
+  it("keeps pre-LAN settings loopback-only without changing remote enablement", () => {
+    const prior = { remoteAccessEnabled: true, remoteAccessTailscaleHttps: true };
+    expect(normalizeSharedSettings(prior)).toMatchObject({
+      ...prior,
+      remoteAccessLanEnabled: false,
+    });
+    expect(normalizeSharedSettings({ ...prior, remoteAccessLanEnabled: true })).toMatchObject({
+      remoteAccessLanEnabled: true,
+    });
+  });
+
   it("defaults absent or malformed font preferences while retaining saved family names", () => {
     expect(normalizeSharedSettings({ agentTerminalFontSize: 16 }).terminalFontFamily).toBe("");
     expect(normalizeSharedSettings({ terminalFontFamily: 123 }).terminalFontFamily).toBe("");

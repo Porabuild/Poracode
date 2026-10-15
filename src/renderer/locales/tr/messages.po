@@ -1509,6 +1509,10 @@ msgstr "Tarayıcı ayarlarında bu site için kamera erişimine izin verip tekra
 msgid "Allow eval"
 msgstr "Değerlendirmeye izin ver"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+msgstr "Eşleştirilmiş cihazların LAN ve Tailscale IP adresleri üzerinden bağlanmasına izin verin. TLS yapılandırılmadıkça bağlantılar HTTP kullanır. Yalnızca güvenilir ağlarda etkinleştirin."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
 msgstr "Çakışan yönetilen becerilerin değiştirilmesine izin ver"
@@ -3879,6 +3883,7 @@ msgstr "Uzak sunucuya bağlan"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "Bağlı"
 
@@ -5392,6 +5397,7 @@ msgstr "Bağlantıyı kes"
 #~ msgstr "Sunucu bağlantısını kes"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
 msgstr "Bağlantı kesildi"
 
@@ -8129,6 +8135,10 @@ msgstr "Başka bir işlem kimlik bilgileri dosyasını kullandığı için Kimi 
 msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
 msgstr "Kimi Code yanıt döndürmeden turu sonlandırdı. İş parçacığını yeniden başlatıp tekrar deneyin."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "LAN"
+msgstr "LAN"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8151,6 +8161,15 @@ msgstr "Dizüstü bilgisayar"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Dizüstü bilgisayar L"
+
+#. placeholder {0}: formatSessionTime(session.lastConnectedAt)
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: {0}"
+msgstr "Son bağlantı: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: unknown"
+msgstr "Son bağlantı: bilinmiyor"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
@@ -9531,6 +9550,10 @@ msgstr "Onarım gerekiyor"
 msgid "Needs reply"
 msgstr "Yanıt gerekiyor"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Network access"
+msgstr "Ağ erişimi"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Nötr"
@@ -10541,6 +10564,10 @@ msgstr "Yalnızca odaklanmadığında"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Yalnızca workflow_dispatch tetikleyicisi olan iş akışları manuel olarak başlatılabilir."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Only works on this computer."
+msgstr "Yalnızca bu bilgisayarda çalışır."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
@@ -15528,6 +15555,10 @@ msgstr "Sistem bildirimleri"
 #~ msgstr "Sekmeler ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale"
+msgstr "Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
 msgstr "Tailscale HTTPS"
 
@@ -17338,6 +17369,10 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Yerel MCP yapılandırması güncellenemedi. Yeniden denemeden önce yapılandırmayı yenileyip inceleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update network access."
+msgstr "Ağ erişimi güncellenemedi."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Uzaktan erişim güncellenemedi."
 
@@ -17915,6 +17950,10 @@ msgstr "Kullanım takibi için bu hesabı kullanın veya devam etmeden önce tar
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "Bu klasörü kullan"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Use this link on devices connected to the same network."
+msgstr "Bu bağlantıyı aynı ağa bağlı cihazlarda kullanın."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

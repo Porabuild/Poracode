@@ -79,6 +79,7 @@ import {
 } from "@/host/db/runtimeItems";
 import { resetRuntimePersistenceForTests } from "@/host/db/runtimePersistenceRuntime";
 import { RemoteAuthStore } from "./auth";
+import * as remoteConfig from "./config";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
 import { PortProxy } from "./portForward/portProxy";
@@ -749,6 +750,97 @@ async function enterChildOrigin(
 }
 
 describe("RemoteAccessServer", () => {
+  it("serves loopback, LAN and Tailscale origins together after network opt-in", async () => {
+    const tailnet = vi
+      .spyOn(remoteConfig, "detectTailnetIpv4Address")
+      .mockReturnValue("100.64.1.20");
+    try {
+      const server = createTestServer({
+        appVersion: "1.0.0",
+        identity: { desktopId: "network-test", label: "Network test" },
+        host: "0.0.0.0",
+        advertisedHost: "192.168.1.20",
+        advertisedBaseUrl: "https://desktop.tailnet.ts.net",
+        tailscaleHttpBaseUrl: "https://desktop.tailnet.ts.net",
+        plaintextLanAcknowledged: true,
+        port: 0,
+        truncateThreadRuntime: () => {},
+        callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      });
+      servers.push(server);
+      const info = await server.start();
+      const port = new URL(info.localHttpBaseUrl).port;
+      expect(info.loopbackHttpBaseUrl).toBe(`http://127.0.0.1:${port}`);
+      expect(info.lanHttpBaseUrl).toBe(`http://192.168.1.20:${port}`);
+      expect(info.tailnetHttpBaseUrl).toBe(`http://100.64.1.20:${port}`);
+      expect(server.mintLoopbackRendererCredential()?.endpoint).toBe(info.loopbackHttpBaseUrl);
+      expect(server.mintLoopbackRendererCredential({ browserExtension: true })?.endpoint).toBe(
+        info.loopbackHttpBaseUrl,
+      );
+      for (const origin of [
+        info.loopbackHttpBaseUrl!,
+        info.lanHttpBaseUrl!,
+        info.tailnetHttpBaseUrl!,
+        "https://desktop.tailnet.ts.net",
+      ]) {
+        const response = await fetch(info.loopbackHttpBaseUrl!, {
+          method: "OPTIONS",
+          headers: { origin },
+        });
+        expect(response.status).toBe(204);
+        expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      }
+      const untrusted = await fetch(info.loopbackHttpBaseUrl!, {
+        method: "OPTIONS",
+        headers: { origin: `http://100.64.99.99:${port}` },
+      });
+      expect(untrusted.status).toBe(403);
+    } finally {
+      tailnet.mockRestore();
+    }
+  });
+
+  it("reports a device connected until its final socket closes and retains its last connection time", async () => {
+    const onPairingChanged = vi.fn<() => void>();
+    const server = createTestServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "presence-test", label: "Presence test" },
+      host: "127.0.0.1",
+      port: 0,
+      onPairingChanged,
+      truncateThreadRuntime: () => {},
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info);
+    expect(server.listAccessSessions()[0]).toMatchObject({ connected: false });
+    expect(server.listAccessSessions()[0]).not.toHaveProperty("lastConnectedAt");
+    const sockets: WebSocket[] = [];
+    for (let index = 0; index < 2; index += 1) {
+      const ticket = await issueWebSocketTicket(info, token);
+      const url = new URL("/ws", info.wsBaseUrl);
+      url.searchParams.set("ticket", ticket);
+      const ws = new WebSocket(url);
+      sockets.push(ws);
+      await readWsMessage(ws);
+    }
+    expect(server.listAccessSessions()[0]?.connected).toBe(true);
+    const lastConnectedAt = server.listAccessSessions()[0]?.lastConnectedAt;
+    expect(lastConnectedAt).toBeTruthy();
+    onPairingChanged.mockClear();
+    for (const [index, socket] of sockets.entries()) {
+      const closed = new Promise<void>((resolve) => socket.once("close", () => resolve()));
+      socket.close();
+      await closed;
+      await vi.waitFor(() => {
+        expect(server.listAccessSessions()[0]?.connected).toBe(index === 0);
+        expect(onPairingChanged).toHaveBeenCalledTimes(index + 1);
+      });
+    }
+    expect(server.listAccessSessions()[0]?.lastConnectedAt).toBe(lastConnectedAt);
+  });
+
   it("checks and installs a downloaded host update for manage-scoped clients", async () => {
     let updateStatus: RemoteHostUpdateStatus | null = null;
     const check = vi.fn<() => Promise<void>>(async () => {

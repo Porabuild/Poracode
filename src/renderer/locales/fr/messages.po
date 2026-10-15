@@ -1509,6 +1509,10 @@ msgstr "Autorisez l'accès à la caméra pour ce site dans les réglages du navi
 msgid "Allow eval"
 msgstr "Autoriser l'évaluation"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+msgstr "Autoriser les appareils associés à se connecter via les adresses IP du réseau local et de Tailscale. Les connexions utilisent HTTP sauf si TLS est configuré. À activer uniquement sur des réseaux de confiance."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
 msgstr "Autoriser le remplacement des compétences gérées en conflit"
@@ -3879,6 +3883,7 @@ msgstr "Se connecter à un serveur distant"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "Connecté"
 
@@ -5392,6 +5397,7 @@ msgstr "Déconnecter"
 #~ msgstr "Déconnecter le serveur"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
 msgstr "Déconnecté"
 
@@ -8129,6 +8135,10 @@ msgstr "Kimi Code n’a pas pu mettre à jour ses identifiants, car un autre pro
 msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
 msgstr "Kimi Code a terminé le tour sans renvoyer de réponse. Redémarrez le fil et réessayez."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "LAN"
+msgstr "LAN"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8151,6 +8161,15 @@ msgstr "Laptop"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Laptop L"
+
+#. placeholder {0}: formatSessionTime(session.lastConnectedAt)
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: {0}"
+msgstr "Dernière connexion : {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: unknown"
+msgstr "Dernière connexion : inconnue"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
@@ -9530,6 +9549,10 @@ msgstr "Réparation nécessaire"
 msgid "Needs reply"
 msgstr "Besoin d'une réponse"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Network access"
+msgstr "Accès réseau"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Neutre"
@@ -10540,6 +10563,10 @@ msgstr "Uniquement lorsque la fenêtre n'est pas active"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Seuls les workflows avec un déclencheur workflow_dispatch peuvent être démarrés manuellement."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Only works on this computer."
+msgstr "Fonctionne uniquement sur cet ordinateur."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
@@ -15527,6 +15554,10 @@ msgstr "Notifications système"
 #~ msgstr "Onglets ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale"
+msgstr "Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
 msgstr "Tailscale HTTPS"
 
@@ -17337,6 +17368,10 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Impossible de mettre à jour la configuration MCP native. Actualisez et vérifiez la configuration avant de réessayer."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update network access."
+msgstr "Impossible de mettre à jour l’accès réseau."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Impossible de mettre à jour l’accès distant."
 
@@ -17914,6 +17949,10 @@ msgstr "Utilisez ce compte pour le suivi de l'utilisation ou modifiez les utilis
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "Utiliser ce dossier"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Use this link on devices connected to the same network."
+msgstr "Utilisez ce lien sur des appareils connectés au même réseau."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

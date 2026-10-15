@@ -1509,6 +1509,10 @@ msgstr "Cho phép trang này truy cập camera trong cài đặt trình duyệt 
 msgid "Allow eval"
 msgstr "Cho phép eval"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
+msgstr "Cho phép thiết bị đã ghép nối kết nối qua địa chỉ IP LAN và Tailscale. Kết nối dùng HTTP trừ khi TLS được cấu hình. Chỉ bật trên mạng đáng tin cậy."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Allow replacing conflicting managed skills"
 msgstr "Cho phép thay thế các skill được quản lý đang xung đột"
@@ -3879,6 +3883,7 @@ msgstr "Kết nối tới máy chủ từ xa"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Connected"
 msgstr "Đã kết nối"
 
@@ -5392,6 +5397,7 @@ msgstr "Ngắt kết nối"
 #~ msgstr "Ngắt kết nối máy chủ"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Disconnected"
 msgstr "Đã ngắt kết nối"
 
@@ -8129,6 +8135,10 @@ msgstr "Kimi Code không thể cập nhật thông tin xác thực vì một ti�
 msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
 msgstr "Kimi Code đã kết thúc lượt mà không trả về phản hồi. Hãy khởi động lại luồng rồi thử lại."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "LAN"
+msgstr "LAN"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
@@ -8151,6 +8161,15 @@ msgstr "Laptop"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop L"
 msgstr "Laptop L"
+
+#. placeholder {0}: formatSessionTime(session.lastConnectedAt)
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: {0}"
+msgstr "Kết nối lần cuối: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Last connected: unknown"
+msgstr "Kết nối lần cuối: không rõ"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
@@ -9531,6 +9550,10 @@ msgstr "Cần sửa chữa"
 msgid "Needs reply"
 msgstr "Cần trả lời"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Network access"
+msgstr "Truy cập mạng"
+
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Trung lập"
@@ -10541,6 +10564,10 @@ msgstr "Chỉ khi không tập trung"
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Only workflows with a workflow_dispatch trigger can be started manually."
 #~ msgstr "Chỉ có thể khởi chạy thủ công các quy trình có trình kích hoạt workflow_dispatch."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Only works on this computer."
+msgstr "Chỉ hoạt động trên máy tính này."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
@@ -15528,6 +15555,10 @@ msgstr "Thông báo hệ thống"
 #~ msgstr "Thẻ ({0})"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale"
+msgstr "Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Tailscale HTTPS"
 msgstr "Tailscale HTTPS"
 
@@ -17338,6 +17369,10 @@ msgid "Unable to update native MCP configuration. Refresh and review the configu
 msgstr "Không thể cập nhật cấu hình MCP gốc. Hãy làm mới và xem lại cấu hình trước khi thử lại."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update network access."
+msgstr "Không thể cập nhật quyền truy cập mạng."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Không thể cập nhật quyền truy cập từ xa."
 
@@ -17915,6 +17950,10 @@ msgstr "Sử dụng tài khoản này để theo dõi việc sử dụng hoặc 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Use this folder"
 msgstr "Sử dụng thư mục này"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Use this link on devices connected to the same network."
+msgstr "Dùng liên kết này trên các thiết bị kết nối cùng mạng."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

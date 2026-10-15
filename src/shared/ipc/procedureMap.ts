@@ -104,6 +104,7 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * declare a version (legacy attach handshakes) count as version 0 and are
  * rejected typed by {@link assertIpcProcedureMapVersion} — a mismatch must
  * surface as a typed rejection, never as guessed semantics or a silent drop.
+ * Network enablement adds a main-local name only; existing operations stay compatible.
  */
 export const IPC_PROCEDURE_MAP_VERSION = CLIENT_HOST_HOP_VERSION;
 
@@ -190,6 +191,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "probeTlsCertificateFingerprint",
   "refreshRemoteAccessPairing",
   "setRemoteAccessEnabled",
+  "setRemoteAccessLanEnabled",
   "revokeRemoteAccessSession",
   "getRemoteAccessTailscaleStatus",
   "setRemoteAccessTailscaleHttps",

@@ -69,7 +69,9 @@ import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
 // metadata. Existing payloads and transports remain valid; old peers reject
 // unknown names before side effects, so hop 18 stays compatible. Browser import
 // and decrypted passwords are intentionally absent from the remote allowlist.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:a144a73cf1ac7032f5a619ea4ba8080122a8cca40386365ed49ded324cf4cfa4`;
+// Network access adds a main-local name. Existing names and payloads stay valid;
+// older peers reject the new name before dispatch, so the hop version stays 18.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:8aa054f1fad5b39d6c3471c8d5a9e36b3e7f89ffc0efe6c840e9ced749c724f4`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

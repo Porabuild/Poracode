@@ -78,6 +78,7 @@ interface StoredAccessSession {
   readonly client: RemoteClientMetadata | undefined;
   readonly issuedAtMs: number;
   readonly expiresAtMs: number;
+  readonly lastConnectedAtMs?: number | undefined;
   /** Hash of the session's refresh token (Gate 6 item 4.6). Absent on sessions
    * persisted by a host that predates the refresh lifecycle — those keep their
    * long-lived access token and simply never refresh. */
@@ -94,6 +95,8 @@ const persistedAccessSessionSchema = z.object({
   client: remoteClientMetadataSchema.optional(),
   issuedAtMs: z.number().int().nonnegative(),
   expiresAtMs: z.number().int().nonnegative(),
+  // Additive metadata: prior auth files remain valid and credentials are preserved.
+  lastConnectedAtMs: z.number().int().nonnegative().optional(),
   refreshTokenHash: z.string().min(1).optional(),
   refreshExpiresAtMs: z.number().int().nonnegative().optional(),
 });
@@ -443,7 +446,19 @@ export class RemoteAuthStore {
         ...(session.client ? { client: session.client } : {}),
         issuedAt: toIso(session.issuedAtMs),
         expiresAt: toIso(session.expiresAtMs),
+        ...(session.lastConnectedAtMs !== undefined
+          ? { lastConnectedAt: toIso(session.lastConnectedAtMs) }
+          : {}),
       }));
+  }
+
+  markSessionConnected(sessionId: string): void {
+    for (const [hash, session] of this.accessSessions) {
+      if (session.id !== sessionId) continue;
+      this.accessSessions.set(hash, { ...session, lastConnectedAtMs: Date.now() });
+      this.persistAccessSessions();
+      return;
+    }
   }
 
   /** Temporary playback grants retain a session id, never the long-lived bearer. */

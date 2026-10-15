@@ -76,8 +76,8 @@ export function issueIndependentPairingUrl(
  * or before the listener is ready.
  *
  * `browserExtension` mints for the Chrome sidebar: it returns `null` before
- * issuing anything when the endpoint is not plain-http loopback (LAN, tailnet
- * or TLS binds), because the extension could never use it, and the credential
+ * issuing anything when no plain-http loopback endpoint is available (TLS or
+ * interface-specific binds), because the extension could never use it, and the credential
  * expires quickly since the sidebar exchanges it immediately.
  */
 export function mintLoopbackRendererCredential(
@@ -89,8 +89,8 @@ export function mintLoopbackRendererCredential(
   expiresAt: string;
 } | null {
   if (host.stopping || !host.info) return null;
-  if (options?.browserExtension && !isBrowserExtensionReachableEndpoint(host.info.localHttpBaseUrl))
-    return null;
+  const endpoint = host.info.loopbackHttpBaseUrl ?? host.info.localHttpBaseUrl;
+  if (options?.browserExtension && !isBrowserExtensionReachableEndpoint(endpoint)) return null;
   const issued = options?.browserExtension
     ? issuePresetPairingCredential(host, "Browser extension", undefined, {
         ttlMs: BROWSER_EXTENSION_PAIRING_TTL_MS,
@@ -98,9 +98,9 @@ export function mintLoopbackRendererCredential(
     : issuePresetPairingCredential(host, "Managed renderer");
   const fingerprint = host.tls?.fingerprint;
   return {
-    endpoint: host.info.localHttpBaseUrl,
+    endpoint,
     pairingUrl: buildPairingUrl({
-      httpBaseUrl: host.info.localHttpBaseUrl,
+      httpBaseUrl: endpoint,
       credential: issued.credential,
       ...(fingerprint ? { certFingerprint: formatCertFingerprint(fingerprint) } : {}),
     }),
@@ -182,11 +182,11 @@ export function exchangePairingCredential(
   return result;
 }
 
-export function notifyPairingChanged(host: RemoteAccessServerHost): void {
+export function notifyPairingChanged(host: Pick<RemoteAccessServerHost, "options">): void {
   try {
     host.options.onPairingChanged?.();
   } catch (error) {
-    console.warn("[poracode] failed to notify desktop after pairing code rotation:", error);
+    console.warn("[poracode] failed to notify desktop after pairing state changed:", error);
   }
 }
 

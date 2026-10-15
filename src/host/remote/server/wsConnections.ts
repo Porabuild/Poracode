@@ -21,6 +21,7 @@ import {
 } from "@/shared/remote/contract/queryCodecs";
 
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
+import { notifyPairingChanged } from "../remoteAccessServerPairing";
 import type { RemoteBrowserFrame } from "../RemoteBrowserGateway";
 import type { RemoteServerContext } from "./context";
 import {
@@ -396,8 +397,15 @@ function handleConnection(
     unmarkDesktopInternalSession(ctx, ws);
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
+    notifyPairingChanged(ctx);
     void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
   });
+  try {
+    ctx.auth.markSessionConnected(session.sessionId);
+  } catch (error) {
+    console.warn("[poracode] failed to persist remote connection time:", error);
+  }
+  notifyPairingChanged(ctx);
   ws.on("ping", (data: Buffer) => {
     // RFC 6455 requires a pong carrying the same payload. The server disables
     // ws's built-in auto-pong (see the WebSocketServer construction), so this

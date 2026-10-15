@@ -101,6 +101,7 @@ import type { PoracodeChannel } from "./channel";
 // Native MCP startup waits for the existing start-supervisor environment
 // payload. Previous initialize/start envelopes, including empty env, remain
 // valid; this ordering fix requires no wire-version change.
+// LAN enablement is an additive same-build desktop procedure; the hop stays compatible.
 export const BACKEND_HOST_PROTOCOL_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export const BACKEND_DATABASE_PROCEDURE_NAMES = [
@@ -231,6 +232,7 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
     result: RemoteAccessPairingInfo;
   };
   setRemoteAccessEnabled: { payload: { enabled: boolean }; result: RemoteAccessPairingInfo };
+  setRemoteAccessLanEnabled: { payload: { enabled: boolean }; result: RemoteAccessPairingInfo };
   getRemoteAccessTailscaleStatus: {
     payload: Record<string, never>;
     result: RemoteAccessTailscaleStatus;
@@ -285,6 +287,7 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   "getManagedLoopbackBootstrap",
   "refreshRemoteAccessPairing",
   "setRemoteAccessEnabled",
+  "setRemoteAccessLanEnabled",
   "getRemoteAccessTailscaleStatus",
   "setRemoteAccessTailscaleHttps",
   "startTailscale",

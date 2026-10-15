@@ -242,6 +242,25 @@ function PairedDevicesDisclosure(props: {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{name}</p>
                     <p className="truncate text-xs text-muted">{t`${meta} · expires ${expiresAt}`}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                      {session.connected !== undefined ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span
+                            className={`size-1.5 rounded-full ${session.connected ? "bg-emerald-400" : "bg-muted/60"}`}
+                          />
+                          {session.connected ? (
+                            <Trans>Connected</Trans>
+                          ) : (
+                            <Trans>Disconnected</Trans>
+                          )}
+                        </span>
+                      ) : null}
+                      <span>
+                        {session.lastConnectedAt
+                          ? t`Last connected: ${formatSessionTime(session.lastConnectedAt)}`
+                          : t`Last connected: unknown`}
+                      </span>
+                    </div>
                   </div>
                   <Button
                     size="sm"
@@ -280,18 +299,34 @@ function PairingReady(props: {
   const desktopEndpointLabel = t`Desktop endpoint`;
   const pairingTokenLabel = t`Pairing token`;
   const pairingLinkLabel = t`Pairing link`;
-  const tailscaleEndpoint = props.info.tailscaleHttpBaseUrl
-    ? normalizePairingEndpoint(props.info.tailscaleHttpBaseUrl)
-    : null;
-  const [endpointKind, setEndpointKind] = useState<"local" | "tailscale">(
-    tailscaleEndpoint ? "tailscale" : "local",
+  const advertisedEndpoint = normalizePairingEndpoint(props.info.httpBaseUrl);
+  const directEndpoint = normalizePairingEndpoint(props.info.localHttpBaseUrl);
+  const tailscaleUrl = props.info.tailscaleHttpBaseUrl ?? props.info.tailnetHttpBaseUrl;
+  const tailscaleEndpoint = tailscaleUrl ? normalizePairingEndpoint(tailscaleUrl) : null;
+  const endpoints = {
+    local:
+      props.info.loopbackHttpBaseUrl ??
+      (props.info.lanHttpBaseUrl || props.info.tailnetHttpBaseUrl ? null : directEndpoint),
+    lan: props.info.lanHttpBaseUrl ?? null,
+    tailscale: tailscaleEndpoint,
+    public:
+      advertisedEndpoint !== directEndpoint && advertisedEndpoint !== tailscaleEndpoint
+        ? advertisedEndpoint
+        : null,
+  };
+  type EndpointKind = keyof typeof endpoints;
+  const defaultKind: EndpointKind = tailscaleEndpoint
+    ? "tailscale"
+    : endpoints.public
+      ? "public"
+      : endpoints.lan
+        ? "lan"
+        : "local";
+  const [endpointKind, setEndpointKind] = useState<EndpointKind>(defaultKind);
+  const selectedKind = endpoints[endpointKind] ? endpointKind : defaultKind;
+  const selectedEndpoint = normalizePairingEndpoint(
+    endpoints[selectedKind] ?? props.info.httpBaseUrl,
   );
-  const selectedKind = endpointKind === "tailscale" && tailscaleEndpoint ? "tailscale" : "local";
-  const selectedEndpoint = tailscaleEndpoint
-    ? selectedKind === "tailscale"
-      ? tailscaleEndpoint
-      : normalizePairingEndpoint(props.info.localHttpBaseUrl)
-    : normalizePairingEndpoint(props.info.httpBaseUrl);
   const pairingUrl = retargetPairingUrl(props.info.pairingUrl, selectedEndpoint);
   const pairingToken = pairingTokenFromUrl(pairingUrl);
   const desktopPairingUrl = pairingToken
@@ -340,30 +375,47 @@ function PairingReady(props: {
 
   return (
     <div className="space-y-6">
-      {tailscaleEndpoint ? (
-        <div className="flex justify-end">
-          <ToggleButtonGroup
-            aria-label={desktopEndpointLabel}
-            className="h-8 [&_button]:h-8 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-3"
-            selectionMode="single"
-            disallowEmptySelection
-            size="sm"
-            selectedKeys={[selectedKind]}
-            onSelectionChange={(keys) => {
-              const next = [...keys][0];
-              if (next === "local" || next === "tailscale") setEndpointKind(next);
-            }}
-          >
-            <ToggleButton id="local">
-              <Trans>Local</Trans>
-            </ToggleButton>
-            <ToggleButton id="tailscale">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ToggleButtonGroup
+          aria-label={desktopEndpointLabel}
+          className="poracode-remote-access-toggle-group h-8 [&_button]:h-8 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-3"
+          selectionMode="single"
+          disallowEmptySelection
+          size="sm"
+          selectedKeys={[selectedKind]}
+          onSelectionChange={(keys) => {
+            const next = [...keys][0];
+            if (next === "local" || next === "lan" || next === "tailscale" || next === "public") {
+              setEndpointKind(next);
+            }
+          }}
+        >
+          <ToggleButton id="local" isDisabled={!endpoints.local}>
+            <Trans>Local</Trans>
+          </ToggleButton>
+          <ToggleButton id="lan" isDisabled={!endpoints.lan}>
+            <ToggleButtonGroup.Separator />
+            <Trans>LAN</Trans>
+          </ToggleButton>
+          <ToggleButton id="tailscale" isDisabled={!tailscaleEndpoint}>
+            <ToggleButtonGroup.Separator />
+            <Trans>Tailscale</Trans>
+          </ToggleButton>
+          {endpoints.public ? (
+            <ToggleButton id="public">
               <ToggleButtonGroup.Separator />
-              <Trans>Tailscale HTTPS</Trans>
+              <Trans>Public URL</Trans>
             </ToggleButton>
-          </ToggleButtonGroup>
-        </div>
-      ) : null}
+          ) : null}
+        </ToggleButtonGroup>
+        <p className="text-xs text-muted">
+          {selectedKind === "local" ? (
+            <Trans>Only works on this computer.</Trans>
+          ) : selectedKind === "lan" ? (
+            <Trans>Use this link on devices connected to the same network.</Trans>
+          ) : null}
+        </p>
+      </div>
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="space-y-3">
           <div className="flex aspect-square w-full max-w-[220px] items-center justify-center bg-white p-3">
@@ -397,7 +449,7 @@ function PairingReady(props: {
           </p>
           <ToggleButtonGroup
             aria-label={t`Pairing access`}
-            className="h-8 [&_button]:h-8 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-3"
+            className="poracode-remote-access-toggle-group h-8 [&_button]:h-8 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-3"
             selectionMode="single"
             disallowEmptySelection
             size="sm"
@@ -529,9 +581,11 @@ function RemoteAccessAdvanced(props: {
 }) {
   const { t } = useLingui();
   const tailscaleEnabled = useSharedSettings((state) => state.remoteAccessTailscaleHttps);
+  const lanEnabled = useSharedSettings((state) => state.remoteAccessLanEnabled);
   const advertisedUrl = useSharedSettings((state) => state.remoteAccessAdvertisedUrl);
   const [status, setStatus] = useState<RemoteAccessTailscaleStatus | null>(null);
   const [isTogglingTailscale, setIsTogglingTailscale] = useState(false);
+  const [isTogglingLan, setIsTogglingLan] = useState(false);
   const [isStartingTailscale, setIsStartingTailscale] = useState(false);
   const [urlDraft, setUrlDraft] = useState(advertisedUrl);
   const [isSavingUrl, setIsSavingUrl] = useState(false);
@@ -610,6 +664,17 @@ function RemoteAccessAdvanced(props: {
     }
   };
 
+  const toggleLan = async (enabled: boolean) => {
+    setIsTogglingLan(true);
+    try {
+      props.onPairingChanged(await readBridge().setRemoteAccessLanEnabled({ enabled }));
+    } catch (error) {
+      toast.danger(friendlyError(error, t`Unable to update network access.`));
+    } finally {
+      setIsTogglingLan(false);
+    }
+  };
+
   const saveUrl = async () => {
     const trimmed = urlDraft.trim();
     if (trimmed === advertisedUrl) return;
@@ -632,6 +697,22 @@ function RemoteAccessAdvanced(props: {
 
   return (
     <div className="space-y-4 border-t border-border/60 pt-6">
+      <SettingRow
+        title={t`Network access`}
+        description={
+          <Trans>
+            Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use
+            HTTP unless TLS is configured. Enable only on trusted networks.
+          </Trans>
+        }
+      >
+        <ToggleSwitch
+          isSelected={lanEnabled}
+          isDisabled={isTogglingLan}
+          aria-label={t`Network access`}
+          onChange={(enabled) => void toggleLan(enabled)}
+        />
+      </SettingRow>
       <SettingRow
         title={t`Tailscale HTTPS`}
         description={t`Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below.`}
@@ -927,7 +1008,7 @@ export function RemoteAccessSettings() {
           {state.info?.status === "ready" ? (
             <>
               <PairingReady
-                key={state.info.tailscaleHttpBaseUrl ? "tailscale" : "local"}
+                key={`${state.info.lanHttpBaseUrl ?? "local"}:${state.info.tailscaleHttpBaseUrl ?? state.info.tailnetHttpBaseUrl ?? ""}`}
                 info={state.info}
                 isRefreshing={isRefreshing}
                 revokingSessionId={revokingSessionId}

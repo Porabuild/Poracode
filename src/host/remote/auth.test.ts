@@ -14,6 +14,7 @@ import {
   RemoteHttpError,
   RefreshTokenReuseError,
   RemoteAuthStore,
+  createPersistentRemoteAuthStore,
   parseBearerAuthorizationHeader,
   readRemoteAccessAuthFile,
   remoteAuthFilePath,
@@ -21,6 +22,31 @@ import {
 } from "./auth";
 
 describe("RemoteAuthStore", () => {
+  it("retains legacy credentials and persists connection time through refresh and restart", () => {
+    const baseDir = mkdtempSync(join(tmpdir(), "poracode-auth-presence-"));
+    try {
+      const original = createPersistentRemoteAuthStore(baseDir);
+      const grant = original.issuePairingCredential();
+      const token = original.exchangePairingCredential({ credential: grant.credential });
+      const [legacy] = readRemoteAccessAuthFile(baseDir).accessSessions;
+      expect(legacy).not.toHaveProperty("lastConnectedAtMs");
+      const upgraded = createPersistentRemoteAuthStore(baseDir);
+      expect(upgraded.listAccessSessions()[0]).not.toHaveProperty("lastConnectedAt");
+      const session = upgraded.authenticateBearerToken(token.accessToken);
+      upgraded.markSessionConnected(session.sessionId);
+      const lastConnectedAt = upgraded.listAccessSessions()[0]?.lastConnectedAt;
+      expect(lastConnectedAt).toBeTruthy();
+      const refreshed = upgraded.refreshAccessToken({ refreshToken: token.refreshToken! });
+      const restarted = createPersistentRemoteAuthStore(baseDir);
+      expect(restarted.authenticateBearerToken(refreshed.accessToken).sessionId).toBe(
+        session.sessionId,
+      );
+      expect(restarted.listAccessSessions()[0]?.lastConnectedAt).toBe(lastConnectedAt);
+    } finally {
+      rmSync(baseDir, { recursive: true, force: true });
+    }
+  });
+
   it("exchanges a one-time pairing credential for a bearer token", () => {
     const store = new RemoteAuthStore();
     const pairing = store.issuePairingCredential({

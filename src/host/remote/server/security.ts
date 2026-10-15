@@ -207,6 +207,7 @@ export interface SecurityContext {
    * the actual bound port even when the advertised origin is a reverse proxy.
    */
   getLocalHttpBaseUrl(): string | undefined;
+  getDirectHttpBaseUrls(): readonly string[];
   readonly options: RemoteAccessServerOptions;
   readonly auth: RemoteAuthStore;
 }
@@ -306,6 +307,8 @@ export class RemoteServerSecurity {
       const origins = new Set<string>();
       for (const value of [
         key,
+        ...this.ctx.getDirectHttpBaseUrls(),
+        this.ctx.options.tailscaleHttpBaseUrl,
         this.ctx.options.pairingAppUrl,
         this.ctx.options.devWebAppUrl,
         ...(this.ctx.options.trustedCorsOrigins ?? []),
