@@ -182,6 +182,7 @@ describe("worker-backed SQLite reads", () => {
       const shellEtag = initialShell.headers.get("etag");
       expect(shellEtag).not.toBeNull();
       await initialShell.arrayBuffer();
+      writeFileSync(`${dbPath}.hold-slow-query`, "hold until foreground requests finish");
       let slowFinished = false;
       const slow = fetch(new URL("/api/threads/slow/history", info.httpBaseUrl), {
         headers,
@@ -223,8 +224,10 @@ describe("worker-backed SQLite reads", () => {
         expect.objectContaining({ threadId: "fast" }),
       );
       expect(slowFinished).toBe(false);
+      rmSync(`${dbPath}.hold-slow-query`);
       expect(await slow).toBe(200);
     } finally {
+      rmSync(`${dbPath}.hold-slow-query`, { force: true });
       await server.dispose();
     }
   });
@@ -240,8 +243,8 @@ describe("worker-backed SQLite reads", () => {
     child.stderr?.on("data", (chunk: Buffer) => {
       diagnostic = (diagnostic + chunk.toString()).slice(-8192);
     });
-    const exited = new Promise<NodeJS.Signals | null>((resolve) =>
-      child.once("exit", (_code, signal) => resolve(signal)),
+    const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) =>
+      child.once("exit", (code, signal) => resolve({ code, signal })),
     );
     try {
       const ready = new Promise<void>((resolve, reject) => {
@@ -259,7 +262,11 @@ describe("worker-backed SQLite reads", () => {
       });
       await vi.waitFor(() => expect(existsSync(`${dbPath}.query-active`)).toBe(true));
       child.disconnect();
-      expect(await exited).toBe("SIGKILL");
+      expect(await exited).toEqual(
+        process.platform === "win32"
+          ? { code: 1, signal: null }
+          : { code: null, signal: "SIGKILL" },
+      );
     } finally {
       child.kill("SIGKILL");
       await exited;
