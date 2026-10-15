@@ -69,7 +69,7 @@ describe("remote v3 native binding generator", () => {
         // Regenerate native authority from all combined schemas.
         // Optional context-reload facts also add one generated Swift chunk.
         // Background task timing, progress and Stop add two structural types.
-        sourceHash: "sha256:9ef557b79d93fcef2a263ea204f849dbc70a5e82ab0d83471fbf12781f4ce16e",
+        sourceHash: "sha256:b7aa0284f09cef491d46265e4a4e0c2fd7d7ac247b9767249826947e1b128e56",
         manifestHash: "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40",
         counts: {
           routes: 100,
@@ -80,7 +80,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 441,
-          structuralTypes: 1032,
+          structuralTypes: 1033,
           semanticValidators: 22,
           swiftFiles: 63,
           kotlinFiles: 56,
