@@ -1,10 +1,13 @@
 import { useState, type ReactNode } from "react";
-import { Button } from "@heroui/react";
+import { Button, Label, ListBox } from "@heroui/react";
 import { Check, ChevronDown, ChevronUp, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import { ResponsiveMenuSurface } from "@/renderer/components/common/ResponsiveMenuSurface";
+import {
+  ResponsiveMenuSurface,
+  useResponsiveMenu,
+} from "@/renderer/components/common/ResponsiveMenuSurface";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { RemoteServerIcon } from "./RemoteServerIcon";
@@ -19,6 +22,7 @@ export function RemoteServerPicker(props: {
 }) {
   const { t } = useLingui();
   const compact = useCompactLayout();
+  const { mobile } = useResponsiveMenu();
   const servers = useRemoteServersStore((state) => state.servers);
   const runtime = useRemoteServersStore((state) => state.runtime);
   const [open, setOpen] = useState(false);
@@ -44,20 +48,19 @@ export function RemoteServerPicker(props: {
       isOpen={open}
       onOpenChange={setOpen}
       label={t`Connections`}
-      placement="bottom end"
+      placement={props.opensUpward ? "top end" : "bottom end"}
       contentClassName="w-64 p-0"
-      dialogClassName="!p-1"
       trigger={
         props.trigger ?? (
           <Button
             size="sm"
             variant="ghost"
-            className={
+            className={`gap-2 ${
               props.buttonClassName ??
-              (compact ? "h-9 min-h-9 max-w-40 gap-1.5 px-2" : "h-7 min-h-7 gap-1 px-1.5")
-            }
+              (compact ? "h-9 min-h-9 max-w-40 px-2" : "h-7 min-h-7 px-1.5")
+            }`}
             aria-label={t`Connections`}
-            onPress={() => setOpen(true)}
+            {...(mobile ? { onPress: () => setOpen(true) } : {})}
           >
             {selected ? (
               <RemoteServerIcon
@@ -78,29 +81,73 @@ export function RemoteServerPicker(props: {
         )
       }
     >
-      <div className="m-sheet-list">
-        {props.includeLocal ? (
-          <button type="button" className="m-sheet-action" onClick={() => choose(null)}>
-            <Monitor className="size-4 shrink-0 text-muted" />
-            <span className="min-w-0 flex-1 truncate">{t`Local`}</span>
-            {effectiveValue === null ? <Check className="size-4 shrink-0 text-accent" /> : null}
-          </button>
-        ) : null}
-        {servers.map((server) => (
-          <button
-            key={remoteConnectionKey(server)}
-            type="button"
-            className="m-sheet-action"
-            onClick={() => choose(remoteConnectionKey(server))}
-          >
-            <RemoteServerIcon status={runtime[remoteConnectionKey(server)]?.status ?? "offline"} />
-            <span className="min-w-0 flex-1 truncate">{desktopTitle(server.label)}</span>
-            {effectiveValue === remoteConnectionKey(server) ? (
-              <Check className="size-4 shrink-0 text-accent" />
-            ) : null}
-          </button>
-        ))}
-      </div>
+      {mobile ? (
+        <div className="m-sheet-list">
+          {props.includeLocal ? (
+            <button
+              type="button"
+              className="m-sheet-action"
+              aria-pressed={effectiveValue === null}
+              onClick={() => choose(null)}
+            >
+              <Monitor className="size-4 shrink-0 text-muted" />
+              <span className="min-w-0 flex-1 truncate">{t`Local`}</span>
+              {effectiveValue === null ? <Check className="size-4 shrink-0 text-accent" /> : null}
+            </button>
+          ) : null}
+          {servers.map((server) => (
+            <button
+              key={remoteConnectionKey(server)}
+              type="button"
+              className="m-sheet-action"
+              aria-pressed={effectiveValue === remoteConnectionKey(server)}
+              onClick={() => choose(remoteConnectionKey(server))}
+            >
+              <RemoteServerIcon
+                status={runtime[remoteConnectionKey(server)]?.status ?? "offline"}
+              />
+              <span className="min-w-0 flex-1 truncate">{desktopTitle(server.label)}</span>
+              {effectiveValue === remoteConnectionKey(server) ? (
+                <Check className="size-4 shrink-0 text-accent" />
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <ListBox
+          aria-label={t`Connections`}
+          className="poracode-menu max-h-60 overflow-y-auto"
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={new Set([effectiveValue ?? "local"])}
+          onSelectionChange={(keys) => {
+            if (keys === "all") return;
+            const key = [...keys][0];
+            if (key !== undefined) choose(key === "local" ? null : String(key));
+          }}
+        >
+          {props.includeLocal ? (
+            <ListBox.Item id="local" textValue={t`Local`}>
+              <ListBox.ItemIndicator />
+              <Monitor className="size-4 shrink-0 text-muted" />
+              <Label className="min-w-0 flex-1 truncate">{t`Local`}</Label>
+            </ListBox.Item>
+          ) : null}
+          {servers.map((server) => (
+            <ListBox.Item
+              key={remoteConnectionKey(server)}
+              id={remoteConnectionKey(server)}
+              textValue={desktopTitle(server.label)}
+            >
+              <ListBox.ItemIndicator />
+              <RemoteServerIcon
+                status={runtime[remoteConnectionKey(server)]?.status ?? "offline"}
+              />
+              <Label className="min-w-0 flex-1 truncate">{desktopTitle(server.label)}</Label>
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      )}
     </ResponsiveMenuSurface>
   );
 }
