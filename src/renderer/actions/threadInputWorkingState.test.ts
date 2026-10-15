@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, SendThreadInputPayload, Thread } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
@@ -44,10 +45,12 @@ import { syncRemoteAppRows } from "@/renderer/state/remoteServers/appRows";
 import {
   carryPendingThreadInput,
   confirmPendingThreadInput,
+  hasPendingThreadInput,
   retainPendingThreadInput,
 } from "@/renderer/state/pendingThreadInput";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
 import { performThreadInputSubmit } from "./threadRuntimeActions";
+import { useThreadIsWaitingForBackground } from "@/renderer/hooks/uiSelectors";
 
 const project: Project = {
   id: "working-project",
@@ -358,6 +361,63 @@ describe("working state during prompt admission", () => {
     });
     applyThreadSnapshot(snapshot(idle));
     expect(currentThread().status).toBe("idle");
+  });
+
+  it("does not label a new prompt as background waiting before admission", async () => {
+    useAppStore.setState({
+      runtimeOpenTurnByThread: { [idle.id]: false },
+      runtimeBackgroundTasksByThread: {
+        [idle.id]: [{ taskId: "server", kind: "command", description: "Dev server" }],
+      },
+    });
+    const response = deferred();
+    const waiting = renderHook(() => useThreadIsWaitingForBackground(idle.id));
+    let sending!: Promise<void>;
+    act(() => {
+      sending = performThreadInputSubmit({
+        thread: idle,
+        prompt: "next task",
+        transport: { sendThreadInput: () => response.promise },
+      });
+    });
+    expect(currentThread().status).toBe("working");
+    expect(hasPendingThreadInput(idle.id)).toBe(true);
+    expect(waiting.result.current).toBe(false);
+    await act(async () => {
+      response.resolve();
+      await sending;
+    });
+  });
+
+  it("restores background waiting after a definite submit failure", async () => {
+    const awaitingThread: Thread = { ...idle, status: "working", attention: "working" };
+    useAppStore.setState({
+      threads: [awaitingThread],
+      runtimeOpenTurnByThread: { [idle.id]: false },
+      runtimeBackgroundTasksByThread: {
+        [idle.id]: [{ taskId: "monitor", kind: "other", description: "Watch logs" }],
+      },
+    });
+    let reject!: (error: Error) => void;
+    const response = new Promise<void>((_resolve, fail) => {
+      reject = fail;
+    });
+    const waiting = renderHook(() => useThreadIsWaitingForBackground(idle.id));
+    expect(waiting.result.current).toBe(true);
+    let sending!: Promise<unknown>;
+    act(() => {
+      sending = performThreadInputSubmit({
+        thread: awaitingThread,
+        prompt: "next task",
+        transport: { sendThreadInput: () => response },
+      }).catch((error: unknown) => error);
+    });
+    expect(waiting.result.current).toBe(false);
+    await act(async () => {
+      reject(new Error("rejected"));
+      await sending;
+    });
+    expect(waiting.result.current).toBe(true);
   });
 
   it("lets real completion settle the thread even before the submit response arrives", async () => {

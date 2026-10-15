@@ -11,6 +11,11 @@ interface PendingInput {
 }
 const pendingInputs = new Map<string, Set<PendingInput>>();
 
+/** Read during the optimistic store updates that accompany input admission. */
+export function hasPendingThreadInput(threadId: string): boolean {
+  return pendingInputs.has(threadId);
+}
+
 export function retainPendingThreadInput(threadId: string): () => void {
   const token: PendingInput = {};
   const inputs = pendingInputs.get(threadId) ?? new Set<PendingInput>();

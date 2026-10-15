@@ -2121,7 +2121,7 @@ msgstr "백그라운드 프로세스가 실행되고 있지 않습니다."
 msgid "Background process restarted"
 msgstr "백그라운드 프로세스가 다시 시작되었습니다."
 
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "백그라운드 작업"
 
@@ -3128,7 +3128,6 @@ msgstr "복제 중…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
-#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -7272,6 +7271,10 @@ msgstr "사이드바 숨기기"
 msgid "Hide skills from {0}"
 msgstr "{0}의 스킬 숨기기"
 
+#: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
+msgid "Hide tasks; they keep running"
+msgstr "작업 숨기기; 실행은 계속됩니다"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -8174,6 +8177,10 @@ msgstr "마지막 연결: 알 수 없음"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Last evaluation:"
 msgstr "마지막 평가:"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Last progress {elapsed} ago"
+msgstr "마지막 진행 보고: {elapsed} 전"
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -10156,6 +10163,10 @@ msgstr "Poracode 페어링 QR 코드를 찾을 수 없습니다."
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
 msgstr "아직 자체 격리 로그인을 가진 프로필이 없습니다. 먼저 프로필을 \"자체 격리 로그인\"으로 설정하고 거기서 로그인하면 여기에 나타납니다."
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No progress reported"
+msgstr "보고된 진행 상황 없음"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13541,6 +13552,14 @@ msgstr "실행 중"
 msgid "Running"
 msgstr "실행 중"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadBackgroundTaskIndicator.tsx
+msgid "Running background tasks: {count}"
+msgstr "실행 중인 백그라운드 작업: {count}"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Running for {elapsed}"
+msgstr "{elapsed} 동안 실행 중"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Running now"
 msgstr "지금 실행 중"
@@ -15212,6 +15231,10 @@ msgstr "중지"
 msgid "Stop {0}"
 msgstr "{0} 중지"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stop {label}"
+msgstr "{label} 중지"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "전달 중지"
@@ -15229,6 +15252,7 @@ msgid "Stop syncing"
 msgstr "동기화 중지"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stop task"
 msgstr "작업 중지"
 
@@ -15248,6 +15272,14 @@ msgstr "음성 입력 중지"
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Stop when"
 msgstr "중지 조건"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping {label}…"
+msgstr "{label} 중지 중…"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Stopping task…"
+msgstr "작업 중지 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -15774,6 +15806,10 @@ msgstr "에이전트"
 msgid "The agent"
 msgstr "에이전트"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The agent session reloads to apply the new context size; the conversation is kept."
+msgstr "새 컨텍스트 크기를 적용하기 위해 에이전트 세션이 다시 로드됩니다. 대화는 유지됩니다."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
 #~ msgstr "아래 API 키는 이 프로필의 Cursor CLI, ACP, SDK에서 사용됩니다."
@@ -16003,8 +16039,8 @@ msgid "The MCP server is invalid."
 msgstr "MCP 서버가 올바르지 않습니다."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
-msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
-msgstr "새 컨텍스트 크기는 다음 메시지부터 적용됩니다. 해당 메시지를 보내기 전에 에이전트 세션을 다시 불러오며, 대화 내용은 유지됩니다."
+#~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+#~ msgstr "새 컨텍스트 크기는 다음 메시지부터 적용됩니다. 해당 메시지를 보내기 전에 에이전트 세션을 다시 불러오며, 대화 내용은 유지됩니다."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
@@ -16192,6 +16228,10 @@ msgstr "저장된 구성이 잘못되었습니다. 저장된 값은 유지되며
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "대상 공급자"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task has not confirmed that it stopped. Try again."
+msgstr "작업이 중지되었는지 아직 확인되지 않았습니다. 다시 시도하세요."
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
@@ -18220,6 +18260,11 @@ msgstr "에이전트가 중지되기를 기다리는 중"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Waiting for approval"
 msgstr "승인 대기 중"
+
+#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Waiting for background tasks"
+msgstr "백그라운드 작업 대기 중"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Waiting for workflow to spawn agents…"

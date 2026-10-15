@@ -193,6 +193,8 @@ export interface ClaudeMapperState {
    * without the level signal).
    */
   liveBackgroundTaskIds?: Set<string>;
+  /** Launch-correlated task classes; a Monitor may otherwise look like a Bash task. */
+  backgroundTaskKinds?: Map<string, BackgroundTask["kind"]>;
   /**
    * Fingerprint of the last `background_tasks.changed` event emitted, so the
    * level signal (which fires on every membership change, including sub-agent

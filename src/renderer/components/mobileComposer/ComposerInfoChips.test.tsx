@@ -43,4 +43,39 @@ describe("ComposerInfoChips", () => {
     expect(container.querySelector(".m-chip-panel")).toHaveAttribute("data-open");
     expect(screen.getByText("pnpm test")).toBeInTheDocument();
   });
+
+  it("keeps the chip for hidden tasks and restores them into its sheet", () => {
+    useAppStore.setState({
+      runtimeBackgroundTasksByThread: {
+        "thread-1": [{ taskId: "task-1", kind: "command", description: "pnpm test" }],
+      },
+    });
+    const { container } = render(
+      <ComposerInfoChips
+        threadId="thread-1"
+        agentStatus={undefined}
+        project={undefined}
+        projectLocation={{ kind: "posix", path: "/repo" }}
+        todoDockState={null}
+        goalDockState={null}
+        errorDockStates={[]}
+        onGoalDockDismiss={() => undefined}
+        onDismissError={() => undefined}
+        hidden={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Background tasks" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close background tasks" }));
+
+    expect(container.querySelector(".m-chip-panel")).not.toHaveAttribute("data-open");
+    const chip = screen.getByRole("button", { name: "Background tasks" });
+    expect(chip).toHaveTextContent("1");
+
+    fireEvent.click(chip);
+
+    expect(useThreadBackgroundTasksDockStore.getState().dismissedTasksKeyByThread).toEqual({});
+    expect(container.querySelector(".m-chip-panel")).toHaveAttribute("data-open");
+    expect(screen.getByText("pnpm test")).toBeInTheDocument();
+  });
 });

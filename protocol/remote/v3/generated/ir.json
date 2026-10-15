@@ -18473,6 +18473,45 @@
                 ],
                 "type": "string"
               },
+              "lastProgressAt": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "progress": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "startedAt": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "stopAction": {
+                "additionalProperties": true,
+                "properties": {
+                  "id": {
+                    "maxLength": 120,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "payload": {
+                    "additionalProperties": {
+                      "maxLength": 512,
+                      "type": "string"
+                    },
+                    "propertyNames": {
+                      "maxLength": 120,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "id",
+                  "payload"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
               "taskId": {
                 "minLength": 1,
                 "type": "string"
@@ -22293,6 +22332,45 @@
                               ],
                               "type": "string"
                             },
+                            "lastProgressAt": {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "progress": {
+                              "maxLength": 4096,
+                              "type": "string"
+                            },
+                            "startedAt": {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "stopAction": {
+                              "additionalProperties": true,
+                              "properties": {
+                                "id": {
+                                  "maxLength": 120,
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "payload": {
+                                  "additionalProperties": {
+                                    "maxLength": 512,
+                                    "type": "string"
+                                  },
+                                  "propertyNames": {
+                                    "maxLength": 120,
+                                    "type": "string"
+                                  },
+                                  "type": "object"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "payload"
+                              ],
+                              "type": "object",
+                              "x-poracode-unknownFields": "strip"
+                            },
                             "taskId": {
                               "minLength": 1,
                               "type": "string"
@@ -23205,6 +23283,45 @@
                                 "other"
                               ],
                               "type": "string"
+                            },
+                            "lastProgressAt": {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "progress": {
+                              "maxLength": 4096,
+                              "type": "string"
+                            },
+                            "startedAt": {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "stopAction": {
+                              "additionalProperties": true,
+                              "properties": {
+                                "id": {
+                                  "maxLength": 120,
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "payload": {
+                                  "additionalProperties": {
+                                    "maxLength": 512,
+                                    "type": "string"
+                                  },
+                                  "propertyNames": {
+                                    "maxLength": 120,
+                                    "type": "string"
+                                  },
+                                  "type": "object"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "payload"
+                              ],
+                              "type": "object",
+                              "x-poracode-unknownFields": "strip"
                             },
                             "taskId": {
                               "minLength": 1,
@@ -51404,6 +51521,45 @@
                     ],
                     "type": "string"
                   },
+                  "lastProgressAt": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "progress": {
+                    "maxLength": 4096,
+                    "type": "string"
+                  },
+                  "startedAt": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "stopAction": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "id": {
+                        "maxLength": 120,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "payload": {
+                        "additionalProperties": {
+                          "maxLength": 512,
+                          "type": "string"
+                        },
+                        "propertyNames": {
+                          "maxLength": 120,
+                          "type": "string"
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "payload"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
                   "taskId": {
                     "minLength": 1,
                     "type": "string"
@@ -53503,6 +53659,45 @@
                     "other"
                   ],
                   "type": "string"
+                },
+                "lastProgressAt": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "progress": {
+                  "maxLength": 4096,
+                  "type": "string"
+                },
+                "startedAt": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "stopAction": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "id": {
+                      "maxLength": 120,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "payload": {
+                      "additionalProperties": {
+                        "maxLength": 512,
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "maxLength": 120,
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "payload"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
                 },
                 "taskId": {
                   "minLength": 1,
@@ -59433,7 +59628,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:65f613d5d836834bb617321333407caf4857e7adcb83f6ab95d87ab1dcff4fc9",
+  "sourceHash": "sha256:9ef557b79d93fcef2a263ea204f849dbc70a5e82ab0d83471fbf12781f4ce16e",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

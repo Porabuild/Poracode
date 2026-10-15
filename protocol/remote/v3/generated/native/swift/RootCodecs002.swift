@@ -249,7 +249,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EReadThreadBackgroundTasksU2EResult: RemoteRootCodec<ProcedurereadThreadBackgroundTasksResult_17dfab19af> = .init(id: "procedure.readThreadBackgroundTasks.result", schema: RemoteSchemas.schema_17dfab19afcacd90)
+  static let procedureU2EReadThreadBackgroundTasksU2EResult: RemoteRootCodec<ProcedurereadThreadBackgroundTasksResult_00675d64d4> = .init(id: "procedure.readThreadBackgroundTasks.result", schema: RemoteSchemas.schema_00675d64d428c3d1)
 }
 
 public extension RemoteRootCodecs {
@@ -345,7 +345,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_24dedf2b27> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_24dedf2b27c7ed4e)
+  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_499c208da1> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_499c208da1aa1d4c)
 }
 
 public extension RemoteRootCodecs {
@@ -365,7 +365,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_d3844584d2> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_d3844584d2058e9c)
+  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_5bf7479aa2> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_5bf7479aa21dc587)
 }
 
 public extension RemoteRootCodecs {

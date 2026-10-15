@@ -124,6 +124,9 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   "thread.sessionActionUnavailable": msg({
     message: "Session actions are unavailable for this thread.",
   }),
+  "thread.backgroundTaskStopUnconfirmed": msg({
+    message: "The task has not confirmed that it stopped. Try again.",
+  }),
   "voice.unavailable": msg({ message: "Live voice is unavailable for this thread." }),
   "voice.alreadyConnected": msg({ message: "A voice conversation is already active." }),
   "voice.subscriptionRequired": msg({

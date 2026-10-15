@@ -7,9 +7,44 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { ThreadDocksPanel } from "./ThreadDocksPanel";
-import { selectThreadHasDockContent } from "./useThreadDocksSummary";
+import { ThreadDockBubbles } from "./ThreadDockBubbles";
+import { selectThreadHasDockContent, useThreadDocksSummary } from "./useThreadDocksSummary";
+
+function TaskBubbles() {
+  const summary = useThreadDocksSummary("thread-1", null, null);
+  return <ThreadDockBubbles threadId="thread-1" summary={summary} />;
+}
 
 describe("ThreadDocksPanel", () => {
+  it("keeps the compact count available after hiding tasks and restores the dock from it", () => {
+    usePanelStore.getState().openThreadDocksPanel("backgroundTasks");
+    render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+        <TaskBubbles />
+      </AppProvider>,
+    );
+    const taskLabel = "New background update";
+    act(() => {
+      useAppStore.setState({
+        runtimeBackgroundTasksByThread: {
+          "thread-1": [{ taskId: "reopen", kind: "command", description: taskLabel }],
+        },
+      });
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close background tasks" }));
+    expect(screen.queryByText(taskLabel)).not.toBeInTheDocument();
+    const bubble = document.querySelector<HTMLButtonElement>(
+      '[data-dock-bubble="backgroundTasks"]',
+    )!;
+    expect(bubble).toHaveTextContent("1");
+    expect(bubble).toHaveAttribute("aria-pressed", "false");
+    expect(bubble).toHaveAccessibleName("Show Background tasks");
+    fireEvent.click(bubble);
+    expect(screen.getByText(taskLabel)).toBeInTheDocument();
+    expect(usePanelStore.getState().threadDocksPanelOpen).toBe(true);
+    expect(bubble).toHaveAttribute("aria-pressed", "true");
+  });
   beforeEach(() => {
     usePanelStore.setState({ threadDocksPanelOpen: false, threadDocksFocus: null });
     useThreadGoalDockStore.setState({ dismissedByThread: {} });

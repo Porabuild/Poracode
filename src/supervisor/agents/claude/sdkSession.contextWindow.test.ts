@@ -180,17 +180,16 @@ describe("Claude SDK working-window selection", () => {
     await session.dispose();
   });
 
-  it("retires old background parent/child rows and delivers steers queued behind a resize", async () => {
+  it("keeps background work alive and defers a resize until it drains", async () => {
     const original = createClaudeTestQuery();
     const replacement = createClaudeTestQuery();
     vi.spyOn(original.runtime, "close").mockImplementation(() => {});
     sdk.query.mockReturnValueOnce(original.runtime).mockReturnValueOnce(replacement.runtime);
     const session = await createSession();
     const events: RuntimeEvent[] = [];
-    const statuses: string[] = [];
     session.setListener({
       onRuntimeEvent: (event) => events.push(event),
-      onUpdate: (update) => statuses.push(update.status),
+      onUpdate: () => {},
       onClose: () => {},
       onError: () => {},
     });
@@ -239,31 +238,34 @@ describe("Claude SDK working-window selection", () => {
         : [],
     );
     expect(toolIds).toHaveLength(2);
-    const resized = { ...config, contextSize: "400k" };
+    const resized = { ...config, contextSize: "200k" };
     await session.steerTurn("Resize", resized);
     await session.steerTurn("Later", resized);
     original.output.write(resultMessage(sessionId));
     await flushSdkMessages();
     await flushSdkMessages();
-    expect(sdk.query).toHaveBeenCalledTimes(2);
-    const input = sdk.query.mock.calls[1]![0].prompt;
+    original.output.write(assistantMessage(sessionId, "resized-reply"));
+    original.output.write(resultMessage(sessionId));
+    await flushSdkMessages();
+    await flushSdkMessages();
+    await session.startTurn("Direct", resized);
+    // Every accepted prompt runs, in order, on the process that owns the task.
+    expect(sdk.query).toHaveBeenCalledTimes(1);
+    const input = sdk.query.mock.calls[0]![0].prompt;
     if (typeof input === "string") throw new Error("Expected the SDK prompt queue");
     const messages = input[Symbol.asyncIterator]();
-    expect((await messages.next()).value.message.content).toBe("Resize");
-    for (const itemId of toolIds) {
-      expect(
-        events.filter((event) => event.type === "item.completed" && event.itemId === itemId),
-      ).toEqual([
-        expect.objectContaining({ payload: expect.objectContaining({ status: "error" }) }),
-      ]);
+    const delivered = [];
+    for (let index = 0; index < 4; index++) {
+      delivered.push((await messages.next()).value.message.content);
     }
-    replacement.output.write(assistantMessage(sessionId, "resized-reply"));
-    replacement.output.write(resultMessage(sessionId));
-    await flushSdkMessages();
-    expect((await messages.next()).value.message.content).toBe("Later");
-    replacement.output.write(assistantMessage(sessionId, "later-reply"));
-    replacement.output.write(resultMessage(sessionId));
-    await flushSdkMessages();
+    expect(delivered).toEqual(["Launch background work", "Resize", "Later", "Direct"]);
+    // The old window's model variant stays until the relaunch applies the new one.
+    expect(original.setModel).not.toHaveBeenCalled();
+    expect(
+      events.filter((event) => event.type === "item.completed" && toolIds.includes(event.itemId)),
+    ).toEqual([]);
+    original.output.write(assistantMessage(sessionId, "direct-reply"));
+    original.output.write(resultMessage(sessionId));
     original.output.write({
       type: "system",
       subtype: "task_notification",
@@ -275,7 +277,22 @@ describe("Claude SDK working-window selection", () => {
       summary: "Background work completed",
     } satisfies SDKMessage);
     await flushSdkMessages();
-    expect(statuses.at(-1)).toBe("idle");
+    expect(
+      events.filter((event) => event.type === "item.completed" && event.itemId === "agent-tool"),
+    ).toEqual([
+      expect.objectContaining({ payload: expect.objectContaining({ status: "success" }) }),
+    ]);
+
+    await session.startTurn("After drain", resized);
+    expect(sdk.query).toHaveBeenCalledTimes(2);
+    expect(sdk.query.mock.calls[1]?.[0].options).toMatchObject({
+      resume: sessionId,
+      model: config.model,
+      env: { CLAUDE_CODE_AUTO_COMPACT_WINDOW: "200000" },
+    });
+    const next = sdk.query.mock.calls[1]![0].prompt;
+    if (typeof next === "string") throw new Error("Expected the SDK prompt queue");
+    expect((await next[Symbol.asyncIterator]().next()).value.message.content).toBe("After drain");
     await session.dispose();
     original.output.end();
   });
