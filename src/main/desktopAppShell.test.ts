@@ -69,7 +69,9 @@ vi.mock("./diagnostics/sentry", () => ({
 }));
 
 vi.mock("./windowsJobObject", () => ({
-  WindowsJobObjectManager: class WindowsJobObjectManager {},
+  WindowsJobObjectManager: class WindowsJobObjectManager {
+    start = vi.fn<() => Promise<void>>(async () => {});
+  },
 }));
 
 vi.mock("./attachments/localFiles", () => ({

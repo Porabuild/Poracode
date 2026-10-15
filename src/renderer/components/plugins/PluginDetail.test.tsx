@@ -105,6 +105,30 @@ describe("PluginDetail", () => {
     usePanelStore.setState({ settingsOpen: false });
   });
 
+  it("offers publishing skills while preserving settings from the previous plugin version", () => {
+    useSharedSettings.setState({
+      installedPlugins: {
+        "app-controls": {
+          version: "1.3.0",
+          enabled: true,
+          disabledSkillIds: ["app-controls"],
+          disabledMcpServerNames: [],
+        },
+      },
+    });
+    function AppControlsDetail() {
+      const plugin = useLocalizedPluginCatalog().find(
+        (candidate) => candidate.plugin.name === "app-controls",
+      )!;
+      return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
+    }
+    render(<AppControlsDetail />);
+    for (const name of ["Commit", "Create PR", "Finalize"]) {
+      expect(screen.getByRole("switch", { name: `${name} Skill` })).toBeChecked();
+    }
+    expect(screen.getByRole("switch", { name: "Poracode Skill" })).not.toBeChecked();
+  });
+
   it("updates plugin and skill toggles for a built-in tool plugin", () => {
     // browser-tools wraps a server the app owns, so it arrives installed and
     // offers no Uninstall — only the enable switch.

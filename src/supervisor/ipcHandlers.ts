@@ -350,6 +350,14 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       github.deleteWorkflowRun(payload.projectLocation, payload.runId, payload.ghAccount),
     ghMergePr: (payload) =>
       github.mergePr(payload.projectLocation, payload.prNumber, payload.method, payload.admin),
+    ghMergePrAtHead: (payload) =>
+      github.mergePr(
+        payload.projectLocation,
+        payload.prNumber,
+        payload.method,
+        payload.admin,
+        payload.expectedHeadSha,
+      ),
     ghClosePr: (payload) => github.closePr(payload.projectLocation, payload.prNumber),
     ghReopenPr: (payload) => github.reopenPr(payload.projectLocation, payload.prNumber),
     ghMarkPrReady: (payload) => github.markPrReady(payload.projectLocation, payload.prNumber),

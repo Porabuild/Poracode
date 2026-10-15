@@ -24,6 +24,7 @@ import type {
   GhListPullRequestsResult,
   GhMarkPrReadyPayload,
   GhMergePrPayload,
+  GhMergePrAtHeadPayload,
   GhPostPrCommentPayload,
   GhReopenPrPayload,
   GhUpdatePrBranchPayload,
@@ -105,6 +106,7 @@ import type {
   CreateAppThreadResult,
 } from "../../../threads/appThreadLauncher";
 import type { ThreadStateBroker } from "../../../threads/threadStateBroker";
+import type { GitStateService } from "../../../gitState/GitStateService";
 
 /**
  * Typed subset of `supervisorClient.call` the thread-management tools use. Kept
@@ -212,6 +214,7 @@ export interface AppControlsSupervisorCaller {
   ghPostPrComment(payload: GhPostPrCommentPayload): Promise<PrComment>;
   /** Merge a pull request. */
   ghMergePr(payload: GhMergePrPayload): Promise<void>;
+  ghMergePrAtHead(payload: GhMergePrAtHeadPayload): Promise<void>;
   /** Close a pull request. */
   ghClosePr(payload: GhClosePrPayload): Promise<void>;
   /** Reopen a closed pull request. */
@@ -301,6 +304,11 @@ export interface AppControlsToolContext {
   /** Read-only app facts for `get_app_info`. */
   getAppInfo(): AppControlsAppInfo;
   supervisor: AppControlsSupervisorCaller;
+  /** Publish agent Git/GitHub activity through the same read model as the UI. */
+  gitState?: Pick<
+    GitStateService,
+    "refreshTarget" | "refreshProjectPullRequests" | "applyObservedPullRequest"
+  >;
   /** Create + launch a first-class app thread (see appThreadLauncher). */
   createThread(
     request: CreateAppThreadRequest,

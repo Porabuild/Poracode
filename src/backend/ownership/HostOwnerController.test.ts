@@ -75,7 +75,7 @@ async function externalContender(namespace: string) {
         "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
-        fileURLToPath(new URL("../../../scripts/remote-v3-ts-register.mjs", import.meta.url)),
+        new URL("../../../scripts/remote-v3-ts-register.mjs", import.meta.url).href,
       ],
       stdio: ["ignore", "ignore", "pipe", "ipc"],
     },

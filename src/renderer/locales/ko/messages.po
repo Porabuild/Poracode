@@ -3545,6 +3545,7 @@ msgstr "댓글이 게시되었습니다."
 msgid "commented"
 msgstr "댓글을 달았습니다."
 
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit"
@@ -3584,6 +3585,10 @@ msgstr "커밋 메시지 생성"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Commit options"
 msgstr "커밋 옵션"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Commit the intended current-worktree changes with a clear subject and explanation."
+msgstr "명확한 제목과 설명으로 현재 워크트리의 의도한 변경 사항을 커밋합니다."
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Commit, PR, and review composers"
@@ -4415,6 +4420,7 @@ msgstr "새 브랜치 만들기"
 msgid "Create new branch..."
 msgstr "새 브랜치 만들기..."
 
+#: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
@@ -6529,6 +6535,10 @@ msgstr "상태별로 스킬 필터링"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Filters"
 msgstr "필터"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Finalize"
+msgstr "마무리"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -12111,6 +12121,10 @@ msgstr "공개 URL"
 msgid "Public URL updated."
 msgstr "공개 URL이 업데이트되었습니다."
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Publish the current worktree with a proper PR description and before/after UI screenshots."
+msgstr "적절한 PR 설명과 UI 변경 전후 스크린샷을 포함해 현재 워크트리를 게시합니다."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
 msgstr "풀"
@@ -13357,6 +13371,10 @@ msgstr "리뷰 표시"
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 msgid "Review recovery"
 msgstr "복구 검토"
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
+msgstr "검토, 수동 테스트, 수정, 커밋, 푸시, PR 생성을 수행하고 검사를 통과하면 병합합니다."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"

@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 5
-  public static let sourceHash = "sha256:9ef557b79d93fcef2a263ea204f849dbc70a5e82ab0d83471fbf12781f4ce16e"
+  public static let sourceHash = "sha256:55df1e858c75faf7df083edb297a51034089a8d1334536ed09364561d8931b0c"
   public static let manifestHash = "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -151,7 +151,7 @@ public enum RemoteContractMetadata {
     .init(name: "ghDeleteWorkflowRun", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedureghCancelWorkflowRunRequest_eb12aad287", resultType: "RemoteUnit"),
     .init(name: "ghDispatchWorkflow", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedureghDispatchWorkflowRequest_e56382aee3", resultType: "RemoteUnit"),
     .init(name: "ghGetPrChecks", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghGetPrChecksRequest_50e8e4265c", resultType: "ProcedureghGetPrChecksResult_437e2d5d20"),
-    .init(name: "ghGetPrDetails", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghClosePrRequest_868bf1042a", resultType: "ProcedureghGetPrDetailsResult_567aa4ef7f"),
+    .init(name: "ghGetPrDetails", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghClosePrRequest_868bf1042a", resultType: "ProcedureghGetPrDetailsResult_36d27df213"),
     .init(name: "ghGetPrDiff", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghClosePrRequest_868bf1042a", resultType: "ProceduregetGitDiffResult_ecbd7591c9"),
     .init(name: "ghGetPrFiles", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghClosePrRequest_868bf1042a", resultType: "ProcedureghGetPrFilesResult_24cb35c8f9"),
     .init(name: "ghGetPrForBranch", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghGetPrChecksRequest_50e8e4265c", resultType: "ProcedureghGetPrForBranchResult_452c70feef"),

@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
+import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
@@ -108,7 +109,7 @@ describe.skipIf(!sqliteAvailable)("remote command receipts across real process k
         "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
-        resolve("scripts/remote-v3-ts-register.mjs"),
+        pathToFileURL(resolve("scripts/remote-v3-ts-register.mjs")).href,
       ],
       stdio: ["ignore", "pipe", "pipe", "ipc"],
     });

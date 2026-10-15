@@ -229,10 +229,10 @@ describe("paired bounded catalog manual order over the real fixture", () => {
       }
     }
     await Promise.all(servers.splice(0).map((server) => server.dispose()));
+    closeDatabase();
     await Promise.all(
       dataRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
     );
-    closeDatabase();
     useAppStore.setState({ threads: [], projects: [] });
     vi.restoreAllMocks();
     await delay(0);

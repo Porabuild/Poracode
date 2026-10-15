@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { defineConfig } from "vitest/config";
+import { defineConfig, type TestProjectInlineConfiguration } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
 import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
@@ -12,6 +12,29 @@ const coreShardExcludes =
     ? ["src/shared/remote/contract/native/runtime.test.ts"]
     : [];
 
+const monacoTestFiles = [
+  "src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/localMonacoEditor.test.ts",
+  "src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/monacoCompletionLifecycle.test.ts",
+];
+
+function rendererProject(
+  test: TestProjectInlineConfiguration["test"],
+): TestProjectInlineConfiguration {
+  return {
+    extends: true,
+    // Expand Lingui macros and resolve .po catalogs for renderer tests.
+    // React Compiler remains a build-only optimization.
+    plugins: [babel({ plugins: ["@lingui/babel-plugin-lingui-macro"] }), lingui()],
+    resolve: {
+      alias: {
+        "@": resolve(import.meta.dirname, "src"),
+        "~file-icons": resolve(import.meta.dirname, "node_modules/material-icon-theme/icons"),
+      },
+    },
+    test: { environment: "jsdom", setupFiles: ["./src/renderer/testSetup.ts"], ...test },
+  };
+}
+
 export default defineConfig({
   plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
@@ -19,6 +42,8 @@ export default defineConfig({
     // Vitest 5 defaults clearMocks to true; the repo accepts the new default
     // (mock history is cleared before each test, implementations are kept).
     clearMocks: true,
+    // Leave capacity for compiler subprocesses and large JSDOM module graphs.
+    maxWorkers: "50%",
     // Default 5s is too tight for tests that vi.resetModules() + dynamic-import
     // under heavy parallel load. Raise to 15s so import jitter doesn't flake
     // the suite; per-test timeouts can still override.
@@ -34,26 +59,29 @@ export default defineConfig({
     // and run via the `test:perf:*` scripts / the dedicated CI perf job.
     exclude: ["dist", "node_modules", "**/*.perf.test.ts"],
     projects: [
-      {
-        extends: true,
-        // Expand Lingui macros (Trans/t/msg/useLingui) and resolve `.po` catalog
-        // imports in the renderer test bundle — the macros throw at runtime if
-        // left untransformed. (No React Compiler here; it is a build-only
-        // optimization and unnecessary for tests.)
-        plugins: [babel({ plugins: ["@lingui/babel-plugin-lingui-macro"] }), lingui()],
-        resolve: {
-          alias: {
-            "@": resolve(import.meta.dirname, "src"),
-            "~file-icons": resolve(import.meta.dirname, "node_modules/material-icon-theme/icons"),
+      rendererProject({
+        name: "renderer",
+        include: ["src/renderer/**/*.test.{ts,tsx}"],
+        exclude: ["**/*.perf.test.ts", ...monacoTestFiles],
+      }),
+      rendererProject({
+        name: "renderer-monaco",
+        include: monacoTestFiles,
+        // Keep prebundling isolated from renderer tests that mock dependency identities.
+        deps: {
+          optimizer: {
+            client: {
+              enabled: true,
+              include: [
+                "monaco-editor",
+                "monaco-editor/languages/features/common/lspLanguageFeatures.js",
+              ],
+              extensions: [".css"],
+              rolldownOptions: { moduleTypes: { ".css": "empty" } },
+            },
           },
         },
-        test: {
-          name: "renderer",
-          include: ["src/renderer/**/*.test.{ts,tsx}"],
-          environment: "jsdom",
-          setupFiles: ["./src/renderer/testSetup.ts"],
-        },
-      },
+      }),
       {
         extends: true,
         resolve: {

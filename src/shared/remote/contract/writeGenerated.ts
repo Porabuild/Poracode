@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { buildRemoteV3GeneratedFiles } from "./generate";
 import { compareUnicodeCodePoints } from "./unicodeOrder";
 
@@ -52,7 +52,7 @@ function generatedFilesOnDisk(directory: string): string[] {
       if (entry.name.startsWith(".")) continue;
       const absolute = join(current, entry.name);
       if (entry.isDirectory()) visit(absolute);
-      else files.push(relative(directory, absolute));
+      else files.push(relative(directory, absolute).split(sep).join("/"));
     }
   };
   visit(directory);

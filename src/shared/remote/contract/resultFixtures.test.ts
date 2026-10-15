@@ -4,6 +4,9 @@ import {
   detectSetupScriptResultSchema,
   ghCheckAvailableResultSchema,
   ghGetPrForBranchResultSchema,
+  ghGetPrDetailsResultSchema,
+  ghMergePrPayloadSchema,
+  ghMergePrAtHeadPayloadSchema,
   gitCommitResultSchema,
   gitProjectSnapshotResultSchema,
   importSkillsResultSchema,
@@ -17,6 +20,61 @@ import { subAgentSubscribeResultSchema, workflowGetRunResultSchema } from "../..
 import { omittedResultSchema, remoteProcedureCallEnvelopeSchema } from "../../ipc/resultCodec";
 
 describe("remote procedure result fixtures", () => {
+  it("preserves previous merge payloads and requires the guard on the distinct internal operation", () => {
+    const previous = {
+      projectLocation: { kind: "posix", path: "/repo" },
+      prNumber: 12,
+      method: "squash",
+      admin: false,
+    };
+    expect(ghMergePrPayloadSchema.parse(previous)).toEqual(previous);
+    expect(
+      ghMergePrAtHeadPayloadSchema.parse({ ...previous, expectedHeadSha: "a".repeat(40) })
+        .expectedHeadSha,
+    ).toBe("a".repeat(40));
+    expect(
+      ghMergePrAtHeadPayloadSchema.parse({ ...previous, expectedHeadSha: "A".repeat(40) })
+        .expectedHeadSha,
+    ).toBe("A".repeat(40));
+    expect(
+      ghMergePrAtHeadPayloadSchema.safeParse({ ...previous, expectedHeadSha: "--admin" }).success,
+    ).toBe(false);
+    expect(ghMergePrAtHeadPayloadSchema.safeParse(previous).success).toBe(false);
+  });
+
+  it("accepts the previous details-only PR result and the additive core state", () => {
+    const previous = {
+      details: {
+        number: 12,
+        title: "Fix",
+        body: "",
+        baseBranch: "main",
+        headBranch: "feature",
+        additions: 0,
+        deletions: 0,
+        changedFiles: 0,
+        commits: [],
+        comments: [],
+        reviews: [],
+        checks: [],
+      },
+    };
+    expect(ghGetPrDetailsResultSchema.parse(previous)).toEqual(previous);
+    const current = {
+      ...previous,
+      pr: {
+        number: 12,
+        title: "Fix",
+        state: "merged",
+        url: "https://github.com/acme/app/pull/12",
+        baseBranch: "main",
+        isDraft: false,
+        updatedAt: "2026-10-15T12:00:00Z",
+      },
+    };
+    expect(ghGetPrDetailsResultSchema.parse(current)).toEqual(current);
+  });
+
   it("validates representative handler-shaped results", () => {
     expect(gitCommitResultSchema.parse({ hash: "abc123", message: "fix: parse" }).hash).toBe(
       "abc123",

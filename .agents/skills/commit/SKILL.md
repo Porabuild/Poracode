@@ -7,9 +7,14 @@ description: Creates a Poracode commit with a Conventional Commits subject, a wh
 
 Turn finished, reviewed work into one clean commit on the right branch. Commit only when the user asked; finished work is not consent to commit.
 
+An invocation of `finalize` authorizes the commit and its subsequent push/PR/merge workflow. Prefer Poracode's
+`git_status`, `git_stage` with explicit paths, and `git_commit` when available. Resolve the current thread's `projectId`
+and exact `worktreePath` once and pass both; omitting the path targets the main checkout. Use CLI for missing
+operations and read back with `git_status` to synchronize the UI. Inspect live schemas on older hosts.
+
 ## Branch
 
-- Never commit to `master`. Branch from an up-to-date `origin/master` (`git fetch origin master`), one change per branch, so each PR stays reviewable and revertable on its own.
+- Never commit to `master`. Keep the current worktree's existing branch and work. For a new branch, fetch `origin/master` and branch from it without resetting existing changes.
 - Tied to a GitHub issue: name the branch `<issue>-<short-slug>`, e.g. `123-pending-worktree-identity`.
 - No issue: keep the branch the workspace already created (Poracode worktrees start on `poracode/<name>`); otherwise use `<type>/<short-slug>`.
 
@@ -25,6 +30,7 @@ Never stage:
 - Unrelated edits that happen to be in the tree; leave them unstaged and mention them.
 
 Check `git diff --cached --stat` before committing.
+If unrelated paths were already staged, resolve their ownership before committing; never silently include or unstage them.
 
 ## Subject
 

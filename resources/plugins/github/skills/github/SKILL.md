@@ -8,14 +8,19 @@ description: "Inspect repositories, review pull requests, triage issues, and fol
 Work with GitHub through the connected `github` MCP server. Prefer its tools over shelling out to `gh` or `git` —
 they return structured data and work without a local checkout.
 
+For the current Poracode project's commit/push/PR workflow, prefer its `poracode` MCP `git_*` and `gh_*` tools so
+the UI stays synchronized. Load `commit`, `create-pr`, or `finalize` for the requested scope. After a CLI-only edit or
+attachment upload, refresh with `gh_get_pr` and `git_status`. The GitHub server remains useful for repositories
+without a local Poracode project and operations its internal tools do not expose.
+
 Use this core skill to orient the repository and route the request. Use `review-follow-up` for review threads,
 `ci-debug` for failing Actions checks, and `publish-changes` for commit/push/PR work. Do not blend a read-only
 inspection request into a publishing workflow.
 
 ## Before you start
 
-Confirm the server is connected. If its tools are unavailable, say so and stop rather than silently falling back to
-guesswork; the user connects it from **Settings → Plugins → GitHub**.
+Confirm the appropriate server is connected. If GitHub tools are unavailable, use Poracode's tools for the current
+project when available; otherwise report the missing connection. The user connects GitHub from **Settings → Plugins → GitHub**.
 
 Establish the target repository once, from the user's words or the current project's `origin` remote, and reuse it.
 Do not guess an owner or repo name.

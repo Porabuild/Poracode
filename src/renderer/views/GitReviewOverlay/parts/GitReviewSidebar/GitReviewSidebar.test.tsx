@@ -1366,6 +1366,7 @@ describe("GitReviewSidebar", () => {
   });
 
   it("hides Create PR when the branch still points at the latest merged PR commit", async () => {
+    const worktreePath = "C:\\repo-worktree";
     const project: Project = {
       id: "project-1",
       name: "Poracode",
@@ -1407,7 +1408,8 @@ describe("GitReviewSidebar", () => {
       commitsAhead: 1,
       sourceAhead: 0,
     });
-    bridgeMock.ghGetPrForBranch.mockResolvedValue(mergedPr);
+    const response = Promise.withResolvers<PrData | null>();
+    bridgeMock.ghGetPrForBranch.mockReturnValueOnce(response.promise);
     useGitStore.setState({ ghAvailable: { [project.id]: true } });
 
     const { rerender } = render(
@@ -1417,13 +1419,19 @@ describe("GitReviewSidebar", () => {
         selectedFile={null}
         selectedStaged={false}
         worktreeBranch="feature/worktree"
-        worktreePath="C:\\repo-worktree"
+        worktreePath={worktreePath}
         refreshKey={1}
         onSelectFile={() => undefined}
         onClose={() => undefined}
         onRefresh={() => undefined}
       />,
     );
+
+    await act(async () => {
+      useGitStore.getState().setPrData(worktreePath, mergedPr);
+      response.resolve(null);
+      await response.promise;
+    });
 
     expect(
       await screen.findByText("#429 - Add GitHub Actions workflow management view"),
@@ -1441,7 +1449,7 @@ describe("GitReviewSidebar", () => {
         selectedFile={null}
         selectedStaged={false}
         worktreeBranch="feature/worktree"
-        worktreePath="C:\\repo-worktree"
+        worktreePath={worktreePath}
         refreshKey={1}
         onSelectFile={() => undefined}
         onClose={() => undefined}

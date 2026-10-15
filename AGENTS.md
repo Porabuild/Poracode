@@ -52,7 +52,8 @@ Commit or open a PR only when asked. The `commit`, `pull-request`, and `address-
 
 Procedures live in `.agents/skills/` (`.claude/skills` is a symlink to it):
 
-- `commit`, `pull-request`, `verify`, `address-pr-feedback` — the change workflow.
+- `finalize` — review, manual QA, fix, verify, commit, push, PR, and merge after checks pass when the user says "Finalize".
+- `commit`, `pull-request`, `verify`, `address-pr-feedback` — the individual change workflows.
 - `interactive-testing` — drive the real Electron app over CDP, including screenshots; `provider-chat-smoke` extends it for provider chat and ACP sessions.
 - `mobile-apps` — mobile web/PWA, iOS, and Android work.
 - `release-notes` — changelog entries for a release.

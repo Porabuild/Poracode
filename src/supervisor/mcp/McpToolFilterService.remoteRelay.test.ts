@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { join } from "node:path";
 import type { ResolvedMcpServer } from "@/shared/contracts";
 vi.mock("node:fs", () => ({ existsSync: () => true }));
 vi.mock("../wsl/wslDeploy", () => ({
@@ -31,7 +32,7 @@ describe("MCP stdio relay preparation", () => {
     );
     expect(result?.transport.type).toBe("stdio");
     if (result?.transport.type !== "stdio") throw new Error("Expected stdio");
-    expect(result.transport.args).toEqual(["/helpers/mcp-filter.mjs"]);
+    expect(result.transport.args).toEqual([join("/helpers", "mcp-filter.mjs")]);
     const config = JSON.parse(
       Buffer.from(result.transport.env.PORACODE_MCP_FILTER_CONFIG!, "base64url").toString("utf8"),
     );

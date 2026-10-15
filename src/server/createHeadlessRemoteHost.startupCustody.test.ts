@@ -61,6 +61,7 @@ function makeHost(baseDir: string): Promise<HeadlessRemoteHost> {
 describe.skipIf(!sqliteAvailable)("headless failed-startup custody handoff", () => {
   let root: string;
   let baseDir: string;
+  const owners: HostOwnerController[] = [];
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), "poracode-headless-custody-"));
@@ -68,9 +69,15 @@ describe.skipIf(!sqliteAvailable)("headless failed-startup custody handoff", () 
     state.supervisorError = new Error("supervisor-constructor-boom");
     state.refuseCloseAttempts = 0;
     state.closeAttempts = 0;
+    const acquire = HostOwnerController.acquire;
+    vi.spyOn(HostOwnerController, "acquire").mockImplementation((...args) => {
+      const owner = acquire(...args);
+      owners.push(owner);
+      return owner;
+    });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     state.refuseCloseAttempts = 0;
     state.supervisorError = null;
     // The persistent-refusal case intentionally keeps its real handle until
@@ -80,6 +87,8 @@ describe.skipIf(!sqliteAvailable)("headless failed-startup custody handoff", () 
     } catch {
       // No open handle left (the one-shot case already closed it).
     }
+    await Promise.all(owners.splice(0).map((owner) => owner.close()));
+    vi.restoreAllMocks();
     rmSync(root, { recursive: true, force: true });
   });
 

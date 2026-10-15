@@ -80,7 +80,9 @@ describe("host data custody fence", () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
       holder.release();
     })();
-    await expect(acquireHostDataFenceWithWait(path, 3, 10)).resolves.toBeInstanceOf(HostDataFence);
+    const successor = await acquireHostDataFenceWithWait(path, 3, 10);
+    fences.push(successor);
+    expect(successor).toBeInstanceOf(HostDataFence);
     await delayed;
   });
 

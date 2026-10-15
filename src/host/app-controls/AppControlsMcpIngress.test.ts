@@ -219,6 +219,7 @@ function deps(overrides: Partial<AppControlsMcpIngressDeps> = {}): AppControlsMc
         createdAt: "2026-01-01T00:00:00.000Z",
       })),
       ghMergePr: vi.fn<SC["ghMergePr"]>(async () => undefined),
+      ghMergePrAtHead: vi.fn<SC["ghMergePrAtHead"]>(async () => undefined),
       ghClosePr: vi.fn<SC["ghClosePr"]>(async () => undefined),
       ghReopenPr: vi.fn<SC["ghReopenPr"]>(async () => undefined),
       ghMarkPrReady: vi.fn<SC["ghMarkPrReady"]>(async () => undefined),

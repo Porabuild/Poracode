@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PoracodeBridge } from "@/shared/ipc";
 import type {
   GitStatusResult,
   PrData,
@@ -9,6 +10,8 @@ import type {
 } from "@/shared/contracts";
 import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
+import { emptyGitStateSnapshot, gitTargetKey, pullRequestKey } from "@/shared/gitState";
+import { projectGitReadModelIntoLegacyStore } from "./gitReadModelLegacyProjection";
 import { useExperimentStore } from "./experimentStore";
 import { buildBranchPrKey } from "./gitSelectors";
 import { usePanelStore } from "./panelStore";
@@ -24,6 +27,7 @@ import {
   PR_PENDING_REFRESH_INTERVAL_MS,
   PR_POST_PUSH_STATUS_POLL_MS,
   refreshGitProject,
+  refreshSinglePr,
   stopPendingPrRefresh,
   startPostPushPrStatusRefresh,
   syncPendingPrRefreshProjects,
@@ -360,6 +364,63 @@ describe("pending PR refresh", () => {
       "/repo/experiment-one",
       "/repo/experiment-two",
     ]);
+  });
+
+  it.each([
+    { label: "open", pr: basePr },
+    { label: "empty", pr: null },
+  ])("keeps a canonical merge after a delayed $label renderer response", async ({ pr }) => {
+    const prKey = buildBranchPrKey("p1");
+    useGitStore.getState().setPrData(prKey, basePr);
+    useGitStore.getState().setPrDetails("p1#42", baseDetails);
+    const coreResponse = Promise.withResolvers<PrData | null>();
+    const detailsResponse = Promise.withResolvers<{ details: PrDetails }>();
+    ghGetPrForBranchMock.mockReturnValueOnce(coreResponse.promise);
+    ghGetPrDetailsMock.mockReturnValueOnce(detailsResponse.promise);
+    const refresh = refreshSinglePr({
+      projectLocation: location,
+      prKey,
+      branch: status.branch,
+      detailsCacheKey: "p1#42",
+      prNumber: 42,
+    });
+    const merged: PrData = { ...basePr, state: "merged", checksStatus: "SUCCESS" };
+    const mergedDetails: PrDetails = {
+      ...baseDetails,
+      mergedAt: "2026-04-04T00:10:00.000Z",
+      checks: [{ name: "CI", state: "COMPLETED", conclusion: "SUCCESS" }],
+    };
+    const targetRef = { hostId: "desktop-1", projectId: "p1" };
+    const prRef = { ...targetRef, prNumber: 42 };
+    const canonicalPrKey = pullRequestKey(prRef);
+    const snapshot = {
+      ...emptyGitStateSnapshot(),
+      revision: 1,
+      targets: {
+        [gitTargetKey(targetRef)]: {
+          ref: targetRef,
+          pullRequestKey: canonicalPrKey,
+          refreshedAt: merged.updatedAt,
+        },
+      },
+      pullRequests: {
+        [canonicalPrKey]: {
+          ref: prRef,
+          data: merged,
+          details: mergedDetails,
+          freshness: { core: merged.updatedAt, details: merged.updatedAt },
+        },
+      },
+    };
+    projectGitReadModelIntoLegacyStore(snapshot);
+    coreResponse.resolve(pr);
+    detailsResponse.resolve({ details: baseDetails });
+    await refresh;
+
+    expect(useGitStore.getState().prData[prKey]).toBe(merged);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(mergedDetails);
+    projectGitReadModelIntoLegacyStore({ ...snapshot, revision: 2 }, snapshot);
+    expect(useGitStore.getState().prData[prKey]).toBe(merged);
   });
 
   it("refetches pending PR status until it leaves pending", async () => {
@@ -804,6 +865,62 @@ describe("watcher git status refresh", () => {
 
     expect(fullAttempts).toBe(2);
     expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(fullWorktreeStatus);
+  });
+
+  it("keeps a merged PR and thread association when a buffered full refresh finishes", async () => {
+    const readStarted = Promise.withResolvers<void>();
+    const response = Promise.withResolvers<PrData | null>();
+    const source = Promise.withResolvers<{
+      sourceBranch: string | null;
+      commitsAhead: number;
+      sourceAhead: number;
+    }>();
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        gitProjectSnapshot: vi.fn<PoracodeBridge["gitProjectSnapshot"]>().mockResolvedValue({
+          status,
+          branches: { current: status.branch, branches: [] },
+          worktrees: [{ path: "/repo-wt", branch: "feature/wt", commit: "abc", isMain: false }],
+          ghAvailable: true,
+        }),
+        gitWatchWorktrees: vi
+          .fn<PoracodeBridge["gitWatchWorktrees"]>()
+          .mockResolvedValue(undefined),
+        gitWorktreeStatusBatch: vi
+          .fn<PoracodeBridge["gitWorktreeStatusBatch"]>()
+          .mockResolvedValue({ statuses: {} }),
+        gitGetWorktreeSourceBranch: vi
+          .fn<PoracodeBridge["gitGetWorktreeSourceBranch"]>()
+          .mockReturnValue(source.promise),
+        ghListPrs: vi.fn<PoracodeBridge["ghListPrs"]>().mockResolvedValue({ prs: {} }),
+        ghGetPrForBranch: vi.fn<PoracodeBridge["ghGetPrForBranch"]>(({ branch }) => {
+          if (branch !== "feature/wt") return Promise.resolve(null);
+          readStarted.resolve();
+          return response.promise;
+        }),
+      },
+    });
+    useAppStore.setState({ threads: [{ ...worktreeThread, prNumber: 42 }] });
+    useGitStore.getState().setPrData("/repo-wt", basePr);
+    const refresh = refreshGitProject(project, "manual", "full");
+    try {
+      await readStarted.promise;
+      response.resolve(null);
+      await response.promise;
+      const merged: PrData = { ...basePr, state: "merged" };
+      useGitStore.getState().setPrData("/repo-wt", merged);
+      source.resolve({ sourceBranch: "main", commitsAhead: 1, sourceAhead: 0 });
+      await refresh;
+
+      expect(useGitStore.getState().prData["/repo-wt"]).toBe(merged);
+      expect(useAppStore.getState().threads[0]?.prNumber).toBe(42);
+    } finally {
+      response.resolve(null);
+      source.resolve({ sourceBranch: "main", commitsAhead: 1, sourceAhead: 0 });
+      await refresh;
+    }
   });
 
   it("preserves cached worktree diff stats during fetch refreshes", async () => {

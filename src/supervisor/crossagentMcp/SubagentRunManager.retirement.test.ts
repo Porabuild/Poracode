@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentAdapter,
   StructuredSessionHandle,
@@ -23,6 +23,10 @@ vi.mock("@/supervisor/agents/base", async (importOriginal) => ({
 vi.mock("./oneShotChild", () => ({ runOneShotChild: vi.fn<typeof runOneShotChild>() }));
 
 const PARENT = "parent";
+const hostPlatform = Object.getOwnPropertyDescriptor(process, "platform")!;
+beforeEach(() =>
+  Object.defineProperty(process, "platform", { value: "linux", configurable: true }),
+);
 const request = { agent: "codex", prompt: "Work" };
 const flush = async () => {
   for (let i = 0; i < 60; i++) await Promise.resolve();
@@ -113,6 +117,7 @@ const task = (id: string, writeScope: string[] = []): WorkflowTask => ({
   request,
 });
 afterEach(() => {
+  Object.defineProperty(process, "platform", hostPlatform);
   vi.useRealTimers();
 });
 

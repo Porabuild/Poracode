@@ -9,8 +9,13 @@ Get committed work into a draft PR that a reviewer can understand without readin
 
 ## Steps
 
+Prefer Poracode's `git_sync` (push) and `gh_create_pr` when available, using the current thread's project and exact
+worktree path. Read back with `gh_get_pr` to synchronize the UI. Use CLI for operations the tools do not expose,
+including title/body edits and attachment upload, then refresh with `gh_get_pr` and `git_status`. Inspect schemas on
+older hosts. Reuse an existing PR for this branch/base. A `syncWarning` requires a readback, not repeating publication.
+
 1. Confirm the work is committed on a non-`master` branch (see the `commit` skill) and the tree has nothing that belongs in this PR left unstaged.
-2. Run the `verify` skill. Use the full gate if the PR will be marked ready.
+2. Run the `verify` skill. Use the full gate if the PR will be marked ready. Reuse a completed gate only when it covered the exact unchanged final tree.
 3. If `src/renderer` strings changed, confirm they are localized and all 12 non-English catalogs are filled (`.agents/docs/i18n.md`). If persisted state, caches, manifests, protocols, or deployed helpers changed, complete the audit in `.agents/docs/versioning.md`.
 4. If the UI visibly changed, capture screenshots (below).
 5. Push: `git push -u origin HEAD`.
@@ -20,7 +25,7 @@ Get committed work into a draft PR that a reviewer can understand without readin
      --attach './tmp/pr-shots/before.png#Before: <state>' \
      --attach './tmp/pr-shots/after.png#After: <state>'
    ```
-   Drop `--draft` only when the user says the PR is ready. Drop `--attach` when there is no visible UI change.
+   Drop `--draft` when the user says ready or invokes `finalize` through merge. Drop `--attach` when there is no visible UI change. Check that the installed gh advertises `--attach`; older versions may need another supported upload tool.
 7. Read it back with `gh pr view --json url,title,baseRefName,headRefName,isDraft,body` and fix anything wrong with `gh pr edit`. Check that images rendered as uploaded `user-attachments` URLs, not local paths.
 8. Report the PR URL, branch, draft state, and anything left unverified.
 

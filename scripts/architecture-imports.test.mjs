@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { after, test } from "node:test";
 import {
   auditBoundaries,
@@ -334,7 +334,7 @@ void test("expandGlob matches directories with a glob segment", () => {
   });
   const matches = expandGlob(join(root, "providers/*/manifest.ts"));
   assert.deepEqual(
-    matches.map((path) => path.replace(`${root}/`, "")),
+    matches.map((path) => relative(root, path).split(sep).join("/")),
     ["providers/alpha/manifest.ts", "providers/beta/manifest.ts"],
   );
 });

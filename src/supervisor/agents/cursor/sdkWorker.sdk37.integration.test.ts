@@ -134,7 +134,8 @@ export const requestedModel = (options) => modules["./src/agent/local-executor.t
 `;
 
 const sdkSource = `
-export const getDefaultSdkStateRoot = (cwd) => cwd + "/sdk-store-sha256";
+import { join } from "node:path";
+export const getDefaultSdkStateRoot = (cwd) => join(cwd, "sdk-store-sha256");
 export class Cursor { static models = { list: async () => ${JSON.stringify(catalog)} }; }
 export class Agent {
   static async create(options) { return new Agent(options); }

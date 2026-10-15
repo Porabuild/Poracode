@@ -223,7 +223,8 @@ export async function inventoryImportFiles(
           // stay in the inventory; only the Chromium userData root is skipped.
           continue;
         }
-        const target = await readlink(absolute);
+        const rawTarget = await readlink(absolute);
+        const target = process.platform === "win32" ? rawTarget.replaceAll("\\", "/") : rawTarget;
         if (!isSymlinkTargetContained(path, target)) {
           throw new Error(`Offline backup contains a symbolic link or special file: ${path}`);
         }

@@ -241,7 +241,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGhGetPrDetailsU2EResult: RemoteRootCodec<ProcedureghGetPrDetailsResult_567aa4ef7f> = .init(id: "procedure.ghGetPrDetails.result", schema: RemoteSchemas.schema_567aa4ef7f92d006)
+  static let procedureU2EGhGetPrDetailsU2EResult: RemoteRootCodec<ProcedureghGetPrDetailsResult_36d27df213> = .init(id: "procedure.ghGetPrDetails.result", schema: RemoteSchemas.schema_36d27df213d025a2)
 }
 
 public extension RemoteRootCodecs {

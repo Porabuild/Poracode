@@ -594,7 +594,10 @@ describe("resolveOpenCodeSessionDirectory", () => {
       if (!linked) return;
 
       const { resolveOpenCodeSessionDirectory } = await import("./sdkClient");
-      const resolved = resolveOpenCodeSessionDirectory({ kind: "posix", path: linkPath });
+      const resolved = resolveOpenCodeSessionDirectory({
+        kind: process.platform === "win32" ? "windows" : "posix",
+        path: linkPath,
+      });
       expect(resolved).toBe(realpathSync(realDir));
       expect(resolved).not.toBe(linkPath);
     } finally {
@@ -635,7 +638,12 @@ describe("resolveOpenCodeSessionDirectory", () => {
       symlinkSync(join(linkParent, "never-created"), linkPath, "dir");
 
       const { resolveOpenCodeSessionDirectory } = await import("./sdkClient");
-      expect(resolveOpenCodeSessionDirectory({ kind: "posix", path: linkPath })).toBe(linkPath);
+      expect(
+        resolveOpenCodeSessionDirectory({
+          kind: process.platform === "win32" ? "windows" : "posix",
+          path: linkPath,
+        }),
+      ).toBe(linkPath);
     } finally {
       rmSync(linkParent, { recursive: true, force: true });
     }

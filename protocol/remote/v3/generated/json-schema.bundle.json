@@ -7282,6 +7282,11 @@
     "procedure.ghGetPrDetails.result": {
       "$defs": {
         "__schema0": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "type": "integer"
+        },
+        "__schema1": {
           "additionalProperties": true,
           "properties": {
             "avatarUrl": {
@@ -7297,7 +7302,7 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema1": {
+        "__schema2": {
           "maximum": 9007199254740991,
           "minimum": -9007199254740991,
           "type": "integer"
@@ -7310,10 +7315,10 @@
           "additionalProperties": true,
           "properties": {
             "additions": {
-              "$ref": "#/$defs/__schema1"
+              "$ref": "#/$defs/__schema2"
             },
             "author": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "baseBranch": {
               "type": "string"
@@ -7322,7 +7327,7 @@
               "type": "string"
             },
             "changedFiles": {
-              "$ref": "#/$defs/__schema1"
+              "$ref": "#/$defs/__schema2"
             },
             "checks": {
               "items": {
@@ -7375,7 +7380,7 @@
                 "additionalProperties": true,
                 "properties": {
                   "author": {
-                    "$ref": "#/$defs/__schema0"
+                    "$ref": "#/$defs/__schema1"
                   },
                   "body": {
                     "type": "string"
@@ -7409,7 +7414,7 @@
                     "type": "string"
                   },
                   "author": {
-                    "$ref": "#/$defs/__schema0"
+                    "$ref": "#/$defs/__schema1"
                   },
                   "authoredDate": {
                     "type": "string"
@@ -7442,7 +7447,7 @@
               "type": "string"
             },
             "deletions": {
-              "$ref": "#/$defs/__schema1"
+              "$ref": "#/$defs/__schema2"
             },
             "headBranch": {
               "type": "string"
@@ -7460,7 +7465,7 @@
             "mergedBy": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/__schema0"
+                  "$ref": "#/$defs/__schema1"
                 },
                 {
                   "type": "null"
@@ -7468,16 +7473,14 @@
               ]
             },
             "number": {
-              "exclusiveMinimum": 0,
-              "maximum": 9007199254740991,
-              "type": "integer"
+              "$ref": "#/$defs/__schema0"
             },
             "reviews": {
               "items": {
                 "additionalProperties": true,
                 "properties": {
                   "author": {
-                    "$ref": "#/$defs/__schema0"
+                    "$ref": "#/$defs/__schema1"
                   },
                   "body": {
                     "type": "string"
@@ -7530,6 +7533,82 @@
             "comments",
             "reviews",
             "checks"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "pr": {
+          "additionalProperties": true,
+          "properties": {
+            "baseBranch": {
+              "type": "string"
+            },
+            "checksStatus": {
+              "type": "string"
+            },
+            "headSha": {
+              "type": "string"
+            },
+            "isDraft": {
+              "type": "boolean"
+            },
+            "mergeStateStatus": {
+              "enum": [
+                "BEHIND",
+                "BLOCKED",
+                "CLEAN",
+                "DIRTY",
+                "DRAFT",
+                "HAS_HOOKS",
+                "UNKNOWN",
+                "UNSTABLE"
+              ],
+              "type": "string"
+            },
+            "mergeable": {
+              "enum": [
+                "MERGEABLE",
+                "CONFLICTING",
+                "UNKNOWN"
+              ],
+              "type": "string"
+            },
+            "number": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "reviewDecision": {
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "open",
+                "draft",
+                "merged",
+                "closed"
+              ],
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "viewerDidAuthor": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "number",
+            "state",
+            "title",
+            "url",
+            "baseBranch",
+            "isDraft",
+            "updatedAt"
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
@@ -56278,5 +56357,5 @@
   },
   "manifestHash": "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40",
   "protocolVersion": 14,
-  "sourceHash": "sha256:9ef557b79d93fcef2a263ea204f849dbc70a5e82ab0d83471fbf12781f4ce16e"
+  "sourceHash": "sha256:55df1e858c75faf7df083edb297a51034089a8d1334536ed09364561d8931b0c"
 }

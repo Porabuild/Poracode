@@ -50,7 +50,7 @@ async function contender(profile: string, kind: "desktop" | "headless") {
         "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
-        fileURLToPath(new URL("../../../scripts/remote-v3-ts-register.mjs", import.meta.url)),
+        new URL("../../../scripts/remote-v3-ts-register.mjs", import.meta.url).href,
       ],
       stdio: ["ignore", "ignore", "pipe", "ipc"],
     },

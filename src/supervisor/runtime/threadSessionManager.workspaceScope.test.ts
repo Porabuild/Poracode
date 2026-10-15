@@ -111,7 +111,7 @@ function payload(agentKind = "fixture"): StartThreadRuntimeInput {
   return {
     threadId: "pending-close",
     agentKind,
-    projectLocation: { kind: "posix", path: process.cwd() },
+    projectLocation: { kind: "posix", path: "/workspace" },
     config: { model: "fixture-model" },
     prompt: "",
     initialSize: { cols: 80, rows: 24 },
