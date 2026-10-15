@@ -3,10 +3,12 @@
  */
 
 import type { CanonicalItemType, RuntimeContentStreamKind } from "@/shared/contracts";
+import { messageReplyFormText } from "@/shared/messageReplyForm";
 import { readDiffSummary } from "../../fileChangeSummary";
 import { goalPayloadFromProviderState } from "../../goalRuntime";
 import { isCodexSpawnAgentToolCall, readCollabAgentProgress } from "./collabAgent";
 import { readCodexGoalStatus } from "./goal";
+import { readCodexAsyncQuestions } from "./asyncQuestions";
 import { type CodexItemPayload, extractMessageText, readChangesPayload } from "./readers";
 import {
   classifyCodexFileChangeKind,
@@ -104,8 +106,13 @@ export function buildStartedPayload(
     };
   }
   if (itemType === "assistant_message" || itemType === "user_message") {
-    const text = extractMessageText(source);
-    return { content: text.length > 0 ? [{ kind: "text", text }] : [] };
+    const replyForm =
+      itemType === "assistant_message" ? readCodexAsyncQuestions(source) : undefined;
+    const text = extractMessageText(source) || (replyForm ? messageReplyFormText(replyForm) : "");
+    return {
+      content: text.length > 0 ? [{ kind: "text", text }] : [],
+      ...(replyForm ? { replyForm } : {}),
+    };
   }
   if (isToolLikeItemType(itemType)) {
     const args = pickToolInput(source);
@@ -142,6 +149,10 @@ export function buildCompletedPayload(
   source: CodexItemPayload,
   wslDistro?: string,
 ): unknown {
+  if (itemType === "assistant_message") {
+    const replyForm = readCodexAsyncQuestions(source);
+    return replyForm ? buildStartedPayload(itemType, source) : undefined;
+  }
   if (itemType === "command_execution") {
     return {
       ...(typeof source.status === "string" ? { status: codexFinalStatus(source.status) } : {}),

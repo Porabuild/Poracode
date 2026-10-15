@@ -450,7 +450,8 @@ export function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   if (item.type === "assistant_message" && item.state === "completed") {
     const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
     const hasImage = payload?.content.some((block) => block.kind === "image") ?? false;
-    if (!hasImage && !hasVisibleAssistantText(item)) return false;
+    const hasReplyForm = (payload?.replyForm?.questions.length ?? 0) > 0;
+    if (!hasImage && !hasReplyForm && !hasVisibleAssistantText(item)) return false;
   }
   if (isToolLikeItem(item)) {
     const payload = getToolLikePayload(item);

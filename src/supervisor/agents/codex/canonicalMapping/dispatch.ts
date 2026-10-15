@@ -352,7 +352,7 @@ export function mapCodexNotification(
           type: "item.updated",
           threadId,
           itemId: internalId,
-          payload: { content: [{ kind: "text", text: finalText }] },
+          payload: buildStartedPayload(itemType, item),
         });
       }
     }

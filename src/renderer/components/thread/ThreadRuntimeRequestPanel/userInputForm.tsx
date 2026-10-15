@@ -243,6 +243,7 @@ export function UserInputForm(props: {
   controller: UserInputFormController;
   isDisabled: boolean;
   summary?: string;
+  wrapOptionLabels?: boolean;
   onSubmit: (response: unknown, outcome: RequestOutcome) => void;
 }) {
   const { formId, controller, isDisabled, summary, onSubmit } = props;
@@ -297,6 +298,7 @@ export function UserInputForm(props: {
                   key={option.optionId}
                   index={index}
                   option={option}
+                  {...(props.wrapOptionLabels ? { wrapLabel: true } : {})}
                   isDisabled={isDisabled}
                   {...(activeQuestion.multiSelect
                     ? {
@@ -348,12 +350,14 @@ export function UserInputForm(props: {
               value={customAnswer}
               onChange={(e) => controller.setCustomAnswer(activeQuestion.id, e.target.value)}
               placeholder={t`Or write a custom answer`}
+              aria-label={activeQuestion.question}
               className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
             />
           </div>
         ) : activeQuestion.isSecret ? (
           <input
             type="password"
+            aria-label={activeQuestion.question}
             disabled={isDisabled}
             value={singleUserInputValue(controller.answers[activeQuestion.id])}
             onChange={(e) => controller.setDirectAnswer(activeQuestion.id, e.target.value)}
@@ -363,6 +367,7 @@ export function UserInputForm(props: {
           <textarea
             disabled={isDisabled}
             rows={2}
+            aria-label={activeQuestion.question}
             value={singleUserInputValue(controller.answers[activeQuestion.id])}
             onChange={(e) => controller.setDirectAnswer(activeQuestion.id, e.target.value)}
             className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"

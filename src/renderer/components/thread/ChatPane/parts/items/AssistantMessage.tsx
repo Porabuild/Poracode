@@ -19,6 +19,7 @@ import { imageViewSourceFromImageBlock } from "./imageViewSource";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
 import { WindowedPlainText } from "./WindowedPlainText";
 import { useWindowedAssistantText } from "./useWindowedAssistantText";
+import { MessageReplyForm } from "./MessageReplyForm";
 
 interface AssistantMessageProps {
   threadId: string;
@@ -87,19 +88,31 @@ export const AssistantMessage = memo(function AssistantMessage({
   // revealing the button cannot grow the virtual row and move the transcript
   // past the pinned bottom edge.
   const reserveCopyButtonSpace = finalAnswerStatus !== "none" && rawText.length > 0;
+  const textBody =
+    rawText.length > 0 ? (
+      <AssistantTextBody
+        key={isStreamText ? "stream" : "payload"}
+        text={rawText}
+        isStreaming={isStreaming}
+        {...(retention ? { retention } : {})}
+      />
+    ) : null;
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
-        {rawText.length > 0 ? (
-          <AssistantTextBody
-            // Authoritative payload takeover is a source replacement even when
-            // the live stream has not needed retention/replacement metadata yet.
-            key={isStreamText ? "stream" : "payload"}
+        {payload?.replyForm && !item.parentItemId ? (
+          <MessageReplyForm
+            key={item.id}
+            threadId={threadId}
+            itemId={item.id}
+            form={payload.replyForm}
             text={rawText}
-            isStreaming={isStreaming}
-            {...(retention ? { retention } : {})}
-          />
-        ) : null}
+          >
+            {textBody}
+          </MessageReplyForm>
+        ) : (
+          textBody
+        )}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (

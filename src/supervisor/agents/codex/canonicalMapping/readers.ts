@@ -40,6 +40,7 @@ export interface CodexItemPayload {
   changeKind?: string;
   changes?: unknown;
   content?: unknown;
+  questions?: unknown;
   server?: string;
   serverId?: string;
   tool?: string;
