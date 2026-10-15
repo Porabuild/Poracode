@@ -48,6 +48,79 @@ const kimiUpdate = {
 };
 
 describe("resolveSharedUpdateCommand", () => {
+  it.each([
+    "C:\\Users\\me\\AppData\\Roaming\\fnm\\node-versions\\v24\\installation\\test-agent.cmd",
+    "C:\\Users\\me\\AppData\\Roaming\\fnm\\aliases\\default\\test-agent.cmd",
+    "C:\\Users\\me\\AppData\\Local\\fnm_multishells\\123_456\\test-agent.cmd",
+  ])("recognizes the npm installation behind a Windows fnm launcher: %s", (executablePath) => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: { npm: "test-agent" },
+        executablePath,
+        envKind: "windows",
+        installedPackageManagerOnly: true,
+      }),
+    ).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "test-agent@latest"],
+      strategy: "npm-global",
+    });
+  });
+
+  it("shares Windows package-manager preferences between execution and previews", () => {
+    const update = {
+      builtIn: { binary: "test-agent", args: ["update"] },
+      npm: "test-agent",
+      preferPackageManagerOnWindows: ["pnpm-global" as const],
+      windowsNpmInstallArgs: ["--allow-scripts=test-agent"],
+    };
+    expect(
+      resolveSharedUpdateCommand({
+        update,
+        executablePath: "E:\\pnpm\\test-agent.cmd",
+        envKind: "windows",
+      }),
+    ).toEqual({
+      binary: "pnpm",
+      args: ["add", "-g", "test-agent@latest"],
+      strategy: "pnpm-global",
+    });
+    expect(
+      resolveSharedUpdateCommand({
+        update,
+        executablePath: "C:\\npm\\test-agent.cmd",
+        envKind: "windows",
+      })?.strategy,
+    ).toBe("built-in");
+    expect(
+      resolveSharedUpdateCommand({
+        update,
+        executablePath: "/home/me/pnpm/test-agent",
+        envKind: "posix",
+      })?.strategy,
+    ).toBe("built-in");
+    expect(
+      resolveSharedUpdateCommand({
+        update,
+        executablePath: "C:\\native\\test-agent.exe",
+        envKind: "windows",
+        skipBuiltIn: true,
+      }),
+    ).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "test-agent@latest", "--allow-scripts=test-agent"],
+      strategy: "npm-global",
+    });
+    expect(
+      resolveSharedUpdateCommand({
+        update,
+        executablePath: "/usr/local/lib/node_modules/test-agent/bin.js",
+        envKind: "posix",
+        skipBuiltIn: true,
+      })?.args,
+    ).toEqual(["install", "-g", "test-agent@latest"]);
+  });
+
   it("resolves a self-updater's installed manager without treating a native install as npm", () => {
     const update = { builtIn: { binary: "test-agent", args: ["update"] }, npm: "test-agent" };
     expect(

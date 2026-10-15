@@ -24674,8 +24674,25 @@
                       "minLength": 1,
                       "type": "string"
                     },
+                    "preferPackageManagerOnWindows": {
+                      "items": {
+                        "enum": [
+                          "npm-global",
+                          "pnpm-global",
+                          "bun-global"
+                        ],
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "verifyBuiltInVersionChange": {
                       "type": "boolean"
+                    },
+                    "windowsNpmInstallArgs": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
                     },
                     "winget": {
                       "minLength": 1,
@@ -59628,7 +59645,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:9ef557b79d93fcef2a263ea204f849dbc70a5e82ab0d83471fbf12781f4ce16e",
+  "sourceHash": "sha256:b7aa0284f09cef491d46265e4a4e0c2fd7d7ac247b9767249826947e1b128e56",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

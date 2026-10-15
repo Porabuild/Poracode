@@ -81,6 +81,12 @@ export const agentUpdateInfoSchema = z.object({
   builtIn: agentUpdateCommandSchema.optional(),
   /** Fall back when the built-in command exits successfully without changing the detected version. */
   verifyBuiltInVersionChange: z.boolean().optional(),
+  /** Prefer these package-manager strategies over the self-updater on native Windows. */
+  preferPackageManagerOnWindows: z
+    .array(z.enum(["npm-global", "pnpm-global", "bun-global"]))
+    .optional(),
+  /** Extra arguments required by native Windows npm installs, e.g. scoped install-script approval. */
+  windowsNpmInstallArgs: z.array(z.string()).optional(),
   npm: z.string().min(1).optional(),
   homebrewCask: z.string().min(1).optional(),
   brew: z.string().min(1).optional(),

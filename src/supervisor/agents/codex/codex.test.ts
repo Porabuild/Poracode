@@ -26,6 +26,7 @@ import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
 
 import { codexIntentFor } from "./plugin/intentMap";
+import { resolveUpdateCommand } from "../updateAgent";
 import {
   mapCodexModels,
   mapCodexDisabledSkillNames,
@@ -62,6 +63,48 @@ describe("createCodexAdapter skill roots", () => {
 
     expect(support?.roots.map((root) => root.id)).toEqual(["codex", "agents"]);
     expect(support?.projectionRoots).toBeUndefined();
+  });
+});
+
+describe("createCodexAdapter updates", () => {
+  const adapter = createCodexAdapter();
+  const status = {
+    kind: "codex",
+    label: "Codex",
+    installed: true,
+    authState: "unknown" as const,
+    capabilities: codexDefaultCapabilities,
+    executablePath: "E:\\dev\\pnpm\\bin\\codex.cmd",
+  };
+
+  it("updates the detected Windows pnpm installation directly", () => {
+    expect(resolveUpdateCommand(adapter, status, { envKind: "windows" })).toEqual({
+      binary: "pnpm",
+      args: ["add", "-g", "@openai/codex@latest"],
+      strategy: "pnpm-global",
+    });
+  });
+
+  it("retains the self-updater for a native Windows executable", () => {
+    expect(
+      resolveUpdateCommand(
+        adapter,
+        { ...status, executablePath: "C:\\Users\\me\\.local\\bin\\codex.exe" },
+        { envKind: "windows" },
+      ),
+    ).toEqual({
+      binary: "codex",
+      args: ["update"],
+      strategy: "built-in",
+    });
+  });
+
+  it.each(["posix", "wsl"] as const)("keeps the built-in updater on %s", (envKind) => {
+    expect(resolveUpdateCommand(adapter, status, { envKind })).toEqual({
+      binary: "codex",
+      args: ["update"],
+      strategy: "built-in",
+    });
   });
 });
 

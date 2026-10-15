@@ -8,6 +8,50 @@ import { createKnownSessionRef } from "../base";
 import { GROK_AUTOMATION_RULES } from "./argv";
 import { grokDetectionSpec } from "./detection";
 import { createGrokAdapter } from "./index";
+import { resolveUpdateCommand } from "../updateAgent";
+
+describe("createGrokAdapter updates", () => {
+  const adapter = createGrokAdapter();
+  const status = {
+    kind: "grok",
+    label: "Grok Build",
+    installed: true,
+    authState: "unknown" as const,
+    capabilities: grokDetectionSpec.capabilities,
+    executablePath:
+      "C:\\Users\\me\\AppData\\Roaming\\fnm\\node-versions\\v24\\installation\\grok.cmd",
+  };
+
+  it("runs npm directly and allows only Grok's required install script on Windows", () => {
+    expect(resolveUpdateCommand(adapter, status, { envKind: "windows" })).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "@xai-official/grok@latest", "--allow-scripts=@xai-official/grok"],
+      strategy: "npm-global",
+    });
+  });
+
+  it("keeps the self-updater for other Windows installation channels", () => {
+    expect(
+      resolveUpdateCommand(
+        adapter,
+        { ...status, executablePath: "E:\\pnpm\\grok.cmd" },
+        { envKind: "windows" },
+      ),
+    ).toEqual({
+      binary: "grok",
+      args: ["update"],
+      strategy: "built-in",
+    });
+  });
+
+  it.each(["posix", "wsl"] as const)("keeps the built-in updater on %s", (envKind) => {
+    expect(resolveUpdateCommand(adapter, status, { envKind })).toEqual({
+      binary: "grok",
+      args: ["update"],
+      strategy: "built-in",
+    });
+  });
+});
 
 function oscTitle(text: string, code: 0 | 1 | 2 = 0): OscTitle {
   return { code, text };

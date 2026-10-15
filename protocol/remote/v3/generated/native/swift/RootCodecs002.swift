@@ -405,7 +405,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_1c2020f9fb> = .init(id: "route.agent-statuses.response", schema: RemoteSchemas.schema_1c2020f9fb873cc1)
+  static let routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_8babf8e386> = .init(id: "route.agent-statuses.response", schema: RemoteSchemas.schema_8babf8e3864040e4)
 }
 
 public extension RemoteRootCodecs {

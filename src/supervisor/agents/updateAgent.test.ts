@@ -300,6 +300,73 @@ describe("resolveUpdateCommand", () => {
 });
 
 describe("runUpdateCommandWithFallback", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearLatestVersionCache();
+  });
+
+  it.each([false, true])(
+    "pins Windows pnpm updates to the advertised version (fallback: %s)",
+    async (builtIn) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn<typeof fetch>().mockResolvedValue({
+          ok: true,
+          json: async () => ({ version: "2.0.0" }),
+        } as Response),
+      );
+      const adapter: AgentAdapter = {
+        ...makeAdapter("test-agent"),
+        update: {
+          npm: "test-agent",
+          ...(builtIn ? { builtIn: { binary: "test-agent", args: ["update"] } } : {}),
+        },
+      };
+      readAgentCommandOutputMock.mockImplementation(async (_location, binary) => ({
+        ok: binary === "pnpm",
+        stdout: binary === "pnpm" ? "updated" : "",
+        stderr: binary === "pnpm" ? "" : "failed",
+      }));
+      expect(
+        await runUpdateCommandWithFallback(
+          adapter,
+          makeStatus({
+            kind: "test-agent",
+            version: "1.0.0",
+            executablePath: "E:\\pnpm\\test-agent.cmd",
+          }),
+          NATIVE_WIN,
+        ),
+      ).toEqual({ ok: true, strategy: "pnpm-global", output: "updated" });
+      expect(readAgentCommandOutputMock).toHaveBeenLastCalledWith(
+        expect.anything(),
+        "pnpm",
+        ["add", "-g", "test-agent@2.0.0"],
+        { timeoutMs: 300_000 },
+      );
+    },
+  );
+
+  it("keeps latest-tag updates available when the upstream version is unavailable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue({ ok: false, status: 503 } as Response),
+    );
+    readAgentCommandOutputMock.mockResolvedValue({ ok: true, stdout: "updated", stderr: "" });
+    const adapter: AgentAdapter = { ...makeAdapter("test-agent"), update: { npm: "test-agent" } };
+    await runUpdateCommandWithFallback(
+      adapter,
+      makeStatus({ kind: "test-agent", executablePath: "E:\\pnpm\\test-agent.cmd" }),
+      NATIVE_WIN,
+    );
+    expect(readAgentCommandOutputMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "pnpm",
+      ["add", "-g", "test-agent@latest"],
+      { timeoutMs: 300_000 },
+    );
+  });
+
   it("serializes package-manager self-updates and fallback commands", async () => {
     const selfUpdatingAdapter: AgentAdapter = {
       ...makeAdapter("test-a"),
