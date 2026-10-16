@@ -1,7 +1,17 @@
 import { chmod, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const hostPlatform = process.platform;
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...original,
+    readFile: vi.fn<typeof original.readFile>(original.readFile),
+    chmod: vi.fn<typeof original.chmod>(original.chmod),
+    writeFile: vi.fn<typeof original.writeFile>(original.writeFile),
+  };
+});
 const state = vi.hoisted(() => ({ rows: [] as { id: string }[] }));
 vi.mock("node:fs", () => ({ existsSync: () => true }));
 vi.mock("../../runtime/sqliteRead", () => ({
@@ -184,6 +194,11 @@ describe("SessionStart record attribution", () => {
 });
 
 describe("per-launch SessionStart hook view", () => {
+  beforeEach(() => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("linux");
+  });
+  afterEach(() => vi.restoreAllMocks());
+
   it("merges the hook into the effective user config, preserving unknown keys", () => {
     const merged = JSON.parse(
       mergeDevinSessionHookConfig(
@@ -221,11 +236,22 @@ describe("per-launch SessionStart hook view", () => {
       expect(view.theme_mode).toBe("dark");
       expect(view.hooks.SessionStart[0].hooks[0].command).toContain(launch.recordPath);
       const mode = (await stat(launch.prefixArgs[1]!)).mode & 0o777;
-      expect(mode).toBe(0o600);
+      expect(mode).toBe(hostPlatform === "win32" ? 0o666 : 0o600);
+      expect(writeFile).toHaveBeenCalledWith(
+        expect.stringContaining(".config.json.tmp-"),
+        expect.any(String),
+        { mode: 0o600 },
+      );
       // The record is pre-created 0600 (the hook writes through a shell
       // redirect) and the record directory is private 0700.
-      expect((await stat(launch.recordPath)).mode & 0o777).toBe(0o600);
-      expect((await stat(devinSessionRecordDir())).mode & 0o777).toBe(0o700);
+      expect(chmod).toHaveBeenCalledWith(launch.recordPath, 0o600);
+      expect(chmod).toHaveBeenCalledWith(devinSessionRecordDir(), 0o700);
+      expect((await stat(launch.recordPath)).mode & 0o777).toBe(
+        hostPlatform === "win32" ? 0o666 : 0o600,
+      );
+      expect((await stat(devinSessionRecordDir())).mode & 0o777).toBe(
+        hostPlatform === "win32" ? 0o666 : 0o700,
+      );
       await launch.cleanup();
       await expect(readFile(launch.prefixArgs[1]!)).rejects.toMatchObject({ code: "ENOENT" });
       await expect(readFile(launch.recordPath)).rejects.toMatchObject({ code: "ENOENT" });
@@ -254,17 +280,21 @@ describe("per-launch SessionStart hook view", () => {
     const dir = await mkdtemp(join(tmpdir(), "poracode-devin-unreadable-"));
     const unreadable = join(dir, "config.json");
     await writeFile(unreadable, JSON.stringify({ theme_mode: "dark" }));
-    await chmod(unreadable, 0o000);
+    vi.mocked(readFile).mockRejectedValueOnce(
+      Object.assign(new Error("read denied"), { code: "EACCES" }),
+    );
     try {
       await expect(prepareDevinSessionRecordLaunch(unreadable)).rejects.toMatchObject({
         code: "EACCES",
       });
       // The strict profile lane surfaces the same refusal as its fallback.
+      vi.mocked(readFile).mockRejectedValueOnce(
+        Object.assign(new Error("read denied"), { code: "EACCES" }),
+      );
       await expect(
         prepareDevinSessionRecordLaunch(unreadable, { strictSource: true }),
       ).rejects.toMatchObject({ code: "EACCES" });
     } finally {
-      await chmod(unreadable, 0o644);
       await rm(dir, { recursive: true, force: true });
     }
   });
@@ -281,4 +311,13 @@ describe("per-launch SessionStart hook view", () => {
     expect(() => mergeDevinSessionHookConfig("not json at all", "/r.json")).toThrowError(/JSON/);
     expect(() => mergeDevinSessionHookConfig("[1]", "/r.json")).toThrowError(/not a JSON object/);
   });
+});
+
+it("keeps native Windows launches on snapshot discovery", async () => {
+  vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+  try {
+    await expect(prepareDevinSessionRecordLaunch("config.json")).resolves.toBeUndefined();
+  } finally {
+    vi.restoreAllMocks();
+  }
 });

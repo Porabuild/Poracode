@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readKeybindingsFile } from "./keybindingsFile";
 import { applyKeybindingsWrite } from "./keybindingsApply";
+import * as atomicFile from "@/shared/atomicFile";
 
 const cleanups: Array<() => void> = [];
 
@@ -21,6 +22,7 @@ function fixturePath(): string {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const close of cleanups.splice(0)) close();
 });
 
@@ -43,9 +45,9 @@ describe("applyKeybindingsWrite", () => {
     });
     const path = join(root, "keybindings.json");
     const onDisk = readKeybindingsFile(path).file;
-    // A read-only directory makes the atomic write fail (no temp file) while
-    // the on-disk read still succeeds.
-    chmodSync(root, 0o500);
+    vi.spyOn(atomicFile, "writeFileAtomic").mockImplementationOnce(() => {
+      throw Object.assign(new Error("write denied"), { code: "EACCES" });
+    });
     const onKeybindingsChanged = vi.fn<(file: unknown) => void>();
     const incoming = { ...onDisk, keybindings: [] };
     expect(() => applyKeybindingsWrite({ path, file: incoming, onKeybindingsChanged })).toThrow(

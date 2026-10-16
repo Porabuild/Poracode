@@ -435,7 +435,8 @@ describe("SSH launch outcome protocol", () => {
   });
 });
 
-describe("SSH ownership-safe launch", () => {
+// Remote-host integration fixtures require native POSIX shells and process identities.
+describe.runIf(process.platform !== "win32")("SSH ownership-safe launch", () => {
   it.each(["0.1.0", "99.0.0"])(
     "reuses an authenticated owner running runtime hash %s without signalling it",
     async (appVersion) => {
@@ -754,7 +755,7 @@ poracode_identity_write "$1"`,
   }, 60_000);
 });
 
-describe("SSH explicit upgrade", () => {
+describe.runIf(process.platform !== "win32")("SSH explicit upgrade", () => {
   it("joins the old owner's shutdown before the new owner enters the data root", async () => {
     const home = createHome();
     const oldRuntime = writeRuntime(home, OLD_HASH, "1.0.0");
@@ -889,7 +890,7 @@ describe("SSH explicit upgrade", () => {
   }, 30_000);
 });
 
-describe("SSH install lock", () => {
+describe.runIf(process.platform !== "win32")("SSH install lock", () => {
   it("serializes concurrent installs and removes the attempt archive", async () => {
     const home = createHome();
     writeFakeNpm(home, { sleepMs: 800 });
@@ -986,7 +987,7 @@ describe("SSH install lock", () => {
   }, 60_000);
 });
 
-describe("SSH owner lock safety", () => {
+describe.runIf(process.platform !== "win32")("SSH owner lock safety", () => {
   it("reclaims a lock whose recorded holder is provably dead", async () => {
     const home = createHome();
     const dead = await spawnDeadProcess();
@@ -1163,7 +1164,7 @@ poracode_lock_acquire "$1" "not-a-number" "$TOKEN"`,
   }, 20_000);
 });
 
-describe("SSH process token parsing", () => {
+describe.runIf(process.platform !== "win32")("SSH process token parsing", () => {
   function statLine(comm: string, starttime: string): string {
     return `1234 (${comm}) S ${Array.from({ length: 18 }, () => "0").join(" ")} ${starttime}`;
   }
@@ -1223,7 +1224,7 @@ describe("SSH process token parsing", () => {
   );
 });
 
-describe("SSH bounded waits and launch failure cleanup", () => {
+describe.runIf(process.platform !== "win32")("SSH bounded waits and launch failure cleanup", () => {
   it("bounds a hung owner status command instead of stalling the launch", async () => {
     const home = createHome();
     writeRuntime(home, OLD_HASH);

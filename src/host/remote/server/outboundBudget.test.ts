@@ -335,6 +335,8 @@ describe("real ws transport release", () => {
     });
     // Freeze the peer so the server-side socket accumulates a real queue.
     (client as unknown as { _socket: { pause(): void } })._socket.pause();
+    // Hold writes in the real transport regardless of the OS TCP buffer size.
+    (serverWs as unknown as { _socket: { cork(): void } })._socket.cork();
 
     const payload = "w".repeat(4 * 1024 * 1024);
     const frameBytes = outboundFrameBytes(Buffer.byteLength(payload, "utf8"));

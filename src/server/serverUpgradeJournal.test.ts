@@ -11,7 +11,16 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...original,
+    chmodSync: vi.fn<typeof original.chmodSync>(original.chmodSync),
+    readFileSync: vi.fn<typeof original.readFileSync>(original.readFileSync),
+  };
+});
 import { resolveServerInstallLayout } from "./serverInstallLayout";
 import {
   isTerminalUpgradePhase,
@@ -27,6 +36,7 @@ import {
 
 const dirs: string[] = [];
 afterEach(() => {
+  vi.mocked(readFileSync).mockReset();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -165,13 +175,13 @@ describe("server upgrade journal (D4)", () => {
       expectedEntrypointSha256: "a".repeat(64),
       forwardOnlyMigration: true,
     });
-    expect((statSync(serverUpgradeJournalPath(prefix)).mode & 0o777).toString(8)).toBe("644");
+    expect(chmodSync).toHaveBeenCalledWith(serverUpgradeJournalPath(prefix), 0o644);
+    expect(statSync(serverUpgradeJournalPath(prefix)).mode & 0o777).toBe(
+      process.platform === "win32" ? 0o666 : 0o644,
+    );
   });
 
   it("treats a present but unreadable journal as staging, never as absent (F1/F3)", () => {
-    // Root ignores mode bits; the unreadable case is only meaningful as a
-    // non-root user (the shipped service user).
-    if (typeof process.getuid === "function" && process.getuid() === 0) return;
     const { prefix, releaseDir } = prefixFixture();
     writeServerUpgradeJournal(prefix, {
       prefix,
@@ -186,8 +196,10 @@ describe("server upgrade journal (D4)", () => {
       forwardOnlyMigration: true,
     });
     const path = serverUpgradeJournalPath(prefix);
-    chmodSync(path, 0o000);
     const layout = resolveServerInstallLayout({ libDir: join(releaseDir, "lib") });
+    vi.mocked(readFileSync).mockImplementation(() => {
+      throw Object.assign(new Error("read denied"), { code: "EACCES", path });
+    });
     expect(readServerUpgradeJournalState(prefix).state).toBe("unreadable");
     // The convenience read cannot distinguish unreadable from absent...
     expect(readServerUpgradeJournal(prefix)).toBeNull();

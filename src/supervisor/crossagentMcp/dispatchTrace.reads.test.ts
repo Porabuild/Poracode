@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { dispatchTool, TOOLS } from "./toolRegistry";
 import type { SubagentWaitResult } from "./types";
 import {
@@ -10,6 +10,8 @@ import {
   harness,
   json,
 } from "./dispatchTrace.testHelpers";
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("trace read contract", () => {
   it("advertises optional reads only on status and wait", () => {
@@ -261,13 +263,15 @@ describe("trace read contract", () => {
   });
 
   it("captures workflow selection while preserving its existing standalone policy", async () => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("linux");
     const h = harness();
     h.roster[0] = provider("fixture-primary", "manual-override", savedRoute());
-    await dispatchTool(
+    const result = await dispatchTool(
       "run_workflow",
       { background: true, tasks: [{ id: "research", prompt: SECRET, write_scope: [] }] },
       h.ctx,
     );
+    expect(result.isError).not.toBe(true);
     await vi.waitFor(() => expect(h.manager.listRuns(PARENT)).toHaveLength(1));
     const run = h.manager.listRuns(PARENT)[0]!;
     const trace = h.manager.getStatus(run.run_id, PARENT, { includeTrace: true }).trace!;

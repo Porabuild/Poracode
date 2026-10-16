@@ -47,6 +47,7 @@ export async function awaitProcessTermination(
     };
     child.once("exit", onExit);
     child.on("error", onError);
+    terminateChildProcessTree(child, options);
     forceTimer = setTimeout(() => {
       try {
         if (ownsGroup) process.kill(-pid, "SIGKILL");
@@ -65,7 +66,6 @@ export async function awaitProcessTermination(
     }, graceMs * 2);
     // An exited group leader can leave live descendants, so still kill its owned group.
     if (ownsGroup) groupTimer = setInterval(check, 20);
-    terminateChildProcessTree(child, options);
     exited ||= child.exitCode != null || child.signalCode != null;
     check();
   });

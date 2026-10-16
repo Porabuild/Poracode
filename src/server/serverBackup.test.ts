@@ -27,8 +27,10 @@ import {
 vi.mock("@/shared/restrictToOwner", () => ({ restrictToOwner: vi.fn<(path: string) => void>() }));
 
 const fixtures: string[] = [];
+const writers: InstanceType<typeof Database>[] = [];
 
 afterAll(() => {
+  for (const writer of writers) if (writer.open) writer.close();
   for (const path of fixtures) rmSync(path, { recursive: true, force: true });
 });
 
@@ -84,6 +86,7 @@ function buildBackupFixture(): BackupFixture {
   writeFileSync(join(paths.dataRoot, "attachments", "note.txt"), "attachment bytes\n");
 
   const database = new Database(join(paths.dataRoot, "state.sqlite"));
+  writers.push(database);
   database.pragma("journal_mode = WAL");
   database.pragma("synchronous = NORMAL");
   database.exec("CREATE TABLE app_state (key TEXT PRIMARY KEY, value TEXT)");
@@ -139,7 +142,8 @@ describe("createHostDataBackup", () => {
 
     // Snapshot file is owner-private and the receipt is written last.
     const mode = lstatSync(join(destination, "state.sqlite")).mode & 0o777;
-    expect(mode).toBe(0o600);
+    expect(restrictToOwner).toHaveBeenCalledWith(join(destination, "state.sqlite"));
+    expect(mode).toBe(process.platform === "win32" ? 0o666 : 0o600);
     const storedReceipt = JSON.parse(
       readFileSync(join(destination, SERVER_BACKUP_RECEIPT_FILE), "utf8"),
     ) as Record<string, unknown>;

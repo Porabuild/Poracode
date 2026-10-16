@@ -88,7 +88,8 @@ export function devinProfileConfigViewDir(
           "Poracode",
           "devin-profiles",
         );
-  return devinPosixJoin(base, devinAccountRootSegment(settings.instanceId), "config");
+  const joinPath = location.kind === "wsl" ? devinPosixJoin : join;
+  return joinPath(base, devinAccountRootSegment(settings.instanceId), "config");
 }
 
 /** Structural reference so this leaf module does not import profileContext. */

@@ -30,6 +30,27 @@ beforeEach(() => {
 });
 
 describe("PiRpcClient shutdown", () => {
+  it.each(["EPIPE", "EOF"])("joins the child after stdin reports %s", async (code) => {
+    const terminated = Promise.withResolvers<void>();
+    terminate.mockReturnValue(terminated.promise);
+    const { client, child } = createClient();
+    const onExit = vi.fn<() => void>();
+    client.onExit(onExit);
+    const request = client.request("prompt");
+    await Promise.resolve();
+    const rejected = request.catch((error: unknown) => error);
+    child.stdin.emit("error", Object.assign(new Error("pipe closed"), { code }));
+    await expect(rejected).resolves.toMatchObject({ message: "pipe closed" });
+    expect(client.isClosed).toBe(true);
+    expect(terminate).toHaveBeenCalledTimes(1);
+    expect(onExit).not.toHaveBeenCalled();
+    await expect(client.request("prompt")).rejects.toThrow("closed");
+    child.emit("exit", 1, null);
+    terminated.resolve();
+    await client.close();
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
   it("shares close completion and waits for confirmed exit", async () => {
     let finish!: () => void;
     terminate.mockReturnValue(

@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readdirSync,
   realpathSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -46,6 +47,11 @@ import { runThreadHousekeeping } from "@/backend/ThreadHousekeepingService";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import { resetRuntimePersistenceForTests } from "@/host/db/runtimePersistenceRuntime";
 import { resetProjectLifecycleGuardForTests } from "@/host/db/projectLifecycleGuard";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs")>();
+  return { ...original, renameSync: vi.fn<typeof original.renameSync>(original.renameSync) };
+});
 
 function testProject(id: string): Project {
   return {
@@ -471,13 +477,14 @@ describe.skipIf(!sqliteAvailable)("AttachmentReclaimService (real sqlite + files
     const reportError = vi.fn<(error: unknown) => void>();
 
     wire({ reportError });
-    chmodSync(paths.attachmentsDir, 0o555);
+    vi.mocked(renameSync).mockImplementationOnce(() => {
+      throw Object.assign(new Error("detach denied"), { code: "EACCES" });
+    });
     expect(() => dbDeleteThread("thread-1")).not.toThrow();
     expect(dbListThreadIds()).toEqual([]);
     await vi.waitFor(() => expect(reportError).toHaveBeenCalled());
     expect(existsSync(file)).toBe(true);
 
-    chmodSync(paths.attachmentsDir, 0o755);
     const retry = new AttachmentReclaimService({
       attachmentsDir: paths.attachmentsDir,
       listLiveThreadIds: dbListThreadIds,
