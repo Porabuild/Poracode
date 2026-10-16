@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
-import { ArrowUp, MoreHorizontal, Square } from "lucide-react";
+import { ArrowUp, MoreHorizontal, Square, X } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -22,6 +22,7 @@ import {
 import { TextArea } from "@/renderer/components/common/TextArea";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
+import { isPlanModeControl } from "@/renderer/components/providers/composerControlBuilders";
 import { isCompactClientSurface, readBridge } from "@/renderer/bridge";
 import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 import { modelFamilyMemberDisplay } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
@@ -179,13 +180,10 @@ function getControlCollapseTier(control: ComposerControl): number | undefined {
 }
 
 export function shouldMoveComposerControlToMobileOverflow(control: ComposerControl): boolean {
-  if (
+  return (
     (control.kind === undefined || control.kind === "toggle" || control.kind === "menu") &&
     control.iconKind === "permission"
-  ) {
-    return true;
-  }
-  return control.kind === "toggle" && ["Plan", "Work"].includes(control.label);
+  );
 }
 
 function getOptionLabel(option: OptionMenuOption): string {
@@ -330,7 +328,7 @@ export function ThreadComposer(props: {
         return `effort-context:${control.effortValue ?? ""}:${control.contextValue ?? ""}:${control.thinkingValue ?? ""}:${control.familySelection ? modelFamilyMenuSummary(control.familySelection) : ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;
       }
       if (control.kind === "toggle") {
-        return `toggle:${control.label}:${control.iconOnly ? "icon" : "label"}:${control.hideLabelOnWrap ? "hide" : "show"}`;
+        return `toggle:${control.label}:${control.isSelected}:${control.iconOnly ? "icon" : "label"}:${control.hideLabelOnWrap ? "hide" : "show"}`;
       }
       if (control.kind === "static") {
         return `static:${control.value}:${control.iconOnly ? "icon" : "label"}`;
@@ -466,6 +464,7 @@ export function ThreadComposer(props: {
     targetWrapLevel: number,
     forceShowLabels: boolean,
   ) => {
+    if (isPlanModeControl(control) && !control.isSelected) return null;
     const collapseTier = getControlCollapseTier(control);
     const hideOnWrap = collapseTier !== undefined;
     const shouldHideLabel = shouldHideControlLabel(control, targetWrapLevel, forceShowLabels);
@@ -584,6 +583,37 @@ export function ThreadComposer(props: {
       // `label` is the stable English logic key; `displayLabel` (when present)
       // is the localized text actually shown to the user.
       const toggleLabel = control.displayLabel ? t(control.displayLabel) : control.label;
+      if (isPlanModeControl(control)) {
+        const removeLabel = t`Remove ${toggleLabel}`;
+        const chip = (
+          <Button
+            key={`plan-${index}`}
+            aria-label={removeLabel}
+            className="poracode-composer-toggle poracode-composer-toggle--current min-w-0 px-2.5"
+            isDisabled={control.isDisabled ?? false}
+            size="sm"
+            variant="ghost"
+            onPress={() => {
+              control.onChange?.(false);
+              returnFocusToInput();
+            }}
+          >
+            {resolveComposerControlIcon(control)}
+            <span data-collapse-tier={collapseTier} className={labelClassName}>
+              {toggleLabel}
+            </span>
+            <X className="size-3 shrink-0 text-muted" aria-hidden />
+          </Button>
+        );
+        return hideOnWrap || hideLabel ? (
+          <Tooltip key={`plan-tooltip-${index}`} delay={0}>
+            {chip}
+            <Tooltip.Content placement="top">{removeLabel}</Tooltip.Content>
+          </Tooltip>
+        ) : (
+          chip
+        );
+      }
       // A `disabledReason` toggle stays hoverable (not natively `disabled`) so
       // its explanatory tooltip still fires; it's dimmed and click is a no-op.
       const gated = Boolean(control.disabledReason);
@@ -688,6 +718,7 @@ export function ThreadComposer(props: {
     targetWrapLevel: number,
     forceShowLabels: boolean,
   ) => {
+    if (isPlanModeControl(control) && !control.isSelected) return null;
     const hideLabel = shouldHideControlLabel(control, targetWrapLevel, forceShowLabels);
     const iconOnly =
       control.kind !== "provider-model" &&
@@ -713,6 +744,7 @@ export function ThreadComposer(props: {
         {!isStatic && !isToggle && !iconOnly && !hideLabel ? (
           <span className="size-3.5 shrink-0" />
         ) : null}
+        {isPlanModeControl(control) ? <span className="size-3 shrink-0" /> : null}
       </div>
     );
   };

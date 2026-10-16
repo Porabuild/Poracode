@@ -538,6 +538,56 @@ describe("ThreadDraftView", () => {
     });
   });
 
+  it("launches an explicitly selected Plan without remembering it for the next thread", async () => {
+    const previousProjects = useAppStore.getState().projects;
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "gpt-5.4", mode: "plan", effort: "high" } },
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    const onStart = vi.fn<(input: unknown) => void>();
+    const view = render(
+      <ThreadDraftView project={project} agentStatuses={[dualModeCodexStatus]} onStart={onStart} />,
+    );
+    const planControl = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+      )?.controls.find(
+        (control) =>
+          control.kind === "toggle" && (control.label === "Work" || control.label === "Plan"),
+      );
+    await waitFor(() => expect(planControl()).toMatchObject({ isSelected: false }));
+    act(() => {
+      const plan = planControl();
+      if (plan?.kind !== "toggle") throw new Error("Missing Plan control");
+      plan.onChange?.(true);
+    });
+    await waitFor(() => expect(planControl()).toMatchObject({ isSelected: true }));
+    expect(useSharedSettings.getState().providerConfigs.codex?.mode).toBe("agent");
+    const remembered = useAppStore
+      .getState()
+      .projects.find((item) => item.id === project.id)?.lastDraftConfig;
+    expect(remembered).toMatchObject({ mode: "agent", model: "gpt-5.4", effort: "high" });
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() =>
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({ config: expect.objectContaining({ mode: "plan" }) }),
+      ),
+    );
+    view.unmount();
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={remembered!}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(planControl()).toMatchObject({ isSelected: false }));
+    useAppStore.setState({ projects: previousProjects });
+  });
+
   it("keeps a focused chat draft structured and enables its tool defaults without changing settings", async () => {
     useSharedSettings.setState({
       lastPresentationModeByAgent: { [dualModeCodexStatus.kind]: "terminal" },
@@ -2399,7 +2449,7 @@ describe("ThreadDraftView", () => {
     });
 
     expect(composerSpy.mock.calls).toHaveLength(1);
-    expect(useSharedSettings.getState().providerConfigs.codex?.mode).toBe("plan");
+    expect(useSharedSettings.getState().providerConfigs.codex?.mode).toBe("agent");
   });
 
   it("does not show effort/context control for Cursor models without those capabilities", async () => {
@@ -2573,8 +2623,11 @@ describe("ThreadDraftView", () => {
     });
   });
 
-  it("switches provider and selected model in one coherent composer state", async () => {
+  it("switches provider and model coherently without restoring saved Plan", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
+    useSharedSettings.setState({
+      providerConfigs: { claude: { model: "claude-sonnet-4-7", mode: "plan" } },
+    });
 
     render(
       <ThreadDraftView
@@ -2650,6 +2703,13 @@ describe("ThreadDraftView", () => {
 
     expect(claudeRenderModels.length).toBeGreaterThan(0);
     expect(claudeRenderModels).toEqual(claudeRenderModels.map(() => "claude-opus-4-7"));
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() =>
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({ config: expect.objectContaining({ mode: "agent" }) }),
+      ),
+    );
   });
 
   it("keeps a local plan-mode selection while deferred persistence catches up", async () => {
@@ -3240,7 +3300,7 @@ describe("ThreadDraftView model family drafts", () => {
         model: "pair-alpha-x",
         effort: "low",
         fast: false,
-        mode: "plan",
+        mode: "agent",
       }),
     );
     view.unmount();

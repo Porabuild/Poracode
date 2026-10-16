@@ -90,6 +90,33 @@ beforeEach(() => {
     return row;
   });
 });
+it("starts a fresh side chat in normal mode when its parent is in Plan", async () => {
+  const source: SideChatBootstrap["source"] = {
+    ...entry.source,
+    config: { model: "test", mode: "plan" },
+  };
+  const hook = renderHook(() => useSideChatSession({ ...entry, source }, "panel"), { wrapper });
+  expect(hook.result.current.selection.config).toEqual({ model: "test", mode: "agent" });
+  await act(async () => {
+    await hook.result.current.start("question");
+  });
+  expect(mocks.create).toHaveBeenCalledWith(
+    expect.objectContaining({ config: { model: "test", mode: "agent" } }),
+  );
+  expect(source.config.mode).toBe("plan");
+  hook.unmount();
+});
+
+it("keeps an explicitly selected Plan mode on the same side-chat draft", () => {
+  const selection: SideChatBootstrap["selection"] = {
+    agentKind: "neutral-gui",
+    config: { model: "test", mode: "plan" },
+  };
+  const hook = renderHook(() => useSideChatSession({ ...entry, selection }, "panel"), { wrapper });
+  expect(hook.result.current.selection).toEqual(selection);
+  hook.unmount();
+});
+
 it("keeps a hidden panel's pending remote launch owned and prevents remount from duplicating it", async () => {
   let finish!: () => void;
   mocks.launch.mockImplementation(

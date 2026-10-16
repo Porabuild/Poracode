@@ -135,6 +135,22 @@ describe("ContinueInProviderDialog handoff flow", () => {
     } as never);
   });
 
+  it("can add, remove, and re-add Plan for the target provider", () => {
+    renderDialog({
+      installedAgents: [
+        agent("claude", "Claude", "gui"),
+        agent("codex", "Codex", "gui", { modes: ["agent", "plan"] }),
+      ],
+    });
+    expect(screen.queryByRole("button", { name: "Work" })).not.toBeInTheDocument();
+    for (let index = 0; index < 2; index++) {
+      fireEvent.click(screen.getByRole("button", { name: "Add attachment or capability" }));
+      fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Plan" }));
+      fireEvent.click(screen.getByRole("button", { name: "Remove Plan" }));
+      expect(screen.queryByRole("button", { name: "Remove Plan" })).not.toBeInTheDocument();
+    }
+  });
+
   it("hands the stored chat history over without costing an extraction run", async () => {
     seedRuntimeItems([
       {

@@ -14,7 +14,7 @@ export function buildProjectDraftConfig(input: {
     ...(config.contextSize ? { contextSize: config.contextSize } : {}),
     ...(config.fast !== undefined ? { fast: config.fast } : {}),
     ...(config.thinking === true ? { thinking: true } : {}),
-    ...(config.mode ? { mode: config.mode } : {}),
+    ...(config.mode ? { mode: config.mode === "plan" ? "agent" : config.mode } : {}),
     // Preserve explicit empty strings — "" means "use provider defaults"
     // (e.g. Codex "Default permissions"). Stripping it would make reload
     // fall through to the bypass fallback and silently flip to Full access.
