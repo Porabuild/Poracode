@@ -11,6 +11,7 @@ import {
 import { i18n } from "@/renderer/i18n/i18n";
 import {
   readManagedLoopbackActivation,
+  subscribeManagedLoopbackActivation,
   type ManagedLoopbackActivationSnapshot,
 } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -29,6 +30,7 @@ import { isManagedRootRow } from "./rootCatalogRows";
 // Paint the recent viewport first. Continuations keep their normal page size,
 // and the host still completes any tool group crossing this initial boundary.
 const INITIAL_HISTORY_TIMELINE_ENTRIES = 20;
+const INITIAL_HISTORY_RETRY_DELAYS_MS = [250, 500] as const;
 
 /**
  * Managed-root bounded transcript reads (B4 F6).
@@ -76,6 +78,83 @@ function assertSameActivation(activation: ManagedLoopbackActivationSnapshot): vo
   }
 }
 
+function isRetryableHistoryReadError(error: unknown): boolean {
+  return (
+    isRemoteTransportFailure(error) ||
+    (error instanceof RemoteClientError &&
+      error.status === 503 &&
+      [
+        "persistence_read_refused",
+        "persistence_busy",
+        "persistence_degraded",
+        "persistence_unavailable",
+      ].includes(error.code))
+  );
+}
+
+function waitForHistoryRetry(
+  activation: ManagedLoopbackActivationSnapshot,
+  delayMs: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  signal?.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
+      unsubscribe();
+      signal?.removeEventListener("abort", abort);
+    };
+    const abort = () => {
+      cleanup();
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, delayMs);
+    // Release reducer recovery on disconnection, before the next activation's
+    // rebuild. Waiting out backoff would suppress that rebuild as in-flight.
+    const unsubscribe = subscribeManagedLoopbackActivation(() => {
+      try {
+        assertSameActivation(activation);
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    });
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function readInitialHistoryPage(
+  activation: ManagedLoopbackActivationSnapshot,
+  threadId: string,
+  signal?: AbortSignal,
+) {
+  for (let attempt = 0; ; attempt += 1) {
+    signal?.throwIfAborted();
+    assertSameActivation(activation);
+    try {
+      return await activation.client.boundedThreadHistory(threadId, {
+        targetTimelineEntryCount: INITIAL_HISTORY_TIMELINE_ENTRIES,
+        compactDetails: true,
+        noticesCapable: true,
+        maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
+        maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
+        ...(signal ? { signal } : {}),
+      });
+    } catch (error) {
+      signal?.throwIfAborted();
+      const delay = INITIAL_HISTORY_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined || !isRetryableHistoryReadError(error)) throw error;
+      // Keep one pending hydration and its live-event barrier across the two
+      // fallback attempts. A closed pane or replaced activation owns no retry.
+      assertSameActivation(activation);
+      await waitForHistoryRetry(activation, delay, signal);
+    }
+  }
+}
+
 /**
  * The authoritative bounded history tail for one root thread. Records the
  * continuation tail and the durable notice under the activation's opaque
@@ -88,14 +167,7 @@ export async function readManagedRootHistoryPage(
   const activation = requireActivation();
   const result = options.page
     ? ({ negotiation: "bounded", page: options.page } as const)
-    : await activation.client.boundedThreadHistory(threadId, {
-        targetTimelineEntryCount: INITIAL_HISTORY_TIMELINE_ENTRIES,
-        compactDetails: true,
-        noticesCapable: true,
-        maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-        maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
-        ...(options.signal ? { signal: options.signal } : {}),
-      });
+    : await readInitialHistoryPage(activation, threadId, options.signal);
   // A buffered response can resolve despite transport cancellation. Fence its
   // continuation and notice writes before changing the authoritative tail.
   options.signal?.throwIfAborted();

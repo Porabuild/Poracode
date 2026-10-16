@@ -352,6 +352,59 @@ describe("ChatPane", () => {
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
+  it("keeps a loaded reply's completed timer when a history refresh fails", async () => {
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T15:36:00.000Z",
+    };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeHydrationStatus: { [thread.id]: "failed" },
+    });
+    seedAssistantMessage(thread.id, "Previously loaded reply");
+    renderChatPane(thread);
+    expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
+    expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
+    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+  });
+
+  it.each(["idle", "inactive", "working"] as const)(
+    "offers retry when a %s thread's history fails after a completed turn",
+    async (status) => {
+      const thread = {
+        ...makeThread(),
+        status,
+        lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+        lastTurnEndedAt: "2026-05-01T15:36:00.000Z",
+        ...(status === "working"
+          ? { activeTurnStartedAt: new Date(Date.now() - 5_000).toISOString() }
+          : {}),
+      };
+      useAppStore.setState({
+        threads: [thread],
+        runtimeHydrationStatus: { [thread.id]: "failed" },
+      });
+
+      renderChatPane(thread);
+
+      expect(await screen.findByText("Messages could not be loaded.")).toBeInTheDocument();
+      expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
+      expect(screen.queryAllByText(/^Working for/)).toHaveLength(status === "working" ? 1 : 0);
+      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledOnce());
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(2));
+
+      act(() => {
+        seedAssistantMessage(thread.id, "Recovered saved reply");
+        useAppStore.getState().setRuntimeHydrationStatus(thread.id, null);
+      });
+      expect(await screen.findByText("Recovered saved reply")).toBeInTheDocument();
+      expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+    },
+  );
+
   it("shows the working timer instead of connecting while a live turn's history is still loading", async () => {
     const thread = {
       ...makeThread(),

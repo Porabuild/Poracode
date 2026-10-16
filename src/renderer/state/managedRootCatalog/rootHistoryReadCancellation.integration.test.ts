@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { readBridge } from "@/renderer/bridge";
 import { getSqlite } from "@/host/db/connection";
 import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -28,6 +29,7 @@ import {
 } from "@/renderer/state/runtimeInterestHydration";
 import {
   activate,
+  liveSockets,
   seedCompletedTurns,
   seedGap,
   seedRuntimeItems,
@@ -35,9 +37,108 @@ import {
   setupManagedRootFixture,
   teardownManagedRootFixture,
 } from "./managedRootFixture";
+import {
+  __resetRendererEventInterestsForTest,
+  retainRendererEventInterest,
+} from "@/renderer/state/rendererEventInterests";
 
 beforeEach(setupManagedRootFixture);
 afterEach(teardownManagedRootFixture);
+
+it("recovers on a new connection while the retired reader is waiting to retry", async () => {
+  const threadId = "history-retry-reconnect";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  await activate({ preloadProcedures: { dbSetState: () => null } });
+  const previous = readManagedLoopbackActivation()!;
+  const read = vi
+    .spyOn(previous.client, "boundedThreadHistory")
+    .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  let reducer: SupervisorEventReducer;
+  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
+  const unsubscribe = readBridge().onSupervisorEvent((event) => reducer.dispatch(event));
+  const interest = retainRendererEventInterest("runtime", threadId);
+  const retryScheduled = Promise.withResolvers<void>();
+  const setTimer = globalThis.setTimeout.bind(globalThis);
+  const heldTimer = setTimer(() => {}, 0);
+  let finishRetry: (() => void) | undefined;
+  // Hold only the history backoff so the real WS reconnect deterministically
+  // beats it, including on a loaded test worker. Other timers run normally.
+  const schedule = vi
+    .spyOn(globalThis, "setTimeout")
+    .mockImplementation((handler, delay, ...args) => {
+      if (delay === 250 && !finishRetry && typeof handler === "function") {
+        finishRetry = () => handler(...args);
+        retryScheduled.resolve();
+        return heldTimer;
+      }
+      return setTimer(handler, delay, ...args);
+    });
+  try {
+    await interest.ready;
+    reducer.dispatch({ type: "thread-reset", threadId });
+    await retryScheduled.promise;
+    liveSockets.at(-1)!.close();
+    await vi.waitFor(
+      () => {
+        const current = readManagedLoopbackActivation();
+        expect(current).not.toBeNull();
+        expect(current).not.toBe(previous);
+        expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true);
+      },
+      { timeout: 10_000 },
+    );
+    expect(read).toHaveBeenCalledOnce();
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+  } finally {
+    schedule.mockRestore();
+    clearTimeout(heldTimer);
+    finishRetry?.();
+    unsubscribe();
+    interest.release();
+    __resetRendererEventInterestsForTest();
+    reducer.clear();
+    read.mockRestore();
+  }
+}, 60_000);
+
+it("cancels automatic retry backoff when the reader closes and loads on the next open", async () => {
+  const threadId = "history-retry-release";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  await activate({ preloadProcedures: { dbSetState: () => null } });
+  const client = readManagedLoopbackActivation()!.client;
+  const read = vi
+    .spyOn(client, "boundedThreadHistory")
+    .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+  retainThreadRuntimeItems(threadId);
+  let retained = true;
+  const pending = hydrateThreadRuntimeItems(threadId);
+  try {
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("pending");
+    releaseThreadRuntimeItems(threadId);
+    retained = false;
+    await pending;
+    expect(read.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    expect(read).toHaveBeenCalledOnce();
+    expect(hasHydratedThreadRuntimeItems(threadId)).toBe(false);
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+
+    retainThreadRuntimeItems(threadId);
+    retained = true;
+    await hydrateThreadRuntimeItems(threadId);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+  } finally {
+    if (retained) releaseThreadRuntimeItems(threadId);
+    await pending;
+    read.mockRestore();
+  }
+}, 60_000);
 
 it("keeps replacement paging metadata when a canceled first response arrives late", async () => {
   const threadId = "history-reset-race";

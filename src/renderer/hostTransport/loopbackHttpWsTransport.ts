@@ -654,7 +654,6 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
         // transport's rebuild dispatch runs (the baseline supersedes the
         // resync on activation).
         feed.setManagedLoopbackTerminalLeg(true);
-        transport.setLoopbackActive(true);
         const accessToken = owner.getAccessToken();
         if (accessToken) {
           const client = createManagedLoopbackClient(endpoint, accessToken, owner);
@@ -693,6 +692,10 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
           });
           void resolveManagedParentDescriptor(activation);
         }
+        // Rebuilds synchronously start transcript hydration. Publish the
+        // client and its authority first, so the initial read uses the bounded
+        // history route instead of the separate legacy DB adapter reads.
+        transport.setLoopbackActive(true);
       } else {
         feed.setManagedLoopbackTerminalLeg(false);
         transport.setLoopbackActive(false);
