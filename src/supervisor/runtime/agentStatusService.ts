@@ -149,7 +149,8 @@ const execFileAsync = promisify(execFile);
 // v61 re-detects native Windows providers whose resolved absolute executable
 // was incorrectly passed back through PATH lookup and cached as missing.
 // v62 refreshes Windows update policies shared by execution and command previews.
-export const STATUS_CACHE_VERSION = 62;
+// v63 refreshes model sub-provider grouping for newly recognized third-party families.
+export const STATUS_CACHE_VERSION = 63;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

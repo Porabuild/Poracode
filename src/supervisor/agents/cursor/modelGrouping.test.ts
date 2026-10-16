@@ -23,6 +23,12 @@ describe("cursorModelGroup", () => {
     ["gemini-3.7-flash", "other"],
     ["kimi-k3", "other"],
     ["glm-5.1", "other"],
+    ["muse-wonder", "other"],
+    ["muse-wonder-max", "other"],
+    ["muse-spark-1.3", "other"],
+    ["muse-spark-1.3-fast", "other"],
+    ["muse-wonder[effort=high,fast=true]", "other"],
+    ["Muse-Spark-1.3", "other"],
   ] as const)("%s → %s", (modelId, group) => {
     expect(cursorModelGroup(modelId)).toBe(group);
   });
@@ -35,6 +41,8 @@ describe("cursorModelGrouping", () => {
         { id: "composer-2.5", label: "Composer 2.5" },
         { id: "grok-4.6", label: "Cursor Grok 4.6" },
         { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
+        { id: "muse-wonder", label: "Muse Wonder" },
+        { id: "muse-spark-1.3", label: "Muse Spark 1.3" },
       ]),
     ).toEqual({
       subProviders: [
@@ -45,6 +53,8 @@ describe("cursorModelGrouping", () => {
         "composer-2.5": "cursor",
         "grok-4.6": "cursor",
         "gpt-5.6-luna": "other",
+        "muse-wonder": "other",
+        "muse-spark-1.3": "other",
       },
     });
   });

@@ -10,7 +10,8 @@ import { parseCursorModelId } from "@/shared/cursorModelId";
 export const CURSOR_MODEL_GROUP_ID = "cursor";
 export const OTHER_MODEL_GROUP_ID = "other";
 
-const CURSOR_THIRD_PARTY_MODEL_RE = /^(?:gpt|claude|gemini|kimi|glm|opus|sonnet|haiku)(?:-|$)/iu;
+const CURSOR_THIRD_PARTY_MODEL_RE =
+  /^(?:gpt|claude|gemini|kimi|glm|opus|sonnet|haiku|muse)(?:-|$)/iu;
 
 export function cursorModelGroup(modelId: string): "cursor" | "other" {
   const baseId = parseCursorModelId(modelId).baseId;
