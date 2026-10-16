@@ -323,10 +323,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 59,
+      version: 60,
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v59 mirrors supervisor STATUS_CACHE_VERSION=63: refresh cached model
+      // v60 mirrors supervisor STATUS_CACHE_VERSION=64: refresh cached model
       // sub-provider grouping for newly recognized third-party families.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;

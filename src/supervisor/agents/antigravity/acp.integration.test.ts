@@ -59,6 +59,46 @@ afterEach(async () => {
 });
 
 describe("Antigravity official ACP runtime", () => {
+  it("preserves ACP 1.4 base models and native reasoning efforts", async () => {
+    const adapter = createAntigravityAcpRuntime(
+      acpInstance({
+        FAKE_MODELS: "gemini-4-argon,gemini-3.8-flash",
+        FAKE_REASONING_EFFORT: "1",
+        FAKE_EFFORTS: "low,medium,high",
+      }),
+    )!;
+
+    const status = await adapter.detectInstall?.({
+      envKind: process.platform === "win32" ? "windows" : "posix",
+    });
+
+    expect(status?.capabilities).toMatchObject({
+      models: [{ id: "gemini-4-argon" }, { id: "gemini-3.8-flash" }],
+      efforts: ["low", "medium", "high"],
+      defaultEffort: "low",
+      modelEfforts: {
+        "gemini-4-argon": ["low", "medium", "high"],
+        "gemini-3.8-flash": ["low", "medium", "high"],
+      },
+      modelDefaultEfforts: { "gemini-4-argon": "low", "gemini-3.8-flash": "low" },
+    });
+  }, 100_000);
+
+  it("keeps collapsing legacy ACP model-per-effort catalogs", async () => {
+    const adapter = createAntigravityAcpRuntime(
+      acpInstance({ FAKE_MODELS: "gemini-3.7-flash-high,gemini-3.7-flash-low" }),
+    )!;
+    const status = await adapter.detectInstall?.({
+      envKind: process.platform === "win32" ? "windows" : "posix",
+    });
+
+    expect(status?.capabilities).toMatchObject({
+      models: [{ id: "gemini-3.7-flash" }],
+      modelEfforts: { "gemini-3.7-flash": ["Low", "High"] },
+      defaultEffort: "Low",
+    });
+  }, 100_000);
+
   it("probes server-owned modes/models/resume without synthesizing a permission picker", async () => {
     const adapter = createAntigravityAcpRuntime(
       acpInstance({
