@@ -383,8 +383,10 @@ export function ThreadDraftView(props: {
   const updateProjectDraftConfigStore = useAppStore((s) => s.updateProjectDraftConfig);
   const updateProjectDraftConfigRef = useRef(
     (projectId: string, nextDraftConfig: ProjectDraftConfig) => {
-      updateProjectDraftConfigStore(projectId, nextDraftConfig);
-      dispatchManagedRootProjectDraftConfig(projectId, nextDraftConfig);
+      const rememberedConfig: ProjectDraftConfig =
+        nextDraftConfig.mode === "plan" ? { ...nextDraftConfig, mode: "agent" } : nextDraftConfig;
+      updateProjectDraftConfigStore(projectId, rememberedConfig);
+      dispatchManagedRootProjectDraftConfig(projectId, rememberedConfig);
     },
   );
   const updateProjectDraftConfig = updateProjectDraftConfigRef.current;
@@ -425,7 +427,10 @@ export function ThreadDraftView(props: {
   function persistProviderConfig(providerKind: string, config: ProviderDraftConfig) {
     providerConfigsRef.current[providerKind] = config;
     if (!isHomeScope) {
-      setProviderConfig(providerKind, config);
+      setProviderConfig(
+        providerKind,
+        config.mode === "plan" ? { ...config, mode: "agent" } : config,
+      );
     }
     persistProviderModelPreference(providerKind, config);
   }
@@ -1019,7 +1024,9 @@ export function ThreadDraftView(props: {
       // clicked row), and a family row must adopt the target's declared
       // default, not retain the source selection. The source family mapping
       // only governs same-provider surface switches below.
-      const targetSaved = isHomeScope ? undefined : providerConfigsRef.current[nextKind];
+      const targetSaved = isHomeScope
+        ? undefined
+        : resolveSavedProviderDraftConfig(targetAgent.kind, undefined, providerConfigsRef.current);
       const targetBase = { ...targetSaved };
       delete targetBase.effort;
       delete targetBase.fast;

@@ -83,6 +83,7 @@ import { ThreadBackgroundTasksBubble, ThreadDockBubbles } from "./ThreadDockBubb
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useThreadDocksSummary } from "./useThreadDocksSummary";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import { isPlanModeControl } from "../providers/composerControlBuilders";
 import { ProviderSessionControls } from "../providers/providerSessionControls";
 import { useThreadInterrupt } from "./useThreadInterrupt";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
@@ -1351,6 +1352,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         >
                           {(sessionActions) => (
                             <ComposerAddMenu
+                              planControl={controlsWithOpenSignal.find(isPlanModeControl)}
                               {...(sideChatAvailable(thread.id, presentationMode)
                                 ? {
                                     onOpenSideChat: () => {

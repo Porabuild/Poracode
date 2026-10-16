@@ -1324,12 +1324,13 @@ describe("ThreadView", () => {
     expect(screen.getAllByText("Medium").length).toBeGreaterThan(0);
     expect(screen.queryByText("Normal")).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("Fast").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Work").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Work" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Default permissions").length).toBeGreaterThan(0);
     expect(screen.queryByLabelText("Collapse composer")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Show composer")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Work" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add attachment or capability" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Plan" }));
     expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(
       "thread-gui-codex",
       expect.objectContaining({

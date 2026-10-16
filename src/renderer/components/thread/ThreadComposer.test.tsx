@@ -1,6 +1,9 @@
 import { act, fireEvent, screen } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { ComposerAddMenu } from "../composer/ComposerAddMenu";
+import { isPlanModeControl, planWorkToggle } from "../providers/composerControlBuilders";
 import {
   shouldMoveComposerControlToMobileOverflow,
   ThreadComposer,
@@ -55,7 +58,7 @@ function composerControls(): ComposerControl[] {
     {
       kind: "toggle",
       label: "Plan",
-      isSelected: false,
+      isSelected: true,
       hideLabelOnWrap: true,
       onChange: vi.fn<(selected: boolean) => void>(),
     },
@@ -172,7 +175,7 @@ describe("ThreadComposer", () => {
         label: "Work",
         isSelected: false,
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       shouldMoveComposerControlToMobileOverflow({
         value: "Auto",
@@ -187,6 +190,73 @@ describe("ThreadComposer", () => {
 
     expect(visibleText("Auto")).toBeVisible();
     expect(visibleText("Plan")).toBeVisible();
+  });
+
+  it("adds Plan from the plus menu and removes it from the controls row", () => {
+    function Composer() {
+      const [isPlanMode, setIsPlanMode] = useState(false);
+      const control = planWorkToggle({
+        isPlanMode,
+        isDisabled: false,
+        onChange: setIsPlanMode,
+      });
+      return (
+        <ThreadComposer
+          controls={[control]}
+          placeholder="Send a message..."
+          prompt=""
+          submitDisabled
+          submitLabel="Send message"
+          onPromptChange={() => {}}
+          onSubmit={() => {}}
+          afterControls={
+            <ComposerAddMenu
+              mcpServers={[]}
+              onPickFiles={() => {}}
+              planControl={[control].find(isPlanModeControl)}
+            />
+          }
+        />
+      );
+    }
+    const { container } = render(<Composer />);
+    expect(screen.queryByText("Work")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove Plan" })).not.toBeInTheDocument();
+    expect(
+      container.querySelectorAll('[aria-hidden="true"] .poracode-composer-toggle'),
+    ).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add attachment or capability" }));
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Plan" }));
+    const plan = screen.getByRole("button", { name: "Remove Plan" });
+    expect(plan.closest(".poracode-composer-toolbar")).not.toBeNull();
+    expect(plan.querySelector(".lucide-x")).not.toBeNull();
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Plan" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add attachment or capability" }));
+    const selectedPlan = screen.getByRole("menuitemcheckbox", { name: "Plan" });
+    expect(selectedPlan).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(selectedPlan);
+    expect(screen.queryByRole("button", { name: "Remove Plan" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add attachment or capability" }));
+    const unselectedPlan = screen.getByRole("menuitemcheckbox", { name: "Plan" });
+    expect(unselectedPlan).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(unselectedPlan);
+    fireEvent.click(screen.getByRole("button", { name: "Remove Plan" }));
+    expect(screen.queryByRole("button", { name: "Remove Plan" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Work")).not.toBeInTheDocument();
+  });
+
+  it("keeps the Plan chip disabled while its mode cannot change", () => {
+    const onChange = vi.fn<(selected: boolean) => void>();
+    renderComposer([
+      { kind: "toggle", label: "Plan", isSelected: true, isDisabled: true, onChange },
+    ]);
+    const plan = screen.getByRole("button", { name: "Remove Plan" });
+    expect(plan).toBeDisabled();
+    fireEvent.click(plan);
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("hides eligible labels when resize measurement requires a collapsed level", () => {
@@ -288,8 +358,8 @@ describe("ThreadComposer", () => {
       },
       {
         kind: "toggle",
-        label: "Work",
-        isSelected: false,
+        label: "Plan",
+        isSelected: true,
         hideLabelOnWrap: true,
         tier: 3,
         onChange: vi.fn<(selected: boolean) => void>(),
@@ -306,7 +376,7 @@ describe("ThreadComposer", () => {
 
     expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "2");
     expect(visibleText("Full access")).toHaveAttribute("data-collapse-tier", "2");
-    expect(visibleText("Work")).toHaveAttribute("data-collapse-tier", "3");
+    expect(visibleText("Plan")).toHaveAttribute("data-collapse-tier", "3");
   });
 
   it("measures the displayed family name without repeating tuple selector labels", () => {
