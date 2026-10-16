@@ -481,6 +481,37 @@ describe("createAntigravityAdapter", () => {
 });
 
 describe("Agy launch feature detection", () => {
+  it("discovers the 1.3.6 catalog and launches its models with separate effort flags", () => {
+    const raw = [
+      "gemini-4-argon-medium\tGemini 4 Argon (Medium)",
+      "gemini-4-argon-high\tGemini 4 Argon (High)",
+      "gemini-4-argon-low\tGemini 4 Argon (Low)",
+      "gemini-3.8-flash-high\tGemini 3.8 Flash (High)",
+      "claude-opus-5-5-low\tClaude Opus 5.5 (Low)",
+      "claude-opus-5-5-medium\tClaude Opus 5.5 (Medium)",
+      "claude-opus-5-5-high\tClaude Opus 5.5 (High)",
+    ].join("\n");
+    const help = "--model Model\n--effort Reasoning effort (low|medium|high|xhigh|max)";
+    const capabilities = buildAntigravityModelCapabilities(
+      parseAntigravityModelVariantsOutput(raw, parseAntigravityEffortsHelp(help)),
+    );
+
+    expect(detectAntigravityLaunchDialect(help, raw).separateModelEffort).toBe(true);
+    expect(capabilities.models.map((model) => model.id)).toEqual([
+      "gemini-4-argon",
+      "gemini-3.8-flash",
+      "claude-opus-5-5",
+    ]);
+    expect(capabilities.modelEfforts).toEqual({
+      "gemini-4-argon": ["Low", "Medium", "High"],
+      "gemini-3.8-flash": ["High"],
+      "claude-opus-5-5": ["Low", "Medium", "High"],
+    });
+    expect(buildAntigravityArgs({ model: capabilities.models[0]!.id, effort: "High" }, "")).toEqual(
+      ["--model", "gemini-4-argon", "--effort", "high"],
+    );
+  });
+
   it("uses the probed 1.1.5 flag dialect instead of relying only on semver", () => {
     expect(
       detectAntigravityLaunchDialect(
