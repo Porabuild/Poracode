@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getSqlite } from "@/host/db/connection";
+import { dbGetThread } from "@/host/db";
+import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
+import { readBridge } from "@/renderer/bridge";
+import {
+  installElectronClientRuntime,
+  startDesktopLoopbackEventIntake,
+  __setDesktopLoopbackIntakeTestSeamsForTest,
+} from "@/renderer/clientRuntime";
 import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -9,13 +17,21 @@ import {
 } from "@/renderer/state/chatRuntimePersister";
 import {
   activate,
+  bootstrapPayloadFor,
+  electronHost,
   preloadCalls,
   seedRuntimeItems,
   seedThread,
+  startFixtureServer,
   setupManagedRootFixture,
   teardownManagedRootFixture,
   threadRow,
+  wsSocketFactory,
 } from "./managedRootFixture";
+import {
+  __resetRendererEventInterestsForTest,
+  retainRendererEventInterest,
+} from "@/renderer/state/rendererEventInterests";
 import {
   hydrateThreadRuntimeItemsForInterest,
   installRuntimeHistoryRecovery,
@@ -28,6 +44,161 @@ import {
 
 beforeEach(setupManagedRootFixture);
 afterEach(teardownManagedRootFixture);
+
+it("loads saved history on the first read when the local connection becomes active", async () => {
+  const threadId = "t-history-first-activation";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  // This released row shape is valid on disk, but sending the whole command
+  // output in a legacy history response exceeds the 32 MiB wire budget. The
+  // first read must use the compact projection and defer its stored details.
+  getSqlite()
+    .prepare(
+      "UPDATE thread_runtime_items SET type = 'command_execution', payload = ?, streams = ? WHERE thread_id = ? AND item_id = 'item-1'",
+    )
+    .run(
+      JSON.stringify({ command: "echo saved output", exitCode: 0 }),
+      JSON.stringify({ command_output: "x".repeat(34 * 1024 * 1024) }),
+      threadId,
+    );
+  const thread = dbGetThread(threadId)!;
+  useAppStore.setState({ threads: [thread] });
+  const server = await startFixtureServer();
+  const host = electronHost(() => bootstrapPayloadFor(server), { dbSetState: () => null });
+  window.poracodeHost = host;
+  installElectronClientRuntime(host);
+  __setDesktopLoopbackIntakeTestSeamsForTest({ socketFactory: wsSocketFactory });
+  let reducer: SupervisorEventReducer;
+  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recover = vi.spyOn(recovery.strategy, "recoverFromThreadReset");
+  reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
+  const unsubscribe = readBridge().onSupervisorEvent((event) => reducer.dispatch(event));
+  const interest = retainRendererEventInterest("runtime", threadId);
+  const read = vi.spyOn(RemoteDesktopClient.prototype, "boundedThreadHistory");
+  try {
+    await interest.ready;
+    await startDesktopLoopbackEventIntake();
+    await vi.waitFor(() => expect(recover).toHaveBeenCalledOnce(), { timeout: 10_000 });
+    expect(await recover.mock.results[0]!.value).toBe(true);
+    expect(read).toHaveBeenCalledExactlyOnceWith(
+      threadId,
+      expect.objectContaining({ compactDetails: true, targetTimelineEntryCount: 20 }),
+    );
+    expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+    expect(useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["item-1"]).toMatchObject({
+      detailsDeferred: true,
+      streams: {},
+    });
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+    expect(preloadCalls).not.toContain("dbGetThreadRuntimeItemsPage");
+    expect(preloadCalls).not.toContain("dbGetThreadCompletedTurns");
+  } finally {
+    unsubscribe();
+    interest.release();
+    __resetRendererEventInterestsForTest();
+    reducer.clear();
+    read.mockRestore();
+  }
+}, 60_000);
+
+it.each([1, 2])(
+  "automatically recovers from %s transient history failures during one open",
+  async (failures) => {
+    const threadId = `t-history-read-retry-${failures}`;
+    seedThread(threadId);
+    seedRuntimeItems(threadId, 2);
+    getSqlite()
+      .prepare(
+        `INSERT INTO thread_completed_turns (thread_id, idx, started_at, ended_at, anchor_item_id)
+       VALUES (?, 0, '2026-01-01T00:00:00.000Z', '2026-01-01T03:36:00.000Z', 'item-1')`,
+      )
+      .run(threadId);
+    await activate();
+    await vi.waitFor(() => expect(threadRow(threadId)).toBeDefined(), { timeout: 15_000 });
+    const client = readManagedLoopbackActivation()!.client;
+    const read = vi.spyOn(client, "boundedThreadHistory");
+    for (let attempt = 0; attempt < failures; attempt++) {
+      read.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    }
+    const statuses: Array<string | undefined> = [];
+    const unsubscribe = useAppStore.subscribe((state) => {
+      statuses.push(state.runtimeHydrationStatus[threadId]);
+    });
+    try {
+      const pending = hydrateThreadRuntimeItems(threadId);
+      await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+      expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("pending");
+      await pending;
+      expect(read).toHaveBeenCalledTimes(failures + 1);
+      expect(statuses).not.toContain("failed");
+      expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true);
+      expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+      expect(useAppStore.getState().runtimeCompletedTurnsByThread[threadId]).toMatchObject([
+        { anchorItemId: "item-1" },
+      ]);
+    } finally {
+      unsubscribe();
+      read.mockRestore();
+    }
+  },
+  60_000,
+);
+
+it("stops after two automatic retries and leaves history available for a later read", async () => {
+  const threadId = "t-history-retries-exhausted";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 2);
+  await activate();
+  const client = readManagedLoopbackActivation()!.client;
+  const read = vi
+    .spyOn(client, "boundedThreadHistory")
+    .mockRejectedValue(new TypeError("Failed to fetch"));
+  try {
+    await hydrateThreadRuntimeItems(threadId);
+    expect(read).toHaveBeenCalledTimes(3);
+    expect(hasHydratedThreadRuntimeItems(threadId)).toBe(false);
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("failed");
+    read.mockRestore();
+    await hydrateThreadRuntimeItems(threadId);
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
+  } finally {
+    read.mockRestore();
+  }
+}, 60_000);
+
+it.each([
+  [503, "persistence_read_refused", true],
+  [503, "persistence_busy", true],
+  [401, "unauthorized", false],
+  [413, "response_too_large", false],
+  [503, "persistence_contaminated", false],
+  [500, "persistence_identity_invalid", false],
+] as const)(
+  "only retries temporary host failures (%s %s)",
+  async (status, code, retryable) => {
+    const threadId = `t-history-error-${code}`;
+    seedThread(threadId);
+    seedRuntimeItems(threadId, 2);
+    await activate();
+    const client = readManagedLoopbackActivation()!.client;
+    const read = vi
+      .spyOn(client, "boundedThreadHistory")
+      .mockRejectedValueOnce(new RemoteClientError("Read refused", status, code));
+    try {
+      await hydrateThreadRuntimeItems(threadId);
+      expect(read).toHaveBeenCalledTimes(retryable ? 2 : 1);
+      expect(hasHydratedThreadRuntimeItems(threadId)).toBe(retryable);
+      expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe(
+        retryable ? undefined : "failed",
+      );
+    } finally {
+      read.mockRestore();
+    }
+  },
+  60_000,
+);
 
 it("paints a small initial tail and pages back through all saved history without gaps", async () => {
   const threadId = "t-initial-tail";
