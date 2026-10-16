@@ -11486,6 +11486,7 @@ msgstr "固定されたタスクルート"
 msgid "Pixel 8"
 msgstr "Pixel 8"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -12686,6 +12687,10 @@ msgstr "{pattern}を削除"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {rowTitle} from panel"
 msgstr "{rowTitle}をパネルから削除"
+
+#: src/renderer/components/thread/ThreadComposer.tsx
+msgid "Remove {toggleLabel}"
+msgstr "{toggleLabel}を削除"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 msgid "Remove {value}"
