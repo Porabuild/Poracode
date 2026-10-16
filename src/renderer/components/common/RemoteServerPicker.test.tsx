@@ -70,6 +70,36 @@ describe("RemoteServerPicker", () => {
     expect(screen.queryByText("Local")).not.toBeInTheDocument();
   });
 
+  it("shows detail text after the label in the default trigger", () => {
+    render(
+      <RemoteServerPicker
+        value={null}
+        includeLocal
+        detail="12s ago"
+        onChange={vi.fn<(desktopId: string | null) => void>()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Connections" });
+    expect(within(trigger).getByText("Local")).toBeInTheDocument();
+    expect(within(trigger).getByText("· 12s ago")).toBeInTheDocument();
+    expect(trigger).toHaveAccessibleDescription("· 12s ago");
+  });
+
+  it("omits detail text and its description when no detail is given", () => {
+    render(
+      <RemoteServerPicker
+        value={null}
+        includeLocal
+        onChange={vi.fn<(desktopId: string | null) => void>()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Connections" });
+    expect(trigger).not.toHaveAttribute("aria-describedby");
+    expect(within(trigger).queryByText(/^·/)).toBeNull();
+  });
+
   it("uses the standard desktop menu and switches between remote and local machines", async () => {
     layout.compact = false;
     pickerState.servers = [
