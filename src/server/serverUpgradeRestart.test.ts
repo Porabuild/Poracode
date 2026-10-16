@@ -1,7 +1,23 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+// These fixtures model Linux systemd paths even on a Windows test host.
+vi.mock("node:path", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:path")>();
+  return {
+    ...original,
+    join: (...paths: string[]) =>
+      /^[A-Za-z]:[\\/]/u.test(paths[0] ?? "")
+        ? original.join(...paths)
+        : original.posix.join(...paths),
+    resolve: (...paths: string[]) =>
+      /^[A-Za-z]:[\\/]/u.test(paths[0] ?? "")
+        ? original.resolve(...paths)
+        : original.posix.resolve(...paths),
+  };
+});
 import {
   resolveServerServiceTarget,
   ServerUpgradeServiceTargetError,

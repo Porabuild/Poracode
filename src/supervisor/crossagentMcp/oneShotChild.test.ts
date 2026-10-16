@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import { spawn, type ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { OneShotChildParams } from "./oneShotChild";
 import type { AgentAdapter, OneShotChildCommand } from "@/supervisor/agents/base";
+
+vi.mock("node:child_process", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:child_process")>();
+  return { ...original, spawn: vi.fn<typeof original.spawn>(original.spawn) };
+});
 
 // Pass the built command through unchanged so the driver spawns exactly what the
 // provider's `buildSubagentOneShotCommand` returns (no shell/WSL wrapping). The
@@ -124,20 +132,20 @@ describe("runOneShotChild", () => {
     const ready = Promise.withResolvers<void>();
     const terminating = Promise.withResolvers<void>();
     const onSettle = vi.fn<OneShotChildParams["onSettle"]>();
+    const child = Object.assign(new EventEmitter(), {
+      pid: 1_234_567,
+      exitCode: null,
+      signalCode: null,
+      stdin: new PassThrough(),
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      kill: vi.fn<() => boolean>(() => true),
+    });
+    vi.mocked(spawn).mockReturnValueOnce(child as unknown as ChildProcess);
     const handle = await runOneShotChild({
       adapter: nodeAdapter(() => ({
         command: process.execPath,
-        args: [
-          "-e",
-          `
-        process.on('SIGTERM', () => {
-          process.stdout.write('terminating');
-          setTimeout(() => process.exit(0), 200);
-        });
-        process.stdout.write('ready');
-        setInterval(() => {}, 1000);
-      `,
-        ],
+        args: [],
         stdin: "",
       })),
       projectLocation: PROJECT,
@@ -154,12 +162,16 @@ describe("runOneShotChild", () => {
     void handle.closed.then(() => {
       closed = true;
     });
+    child.stdout.write("ready");
     await ready.promise;
     handle.cancel();
     handle.cancel();
+    expect(child.kill).toHaveBeenCalledExactlyOnceWith("SIGTERM");
+    child.stdout.write("terminating");
     await terminating.promise;
     expect(closed).toBe(false);
     expect(onSettle).not.toHaveBeenCalled();
+    child.emit("close", 0);
     await handle.closed;
     expect(onSettle).toHaveBeenCalledExactlyOnceWith({ status: "completed" });
     handle.cancel();

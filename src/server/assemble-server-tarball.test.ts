@@ -157,7 +157,7 @@ function hostTarget(): string {
 
 function tarballEntries(tarballPath: string): string[] {
   return execFileSync("tar", ["-tzf", tarballPath], { encoding: "utf8" })
-    .split("\n")
+    .split(/\r?\n/u)
     .map((line) => line.replace(/^\.\//u, ""))
     .filter((line) => line.length > 0 && line !== ".");
 }

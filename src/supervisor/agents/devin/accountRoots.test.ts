@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -23,7 +23,11 @@ vi.mock("../base", async (importOriginal) => ({
 vi.mock("node:fs/promises", async (importOriginal) => {
   const original = await importOriginal<typeof import("node:fs/promises")>();
   mocks.realLink = original.link;
-  return { ...original, link: mocks.link };
+  return {
+    ...original,
+    link: mocks.link,
+    readFile: vi.fn<typeof original.readFile>(original.readFile),
+  };
 });
 
 // The default claim is a real hardlink.
@@ -104,7 +108,9 @@ describe("manifest IO failures are unavailable, never absent", () => {
     await mkdir(roots.configRoot, { recursive: true });
     await mkdir(roots.dataRoot, { recursive: true });
     await writeFile(roots.manifestPath, manifestFor(roots.ownerId));
-    await chmod(roots.manifestPath, 0o000);
+    vi.mocked(readFile).mockRejectedValueOnce(
+      Object.assign(new Error("read denied"), { code: "EACCES" }),
+    );
     let refused = false;
     try {
       const result = await provisionDevinAccountRoot(roots, roots.ownerId);
@@ -113,7 +119,7 @@ describe("manifest IO failures are unavailable, never absent", () => {
       refused = result.ok === false;
       expect(result).toMatchObject({ ok: false });
     } finally {
-      await chmod(roots.manifestPath, 0o644).catch(() => undefined);
+      vi.mocked(readFile).mockReset();
     }
     expect(refused).toBe(true);
     expect(await readFile(roots.manifestPath, "utf8")).toBe(manifestFor(roots.ownerId));

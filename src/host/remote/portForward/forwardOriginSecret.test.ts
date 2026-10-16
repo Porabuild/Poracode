@@ -1,10 +1,23 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { FORWARD_ORIGIN_SECRET_FILE, readOrCreateForwardOriginSecret } from "./forwardOriginSecret";
 import { deriveForwardOwner } from "./forwardOrigin";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs")>();
+  return { ...original, openSync: vi.fn<typeof original.openSync>(original.openSync) };
+});
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -34,7 +47,14 @@ describe("forward origin secret persistence", () => {
       originSecret: string;
     };
     expect(stored).toEqual({ version: 1, originSecret: first });
-    expect(statSync(join(baseDir, FORWARD_ORIGIN_SECRET_FILE)).mode & 0o777).toBe(0o600);
+    expect(openSync).toHaveBeenCalledWith(
+      expect.stringContaining(FORWARD_ORIGIN_SECRET_FILE),
+      "wx",
+      0o600,
+    );
+    expect(statSync(join(baseDir, FORWARD_ORIGIN_SECRET_FILE)).mode & 0o777).toBe(
+      process.platform === "win32" ? 0o666 : 0o600,
+    );
 
     // Ownership is stable for the same host id and differs per host/secret.
     expect(deriveForwardOwner(first, "host-a")).toBe(deriveForwardOwner(first, "host-a"));

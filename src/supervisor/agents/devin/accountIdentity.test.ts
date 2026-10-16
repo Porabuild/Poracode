@@ -1,8 +1,8 @@
-import { chmod, mkdtemp, writeFile } from "node:fs/promises";
-import { execFile } from "node:child_process";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   devinCredentialFingerprint,
@@ -17,6 +17,18 @@ import { batchWslCommandsAsync } from "../base";
 import { devinDefaultRoots } from "./accountRoots";
 
 const posix = (path: string) => ({ kind: "posix" as const, path });
+const shell =
+  process.platform === "win32"
+    ? resolve(
+        execFileSync("git", ["--exec-path"], { encoding: "utf8" }).trim(),
+        "../../../usr/bin/sh.exe",
+      )
+    : "/bin/sh";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...original, readFile: vi.fn<typeof original.readFile>(original.readFile) };
+});
 
 const fetchMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<Response>>(async () => new Response(null)),
@@ -94,7 +106,7 @@ describe("devin credential fingerprint", () => {
 
   it("expands the native credential root inside the distro shell, including spaces", async () => {
     const fx = await fixture("default");
-    const dataRoot = join(fx.base, "data with spaces");
+    const dataRoot = join(fx.base, "data with spaces").replaceAll("\\", "/");
     const { mkdir } = await import("node:fs/promises");
     await mkdir(join(dataRoot, "devin"), { recursive: true });
     await writeFile(
@@ -105,9 +117,13 @@ describe("devin credential fingerprint", () => {
     vi.mocked(batchWslCommandsAsync).mockImplementationOnce(async (_distro, scripts) => {
       const results = [];
       for (const script of scripts) {
-        const { stdout, stderr } = await promisify(execFile)("/bin/sh", ["-c", script], {
-          env: { ...process.env, XDG_DATA_HOME: dataRoot, WINDSURF_API_KEY: "" },
-        });
+        const { stdout, stderr } = await promisify(execFile)(
+          shell,
+          ["-c", `PATH=/usr/bin:/bin:$PATH\n${script}`],
+          {
+            env: { ...process.env, XDG_DATA_HOME: dataRoot, WINDSURF_API_KEY: "" },
+          },
+        );
         results.push({ ok: true, stdout, stderr });
       }
       return results;
@@ -136,15 +152,19 @@ describe("devin credential fingerprint", () => {
     const root = join(fx.base, "literal ' $(printf injected) root");
     const { mkdir } = await import("node:fs/promises");
     await mkdir(root, { recursive: true });
-    const path = join(root, "credentials.toml");
+    const path = join(root, "credentials.toml").replaceAll("\\", "/");
     await writeFile(path, 'windsurf_api_key = "fixture-isolated-key"\n');
     const location = { kind: "wsl" as const, distro: "Ubuntu", linuxPath: "/project", uncPath: "" };
     vi.mocked(batchWslCommandsAsync).mockImplementationOnce(async (_distro, scripts) => {
       const results = [];
       for (const script of scripts) {
-        const { stdout, stderr } = await promisify(execFile)("/bin/sh", ["-c", script], {
-          env: { ...process.env, WINDSURF_API_KEY: "fixture-host-key" },
-        });
+        const { stdout, stderr } = await promisify(execFile)(
+          shell,
+          ["-c", `PATH=/usr/bin:/bin:$PATH\n${script}`],
+          {
+            env: { ...process.env, WINDSURF_API_KEY: "fixture-host-key" },
+          },
+        );
         results.push({ ok: true, stdout, stderr });
       }
       return results;
@@ -172,7 +192,9 @@ describe("devin credential fingerprint", () => {
     const before = await devinCredentialFingerprint(fx.context());
     await fx.writeCredentials("tok-2");
     await expect(devinCredentialFingerprint(fx.context())).resolves.not.toBe(before);
-    await chmod(join(fx.base, "devin", "credentials.toml"), 0o000);
+    vi.mocked(readFile).mockRejectedValueOnce(
+      Object.assign(new Error("read denied"), { code: "EACCES" }),
+    );
     await expect(devinCredentialFingerprint(fx.context())).rejects.toMatchObject({
       name: "DevinAccountIdentityError",
       code: "auth-source-unreadable",

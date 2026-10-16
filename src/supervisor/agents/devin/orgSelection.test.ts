@@ -1,9 +1,14 @@
-import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { devinConfigOrgId, resolveDevinEffectiveOrgId } from "./orgSelection";
 import type { DevinExecutionContext } from "./profileContext";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...original, readFile: vi.fn<typeof original.readFile>(original.readFile) };
+});
 
 const mocks = vi.hoisted(() => ({
   readAgentCommandOutput: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -112,7 +117,9 @@ describe("resolveDevinEffectiveOrgId", () => {
       join(base, "devin", "config.json"),
       JSON.stringify({ devin: { org_id: "org-1" } }),
     );
-    await chmod(join(base, "devin", "config.json"), 0o000);
+    vi.mocked(readFile).mockRejectedValueOnce(
+      Object.assign(new Error("read denied"), { code: "EACCES" }),
+    );
     await expect(resolveDevinEffectiveOrgId(context())).rejects.toMatchObject({
       name: "DevinAccountIdentityError",
       code: "org-selection-unreadable",

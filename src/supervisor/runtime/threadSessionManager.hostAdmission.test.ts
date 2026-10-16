@@ -40,7 +40,7 @@ const ptyState = vi.hoisted(() => ({
 
 function createFakePty(): FakePty {
   const pty: FakePty = {
-    pid: process.pid,
+    pid: process.platform === "win32" ? ptyState.spawned.length + 1 : process.pid,
     killed: false,
     exitEmitted: false,
     dataHandlers: [],
@@ -68,6 +68,12 @@ function createFakePty(): FakePty {
 
 vi.mock("node-pty", () => ({
   spawn: vi.fn<() => FakePty>(() => createFakePty()),
+}));
+vi.mock("@/shared/processTree", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/shared/processTree")>()),
+  terminateProcessTree: vi.fn<(pid: number) => void>((pid) => {
+    ptyState.spawned.find((pty) => pty.pid === pid)?.kill();
+  }),
 }));
 
 vi.mock("../agents/base", async (importActual) => {
