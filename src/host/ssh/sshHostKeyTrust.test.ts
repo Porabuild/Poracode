@@ -14,6 +14,9 @@ import {
 } from "./sshHostKeyTrust";
 
 const roots: string[] = [];
+const sshCommand = process.platform === "win32" ? "ssh.exe" : "ssh";
+const keyscanCommand = process.platform === "win32" ? "ssh-keyscan.exe" : "ssh-keyscan";
+const keygenCommand = process.platform === "win32" ? "ssh-keygen.exe" : "ssh-keygen";
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
@@ -105,7 +108,7 @@ describe("ssh host-key trust parsing", () => {
 describe("SshHostKeyTrust", () => {
   it("resolves a target through ssh -G without connecting", async () => {
     const executor = new FakeExecutor();
-    executor.respond("ssh", ["-G", "-p", "2222", "build"], "hostname 10.0.0.7\nport 2222\n");
+    executor.respond(sshCommand, ["-G", "-p", "2222", "build"], "hostname 10.0.0.7\nport 2222\n");
     const trust = new SshHostKeyTrust({ executor });
     await expect(trust.resolveTarget({ target: "build", port: 2222 })).resolves.toEqual({
       host: "10.0.0.7",
@@ -117,7 +120,7 @@ describe("SshHostKeyTrust", () => {
   it("probes offered keys with ssh-keyscan and returns the preferred fingerprint", async () => {
     const executor = new FakeExecutor();
     executor.respond(
-      "ssh-keyscan",
+      keyscanCommand,
       ["-T", "15", "-p", "2222", "10.0.0.7"],
       `# 10.0.0.7:2222 SSH-2.0-OpenSSH\n10.0.0.7 ssh-rsa ${blobRsa}\n10.0.0.7 ssh-ed25519 ${blobA}\n`,
     );
@@ -133,7 +136,7 @@ describe("SshHostKeyTrust", () => {
 
   it("fails closed when the probe yields no usable host key", async () => {
     const executor = new FakeExecutor();
-    executor.respond("ssh-keyscan", ["-T", "15", "-p", "22", "host.example"], "# nothing\n");
+    executor.respond(keyscanCommand, ["-T", "15", "-p", "22", "host.example"], "# nothing\n");
     const trust = new SshHostKeyTrust({ executor });
     await expect(
       trust.probe({ host: "host.example", port: 22, lookupName: "host.example" }),
@@ -143,12 +146,12 @@ describe("SshHostKeyTrust", () => {
   it("reads trusted system known-hosts entries and tolerates a missing file", async () => {
     const executor = new FakeExecutor();
     executor.fail(
-      "ssh-keygen",
+      keygenCommand,
       ["-F", "host.example", "-f", "/home/dev/.ssh/known_hosts"],
       new Error("no file"),
     );
     executor.respond(
-      "ssh-keygen",
+      keygenCommand,
       ["-F", "host.example", "-f", "/etc/ssh/known_hosts"],
       `# Host host.example found: line 1\nhost.example ssh-ed25519 ${blobA}\n`,
     );

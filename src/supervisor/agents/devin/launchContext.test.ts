@@ -1,7 +1,13 @@
-import { chmod, mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { devinDefaultConfigRoot } from "./credentials";
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs/promises")>();
+  return { ...original, readFile: vi.fn<typeof original.readFile>(original.readFile) };
+});
 
 import {
   buildDevinProfileSeedConfig,
@@ -305,6 +311,7 @@ describe("profile config view seeding", () => {
     try {
       const context = {
         orgId: "org-7",
+        configViewSource: join(base, "default-config"),
         requiresConfigSeed: true,
         location: { kind: "posix" as const, path: "/p" },
         roots: {
@@ -391,8 +398,8 @@ describe("effective user config path", () => {
         ...(configPath !== undefined ? { configPath } : {}),
         roots: {},
       }) as unknown as DevinExecutionContext;
-    expect(effectiveDevinUserConfigPath(undefined)).toContain(
-      join(".config", "devin", "config.json"),
+    expect(effectiveDevinUserConfigPath(undefined)).toBe(
+      join(devinDefaultConfigRoot(), "devin", "config.json"),
     );
     expect(effectiveDevinUserConfigPath(context({ XDG_CONFIG_HOME: "/view" }))).toBe(
       join("/view", "devin", "config.json"),
@@ -527,7 +534,7 @@ describe("config read absence policy", () => {
     ({
       orgId: "org-9",
       requiresConfigSeed: true,
-      ...(configViewSource !== undefined ? { configViewSource } : {}),
+      configViewSource: configViewSource ?? join(base, "default-config"),
       location: { kind: "posix" as const, path: "/p" },
       roots: {
         configRoot: join(base, "view"),
@@ -546,14 +553,15 @@ describe("config read absence policy", () => {
       const context = seedContext(base);
       await mkdir(join(base, "view", "devin"), { recursive: true });
       await writeFile(join(base, "view", "devin", "config.json"), "{ broken policy");
-      await chmod(join(base, "view", "devin", "config.json"), 0o000);
+      vi.mocked(readFile).mockRejectedValueOnce(
+        Object.assign(new Error("read denied"), { code: "EACCES" }),
+      );
       // An existing view that cannot be READ is not an absent view: seeding
       // over it would replace the account's effective policy with a minimal
       // org-only file. The launch fails visibly instead.
       await expect(prepareDevinProfileLaunch(context)).rejects.toMatchObject({
         name: "DevinProfilePolicyError",
       });
-      await chmod(join(base, "view", "devin", "config.json"), 0o644);
       expect(await readFile(join(base, "view", "devin", "config.json"), "utf8")).toBe(
         "{ broken policy",
       );
@@ -570,7 +578,9 @@ describe("config read absence policy", () => {
       const sourceRoot = join(base, "owner-config");
       await mkdir(join(sourceRoot, "devin"), { recursive: true });
       await writeFile(join(sourceRoot, "devin", "config.json"), '{"theme_mode":"dark"}');
-      await chmod(join(sourceRoot, "devin", "config.json"), 0o000);
+      vi.mocked(readFile)
+        .mockRejectedValueOnce(Object.assign(new Error("absent view"), { code: "ENOENT" }))
+        .mockRejectedValueOnce(Object.assign(new Error("read denied"), { code: "EACCES" }));
       await expect(prepareDevinProfileLaunch(seedContext(base, sourceRoot))).rejects.toMatchObject({
         name: "DevinProfilePolicyError",
       });

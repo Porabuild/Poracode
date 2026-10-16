@@ -3,12 +3,14 @@ import {
   mkdtempSync,
   readFileSync,
   readlinkSync,
+  realpathSync,
   rmSync,
   writeFileSync,
   existsSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { defaultServerPrefix } from "./serverDefaultPrefix";
 import { afterEach, describe, expect, it } from "vitest";
 import { HostControlRefusedError } from "@/backend/ownership/hostControlClient";
 import {
@@ -342,7 +344,7 @@ describe("parseUpgradeCliOptions", () => {
   it("requires --from and defaults the prefix", () => {
     expect(parseUpgradeCliOptions(["--from", "/tmp/a.tar.gz"])).toEqual({
       from: "/tmp/a.tar.gz",
-      prefix: "/opt/poracode",
+      prefix: defaultServerPrefix(),
       json: false,
     });
     expect(() => parseUpgradeCliOptions([])).toThrow(/--from <tarball>/u);
@@ -351,20 +353,20 @@ describe("parseUpgradeCliOptions", () => {
   it("parses the explicit recovery flags", () => {
     expect(parseUpgradeCliOptions(["--resume", "--from", "/tmp/a.tar.gz", "--json"])).toEqual({
       from: "/tmp/a.tar.gz",
-      prefix: "/opt/poracode",
+      prefix: defaultServerPrefix(),
       json: true,
       resume: true,
     });
     expect(parseUpgradeCliOptions(["--resume", "--confirm"])).toEqual({
       from: "",
-      prefix: "/opt/poracode",
+      prefix: defaultServerPrefix(),
       json: false,
       resume: true,
       confirm: true,
     });
     expect(parseUpgradeCliOptions(["--abandon-journal", "--confirm"])).toEqual({
       from: "",
-      prefix: "/opt/poracode",
+      prefix: defaultServerPrefix(),
       json: false,
       abandonJournal: true,
       confirm: true,
@@ -956,7 +958,7 @@ describe("upgrade failure classification and recovery (D4 review corrections)", 
       ),
     ).rejects.toMatchObject({ code: "SERVER_UPGRADE_RECOVERY_REFUSED" });
     expect(readServerUpgradeJournal(prefix)?.phase).toBe("swapped");
-    expect(readlinkSync(join(prefix, "current"))).toBe(join("releases", "release-interrupted"));
+    expect(realpathSync(join(prefix, "current"))).toBe(realpathSync(staged));
   });
 
   it("abandons a pre-drain journal with authenticated owner absence without touching current (F4)", async () => {
@@ -1043,7 +1045,7 @@ describe("upgrade failure classification and recovery (D4 review corrections)", 
     ).rejects.toMatchObject({ code: "SERVER_UPGRADE_RECOVERY_REFUSED" });
     // Nothing was restaged, removed or activated.
     expect(existsSync(staged)).toBe(true);
-    expect(readlinkSync(join(prefix, "current"))).toBe(join("releases", "old"));
+    expect(realpathSync(join(prefix, "current"))).toBe(realpathSync(previous));
     expect(world.started).toEqual([]);
   });
 
@@ -1065,7 +1067,7 @@ describe("upgrade failure classification and recovery (D4 review corrections)", 
     expect(result.ok).toBe(true);
     expect(result.detail).toContain("--confirm alone");
     expect(result.detail).toContain("nor evidence");
-    expect(readlinkSync(join(prefix, "current"))).toBe(join("releases", "release-staged"));
+    expect(realpathSync(join(prefix, "current"))).toBe(realpathSync(staged));
     expect(readServerUpgradeJournalState(prefix)).toEqual({ state: "absent" });
   });
 
@@ -1087,7 +1089,7 @@ describe("upgrade failure classification and recovery (D4 review corrections)", 
       ),
     ).rejects.toMatchObject({ code: "SERVER_UPGRADE_RECOVERY_REFUSED" });
     expect(readServerUpgradeJournalState(prefix).state).toBe("invalid");
-    expect(readlinkSync(join(prefix, "current"))).toBe(join("releases", "release-staged"));
+    expect(realpathSync(join(prefix, "current"))).toBe(realpathSync(staged));
   });
 
   it("treats unavailable/stopping admit refusals as admission-uncertain, never a rollback (F9)", async () => {

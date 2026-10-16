@@ -42,6 +42,10 @@ export function createAntigravityAcpRuntime(
       const authMethods = preferDefaultAntigravityAcpAuthMethod(result.authMethods);
       const withPreferredAuth = authMethods ? { ...result, authMethods } : result;
       if (!withPreferredAuth.models?.length) return withPreferredAuth;
+      // Native config options own both model IDs and their effort values.
+      if (withPreferredAuth.efforts?.length || withPreferredAuth.modelEfforts) {
+        return withPreferredAuth;
+      }
       const normalized = buildAntigravityAcpModelCapabilities(withPreferredAuth.models);
       return {
         ...withPreferredAuth,

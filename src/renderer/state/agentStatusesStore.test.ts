@@ -72,7 +72,7 @@ describe("persisted agent status cache", () => {
         version,
       );
 
-      expect(options.version).toBe(58);
+      expect(options.version).toBe(60);
       expect(migrated).toMatchObject({
         agentStatuses: [],
         wslAgentStatuses: [],
@@ -84,7 +84,7 @@ describe("persisted agent status cache", () => {
 
   it.each([
     30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
-    54, 55, 56, 57,
+    54, 55, 56, 57, 58, 59,
   ])("invalidates stored v%i provider inventories during rehydration", async (version) => {
     const staleStatus = makeStatus({ kind: "example", label: "Example", installed: false });
     localStorage.setItem(
@@ -146,7 +146,7 @@ describe("persisted agent status cache", () => {
       },
       30,
     );
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -167,7 +167,7 @@ describe("persisted agent status cache", () => {
       },
       29,
     );
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -199,7 +199,7 @@ describe("persisted agent status cache", () => {
       },
       30,
     );
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -224,7 +224,7 @@ describe("persisted agent status cache", () => {
       },
       21,
     );
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -268,7 +268,7 @@ describe("persisted agent status cache", () => {
       19,
     );
 
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -308,7 +308,7 @@ describe("persisted agent status cache", () => {
       32,
     );
 
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -328,7 +328,7 @@ describe("persisted agent status cache", () => {
       },
       34,
     );
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -343,7 +343,7 @@ describe("persisted agent status cache", () => {
     // flat composite rows and the legacy composite Fast declaration must not
     // hydrate as current.
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     const stale = makeStatus({
       kind: "example",
       label: "Example",
@@ -445,7 +445,7 @@ describe("persisted agent status cache", () => {
       33,
     );
 
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -475,7 +475,7 @@ describe("persisted agent status cache", () => {
       17,
     );
 
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -486,7 +486,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v15 statuses cached before Command Code's live-only model discovery", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     const staleCommandCode = makeStatus({
       kind: "commandcode",
       label: "Command Code",
@@ -518,7 +518,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v10 statuses whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     const staleLogin = makeStatus({
       kind: "antigravity",
       label: "Antigravity",
@@ -545,7 +545,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v14 statuses that grouped Cursor Grok under Other models", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     const staleCursor = makeStatus({
       kind: "cursor",
       label: "Cursor",
@@ -578,7 +578,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     const staleAcp = makeStatus({
       kind: "acp-generic:example",
       label: "Example ACP",
@@ -605,7 +605,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -650,7 +650,7 @@ it("invalidates v20 ACP labels in both persisted environments", async () => {
     },
     20,
   );
-  expect(options.version).toBe(58);
+  expect(options.version).toBe(60);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
@@ -1219,7 +1219,7 @@ it("invalidates v25 model catalogs in both persisted environments", async () => 
     },
     25,
   );
-  expect(options.version).toBe(58);
+  expect(options.version).toBe(60);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
@@ -1258,7 +1258,7 @@ it.each([29, 32, 33, 44, 51, 52, 53, 54, 55])(
       wslLoaded: true,
       unrelatedPersistedField: { savedChoice: "preserved" },
     };
-    expect(options.version).toBe(58);
+    expect(options.version).toBe(60);
     expect(await options.migrate!(previous, version)).toEqual({
       ...previous,
       agentStatuses: [],

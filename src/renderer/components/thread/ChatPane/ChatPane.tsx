@@ -409,6 +409,9 @@ export function ChatPane(props: ChatPaneProps) {
     lastTimelineEntryHasCompletedTurn(timelineEntries, completedTurnsByAnchor);
   const completedTurnCanRenderInTail =
     !showWorkingTimer &&
+    // A previous turn's timing survives a failed history read. Keep its
+    // footer from replacing the empty reader's failure and retry state.
+    (!isEmpty || hydrationStatus !== "failed") &&
     (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
     completedTurnAnchorAtTail &&
     !lastRowAlreadyShowsATurn;
@@ -524,7 +527,7 @@ export function ChatPane(props: ChatPaneProps) {
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
-                hydrationFailed && !showTailLoader ? (
+                hydrationFailed ? (
                   <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted">
                     <span>
                       <Trans>Messages could not be loaded.</Trans>

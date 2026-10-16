@@ -54,6 +54,11 @@ export class PiRpcClient {
       child.on("exit", () => resolve());
     });
     void this.exitPromise.then(() => this.handleClose());
+    child.stdin?.on("error", (error: Error) => {
+      for (const pending of this.pending.values()) pending.reject(error);
+      this.pending.clear();
+      void this.close().catch(() => undefined);
+    });
     child.stdout?.on("data", (chunk: Buffer | string) => this.onData(String(chunk)));
     child.stderr?.on("data", (chunk: Buffer | string) => {
       this.stderrTail.push(String(chunk));

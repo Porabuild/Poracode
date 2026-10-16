@@ -130,9 +130,10 @@ export function spawnAgent(
       reject(err);
     });
     child.stdin.on?.("error", (err) => {
-      // A child that dies before stdin flushes surfaces here as EPIPE; the
+      // A child that dies before stdin flushes surfaces as EPIPE or Windows EOF; the
       // close handler below is the authoritative outcome for the one-shot.
-      if ((err as NodeJS.ErrnoException).code !== "EPIPE") reject(err);
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "EPIPE" && code !== "EOF") reject(err);
     });
     child.on("close", (code) => {
       signal?.removeEventListener("abort", onAbort);

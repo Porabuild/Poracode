@@ -51,6 +51,25 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("node:child_process", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:child_process")>();
+  const { promisify } = await import("node:util");
+  const fixtureArgs = (command: string, argv: string[], rest: unknown[]) =>
+    command.endsWith(".cjs")
+      ? [process.execPath, [command, ...argv], ...rest]
+      : [command, argv, ...rest];
+  const execFile = (command: string, argv: string[], ...rest: unknown[]) =>
+    Reflect.apply(original.execFile, undefined, fixtureArgs(command, argv, rest));
+  Object.defineProperty(execFile, promisify.custom, {
+    value: (command: string, argv: string[], ...rest: unknown[]) =>
+      Reflect.apply(promisify(original.execFile), undefined, fixtureArgs(command, argv, rest)),
+  });
+  return {
+    ...original,
+    execFile,
+  };
+});
+
 vi.mock("../../agents/base", () => ({
   execInWsl: mocks.execInWsl,
   getWslCommand: mocks.getWslCommand,
@@ -76,6 +95,10 @@ vi.mock("../../runtime/spawn", async (importOriginal) => {
     ...actual,
     spawnAndAwaitExit: (...args: Parameters<typeof actual.spawnAndAwaitExit>) => {
       if (mocks.spawnOverride.enabled) return mocks.spawnOverride.fn(...args);
+      const [command, argv, options] = args;
+      if (command.endsWith(".cjs")) {
+        return actual.spawnAndAwaitExit(process.execPath, [command, ...argv], options);
+      }
       return actual.spawnAndAwaitExit(...args);
     },
   };
@@ -191,34 +214,34 @@ function createMappedStaging(root: string): StagingHarness {
 }
 
 function writeExtractorScript(root: string): string {
-  const scriptPath = join(root, "extractor.sh");
+  const scriptPath = join(root, "extractor.cjs");
   writeFileSync(
     scriptPath,
-    `#!/bin/sh
-ROOT="$C4_INSTALL_ROOT"
-BIN="$ROOT/mapped/home/u/.poracode/runtime/${VERSIONED}/bin"
-echo "$$" > "$ROOT/pid.$$"
-trap '' TERM INT
-touch "$ROOT/started.$$"
-while [ ! -f "$ROOT/go.$$" ]; do sleep 0.05; done
-mkdir -p "$BIN"
-printf 'complete-%s' "$$" > "$BIN/node"
-`,
+    `const { existsSync, mkdirSync, writeFileSync } = require('node:fs');
+const { join } = require('node:path');
+const root = process.env.C4_INSTALL_ROOT;
+const bin = join(root, 'mapped/home/u/.poracode/runtime/${VERSIONED}/bin');
+process.on('SIGTERM', () => {});
+writeFileSync(join(root, 'pid.' + process.pid), String(process.pid));
+writeFileSync(join(root, 'started.' + process.pid), 'started');
+const timer = setInterval(() => {
+  if (!existsSync(join(root, 'go.' + process.pid))) return;
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, 'node'), 'complete-' + process.pid);
+  clearInterval(timer);
+}, 10);`,
     { mode: 0o755 },
   );
   return scriptPath;
 }
 
 function writeVersionScript(root: string): string {
-  const scriptPath = join(root, "node-version.sh");
+  const scriptPath = join(root, "node-version.cjs");
   writeFileSync(
     scriptPath,
-    `#!/bin/sh
-for arg in "$@"; do
-  if [ "$arg" = "--version" ]; then printf 'v${PORACODE_PINNED_NODE_VERSION}\\n'; exit 0; fi
-done
-exit 1
-`,
+    `if (process.argv.includes('--version')) {
+  console.log('v${PORACODE_PINNED_NODE_VERSION}');
+} else process.exitCode = 1;`,
     { mode: 0o755 },
   );
   return scriptPath;
@@ -447,8 +470,7 @@ describe("managed runtime completion proof", () => {
 
   it("accepts a legacy bootstrap install after executing the exact binary", async () => {
     const root = roots.at(-1)!;
-    writeVersionScript(root);
-    mocks.getWslCommand.mockReturnValue(join(root, "node-version.sh"));
+    mocks.getWslCommand.mockReturnValue(writeVersionScript(root));
     const harness = createMappedStaging(root);
     const node = mappedNode(root, "C4LegacyBootstrap");
     const marker = mappedMarker(root, "C4LegacyBootstrap");
@@ -599,8 +621,7 @@ describe("install cancellation and successor custody", () => {
 
   it("joins the aborted bootstrap extractor before a successor extraction starts", async () => {
     const root = roots.at(-1)!;
-    writeExtractorScript(root);
-    mocks.getWslCommand.mockReturnValue(join(root, "extractor.sh"));
+    mocks.getWslCommand.mockReturnValue(writeExtractorScript(root));
     const harness = createMappedStaging(root);
     const controller = new AbortController();
 
@@ -617,8 +638,9 @@ describe("install cancellation and successor custody", () => {
 
     controller.abort(new Error("first caller cancelled"));
     await expect(firstOutcome).resolves.toBe("rejected");
-    // SIGTERM is trapped; the extractor is only gone after the SIGKILL join.
-    expect(isAlive(firstPid!)).toBe(true);
+    // Windows taskkill is forceful; POSIX cancellation still has an owned
+    // process to join before the successor may enter the extraction path.
+    expect(isAlive(firstPid!)).toBe(process.platform !== "win32");
 
     const second = resolveNodeForDistro("C4Join", {
       useBridge: false,

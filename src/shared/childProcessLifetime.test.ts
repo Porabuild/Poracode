@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { EventEmitter, once } from "node:events";
+import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChildProcessLifetime } from "./childProcessLifetime";
 
@@ -57,25 +58,29 @@ describe("ChildProcessLifetime", () => {
     },
   );
 
-  it("joins pipes held by a fixture descendant without signaling the exited leader", async () => {
-    const { child, lifetime, ready } = fixture(`
-      require('node:child_process').spawn(process.execPath,
-        ['-e', 'setTimeout(() => {}, 200)'], { stdio: ['ignore', 1, 2] }).unref();
-      process.stdout.write('ready', () => process.exit(0));
-    `);
-    await ready;
-    if (child.exitCode === null) await once(child, "exit");
-    const kill = vi.spyOn(child, "kill");
+  it("joins pipes held after leader exit without signaling the exited leader", async () => {
+    const child = Object.assign(new EventEmitter(), {
+      pid: 1_234_567,
+      exitCode: 0,
+      signalCode: null,
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      kill: vi.fn<() => boolean>(),
+    });
+    const lifetime = new ChildProcessLifetime(child as unknown as ChildProcess);
     let joined = false;
     const closing = lifetime.stop({ graceMs: 10, forceMs: 1_000 }).then(() => {
       joined = true;
     });
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await Promise.resolve();
     expect(joined).toBe(false);
-    expect(kill).not.toHaveBeenCalled();
+    expect(child.kill).not.toHaveBeenCalled();
+    child.stdout.destroy();
+    child.stderr.destroy();
+    child.emit("close", 0, null);
     await closing;
     expect(child.stdout?.destroyed).toBe(true);
-    expect(kill).not.toHaveBeenCalled();
+    expect(child.kill).not.toHaveBeenCalled();
   });
 
   it("joins a failed spawn through close", async () => {
