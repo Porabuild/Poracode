@@ -374,6 +374,7 @@ export const codexDetectionSpec: DetectionSpec = {
   capabilities: codexDefaultCapabilities,
   update: {
     builtIn: { binary: "codex", args: ["update"] },
+    preferPackageManagerOnWindows: ["npm-global", "pnpm-global", "bun-global"],
     npm: "@openai/codex",
   },
   statusProbe: probeCodexStatus,

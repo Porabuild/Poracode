@@ -148,7 +148,8 @@ const execFileAsync = promisify(execFile);
 // cached Muse statuses that hid every MCP toggle must be re-probed.
 // v61 re-detects native Windows providers whose resolved absolute executable
 // was incorrectly passed back through PATH lookup and cached as missing.
-export const STATUS_CACHE_VERSION = 61;
+// v62 refreshes Windows update policies shared by execution and command previews.
+export const STATUS_CACHE_VERSION = 62;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

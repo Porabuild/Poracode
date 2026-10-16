@@ -272,6 +272,10 @@ export const grokDetectionSpec: DetectionSpec = {
   capabilities: grokDefaultCapabilities,
   update: {
     builtIn: { binary: "grok", args: ["update"] },
+    // The native updater cannot spawn npm.cmd; npm 12 needs approval for the
+    // postinstall that replaces ~/.grok/bin/grok.exe.
+    preferPackageManagerOnWindows: ["npm-global"],
+    windowsNpmInstallArgs: ["--allow-scripts=@xai-official/grok"],
     npm: "@xai-official/grok",
     latestVersionUrls: [
       "https://x.ai/cli/stable",

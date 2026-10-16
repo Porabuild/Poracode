@@ -49,6 +49,8 @@ function looksLikeNpmInstallPath(executablePath: string | undefined): boolean {
     normalized.includes("/node_modules/") ||
     normalized.includes("/.npm-global/") ||
     normalized.includes("/appdata/roaming/npm/") ||
+    normalized.includes("/appdata/roaming/fnm/") ||
+    normalized.includes("/appdata/local/fnm_multishells/") ||
     normalized.includes("/n/versions/") ||
     normalized.includes("/.nvm/versions/node/") ||
     normalized.includes("/.volta/") ||
@@ -108,6 +110,19 @@ export function resolveSharedUpdateCommand(
   if (!pkg) return undefined;
 
   if (!input.skipBuiltIn && !input.installedPackageManagerOnly && pkg.builtIn) {
+    if (input.envKind === "windows" && pkg.preferPackageManagerOnWindows?.length) {
+      const manager = resolveSharedUpdateCommand({
+        ...input,
+        skipBuiltIn: true,
+        installedPackageManagerOnly: true,
+      });
+      if (
+        manager &&
+        pkg.preferPackageManagerOnWindows.some((strategy) => strategy === manager.strategy)
+      ) {
+        return manager;
+      }
+    }
     return { binary: pkg.builtIn.binary, args: pkg.builtIn.args, strategy: "built-in" };
   }
 
@@ -140,7 +155,12 @@ export function resolveSharedUpdateCommand(
   if (pkg.npm && looksLikeNpmInstallPath(path)) {
     return {
       binary: "npm",
-      args: ["install", "-g", `${pkg.npm}@latest`],
+      args: [
+        "install",
+        "-g",
+        `${pkg.npm}@latest`,
+        ...(input.envKind === "windows" ? (pkg.windowsNpmInstallArgs ?? []) : []),
+      ],
       strategy: "npm-global",
     };
   }
@@ -163,7 +183,12 @@ export function resolveSharedUpdateCommand(
   if (pkg.npm) {
     return {
       binary: "npm",
-      args: ["install", "-g", `${pkg.npm}@latest`],
+      args: [
+        "install",
+        "-g",
+        `${pkg.npm}@latest`,
+        ...(input.envKind === "windows" ? (pkg.windowsNpmInstallArgs ?? []) : []),
+      ],
       strategy: "npm-global",
     };
   }

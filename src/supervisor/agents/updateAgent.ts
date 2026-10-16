@@ -7,6 +7,7 @@ import type {
 import {
   formatUpdateCommandLine,
   getNpmPackageNameForUpdate,
+  isVersionInWindow,
   pickLatestVersionInWindow,
   resolveSharedUpdateCommand,
 } from "@/shared/agents/updateResolver";
@@ -104,14 +105,34 @@ export async function runUpdateCommandWithFallback(
   envContext: AgentEnvContext,
   options?: { verifyBuiltInSuccess?: () => Promise<boolean> },
 ): Promise<UpdateAgentBinaryResult> {
-  const command = resolveUpdateCommand(adapter, status, envContext);
+  let command = resolveUpdateCommand(adapter, status, envContext);
   if (!command) return buildUnsupportedResult();
   const installPath = await resolveUpdateInstallPath(status.executablePath, envContext);
 
-  const fallback =
+  let fallback =
     command.strategy === "built-in"
       ? resolveUpdateCommand(adapter, status, envContext, { skipBuiltIn: true })
       : undefined;
+  if (
+    envContext.envKind === "windows" &&
+    [command, fallback].some((entry) => entry?.strategy === "pnpm-global")
+  ) {
+    const npm = getNpmPackageNameForUpdate(status.update ?? adapter.update);
+    const { version } = await getLatestVersionForAdapter(adapter);
+    if (npm && version && isVersionInWindow(version, {})) {
+      // pnpm can reuse a stale latest-tag resolution even after a successful
+      // install. Use the exact published version already advertised by the app.
+      const pinVersion = (entry: AgentUpdaterCommand): AgentUpdaterCommand =>
+        entry.strategy === "pnpm-global"
+          ? {
+              ...entry,
+              args: entry.args.map((arg) => (arg === `${npm}@latest` ? `${npm}@${version}` : arg)),
+            }
+          : entry;
+      command = pinVersion(command);
+      fallback = fallback ? pinVersion(fallback) : undefined;
+    }
+  }
   const installedManager =
     command.strategy === "built-in"
       ? [installPath, status.executablePath]
