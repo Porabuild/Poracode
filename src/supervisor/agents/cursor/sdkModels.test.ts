@@ -272,6 +272,8 @@ describe("cursorSdkCapabilitiesFromModels", () => {
       { id: "grok-4.5", displayName: "Cursor Grok 4.5" },
       { id: "gpt-5.6-luna", displayName: "GPT-5.6 Luna" },
       { id: "gemini-3.7-flash", displayName: "Gemini 3.7 Flash" },
+      { id: "muse-wonder", displayName: "Muse Wonder" },
+      { id: "muse-spark-1.3", displayName: "Muse Spark 1.3" },
     ]);
 
     expect(capabilities.modelSubProvider).toEqual({
@@ -280,6 +282,8 @@ describe("cursorSdkCapabilitiesFromModels", () => {
       "grok-4.5": "cursor",
       "gpt-5.6-luna": "other",
       "gemini-3.7-flash": "other",
+      "muse-wonder": "other",
+      "muse-spark-1.3": "other",
     });
   });
 

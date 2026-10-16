@@ -150,7 +150,8 @@ const execFileAsync = promisify(execFile);
 // was incorrectly passed back through PATH lookup and cached as missing.
 // v62 refreshes Windows update policies shared by execution and command previews.
 // v63 re-probes native ACP model and effort controls previously discarded by normalization.
-export const STATUS_CACHE_VERSION = 63;
+// v64 refreshes model sub-provider grouping for newly recognized third-party families.
+export const STATUS_CACHE_VERSION = 64;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
