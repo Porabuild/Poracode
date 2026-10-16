@@ -499,6 +499,12 @@ export function ThreadDraftView(props: {
     if (lastAppliedAgentKindRef.current === effectiveAgentKind) {
       return;
     }
+    // An empty catalog resolves the model to "". Committing that sets
+    // lastAppliedAgentKindRef, and this effect re-runs when the status object
+    // changes, so the latch would ignore the catalog when it arrives.
+    if (selectedAgentForConfig.capabilities.models.length === 0) {
+      return;
+    }
 
     const saved = resolveSavedProviderDraftConfig(
       effectiveAgentKind,
@@ -530,6 +536,11 @@ export function ThreadDraftView(props: {
       return;
     }
     if (!model) {
+      return;
+    }
+    // The model resolves to "" and effort, Fast, and thinking resolve against
+    // empty maps. Persisting either one writes the probe gap into the draft.
+    if (selectedAgentForConfig.capabilities.models.length === 0) {
       return;
     }
 
@@ -611,6 +622,7 @@ export function ThreadDraftView(props: {
     if (!sharedSettingsHydrated || !selectedAgentForConfig || !effectiveAgentKind || !model) {
       return;
     }
+    if (selectedAgentForConfig.capabilities.models.length === 0) return;
     if (hasLocalConfigEditRef.current) return;
 
     const settings = useSharedSettings.getState();
@@ -682,6 +694,11 @@ export function ThreadDraftView(props: {
       return;
     }
     if (!selectedAgentForConfig || !effectiveAgentKind) {
+      return;
+    }
+    // A restore commit writes model "" and sets lastAppliedAgentKindRef, so
+    // the kind-change effect will not apply the catalog when it arrives.
+    if (selectedAgentForConfig.capabilities.models.length === 0) {
       return;
     }
     const initialLastDraftConfig = initialLastDraftConfigRef.current;
@@ -971,6 +988,12 @@ export function ThreadDraftView(props: {
     hasLocalConfigEditRef.current = true;
     if ("contextSize" in patch) {
       hasLocalContextEditRef.current = true;
+    }
+    if (selectedAgentForConfig.capabilities.models.length === 0) {
+      // Probe gap: resolving substitutes model "" and commitDraftConfig latches
+      // lastApplied, so the saved model never returns. Keep the edit local.
+      setDraftConfig((current) => ({ ...current, ...patch }));
+      return;
     }
     // A family member's own carrier presence is exact; ordinary models keep
     // resolving from their displayed effort/Fast/thinking values.
