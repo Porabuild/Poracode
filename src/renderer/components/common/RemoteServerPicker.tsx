@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Button, Label, ListBox } from "@heroui/react";
 import { Check, ChevronDown, ChevronUp, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
@@ -17,6 +17,8 @@ export function RemoteServerPicker(props: {
   readonly includeLocal?: boolean;
   readonly onChange: (desktopId: string | null) => void;
   readonly trigger?: ReactNode;
+  /** Muted secondary text shown after the label in the default trigger. */
+  readonly detail?: ReactNode;
   readonly buttonClassName?: string;
   readonly opensUpward?: boolean;
 }) {
@@ -26,6 +28,7 @@ export function RemoteServerPicker(props: {
   const servers = useRemoteServersStore((state) => state.servers);
   const runtime = useRemoteServersStore((state) => state.runtime);
   const [open, setOpen] = useState(false);
+  const detailId = useId();
   const effectiveValue =
     props.value ??
     (!props.includeLocal ? (servers[0] ? remoteConnectionKey(servers[0]) : null) : null);
@@ -60,6 +63,7 @@ export function RemoteServerPicker(props: {
               (compact ? "h-9 min-h-9 max-w-40 px-2" : "h-7 min-h-7 px-1.5")
             }`}
             aria-label={t`Connections`}
+            {...(props.detail ? { "aria-describedby": detailId } : {})}
             {...(mobile ? { onPress: () => setOpen(true) } : {})}
           >
             {selected ? (
@@ -72,6 +76,11 @@ export function RemoteServerPicker(props: {
               <Monitor className="size-3.5 shrink-0" />
             )}
             <span className="min-w-0 truncate text-xs">{label}</span>
+            {props.detail ? (
+              <span id={detailId} className="-ml-1 shrink-0 text-[11px] text-muted">
+                · {props.detail}
+              </span>
+            ) : null}
             {props.opensUpward ? (
               <ChevronUp className="size-3 shrink-0 text-muted" />
             ) : (

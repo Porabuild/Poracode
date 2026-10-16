@@ -30,10 +30,13 @@ vi.mock("@/renderer/state/remoteServersStore", async () => {
   };
 });
 vi.mock("@/renderer/components/common/RemoteServerPicker", () => ({
-  RemoteServerPicker: (props: { onChange: (id: string | null) => void }) => (
-    <button type="button" onClick={() => props.onChange(null)}>
-      Current host
-    </button>
+  RemoteServerPicker: (props: { onChange: (id: string | null) => void; detail?: ReactNode }) => (
+    <>
+      <button type="button" onClick={() => props.onChange(null)}>
+        Current host
+      </button>
+      {props.detail ? <span data-testid="picker-detail">{props.detail}</span> : null}
+    </>
   ),
 }));
 vi.mock("@/renderer/hooks/useScrollFade", () => ({
@@ -156,6 +159,29 @@ describe("usage panel host ownership", () => {
     expect(screen.queryByText("This host is no longer configured.")).toBeNull();
     expect(bridge.getProviderUsage).toHaveBeenCalled();
   });
+  it("folds the refresh time into the desktop connection picker", () => {
+    useUsageScopeStore.setState({ desktopId: "a" });
+    const store = useHostUsageStore.getState();
+    store.complete("a", store.begin("a"), [
+      { providerId: "provider", status: "ok", windows: [], fetchedAt: Date.now() },
+    ]);
+    render(<UsagePanel />);
+    expect(screen.getByTestId("picker-detail").textContent).toBe("just now");
+    expect(screen.queryByText(/^Updated /)).toBeNull();
+  });
+
+  it("shows only the refresh time when no connection picker is available", () => {
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useProviderUsageStore.setState({
+      snapshots: {
+        claude: { providerId: "claude", status: "ok", windows: [], fetchedAt: Date.now() },
+      },
+    });
+    render(<UsagePanel />);
+    expect(screen.queryByRole("button", { name: "Current host" })).toBeNull();
+    expect(screen.getByText("Updated just now")).toBeTruthy();
+  });
+
   it.each([false, true])(
     "retains card meters, credits, cost, current grouping, collapse and ordering (compact=%s)",
     async (compact) => {

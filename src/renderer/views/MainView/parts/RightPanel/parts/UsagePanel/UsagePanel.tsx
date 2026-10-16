@@ -202,6 +202,9 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
     return max;
   })();
 
+  const showPicker = servers.length > 0 || (!browserRuntime && requestedDesktopId !== null);
+  const showFooter = !compact && (showPicker || lastUpdated > 0);
+
   const openSettings = props.onOpenUsageSettings ?? openUsageSettings;
 
   const refreshNow = () => {
@@ -254,8 +257,8 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
         className={`m-page-content min-h-0 flex-1 overflow-y-auto p-2.5 [scrollbar-gutter:stable] ${
           compact
             ? "pb-[calc(var(--m-floating-control-height)+2.5rem+env(safe-area-inset-bottom))]"
-            : servers.length > 0
-              ? "pb-2"
+            : showFooter
+              ? "scroll-pb-20 pb-20"
               : ""
         }`}
         style={scrollFadeStyle}
@@ -299,22 +302,22 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
         </div>
       </div>
 
-      {!compact ? (
-        <div className="m-page-content flex shrink-0 flex-col items-center gap-1.5 px-3 py-2">
-          {servers.length > 0 || (!browserRuntime && requestedDesktopId !== null) ? (
+      {showFooter ? (
+        <div className="m-page-content pointer-events-none absolute bottom-0 left-0 right-1 z-10 flex justify-center [background-image:linear-gradient(to_top,var(--content-background)_35%,color-mix(in_oklab,var(--content-background)_70%,transparent)_65%,transparent)] px-3 pt-6 pb-2">
+          {showPicker ? (
             <RemoteServerPicker
               value={effectiveDesktopId}
               includeLocal={!browserRuntime}
               onChange={setRequestedDesktopId}
-              buttonClassName="h-7 min-h-7 max-w-[12rem] rounded-full border border-[color:var(--border)] bg-[var(--content-background)] px-2.5 shadow-sm"
+              {...(lastUpdated > 0 ? { detail: formatUpdatedAgo(lastUpdated, nowTick, t) } : {})}
+              buttonClassName="pointer-events-auto h-7 min-h-7 max-w-[14rem] rounded-full border border-[color:var(--border)] bg-[var(--content-background)] px-2.5 shadow-sm"
               opensUpward
             />
-          ) : null}
-          {lastUpdated > 0 ? (
+          ) : (
             <p className="text-[11px] text-muted/70">
               <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
             </p>
-          ) : null}
+          )}
         </div>
       ) : null}
 
