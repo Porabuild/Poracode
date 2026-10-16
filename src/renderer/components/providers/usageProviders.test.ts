@@ -256,4 +256,13 @@ describe("hasRailUsage", () => {
   ])("keeps %s in the rail: %s", (status, expected) => {
     expect(hasRailUsage(status === "pending" ? undefined : snapshot(status))).toBe(expected);
   });
+
+  it("keeps retained usage visible when authentication cannot be refreshed", () => {
+    expect(
+      hasRailUsage({
+        ...snapshot("auth-missing"),
+        windows: [{ id: "weekly", label: "Weekly", usedPercent: 56 }],
+      }),
+    ).toBe(true);
+  });
 });

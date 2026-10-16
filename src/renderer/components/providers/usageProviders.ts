@@ -316,8 +316,8 @@ export function pickUsageRings(
 
 /**
  * Whether a provider earns a circle in the sidebar rail. A signed-out provider
- * (`auth-missing`) or one with no usage API (`unsupported`) has nothing a ring
- * can show, so the rail leaves it out — Settings → Usage still lists it with its
+ * (`auth-missing`) with no retained usage or one with no usage API (`unsupported`)
+ * has nothing a ring can show, so the rail leaves it out — Settings → Usage still lists it with its
  * status and login action. Everything else stays: snapshots that haven't arrived
  * yet (so a cold start isn't an empty rail) and signed-in-but-unreadable states
  * like `app-not-running` or `rate-limited`, which do recover on their own.
@@ -328,6 +328,12 @@ export function hasRailUsage(snapshot: UsageSnapshot | undefined): boolean {
   // here rather than silently defaulting into (or out of) the rail.
   switch (snapshot.status) {
     case "auth-missing":
+      return (
+        snapshot.windows.length > 0 ||
+        snapshot.cost !== undefined ||
+        snapshot.tokens !== undefined ||
+        snapshot.credits !== undefined
+      );
     case "unsupported":
       return false;
     case "ok":

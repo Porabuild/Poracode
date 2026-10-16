@@ -1892,6 +1892,10 @@ msgstr "Автентифіковано"
 msgid "Authentication"
 msgstr "Автентифікація"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Authentication is unavailable or the token could not be renewed."
+msgstr "Автентифікація недоступна або не вдалося оновити токен."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
@@ -14600,6 +14604,10 @@ msgstr "Показувати кнопку голосового вводу"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Показано {0, plural, one {# навичку} few {# навички} many {# навичок} other {# навички}}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Showing last successful usage from {lastUpdated}."
+msgstr "Показано останні успішно отримані дані про використання від {lastUpdated}."
+
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
 msgstr "Показано перші {CATEGORY_RESULT_LIMIT} результатів. Уточніть запит."
@@ -17904,6 +17912,10 @@ msgstr "Дані використання застаріли. Оновіть ї�
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
 msgstr "Використання не підтримується"
+
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Usage refresh failed"
+msgstr "Не вдалося оновити дані про використання"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx

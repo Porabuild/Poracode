@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { ChevronDown, ChevronRight, GripVertical, RefreshCw } from "lucide-react";
+import { Button, Tooltip } from "@heroui/react";
+import { ChevronDown, ChevronRight, GripVertical, RefreshCw, TriangleAlert } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -83,7 +84,7 @@ export function UsageProviderCardView(props: {
   onToggleCollapse: (id: string) => void;
 }) {
   const { id, label, index, compact, collapsed, draggable = true, onToggleCollapse } = props;
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { snapshot, refreshing, onRefresh, refreshDisabled = false } = props;
   const { ref, handleRef, isDragging } = useSortable({
     id: `usage-order:${id}`,
@@ -100,9 +101,14 @@ export function UsageProviderCardView(props: {
   const credits = hasDisplayableCredits(snapshot?.credits, snapshot?.windows ?? [])
     ? snapshot?.credits
     : undefined;
-  const hasUsage =
-    snapshot?.status === "ok" && (snapshot.windows.length > 0 || showCost || Boolean(credits));
-  const hasWindows = snapshot?.status === "ok" && snapshot.windows.length > 0;
+  const hasUsage = Boolean(snapshot && (snapshot.windows.length > 0 || showCost || credits));
+  const hasWindows = Boolean(snapshot?.windows.length);
+  const refreshFailed =
+    snapshot &&
+    (snapshot.status === "error" ||
+      snapshot.status === "rate-limited" ||
+      (snapshot.status === "auth-missing" && hasUsage));
+  const lastUpdated = snapshot ? new Date(snapshot.fetchedAt).toLocaleString(i18n.locale) : "";
   // Mount-time clock for the reset label (same pattern as UsageWindowBars):
   // impure reads can't run during render, and the card re-renders on snapshot
   // updates anyway.
@@ -174,6 +180,30 @@ export function UsageProviderCardView(props: {
             ) : null}
           </span>
         </button>
+        {refreshFailed ? (
+          <Tooltip delay={0}>
+            <Button
+              isIconOnly
+              variant="ghost"
+              aria-label={t`Usage refresh failed`}
+              className={`min-w-0 shrink-0 rounded-md p-0 text-warning hover:bg-transparent ${
+                compact ? "size-11" : "size-5"
+              }`}
+            >
+              <TriangleAlert aria-hidden="true" className="size-3.5" />
+            </Button>
+            <Tooltip.Content placement="top" className="max-w-72 text-xs">
+              <div className="space-y-1">
+                <p>
+                  {snapshot.status === "auth-missing"
+                    ? t`Authentication is unavailable or the token could not be renewed.`
+                    : usageStatusText(snapshot, label, id)}
+                </p>
+                {hasUsage ? <p>{t`Showing last successful usage from ${lastUpdated}.`}</p> : null}
+              </div>
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
         <button
           type="button"
           aria-label={t`Refresh ${label}`}

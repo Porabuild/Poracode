@@ -1891,6 +1891,10 @@ msgstr "認証済み"
 msgid "Authentication"
 msgstr "認証"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Authentication is unavailable or the token could not be renewed."
+msgstr "認証を利用できないか、トークンを更新できませんでした。"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
@@ -14598,6 +14602,10 @@ msgstr "音声入力ボタンを表示"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "{0, plural, other {# 件のスキル}}を表示中"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Showing last successful usage from {lastUpdated}."
+msgstr "最後に取得できた使用状況（{lastUpdated}）を表示しています。"
+
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
 msgstr "最初の {CATEGORY_RESULT_LIMIT} 件の結果を表示しています。検索条件を絞り込んでください。"
@@ -17902,6 +17910,10 @@ msgstr "使用量が古くなっています。更新してください。"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
 msgstr "使用量はサポートされていません"
+
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Usage refresh failed"
+msgstr "使用状況の更新に失敗しました"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx

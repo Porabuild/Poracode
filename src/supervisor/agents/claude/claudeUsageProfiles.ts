@@ -41,9 +41,8 @@ export function isClaudeUsageProvider(id: string): boolean {
 /**
  * Claude's OAuth access token can expire while the CLI has been idle, and a
  * one-off usage auth miss does not prove the user has signed out. When this
- * returns true, `UsageService` keeps the last displayable snapshot verbatim
- * (old `fetchedAt` included, so the footer reflects when the displayed numbers
- * were actually obtained and the next refresh cycle keeps trying to recover).
+ * returns true, `UsageService` keeps the last displayable reading and its
+ * `fetchedAt`, alongside the failed status so the UI can warn about stale data.
  * A first-time auth miss (no prior displayable snapshot) still renders as not
  * signed in.
  */

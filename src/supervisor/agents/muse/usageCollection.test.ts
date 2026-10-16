@@ -154,11 +154,13 @@ describe("Muse usage source custody", () => {
     },
   );
 
-  it("keeps last good browser usage during a failure of the same session", async () => {
+  it("keeps last good browser usage and reports a failure of the same session", async () => {
     const f = fixture({ cookie: "llm_sess=test" });
     const good = await f.refresh();
     f.setPortalStatus(500);
-    expect((await f.refresh()).snapshots).toEqual(good.snapshots);
+    expect((await f.refresh()).snapshots).toEqual(
+      good.snapshots.map((snapshot) => ({ ...snapshot, status: "error" })),
+    );
     expect(f.getOAuthToken).not.toHaveBeenCalled();
   });
 

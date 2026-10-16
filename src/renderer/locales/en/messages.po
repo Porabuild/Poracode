@@ -1897,6 +1897,10 @@ msgstr "Authenticated"
 msgid "Authentication"
 msgstr "Authentication"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Authentication is unavailable or the token could not be renewed."
+msgstr "Authentication is unavailable or the token could not be renewed."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
@@ -14609,6 +14613,10 @@ msgstr "Show voice input button"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Showing {0, plural, one {# skill} other {# skills}}"
 
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Showing last successful usage from {lastUpdated}."
+msgstr "Showing last successful usage from {lastUpdated}."
+
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
 msgstr "Showing the first {CATEGORY_RESULT_LIMIT} results. Refine your search."
@@ -17917,6 +17925,10 @@ msgstr "Usage is stale. Refresh to update."
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"
 msgstr "Usage not supported"
+
+#: src/renderer/components/providers/UsageProviderCardView.tsx
+msgid "Usage refresh failed"
+msgstr "Usage refresh failed"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
