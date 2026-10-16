@@ -7,6 +7,15 @@ import {
   type ComposerControl,
 } from "./ThreadComposer";
 
+const { getDroppedFilePaths } = vi.hoisted(() => ({
+  getDroppedFilePaths: vi.fn<(files: File[]) => string[]>(),
+}));
+
+vi.mock("@/renderer/bridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
+  readBridge: () => ({ getDroppedFilePaths }),
+}));
+
 const originalResizeObserver = globalThis.ResizeObserver;
 
 class MockResizeObserver {
@@ -82,6 +91,28 @@ function renderComposerWithAttach(onAttachFiles: (paths: string[]) => void) {
   );
 }
 
+function attachmentPanel(
+  onAttachFiles: (paths: string[]) => void,
+  attachmentDropScope: "composer" | "panel" = "panel",
+) {
+  return (
+    <div data-poracode-attachment-drop-target="">
+      <p>Transcript</p>
+      <ThreadComposer
+        attachmentDropScope={attachmentDropScope}
+        controls={[]}
+        placeholder="Send a message..."
+        prompt=""
+        submitDisabled
+        submitLabel="Send message"
+        onAttachFiles={onAttachFiles}
+        onPromptChange={vi.fn<(value: string) => void>()}
+        onSubmit={vi.fn<() => void>()}
+      />
+    </div>
+  );
+}
+
 function visibleText(text: string): HTMLElement {
   const matches = screen.getAllByText(text);
   const visible = matches.find((element) => !element.closest('[aria-hidden="true"]'));
@@ -118,6 +149,7 @@ function setToolbarWidth(container: HTMLElement, width: number) {
 
 describe("ThreadComposer", () => {
   beforeEach(() => {
+    getDroppedFilePaths.mockReset();
     MockResizeObserver.reset();
     globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
   });
@@ -381,6 +413,123 @@ describe("ThreadComposer", () => {
     });
 
     expect(onAttachFiles).toHaveBeenCalledWith(["src/App.tsx"]);
+  });
+
+  it.each(["panel", "transcript", "input"])(
+    "attaches OS files dropped on the %s through the native path bridge",
+    (surface) => {
+      const onAttachFiles = vi.fn<(paths: string[]) => void>();
+      const { container } = render(attachmentPanel(onAttachFiles));
+      const panel = container.querySelector("[data-poracode-attachment-drop-target]")!;
+      const target =
+        surface === "panel"
+          ? panel
+          : surface === "transcript"
+            ? screen.getByText("Transcript")
+            : screen.getByRole("textbox");
+      const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+      const dataTransfer = { types: ["Files"], files: [file], getData: () => "" };
+      getDroppedFilePaths.mockReturnValue(["C:\\repo\\notes.txt"]);
+
+      fireEvent.dragEnter(target, { dataTransfer });
+      expect(screen.getByText("Drop here to attach")).toBeVisible();
+      fireEvent.drop(target, { dataTransfer });
+
+      expect(getDroppedFilePaths).toHaveBeenCalledExactlyOnceWith([file]);
+      expect(onAttachFiles).toHaveBeenCalledExactlyOnceWith(["C:\\repo\\notes.txt"]);
+      expect(screen.queryByText("Drop here to attach")).not.toBeInTheDocument();
+    },
+  );
+
+  it("attaches a project-tree file once when dropped inside the panel input", () => {
+    const onAttachFiles = vi.fn<(paths: string[]) => void>();
+    render(attachmentPanel(onAttachFiles));
+
+    fireEvent.drop(screen.getByRole("textbox"), {
+      dataTransfer: {
+        types: ["application/poracode-composer-file"],
+        files: [],
+        getData: () => JSON.stringify({ path: "src/App.tsx", type: "file" }),
+      },
+    });
+
+    expect(onAttachFiles).toHaveBeenCalledExactlyOnceWith(["src/App.tsx"]);
+    expect(getDroppedFilePaths).not.toHaveBeenCalled();
+  });
+
+  it("keeps the drop prompt while moving between nested elements and clears it on exit", () => {
+    const { container } = render(attachmentPanel(vi.fn()));
+    const panel = container.querySelector("[data-poracode-attachment-drop-target]")!;
+    const transcript = screen.getByText("Transcript");
+    const dataTransfer = { types: ["Files"], files: [] };
+
+    fireEvent.dragEnter(panel, { dataTransfer });
+    fireEvent.dragEnter(transcript, { dataTransfer });
+    fireEvent.dragLeave(panel, { dataTransfer });
+    expect(screen.getByText("Drop here to attach")).toBeVisible();
+    fireEvent.dragLeave(transcript, { dataTransfer });
+    expect(screen.queryByText("Drop here to attach")).not.toBeInTheDocument();
+  });
+
+  it.each(["dragend", "blur"])("clears the drop prompt when the window receives %s", (type) => {
+    render(attachmentPanel(vi.fn()));
+    fireEvent.dragEnter(screen.getByText("Transcript"), {
+      dataTransfer: { types: ["Files"], files: [] },
+    });
+    expect(screen.getByText("Drop here to attach")).toBeVisible();
+
+    fireEvent(window, new Event(type));
+
+    expect(screen.queryByText("Drop here to attach")).not.toBeInTheDocument();
+  });
+
+  it("ignores text drags and keeps adjacent panels independent", () => {
+    const firstAttach = vi.fn<(paths: string[]) => void>();
+    const secondAttach = vi.fn<(paths: string[]) => void>();
+    const { container } = render(
+      <>
+        {attachmentPanel(firstAttach)}
+        {attachmentPanel(secondAttach)}
+      </>,
+    );
+    const [first, second] = container.querySelectorAll("[data-poracode-attachment-drop-target]");
+    const textTransfer = { types: ["text/plain"], files: [], getData: () => "hello" };
+    expect(fireEvent.dragOver(first!, { dataTransfer: textTransfer })).toBe(true);
+    fireEvent.dragEnter(first!, { dataTransfer: textTransfer });
+    fireEvent.drop(first!, { dataTransfer: textTransfer });
+    expect(screen.queryByText("Drop here to attach")).not.toBeInTheDocument();
+
+    const dataTransfer = {
+      types: ["application/poracode-composer-file"],
+      files: [],
+      getData: () => JSON.stringify({ path: "src/App.tsx", type: "file" }),
+    };
+    fireEvent.dragEnter(second!, { dataTransfer });
+    expect(second).toContainElement(screen.getByText("Drop here to attach"));
+    expect(first).not.toContainElement(screen.getByText("Drop here to attach"));
+    fireEvent.drop(second!, { dataTransfer });
+    expect(secondAttach).toHaveBeenCalledExactlyOnceWith(["src/App.tsx"]);
+    expect(firstAttach).not.toHaveBeenCalled();
+  });
+
+  it("moves the drop listener back to the composer when its scope changes", () => {
+    const onAttachFiles = vi.fn<(paths: string[]) => void>();
+    const { rerender } = render(attachmentPanel(onAttachFiles));
+    const dataTransfer = {
+      types: ["application/poracode-composer-file"],
+      files: [],
+      getData: () => JSON.stringify({ path: "src/App.tsx", type: "file" }),
+    };
+    fireEvent.dragEnter(screen.getByText("Transcript"), { dataTransfer });
+    expect(screen.getByText("Drop here to attach")).toBeVisible();
+
+    rerender(attachmentPanel(onAttachFiles, "composer"));
+
+    expect(screen.queryByText("Drop here to attach")).not.toBeInTheDocument();
+    fireEvent.drop(screen.getByText("Transcript"), { dataTransfer });
+    expect(onAttachFiles).not.toHaveBeenCalled();
+    fireEvent.drop(screen.getByRole("textbox"), { dataTransfer });
+    expect(onAttachFiles).toHaveBeenCalledExactlyOnceWith(["src/App.tsx"]);
   });
 });
 

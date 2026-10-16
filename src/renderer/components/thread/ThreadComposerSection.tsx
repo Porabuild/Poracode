@@ -1082,6 +1082,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   }}
                 >
                   <ThreadComposer
+                    attachmentDropScope={usesTerminalPresentation ? "composer" : "panel"}
                     autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
                     compact
                     toolbarLayoutKey={[
