@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   createRuntimePayloadProjectionSource,
   RUNTIME_PAYLOAD_PROJECTION_MODULE,
@@ -66,5 +66,21 @@ export async function buildSyntheticCliEntry(outfile: string): Promise<void> {
         },
       },
     ],
+  });
+}
+
+export async function buildCliProcessFixture(
+  outfile: string,
+  fixture: "cliStartupSignal" | "cliStartupDeadline",
+): Promise<void> {
+  await build({
+    entryPoints: [fileURLToPath(new URL(`./fixtures/${fixture}.mjs`, import.meta.url))],
+    outfile,
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    packages: "external",
+    define: { "import.meta.url": JSON.stringify(pathToFileURL(outfile).href) },
+    logLevel: "silent",
   });
 }

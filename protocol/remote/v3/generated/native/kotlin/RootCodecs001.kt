@@ -185,8 +185,8 @@ val RemoteRootCodecs.procedureU2EGhGetPrChecksU2EResult: RemoteRootCodec<Procedu
 val RemoteRootCodecs.procedureU2EGhGetPrDetailsU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
     get() = RemoteRootCodec("procedure.ghGetPrDetails.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)
 
-val RemoteRootCodecs.procedureU2EGhGetPrDetailsU2EResult: RemoteRootCodec<ProcedureghGetPrDetailsResult_567aa4ef7f>
-    get() = RemoteRootCodec("procedure.ghGetPrDetails.result", serializer<ProcedureghGetPrDetailsResult_567aa4ef7f>(), schema_567aa4ef7f92d006)
+val RemoteRootCodecs.procedureU2EGhGetPrDetailsU2EResult: RemoteRootCodec<ProcedureghGetPrDetailsResult_36d27df213>
+    get() = RemoteRootCodec("procedure.ghGetPrDetails.result", serializer<ProcedureghGetPrDetailsResult_36d27df213>(), schema_36d27df213d025a2)
 
 val RemoteRootCodecs.procedureU2EGhGetPrDiffU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
     get() = RemoteRootCodec("procedure.ghGetPrDiff.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)

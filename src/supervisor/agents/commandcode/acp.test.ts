@@ -142,7 +142,10 @@ describe("Command Code native ACP", () => {
     expect(adapter.mcpRequiresStdioCwdProxy).toBe(true);
     const handle = await adapter.createStructuredSession?.({
       threadId: "thread-1",
-      projectLocation: { kind: "posix", path: "/tmp" },
+      projectLocation: {
+        kind: process.platform === "win32" ? "windows" : "posix",
+        path: process.cwd(),
+      },
       presentationMode: "gui",
       config: { model: "gpt-5.4", approvalPolicy: "yolo" },
       ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),

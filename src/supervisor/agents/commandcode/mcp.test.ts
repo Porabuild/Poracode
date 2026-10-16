@@ -139,7 +139,7 @@ describe("Command Code launch integrations", () => {
     expect(result[0]).toEqual(native);
     expect(result[1]).toEqual({
       kind: "text",
-      content: `Use the "plugin-skill" agent skill: read ${external.path} and follow its instructions.`,
+      content: `Use the "plugin-skill" agent skill: read ${external.path.replaceAll("\\", "/")} and follow its instructions.`,
     });
   });
 });

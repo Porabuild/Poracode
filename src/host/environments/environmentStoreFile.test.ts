@@ -61,7 +61,9 @@ function refusal(text: string): { readonly reason?: string } {
 
 describe("environmentStoreFile", () => {
   it("builds the store path from the leased host data root", () => {
-    expect(environmentsFilePath("/host/data")).toBe(`/host/data/${ENVIRONMENT_STORE_FILE_NAME}`);
+    expect(environmentsFilePath("/host/data")).toBe(
+      join("/host/data", ENVIRONMENT_STORE_FILE_NAME),
+    );
     expect(ENVIRONMENT_STORE_FILE_NAME).toBe("environments.json");
   });
 

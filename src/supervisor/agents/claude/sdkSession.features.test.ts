@@ -67,7 +67,9 @@ describe("Claude SDK native features", () => {
       CLAUDE_CODE_NO_FLICKER: "1",
       CLAUDE_CODE_SCROLL_SPEED: "3",
     });
-    expect(h.options.env?.CLAUDE_CODE_USE_POWERSHELL_TOOL).toBeUndefined();
+    expect(h.options.env?.CLAUDE_CODE_USE_POWERSHELL_TOOL).toBe(
+      process.platform === "win32" ? "1" : undefined,
+    );
   });
   it("enables native browser access by default and keeps native settings and the default tool surface", async () => {
     const h = await createSession({

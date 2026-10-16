@@ -326,12 +326,14 @@ data class ProcedureghGetPrDetailsResultU2DDetails_9f1da8cf54(
 }
 
 @Serializable
-data class ProcedureghGetPrDetailsResult_567aa4ef7f(
+data class ProcedureghGetPrDetailsResult_36d27df213(
     @SerialName("details") val details: ProcedureghGetPrDetailsResultU2DDetails_9f1da8cf54,
+    @SerialName("pr") val pr: RemoteField<ProcedureghCreatePrResult_a4457c545e> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("details", "ProcedureghGetPrDetailsResultU2DDetails_9f1da8cf54", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("pr", "ProcedureghCreatePrResult_a4457c545e", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

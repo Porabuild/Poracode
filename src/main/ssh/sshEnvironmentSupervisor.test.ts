@@ -3,6 +3,7 @@ import { EventEmitter, once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SshConnectionConfig } from "@/shared/ssh";
 import {
@@ -713,7 +714,7 @@ describe("SSH environment supervisor", () => {
         wslHelpersDir: join(root, "wsl-helpers"),
         cacheDir: join(root, "cache"),
       },
-      env: { ...process.env, HOME: root },
+      env: { ...process.env, HOME: root, USERPROFILE: root },
       spawnTimeoutMs: 5_000,
       readyTimeoutMs: 20_000,
       exitTimeoutMs: 10_000,
@@ -730,9 +731,9 @@ describe("SSH environment supervisor", () => {
               "--experimental-transform-types",
               "--disable-warning=ExperimentalWarning",
               "--import",
-              resolve("scripts/remote-v3-ts-register.mjs"),
+              pathToFileURL(resolve("scripts/remote-v3-ts-register.mjs")).href,
               "--import",
-              resolve("src/host/ssh/sshColdWorkTestRegister.mjs"),
+              pathToFileURL(resolve("src/host/ssh/sshColdWorkTestRegister.mjs")).href,
             ],
             env: forkOptions.env as NodeJS.ProcessEnv,
             stdio: ["ignore", "ignore", "inherit", "ipc"],

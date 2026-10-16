@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
-import { buildSyntheticCliEntry } from "./cliTestBundle";
+import { buildCliProcessFixture, buildSyntheticCliEntry } from "./cliTestBundle";
 import { expectOwned, signalOwnedChild, stopOwnedChild, withinDeadline } from "./cliTestHelpers";
 import { ensureDeclaredAssetsDir } from "./testDeclaredAssets";
 
@@ -17,7 +17,10 @@ let entry: string;
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), "poracode-cli-signal-"));
   entry = join(directory, "server.cjs");
-  await buildSyntheticCliEntry(entry);
+  await Promise.all([
+    buildSyntheticCliEntry(entry),
+    buildCliProcessFixture(join(directory, "fixture.cjs"), "cliStartupSignal"),
+  ]);
 });
 
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
@@ -52,21 +55,12 @@ function runChild(
     NODE_PATH: fileURLToPath(new URL("../../node_modules/", import.meta.url)),
   };
   delete environment.NODE_OPTIONS;
-  const child = fork(
-    fileURLToPath(new URL("./fixtures/cliStartupSignal.mjs", import.meta.url)),
-    [entry, profile, stage, outcome],
-    {
-      execPath,
-      execArgv: [
-        "--experimental-transform-types",
-        "--disable-warning=ExperimentalWarning",
-        "--import",
-        fileURLToPath(new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url)),
-      ],
-      env: environment,
-      stdio: ["ignore", "ignore", "pipe", "ipc"],
-    },
-  );
+  const child = fork(join(directory, "fixture.cjs"), [entry, profile, stage, outcome], {
+    execPath,
+    execArgv: [],
+    env: environment,
+    stdio: ["ignore", "ignore", "pipe", "ipc"],
+  });
   let stderr = "";
   let spawnError: Error | undefined;
   child.on("error", (error) => {

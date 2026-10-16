@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import type { ProjectLocation, SessionRef, ThreadConfig } from "@/shared/contracts";
 
 vi.mock("./codex/session", async (importOriginal) => {
@@ -414,9 +415,12 @@ describe("agent command builders", () => {
 
       expect(cmdArgs.slice(cmdArgs.indexOf("--mcp-config"), -1)).toEqual([
         "--mcp-config",
-        expect.stringContaining('"Vercel"'),
+        expect.any(String),
         "--",
       ]);
+      expect(readFileSync(cmdArgs[cmdArgs.indexOf("--mcp-config") + 1]!, "utf8")).toContain(
+        '"Vercel"',
+      );
       expect(cmdArgs.at(-1)).toBe("hello");
     },
   );

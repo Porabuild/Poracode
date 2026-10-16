@@ -9,6 +9,7 @@ import {
   type IpcProcedureName,
 } from "./procedureMap";
 import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
+import { isRemoteProcedure } from "../remote/procedures";
 
 /**
  * Compat pin for the procedure map (V5 plan 2.6): `<version>:<sha256>`. ANY
@@ -69,11 +70,24 @@ import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
 // metadata. Existing payloads and transports remain valid; old peers reject
 // unknown names before side effects, so hop 18 stays compatible. Browser import
 // and decrypted passwords are intentionally absent from the remote allowlist.
+// Guarded PR merges add a host-only name. Older supervisors reject that name;
+// the remote allowlist and existing merge payload stay unchanged, so hop 18 stays compatible.
 // Network access adds a main-local name. Existing names and payloads stay valid;
 // older peers reject the new name before dispatch, so the hop version stays 18.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:8aa054f1fad5b39d6c3471c8d5a9e36b3e7f89ffc0efe6c840e9ced749c724f4`;
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:31e847936185682744e6ddea0d65a3fde3ea3406ee9c05732106ad97fb564cec`;
 
 describe("IPC procedure map versioning", () => {
+  it("keeps guarded merges internal and requires their expected head", () => {
+    expect(isRemoteProcedure("ghMergePrAtHead")).toBe(false);
+    expect(ipcProcedureMap.ghMergePrAtHead.transport).toBe("supervisor");
+    expect(
+      ipcProcedureMap.ghMergePrAtHead.payloadSchema.safeParse({
+        projectLocation: { kind: "posix", path: "/repo" },
+        prNumber: 12,
+      }).success,
+    ).toBe(false);
+  });
+
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {
     const sha256 = createHash("sha256").update(ipcProcedureMapFingerprint()).digest("hex");
     expect(`${IPC_PROCEDURE_MAP_VERSION}:${sha256}`).toBe(HOP_PIN);

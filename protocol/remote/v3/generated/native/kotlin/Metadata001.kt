@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 5
-    const val sourceHash = "sha256:b7aa0284f09cef491d46265e4a4e0c2fd7d7ac247b9767249826947e1b128e56"
+    const val sourceHash = "sha256:21e62dec0869884edd34c38dfe35a0c4daf5281fd6f702f2f1d36c94bc64d668"
     const val manifestHash = "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -156,7 +156,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("ghDeleteWorkflowRun", "session:operate", "projectLocation", "omitted", "ProcedureghCancelWorkflowRunRequest_eb12aad287", "RemoteUnit"),
         RemoteProcedureDescriptor("ghDispatchWorkflow", "session:operate", "projectLocation", "omitted", "ProcedureghDispatchWorkflowRequest_e56382aee3", "RemoteUnit"),
         RemoteProcedureDescriptor("ghGetPrChecks", "session:read", "projectLocation", "json", "ProcedureghGetPrChecksRequest_50e8e4265c", "ProcedureghGetPrChecksResult_437e2d5d20"),
-        RemoteProcedureDescriptor("ghGetPrDetails", "session:read", "projectLocation", "json", "ProcedureghClosePrRequest_868bf1042a", "ProcedureghGetPrDetailsResult_567aa4ef7f"),
+        RemoteProcedureDescriptor("ghGetPrDetails", "session:read", "projectLocation", "json", "ProcedureghClosePrRequest_868bf1042a", "ProcedureghGetPrDetailsResult_36d27df213"),
         RemoteProcedureDescriptor("ghGetPrDiff", "session:read", "projectLocation", "json", "ProcedureghClosePrRequest_868bf1042a", "ProceduregetGitDiffResult_ecbd7591c9"),
         RemoteProcedureDescriptor("ghGetPrFiles", "session:read", "projectLocation", "json", "ProcedureghClosePrRequest_868bf1042a", "ProcedureghGetPrFilesResult_24cb35c8f9"),
         RemoteProcedureDescriptor("ghGetPrForBranch", "session:read", "projectLocation", "json", "ProcedureghGetPrChecksRequest_50e8e4265c", "ProcedureghGetPrForBranchResult_452c70feef"),

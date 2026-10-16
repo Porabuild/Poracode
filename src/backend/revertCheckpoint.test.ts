@@ -116,11 +116,13 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     supervisorHarness.calls.length = 0;
     supervisorHarness.handlers.clear();
     installAnchorProvider();
+    closeDatabase();
     host = makeHost((event) => events.push(event));
   });
 
   afterEach(async () => {
     await host?.dispose();
+    closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
@@ -256,6 +258,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     expect(truncateEvents()).toHaveLength(0);
 
     reopenDatabase();
+    closeDatabase();
     const restarted = makeHost((event) => events.push(event));
     try {
       const resumed = await restarted.revertCheckpoint(revertInput("op-anchor-crash"));
@@ -367,6 +370,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     reopenDatabase();
 
     // A restarted host picks the operation back up from the journal.
+    closeDatabase();
     const restarted = makeHost((event) => events.push(event));
     try {
       const resumed = await restarted.revertCheckpoint(revertInput("op-crash"));
@@ -403,6 +407,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     const callsAfterFirst = supervisorHarness.calls.length;
 
     reopenDatabase();
+    closeDatabase();
     const restarted = makeHost((event) => events.push(event));
     try {
       // A retry with an unchanged transcript serves the stored receipt: no

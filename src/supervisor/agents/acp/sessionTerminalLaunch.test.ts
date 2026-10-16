@@ -1,7 +1,7 @@
 import { realpath, stat } from "node:fs/promises";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
-import { getWslCommand } from "../base";
+import { getWslCommand, primeWslLaunchEnvironment, clearExecutablePathCache } from "../base";
 import {
   buildAcpTerminalLaunch,
   resolveAcpTerminalCwd,
@@ -27,7 +27,10 @@ const wslProject: ProjectLocation = {
 };
 
 describe.skipIf(process.platform !== "win32")("buildAcpTerminalLaunch", () => {
+  afterEach(() => clearExecutablePathCache());
+
   it("uses the shared WSL login-shell command without default-shell reparsing", () => {
+    primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
     const launch = buildAcpTerminalLaunch(
       wslProject,
       "/home/demo/project",

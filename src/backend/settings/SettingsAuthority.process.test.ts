@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 interface FixtureMessage {
@@ -43,7 +44,7 @@ describe("settings commit process boundaries", () => {
           "--experimental-transform-types",
           "--disable-warning=ExperimentalWarning",
           "--import",
-          resolve("scripts/remote-v3-ts-register.mjs"),
+          pathToFileURL(resolve("scripts/remote-v3-ts-register.mjs")).href,
         ],
         stdio: ["ignore", "pipe", "pipe", "ipc"],
       },

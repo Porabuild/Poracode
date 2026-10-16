@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer, type RequestListener, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 
@@ -25,7 +26,7 @@ const cdpTargetModulePath: string =
 const debugSessionModule = import(debugSessionModulePath);
 const cdpTargetModule = import(cdpTargetModulePath);
 const desktopFixtureEnv = {
-  NODE_OPTIONS: `--import=${JSON.stringify(join(repoRoot, ".agents/skills/interactive-testing/scripts/smoke-desktop-state.fixture.mjs"))}`,
+  NODE_OPTIONS: `--import=${JSON.stringify(pathToFileURL(join(repoRoot, ".agents/skills/interactive-testing/scripts/smoke-desktop-state.fixture.mjs")).href)}`,
 };
 
 describe("managed CDP scripts", () => {

@@ -5,7 +5,7 @@ import type { GitBranchInfo, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { getProjectPosixPath } from "@/shared/wsl";
 import { readBridge } from "@/renderer/bridge";
-import { useGitStore } from "@/renderer/state/gitStore";
+import { isMergedPrRegression, useGitStore } from "@/renderer/state/gitStore";
 
 export function useSourceBranchData(params: {
   project: { location: ProjectLocation };
@@ -167,10 +167,13 @@ export function useSourceBranchData(params: {
     if (!isGitHub || !ghAvailable || !effectiveBranch || !effectivePrKey) return;
     let isActive = true;
     const capturedKey = prDataRequestKey;
+    const previousPr = useGitStore.getState().prData[effectivePrKey];
     readBridge()
       .ghGetPrForBranch({ projectLocation: project.location, branch: effectiveBranch })
       .then((pr) => {
         if (!isActive || activePrDataKeyRef.current !== capturedKey) return;
+        if (isMergedPrRegression(useGitStore.getState().prData[effectivePrKey], pr, previousPr))
+          return;
         useGitStore.getState().setPrData(effectivePrKey, pr);
       })
       .catch(() => {});

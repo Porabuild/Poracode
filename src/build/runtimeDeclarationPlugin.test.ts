@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
 import { build } from "tsdown";
 import { afterEach, expect, it } from "vitest";
 import { runtimeDeclarationPlugin } from "./runtimeDeclarationPlugin";
@@ -112,7 +113,7 @@ it("refuses a bundled application module outside the declared source roots", asy
 
 it("refreshes both actual watch builds and refuses stale resource inventories", async () => {
   const root = await fixture();
-  const plugin = resolve(import.meta.dirname, "runtimeDeclarationPlugin.ts");
+  const plugin = pathToFileURL(resolve(import.meta.dirname, "runtimeDeclarationPlugin.ts")).href;
   await writeFile(
     join(root, "tsdown.config.ts"),
     `import {createRequire} from "node:module"; import {resolve} from "node:path"; const readyRequire=createRequire(import.meta.url);

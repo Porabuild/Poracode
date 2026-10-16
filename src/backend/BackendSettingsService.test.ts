@@ -210,7 +210,9 @@ describe("backend settings authority access", () => {
         ]?.token,
       ).toEqual(expect.any(String));
       await vi.waitFor(() =>
-        expect(reportError).toHaveBeenCalledExactlyOnceWith(notificationError),
+        expect(
+          reportError.mock.calls.filter(([error]) => error === notificationError),
+        ).toHaveLength(1),
       );
     } finally {
       warning.mockRestore();

@@ -99,6 +99,24 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
             name: t`Poracode`,
             description: t`Inspect threads and terminal panes, and drive git, pull requests, and schedules.`,
           };
+        case "app-controls:commit":
+          return {
+            id: skill.folder,
+            name: t`Commit`,
+            description: t`Commit the intended current-worktree changes with a clear subject and explanation.`,
+          };
+        case "app-controls:create-pr":
+          return {
+            id: skill.folder,
+            name: t`Create PR`,
+            description: t`Publish the current worktree with a proper PR description and before/after UI screenshots.`,
+          };
+        case "app-controls:finalize":
+          return {
+            id: skill.folder,
+            name: t`Finalize`,
+            description: t`Review, manually test, fix, commit, push, create a PR, and merge after checks pass.`,
+          };
         case "terminal:terminal-inspection":
           return {
             id: skill.folder,

@@ -1,4 +1,5 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { once } from "node:events";
 import {
   chmodSync,
   existsSync,
@@ -177,7 +178,7 @@ async function runShell(
       stderr += chunk.toString("utf8");
     });
     child.once("error", () => resolve({ stdout, stderr, code: -1 }));
-    child.once("exit", (code) => resolve({ stdout, stderr, code }));
+    child.once("close", (code) => resolve({ stdout, stderr, code }));
     child.stdin.end(script);
   });
 }
@@ -219,6 +220,22 @@ function spawnUnrelatedChild(): ChildProcess {
     stdio: ["ignore", "ignore", "ignore"],
   });
   fixtureChildren.push(child);
+  return child;
+}
+
+async function spawnTitledChild(title: string): Promise<ChildProcess> {
+  const child = spawn(
+    process.execPath,
+    [
+      "-e",
+      'process.title = process.argv[1]; setInterval(() => {}, 1000); process.send("ready");',
+      title,
+    ],
+    { stdio: ["ignore", "ignore", "ignore", "ipc"] },
+  );
+  fixtureChildren.push(child);
+  const [message] = await once(child, "message");
+  expect(message).toBe("ready");
   return child;
 }
 
@@ -1175,12 +1192,7 @@ describe("SSH process token parsing", () => {
   });
 
   it("returns a stable token for a live process whose title has spaces and parens", async () => {
-    const child = spawn(
-      process.execPath,
-      ["-e", 'process.title = "poracode (fixture) worker"; setInterval(() => {}, 1000);'],
-      { stdio: ["ignore", "ignore", "ignore"] },
-    );
-    fixtureChildren.push(child);
+    const child = await spawnTitledChild("poracode (fixture) worker");
     const first = await processToken(child.pid!);
     const second = await processToken(child.pid!);
     expect(first).not.toBe("");
@@ -1202,12 +1214,7 @@ describe("SSH process token parsing", () => {
   it.skipIf(!existsSync("/proc/self/stat"))(
     "reads the same /proc starttime for a real process title with parens",
     async () => {
-      const child = spawn(
-        process.execPath,
-        ["-e", 'process.title = "poracode ) real title (spaces"; setInterval(() => {}, 1000);'],
-        { stdio: ["ignore", "ignore", "ignore"] },
-      );
-      fixtureChildren.push(child);
+      const child = await spawnTitledChild("poracode ) real title (spaces");
       const token = await processToken(child.pid!);
       expect(token).toMatch(/:\d+$/u);
       expect(token).not.toContain(" ");

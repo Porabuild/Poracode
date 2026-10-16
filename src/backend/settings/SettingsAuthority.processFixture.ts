@@ -30,6 +30,15 @@ async function pause(stage: string): Promise<void> {
 const originalOpen = fs.open.bind(fs);
 const originalRename = fs.rename.bind(fs);
 fs.open = async (...args: Parameters<typeof fs.open>) => {
+  if (String(args[0]) === root && process.platform === "win32") {
+    return {
+      sync: async () => {
+        if (mode === "directory-sync-failure") throw new Error("Fixture directory sync failed");
+        if (mode === "during-directory-sync") await pause("directory-synced");
+      },
+      close: async () => {},
+    } as Awaited<ReturnType<typeof fs.open>>;
+  }
   const file = await originalOpen(...args);
   const originalSync = file.sync.bind(file);
   const originalWrite = file.writeFile.bind(file);

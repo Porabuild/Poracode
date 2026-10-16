@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -314,6 +314,47 @@ describe("GitBadge", () => {
     });
     expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
   });
+
+  it.each([basePr, null])(
+    "keeps a merge observed during project PR verification: %j",
+    async (pr) => {
+      const response = Promise.withResolvers<PrData | null>();
+      ghGetPrForBranchMock.mockReturnValueOnce(response.promise);
+      useAppStore.setState({
+        projects: [
+          {
+            id: "project-1",
+            name: "Project",
+            location: { kind: "posix", path: "/repo" },
+            createdAt: "2026-06-02T00:00:00.000Z",
+          },
+        ],
+      });
+      useGitStore.setState({
+        statuses: {
+          "project-1": makeStatus({
+            remoteInfo: {
+              platform: "github",
+              owner: "o",
+              repo: "r",
+              url: "https://github.com/o/r",
+            },
+          }),
+        },
+        ghAvailable: { "project-1": true },
+      });
+      const key = buildBranchPrKey("project-1");
+      const merged: PrData = { ...basePr, state: "merged" };
+      render(<GitBadge projectId="project-1" projectName="Project" />);
+      await act(async () => {
+        useGitStore.getState().setPrData(key, merged);
+        response.resolve(pr);
+        await response.promise;
+      });
+
+      expect(useGitStore.getState().prData[key]).toBe(merged);
+    },
+  );
 
   it("shares one PR lookup across concurrent badges for the same project branch", async () => {
     let resolvePr: (pr: PrData | null) => void = () => {};

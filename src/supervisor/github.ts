@@ -1065,9 +1065,11 @@ export class GitHubService {
     prNumber: number,
     method: "merge" | "squash" | "rebase",
     admin = false,
+    expectedHeadSha?: string,
   ): Promise<void> {
     try {
       const args = ["pr", "merge", String(prNumber), `--${method}`];
+      if (expectedHeadSha) args.push("--match-head-commit", expectedHeadSha);
       if (admin) args.push("--admin");
       await this.runGh(location, args);
     } catch (err) {
@@ -1165,33 +1167,32 @@ export class GitHubService {
 
   async getPrDetails(location: ProjectLocation, prNumber: number): Promise<GhGetPrDetailsResult> {
     try {
-      const stdout = await this.runGh(location, [
-        "pr",
-        "view",
-        String(prNumber),
-        "--json",
-        [
-          "number",
-          "title",
-          "body",
-          "author",
-          "baseRefName",
-          "headRefName",
-          "additions",
-          "deletions",
-          "changedFiles",
-          "createdAt",
-          "mergedAt",
-          "mergedBy",
-          "closedAt",
-          "commits",
-          "comments",
-          "reviews",
-          "statusCheckRollup",
-        ].join(","),
+      const [stdout, viewerLogin] = await Promise.all([
+        this.runGh(location, [
+          "pr",
+          "view",
+          String(prNumber),
+          "--json",
+          [
+            PR_VIEW_FIELDS,
+            "body",
+            "headRefName",
+            "additions",
+            "deletions",
+            "changedFiles",
+            "createdAt",
+            "mergedAt",
+            "mergedBy",
+            "closedAt",
+            "commits",
+            "comments",
+            "reviews",
+          ].join(","),
+        ]),
+        this.getViewerLogin(location),
       ]);
       const raw = JSON.parse(stdout) as Record<string, unknown>;
-      return { details: mapPrDetails(raw) };
+      return { details: mapPrDetails(raw), pr: mapPrData(raw, viewerLogin) };
     } catch (err) {
       throw classifyError(err, "pr view --json (details)");
     }

@@ -2,6 +2,11 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const spawnMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>(() => undefined));
+const hostPlatform = Object.getOwnPropertyDescriptor(process, "platform")!;
+beforeEach(() =>
+  Object.defineProperty(process, "platform", { value: "linux", configurable: true }),
+);
+afterEach(() => Object.defineProperty(process, "platform", hostPlatform));
 
 vi.mock("node:child_process", async (importOriginal) => ({
   ...(await importOriginal<typeof import("node:child_process")>()),

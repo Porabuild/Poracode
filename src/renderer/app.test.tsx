@@ -15,6 +15,7 @@ import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
+import { gitTargetKey, pullRequestKey, type GitStatePatch } from "@/shared/gitState";
 import type {
   PoracodeBridge,
   QuickComposerSubmission,
@@ -26,6 +27,7 @@ import { useAppStore } from "./state/appStore";
 import { removeRootCatalogProjects } from "./state/managedRootCatalog/rootCatalogRows";
 import { useThreadFollowUpQueueStore } from "./state/threadFollowUpQueueStore";
 import { useGitStore } from "./state/gitStore";
+import { useGitReadModelStore } from "./state/gitReadModelStore";
 import { usePanelStore } from "./state/panelStore";
 import { useSidebarUiStore } from "./state/sidebarUiStore";
 import { useExperimentStore } from "./state/experimentStore";
@@ -38,6 +40,7 @@ import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
 const {
   bridge,
+  gitStateChangedListeners,
   quickComposerSubmitListeners,
   remoteThreadCommandListeners,
   runWorktreeSetupScript,
@@ -46,10 +49,12 @@ const {
   threadOpenRequestedListeners,
 } = vi.hoisted(() => {
   const listeners: Array<(command: RemoteThreadCommand) => void> = [];
+  const gitListeners: Array<(patch: GitStatePatch) => void> = [];
   const quickListeners: Array<(submission: QuickComposerSubmission) => void> = [];
   const supervisorListeners: Array<(event: SupervisorEvent) => void> = [];
   const threadOpenListeners: Array<(event: ThreadOpenRequestedEvent) => void> = [];
   return {
+    gitStateChangedListeners: gitListeners,
     remoteThreadCommandListeners: listeners,
     runWorktreeSetupScript: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     sharedSettingsState: {
@@ -254,7 +259,13 @@ const {
         };
       }),
       onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
-      onGitStateChanged: vi.fn<() => () => void>(() => () => undefined),
+      onGitStateChanged: vi.fn<PoracodeBridge["onGitStateChanged"]>((listener) => {
+        gitListeners.push(listener);
+        return () => {
+          const index = gitListeners.indexOf(listener);
+          if (index >= 0) gitListeners.splice(index, 1);
+        };
+      }),
       onUserNotification: vi.fn<() => () => void>(() => () => undefined),
       onPrWatchMerged: vi.fn<() => () => void>(() => () => undefined),
       onPrWatchStatus: vi.fn<() => () => void>(() => () => undefined),
@@ -523,6 +534,7 @@ describe("App", () => {
       downloadBytesPerSecond: null,
     });
     useExperimentStore.setState({ experiments: {} });
+    useGitReadModelStore.getState().reset();
     useGitStore.setState({
       statuses: {},
       worktreeStatuses: {},
@@ -569,6 +581,80 @@ describe("App", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("projects host PR updates into the Git panel cache without regressing on stale patches", () => {
+    const targetRef = {
+      hostId: "desktop-1",
+      projectId: "project-1",
+      worktreePath: "/repo/worktree",
+    };
+    const prRef = { hostId: "desktop-1", projectId: "project-1", prNumber: 42 };
+    const prKey = pullRequestKey(prRef);
+    const pr = {
+      ref: prRef,
+      data: {
+        number: 42,
+        state: "open" as const,
+        title: "Agent-created PR",
+        url: "https://github.test/pr/42",
+        baseBranch: "master",
+        isDraft: true,
+        checksStatus: "PENDING" as const,
+        updatedAt: "2026-10-15T00:00:00.000Z",
+      },
+      freshness: { core: "2026-10-15T00:00:00.000Z" },
+    };
+    const listener = gitStateChangedListeners.at(-1)!;
+    listener({
+      revision: 1,
+      targets: {
+        [gitTargetKey(targetRef)]: {
+          ref: targetRef,
+          pullRequestKey: prKey,
+          refreshedAt: "2026-10-15T00:00:00.000Z",
+        },
+      },
+      pullRequests: { [prKey]: pr },
+    });
+    expect(useGitStore.getState().prData[targetRef.worktreePath]?.isDraft).toBe(true);
+
+    const readyPatch: GitStatePatch = {
+      revision: 2,
+      pullRequests: {
+        [prKey]: {
+          ...pr,
+          data: { ...pr.data, isDraft: false, checksStatus: "SUCCESS" },
+        },
+      },
+    };
+    listener(readyPatch);
+    expect(useGitStore.getState().prData[targetRef.worktreePath]).toMatchObject({
+      isDraft: false,
+      checksStatus: "SUCCESS",
+    });
+
+    useGitStore.getState().setPrData(targetRef.worktreePath, { ...pr.data, state: "merged" });
+    listener(
+      structuredClone({
+        ...readyPatch,
+        revision: 3,
+        pullRequests: {
+          [prKey]: { ...readyPatch.pullRequests![prKey]!, diff: "updated diff" },
+        },
+      }),
+    );
+    expect(useGitStore.getState().prData[targetRef.worktreePath]?.state).toBe("merged");
+    listener({ revision: 4 });
+    listener(readyPatch);
+    expect(useGitStore.getState().prData[targetRef.worktreePath]?.state).toBe("merged");
+
+    listener({
+      revision: 5,
+      pullRequests: { [prKey]: { ...pr, data: { ...pr.data, state: "merged" } } },
+    });
+    listener(readyPatch);
+    expect(useGitStore.getState().prData[targetRef.worktreePath]?.state).toBe("merged");
   });
 
   it("restores a completed update when the renderer subscribed after it finished", async () => {

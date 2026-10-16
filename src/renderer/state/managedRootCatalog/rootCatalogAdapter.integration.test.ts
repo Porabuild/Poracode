@@ -233,9 +233,9 @@ afterEach(async () => {
   Reflect.deleteProperty(window, "poracode");
   Reflect.deleteProperty(window, "poracodeHost");
   await Promise.all(servers.splice(0).map((server) => server.dispose()));
+  closeDatabase();
   await Promise.all(dataRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
   databasePath = null;
-  closeDatabase();
   useAppStore.setState({ threads: [], projects: [] });
   vi.restoreAllMocks();
   await new Promise((resolve) => setTimeout(resolve, 0));

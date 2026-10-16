@@ -177,7 +177,7 @@ function areStatusFilesEqual(
   return true;
 }
 
-function areGitStatusesEqual(a: GitStatusResult | undefined, b: GitStatusResult) {
+export function areGitStatusesEqual(a: GitStatusResult | undefined, b: GitStatusResult) {
   if (a === b) return true;
   if (!a) return false;
   const leftRemote = a.remoteInfo;
@@ -243,7 +243,7 @@ function mergeSummaryStatus(
   };
 }
 
-function areBranchListsEqual(a: GitBranchListResult | undefined, b: GitBranchListResult) {
+export function areBranchListsEqual(a: GitBranchListResult | undefined, b: GitBranchListResult) {
   if (a === b) return true;
   if (!a || a.current !== b.current || a.branches.length !== b.branches.length) return false;
   for (let i = 0; i < a.branches.length; i += 1) {
@@ -262,7 +262,10 @@ function areBranchListsEqual(a: GitBranchListResult | undefined, b: GitBranchLis
   return true;
 }
 
-function areWorktreesEqual(a: GitWorktreeInfo[] | undefined, b: GitWorktreeInfo[]) {
+export function areWorktreesEqual(
+  a: readonly GitWorktreeInfo[] | undefined,
+  b: readonly GitWorktreeInfo[],
+) {
   if (a === b) return true;
   if (!a || a.length !== b.length) return false;
   for (let i = 0; i < a.length; i += 1) {
@@ -280,7 +283,7 @@ function areWorktreesEqual(a: GitWorktreeInfo[] | undefined, b: GitWorktreeInfo[
   return true;
 }
 
-function arePrDataEqual(a: PrData | null | undefined, b: PrData | null) {
+export function arePrDataEqual(a: PrData | null | undefined, b: PrData | null) {
   if (a === b) return true;
   if (!a || !b) return false;
   return (
@@ -297,6 +300,20 @@ function arePrDataEqual(a: PrData | null | undefined, b: PrData | null) {
     a.mergeStateStatus === b.mergeStateStatus &&
     a.viewerDidAuthor === b.viewerDidAuthor &&
     a.updatedAt === b.updatedAt
+  );
+}
+
+export function isMergedPrRegression(
+  current: PrData | null | undefined,
+  incoming: PrData | null | undefined,
+  previous: PrData | null | undefined,
+): boolean {
+  if (current?.state !== "merged") return false;
+  if (!incoming) return current !== previous;
+  return (
+    current.number === incoming.number &&
+    current.url === incoming.url &&
+    incoming.state !== "merged"
   );
 }
 
@@ -364,7 +381,7 @@ function arePrChecksEqual(a: PrCheck, b: PrCheck): boolean {
   );
 }
 
-function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boolean {
+export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boolean {
   if (a === b) return true;
   if (!a) return false;
   return (
@@ -583,7 +600,8 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   },
 
   setPrData: (worktreePath, pr) => {
-    if (arePrDataEqual(get().prData[worktreePath], pr)) return;
+    const current = get().prData[worktreePath];
+    if (isMergedPrRegression(current, pr, current) || arePrDataEqual(current, pr)) return;
     set((state) => ({
       prData: { ...state.prData, [worktreePath]: pr },
     }));
@@ -594,7 +612,8 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
       let nextPrData = state.prData;
       let changed = false;
       for (const [worktreePath, pr] of Object.entries(entries)) {
-        if (arePrDataEqual(nextPrData[worktreePath], pr)) {
+        const current = nextPrData[worktreePath];
+        if (isMergedPrRegression(current, pr, current) || arePrDataEqual(current, pr)) {
           continue;
         }
         if (!changed) {
@@ -727,7 +746,8 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   setPrDiff: (key, diff) => set((state) => ({ prDiffs: { ...state.prDiffs, [key]: diff } })),
 
   setPrDetails: (key, details) => {
-    if (arePrDetailsEqual(get().prDetails[key], details)) return;
+    const current = get().prDetails[key];
+    if ((current?.mergedAt && !details.mergedAt) || arePrDetailsEqual(current, details)) return;
     set((state) => ({ prDetails: { ...state.prDetails, [key]: details } }));
   },
 
