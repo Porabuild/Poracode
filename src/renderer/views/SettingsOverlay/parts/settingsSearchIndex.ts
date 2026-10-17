@@ -85,17 +85,10 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   {
     section: "general",
     anchor: "general.preventSleep",
-    title: msg`Prevent sleep`,
-    description: msg`Choose when the system and display stay awake. This can delay automatic screen locking.`,
-    keywords: "sleep awake wake idle power system display lock server connection remote always",
-    desktopOnly: true,
-  },
-  {
-    section: "general",
-    anchor: "general.computerUseKeepAwake",
-    title: msg`Keep the Mac awake during Computer Use`,
-    description: msg`A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself.`,
-    keywords: "computer use desktop automation lock screen idle display sleep awake screensaver",
+    title: msg`Prevent system sleep`,
+    description: msg`Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged.`,
+    keywords:
+      "sleep awake wake idle power system display lock server connection remote always computer use automation",
     desktopOnly: true,
   },
   {

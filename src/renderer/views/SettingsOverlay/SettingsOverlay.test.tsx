@@ -655,7 +655,7 @@ describe("SettingsOverlay", () => {
       target: { value: "sleep" },
     });
 
-    expect(screen.getByText("Prevent sleep")).toBeInTheDocument();
+    expect(screen.getByText("Prevent system sleep")).toBeInTheDocument();
     // The section list is replaced — unrelated sections are gone.
     expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();
   });
@@ -667,7 +667,9 @@ describe("SettingsOverlay", () => {
       target: { value: "awake" },
     });
 
-    expect(screen.getByText(/Choose when the system and display stay awake\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Keep the system awake while any agent is working/),
+    ).toBeInTheDocument();
   });
 
   it("navigates to the section when a setting result is clicked", () => {
@@ -676,7 +678,7 @@ describe("SettingsOverlay", () => {
     fireEvent.change(screen.getByPlaceholderText("Search settings"), {
       target: { value: "sleep" },
     });
-    fireEvent.click(screen.getByText("Prevent sleep"));
+    fireEvent.click(screen.getByText("Prevent system sleep"));
 
     expect(within(screen.getByRole("main")).getByText("General")).toBeInTheDocument();
   });

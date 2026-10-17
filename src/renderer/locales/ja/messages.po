@@ -825,8 +825,8 @@ msgstr "固定されたワークツリーのソースには完全なコミット
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
-msgstr "画面がロックされるとデスクトップ操作は一切できなくなるため、コンピュータ操作のセッション中はディスプレイをオンのままにします。自分で画面をロックすることは引き続き可能です。"
+#~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+#~ msgstr "画面がロックされるとデスクトップ操作は一切できなくなるため、コンピュータ操作のセッション中はディスプレイをオンのままにします。自分で画面をロックすることは引き続き可能です。"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
@@ -1535,8 +1535,8 @@ msgid "Already used by {conflict}"
 msgstr "{conflict}で既に使用されています"
 
 #. Notification filter: always notify
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Always"
 msgstr "いつも"
 
@@ -2942,8 +2942,18 @@ msgstr "新しいプルリクエストに対するPoracodeの動作を選択し�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
-msgstr "システムとディスプレイをスリープさせないタイミングを選びます。画面の自動ロックが遅れる場合があります。"
+#~ msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+#~ msgstr "システムとディスプレイをスリープさせないタイミングを選びます。画面の自動ロックが遅れる場合があります。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off."
+#~ msgstr "システムをスリープさせないタイミングを選択します。ディスプレイは引き続きオフにできます。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "システムを起動状態に保つタイミングを選択します。ディスプレイは引き続きオフになります。画面ロックの設定は変わりません。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8109,8 +8119,21 @@ msgstr "スタートアップ時は Poracode をシステムトレイに格納�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the Mac awake during Computer Use"
-msgstr "コンピュータ操作中は Mac をスリープさせない"
+#~ msgid "Keep the Mac awake during Computer Use"
+#~ msgstr "コンピュータ操作中は Mac をスリープさせない"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+msgstr "バックグラウンドを含め、Poracode の実行中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+msgstr "エージェントの作業中、またはリモートアクセスが有効な間はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+msgstr "Computer Use を含む、いずれかのエージェントの作業中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11798,8 +11821,8 @@ msgstr "スペースキーで並べ替えを開始します。矢印キーで移
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "スリープを防止"
+#~ msgid "Prevent sleep"
+#~ msgstr "スリープを防止"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11810,6 +11833,11 @@ msgstr "スリープを防止"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep while working"
 #~ msgstr "作業中のスリープを防止する"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent system sleep"
+msgstr "システムのスリープを防ぐ"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -12560,8 +12588,8 @@ msgid "Remote"
 msgstr "リモート"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "リモートアクセス"
+#~ msgid "Remote access"
+#~ msgstr "リモートアクセス"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -18484,7 +18512,7 @@ msgstr "実行の会話が作成される場所。"
 msgid "Where the terminal panel appears."
 msgstr "ターミナルパネルが表示される場所。"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "作業中"
 
@@ -18603,6 +18631,10 @@ msgstr ".github/workflows に追加されたワークフローはここに表示
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "実行中"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Working + remote access"
+msgstr "作業中 + リモートアクセス"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

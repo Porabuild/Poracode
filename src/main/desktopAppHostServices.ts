@@ -97,13 +97,8 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
   // embedded `browser` server. They live side by side (composed in the shared
   // module below, identical to the standalone server).
 
-  // A locked desktop is uncontrollable and unobservable for computer use, so
-  // the overlay drives the display wake lock and interrupts the session's
-  // thread when the user exits the badge.
+  // Exiting the badge interrupts the session's thread.
   const overlay = new ComputerUseDesktopOverlay({
-    onActivityState: (state) => {
-      desktopApp.computerUseWakeLock.setSessionActive(state.level !== "hidden");
-    },
     onExit: (threadIds) => {
       desktopApp.computerUseMcpIngress?.interruptActiveActions(threadIds);
       for (const threadId of threadIds) {
@@ -148,7 +143,6 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
       browserPanelManager: panelManager,
       computerUse: {
         onActivity: (event) => desktopApp.computerUseDesktopOverlay?.setActivity(event),
-        isDisplayKeptAwake: () => desktopApp.computerUseWakeLock.isHeld(),
       },
     },
   );

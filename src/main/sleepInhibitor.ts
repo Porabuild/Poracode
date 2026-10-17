@@ -9,7 +9,7 @@ export interface SleepInhibitor {
 }
 
 interface PowerSaveBlockerApi {
-  start(type: "prevent-app-suspension" | "prevent-display-sleep"): number;
+  start(type: "prevent-app-suspension"): number;
   stop(id: number): void;
   isStarted(id: number): boolean;
 }
@@ -27,12 +27,7 @@ interface SleepInhibitorOptions {
   logger?: (message: string) => void;
 }
 
-interface Inhibitor {
-  setActive(active: boolean): void;
-  dispose(): void;
-}
-
-class ElectronInhibitor implements Inhibitor {
+class ElectronInhibitor implements SleepInhibitor {
   private blockerId: number | null = null;
 
   constructor(
@@ -43,9 +38,8 @@ class ElectronInhibitor implements Inhibitor {
   setActive(active: boolean): void {
     if (active) {
       if (this.blockerId !== null) return;
-      // Preventing app suspension still allows display sleep. Keep both the
-      // system and display awake while the configured sleep policy is active.
-      const id = this.blocker.start("prevent-display-sleep");
+      // Keep background work running while allowing the display to turn off.
+      const id = this.blocker.start("prevent-app-suspension");
       if (!this.blocker.isStarted(id)) {
         this.log(`${LOG_PREFIX} powerSaveBlocker.start did not activate (id=${id})`);
       }
@@ -64,8 +58,10 @@ class ElectronInhibitor implements Inhibitor {
   }
 }
 
-class SystemdInhibitor implements Inhibitor {
+class LinuxInhibitor implements SleepInhibitor {
   private child: ChildProcess | null = null;
+  private active = false;
+  private useGnome = false;
   private disabled = false;
 
   constructor(
@@ -74,6 +70,7 @@ class SystemdInhibitor implements Inhibitor {
   ) {}
 
   setActive(active: boolean): void {
+    this.active = active;
     if (active) {
       if (this.disabled || this.child !== null) return;
       this.spawnChild();
@@ -83,47 +80,54 @@ class SystemdInhibitor implements Inhibitor {
   }
 
   dispose(): void {
-    this.killChild();
+    this.setActive(false);
     this.disabled = true;
   }
 
   private spawnChild(): void {
+    const command = this.useGnome ? "gnome-session-inhibit" : "systemd-inhibit";
+    const args = this.useGnome
+      ? ["--inhibit", "suspend", "--reason", "Poracode is active", "cat"]
+      : ["--what=sleep", "--who=Poracode", "--why=Poracode is active", "--mode=block", "cat"];
     let child: ChildProcess;
     try {
-      child = this.spawnFn(
-        "systemd-inhibit",
-        ["--what=sleep:idle", "--who=Poracode", "--why=Poracode is active", "--mode=block", "cat"],
-        { stdio: ["pipe", "ignore", "ignore"], detached: false },
-      );
+      child = this.spawnFn(command, args, {
+        stdio: ["pipe", "ignore", "ignore"],
+        detached: false,
+      });
     } catch (error) {
-      this.log(`${LOG_PREFIX} systemd-inhibit unavailable: ${describeError(error)}`);
-      this.disabled = true;
+      this.fallback(`${command} unavailable: ${describeError(error)}`);
       return;
     }
 
+    this.child = child;
     child.once("error", (error) => {
-      this.log(`${LOG_PREFIX} systemd-inhibit failed: ${describeError(error)}`);
-      if (this.child === child) {
-        this.child = null;
-      }
-      this.disabled = true;
+      if (this.child !== child) return;
+      this.child = null;
+      this.fallback(`${command} failed: ${describeError(error)}`);
     });
     child.once("exit", (code, signal) => {
-      if (this.child === child) {
-        this.child = null;
-      }
-      if (code !== 0 && signal !== "SIGTERM" && signal !== "SIGKILL") {
-        this.log(`${LOG_PREFIX} systemd-inhibit exited code=${code} signal=${signal ?? "null"}`);
-      }
+      if (this.child !== child) return;
+      this.child = null;
+      this.fallback(`${command} exited code=${code} signal=${signal ?? "null"}`);
     });
-    this.child = child;
+  }
+
+  private fallback(message: string): void {
+    this.log(`${LOG_PREFIX} ${message}`);
+    if (this.useGnome) {
+      this.disabled = true;
+      return;
+    }
+    this.useGnome = true;
+    if (this.active) this.spawnChild();
   }
 
   private killChild(): void {
     if (!this.child) return;
     const child = this.child;
     this.child = null;
-    // Closing stdin lets `cat` exit cleanly, which releases the systemd-inhibit
+    // Closing stdin lets `cat` exit cleanly, which releases the inhibitor
     // lock. SIGTERM is a fallback in case stdin close is ignored.
     try {
       child.stdin?.end();
@@ -138,22 +142,6 @@ class SystemdInhibitor implements Inhibitor {
   }
 }
 
-class CompositeInhibitor implements SleepInhibitor {
-  constructor(private readonly inhibitors: readonly Inhibitor[]) {}
-
-  setActive(active: boolean): void {
-    for (const inhibitor of this.inhibitors) {
-      inhibitor.setActive(active);
-    }
-  }
-
-  dispose(): void {
-    for (const inhibitor of this.inhibitors) {
-      inhibitor.dispose();
-    }
-  }
-}
-
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -164,12 +152,10 @@ export function createSleepInhibitor(options: SleepInhibitorOptions = {}): Sleep
   const blocker = options.electronBlocker ?? powerSaveBlocker;
   const spawnFn = options.spawnFn ?? (nodeSpawn as unknown as SpawnFn);
 
-  const inhibitors: Inhibitor[] = [new ElectronInhibitor(blocker, log)];
   if (platform === "linux") {
-    // Electron's powerSaveBlocker does not take a systemd-logind sleep lock,
-    // so on systemd distros with idle-suspend enabled the app would still
-    // suspend. `systemd-inhibit` is the only thing that holds that lock.
-    inhibitors.push(new SystemdInhibitor(spawnFn, log));
+    // Electron 44 also suspends the screensaver for app-suspension blockers,
+    // preventing Wayland display-off. Native suspend-only inhibitors avoid it.
+    return new LinuxInhibitor(spawnFn, log);
   }
-  return new CompositeInhibitor(inhibitors);
+  return new ElectronInhibitor(blocker, log);
 }

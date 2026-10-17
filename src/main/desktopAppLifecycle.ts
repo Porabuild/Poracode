@@ -165,7 +165,6 @@ function registerBeforeQuitJoin(deps: DesktopLifecycleDeps): void {
     desktopApp.computerUseMcpIngress = null;
     desktopApp.computerUseDesktopOverlay?.dispose();
     desktopApp.computerUseDesktopOverlay = null;
-    desktopApp.computerUseWakeLock.dispose();
     desktopApp.chromeMcpIngress = null;
     desktopApp.chromeBridgeServer = null;
     // Disposal starts here (not in the join below) to match the previous
