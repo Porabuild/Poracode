@@ -421,7 +421,7 @@ describe("worker-backed SQLite reads", () => {
 
   it("refuses an old worker protocol without a synchronous fallback", async () => {
     const stalePath = join(directory, "old-worker.cjs");
-    writeFileSync(stalePath, "process.send({kind:'ready',version:0});");
+    writeFileSync(stalePath, "process.send({kind:'ready',version:1});");
     await expect(pool(stalePath).read("runtimeItems", ["thread-1"])).rejects.toThrow(
       "protocol is incompatible",
     );

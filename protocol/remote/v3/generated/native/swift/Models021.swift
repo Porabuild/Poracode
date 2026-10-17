@@ -100,18 +100,18 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DConfig_f6
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DLastStatus_aa5449703b: String, Codable, Sendable {
-  case never = "never"
-  case running = "running"
-  case waitingU2DForU2DApproval = "waiting-for-approval"
-  case succeeded = "succeeded"
-  case failed = "failed"
-  case cancelled = "cancelled"
-  case interrupted = "interrupted"
-  case skipped = "skipped"
+  case `never` = "never"
+  case `running` = "running"
+  case `waitingU2DForU2DApproval` = "waiting-for-approval"
+  case `succeeded` = "succeeded"
+  case `failed` = "failed"
+  case `cancelled` = "cancelled"
+  case `interrupted` = "interrupted"
+  case `skipped` = "skipped"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D1U2DKind_6f5933af03: String, Codable, Sendable {
-  case hourly = "hourly"
+  case `hourly` = "hourly"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D1_a467b0ed1c: Codable, Sendable, RemoteModelMetadata {
@@ -130,7 +130,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenc
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D2U2DKind_475f91db7d: String, Codable, Sendable {
-  case weekly = "weekly"
+  case `weekly` = "weekly"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D2_ac7865b2a5: Codable, Sendable, RemoteModelMetadata {
@@ -155,7 +155,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenc
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D3U2DKind_e5ee0a0722: String, Codable, Sendable {
-  case once = "once"
+  case `once` = "once"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D3_d1c4cb16ae: Codable, Sendable, RemoteModelMetadata {
@@ -174,13 +174,13 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenc
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DKind_6cf695d23a: String, Codable, Sendable {
-  case interval = "interval"
+  case `interval` = "interval"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4U2DUnit_e4a434d61c: String, Codable, Sendable {
-  case minutes = "minutes"
-  case hours = "hours"
-  case days = "days"
+  case `minutes` = "minutes"
+  case `hours` = "hours"
+  case `days` = "days"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D4_84ccfb83d8: Codable, Sendable, RemoteModelMetadata {
@@ -202,7 +202,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenc
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5U2DKind_a050e4e432: String, Codable, Sendable {
-  case cron = "cron"
+  case `cron` = "cron"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DRecurrenceU2DOptionU2D5_0a49efe270: Codable, Sendable, RemoteModelMetadata {
@@ -347,7 +347,7 @@ public struct RouteautomationsU2DSnapshotResponse_6d3a7935ec: Codable, Sendable,
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D1U2DKind_0138c350a1: String, Codable, Sendable {
-  case createU2DTab = "create-tab"
+  case `createU2DTab` = "create-tab"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D1_3328521e00: Codable, Sendable, RemoteModelMetadata {
@@ -366,7 +366,7 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D1_3328521e00: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D2U2DKind_3df0ab0b4e: String, Codable, Sendable {
-  case closeU2DTab = "close-tab"
+  case `closeU2DTab` = "close-tab"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D2_51f2acb99e: Codable, Sendable, RemoteModelMetadata {
@@ -385,7 +385,7 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D2_51f2acb99e: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D3U2DKind_c39ba2db20: String, Codable, Sendable {
-  case activateU2DTab = "activate-tab"
+  case `activateU2DTab` = "activate-tab"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D3_483d5aa44f: Codable, Sendable, RemoteModelMetadata {
@@ -404,12 +404,12 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D3_483d5aa44f: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D4U2DKind_ed1865d937: String, Codable, Sendable {
-  case moveU2DTab = "move-tab"
+  case `moveU2DTab` = "move-tab"
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e: String, Codable, Sendable {
-  case before = "before"
-  case after = "after"
+  case `before` = "before"
+  case `after` = "after"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D4_875b3bd940: Codable, Sendable, RemoteModelMetadata {
@@ -434,5 +434,5 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D4_875b3bd940: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D5U2DKind_9063020a6c: String, Codable, Sendable {
-  case navigate = "navigate"
+  case `navigate` = "navigate"
 }

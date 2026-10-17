@@ -21,6 +21,10 @@ import { canonicalHostPath, resolveHostRootPaths } from "@/backend/ownership/hos
 import { installServerPrefix } from "../../scripts/install-server-prefix.mjs";
 import { resolveTar, tarCommand } from "../../scripts/server-host-tools.mjs";
 import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import {
+  removeConversationSearchFixtureSchema,
+  removeCostSchemaForDowngrade,
+} from "@/host/db/runtimeItems.testFixtures";
 import { stopRunningServer } from "./serverStop";
 import { readReleaseBuildIdentity } from "./serverUpgradeIdentity";
 import { upgradeServerPrefix } from "./serverUpgrade";
@@ -488,6 +492,8 @@ function revertProfileToPre47Shape(profile: string): void {
     timeout: 5_000,
   });
   try {
+    removeConversationSearchFixtureSchema(database);
+    removeCostSchemaForDowngrade(database);
     database.exec("DROP INDEX IF EXISTS idx_remote_command_receipts_principal");
     const columns = database.prepare("PRAGMA table_info(remote_command_receipts)").all() as {
       name: string;

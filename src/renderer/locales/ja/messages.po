@@ -1758,6 +1758,7 @@ msgstr "スレッドをアーカイブ"
 msgid "Archive Thread"
 msgstr "アーカイブスレッド"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "アーカイブ済み"
@@ -2507,6 +2508,7 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -7681,6 +7683,10 @@ msgstr "同期に追加"
 msgid "Includes the first attempt."
 msgstr "最初の試行を含みます。"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "保存済みメッセージのインデックスを作成中…"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
 msgstr "情報"
@@ -8439,6 +8445,10 @@ msgstr "ジョブを読み込み中"
 msgid "Loading marketplace…"
 msgstr "マーケットプレイスを読み込み中…"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "一致したメッセージを読み込み中…"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -9141,9 +9151,17 @@ msgstr "マージはブロックされています"
 msgid "Message actions"
 msgstr "メッセージ操作"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "メッセージ検索を利用できません"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "リモートエージェントにメッセージ…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "メッセージ"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -13209,6 +13227,7 @@ msgid "Resume queued follow-ups"
 msgstr "キューに入ったフォローアップを再開"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13782,6 +13801,10 @@ msgstr "保存された認証情報はすべてのマシンで共有されます
 msgid "Saved font"
 msgstr "保存済みフォント"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "アーカイブ済みチャットを含む保存済みメッセージ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "保存したパスワードの操作"
@@ -14106,6 +14129,10 @@ msgstr "タイトル、メッセージ、フォルダーを検索"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "ファイルを検索中…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "保存済みメッセージを検索中…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -14558,6 +14585,7 @@ msgstr "表示を少なくする"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "{providerLabel} の MCP サーバーを表示"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -16100,6 +16128,14 @@ msgstr "リストを読み込めませんでした。"
 msgid "the macOS user"
 msgstr "macOS ユーザー"
 
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "一致した会話を開けませんでした。"
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "一致したメッセージは利用できなくなりました。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "MCPサーバー設定が無効か、予約済みの名前を使用しています。"
@@ -17123,6 +17159,10 @@ msgstr "タイプ"
 #: src/renderer/commands/CommandPalette.tsx
 #~ msgid "Type a command"
 #~ msgstr "コマンドを入力してください"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "メッセージを検索するには2文字以上入力してください"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"

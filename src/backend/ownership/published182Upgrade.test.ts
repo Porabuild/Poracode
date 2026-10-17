@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { closeDatabase, initDatabase } from "@/host/db/connection";
+import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { dbGetThreadRuntimeItems } from "@/host/db/runtimeItems";
 import { dbGetSchedules } from "@/host/db/schedules";
 import { dbGetProjects, dbGetThreads } from "@/host/db/projectsThreads";
@@ -36,7 +37,7 @@ afterEach(() => {
   if (root) rmSync(root, { recursive: true, force: true });
 });
 
-it("promotes the actual released schema42 and preserves history through schema59 and a second launch", async () => {
+it("promotes the actual released schema42 and preserves history through current migrations and a second launch", async () => {
   // Fixture created by the unmodified v1.8.2 initializer/runtime writers, not
   // by relabelling the current schema. Frozen-source hashes are in expected.json.
   root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-released182-")));
@@ -85,7 +86,7 @@ it("promotes the actual released schema42 and preserves history through schema59
     const db = initDatabase(promoted.dbPath);
     vi.restoreAllMocks();
     expect(db.prepare("SELECT value FROM app_state WHERE key='schema_version'").get()).toEqual({
-      value: "61",
+      value: String(LATEST_SCHEMA_VERSION),
     });
     expect(db.pragma("integrity_check")).toEqual([{ integrity_check: "ok" }]);
     expect(db.pragma("foreign_key_check")).toEqual([]);

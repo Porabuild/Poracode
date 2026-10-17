@@ -19,7 +19,7 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D5_290453f28a: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D6U2DKind_6801e053c0: String, Codable, Sendable {
-  case back = "back"
+  case `back` = "back"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D6_82fdb78988: Codable, Sendable, RemoteModelMetadata {
@@ -38,7 +38,7 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D6_82fdb78988: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D7U2DKind_3e68ba0d03: String, Codable, Sendable {
-  case forward = "forward"
+  case `forward` = "forward"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993: Codable, Sendable, RemoteModelMetadata {
@@ -57,7 +57,7 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D8U2DKind_41be750b56: String, Codable, Sendable {
-  case reload = "reload"
+  case `reload` = "reload"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D8_22c8bcdab9: Codable, Sendable, RemoteModelMetadata {
@@ -219,6 +219,103 @@ public struct RoutecatalogU2DMembershipResponse_afbf6761fa: Codable, Sendable, R
   }
 }
 
+public enum RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16: String, Codable, Sendable {
+  case `true` = "true"
+  case `false` = "false"
+}
+
+public enum RouteconversationU2DSearchQueryU2DVersion_8795ea0289: String, Codable, Sendable {
+  case `n1` = "1"
+}
+
+public struct RouteconversationU2DSearchQuery_07b9b9802d: Codable, Sendable, RemoteModelMetadata {
+  public var cursor: RemoteField<String> = .missing
+  public var includeArchived: RemoteField<RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16> = .missing
+  public var limit: RemoteField<Int64> = .missing
+  public var projectId: RemoteField<String> = .missing
+  public var query: String
+  public var version: RouteconversationU2DSearchQueryU2DVersion_8795ea0289
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "cursor", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: 1024, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "includeArchived", typeName: "RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "limit", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 50, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projectId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 200, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "query", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 500, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
+    .init(wireName: "version", typeName: "RouteconversationU2DSearchQueryU2DVersion_8795ea0289", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case cursor = "cursor"
+    case includeArchived = "includeArchived"
+    case limit = "limit"
+    case projectId = "projectId"
+    case query = "query"
+    case version = "version"
+  }
+}
+
+public enum RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57: String, Codable, Sendable {
+  case `user` = "user"
+  case `assistant` = "assistant"
+}
+
+public struct RouteconversationU2DSearchResponseU2DEntriesU2DItem_c52c624815: Codable, Sendable, RemoteModelMetadata {
+  public var archived: Bool
+  public var excerpt: String
+  public var itemId: String
+  public var projectId: String
+  public var projectName: String
+  public var role: RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57
+  public var threadId: String
+  public var title: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "archived", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "excerpt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: 320, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "itemId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projectId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projectName", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: 200, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "role", typeName: "RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "title", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: 300, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case archived = "archived"
+    case excerpt = "excerpt"
+    case itemId = "itemId"
+    case projectId = "projectId"
+    case projectName = "projectName"
+    case role = "role"
+    case threadId = "threadId"
+    case title = "title"
+  }
+}
+
+public typealias RouteconversationU2DSearchResponseU2DNextCursor_e333e5cd97 = String?
+
+public struct RouteconversationU2DSearchResponse_ca8d08ed24: Codable, Sendable, RemoteModelMetadata {
+  public var entries: [RouteconversationU2DSearchResponseU2DEntriesU2DItem_c52c624815]
+  public var indexing: Bool
+  public var nextCursor: RemoteField<String>
+  public var version: ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "entries", typeName: "[RouteconversationU2DSearchResponseU2DEntriesU2DItem_c52c624815]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: 50, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "indexing", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "nextCursor", typeName: "String", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: 1024, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "version", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case entries = "entries"
+    case indexing = "indexing"
+    case nextCursor = "nextCursor"
+    case version = "version"
+  }
+}
+
 public struct RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2: Codable, Sendable, RemoteModelMetadata {
   public var environmentId: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
@@ -283,149 +380,39 @@ public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DChildIde
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DCredential_d06f3ce55d: String, Codable, Sendable {
-  case configured = "configured"
-  case none = "none"
+  case `configured` = "configured"
+  case `none` = "none"
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DDesired_abff99d05c: String, Codable, Sendable {
-  case enabled = "enabled"
-  case disabled = "disabled"
+  case `enabled` = "enabled"
+  case `disabled` = "disabled"
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DLastErrorU2DCode_2fbfd962f5: String, Codable, Sendable {
-  case environmentU2FNotU2DFound = "environment/not-found"
-  case environmentU2FRevisionU2DConflict = "environment/revision-conflict"
-  case environmentU2FStoreU2DBusy = "environment/store-busy"
-  case environmentU2FStoreU2DLimit = "environment/store-limit"
-  case environmentU2FStoreU2DUnavailable = "environment/store-unavailable"
-  case environmentU2FInvalidU2DInput = "environment/invalid-input"
-  case environmentU2FNotU2DConnected = "environment/not-connected"
-  case environmentU2FTrustU2DRequired = "environment/trust-required"
-  case environmentU2FTrustU2DChanged = "environment/trust-changed"
-  case environmentU2FTrustU2DMismatch = "environment/trust-mismatch"
-  case environmentU2FHostkeyU2DMismatch = "environment/hostkey-mismatch"
-  case environmentU2FIdentityU2DChanged = "environment/identity-changed"
-  case environmentU2FCredentialU2DMissing = "environment/credential-missing"
-  case environmentU2FOwnerU2DUnverified = "environment/owner-unverified"
-  case environmentU2FOwnerU2DUnresponsive = "environment/owner-unresponsive"
-  case environmentU2FOwnerU2DIncompatible = "environment/owner-incompatible"
-  case environmentU2FOwnerU2DBusy = "environment/owner-busy"
-  case environmentU2FOwnerU2DConflict = "environment/owner-conflict"
-  case environmentU2FLaunchU2DFailed = "environment/launch-failed"
-  case environmentU2FUpgradeU2DUnavailable = "environment/upgrade-unavailable"
-  case environmentU2FUpgradeU2DRefused = "environment/upgrade-refused"
-  case environmentU2FTransportU2DError = "environment/transport-error"
-  case environmentU2FCancelled = "environment/cancelled"
-  case environmentU2FInternalU2DError = "environment/internal-error"
-  case environmentU2FNotU2DAuthorized = "environment/not-authorized"
-}
-
-public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DLastError_a03f50bc64: Codable, Sendable, RemoteModelMetadata {
-  public var code: RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DLastErrorU2DCode_2fbfd962f5
-  public var fingerprint: RemoteField<String> = .missing
-  public var keyType: RemoteField<String> = .missing
-  public var message: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "code", typeName: "RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DLastErrorU2DCode_2fbfd962f5", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "fingerprint", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^SHA256:[A-Za-z0-9+/]{43}$", format: nil, semanticValidatorIds: []),
-    .init(wireName: "keyType", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 64, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
-    .init(wireName: "message", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 240, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case code = "code"
-    case fingerprint = "fingerprint"
-    case keyType = "keyType"
-    case message = "message"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.code = try container.decode(RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DLastErrorU2DCode_2fbfd962f5.self, forKey: .code)
-    self.fingerprint = try container.decode(RemoteField<String>.self, forKey: .fingerprint)
-    self.keyType = try container.decode(RemoteField<String>.self, forKey: .keyType)
-    self.message = try container.decode(String.self, forKey: .message)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(code, forKey: .code)
-    try container.encode(fingerprint, forKey: .fingerprint)
-    try container.encode(keyType, forKey: .keyType)
-    try container.encode(message, forKey: .message)
-  }
-}
-
-public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DRuntime_83671e6428: Codable, Sendable, RemoteModelMetadata {
-  public var appVersion: RemoteField<String> = .missing
-  public var hash: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "appVersion", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 64, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
-    .init(wireName: "hash", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^[a-f0-9]{64}$", format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case appVersion = "appVersion"
-    case hash = "hash"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.appVersion = try container.decode(RemoteField<String>.self, forKey: .appVersion)
-    self.hash = try container.decode(String.self, forKey: .hash)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(appVersion, forKey: .appVersion)
-    try container.encode(hash, forKey: .hash)
-  }
-}
-
-public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DState_2c13d2fc1c: String, Codable, Sendable {
-  case disconnected = "disconnected"
-  case connecting = "connecting"
-  case connected = "connected"
-  case error = "error"
-  case credentialU2DMissing = "credential-missing"
-  case ownerU2DUnverified = "owner-unverified"
-  case identityU2DChanged = "identity-changed"
-  case hostkeyU2DMismatch = "hostkey-mismatch"
-  case needsU2DRepair = "needs-repair"
-  case trustU2DRequired = "trust-required"
-}
-
-public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D1U2DState_7ee0d4255f: String, Codable, Sendable {
-  case unknown = "unknown"
-}
-
-public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D1_1fb6f9ae5f: Codable, Sendable, RemoteModelMetadata {
-  public var state: RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D1U2DState_7ee0d4255f
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "state", typeName: "RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D1U2DState_7ee0d4255f", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case state = "state"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.state = try container.decode(RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D1U2DState_7ee0d4255f.self, forKey: .state)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(state, forKey: .state)
-  }
-}
-
-public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D2U2DState_f6c555fb5f: String, Codable, Sendable {
-  case observed = "observed"
+  case `environmentU2FNotU2DFound` = "environment/not-found"
+  case `environmentU2FRevisionU2DConflict` = "environment/revision-conflict"
+  case `environmentU2FStoreU2DBusy` = "environment/store-busy"
+  case `environmentU2FStoreU2DLimit` = "environment/store-limit"
+  case `environmentU2FStoreU2DUnavailable` = "environment/store-unavailable"
+  case `environmentU2FInvalidU2DInput` = "environment/invalid-input"
+  case `environmentU2FNotU2DConnected` = "environment/not-connected"
+  case `environmentU2FTrustU2DRequired` = "environment/trust-required"
+  case `environmentU2FTrustU2DChanged` = "environment/trust-changed"
+  case `environmentU2FTrustU2DMismatch` = "environment/trust-mismatch"
+  case `environmentU2FHostkeyU2DMismatch` = "environment/hostkey-mismatch"
+  case `environmentU2FIdentityU2DChanged` = "environment/identity-changed"
+  case `environmentU2FCredentialU2DMissing` = "environment/credential-missing"
+  case `environmentU2FOwnerU2DUnverified` = "environment/owner-unverified"
+  case `environmentU2FOwnerU2DUnresponsive` = "environment/owner-unresponsive"
+  case `environmentU2FOwnerU2DIncompatible` = "environment/owner-incompatible"
+  case `environmentU2FOwnerU2DBusy` = "environment/owner-busy"
+  case `environmentU2FOwnerU2DConflict` = "environment/owner-conflict"
+  case `environmentU2FLaunchU2DFailed` = "environment/launch-failed"
+  case `environmentU2FUpgradeU2DUnavailable` = "environment/upgrade-unavailable"
+  case `environmentU2FUpgradeU2DRefused` = "environment/upgrade-refused"
+  case `environmentU2FTransportU2DError` = "environment/transport-error"
+  case `environmentU2FCancelled` = "environment/cancelled"
+  case `environmentU2FInternalU2DError` = "environment/internal-error"
+  case `environmentU2FNotU2DAuthorized` = "environment/not-authorized"
 }

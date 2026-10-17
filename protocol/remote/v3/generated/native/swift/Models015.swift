@@ -22,7 +22,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13_e0
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D14U2DType_9d72555063: String, Codable, Sendable {
-  case runtimeU2ETruncated = "runtime.truncated"
+  case `runtimeU2ETruncated` = "runtime.truncated"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D14_2a107f95a9: Codable, Sendable, RemoteModelMetadata {
@@ -47,11 +47,11 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D14_2a
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D15U2DPresentation_4886facc92: String, Codable, Sendable {
-  case notice = "notice"
+  case `notice` = "notice"
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D15U2DType_a023928e20: String, Codable, Sendable {
-  case warning = "warning"
+  case `warning` = "warning"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D15_9da23fadb8: Codable, Sendable, RemoteModelMetadata {
@@ -94,7 +94,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D16_f7
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D1U2DType_b7ac3adaa0: String, Codable, Sendable {
-  case sessionU2EStarted = "session.started"
+  case `sessionU2EStarted` = "session.started"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D1_2778fa8937: Codable, Sendable, RemoteModelMetadata {
@@ -116,7 +116,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D1_277
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D2U2DType_000753aa3e: String, Codable, Sendable {
-  case sessionU2EExited = "session.exited"
+  case `sessionU2EExited` = "session.exited"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D2_66846085f3: Codable, Sendable, RemoteModelMetadata {
@@ -138,7 +138,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D2_668
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D3U2DType_9f20fb68ee: String, Codable, Sendable {
-  case turnU2EStarted = "turn.started"
+  case `turnU2EStarted` = "turn.started"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D3_4244283735: Codable, Sendable, RemoteModelMetadata {
@@ -160,14 +160,14 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D3_424
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4U2DState_115555b2d2: String, Codable, Sendable {
-  case completed = "completed"
-  case failed = "failed"
-  case interrupted = "interrupted"
-  case cancelled = "cancelled"
+  case `completed` = "completed"
+  case `failed` = "failed"
+  case `interrupted` = "interrupted"
+  case `cancelled` = "cancelled"
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4U2DType_cdcee850f2: String, Codable, Sendable {
-  case turnU2ECompleted = "turn.completed"
+  case `turnU2ECompleted` = "turn.completed"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4_85d2dd31fd: Codable, Sendable, RemoteModelMetadata {
@@ -192,25 +192,25 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D4_85d
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DItemType_5455d14071: String, Codable, Sendable {
-  case userU5FMessage = "user_message"
-  case assistantU5FMessage = "assistant_message"
-  case reasoning = "reasoning"
-  case plan = "plan"
-  case goal = "goal"
-  case commandU5FExecution = "command_execution"
-  case fileU5FChange = "file_change"
-  case toolU5FCall = "tool_call"
-  case mcpU5FToolU5FCall = "mcp_tool_call"
-  case imageU5FView = "image_view"
-  case dynamicU5FToolU5FCall = "dynamic_tool_call"
-  case webU5FSearch = "web_search"
-  case questionU5FAnswer = "question_answer"
-  case providerU5FHandoff = "provider_handoff"
-  case error = "error"
+  case `userU5FMessage` = "user_message"
+  case `assistantU5FMessage` = "assistant_message"
+  case `reasoning` = "reasoning"
+  case `plan` = "plan"
+  case `goal` = "goal"
+  case `commandU5FExecution` = "command_execution"
+  case `fileU5FChange` = "file_change"
+  case `toolU5FCall` = "tool_call"
+  case `mcpU5FToolU5FCall` = "mcp_tool_call"
+  case `imageU5FView` = "image_view"
+  case `dynamicU5FToolU5FCall` = "dynamic_tool_call"
+  case `webU5FSearch` = "web_search"
+  case `questionU5FAnswer` = "question_answer"
+  case `providerU5FHandoff` = "provider_handoff"
+  case `error` = "error"
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5U2DType_441bce375b: String, Codable, Sendable {
-  case itemU2EStarted = "item.started"
+  case `itemU2EStarted` = "item.started"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5_fe7522595f: Codable, Sendable, RemoteModelMetadata {
@@ -241,7 +241,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5_fe7
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D6U2DType_9189c3f251: String, Codable, Sendable {
-  case itemU2EUpdated = "item.updated"
+  case `itemU2EUpdated` = "item.updated"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D6_c55a346c73: Codable, Sendable, RemoteModelMetadata {
@@ -266,7 +266,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D6_c55
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D7U2DType_ab52710489: String, Codable, Sendable {
-  case itemU2ECompleted = "item.completed"
+  case `itemU2ECompleted` = "item.completed"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D7_1371f7bedc: Codable, Sendable, RemoteModelMetadata {
@@ -291,15 +291,15 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D7_137
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DStream_b5c1f44eaf: String, Codable, Sendable {
-  case assistantU5FText = "assistant_text"
-  case reasoningU5FText = "reasoning_text"
-  case planU5FText = "plan_text"
-  case commandU5FOutput = "command_output"
-  case fileU5FChangeU5FOutput = "file_change_output"
+  case `assistantU5FText` = "assistant_text"
+  case `reasoningU5FText` = "reasoning_text"
+  case `planU5FText` = "plan_text"
+  case `commandU5FOutput` = "command_output"
+  case `fileU5FChangeU5FOutput` = "file_change_output"
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DType_f30731ffd8: String, Codable, Sendable {
-  case contentU2EDelta = "content.delta"
+  case `contentU2EDelta` = "content.delta"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_996ce1c4e0: Codable, Sendable, RemoteModelMetadata {
@@ -330,7 +330,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_996
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DType_1fbc0e0d79: String, Codable, Sendable {
-  case contextU2EUpdated = "context.updated"
+  case `contextU2EUpdated` = "context.updated"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsageU2DBreakdownU2DItem_1b3dc298a6: Codable, Sendable, RemoteModelMetadata {

@@ -4,9 +4,10 @@ import { historyItemTooLargeBodySchema } from "@/shared/remote/historyReadContra
 import { legacyReadTooLargeBodySchema } from "@/shared/remote/legacyReadContract";
 
 // Read-only worker messages are internal to one installed runtime. Reject a
-// stale worker before opening its connection; persisted SQLite and HTTP shapes
-// stay unchanged, so neither database schema nor remote protocol needs a bump.
-export const DATABASE_READ_WORKER_PROTOCOL_VERSION = 1 as const;
+// stale worker before opening its connection. Database migrations and the
+// optional public search capability are versioned separately.
+// v2 adds the bounded conversation-search reads and revisioned index batches.
+export const DATABASE_READ_WORKER_PROTOCOL_VERSION = 2 as const;
 
 export class DatabaseReadUnavailableError extends Error {
   readonly retryAfterMs = 250;

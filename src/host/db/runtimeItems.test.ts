@@ -1,4 +1,10 @@
-import { nativeBindingEnv, sqliteAvailable, testThread } from "./runtimeItems.testFixtures";
+import {
+  nativeBindingEnv,
+  sqliteAvailable,
+  testThread,
+  removeCostSchemaForDowngrade,
+  removeConversationSearchFixtureSchema,
+} from "./runtimeItems.testFixtures";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -604,6 +610,8 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("adds the parent lookup index when upgrading schema v37", async () => {
+    removeConversationSearchFixtureSchema(getSqlite());
+    removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       UPDATE app_state SET value = '37' WHERE key = 'schema_version';
@@ -623,6 +631,8 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("repairs a missing parent lookup column when upgrading a drifted schema v37", async () => {
+    removeConversationSearchFixtureSchema(getSqlite());
+    removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       ALTER TABLE thread_runtime_items DROP COLUMN parent_item_id;
@@ -655,6 +665,8 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("repairs the parent lookup index from the prerelease Antigravity schema v40", async () => {
+    removeConversationSearchFixtureSchema(getSqlite());
+    removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       UPDATE app_state SET value = '40' WHERE key = 'schema_version';

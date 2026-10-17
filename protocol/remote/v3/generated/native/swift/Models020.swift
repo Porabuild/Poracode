@@ -34,9 +34,9 @@ public struct RouteattachmentU2DUploadQuery_f22a438b83: Codable, Sendable, Remot
 }
 
 public enum RouteautomationsU2DSnapshotQueryU2DFilter_479fd2dce7: String, Codable, Sendable {
-  case unread = "unread"
-  case all = "all"
-  case archived = "archived"
+  case `unread` = "unread"
+  case `all` = "all"
+  case `archived` = "archived"
 }
 
 public struct RouteautomationsU2DSnapshotQuery_8cdebfa85e: Codable, Sendable, RemoteModelMetadata {
@@ -61,7 +61,7 @@ public struct RouteautomationsU2DSnapshotQuery_8cdebfa85e: Codable, Sendable, Re
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicyU2DOptionU2D1U2DKind_c028422c57: String, Codable, Sendable {
-  case none = "none"
+  case `none` = "none"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicyU2DOptionU2D1_4545388132: Codable, Sendable, RemoteModelMetadata {
@@ -77,7 +77,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnap
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicyU2DOptionU2D2U2DKind_5bbcf9e475: String, Codable, Sendable {
-  case aiU2DEvaluated = "ai-evaluated"
+  case `aiU2DEvaluated` = "ai-evaluated"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DCompletionPolicyU2DOptionU2D2_e800870318: Codable, Sendable, RemoteModelMetadata {
@@ -128,13 +128,13 @@ public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapsh
 public typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMaxIterations_e82ae39cda = Int64?
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMisfirePolicy_bb479bc584: String, Codable, Sendable {
-  case skip = "skip"
-  case coalesce = "coalesce"
-  case runU2DLatest = "run-latest"
+  case `skip` = "skip"
+  case `coalesce` = "coalesce"
+  case `runU2DLatest` = "run-latest"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DModeU2DOptionU2D1U2DKind_046f6b1ae1: String, Codable, Sendable {
-  case newU2DThread = "new-thread"
+  case `newU2DThread` = "new-thread"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DModeU2DOptionU2D1_4ec1d31e87: Codable, Sendable, RemoteModelMetadata {
@@ -150,7 +150,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnap
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DModeU2DOptionU2D2U2DKind_54e79a700c: String, Codable, Sendable {
-  case heartbeat = "heartbeat"
+  case `heartbeat` = "heartbeat"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DModeU2DOptionU2D2_a93427ae1f: Codable, Sendable, RemoteModelMetadata {
@@ -196,7 +196,7 @@ public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapsh
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D2U2DKind_82e9f889c9: String, Codable, Sendable {
-  case fixed = "fixed"
+  case `fixed` = "fixed"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D2_2130fba9cf: Codable, Sendable, RemoteModelMetadata {
@@ -218,7 +218,7 @@ public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnap
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D3U2DKind_1dff9447e3: String, Codable, Sendable {
-  case exponential = "exponential"
+  case `exponential` = "exponential"
 }
 
 public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DRetryPolicyU2DOptionU2D3_abcfe9be3e: Codable, Sendable, RemoteModelMetadata {
@@ -334,17 +334,17 @@ public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptio
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DOutcome_75fa28583d: String, Codable, Sendable {
-  case findings = "findings"
-  case noU2DFindings = "no-findings"
-  case changedU2DFiles = "changed-files"
-  case needsU2DAttention = "needs-attention"
-  case unknown = "unknown"
+  case `findings` = "findings"
+  case `noU2DFindings` = "no-findings"
+  case `changedU2DFiles` = "changed-files"
+  case `needsU2DAttention` = "needs-attention"
+  case `unknown` = "unknown"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DSeverity_2d5efa5a79: String, Codable, Sendable {
-  case info = "info"
-  case warning = "warning"
-  case error = "error"
+  case `info` = "info"
+  case `warning` = "warning"
+  case `error` = "error"
 }
 
 public typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1U2DStopReason_7bbdba78cb = String?
@@ -387,17 +387,17 @@ public struct RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptio
 public typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResult_66ee2eb4ed = RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581?
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DStatus_2151c8edcf: String, Codable, Sendable {
-  case running = "running"
-  case waitingU2DForU2DApproval = "waiting-for-approval"
-  case succeeded = "succeeded"
-  case failed = "failed"
-  case cancelled = "cancelled"
-  case interrupted = "interrupted"
-  case skipped = "skipped"
+  case `running` = "running"
+  case `waitingU2DForU2DApproval` = "waiting-for-approval"
+  case `succeeded` = "succeeded"
+  case `failed` = "failed"
+  case `cancelled` = "cancelled"
+  case `interrupted` = "interrupted"
+  case `skipped` = "skipped"
 }
 
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DTrigger_56296b74a9: String, Codable, Sendable {
-  case manual = "manual"
-  case scheduled = "scheduled"
-  case retry = "retry"
+  case `manual` = "manual"
+  case `scheduled` = "scheduled"
+  case `retry` = "retry"
 }

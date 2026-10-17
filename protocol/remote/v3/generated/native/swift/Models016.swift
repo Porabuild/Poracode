@@ -209,9 +209,9 @@ public struct ProcedureworkflowGetRunRequest_13324e3fec: Codable, Sendable, Remo
 }
 
 public enum ProcedureworkflowGetRunResultU2DRunU2DOptionU2D1U2DPhasesU2DItemU2DAgentsU2DItemU2DChatU2DItemU2DRole_7e386bfca4: String, Codable, Sendable {
-  case user = "user"
-  case assistant = "assistant"
-  case tool = "tool"
+  case `user` = "user"
+  case `assistant` = "assistant"
+  case `tool` = "tool"
 }
 
 public struct ProcedureworkflowGetRunResultU2DRunU2DOptionU2D1U2DPhasesU2DItemU2DAgentsU2DItemU2DChatU2DItem_4878a3657a: Codable, Sendable, RemoteModelMetadata {
@@ -236,11 +236,11 @@ public struct ProcedureworkflowGetRunResultU2DRunU2DOptionU2D1U2DPhasesU2DItemU2
 }
 
 public enum ProcedureworkflowGetRunResultU2DRunU2DOptionU2D1U2DPhasesU2DItemU2DAgentsU2DItemU2DState_5a17efba35: String, Codable, Sendable {
-  case queued = "queued"
-  case running = "running"
-  case done = "done"
-  case failed = "failed"
-  case cancelled = "cancelled"
+  case `queued` = "queued"
+  case `running` = "running"
+  case `done` = "done"
+  case `failed` = "failed"
+  case `cancelled` = "cancelled"
 }
 
 public struct ProcedureworkflowGetRunResultU2DRunU2DOptionU2D1U2DPhasesU2DItemU2DAgentsU2DItem_da546ba4a0: Codable, Sendable, RemoteModelMetadata {
@@ -322,11 +322,11 @@ public struct ProcedureworkflowGetRunResultU2DRunU2DOptionU2D1U2DPhasesU2DItem_5
 }
 
 public enum ProcedureworkflowGetRunResultU2DRunU2DOptionU2D1U2DStatus_3a008e3c40: String, Codable, Sendable {
-  case running = "running"
-  case completed = "completed"
-  case failed = "failed"
-  case cancelled = "cancelled"
-  case unknown = "unknown"
+  case `running` = "running"
+  case `completed` = "completed"
+  case `failed` = "failed"
+  case `cancelled` = "cancelled"
+  case `unknown` = "unknown"
 }
 
 public struct ProcedureworkflowGetRunResultU2DRunU2DOptionU2D1_f9da03570b: Codable, Sendable, RemoteModelMetadata {

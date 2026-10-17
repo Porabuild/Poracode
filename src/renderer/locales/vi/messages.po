@@ -1759,6 +1759,7 @@ msgstr "Lưu trữ luồng"
 msgid "Archive Thread"
 msgstr "Lưu trữ luồng"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "Đã lưu trữ"
@@ -2508,6 +2509,7 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -7682,6 +7684,10 @@ msgstr "Thêm vào đồng bộ hóa"
 msgid "Includes the first attempt."
 msgstr "Bao gồm lần thử đầu tiên."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "Đang lập chỉ mục tin nhắn đã lưu…"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
 msgstr "Thông tin"
@@ -8440,6 +8446,10 @@ msgstr "Đang tải công việc"
 msgid "Loading marketplace…"
 msgstr "Đang tải marketplace…"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "Đang tải tin nhắn khớp…"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -9143,9 +9153,17 @@ msgstr "Việc hợp nhất bị chặn"
 msgid "Message actions"
 msgstr "Thao tác tin nhắn"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "Không thể tìm kiếm tin nhắn"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "Nhắn cho tác nhân từ xa…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "Tin nhắn"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -13211,6 +13229,7 @@ msgid "Resume queued follow-ups"
 msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13784,6 +13803,10 @@ msgstr "Thông tin đăng nhập đã lưu được dùng chung cho tất cả c
 msgid "Saved font"
 msgstr "Phông chữ đã lưu"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "Tin nhắn đã lưu, bao gồm cả cuộc trò chuyện đã lưu trữ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "Thao tác với mật khẩu đã lưu"
@@ -14108,6 +14131,10 @@ msgstr "Tìm trong tiêu đề, tin nhắn và thư mục"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "Đang tìm tệp…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "Đang tìm kiếm tin nhắn đã lưu…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -14560,6 +14587,7 @@ msgstr "Hiển thị ít hơn"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "Hiện máy chủ MCP từ {providerLabel}"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -16102,6 +16130,14 @@ msgstr "Không thể đọc danh sách."
 msgid "the macOS user"
 msgstr "người dùng macOS"
 
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "Không thể mở cuộc trò chuyện khớp."
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "Tin nhắn khớp không còn khả dụng."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "Cấu hình máy chủ MCP không hợp lệ hoặc sử dụng tên dành riêng."
@@ -17125,6 +17161,10 @@ msgstr "Loại"
 #: src/renderer/commands/CommandPalette.tsx
 #~ msgid "Type a command"
 #~ msgstr "Nhập lệnh"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "Nhập ít nhất hai ký tự để tìm kiếm tin nhắn"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
