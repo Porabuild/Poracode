@@ -10,6 +10,7 @@ import { ThreadPendingSteerStrip } from "@/renderer/components/thread/ThreadPend
 import { ThreadFollowUpQueue } from "@/renderer/components/thread/ThreadFollowUpQueue";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { ThreadRuntimeRequestPanel } from "@/renderer/components/thread/ThreadRuntimeRequestPanel";
+import { ThreadMessageReplyDocks } from "@/renderer/components/thread/ThreadMessageReplyPanel";
 import { useDelayedPendingSteer } from "@/renderer/components/thread/useDelayedPendingSteer";
 import { useAppStore } from "@/renderer/state/appStore";
 
@@ -47,6 +48,9 @@ export function ComposerActionDocks(props: {
         queue={followUpQueue ?? null}
         onRestoreFocus={props.onRestoreComposerFocus}
       />
+      {presentationMode === "gui" && !request ? (
+        <ThreadMessageReplyDocks threadId={thread.id} />
+      ) : null}
       {request ? (
         <ThreadRuntimeRequestPanel
           key={request.requestId}

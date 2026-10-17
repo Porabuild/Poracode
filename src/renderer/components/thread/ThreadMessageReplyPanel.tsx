@@ -1,57 +1,55 @@
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState } from "react";
 import { Button, toast } from "@heroui/react";
+import { useShallow } from "zustand/react/shallow";
 import { useLingui } from "@lingui/react/macro";
-import type { MessageReplyForm as ReplyForm } from "@/shared/contracts";
+import { HelpCircle } from "lucide-react";
+import type { MessageItemPayload, MessageReplyForm as ReplyForm } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { messageReplyFormText } from "@/shared/messageReplyForm";
-import { readThreadInputDelivery } from "@/renderer/state/threadInputDelivery";
 import { submitThreadInput } from "@/renderer/actions/threadRuntimeActions";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
+import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   asUserInputFormDetails,
   questionHasAnswer,
   UserInputForm,
   useUserInputFormController,
-} from "../../../ThreadRuntimeRequestPanel/userInputForm";
-import { QuestionSwitcher } from "../../../ThreadRuntimeRequestPanel/parts/QuestionSwitcher";
+} from "./ThreadRuntimeRequestPanel/userInputForm";
+import { QuestionSwitcher } from "./ThreadRuntimeRequestPanel/parts/QuestionSwitcher";
+import { ThreadDockSection } from "./ThreadDockUI";
+import { selectMessageReplyState, selectPendingMessageReplyIds } from "./messageReplyForms";
+import { buildMessageReplyAnswer } from "./ChatPane/parts/items/messageReplyAnswerPayload";
+
+export function ThreadMessageReplyDocks({ threadId }: { threadId: string }) {
+  const ids = useAppStore(useShallow((state) => selectPendingMessageReplyIds(state, threadId)));
+  return ids.map((itemId) => <MessageReplyDock key={itemId} threadId={threadId} itemId={itemId} />);
+}
+
+function MessageReplyDock({ threadId, itemId }: { threadId: string; itemId: string }) {
+  const item = useThreadRuntimeItem(threadId, itemId);
+  const form = item
+    ? getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message")?.replyForm
+    : undefined;
+  return form ? <ThreadMessageReplyPanel threadId={threadId} itemId={itemId} form={form} /> : null;
+}
 
 /** Replies are ordinary user messages: the provider keeps running while this form is open. */
-export function MessageReplyForm({
+export function ThreadMessageReplyPanel({
   threadId,
   itemId,
   form,
-  text,
-  children,
 }: {
   threadId: string;
   itemId: string;
   form: ReplyForm;
-  text: string;
-  children: ReactNode;
 }) {
   const { t } = useLingui();
   const formId = useId();
   const inFlight = useRef(false);
   const [sending, setSending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const replyState = useAppStore((state): "none" | "pending" | "answered" => {
-    const ids = state.runtimeItemIdsByThread[threadId];
-    const items = state.runtimeItemsByIdByThread[threadId];
-    const index = ids?.indexOf(itemId) ?? -1;
-    if (index < 0 || !ids || !items) return "none";
-    // Async questions have no correlated response RPC. Any subsequent top-level
-    // user input supersedes them, including a reply typed in the composer.
-    let pending = false;
-    for (let position = index + 1; position < ids.length; position += 1) {
-      const item = items[ids[position]!];
-      if (item?.type !== "user_message" || item.parentItemId) continue;
-      const delivery = readThreadInputDelivery(item.payload);
-      if (delivery === "pending") pending = true;
-      else if (delivery !== "failed") return "answered";
-    }
-    return pending ? "pending" : "none";
-  });
+  const replyState = useAppStore((state) => selectMessageReplyState(state, threadId, itemId));
   const available = useAppStore((state) => {
     const thread = state.threads.find((entry) => entry.id === threadId);
     return (
@@ -65,7 +63,7 @@ export function MessageReplyForm({
       },
     }),
   );
-  if (!controller || submitted || replyState === "answered") return children;
+  if (!controller || submitted || replyState === "answered") return null;
   const disabled = sending || replyState === "pending" || !available;
   const activeQuestion = controller.questions[controller.activeIndex];
   const isLastStep = controller.activeIndex === controller.questions.length - 1;
@@ -87,7 +85,9 @@ export function MessageReplyForm({
     inFlight.current = true;
     setSending(true);
     try {
-      await submitThreadInput(threadId, prompt);
+      await submitThreadInput(threadId, prompt, undefined, {
+        questionAnswer: buildMessageReplyAnswer(form, values),
+      });
       setSubmitted(true);
     } catch (error) {
       // An uncertain send may already be committed; never offer an immediate resend.
@@ -100,38 +100,43 @@ export function MessageReplyForm({
   }
 
   return (
-    <>
-      {text.trim() !== messageReplyFormText(form).trim() ? children : null}
-      <div className="rounded-lg border border-[color:var(--border)]" data-message-reply-form>
-        <QuestionSwitcher
-          questions={controller.questions}
-          answers={controller.answers}
-          customAnswers={controller.customAnswers}
-          activeIndex={controller.activeIndex}
-          isDisabled={disabled}
-          onSelect={controller.setActiveIndex}
-        />
-        <UserInputForm
-          formId={formId}
-          controller={controller}
-          isDisabled={disabled}
-          wrapOptionLabels
-          onSubmit={(response) => {
-            void submit(response);
-          }}
-        />
-        <div className="flex justify-end px-2 pb-2">
+    <ThreadDockSection className="!text-xs" placement="composer" collapsed={false}>
+      <div data-message-reply-form>
+        <div className="flex flex-wrap items-start gap-x-2 gap-y-1 px-2 py-1.5 leading-snug">
+          <HelpCircle className="mt-0.5 size-3.5 shrink-0 text-foreground-muted" aria-hidden />
+          <div className="min-w-0 flex-1 basis-64">
+            <div className="font-semibold text-foreground">{activeQuestion?.question}</div>
+            <QuestionSwitcher
+              questions={controller.questions}
+              answers={controller.answers}
+              customAnswers={controller.customAnswers}
+              activeIndex={controller.activeIndex}
+              isDisabled={disabled}
+              onSelect={controller.setActiveIndex}
+            />
+          </div>
           <Button
             size="sm"
             variant="tertiary"
             type="submit"
             form={formId}
+            className="ml-auto shrink-0"
             isDisabled={disabled || (isLastStep ? !controller.allAnswered : !canAdvance)}
           >
             {isLastStep ? t`Submit` : t`Continue`}
           </Button>
         </div>
+        <UserInputForm
+          formId={formId}
+          controller={controller}
+          isDisabled={disabled}
+          {...(activeQuestion ? { summary: activeQuestion.question } : {})}
+          wrapOptionLabels
+          onSubmit={(response) => {
+            void submit(response);
+          }}
+        />
       </div>
-    </>
+    </ThreadDockSection>
   );
 }

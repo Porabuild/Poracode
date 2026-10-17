@@ -116,6 +116,7 @@ import {
 } from "./unpublishedStartFailure";
 import { describeSpawnFailure, sanitizeEnv, sanitizedProcessEnv } from "./spawnDiagnostics";
 import type { SessionRuntimeLifecycle } from "./sessionRuntimeLifecycle";
+import type { StructuredTurnQueue } from "./structuredTurnQueue";
 import { getIterm2StatusL2TerminalEnv, resolveTerminalColorEnv } from "./terminalEnv";
 
 export interface SpawnThreadInput {
@@ -325,12 +326,7 @@ export interface SpawnPipelineContext {
     adapter: AgentAdapter,
     location?: ProjectLocation,
   ): Record<string, boolean | string>;
-  emitOptimisticUserMessage(
-    threadId: string,
-    prompt: string,
-    segments?: PromptSegment[],
-    requestedItemId?: string,
-  ): string;
+  emitOptimisticUserMessage: StructuredTurnQueue["emitOptimisticUserMessage"];
   emitProviderHandoff(
     threadId: string,
     fromAgentKind: string,
@@ -496,6 +492,9 @@ export class SpawnPipeline {
             initialPrompt,
             payload.segments,
             payload.userMessageItemId,
+            ...(payload.questionAnswer
+              ? ([{ questionAnswer: payload.questionAnswer }] as const)
+              : []),
           )
         : undefined;
     const mcpLaunchSnapshotBase = {
@@ -776,6 +775,9 @@ export class SpawnPipeline {
           initialPrompt,
           payload.segments,
           payload.userMessageItemId,
+          ...(payload.questionAnswer
+            ? ([{ questionAnswer: payload.questionAnswer }] as const)
+            : []),
         );
         this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
       }
@@ -1234,13 +1236,22 @@ export class SpawnPipeline {
         // Retry/recovery callers preserve the id of a user message that was
         // already broadcast before the old session stopped. Reuse it without
         // emitting another turn.started + item pair. A missing id means this
-        // path owns the first canonical paint and must emit it now.
+        // path owns the first canonical paint and must emit it now. A form
+        // reply's id may be client-only; ensure its first durable paint carries
+        // the answer metadata, without starting another turn for an existing id.
         const optimisticItemId =
-          turn.userMessageItemId ??
+          (turn.questionAnswer ? undefined : turn.userMessageItemId) ??
           ctx.emitOptimisticUserMessage(
             session.threadId,
             prompt,
             turn.displaySegments ?? turn.segments,
+            turn.userMessageItemId,
+            turn.questionAnswer
+              ? {
+                  questionAnswer: turn.questionAnswer,
+                  ...(turn.userMessageItemId ? { includeTurn: false } : {}),
+                }
+              : undefined,
           );
         const startOptions = {
           userMessageItemId: optimisticItemId,

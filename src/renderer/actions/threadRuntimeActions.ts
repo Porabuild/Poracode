@@ -2,6 +2,7 @@ import { withThreadConfigSubmission } from "./threadConfigSubmission";
 import type {
   ProjectLocation,
   PromptSegment,
+  QuestionAnswerItemPayload,
   RequestOutcome,
   SendThreadInputPayload,
   Thread,
@@ -73,6 +74,7 @@ export async function performThreadInputSubmit(input: {
   thread: Thread;
   prompt: string;
   segments?: PromptSegment[];
+  questionAnswer?: QuestionAnswerItemPayload;
   /** Per-turn context the submitting surface captured (never painted). */
   clientContext?: TurnClientContext;
   transport: ThreadInputTransport;
@@ -87,6 +89,7 @@ export async function performThreadInputSubmit(input: {
     prompt: string;
     segments?: PromptSegment[];
     userMessageItemId?: string;
+    questionAnswer?: QuestionAnswerItemPayload;
     clientContext?: TurnClientContext;
   }) => Promise<void>;
 }): Promise<void> {
@@ -107,7 +110,7 @@ async function performThreadInputSubmitPending(
   input: Parameters<typeof performThreadInputSubmit>[0],
   releasePendingInput: (() => void) | undefined,
 ): Promise<void> {
-  const { thread, prompt, segments, clientContext, transport } = input;
+  const { thread, prompt, segments, questionAnswer, clientContext, transport } = input;
 
   // Optimistic user_message for GUI threads: paint the typed prompt
   // into the chat pane synchronously so it shows before the IPC
@@ -128,6 +131,7 @@ async function performThreadInputSubmitPending(
       itemType: "user_message",
       payload: {
         content: buildPromptContentBlocks(prompt, segments),
+        ...(questionAnswer ? { questionAnswer } : {}),
         clientInputDelivery: "pending",
       },
     });
@@ -175,6 +179,7 @@ async function performThreadInputSubmitPending(
         ...(segments ? { segments } : {}),
         config: thread.config,
         ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+        ...(questionAnswer ? { questionAnswer } : {}),
         ...(clientContext ? { clientContext } : {}),
       }),
     );
@@ -211,6 +216,7 @@ async function performThreadInputSubmitPending(
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
           ...(clientContext ? { clientContext } : {}),
+          ...(questionAnswer ? { questionAnswer } : {}),
         });
       } catch (resumeError) {
         // The relaunch already reconciled an uncertain start (and never
@@ -257,7 +263,10 @@ export async function submitThreadInput(
   threadId: string,
   prompt: string,
   segments?: PromptSegment[],
-  options: { clientContext?: TurnClientContext | undefined } = {},
+  options: {
+    clientContext?: TurnClientContext | undefined;
+    questionAnswer?: QuestionAnswerItemPayload;
+  } = {},
 ): Promise<void> {
   const resolved = resolveThreadProjectLocation(threadId);
   if (!resolved) return;
@@ -268,6 +277,7 @@ export async function submitThreadInput(
     prompt,
     ...(segments ? { segments } : {}),
     ...(options.clientContext ? { clientContext: options.clientContext } : {}),
+    ...(options.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
     transport: readBridge(),
     resumeLaunch: async (resume) => {
       // Re-resolve the thread: the pre-send snapshot can miss a sessionRef
@@ -282,6 +292,7 @@ export async function submitThreadInput(
         prompt: resume.prompt,
         ...(resume.segments ? { segments: resume.segments } : {}),
         ...(resume.userMessageItemId ? { userMessageItemId: resume.userMessageItemId } : {}),
+        ...(resume.questionAnswer ? { questionAnswer: resume.questionAnswer } : {}),
         ...(resume.clientContext ? { clientContext: resume.clientContext } : {}),
         initialSize: DEFAULT_TERMINAL_SIZE,
       });

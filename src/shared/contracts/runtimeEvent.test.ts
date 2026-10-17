@@ -19,6 +19,17 @@ function roundTrip<T>(value: T): T {
 }
 
 describe("runtimeEventSchema discriminated union", () => {
+  it("keeps previous user messages valid and round-trips self-contained form answers", () => {
+    const previous = { content: [{ kind: "text", text: "Which scope?\nA" }] };
+    expect(messageItemPayloadSchema.parse(roundTrip(previous))).toEqual(previous);
+    const current = {
+      ...previous,
+      questionAnswer: {
+        questions: [{ header: "", question: "Which scope?", selected: [{ label: "A" }] }],
+      },
+    };
+    expect(messageItemPayloadSchema.parse(roundTrip(current))).toEqual(current);
+  });
   it("preserves pre-reply-form messages and round-trips optional non-blocking questions", () => {
     const previous = { content: [{ kind: "text", text: "Which scope?\n- A\n- B" }] };
     expect(messageItemPayloadSchema.parse(roundTrip(previous))).toEqual(previous);

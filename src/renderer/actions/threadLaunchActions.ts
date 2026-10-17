@@ -5,6 +5,7 @@ import type {
   Project,
   ProjectLocation,
   PromptSegment,
+  QuestionAnswerItemPayload,
   TerminalSize,
   Thread,
   TurnClientContext,
@@ -78,6 +79,7 @@ export async function performInitialThreadLaunch(input: {
   prompt: string;
   segments?: PromptSegment[];
   userMessageItemId?: string;
+  questionAnswer?: QuestionAnswerItemPayload;
   providerSwitch?: PendingLaunchProviderSwitch;
   mentionHandoff?: true;
   /** Per-turn context for the initial prompt (never painted or persisted). */
@@ -172,6 +174,7 @@ async function performInitialThreadLaunchPending(
     ...(resumableSessionRef ? { sessionRef: resumableSessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
     ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+    ...(input.questionAnswer ? { questionAnswer: input.questionAnswer } : {}),
     ...(providerSwitch ? { providerSwitch } : {}),
     ...(input.mentionHandoff ? { mentionHandoff: true as const } : {}),
     ...(clientContext ? { clientContext } : {}),
