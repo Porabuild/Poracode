@@ -39,11 +39,11 @@ public enum ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DWindowsU2DItemU
 }
 
 public enum ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DWindowsU2DItemU2DUnit_c263982707: String, Codable, Sendable {
-  case percent = "percent"
-  case tokens = "tokens"
-  case requests = "requests"
-  case credits = "credits"
-  case usd = "usd"
+  case `percent` = "percent"
+  case `tokens` = "tokens"
+  case `requests` = "requests"
+  case `credits` = "credits"
+  case `usd` = "usd"
 }
 
 public struct ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DWindowsU2DItem_3e6404f865: Codable, Sendable, RemoteModelMetadata {
@@ -247,27 +247,27 @@ public struct ProcedureghCreatePrRequest_39c209cff9: Codable, Sendable, RemoteMo
 }
 
 public enum ProcedureghCreatePrResultU2DMergeStateStatus_ecf46d0165: String, Codable, Sendable {
-  case bEHIND = "BEHIND"
-  case bLOCKED = "BLOCKED"
-  case cLEAN = "CLEAN"
-  case dIRTY = "DIRTY"
-  case dRAFT = "DRAFT"
-  case hASU5FHOOKS = "HAS_HOOKS"
-  case uNKNOWN = "UNKNOWN"
-  case uNSTABLE = "UNSTABLE"
+  case `bEHIND` = "BEHIND"
+  case `bLOCKED` = "BLOCKED"
+  case `cLEAN` = "CLEAN"
+  case `dIRTY` = "DIRTY"
+  case `dRAFT` = "DRAFT"
+  case `hASU5FHOOKS` = "HAS_HOOKS"
+  case `uNKNOWN` = "UNKNOWN"
+  case `uNSTABLE` = "UNSTABLE"
 }
 
 public enum ProcedureghCreatePrResultU2DMergeable_05ab37f667: String, Codable, Sendable {
-  case mERGEABLE = "MERGEABLE"
-  case cONFLICTING = "CONFLICTING"
-  case uNKNOWN = "UNKNOWN"
+  case `mERGEABLE` = "MERGEABLE"
+  case `cONFLICTING` = "CONFLICTING"
+  case `uNKNOWN` = "UNKNOWN"
 }
 
 public enum ProcedureghCreatePrResultU2DState_79fd49e14d: String, Codable, Sendable {
-  case open = "open"
-  case draft = "draft"
-  case merged = "merged"
-  case closed = "closed"
+  case `open` = "open"
+  case `draft` = "draft"
+  case `merged` = "merged"
+  case `closed` = "closed"
 }
 
 public struct ProcedureghCreatePrResult_a4457c545e: Codable, Sendable, RemoteModelMetadata {

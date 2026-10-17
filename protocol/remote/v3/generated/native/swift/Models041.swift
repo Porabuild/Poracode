@@ -38,7 +38,7 @@ public enum WebSocketClientMessageU2DOptionU2D4U2DInput_2c0b30d69c: Codable, Sen
 }
 
 public enum WebSocketClientMessageU2DOptionU2D4U2DType_64570e2249: String, Codable, Sendable {
-  case browserU2DInput = "browser-input"
+  case `browserU2DInput` = "browser-input"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D4_d550ef9994: Codable, Sendable, RemoteModelMetadata {
@@ -96,7 +96,7 @@ public struct WebSocketClientMessageU2DOptionU2D5U2DCursorSync_3975ceeb37: Codab
 }
 
 public enum WebSocketClientMessageU2DOptionU2D5U2DType_c64b38404f: String, Codable, Sendable {
-  case terminalU2DWatch = "terminal-watch"
+  case `terminalU2DWatch` = "terminal-watch"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D5_838adcbcaf: Codable, Sendable, RemoteModelMetadata {
@@ -118,7 +118,7 @@ public struct WebSocketClientMessageU2DOptionU2D5_838adcbcaf: Codable, Sendable,
 }
 
 public enum WebSocketClientMessageU2DOptionU2D6U2DType_af6b6f72d4: String, Codable, Sendable {
-  case terminalU2DUnwatch = "terminal-unwatch"
+  case `terminalU2DUnwatch` = "terminal-unwatch"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D6_5af10e67b4: Codable, Sendable, RemoteModelMetadata {
@@ -155,7 +155,7 @@ public struct WebSocketClientMessageU2DOptionU2D7U2DCursorSync_23a1c447c0: Codab
 }
 
 public enum WebSocketClientMessageU2DOptionU2D7U2DType_740c7dc82a: String, Codable, Sendable {
-  case terminalU2DWatchU2DBaselineU2DAck = "terminal-watch-baseline-ack"
+  case `terminalU2DWatchU2DBaselineU2DAck` = "terminal-watch-baseline-ack"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D7_3f58316dbb: Codable, Sendable, RemoteModelMetadata {
@@ -177,7 +177,7 @@ public struct WebSocketClientMessageU2DOptionU2D7_3f58316dbb: Codable, Sendable,
 }
 
 public enum WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1U2DKind_fc779c522d: String, Codable, Sendable {
-  case target = "target"
+  case `target` = "target"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D1_e2d96ee09e: Codable, Sendable, RemoteModelMetadata {
@@ -205,7 +205,7 @@ public struct WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D
 }
 
 public enum WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2U2DKind_c975fc7daa: String, Codable, Sendable {
-  case pullU2DRequest = "pull-request"
+  case `pullU2DRequest` = "pull-request"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D2_d95fd60152: Codable, Sendable, RemoteModelMetadata {
@@ -233,7 +233,7 @@ public struct WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D
 }
 
 public enum WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3U2DKind_6b98eaede5: String, Codable, Sendable {
-  case projectU2DPullU2DRequests = "project-pull-requests"
+  case `projectU2DPullU2DRequests` = "project-pull-requests"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItemU2DOptionU2D3_591e7e71be: Codable, Sendable, RemoteModelMetadata {
@@ -284,7 +284,7 @@ public enum WebSocketClientMessageU2DOptionU2D8U2DInterestsU2DItem_ad1d9fe8b3: C
 }
 
 public enum WebSocketClientMessageU2DOptionU2D8U2DType_9f1edfda19: String, Codable, Sendable {
-  case gitU2DStateU2DInterests = "git-state-interests"
+  case `gitU2DStateU2DInterests` = "git-state-interests"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D8_d2299af726: Codable, Sendable, RemoteModelMetadata {
@@ -303,7 +303,7 @@ public struct WebSocketClientMessageU2DOptionU2D8_d2299af726: Codable, Sendable,
 }
 
 public enum WebSocketClientMessageU2DOptionU2D9U2DType_25e47114d3: String, Codable, Sendable {
-  case threadU2DItemU2DInterests = "thread-item-interests"
+  case `threadU2DItemU2DInterests` = "thread-item-interests"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D9_93bef3a552: Codable, Sendable, RemoteModelMetadata {
@@ -426,7 +426,7 @@ public struct WebSocketServerMessageU2DOptionU2D10U2DCursorSync_9dd9855628: Coda
 }
 
 public enum WebSocketServerMessageU2DOptionU2D10U2DType_114549e732: String, Codable, Sendable {
-  case terminalU2DWatchU2DBaselineU2DChunk = "terminal-watch-baseline-chunk"
+  case `terminalU2DWatchU2DBaselineU2DChunk` = "terminal-watch-baseline-chunk"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D10_e65689e97e: Codable, Sendable, RemoteModelMetadata {

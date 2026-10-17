@@ -19,7 +19,7 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D5_290453f28a: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D6U2DKind_6801e053c0: String, Codable, Sendable {
-  case back = "back"
+  case `back` = "back"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D6_82fdb78988: Codable, Sendable, RemoteModelMetadata {
@@ -38,7 +38,7 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D6_82fdb78988: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D7U2DKind_3e68ba0d03: String, Codable, Sendable {
-  case forward = "forward"
+  case `forward` = "forward"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993: Codable, Sendable, RemoteModelMetadata {
@@ -57,7 +57,7 @@ public struct RoutebrowserU2DCommandRequestU2DOptionU2D7_500ee37993: Codable, Se
 }
 
 public enum RoutebrowserU2DCommandRequestU2DOptionU2D8U2DKind_41be750b56: String, Codable, Sendable {
-  case reload = "reload"
+  case `reload` = "reload"
 }
 
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D8_22c8bcdab9: Codable, Sendable, RemoteModelMetadata {
@@ -220,12 +220,12 @@ public struct RoutecatalogU2DMembershipResponse_afbf6761fa: Codable, Sendable, R
 }
 
 public enum RouteconversationU2DSearchQueryU2DIncludeArchived_003a95dd16: String, Codable, Sendable {
-  case true = "true"
-  case false = "false"
+  case `true` = "true"
+  case `false` = "false"
 }
 
 public enum RouteconversationU2DSearchQueryU2DVersion_8795ea0289: String, Codable, Sendable {
-  case n1 = "1"
+  case `n1` = "1"
 }
 
 public struct RouteconversationU2DSearchQuery_07b9b9802d: Codable, Sendable, RemoteModelMetadata {
@@ -256,8 +256,8 @@ public struct RouteconversationU2DSearchQuery_07b9b9802d: Codable, Sendable, Rem
 }
 
 public enum RouteconversationU2DSearchResponseU2DEntriesU2DItemU2DRole_ff05783d57: String, Codable, Sendable {
-  case user = "user"
-  case assistant = "assistant"
+  case `user` = "user"
+  case `assistant` = "assistant"
 }
 
 public struct RouteconversationU2DSearchResponseU2DEntriesU2DItem_c52c624815: Codable, Sendable, RemoteModelMetadata {
@@ -380,39 +380,39 @@ public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DChildIde
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DCredential_d06f3ce55d: String, Codable, Sendable {
-  case configured = "configured"
-  case none = "none"
+  case `configured` = "configured"
+  case `none` = "none"
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DDesired_abff99d05c: String, Codable, Sendable {
-  case enabled = "enabled"
-  case disabled = "disabled"
+  case `enabled` = "enabled"
+  case `disabled` = "disabled"
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DLastErrorU2DCode_2fbfd962f5: String, Codable, Sendable {
-  case environmentU2FNotU2DFound = "environment/not-found"
-  case environmentU2FRevisionU2DConflict = "environment/revision-conflict"
-  case environmentU2FStoreU2DBusy = "environment/store-busy"
-  case environmentU2FStoreU2DLimit = "environment/store-limit"
-  case environmentU2FStoreU2DUnavailable = "environment/store-unavailable"
-  case environmentU2FInvalidU2DInput = "environment/invalid-input"
-  case environmentU2FNotU2DConnected = "environment/not-connected"
-  case environmentU2FTrustU2DRequired = "environment/trust-required"
-  case environmentU2FTrustU2DChanged = "environment/trust-changed"
-  case environmentU2FTrustU2DMismatch = "environment/trust-mismatch"
-  case environmentU2FHostkeyU2DMismatch = "environment/hostkey-mismatch"
-  case environmentU2FIdentityU2DChanged = "environment/identity-changed"
-  case environmentU2FCredentialU2DMissing = "environment/credential-missing"
-  case environmentU2FOwnerU2DUnverified = "environment/owner-unverified"
-  case environmentU2FOwnerU2DUnresponsive = "environment/owner-unresponsive"
-  case environmentU2FOwnerU2DIncompatible = "environment/owner-incompatible"
-  case environmentU2FOwnerU2DBusy = "environment/owner-busy"
-  case environmentU2FOwnerU2DConflict = "environment/owner-conflict"
-  case environmentU2FLaunchU2DFailed = "environment/launch-failed"
-  case environmentU2FUpgradeU2DUnavailable = "environment/upgrade-unavailable"
-  case environmentU2FUpgradeU2DRefused = "environment/upgrade-refused"
-  case environmentU2FTransportU2DError = "environment/transport-error"
-  case environmentU2FCancelled = "environment/cancelled"
-  case environmentU2FInternalU2DError = "environment/internal-error"
-  case environmentU2FNotU2DAuthorized = "environment/not-authorized"
+  case `environmentU2FNotU2DFound` = "environment/not-found"
+  case `environmentU2FRevisionU2DConflict` = "environment/revision-conflict"
+  case `environmentU2FStoreU2DBusy` = "environment/store-busy"
+  case `environmentU2FStoreU2DLimit` = "environment/store-limit"
+  case `environmentU2FStoreU2DUnavailable` = "environment/store-unavailable"
+  case `environmentU2FInvalidU2DInput` = "environment/invalid-input"
+  case `environmentU2FNotU2DConnected` = "environment/not-connected"
+  case `environmentU2FTrustU2DRequired` = "environment/trust-required"
+  case `environmentU2FTrustU2DChanged` = "environment/trust-changed"
+  case `environmentU2FTrustU2DMismatch` = "environment/trust-mismatch"
+  case `environmentU2FHostkeyU2DMismatch` = "environment/hostkey-mismatch"
+  case `environmentU2FIdentityU2DChanged` = "environment/identity-changed"
+  case `environmentU2FCredentialU2DMissing` = "environment/credential-missing"
+  case `environmentU2FOwnerU2DUnverified` = "environment/owner-unverified"
+  case `environmentU2FOwnerU2DUnresponsive` = "environment/owner-unresponsive"
+  case `environmentU2FOwnerU2DIncompatible` = "environment/owner-incompatible"
+  case `environmentU2FOwnerU2DBusy` = "environment/owner-busy"
+  case `environmentU2FOwnerU2DConflict` = "environment/owner-conflict"
+  case `environmentU2FLaunchU2DFailed` = "environment/launch-failed"
+  case `environmentU2FUpgradeU2DUnavailable` = "environment/upgrade-unavailable"
+  case `environmentU2FUpgradeU2DRefused` = "environment/upgrade-refused"
+  case `environmentU2FTransportU2DError` = "environment/transport-error"
+  case `environmentU2FCancelled` = "environment/cancelled"
+  case `environmentU2FInternalU2DError` = "environment/internal-error"
+  case `environmentU2FNotU2DAuthorized` = "environment/not-authorized"
 }

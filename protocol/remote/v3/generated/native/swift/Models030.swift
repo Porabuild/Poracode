@@ -163,7 +163,7 @@ public struct RouteprofileU2DTokenU2DStatsResponse_c05447d902: Codable, Sendable
 }
 
 public enum RouteprojectU2DCommandRequestU2DOptionU2D1U2DKind_4cb4c97502: String, Codable, Sendable {
-  case addU2DExisting = "add-existing"
+  case `addU2DExisting` = "add-existing"
 }
 
 public struct RouteprojectU2DCommandRequestU2DOptionU2D1_468209f9bb: Codable, Sendable, RemoteModelMetadata {
@@ -206,7 +206,7 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D2_2b7595c3da: Codable, Se
 }
 
 public enum RouteprojectU2DCommandRequestU2DOptionU2D3U2DKind_8793e38088: String, Codable, Sendable {
-  case clone = "clone"
+  case `clone` = "clone"
 }
 
 public struct RouteprojectU2DCommandRequestU2DOptionU2D3_da66851500: Codable, Sendable, RemoteModelMetadata {
@@ -231,7 +231,7 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D3_da66851500: Codable, Se
 }
 
 public enum RouteprojectU2DCommandRequestU2DOptionU2D4U2DKind_cbc64d1458: String, Codable, Sendable {
-  case update = "update"
+  case `update` = "update"
 }
 
 public typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DGhAccount_eb2798e2cc = ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff?
@@ -302,8 +302,8 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSetting
 public typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSettings_3e412d7b32 = RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSettingsU2DOptionU2D1_3ccadafaab?
 
 public enum RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocationU2DOptionU2D1U2DMode_953c573b19: String, Codable, Sendable {
-  case global = "global"
-  case projectU2DRelative = "project-relative"
+  case `global` = "global"
+  case `projectU2DRelative` = "project-relative"
 }
 
 public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocationU2DOptionU2D1_7eb7e8f44a: Codable, Sendable, RemoteModelMetadata {
@@ -375,7 +375,7 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D4_9bdd26dd83: Codable, Se
 }
 
 public enum RouteprojectU2DCommandRequestU2DOptionU2D5U2DKind_88444d52d4: String, Codable, Sendable {
-  case relocate = "relocate"
+  case `relocate` = "relocate"
 }
 
 public struct RouteprojectU2DCommandRequestU2DOptionU2D5_27aa975674: Codable, Sendable, RemoteModelMetadata {
@@ -412,7 +412,7 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D6_37addcca5b: Codable, Se
 }
 
 public enum RouteprojectU2DCommandRequestU2DOptionU2D7U2DKind_701d7d6274: String, Codable, Sendable {
-  case reorder = "reorder"
+  case `reorder` = "reorder"
 }
 
 public struct RouteprojectU2DCommandRequestU2DOptionU2D7_580efa06e9: Codable, Sendable, RemoteModelMetadata {
@@ -437,5 +437,5 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D7_580efa06e9: Codable, Se
 }
 
 public enum RouteprojectU2DCommandRequestU2DOptionU2D8U2DKind_96cd458fa9: String, Codable, Sendable {
-  case setU2DWorkspace = "set-workspace"
+  case `setU2DWorkspace` = "set-workspace"
 }

@@ -139,11 +139,11 @@ public struct RoutethreadU2DTurnsResponse_1f8c0bbd10: Codable, Sendable, RemoteM
 }
 
 public enum RoutetokenU2DExchangeRequestU2DClientU2DDeviceType_28ab534145: String, Codable, Sendable {
-  case desktop = "desktop"
-  case mobile = "mobile"
-  case tablet = "tablet"
-  case browser = "browser"
-  case unknown = "unknown"
+  case `desktop` = "desktop"
+  case `mobile` = "mobile"
+  case `tablet` = "tablet"
+  case `browser` = "browser"
+  case `unknown` = "unknown"
 }
 
 public struct RoutetokenU2DExchangeRequestU2DClient_6969170275: Codable, Sendable, RemoteModelMetadata {
@@ -165,11 +165,11 @@ public struct RoutetokenU2DExchangeRequestU2DClient_6969170275: Codable, Sendabl
 }
 
 public enum RoutetokenU2DExchangeRequestU2DGrantTypeU2DOptionU2D1_962b214fbc: String, Codable, Sendable {
-  case pairingU2DToken = "pairing-token"
+  case `pairingU2DToken` = "pairing-token"
 }
 
 public enum RoutetokenU2DExchangeRequestU2DGrantTypeU2DOptionU2D2_0463d43632: String, Codable, Sendable {
-  case refreshU5FToken = "refresh_token"
+  case `refreshU5FToken` = "refresh_token"
 }
 
 public enum RoutetokenU2DExchangeRequestU2DGrantType_20b56c9f22: Codable, Sendable {
@@ -196,13 +196,13 @@ public enum RoutetokenU2DExchangeRequestU2DGrantType_20b56c9f22: Codable, Sendab
 }
 
 public enum RoutetokenU2DExchangeRequestU2DScopesU2DItem_8f483f0889: String, Codable, Sendable {
-  case sessionU3ARead = "session:read"
-  case sessionU3AOperate = "session:operate"
-  case terminalU3ARead = "terminal:read"
-  case terminalU3AOperate = "terminal:operate"
-  case requestsU3AResolve = "requests:resolve"
-  case projectsU3AManage = "projects:manage"
-  case portsU3AForward = "ports:forward"
+  case `sessionU3ARead` = "session:read"
+  case `sessionU3AOperate` = "session:operate"
+  case `terminalU3ARead` = "terminal:read"
+  case `terminalU3AOperate` = "terminal:operate"
+  case `requestsU3AResolve` = "requests:resolve"
+  case `projectsU3AManage` = "projects:manage"
+  case `portsU3AForward` = "ports:forward"
 }
 
 public struct RoutetokenU2DExchangeRequest_39bc2baf33: Codable, Sendable, RemoteModelMetadata {
@@ -230,7 +230,7 @@ public struct RoutetokenU2DExchangeRequest_39bc2baf33: Codable, Sendable, Remote
 }
 
 public enum RoutetokenU2DExchangeResponseU2DTokenType_7c8fd050dd: String, Codable, Sendable {
-  case bearer = "Bearer"
+  case `bearer` = "Bearer"
 }
 
 public struct RoutetokenU2DExchangeResponse_6da7b36735: Codable, Sendable, RemoteModelMetadata {
@@ -261,7 +261,7 @@ public struct RoutetokenU2DExchangeResponse_6da7b36735: Codable, Sendable, Remot
 }
 
 public enum WebSocketClientMessageU2DOptionU2D1U2DType_fe79d48b8a: String, Codable, Sendable {
-  case ping = "ping"
+  case `ping` = "ping"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D1_1709690cf0: Codable, Sendable, RemoteModelMetadata {
@@ -283,7 +283,7 @@ public struct WebSocketClientMessageU2DOptionU2D1_1709690cf0: Codable, Sendable,
 }
 
 public enum WebSocketClientMessageU2DOptionU2D2U2DType_3f5bcd72f9: String, Codable, Sendable {
-  case browserU2DWatch = "browser-watch"
+  case `browserU2DWatch` = "browser-watch"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D2_2b7b34c95b: Codable, Sendable, RemoteModelMetadata {
@@ -299,7 +299,7 @@ public struct WebSocketClientMessageU2DOptionU2D2_2b7b34c95b: Codable, Sendable,
 }
 
 public enum WebSocketClientMessageU2DOptionU2D3U2DType_225e53f995: String, Codable, Sendable {
-  case browserU2DUnwatch = "browser-unwatch"
+  case `browserU2DUnwatch` = "browser-unwatch"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D3_0e8f58f429: Codable, Sendable, RemoteModelMetadata {
@@ -315,7 +315,7 @@ public struct WebSocketClientMessageU2DOptionU2D3_0e8f58f429: Codable, Sendable,
 }
 
 public enum WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D1U2DKind_ef917452dc: String, Codable, Sendable {
-  case tap = "tap"
+  case `tap` = "tap"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D1_75aa7b0623: Codable, Sendable, RemoteModelMetadata {
@@ -337,7 +337,7 @@ public struct WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D1_75aa7b062
 }
 
 public enum WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D2U2DKind_00ebeb8fef: String, Codable, Sendable {
-  case scroll = "scroll"
+  case `scroll` = "scroll"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D2_41ffeb2050: Codable, Sendable, RemoteModelMetadata {
@@ -365,7 +365,7 @@ public struct WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D2_41ffeb205
 }
 
 public enum WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3U2DKind_19030914d1: String, Codable, Sendable {
-  case insertU2DText = "insert-text"
+  case `insertU2DText` = "insert-text"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3_8906d017ba: Codable, Sendable, RemoteModelMetadata {
@@ -384,18 +384,18 @@ public struct WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3_8906d017b
 }
 
 public enum WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4U2DKey_7df0b39f18: String, Codable, Sendable {
-  case enter = "enter"
-  case backspace = "backspace"
-  case tab = "tab"
-  case escape = "escape"
-  case arrowU2DUp = "arrow-up"
-  case arrowU2DDown = "arrow-down"
-  case arrowU2DLeft = "arrow-left"
-  case arrowU2DRight = "arrow-right"
+  case `enter` = "enter"
+  case `backspace` = "backspace"
+  case `tab` = "tab"
+  case `escape` = "escape"
+  case `arrowU2DUp` = "arrow-up"
+  case `arrowU2DDown` = "arrow-down"
+  case `arrowU2DLeft` = "arrow-left"
+  case `arrowU2DRight` = "arrow-right"
 }
 
 public enum WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4U2DKind_14221269d8: String, Codable, Sendable {
-  case key = "key"
+  case `key` = "key"
 }
 
 public struct WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4_9e169df36e: Codable, Sendable, RemoteModelMetadata {

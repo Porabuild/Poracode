@@ -88,8 +88,8 @@ public enum RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCrown_208e2
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DStatus_c5efb303b3: String, Codable, Sendable {
-  case running = "running"
-  case decided = "decided"
+  case `running` = "running"
+  case `decided` = "decided"
 }
 
 public struct RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecord_1be5ac91cc: Codable, Sendable, RemoteModelMetadata {
@@ -195,11 +195,11 @@ public struct RouteexperimentU2DCommandRequestU2DOptionU2D1_f30afbf29e: Codable,
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D2U2DKind_442f4438e0: String, Codable, Sendable {
-  case replace = "replace"
+  case `replace` = "replace"
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D2U2DRowsU2DItemU2DRetire_7fe7804991: String, Codable, Sendable {
-  case done = "done"
+  case `done` = "done"
 }
 
 public struct RouteexperimentU2DCommandRequestU2DOptionU2D2U2DRowsU2DItemU2DWorktreeU2DOptionU2D1_94e04fb40c: Codable, Sendable, RemoteModelMetadata {
@@ -265,12 +265,12 @@ public struct RouteexperimentU2DCommandRequestU2DOptionU2D2_aafcd63530: Codable,
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D3U2DCandidateDisposition_60232db9c6: String, Codable, Sendable {
-  case delete = "delete"
-  case release = "release"
+  case `delete` = "delete"
+  case `release` = "release"
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D3U2DKind_034741cb26: String, Codable, Sendable {
-  case remove = "remove"
+  case `remove` = "remove"
 }
 
 public struct RouteexperimentU2DCommandRequestU2DOptionU2D3_c133c6f7b7: Codable, Sendable, RemoteModelMetadata {
@@ -356,7 +356,7 @@ public struct RouteexperimentU2DStateResponse_acccf296d8: Codable, Sendable, Rem
 }
 
 public enum RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1U2DAccess_2d29c7255e: String, Codable, Sendable {
-  case project = "project"
+  case `project` = "project"
 }
 
 public struct RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1_08f2de57fa: Codable, Sendable, RemoteModelMetadata {
@@ -378,7 +378,7 @@ public struct RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1_08f2de57fa: Codable
 }
 
 public enum RoutefileU2DMediaU2DTicketRequestU2DOptionU2D2U2DAccess_8423ce6905: String, Codable, Sendable {
-  case external = "external"
+  case `external` = "external"
 }
 
 public struct RoutefileU2DMediaU2DTicketRequestU2DOptionU2D2_47a6c99702: Codable, Sendable, RemoteModelMetadata {

@@ -52,7 +52,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D17_40c1a28429: Codable, Se
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D1U2DKind_a1f40266b6: String, Codable, Sendable {
-  case prepareU2DWorktree = "prepare-worktree"
+  case `prepareU2DWorktree` = "prepare-worktree"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043: Codable, Sendable, RemoteModelMetadata {
@@ -74,7 +74,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D2U2DKind_60fc988aef: String, Codable, Sendable {
-  case start = "start"
+  case `start` = "start"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D2_3213f68cbe: Codable, Sendable, RemoteModelMetadata {
@@ -156,7 +156,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D2_3213f68cbe: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D3U2DKind_f399af5f8d: String, Codable, Sendable {
-  case setU2DGroup = "set-group"
+  case `setU2DGroup` = "set-group"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D3_21cd039cb3: Codable, Sendable, RemoteModelMetadata {
@@ -178,7 +178,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D3_21cd039cb3: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D4U2DKind_03fdf2ff7a: String, Codable, Sendable {
-  case clearU2DGroup = "clear-group"
+  case `clearU2DGroup` = "clear-group"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180: Codable, Sendable, RemoteModelMetadata {
@@ -194,7 +194,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D5U2DKind_356ae1fc45: String, Codable, Sendable {
-  case rename = "rename"
+  case `rename` = "rename"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0: Codable, Sendable, RemoteModelMetadata {
@@ -213,7 +213,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D6U2DKind_4ec1299a98: String, Codable, Sendable {
-  case acknowledge = "acknowledge"
+  case `acknowledge` = "acknowledge"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D6_c3363423bb: Codable, Sendable, RemoteModelMetadata {
@@ -229,7 +229,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D6_c3363423bb: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D7U2DKind_a9e065ca18: String, Codable, Sendable {
-  case setU2DDone = "set-done"
+  case `setU2DDone` = "set-done"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D7_80906c6ddc: Codable, Sendable, RemoteModelMetadata {
@@ -248,7 +248,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D7_80906c6ddc: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D8U2DKind_833ef472e7: String, Codable, Sendable {
-  case setU2DStarred = "set-starred"
+  case `setU2DStarred` = "set-starred"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D8_ebd70a208b: Codable, Sendable, RemoteModelMetadata {
@@ -267,7 +267,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D8_ebd70a208b: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D9U2DKind_49f72e8cc5: String, Codable, Sendable {
-  case setU2DWorktree = "set-worktree"
+  case `setU2DWorktree` = "set-worktree"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de: Codable, Sendable, RemoteModelMetadata {
@@ -394,7 +394,7 @@ public enum RoutethreadU2DCommandRequest_5c0012cc6d: Codable, Sendable {
 }
 
 public enum RoutethreadU2DGoalRequestU2DOptionU2D1U2DAction_10209383e3: String, Codable, Sendable {
-  case edit = "edit"
+  case `edit` = "edit"
 }
 
 public struct RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491: Codable, Sendable, RemoteModelMetadata {
@@ -413,9 +413,9 @@ public struct RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491: Codable, Sendab
 }
 
 public enum RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d: String, Codable, Sendable {
-  case pause = "pause"
-  case resume = "resume"
-  case clear = "clear"
+  case `pause` = "pause"
+  case `resume` = "resume"
+  case `clear` = "clear"
 }
 
 public struct RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a: Codable, Sendable, RemoteModelMetadata {

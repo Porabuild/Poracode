@@ -99,12 +99,12 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DMo
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGuiU2DLiveInputMode_cb81a9dbb8: String, Codable, Sendable {
-  case terminal = "terminal"
-  case server = "server"
+  case `terminal` = "terminal"
+  case `server` = "server"
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGuiU2DSettingDefsU2DItemU2DOptionU2D1U2DType_e841af2cbd: String, Codable, Sendable {
-  case toggle = "toggle"
+  case `toggle` = "toggle"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGuiU2DSettingDefsU2DItemU2DOptionU2D1_fb3dd6021c: Codable, Sendable, RemoteModelMetadata {
@@ -138,7 +138,7 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPr
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGuiU2DSettingDefsU2DItemU2DOptionU2D2U2DType_36b9fe91ec: String, Codable, Sendable {
-  case select = "select"
+  case `select` = "select"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationCapabilitiesU2DGuiU2DSettingDefsU2DItemU2DOptionU2D2_9c44204b65: Codable, Sendable, RemoteModelMetadata {
@@ -331,8 +331,8 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPr
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DPresentationMode_c9a954a3af: String, Codable, Sendable {
-  case terminal = "terminal"
-  case gui = "gui"
+  case `terminal` = "terminal"
+  case `gui` = "gui"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DThreadTitleCommandsU2DItem_8b1889f351: Codable, Sendable, RemoteModelMetadata {

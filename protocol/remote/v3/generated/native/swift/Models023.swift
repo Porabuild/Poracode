@@ -67,20 +67,20 @@ public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DRuntime_
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DState_2c13d2fc1c: String, Codable, Sendable {
-  case disconnected = "disconnected"
-  case connecting = "connecting"
-  case connected = "connected"
-  case error = "error"
-  case credentialU2DMissing = "credential-missing"
-  case ownerU2DUnverified = "owner-unverified"
-  case identityU2DChanged = "identity-changed"
-  case hostkeyU2DMismatch = "hostkey-mismatch"
-  case needsU2DRepair = "needs-repair"
-  case trustU2DRequired = "trust-required"
+  case `disconnected` = "disconnected"
+  case `connecting` = "connecting"
+  case `connected` = "connected"
+  case `error` = "error"
+  case `credentialU2DMissing` = "credential-missing"
+  case `ownerU2DUnverified` = "owner-unverified"
+  case `identityU2DChanged` = "identity-changed"
+  case `hostkeyU2DMismatch` = "hostkey-mismatch"
+  case `needsU2DRepair` = "needs-repair"
+  case `trustU2DRequired` = "trust-required"
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D1U2DState_7ee0d4255f: String, Codable, Sendable {
-  case unknown = "unknown"
+  case `unknown` = "unknown"
 }
 
 public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D1_1fb6f9ae5f: Codable, Sendable, RemoteModelMetadata {
@@ -107,7 +107,7 @@ public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2D
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D2U2DState_f6c555fb5f: String, Codable, Sendable {
-  case observed = "observed"
+  case `observed` = "observed"
 }
 
 public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D2_6f5cce5ce1: Codable, Sendable, RemoteModelMetadata {
@@ -139,7 +139,7 @@ public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2D
 }
 
 public enum RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D3U2DState_eaed5114fa: String, Codable, Sendable {
-  case pinned = "pinned"
+  case `pinned` = "pinned"
 }
 
 public struct RouteenvironmentU2DAdoptU2DLegacyResponseU2DEnvironmentU2DTrustU2DOptionU2D3_e213e5cbde: Codable, Sendable, RemoteModelMetadata {
@@ -396,15 +396,15 @@ public struct RouteenvironmentU2DDeleteResponse_badd682f35: Codable, Sendable, R
 }
 
 public enum RouteenvironmentU2DLegacyResponseU2DAuthU2DBootstrapMethodsU2DItem_0dd86a486b: String, Codable, Sendable {
-  case oneU2DTimeU2DToken = "one-time-token"
+  case `oneU2DTimeU2DToken` = "one-time-token"
 }
 
 public enum RouteenvironmentU2DLegacyResponseU2DAuthU2DPolicy_995ee3e349: String, Codable, Sendable {
-  case remoteU2DReachable = "remote-reachable"
+  case `remoteU2DReachable` = "remote-reachable"
 }
 
 public enum RouteenvironmentU2DLegacyResponseU2DAuthU2DSessionMethodsU2DItem_b5e66c2e96: String, Codable, Sendable {
-  case bearerU2DAccessU2DToken = "bearer-access-token"
+  case `bearerU2DAccessU2DToken` = "bearer-access-token"
 }
 
 public struct RouteenvironmentU2DLegacyResponseU2DAuth_2a8bc62fab: Codable, Sendable, RemoteModelMetadata {

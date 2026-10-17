@@ -35,9 +35,9 @@ public typealias RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78
 public typealias RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DContextUsage_e47ad2358c = ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9U2DUsage_80ac3a097b?
 
 public enum RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValueU2DLatestItemState_2472eab79a: String, Codable, Sendable {
-  case started = "started"
-  case updated = "updated"
-  case completed = "completed"
+  case `started` = "started"
+  case `updated` = "updated"
+  case `completed` = "completed"
 }
 
 public struct RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValue_5d401c152e: Codable, Sendable, RemoteModelMetadata {
@@ -159,11 +159,11 @@ public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAdditionalDirectori
 }
 
 public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f7: String, Codable, Sendable {
-  case none = "none"
-  case working = "working"
-  case needsU5FApproval = "needs_approval"
-  case needsU5FReply = "needs_reply"
-  case error = "error"
+  case `none` = "none"
+  case `working` = "working"
+  case `needsU5FApproval` = "needs_approval"
+  case `needsU5FReply` = "needs_reply"
+  case `error` = "error"
 }
 
 public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D1U2DGroupsU2DItem_2e2f445a74: Codable, Sendable, RemoteModelMetadata {
@@ -182,12 +182,12 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOpti
 }
 
 public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D1U2DRole_09201de15f: String, Codable, Sendable {
-  case model = "model"
-  case effort = "effort"
-  case mode = "mode"
-  case thinking = "thinking"
-  case fast = "fast"
-  case context = "context"
+  case `model` = "model"
+  case `effort` = "effort"
+  case `mode` = "mode"
+  case `thinking` = "thinking"
+  case `fast` = "fast"
+  case `context` = "context"
 }
 
 public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D1U2DValuesU2DItem_0465e7aaae: Codable, Sendable, RemoteModelMetadata {
@@ -242,7 +242,7 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOpti
 }
 
 public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D2U2DType_2c671d62fd: String, Codable, Sendable {
-  case boolean = "boolean"
+  case `boolean` = "boolean"
 }
 
 public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D2_93cbcfd8dc: Codable, Sendable, RemoteModelMetadata {
@@ -273,7 +273,7 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOpti
 }
 
 public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D3U2DType_91b38b813d: String, Codable, Sendable {
-  case unsupported = "unsupported"
+  case `unsupported` = "unsupported"
 }
 
 public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItemU2DOptionU2D3_0a0c8726ed: Codable, Sendable, RemoteModelMetadata {
@@ -338,7 +338,7 @@ public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOption
 public typealias RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptions_9b050dd484 = [RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionConfigOptionsU2DOptionU2D1U2DItem_d4a49a3cee]?
 
 public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DThreadStatusSource_8f73948792: String, Codable, Sendable {
-  case cliU5FHook = "cli_hook"
-  case terminalU5FParse = "terminal_parse"
-  case server = "server"
+  case `cliU5FHook` = "cli_hook"
+  case `terminalU5FParse` = "terminal_parse"
+  case `server` = "server"
 }

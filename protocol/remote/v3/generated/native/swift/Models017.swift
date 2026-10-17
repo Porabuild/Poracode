@@ -34,7 +34,7 @@ public struct RouteagentU2DSlashU2DCommandsPath_626533cdf1: Codable, Sendable, R
 }
 
 public enum RouteagentU2DSlashU2DCommandsResponseU2DCommandsU2DItemU2DSection_f4cab1817a: String, Codable, Sendable {
-  case skills = "skills"
+  case `skills` = "skills"
 }
 
 public struct RouteagentU2DSlashU2DCommandsResponseU2DCommandsU2DItem_7324613e41: Codable, Sendable, RemoteModelMetadata {
@@ -110,7 +110,7 @@ public struct RouteagentU2DStatusesQuery_b09b259cd2: Codable, Sendable, RemoteMo
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItemU2DOptionU2D1U2DType_aaf42afe3b: String, Codable, Sendable {
-  case envU5FVar = "env_var"
+  case `envU5FVar` = "env_var"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItemU2DOptionU2D1U2DVarsU2DItem_8103808258: Codable, Sendable, RemoteModelMetadata {
@@ -162,7 +162,7 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DIte
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItemU2DOptionU2D2U2DType_c4197e46f3: String, Codable, Sendable {
-  case terminal = "terminal"
+  case `terminal` = "terminal"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItemU2DOptionU2D2_8ab3ef50fe: Codable, Sendable, RemoteModelMetadata {
@@ -193,7 +193,7 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DIte
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItemU2DOptionU2D3U2DType_a5b7c88e39: String, Codable, Sendable {
-  case agent = "agent"
+  case `agent` = "agent"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItemU2DOptionU2D3_0fd7e0ac40: Codable, Sendable, RemoteModelMetadata {
@@ -246,9 +246,9 @@ public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthMethodsU2DItem_
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DAuthState_2363c4dd0a: String, Codable, Sendable {
-  case authenticated = "authenticated"
-  case missing = "missing"
-  case unknown = "unknown"
+  case `authenticated` = "authenticated"
+  case `missing` = "missing"
+  case `unknown` = "unknown"
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DAgentSettingsDefaultsU2DValue_2b4ffb830b: Codable, Sendable {
@@ -313,17 +313,17 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DBy
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DCrossagentMcpRouting_d1d29954f5: String, Codable, Sendable {
-  case threadU2DToken = "thread-token"
-  case providerU2DSession = "provider-session"
+  case `threadU2DToken` = "thread-token"
+  case `providerU2DSession` = "provider-session"
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DLiveInputMode_88480e7409: String, Codable, Sendable {
-  case terminal = "terminal"
-  case server = "server"
+  case `terminal` = "terminal"
+  case `server` = "server"
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DLiveVoiceU2DTransport_9a8b3412f7: String, Codable, Sendable {
-  case webrtc = "webrtc"
+  case `webrtc` = "webrtc"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DLiveVoice_62c3e7fb25: Codable, Sendable, RemoteModelMetadata {
@@ -342,14 +342,14 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DLi
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DMcpConfigSource_96776c817a: String, Codable, Sendable {
-  case thread = "thread"
-  case agentSettings = "agentSettings"
+  case `thread` = "thread"
+  case `agentSettings` = "agentSettings"
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DMcpScopeU2DGui_38b68e422d: String, Codable, Sendable {
-  case none = "none"
-  case launch = "launch"
-  case always = "always"
+  case `none` = "none"
+  case `launch` = "launch"
+  case `always` = "always"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DMcpScope_65e6698fa7: Codable, Sendable, RemoteModelMetadata {
@@ -372,8 +372,8 @@ public typealias RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2
 public typealias RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DModelEfforts_b4a8e17084 = [String: [String]]
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DModelFamiliesU2DItemU2DBindingsU2DEffort_b6a98d4e6e: String, Codable, Sendable {
-  case model = "model"
-  case config = "config"
+  case `model` = "model"
+  case `config` = "config"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilitiesU2DModelFamiliesU2DItemU2DBindings_369773f703: Codable, Sendable, RemoteModelMetadata {

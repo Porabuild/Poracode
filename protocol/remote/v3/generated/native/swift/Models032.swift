@@ -76,9 +76,9 @@ public struct RoutepushU2DRegisterRequestU2DAlertPreferences_0534fb6201: Codable
 }
 
 public enum RoutepushU2DRegisterRequestU2DPlatform_41d0cf6897: String, Codable, Sendable {
-  case ios = "ios"
-  case android = "android"
-  case web = "web"
+  case `ios` = "ios"
+  case `android` = "android"
+  case `web` = "web"
 }
 
 public struct RoutepushU2DRegisterRequestU2DRouting_a90fffdae1: Codable, Sendable, RemoteModelMetadata {
@@ -310,7 +310,7 @@ public struct RouteruntimeU2DImageQuery_1de2de5621: Codable, Sendable, RemoteMod
 }
 
 public enum RoutescheduleU2DRunU2DCommandRequestU2DOptionU2D1U2DKind_ffc64b31e0: String, Codable, Sendable {
-  case updateU2DState = "update-state"
+  case `updateU2DState` = "update-state"
 }
 
 public struct RoutescheduleU2DRunU2DCommandRequestU2DOptionU2D1U2DPayload_626f8596f7: Codable, Sendable, RemoteModelMetadata {
@@ -347,7 +347,7 @@ public struct RoutescheduleU2DRunU2DCommandRequestU2DOptionU2D1_e510e581c4: Coda
 }
 
 public enum RoutescheduleU2DRunU2DCommandRequestU2DOptionU2D2U2DKind_482c928271: String, Codable, Sendable {
-  case cancel = "cancel"
+  case `cancel` = "cancel"
 }
 
 public struct RoutescheduleU2DRunU2DCommandRequestU2DOptionU2D2_77c71c7315: Codable, Sendable, RemoteModelMetadata {

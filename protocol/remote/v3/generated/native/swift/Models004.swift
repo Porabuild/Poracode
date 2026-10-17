@@ -51,9 +51,9 @@ public enum ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU
 }
 
 public enum ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DUnsupportedReason_2556bf4896: String, Codable, Sendable {
-  case authentication = "authentication"
-  case toolU2DRestrictions = "tool-restrictions"
-  case sensitiveU2DValues = "sensitive-values"
+  case `authentication` = "authentication"
+  case `toolU2DRestrictions` = "tool-restrictions"
+  case `sensitiveU2DValues` = "sensitive-values"
 }
 
 public struct ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItem_e9e7b28a3d: Codable, Sendable, RemoteModelMetadata {
@@ -117,7 +117,7 @@ public struct ProcedurediscoverExternalMcpServersResult_f71a677b4d: Codable, Sen
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D1U2DKind_3ad514880d: String, Codable, Sendable {
-  case text = "text"
+  case `text` = "text"
 }
 
 public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782: Codable, Sendable, RemoteModelMetadata {
@@ -136,7 +136,7 @@ public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptio
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D2U2DKind_15838a9e80: String, Codable, Sendable {
-  case file = "file"
+  case `file` = "file"
 }
 
 public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2594dc: Codable, Sendable, RemoteModelMetadata {
@@ -155,7 +155,7 @@ public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptio
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c: String, Codable, Sendable {
-  case attachment = "attachment"
+  case `attachment` = "attachment"
 }
 
 public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac: Codable, Sendable, RemoteModelMetadata {
@@ -177,12 +177,12 @@ public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptio
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D4U2DKind_d73ffe960c: String, Codable, Sendable {
-  case diffU5FComment = "diff_comment"
+  case `diffU5FComment` = "diff_comment"
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D4U2DSide_f2d54b0f9e: String, Codable, Sendable {
-  case old = "old"
-  case new = "new"
+  case `old` = "old"
+  case `new` = "new"
 }
 
 public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D4_0e036ef4da: Codable, Sendable, RemoteModelMetadata {
@@ -213,12 +213,12 @@ public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptio
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DKind_2a65cef1bc: String, Codable, Sendable {
-  case skill = "skill"
+  case `skill` = "skill"
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11: String, Codable, Sendable {
-  case global = "global"
-  case project = "project"
+  case `global` = "global"
+  case `project` = "project"
 }
 
 public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5_849e43bfc0: Codable, Sendable, RemoteModelMetadata {
@@ -255,7 +255,7 @@ public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptio
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D6U2DKind_c669b4e26b: String, Codable, Sendable {
-  case mcp = "mcp"
+  case `mcp` = "mcp"
 }
 
 public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D6_501221cdcb: Codable, Sendable, RemoteModelMetadata {
@@ -277,7 +277,7 @@ public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptio
 }
 
 public enum ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D7U2DKind_0a08597c6c: String, Codable, Sendable {
-  case thread = "thread"
+  case `thread` = "thread"
 }
 
 public struct ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D7_1806ffb1da: Codable, Sendable, RemoteModelMetadata {
@@ -432,11 +432,11 @@ public struct ProcedureensureThreadRunningRequestU2DClientContext_b23ca9582f: Co
 }
 
 public enum ProcedureensureThreadRunningRequestU2DDisabledBuiltInMcpServerIdsU2DItem_13f43aaaf5: String, Codable, Sendable {
-  case browser = "browser"
-  case crossagents = "crossagents"
-  case chrome = "chrome"
-  case computerU2DUse = "computer-use"
-  case appU2DControls = "app-controls"
+  case `browser` = "browser"
+  case `crossagents` = "crossagents"
+  case `chrome` = "chrome"
+  case `computerU2DUse` = "computer-use"
+  case `appU2DControls` = "app-controls"
 }
 
 public typealias ProcedureensureThreadRunningRequestU2DDisabledBuiltInMcpTools_fdad254a8b = [String: [String]]

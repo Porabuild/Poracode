@@ -315,9 +315,9 @@ public struct ProcedureghListWorkflowsResult_3994629a32: Codable, Sendable, Remo
 }
 
 public enum ProcedureghMergePrRequestU2DMethod_7237330838: String, Codable, Sendable {
-  case merge = "merge"
-  case squash = "squash"
-  case rebase = "rebase"
+  case `merge` = "merge"
+  case `squash` = "squash"
+  case `rebase` = "rebase"
 }
 
 public struct ProcedureghMergePrRequest_39d6579ca7: Codable, Sendable, RemoteModelMetadata {
@@ -381,9 +381,9 @@ public struct ProcedureghRerunWorkflowRunRequest_4492692f82: Codable, Sendable, 
 }
 
 public enum ProcedureghSubmitPrReviewRequestU2DDecision_c0551fbf08: String, Codable, Sendable {
-  case approve = "approve"
-  case requestU2DChanges = "request-changes"
-  case comment = "comment"
+  case `approve` = "approve"
+  case `requestU2DChanges` = "request-changes"
+  case `comment` = "comment"
 }
 
 public struct ProcedureghSubmitPrReviewRequest_09cbc76a2a: Codable, Sendable, RemoteModelMetadata {

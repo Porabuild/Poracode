@@ -58,18 +58,18 @@ public struct RoutemetricsResponseU2DHostResourceAdmissionU2DPolicy_280719966e: 
 }
 
 public enum RoutemetricsResponseU2DHostResourceAdmissionU2DResolutionU2DKind_cd6770504a: String, Codable, Sendable {
-  case configured = "configured"
-  case absent = "absent"
-  case missing = "missing"
-  case retained = "retained"
-  case unavailable = "unavailable"
+  case `configured` = "configured"
+  case `absent` = "absent"
+  case `missing` = "missing"
+  case `retained` = "retained"
+  case `unavailable` = "unavailable"
 }
 
 public enum RoutemetricsResponseU2DHostResourceAdmissionU2DResolutionU2DProblem_6ef72b13e3: String, Codable, Sendable {
-  case settingsU2DDocumentU2DUnreadable = "settings-document-unreadable"
-  case settingsU2DDocumentU2DUnparseable = "settings-document-unparseable"
-  case settingsU2DDocumentU2DNotU2DObject = "settings-document-not-object"
-  case hostU2DResourceU2DAdmissionU2DInvalid = "host-resource-admission-invalid"
+  case `settingsU2DDocumentU2DUnreadable` = "settings-document-unreadable"
+  case `settingsU2DDocumentU2DUnparseable` = "settings-document-unparseable"
+  case `settingsU2DDocumentU2DNotU2DObject` = "settings-document-not-object"
+  case `hostU2DResourceU2DAdmissionU2DInvalid` = "host-resource-admission-invalid"
 }
 
 public struct RoutemetricsResponseU2DHostResourceAdmissionU2DResolution_c0edab91e2: Codable, Sendable, RemoteModelMetadata {
@@ -280,8 +280,8 @@ public struct RouteportU2DForwardResponse_04de8f3da1: Codable, Sendable, RemoteM
 }
 
 public enum RouteportsU2DReadResponseU2DDetectedU2DItemU2DProtocol_cb34d50832: String, Codable, Sendable {
-  case http = "http"
-  case unknown = "unknown"
+  case `http` = "http"
+  case `unknown` = "unknown"
 }
 
 public struct RouteportsU2DReadResponseU2DDetectedU2DItem_40aab29508: Codable, Sendable, RemoteModelMetadata {
@@ -351,9 +351,9 @@ public struct RouteprU2DWatchU2DCheckRequest_22fb635ee9: Codable, Sendable, Remo
 }
 
 public enum RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReasonU2DOptionU2D1_95e237e577: String, Codable, Sendable {
-  case agentU2DUnavailable = "agent-unavailable"
-  case worktreeU2DUnavailable = "worktree-unavailable"
-  case duplicateU2DProjectU2DWatches = "duplicate-project-watches"
+  case `agentU2DUnavailable` = "agent-unavailable"
+  case `worktreeU2DUnavailable` = "worktree-unavailable"
+  case `duplicateU2DProjectU2DWatches` = "duplicate-project-watches"
 }
 
 public typealias RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReason_7dccd2754f = RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReasonU2DOptionU2D1_95e237e577?

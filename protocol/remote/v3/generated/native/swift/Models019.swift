@@ -154,9 +154,9 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DCapabilities_6db8
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DEnvKind_9eed5c4959: String, Codable, Sendable {
-  case windows = "windows"
-  case wsl = "wsl"
-  case posix = "posix"
+  case `windows` = "windows"
+  case `wsl` = "wsl"
+  case `posix` = "posix"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DPresentationAuthStates_678d084ee2: Codable, Sendable, RemoteModelMetadata {
@@ -329,9 +329,9 @@ public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DInstalle
 }
 
 public enum RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DPreferPackageManagerOnWindowsU2DItem_4721d11b49: String, Codable, Sendable {
-  case npmU2DGlobal = "npm-global"
-  case pnpmU2DGlobal = "pnpm-global"
-  case bunU2DGlobal = "bun-global"
+  case `npmU2DGlobal` = "npm-global"
+  case `pnpmU2DGlobal` = "pnpm-global"
+  case `bunU2DGlobal` = "bun-global"
 }
 
 public struct RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdate_892eceb2ac: Codable, Sendable, RemoteModelMetadata {

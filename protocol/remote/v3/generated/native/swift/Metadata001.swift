@@ -7,8 +7,8 @@ public struct RemoteWebSocketVariantDescriptor: Sendable { public let direction:
 public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
-  public static let generatorVersion = 5
-  public static let sourceHash = "sha256:52c6d39a9b6315438f0c2e912e3c323a3fe81a03ed94ca5421aba2bd4ea39f82"
+  public static let generatorVersion = 6
+  public static let sourceHash = "sha256:57e1c120cf82456ade179cdfd5334c7958616a6723ca864a1a23a47975cbab3e"
   public static let manifestHash = "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly

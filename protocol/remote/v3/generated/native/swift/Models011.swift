@@ -300,13 +300,13 @@ public struct ProceduregitWorktreeStatusBatchResult_1b23732705: Codable, Sendabl
 }
 
 public enum ProcedureimportSkillsRequestU2DSkillsU2DItemU2DAvailability_9c8337f42f: String, Codable, Sendable {
-  case shared = "shared"
-  case poracode = "poracode"
+  case `shared` = "shared"
+  case `poracode` = "poracode"
 }
 
 public enum ProcedureimportSkillsRequestU2DSkillsU2DItemU2DMode_aa2d0958d3: String, Codable, Sendable {
-  case copy = "copy"
-  case link = "link"
+  case `copy` = "copy"
+  case `link` = "link"
 }
 
 public struct ProcedureimportSkillsRequestU2DSkillsU2DItem_a02c812507: Codable, Sendable, RemoteModelMetadata {
@@ -370,8 +370,8 @@ public struct ProcedureimportSkillsResult_82088d0ad1: Codable, Sendable, RemoteM
 }
 
 public enum ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa: String, Codable, Sendable {
-  case skillsU2DSh = "skills-sh"
-  case skillsU2DDirectory = "skills-directory"
+  case `skillsU2DSh` = "skills-sh"
+  case `skillsU2DDirectory` = "skills-directory"
 }
 
 public struct ProcedureinstallMarketplaceSkillRequest_0093611cbb: Codable, Sendable, RemoteModelMetadata {

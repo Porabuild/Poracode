@@ -12,8 +12,8 @@ data class RemoteWebSocketVariantDescriptor(val direction: String, val type: Str
 object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
-    const val generatorVersion = 5
-    const val sourceHash = "sha256:52c6d39a9b6315438f0c2e912e3c323a3fe81a03ed94ca5421aba2bd4ea39f82"
+    const val generatorVersion = 6
+    const val sourceHash = "sha256:57e1c120cf82456ade179cdfd5334c7958616a6723ca864a1a23a47975cbab3e"
     const val manifestHash = "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY

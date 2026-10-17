@@ -61,14 +61,14 @@ public struct RouteprocedureU2DCallRequest_d566f2fb6a: Codable, Sendable, Remote
 }
 
 public enum RouteprofileU2DCoreU2DStatsRequestU2DScope_b99ee3af30: String, Codable, Sendable {
-  case device = "device"
-  case all = "all"
+  case `device` = "device"
+  case `all` = "all"
 }
 
 public enum RouteprofileU2DCoreU2DStatsRequestU2DWindow_ae26bc52b7: String, Codable, Sendable {
-  case n7d = "7d"
-  case n30d = "30d"
-  case all = "all"
+  case `n7d` = "7d"
+  case `n30d` = "30d"
+  case `all` = "all"
 }
 
 public struct RouteprofileU2DCoreU2DStatsRequest_f76e77baae: Codable, Sendable, RemoteModelMetadata {
@@ -117,9 +117,9 @@ public struct RouteprofileU2DCoreU2DStatsResponseU2DAccountsU2DItem_9fe1fe9bbc: 
 }
 
 public enum RouteprofileU2DCoreU2DStatsResponseU2DAiActionsU2DItemU2DType_645d18fd9a: String, Codable, Sendable {
-  case commit = "commit"
-  case pr = "pr"
-  case conflict = "conflict"
+  case `commit` = "commit"
+  case `pr` = "pr"
+  case `conflict` = "conflict"
 }
 
 public struct RouteprofileU2DCoreU2DStatsResponseU2DAiActionsU2DItem_bb42560f34: Codable, Sendable, RemoteModelMetadata {
@@ -264,10 +264,10 @@ public struct RouteprofileU2DCoreU2DStatsResponseU2DInsights_d1beee40ea: Codable
 }
 
 public enum RouteprofileU2DCoreU2DStatsResponseU2DMcpsU2DItemU2DKind_b096158c79: String, Codable, Sendable {
-  case skill = "skill"
-  case subagent = "subagent"
-  case tool = "tool"
-  case mcp = "mcp"
+  case `skill` = "skill"
+  case `subagent` = "subagent"
+  case `tool` = "tool"
+  case `mcp` = "mcp"
 }
 
 public struct RouteprofileU2DCoreU2DStatsResponseU2DMcpsU2DItem_9137d87075: Codable, Sendable, RemoteModelMetadata {
@@ -354,8 +354,8 @@ public struct RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItem
 }
 
 public enum RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DMetric_b7f9b9a51e: String, Codable, Sendable {
-  case prompts = "prompts"
-  case tokens = "tokens"
+  case `prompts` = "prompts"
+  case `tokens` = "tokens"
 }
 
 public struct RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmap_c1094a243b: Codable, Sendable, RemoteModelMetadata {

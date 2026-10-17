@@ -8,7 +8,7 @@
   },
   "contract": "poracode.remote",
   "doNotEdit": "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
-  "generatorVersion": 5,
+  "generatorVersion": 6,
   "inventory": {
     "blockedProcedureResults": [],
     "jsonProcedureResults": 80,
@@ -60170,7 +60170,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:52c6d39a9b6315438f0c2e912e3c323a3fe81a03ed94ca5421aba2bd4ea39f82",
+  "sourceHash": "sha256:57e1c120cf82456ade179cdfd5334c7958616a6723ca864a1a23a47975cbab3e",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

@@ -96,7 +96,7 @@ public struct RoutemcpU2DSettingsU2DCommandResponse_e761211b82: Codable, Sendabl
 }
 
 public enum RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D1U2DKind_4d34acc64d: String, Codable, Sendable {
-  case probe = "probe"
+  case `probe` = "probe"
 }
 
 public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D1_20d706a189: Codable, Sendable, RemoteModelMetadata {
@@ -118,7 +118,7 @@ public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D1_20d706a189: Co
 }
 
 public enum RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D2U2DKind_274e069cdc: String, Codable, Sendable {
-  case oauthU2DStatus = "oauth-status"
+  case `oauthU2DStatus` = "oauth-status"
 }
 
 public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D2_37eeca9f53: Codable, Sendable, RemoteModelMetadata {
@@ -137,7 +137,7 @@ public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D2_37eeca9f53: Co
 }
 
 public enum RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D3U2DKind_3d1908a6bc: String, Codable, Sendable {
-  case oauthU2DBegin = "oauth-begin"
+  case `oauthU2DBegin` = "oauth-begin"
 }
 
 public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D3_6602194087: Codable, Sendable, RemoteModelMetadata {
@@ -159,7 +159,7 @@ public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D3_6602194087: Co
 }
 
 public enum RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D4U2DKind_04569d9eea: String, Codable, Sendable {
-  case oauthU2DWait = "oauth-wait"
+  case `oauthU2DWait` = "oauth-wait"
 }
 
 public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D4_7a00457b3e: Codable, Sendable, RemoteModelMetadata {
@@ -181,7 +181,7 @@ public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D4_7a00457b3e: Co
 }
 
 public enum RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D5U2DKind_61fc4b3eae: String, Codable, Sendable {
-  case oauthU2DClear = "oauth-clear"
+  case `oauthU2DClear` = "oauth-clear"
 }
 
 public struct RoutemcpU2DSettingsU2DOperationRequestU2DOptionU2D5_81440643a0: Codable, Sendable, RemoteModelMetadata {

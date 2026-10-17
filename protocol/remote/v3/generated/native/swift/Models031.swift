@@ -19,7 +19,7 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D8_ebfa6f1c64: Codable, Se
 }
 
 public enum RouteprojectU2DCommandRequestU2DOptionU2D9U2DKind_93f8fa8787: String, Codable, Sendable {
-  case setU2DDraftU2DConfig = "set-draft-config"
+  case `setU2DDraftU2DConfig` = "set-draft-config"
 }
 
 public struct RouteprojectU2DCommandRequestU2DOptionU2D9U2DLastDraftConfigU2DOptionU2D1_05ae4f0709: Codable, Sendable, RemoteModelMetadata {
@@ -299,18 +299,18 @@ public enum RouteprojectU2DCommandResponse_4b9241d0f3: Codable, Sendable {
 }
 
 public enum RouteprojectU2DListQueryU2DMode_902ee7904a: String, Codable, Sendable {
-  case page = "page"
-  case inventory = "inventory"
+  case `page` = "page"
+  case `inventory` = "inventory"
 }
 
 public enum RouteprojectU2DListQueryU2DOrder_42146530bc: String, Codable, Sendable {
-  case manual = "manual"
-  case updated = "updated"
-  case created = "created"
+  case `manual` = "manual"
+  case `updated` = "updated"
+  case `created` = "created"
 }
 
 public enum RouteprojectU2DListQueryU2DReads_4659e6d395: String, Codable, Sendable {
-  case boundedU2DV1 = "bounded-v1"
+  case `boundedU2DV1` = "bounded-v1"
 }
 
 public struct RouteprojectU2DListQuery_5e1b33a494: Codable, Sendable, RemoteModelMetadata {

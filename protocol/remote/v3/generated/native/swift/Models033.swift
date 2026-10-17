@@ -67,7 +67,7 @@ public struct RouteschedulesU2DCommandRequestU2DOptionU2D2_455b16a806: Codable, 
 }
 
 public enum RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d: String, Codable, Sendable {
-  case delete = "delete"
+  case `delete` = "delete"
 }
 
 public struct RouteschedulesU2DCommandRequestU2DOptionU2D3_e7cab2d2c0: Codable, Sendable, RemoteModelMetadata {
@@ -86,7 +86,7 @@ public struct RouteschedulesU2DCommandRequestU2DOptionU2D3_e7cab2d2c0: Codable, 
 }
 
 public enum RouteschedulesU2DCommandRequestU2DOptionU2D4U2DKind_d12ea65516: String, Codable, Sendable {
-  case run = "run"
+  case `run` = "run"
 }
 
 public struct RouteschedulesU2DCommandRequestU2DOptionU2D4_09f700fdeb: Codable, Sendable, RemoteModelMetadata {
@@ -163,22 +163,22 @@ public typealias RoutesettingsU2DReadResponseU2DSettingsU2DDisabledBuiltInMcpSer
 public typealias RoutesettingsU2DReadResponseU2DSettingsU2DEnabledMcpServers_2d677fb041 = [String: Bool]
 
 public enum RoutesettingsU2DReadResponseU2DSettingsU2DFollowUpBehavior_6fcb1a55c0: String, Codable, Sendable {
-  case steer = "steer"
-  case queue = "queue"
+  case `steer` = "steer"
+  case `queue` = "queue"
 }
 
 public typealias RoutesettingsU2DReadResponseU2DSettingsU2DHiddenModels_86d5d72e84 = [String: [ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]]
 
 public enum RoutesettingsU2DReadResponseU2DSettingsU2DPrAutomationDefault_6df05d56a8: String, Codable, Sendable {
-  case off = "off"
-  case fix = "fix"
-  case merge = "merge"
+  case `off` = "off"
+  case `fix` = "fix"
+  case `merge` = "merge"
 }
 
 public enum RoutesettingsU2DReadResponseU2DSettingsU2DPrMergeMethod_9c01de6b08: String, Codable, Sendable {
-  case merge = "merge"
-  case squash = "squash"
-  case rebase = "rebase"
+  case `merge` = "merge"
+  case `squash` = "squash"
+  case `rebase` = "rebase"
 }
 
 public typealias RoutesettingsU2DReadResponseU2DSettingsU2DUsageU2DProviderRefreshIntervals_ea08f63f22 = [String: Int64]
@@ -390,8 +390,8 @@ public struct RoutesettingsU2DReadResponse_b6f35acff2: Codable, Sendable, Remote
 public typealias RoutesettingsU2DWriteRequestU2DDisabledBuiltInMcpServers_79608b5ece = [String: Bool]
 
 public enum RoutesettingsU2DWriteRequestU2DFollowUpBehavior_49162371ff: String, Codable, Sendable {
-  case steer = "steer"
-  case queue = "queue"
+  case `steer` = "steer"
+  case `queue` = "queue"
 }
 
 public struct RoutesettingsU2DWriteRequestU2DUsage_b6aaa17d32: Codable, Sendable, RemoteModelMetadata {

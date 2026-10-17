@@ -147,8 +147,8 @@ public struct ProceduregetGitFileContentResult_6de1ff8293: Codable, Sendable, Re
 }
 
 public enum ProceduregetGitStatusRequestU2DDetail_15cae388d0: String, Codable, Sendable {
-  case summary = "summary"
-  case full = "full"
+  case `summary` = "summary"
+  case `full` = "full"
 }
 
 public struct ProceduregetGitStatusRequest_c4d99dd3e3: Codable, Sendable, RemoteModelMetadata {
@@ -194,10 +194,10 @@ public struct ProceduregetGitStatusResultU2DConflictFilesU2DItem_00b1d6328e: Cod
 }
 
 public enum ProceduregetGitStatusResultU2DRemoteInfoU2DOptionU2D1U2DPlatform_9358a37bbc: String, Codable, Sendable {
-  case github = "github"
-  case gitlab = "gitlab"
-  case bitbucket = "bitbucket"
-  case unknown = "unknown"
+  case `github` = "github"
+  case `gitlab` = "gitlab"
+  case `bitbucket` = "bitbucket"
+  case `unknown` = "unknown"
 }
 
 public struct ProceduregetGitStatusResultU2DRemoteInfoU2DOptionU2D1_1c2823e73e: Codable, Sendable, RemoteModelMetadata {
@@ -320,10 +320,10 @@ public struct ProceduregetProviderUsageRequest_f2b9759b60: Codable, Sendable, Re
 }
 
 public enum ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DCostU2DPeriod_776626d203: String, Codable, Sendable {
-  case today = "today"
-  case n7d = "7d"
-  case n30d = "30d"
-  case cycle = "cycle"
+  case `today` = "today"
+  case `n7d` = "7d"
+  case `n30d` = "30d"
+  case `cycle` = "cycle"
 }
 
 public struct ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DCost_4147389dac: Codable, Sendable, RemoteModelMetadata {
@@ -369,13 +369,13 @@ public struct ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DCredits_a39dd
 }
 
 public enum ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DStatus_3466b9b69c: String, Codable, Sendable {
-  case ok = "ok"
-  case authU2DMissing = "auth-missing"
-  case appU2DNotU2DRunning = "app-not-running"
-  case rateU2DLimited = "rate-limited"
-  case quotaU2DHit = "quota-hit"
-  case unsupported = "unsupported"
-  case error = "error"
+  case `ok` = "ok"
+  case `authU2DMissing` = "auth-missing"
+  case `appU2DNotU2DRunning` = "app-not-running"
+  case `rateU2DLimited` = "rate-limited"
+  case `quotaU2DHit` = "quota-hit"
+  case `unsupported` = "unsupported"
+  case `error` = "error"
 }
 
 public struct ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DTokens_36a14ea6cf: Codable, Sendable, RemoteModelMetadata {
@@ -406,14 +406,14 @@ public struct ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DTokens_36a14e
 }
 
 public enum ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DWindowsU2DItemU2DIdU2DOptionU2D1_7e8114c3dd: String, Codable, Sendable {
-  case sessionU2D5h = "session-5h"
-  case daily = "daily"
-  case weekly = "weekly"
-  case weeklyU2DOpus = "weekly-opus"
-  case weeklyU2DSonnet = "weekly-sonnet"
-  case weeklyU2DFable = "weekly-fable"
-  case monthly = "monthly"
-  case extraU2DUsage = "extra-usage"
-  case cursorU2DAuto = "cursor-auto"
-  case cursorU2DApi = "cursor-api"
+  case `sessionU2D5h` = "session-5h"
+  case `daily` = "daily"
+  case `weekly` = "weekly"
+  case `weeklyU2DOpus` = "weekly-opus"
+  case `weeklyU2DSonnet` = "weekly-sonnet"
+  case `weeklyU2DFable` = "weekly-fable"
+  case `monthly` = "monthly"
+  case `extraU2DUsage` = "extra-usage"
+  case `cursorU2DAuto` = "cursor-auto"
+  case `cursorU2DApi` = "cursor-api"
 }

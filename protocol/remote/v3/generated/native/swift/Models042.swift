@@ -1,12 +1,12 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public enum WebSocketServerMessageU2DOptionU2D11U2DSpace_22c1b4b934: String, Codable, Sendable {
-  case ipc = "ipc"
-  case loopback = "loopback"
+  case `ipc` = "ipc"
+  case `loopback` = "loopback"
 }
 
 public enum WebSocketServerMessageU2DOptionU2D11U2DType_829c74ec0a: String, Codable, Sendable {
-  case desktopU2DEvent = "desktop-event"
+  case `desktopU2DEvent` = "desktop-event"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D11_f1c1581e17: Codable, Sendable, RemoteModelMetadata {
@@ -31,7 +31,7 @@ public struct WebSocketServerMessageU2DOptionU2D11_f1c1581e17: Codable, Sendable
 }
 
 public enum WebSocketServerMessageU2DOptionU2D1U2DType_0200f968d2: String, Codable, Sendable {
-  case ready = "ready"
+  case `ready` = "ready"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D1_13762c62f0: Codable, Sendable, RemoteModelMetadata {
@@ -50,7 +50,7 @@ public struct WebSocketServerMessageU2DOptionU2D1_13762c62f0: Codable, Sendable,
 }
 
 public enum WebSocketServerMessageU2DOptionU2D2U2DType_1aa020e871: String, Codable, Sendable {
-  case event = "event"
+  case `event` = "event"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D2_3897f50212: Codable, Sendable, RemoteModelMetadata {
@@ -78,7 +78,7 @@ public struct WebSocketServerMessageU2DOptionU2D2_3897f50212: Codable, Sendable,
 }
 
 public enum WebSocketServerMessageU2DOptionU2D3U2DType_d9640543f6: String, Codable, Sendable {
-  case resyncU2DRequired = "resync-required"
+  case `resyncU2DRequired` = "resync-required"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D3_a633f9a256: Codable, Sendable, RemoteModelMetadata {
@@ -103,7 +103,7 @@ public struct WebSocketServerMessageU2DOptionU2D3_a633f9a256: Codable, Sendable,
 }
 
 public enum WebSocketServerMessageU2DOptionU2D4U2DType_d8768c073f: String, Codable, Sendable {
-  case pong = "pong"
+  case `pong` = "pong"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D4_17b50a5a25: Codable, Sendable, RemoteModelMetadata {
@@ -128,7 +128,7 @@ public struct WebSocketServerMessageU2DOptionU2D4_17b50a5a25: Codable, Sendable,
 }
 
 public enum WebSocketServerMessageU2DOptionU2D5U2DType_47e02a8368: String, Codable, Sendable {
-  case browserU2DState = "browser-state"
+  case `browserU2DState` = "browser-state"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D5_bd23acb1d6: Codable, Sendable, RemoteModelMetadata {
@@ -174,7 +174,7 @@ public struct WebSocketServerMessageU2DOptionU2D6U2DMetadata_7d9e4e8a68: Codable
 }
 
 public enum WebSocketServerMessageU2DOptionU2D6U2DType_c2894654f1: String, Codable, Sendable {
-  case browserU2DFrame = "browser-frame"
+  case `browserU2DFrame` = "browser-frame"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac: Codable, Sendable, RemoteModelMetadata {
@@ -199,9 +199,9 @@ public struct WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac: Codable, Sendable,
 }
 
 public enum WebSocketServerMessageU2DOptionU2D7U2DStatusU2DStatus_c1f357f1f8: String, Codable, Sendable {
-  case starting = "starting"
-  case active = "active"
-  case unavailable = "unavailable"
+  case `starting` = "starting"
+  case `active` = "active"
+  case `unavailable` = "unavailable"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D7U2DStatus_018e665246: Codable, Sendable, RemoteModelMetadata {
@@ -223,7 +223,7 @@ public struct WebSocketServerMessageU2DOptionU2D7U2DStatus_018e665246: Codable, 
 }
 
 public enum WebSocketServerMessageU2DOptionU2D7U2DType_ab6b873225: String, Codable, Sendable {
-  case browserU2DMirrorU2DStatus = "browser-mirror-status"
+  case `browserU2DMirrorU2DStatus` = "browser-mirror-status"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D7_0ad133ee58: Codable, Sendable, RemoteModelMetadata {
@@ -266,7 +266,7 @@ public struct WebSocketServerMessageU2DOptionU2D8U2DCursorSync_2cfe911595: Codab
 }
 
 public enum WebSocketServerMessageU2DOptionU2D8U2DType_d8b225d7de: String, Codable, Sendable {
-  case terminalU2DOutput = "terminal-output"
+  case `terminalU2DOutput` = "terminal-output"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D8_95d0adeb5b: Codable, Sendable, RemoteModelMetadata {
@@ -321,9 +321,9 @@ public struct WebSocketServerMessageU2DOptionU2D9U2DCursorSyncU2DResultU2DOption
 }
 
 public enum WebSocketServerMessageU2DOptionU2D9U2DCursorSyncU2DResultU2DOptionU2D2U2DCode_c8425979fd: String, Codable, Sendable {
-  case forbidden = "forbidden"
-  case notU2DFound = "not-found"
-  case unavailable = "unavailable"
+  case `forbidden` = "forbidden"
+  case `notU2DFound` = "not-found"
+  case `unavailable` = "unavailable"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D9U2DCursorSyncU2DResultU2DOptionU2D2_b9d24da842: Codable, Sendable, RemoteModelMetadata {
@@ -393,7 +393,7 @@ public struct WebSocketServerMessageU2DOptionU2D9U2DCursorSync_c533fb8759: Codab
 }
 
 public enum WebSocketServerMessageU2DOptionU2D9U2DType_0797160858: String, Codable, Sendable {
-  case terminalU2DWatchU2DResult = "terminal-watch-result"
+  case `terminalU2DWatchU2DResult` = "terminal-watch-result"
 }
 
 public struct WebSocketServerMessageU2DOptionU2D9_4655073d71: Codable, Sendable, RemoteModelMetadata {

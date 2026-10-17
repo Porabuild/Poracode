@@ -274,12 +274,12 @@ public struct ProceduresubagentSubscribeRequest_ff495aee3e: Codable, Sendable, R
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DType_a799b0e11e: String, Codable, Sendable {
-  case usageU2ESpent = "usage.spent"
+  case `usageU2ESpent` = "usage.spent"
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsageU2DCounterKind_91a5d2d349: String, Codable, Sendable {
-  case cumulative = "cumulative"
-  case perU2DCall = "per-call"
+  case `cumulative` = "cumulative"
+  case `perU2DCall` = "per-call"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsage_0fce2ade01: Codable, Sendable, RemoteModelMetadata {
@@ -337,7 +337,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10_9b
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D11U2DType_2c10059100: String, Codable, Sendable {
-  case backgroundU5FTasksU2EChanged = "background_tasks.changed"
+  case `backgroundU5FTasksU2EChanged` = "background_tasks.changed"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D11_7bc7b4d15b: Codable, Sendable, RemoteModelMetadata {
@@ -398,17 +398,17 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D12U2D
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D12U2DRequestType_c733570a5a: String, Codable, Sendable {
-  case commandU5FExecutionU5FApproval = "command_execution_approval"
-  case fileU5FReadU5FApproval = "file_read_approval"
-  case fileU5FChangeU5FApproval = "file_change_approval"
-  case applyU5FPatchU5FApproval = "apply_patch_approval"
-  case toolU5FCallU5FApproval = "tool_call_approval"
-  case toolU5FUserU5FInput = "tool_user_input"
-  case authU5FRefresh = "auth_refresh"
+  case `commandU5FExecutionU5FApproval` = "command_execution_approval"
+  case `fileU5FReadU5FApproval` = "file_read_approval"
+  case `fileU5FChangeU5FApproval` = "file_change_approval"
+  case `applyU5FPatchU5FApproval` = "apply_patch_approval"
+  case `toolU5FCallU5FApproval` = "tool_call_approval"
+  case `toolU5FUserU5FInput` = "tool_user_input"
+  case `authU5FRefresh` = "auth_refresh"
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D12U2DType_fcb2eed91b: String, Codable, Sendable {
-  case requestU2EOpened = "request.opened"
+  case `requestU2EOpened` = "request.opened"
 }
 
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D12_15179deb98: Codable, Sendable, RemoteModelMetadata {
@@ -436,12 +436,12 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D12_15
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13U2DOutcome_506f036707: String, Codable, Sendable {
-  case accepted = "accepted"
-  case declined = "declined"
-  case answered = "answered"
-  case cancelled = "cancelled"
+  case `accepted` = "accepted"
+  case `declined` = "declined"
+  case `answered` = "answered"
+  case `cancelled` = "cancelled"
 }
 
 public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13U2DType_d92fe09fa7: String, Codable, Sendable {
-  case requestU2EResolved = "request.resolved"
+  case `requestU2EResolved` = "request.resolved"
 }

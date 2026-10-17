@@ -124,11 +124,11 @@ public struct RoutethreadU2DHistoryResponse_8df7f0ad18: Codable, Sendable, Remot
 }
 
 public enum RoutethreadU2DHistoryU2DChangesQueryU2DNotices_f67f6cbe63: String, Codable, Sendable {
-  case v1 = "v1"
+  case `v1` = "v1"
 }
 
 public enum RoutethreadU2DHistoryU2DChangesQueryU2DProjection_72a4409660: String, Codable, Sendable {
-  case detailsU2DV1 = "details-v1"
+  case `detailsU2DV1` = "details-v1"
 }
 
 public struct RoutethreadU2DHistoryU2DChangesQuery_095b77a7c8: Codable, Sendable, RemoteModelMetadata {
@@ -162,7 +162,7 @@ public struct RoutethreadU2DHistoryU2DChangesQuery_095b77a7c8: Codable, Sendable
 }
 
 public enum RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DKind_9e712b4f87: String, Codable, Sendable {
-  case snapshot = "snapshot"
+  case `snapshot` = "snapshot"
 }
 
 public struct RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DCompletedTurnsU2DItem_df96bd315b: Codable, Sendable, RemoteModelMetadata {
@@ -214,25 +214,25 @@ public struct RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2D
 }
 
 public enum RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DKind_f8afe6df00: String, Codable, Sendable {
-  case historyU2DIncomplete = "history-incomplete"
+  case `historyU2DIncomplete` = "history-incomplete"
 }
 
 public enum RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DReason_9780f521bc: String, Codable, Sendable {
-  case threadU2DEvents = "thread-events"
-  case threadU2DBytes = "thread-bytes"
-  case globalU2DEvents = "global-events"
-  case globalU2DBytes = "global-bytes"
-  case oversize = "oversize"
-  case age = "age"
-  case degraded = "degraded"
-  case rebaseU2DDropped = "rebase-dropped"
-  case shutdown = "shutdown"
-  case uncleanU2DEpoch = "unclean-epoch"
+  case `threadU2DEvents` = "thread-events"
+  case `threadU2DBytes` = "thread-bytes"
+  case `globalU2DEvents` = "global-events"
+  case `globalU2DBytes` = "global-bytes"
+  case `oversize` = "oversize"
+  case `age` = "age"
+  case `degraded` = "degraded"
+  case `rebaseU2DDropped` = "rebase-dropped"
+  case `shutdown` = "shutdown"
+  case `uncleanU2DEpoch` = "unclean-epoch"
 }
 
 public enum RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNoticeU2DSource_77a7dec7ed: String, Codable, Sendable {
-  case exact = "exact"
-  case suspect = "suspect"
+  case `exact` = "exact"
+  case `suspect` = "suspect"
 }
 
 public struct RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2: Codable, Sendable, RemoteModelMetadata {
@@ -359,7 +359,7 @@ public struct RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DBatchesU2DI
 }
 
 public enum RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2U2DKind_e1a91348d8: String, Codable, Sendable {
-  case events = "events"
+  case `events` = "events"
 }
 
 public struct RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_43de714a72: Codable, Sendable, RemoteModelMetadata {

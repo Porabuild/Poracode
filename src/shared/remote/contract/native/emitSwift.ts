@@ -402,7 +402,7 @@ function swiftEnum(nodeName: string, schema: JsonSchema): string[] {
       const base = portablePascalName(value).replace(/^./, (first) => first.toLowerCase());
       const name = seen.has(base) ? `${base}_${collisionSuffix(value)}` : base;
       seen.add(base);
-      return `  case ${name} = ${quote(value)}`;
+      return `  case \`${name}\` = ${quote(value)}`;
     });
     return [`public enum ${nodeName}: String, Codable, Sendable {`, ...cases, "}"];
   }

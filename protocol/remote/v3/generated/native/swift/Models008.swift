@@ -33,11 +33,11 @@ public struct ProcedureghGetPrDetailsResultU2DDetailsU2DCommitsU2DItem_9edd0cfb1
 public typealias ProcedureghGetPrDetailsResultU2DDetailsU2DMergedBy_da37aeddd0 = ProcedureghGetPrDetailsResultU2DDetailsU2DAuthor_a99c73e81a?
 
 public enum ProcedureghGetPrDetailsResultU2DDetailsU2DReviewsU2DItemU2DState_d2a18aed5c: String, Codable, Sendable {
-  case aPPROVED = "APPROVED"
-  case cHANGESU5FREQUESTED = "CHANGES_REQUESTED"
-  case cOMMENTED = "COMMENTED"
-  case dISMISSED = "DISMISSED"
-  case pENDING = "PENDING"
+  case `aPPROVED` = "APPROVED"
+  case `cHANGESU5FREQUESTED` = "CHANGES_REQUESTED"
+  case `cOMMENTED` = "COMMENTED"
+  case `dISMISSED` = "DISMISSED"
+  case `pENDING` = "PENDING"
 }
 
 public struct ProcedureghGetPrDetailsResultU2DDetailsU2DReviewsU2DItem_dba220fea4: Codable, Sendable, RemoteModelMetadata {
@@ -266,11 +266,11 @@ public enum ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU
 }
 
 public enum ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DType_f450768848: String, Codable, Sendable {
-  case boolean = "boolean"
-  case choice = "choice"
-  case environment = "environment"
-  case number = "number"
-  case string = "string"
+  case `boolean` = "boolean"
+  case `choice` = "choice"
+  case `environment` = "environment"
+  case `number` = "number"
+  case `string` = "string"
 }
 
 public struct ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItem_efedb06a4d: Codable, Sendable, RemoteModelMetadata {

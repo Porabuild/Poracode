@@ -70,14 +70,14 @@ public struct RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253: Codable,
 }
 
 public enum RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d: String, Codable, Sendable {
-  case desktop = "desktop"
-  case helper = "helper"
+  case `desktop` = "desktop"
+  case `helper` = "helper"
 }
 
 public enum RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f: String, Codable, Sendable {
-  case win32 = "win32"
-  case darwin = "darwin"
-  case linux = "linux"
+  case `win32` = "win32"
+  case `darwin` = "darwin"
+  case `linux` = "linux"
 }
 
 public typealias RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e = Double
@@ -348,13 +348,13 @@ public struct RouteexperimentU2DCommandPath_84af3e9751: Codable, Sendable, Remot
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D1U2DKind_1f45188862: String, Codable, Sendable {
-  case create = "create"
+  case `create` = "create"
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCandidatesU2DItemU2DWorktreeState_a8b4490d4a: String, Codable, Sendable {
-  case pending = "pending"
-  case owned = "owned"
-  case removed = "removed"
+  case `pending` = "pending"
+  case `owned` = "owned"
+  case `removed` = "removed"
 }
 
 public struct RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCandidatesU2DItem_fc49e8b0b6: Codable, Sendable, RemoteModelMetadata {
@@ -412,10 +412,10 @@ public struct RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCrownU2DO
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCrownU2DOptionU2D1U2DComparisonMode_1124eb24dd: String, Codable, Sendable {
-  case changes = "changes"
-  case responses = "responses"
+  case `changes` = "changes"
+  case `responses` = "responses"
 }
 
 public enum RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCrownU2DOptionU2D1U2DSource_d4e60a4c33: String, Codable, Sendable {
-  case ai = "ai"
+  case `ai` = "ai"
 }

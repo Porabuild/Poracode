@@ -157,8 +157,8 @@ public struct RouteshellU2DSnapshotResponse_6722d6f577: Codable, Sendable, Remot
 }
 
 public enum RouteterminalU2DStartRequestU2DWindowsShellRuntime_9368b22ce4: String, Codable, Sendable {
-  case preferred = "preferred"
-  case powershell = "powershell"
+  case `preferred` = "preferred"
+  case `powershell` = "powershell"
 }
 
 public struct RouteterminalU2DStartRequest_b03238f553: Codable, Sendable, RemoteModelMetadata {
@@ -216,34 +216,34 @@ public struct RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b: Codable, Send
 }
 
 public enum RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b: String, Codable, Sendable {
-  case pending = "pending"
-  case completed = "completed"
-  case failed = "failed"
-  case skippedU5FNoU5FLocation = "skipped_no_location"
-  case skippedU5FMissingU5FCheckpoint = "skipped_missing_checkpoint"
+  case `pending` = "pending"
+  case `completed` = "completed"
+  case `failed` = "failed"
+  case `skippedU5FNoU5FLocation` = "skipped_no_location"
+  case `skippedU5FMissingU5FCheckpoint` = "skipped_missing_checkpoint"
 }
 
 public enum RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607: String, Codable, Sendable {
-  case completed = "completed"
-  case completedU5FLocalU5FOnly = "completed_local_only"
-  case ambiguous = "ambiguous"
-  case failed = "failed"
-  case noop = "noop"
+  case `completed` = "completed"
+  case `completedU5FLocalU5FOnly` = "completed_local_only"
+  case `ambiguous` = "ambiguous"
+  case `failed` = "failed"
+  case `noop` = "noop"
 }
 
 public enum RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a: String, Codable, Sendable {
-  case pending = "pending"
-  case completed = "completed"
-  case failed = "failed"
-  case ambiguous = "ambiguous"
-  case skippedU5FNoU5FTurns = "skipped_no_turns"
-  case skippedU5FMissingU5FCheckpoint = "skipped_missing_checkpoint"
+  case `pending` = "pending"
+  case `completed` = "completed"
+  case `failed` = "failed"
+  case `ambiguous` = "ambiguous"
+  case `skippedU5FNoU5FTurns` = "skipped_no_turns"
+  case `skippedU5FMissingU5FCheckpoint` = "skipped_missing_checkpoint"
 }
 
 public enum RoutethreadU2DCheckpointU2DRevertResponseU2DTruncatePhase_35962a43ae: String, Codable, Sendable {
-  case pending = "pending"
-  case completed = "completed"
-  case noop = "noop"
+  case `pending` = "pending"
+  case `completed` = "completed"
+  case `noop` = "noop"
 }
 
 public struct RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21: Codable, Sendable, RemoteModelMetadata {
@@ -277,7 +277,7 @@ public struct RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21: Codable, Sen
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_6a0abedb39: String, Codable, Sendable {
-  case deleteU2DWorktreeU2DGroup = "delete-worktree-group"
+  case `deleteU2DWorktreeU2DGroup` = "delete-worktree-group"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778: Codable, Sendable, RemoteModelMetadata {
@@ -302,7 +302,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778: Codable, Se
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_53ceafeed2: String, Codable, Sendable {
-  case archive = "archive"
+  case `archive` = "archive"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e: Codable, Sendable, RemoteModelMetadata {
@@ -318,7 +318,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e: Codable, Se
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_c7bfc39efc: String, Codable, Sendable {
-  case unarchive = "unarchive"
+  case `unarchive` = "unarchive"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23: Codable, Sendable, RemoteModelMetadata {
@@ -370,7 +370,7 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D14_2062bc5ac9: Codable, Se
 }
 
 public enum RoutethreadU2DCommandRequestU2DOptionU2D15U2DKind_8e7b4d097a: String, Codable, Sendable {
-  case reorderU2DFlat = "reorder-flat"
+  case `reorderU2DFlat` = "reorder-flat"
 }
 
 public struct RoutethreadU2DCommandRequestU2DOptionU2D15_efd9410c75: Codable, Sendable, RemoteModelMetadata {
