@@ -1,5 +1,5 @@
 /**
- * Structural public-protocol types for `@cursor/sdk` 1.0.37.
+ * Structural public-protocol types for `@cursor/sdk` (verified through 1.0.38).
  *
  * Poracode deliberately does not import the optional SDK package from its
  * provider boundary. Keeping the small, stable event envelopes here lets the

@@ -164,6 +164,12 @@ async function initialize(
   await sdkRuntime.prepareLocalStore(cwd);
   const options = {
     ...params.createOptions,
+    // Max Mode travels on the public selection field; without a live catalog
+    // (resumed threads) qualification no-ops here and the first send
+    // re-qualifies once the catalog answers.
+    ...(params.createOptions.model
+      ? { model: sdkRuntime.qualifyModelSelection(params.createOptions.model) }
+      : {}),
     ...(params.apiKey ? { apiKey: params.apiKey } : {}),
   };
   let opened: Awaited<ReturnType<typeof openCursorSdkAgent>>;
@@ -215,6 +221,10 @@ async function startRun(
       onDelta: (args: { update: unknown }) => void;
     } = {
       ...(input.options ?? {}),
+      // The resolved selection is always sent qualified so a send without a
+      // per-send override still qualifies a model resumed before the catalog
+      // was available.
+      ...(model ? { model: sdkRuntime.qualifyModelSelection(model) } : {}),
       onDelta: ({ update }) => {
         const transportUpdate = sanitizeInteractionUpdate(update);
         if (runId) {
