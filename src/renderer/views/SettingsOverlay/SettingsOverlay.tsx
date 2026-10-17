@@ -42,6 +42,7 @@ import { McpServersSettings } from "./parts/McpServersSettings";
 import { SkillsSettings } from "./parts/SkillsSettings";
 import { PluginsSettings } from "./parts/PluginsSettings";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
+import { useSettingsShortcutDestinations } from "./parts/settingsNavigation";
 import { MobileSettingsIndex } from "./parts/MobileSettingsIndex";
 import { WorkspacesSettings } from "./parts/WorkspacesSettings";
 import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSettings";
@@ -132,7 +133,9 @@ function renderSection(
   }
 
   return MACHINE_BACKED_SECTIONS.has(activeSection) || activeSection.startsWith("agents:") ? (
-    <BrowserRemoteConnectionGate>{section}</BrowserRemoteConnectionGate>
+    <BrowserRemoteConnectionGate allowOffline={activeSection === "profile"}>
+      {section}
+    </BrowserRemoteConnectionGate>
   ) : (
     section
   );
@@ -160,9 +163,11 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   const { onClose, onBack = onClose } = props;
   const { t } = useLingui();
   const compactLayout = useCompactLayout();
+  const settingsDestinations = useSettingsShortcutDestinations();
   const requestedSection = usePanelStore((s) => s.settingsSection);
   const requestedAnchor = usePanelStore((s) => s.settingsAnchor);
   const clearSettingsSection = usePanelStore((s) => s.clearSettingsSection);
+  const setActiveSettingsSection = usePanelStore((s) => s.setActiveSettingsSection);
   const [activeSection, setActiveSection] = useState<SettingsSection>(
     (requestedSection as SettingsSection | null) ?? "general",
   );
@@ -238,8 +243,15 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   };
 
   useEffect(() => {
+    setActiveSettingsSection(activeSection);
     if (requestedSection || requestedAnchor) clearSettingsSection();
-  }, [requestedSection, requestedAnchor, clearSettingsSection]);
+  }, [
+    activeSection,
+    requestedSection,
+    requestedAnchor,
+    clearSettingsSection,
+    setActiveSettingsSection,
+  ]);
   const navigateToSection = useCallback(
     (section: SettingsSection, anchor?: string, parent: MobileSettingsParent = "root") => {
       setActiveSection(section);
@@ -316,18 +328,12 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     compactLayout && remoteSession && selectedDesktop !== undefined && mobileScreen === "desktop";
   const openSchedules = useAppStore((state) => state.openSchedules);
   const detailTitle = (() => {
-    if (activeSection === "general") return t`General`;
-    if (activeSection === "appearance") return t`Appearance`;
-    if (activeSection === "notifications") return t`Notifications`;
-    if (activeSection === "terminal") return t`Terminal`;
-    if (activeSection === "git") return t`Git`;
-    if (activeSection === "profile") return t`Profile`;
-    if (activeSection === "usage") return t`Provider Usage`;
-    if (activeSection === "ai") return t`AI Helpers`;
     if (activeSection === "agentsGeneral") return t`Agents`;
-    if (activeSection === "archived") return t`Archived Threads`;
     if (activeSection === "remoteServers") return t`Connections`;
-    return t`Settings`;
+    return (
+      settingsDestinations.find((destination) => destination.id === activeSection)?.label ??
+      t`Settings`
+    );
   })();
   const compactTitle =
     mobileScreen === "root"
