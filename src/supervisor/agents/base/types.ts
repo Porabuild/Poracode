@@ -1139,6 +1139,14 @@ export interface AgentAdapter
   /** Route stdio MCPs with an explicit cwd through the proxy when the native runtime ignores cwd. */
   readonly mcpRequiresStdioCwdProxy?: boolean;
 
+  /**
+   * Refresh shared OAuth on MCP connection instead of before launch. Requires a
+   * qualified connection budget and tools becoming usable after delayed startup.
+   * Other providers retain eager authorization so native connection deadlines
+   * do not consume the OAuth refresh budget.
+   */
+  readonly supportsDeferredMcpAuthorization?: boolean;
+
   /** Read-only native configuration location. Writes require an explicit settings action. */
   nativeMcpConfig?(ctx: AgentEnvContext): NativeMcpConfigFile | undefined;
 

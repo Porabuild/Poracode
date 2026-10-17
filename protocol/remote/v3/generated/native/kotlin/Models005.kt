@@ -6,6 +6,39 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class ProcedureforgeCreatePrResultU2DMergeStateStatus_ecf46d0165 {
+    @SerialName("BEHIND") BEHIND,
+    @SerialName("BLOCKED") BLOCKED,
+    @SerialName("CLEAN") CLEAN,
+    @SerialName("DIRTY") DIRTY,
+    @SerialName("DRAFT") DRAFT,
+    @SerialName("HAS_HOOKS") HASU5FHOOKS,
+    @SerialName("UNKNOWN") UNKNOWN,
+    @SerialName("UNSTABLE") UNSTABLE,
+}
+
+@Serializable
+enum class ProcedureforgeCreatePrResultU2DMergeable_05ab37f667 {
+    @SerialName("MERGEABLE") MERGEABLE,
+    @SerialName("CONFLICTING") CONFLICTING,
+    @SerialName("UNKNOWN") UNKNOWN,
+}
+
+@Serializable
+enum class ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DMergeMethodsU2DItem_9c01de6b08 {
+    @SerialName("merge") MERGE,
+    @SerialName("squash") SQUASH,
+    @SerialName("rebase") REBASE,
+}
+
+@Serializable
+enum class ProcedureforgeCreatePrResultU2DSourceU2DCapabilitiesU2DReviewDecisionsU2DItem_c0551fbf08 {
+    @SerialName("approve") APPROVE,
+    @SerialName("request-changes") REQUESTU2DCHANGES,
+    @SerialName("comment") COMMENT,
+}
+
+@Serializable
 data class ProcedureforgeCreatePrResultU2DSourceU2DCapabilities_4ed7c41654(
     @SerialName("adminMerge") val adminMerge: Boolean,
     @SerialName("autoFix") val autoFix: Boolean,
@@ -398,47 +431,6 @@ data class ProcedureforgeGetPrReviewCommentsResult_2cb7b58fd1(
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("comments", "List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_839da5c7aa>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("threads", "List<ProcedureforgeGetPrDetailsResultU2DDetailsU2DReviewThreadsU2DItem_9199b6e9ea>", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedureforgeGetRepositoryRequest_09c88cb14a(
-    @SerialName("forgeAccount") val forgeAccount: RemoteField<ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b> = RemoteField.Missing,
-    @SerialName("forgeRepository") val forgeRepository: RemoteField<String> = RemoteField.Missing,
-    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("forgeAccount", "ProcedureforgeClosePrRequestU2DForgeAccount_c2bb40b82b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("forgeRepository", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-typealias ProcedureforgeGetRepositoryResultU2DRepository_574c9d6ad1 = ProcedureforgeCreatePrResultU2DSource_7e0a8084c4?
-
-@Serializable
-data class ProcedureforgeGetRepositoryResult_a280488b09(
-    @SerialName("repository") val repository: RemoteField<ProcedureforgeCreatePrResultU2DSource_7e0a8084c4>,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("repository", "ProcedureforgeCreatePrResultU2DSource_7e0a8084c4", true, true, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-typealias ProcedureforgeListPrsResultU2DPrs_a743fd1141 = Map<String, ProcedureforgeCreatePrResult_912ced4bf8>
-
-@Serializable
-data class ProcedureforgeListPrsResult_595467234e(
-    @SerialName("prs") val prs: ProcedureforgeListPrsResultU2DPrs_a743fd1141,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("prs", "ProcedureforgeListPrsResultU2DPrs_a743fd1141", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

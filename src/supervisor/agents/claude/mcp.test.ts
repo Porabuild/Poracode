@@ -18,6 +18,10 @@ const server: ResolvedMcpServer = {
 };
 
 describe("claude MCP launch", () => {
+  it("defers shared OAuth until MCP connection", () => {
+    expect(createClaudeAdapter().supportsDeferredMcpAuthorization).toBe(true);
+  });
+
   it.each(["", "initial prompt"])(
     "keeps launch and resume configs isolated with prompt %j",
     async (prompt) => {

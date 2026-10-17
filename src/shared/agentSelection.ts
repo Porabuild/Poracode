@@ -321,6 +321,10 @@ export function hasSelectableReasoning(
 }
 
 export function resolveModelSelection(capabilities: AgentCapability, preferred?: string): string {
+  // An empty catalog resolves to "". Draft code must not commit that gap;
+  // ThreadDraftView waits for models instead. Treating the preferred id as
+  // selected here makes import and Continue accept a model the catalog never
+  // confirmed.
   return preferred && capabilities.models.some((model) => model.id === preferred)
     ? preferred
     : (capabilities.models[0]?.id ?? "");

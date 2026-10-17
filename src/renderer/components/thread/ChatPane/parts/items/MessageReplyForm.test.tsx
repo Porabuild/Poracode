@@ -8,9 +8,11 @@ import {
 } from "@/renderer/actions/threadRuntimeActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
-import type { MessageReplyForm, Thread } from "@/shared/contracts";
+import type { MessageReplyForm, SendThreadInputPayload, Thread } from "@/shared/contracts";
 import { isVisibleRuntimeItem } from "../../chatPaneSelectors";
 import { AssistantMessage } from "./AssistantMessage";
+import { ChatItemRow } from "./ChatItemRow";
+import { ThreadMessageReplyDocks } from "../../../ThreadMessageReplyPanel";
 
 vi.mock("@/renderer/actions/threadRuntimeActions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/actions/threadRuntimeActions")>()),
@@ -73,6 +75,7 @@ function show(item = message()) {
   return render(
     <AppProvider>
       <AssistantMessage threadId={thread.id} item={item} isTurnActive />
+      <ThreadMessageReplyDocks threadId={thread.id} />
     </AppProvider>,
   );
 }
@@ -83,7 +86,11 @@ describe("non-blocking message reply forms", () => {
   });
 
   it("renders selectable choices while work continues, gates blank submit, and sends a normal reply", async () => {
-    show();
+    const { container } = show();
+    expect(
+      container.querySelector('[data-placement="composer"] [data-message-reply-form]'),
+    ).not.toBeNull();
+    expect(screen.getAllByText("Which scope?")).toHaveLength(1);
     expect((screen.getByRole("button", { name: "Submit" }) as HTMLButtonElement).disabled).toBe(
       true,
     );
@@ -92,7 +99,16 @@ describe("non-blocking message reply forms", () => {
     fireEvent.click(screen.getByRole("option", { name: /A/ }));
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     await waitFor(() =>
-      expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(thread.id, "Which scope?\nA"),
+      expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(
+        thread.id,
+        "Which scope?\nA",
+        undefined,
+        {
+          questionAnswer: {
+            questions: [{ header: "", question: "Which scope?", selected: [{ label: "A" }] }],
+          },
+        },
+      ),
     );
     expect(useAppStore.getState().threads[0]?.status).toBe("working");
     expect(useAppStore.getState().runtimeRequestsByThread).toEqual({});
@@ -115,6 +131,8 @@ describe("non-blocking message reply forms", () => {
       expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(
         thread.id,
         "Which scope?\nB\n\nDetails?\ncustom detail",
+        undefined,
+        { questionAnswer: expect.any(Object) },
       ),
     );
   });
@@ -135,6 +153,8 @@ describe("non-blocking message reply forms", () => {
     expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(
       thread.id,
       "Which scope?\nanother scope",
+      undefined,
+      { questionAnswer: expect.any(Object) },
     );
     await act(async () => complete());
   });
@@ -146,7 +166,12 @@ describe("non-blocking message reply forms", () => {
       if (previous) fireEvent.click(screen.getByRole("option", { name: /A/ }));
       fireEvent.keyDown(screen.getByRole("option", { name: /B/ }), { key: "Enter" });
       await waitFor(() =>
-        expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(thread.id, "Which scope?\nB"),
+        expect(submitThreadInput).toHaveBeenCalledExactlyOnceWith(
+          thread.id,
+          "Which scope?\nB",
+          undefined,
+          { questionAnswer: expect.any(Object) },
+        ),
       );
     },
   );
@@ -202,6 +227,7 @@ describe("non-blocking message reply forms", () => {
     render(
       <AppProvider>
         <AssistantMessage threadId={thread.id} item={item} isTurnActive />
+        <ThreadMessageReplyDocks threadId={thread.id} />
       </AppProvider>,
     );
     expect(screen.getByRole("listbox")).toBeTruthy();
@@ -246,6 +272,7 @@ describe("non-blocking message reply forms", () => {
     render(
       <AppProvider>
         <AssistantMessage threadId={thread.id} item={item} isTurnActive />
+        <ThreadMessageReplyDocks threadId={thread.id} />
       </AppProvider>,
     );
     expect((screen.getByRole("option", { name: /A/ }) as HTMLButtonElement).disabled).toBe(false);
@@ -272,6 +299,7 @@ describe("non-blocking message reply forms", () => {
     render(
       <AppProvider>
         <AssistantMessage threadId={thread.id} item={item} isTurnActive />
+        <ThreadMessageReplyDocks threadId={thread.id} />
       </AppProvider>,
     );
     expect((screen.getByRole("option", { name: /A/ }) as HTMLButtonElement).disabled).toBe(true);
@@ -297,10 +325,164 @@ describe("non-blocking message reply forms", () => {
     render(
       <AppProvider>
         <AssistantMessage threadId={thread.id} item={item} isTurnActive={false} />
+        <ThreadMessageReplyDocks threadId={thread.id} />
       </AppProvider>,
     );
     expect(screen.queryByRole("listbox")).toBeNull();
+    expect(screen.queryByText(/Which scope\?/)).toBeNull();
+  });
+
+  it("renders existing async replies as the shared answer card at the reply's checkpoint", () => {
+    const item = message();
+    const reply: RuntimeChatItem = {
+      id: "reply",
+      type: "user_message",
+      state: "completed",
+      payload: { content: [{ kind: "text", text: "Which scope?\nB" }] },
+      streams: {},
+    };
+    seed([
+      item,
+      {
+        id: "progress",
+        type: "assistant_message",
+        state: "completed",
+        payload: { content: [{ kind: "text", text: "Work continues." }] },
+        streams: {},
+      },
+      reply,
+    ]);
+    const onRequestRevert = vi.fn<(itemId: string) => void>();
+    const view = render(
+      <AppProvider>
+        <ChatItemRow
+          threadId={thread.id}
+          entry={{ kind: "item", id: reply.id }}
+          checkpointRevert={{ itemId: reply.id, onRequestRevert }}
+        />
+      </AppProvider>,
+    );
+    expect(screen.getByText("Which scope?")).toBeTruthy();
+    expect(
+      screen.getByText("B").closest(".flex.items-start")?.querySelector("svg.lucide-check"),
+    ).not.toBeNull();
+    expect(screen.queryByText("A")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    expect(onRequestRevert).toHaveBeenCalledWith(reply.id);
+    view.unmount();
+    render(
+      <AppProvider>
+        <ChatItemRow
+          threadId={thread.id}
+          entry={{ kind: "item", id: reply.id }}
+          checkpointRevert={null}
+        />
+      </AppProvider>,
+    );
+    expect(
+      screen.getByText("B").closest(".flex.items-start")?.querySelector("svg.lucide-check"),
+    ).not.toBeNull();
+  });
+
+  it("sends self-contained answer metadata and keeps the answer card after the source is paged out", async () => {
+    seed([message()]);
+    const questionAnswer = {
+      questions: [{ header: "", question: "Which scope?", selected: [{ label: "B" }] }],
+    };
+    const transport = {
+      sendThreadInput: vi.fn<(payload: SendThreadInputPayload) => Promise<void>>(async () => {}),
+    };
+    await act(async () => {
+      await performThreadInputSubmit({
+        thread,
+        prompt: "Which scope?\nB",
+        questionAnswer,
+        transport,
+      });
+    });
+    expect(transport.sendThreadInput).toHaveBeenCalledWith(
+      expect.objectContaining({ questionAnswer }),
+    );
+    const current = useAppStore.getState();
+    const answerId = current.runtimeItemIdsByThread[thread.id]!.at(-1)!;
+    const answer = current.runtimeItemsByIdByThread[thread.id]![answerId]!;
+    seed([JSON.parse(JSON.stringify(answer)) as RuntimeChatItem]);
+    render(
+      <AppProvider>
+        <ChatItemRow
+          threadId={thread.id}
+          entry={{ kind: "item", id: answerId }}
+          checkpointRevert={null}
+        />
+      </AppProvider>,
+    );
+    expect(
+      screen.getByText("B").closest(".flex.items-start")?.querySelector("svg.lucide-check"),
+    ).not.toBeNull();
+  });
+
+  it("keeps unrelated subsequent messages out of the answer card", () => {
+    const item = message();
+    const reply: RuntimeChatItem = {
+      id: "reply",
+      type: "user_message",
+      state: "completed",
+      payload: { content: [{ kind: "text", text: "Use another approach." }] },
+      streams: {},
+    };
+    const later: RuntimeChatItem = {
+      ...reply,
+      id: "later",
+      payload: { content: [{ kind: "text", text: "Which scope?\nB" }] },
+    };
+    seed([item, reply, later]);
+    const { container } = render(
+      <AppProvider>
+        <ChatItemRow
+          threadId={thread.id}
+          entry={{ kind: "item", id: later.id }}
+          checkpointRevert={null}
+        />
+      </AppProvider>,
+    );
+    expect(container.querySelector("svg.lucide-check")).toBeNull();
     expect(screen.getByText(/Which scope\?/)).toBeTruthy();
+  });
+
+  it("does not turn failed replies or child-agent messages into answer cards", () => {
+    const item = message();
+    const reply: RuntimeChatItem = {
+      id: "reply",
+      type: "user_message",
+      state: "completed",
+      payload: {
+        content: [{ kind: "text", text: "Which scope?\nB" }],
+        clientInputDelivery: "failed",
+      },
+      streams: {},
+    };
+    seed([item, reply]);
+    const view = render(
+      <AppProvider>
+        <ChatItemRow
+          threadId={thread.id}
+          entry={{ kind: "item", id: reply.id }}
+          checkpointRevert={null}
+        />
+      </AppProvider>,
+    );
+    expect(view.container.querySelector("svg.lucide-check")).toBeNull();
+    act(() =>
+      seed([
+        item,
+        {
+          ...reply,
+          parentItemId: "child",
+          payload: { content: [{ kind: "text", text: "Which scope?\nB" }] },
+        },
+      ]),
+    );
+    expect(view.container.querySelector("svg.lucide-check")).toBeNull();
   });
 
   it("keeps an unanswered form available after the provider finishes", () => {
@@ -310,6 +492,7 @@ describe("non-blocking message reply forms", () => {
     render(
       <AppProvider>
         <AssistantMessage threadId={thread.id} item={item} isTurnActive={false} />
+        <ThreadMessageReplyDocks threadId={thread.id} />
       </AppProvider>,
     );
     fireEvent.click(screen.getByRole("option", { name: /A/ }));
@@ -318,9 +501,9 @@ describe("non-blocking message reply forms", () => {
     );
   });
 
-  it("keeps question-only messages visible", () => {
+  it("shows question-only messages in the composer without an empty chat row", () => {
     const item = { ...message(), payload: { content: [], replyForm: form } };
-    expect(isVisibleRuntimeItem(item)).toBe(true);
+    expect(isVisibleRuntimeItem(item)).toBe(false);
     show(item);
     expect(screen.getByRole("listbox")).toBeTruthy();
   });

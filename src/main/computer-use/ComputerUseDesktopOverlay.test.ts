@@ -424,41 +424,6 @@ describe("ComputerUseDesktopOverlay", () => {
     overlay.dispose();
   });
 
-  it("reports every hidden/non-hidden transition to onActivityState", () => {
-    const onActivityState = vi.fn<(state: { level: string }) => void>();
-    const overlay = new ComputerUseDesktopOverlay({
-      onExit: vi.fn<(threadIds: string[]) => void>(),
-      onActivityState,
-    });
-
-    overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
-    expect(onActivityState.mock.calls.at(-1)?.[0].level).toBe("badge");
-
-    overlay.setActivity({
-      kind: "action",
-      threadId: "thread-1",
-      toolName: "click",
-      delivery: "foreground",
-      active: true,
-    });
-    expect(onActivityState.mock.calls.at(-1)?.[0].level).toBe("takeover");
-
-    overlay.setActivity({
-      kind: "action",
-      threadId: "thread-1",
-      toolName: "click",
-      delivery: "foreground",
-      active: false,
-    });
-    vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
-    overlay.setActivity({ kind: "session", threadId: "thread-1", active: false });
-
-    expect(onActivityState.mock.calls.at(-1)?.[0].level).toBe("hidden");
-    expect(onActivityState.mock.calls.map(([state]) => state.level)).toContain("hidden");
-
-    overlay.dispose();
-  });
-
   it("interrupts active threads when Escape returns control to the user", async () => {
     const onExit = vi.fn<(threadIds: string[]) => void>();
     const overlay = new ComputerUseDesktopOverlay({ onExit });

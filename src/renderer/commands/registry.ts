@@ -43,6 +43,7 @@ import {
 import { cycleRecentThread } from "@/renderer/actions/recentThreadCycle";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { toggleSidebar } from "@/renderer/state/sidebarOverlayStore";
@@ -589,7 +590,11 @@ function switchFocusedSurfaceTab(
   // focus when invoked; cycle that originating surface's own tab strip.
   const element = resolveFocusElement(target);
   if (isTerminalFocusElement(element)) {
-    useDevTerminalStore.getState().cycleTab(direction);
+    if (element?.closest("[data-global-terminal]")) {
+      useGlobalTerminalStore.getState().cycleTab(direction);
+    } else {
+      useDevTerminalStore.getState().cycleTab(direction);
+    }
     return;
   }
   if (isEditorFocusElement(element)) {

@@ -1,5 +1,5 @@
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
-import { FolderPlus, Globe, Search, WifiOff } from "lucide-react";
+import { FolderPlus, Globe, Search, TerminalSquare, WifiOff } from "lucide-react";
 import { Button, Dropdown, Label, Separator, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
@@ -22,7 +22,10 @@ import {
 } from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
 import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { hasClientCapability, isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { toggleGlobalTerminal } from "@/renderer/actions/terminalActions";
 import { SidebarProjectFilter } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter";
 import { useFlatListProjectFilterModel } from "@/renderer/views/MainView/parts/Sidebar/parts/useFlatListProjectFilterModel";
 
@@ -69,6 +72,10 @@ export function SidebarHeaderControls() {
   const browserVisible = browserPanelOpen && browserOnScreen;
   const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
   const selectedBrowserServer = useRemoteServersStore(selectBrowserBridgeServer);
+  const globalTerminalPanelOpen = useDevTerminalStore((s) => s.isOpen && s.source === "global");
+  const terminalOnScreen = useIsPanelTabVisible("terminal");
+  const terminalAtBottom = useSharedSettings((s) => s.terminalPosition === "bottom");
+  const globalTerminalOpen = globalTerminalPanelOpen && (terminalAtBottom || terminalOnScreen);
 
   if (compactLayout) {
     const connected = !isBrowserClientRuntime() || selectedBrowserServer !== undefined;
@@ -172,6 +179,26 @@ export function SidebarHeaderControls() {
           </Tooltip.Trigger>
           <Tooltip.Content placement="bottom">
             <Trans>Browser</Trans>
+          </Tooltip.Content>
+        </Tooltip>
+      ) : null}
+      {hasClientCapability("localBackend") ? (
+        <Tooltip delay={150}>
+          <Tooltip.Trigger>
+            <Button
+              isIconOnly
+              aria-label={t`Terminal`}
+              aria-pressed={globalTerminalOpen}
+              size="sm"
+              variant="ghost"
+              className={`size-6 min-w-0 hover:text-foreground ${globalTerminalOpen ? "text-foreground" : "text-muted"}`}
+              onPress={toggleGlobalTerminal}
+            >
+              <TerminalSquare className="size-3.5" />
+            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content placement="bottom">
+            <Trans>Terminal</Trans>
           </Tooltip.Content>
         </Tooltip>
       ) : null}

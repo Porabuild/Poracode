@@ -46,7 +46,10 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
     entry.selection ?? {
       agentKind: entry.source.agentKind,
       ...(entry.source.agentInstanceId ? { agentInstanceId: entry.source.agentInstanceId } : {}),
-      config: entry.source.config,
+      config:
+        entry.source.config.mode === "plan"
+          ? { ...entry.source.config, mode: "agent" }
+          : entry.source.config,
     },
   );
   const latestSelection = useRef(selection);

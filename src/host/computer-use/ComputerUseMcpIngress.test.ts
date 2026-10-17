@@ -233,37 +233,7 @@ describe("ComputerUseMcpIngress", () => {
     ]);
   });
 
-  it("reports keepAwake on enable while the host holds the display awake", async () => {
-    let held = false;
-    ingress = new ComputerUseMcpIngress({
-      observationSettleMs: 0,
-      driver: createDriver(),
-      onActivity: (event) => {
-        if (event.kind === "session") held = event.active;
-      },
-      isDisplayKeptAwake: () => held,
-    });
-    const info = await ingress.start();
-
-    expect(await readToolJson(await callTool(info, "enable", {}))).toEqual({
-      enabled: true,
-      keepAwake: true,
-    });
-    expect(await readToolJson(await callTool(info, "disable", {}))).toEqual({ enabled: false });
-  });
-
-  it("omits keepAwake when the host is not keeping the display awake", async () => {
-    ingress = new ComputerUseMcpIngress({
-      observationSettleMs: 0,
-      driver: createDriver(),
-      isDisplayKeptAwake: () => false,
-    });
-    const info = await ingress.start();
-
-    expect(await readToolJson(await callTool(info, "enable", {}))).toEqual({ enabled: true });
-  });
-
-  it("omits keepAwake when the host exposes no wake-lock state", async () => {
+  it("enables computer use without claiming to keep the display awake", async () => {
     ingress = new ComputerUseMcpIngress({ driver: createDriver(), observationSettleMs: 0 });
     const info = await ingress.start();
 

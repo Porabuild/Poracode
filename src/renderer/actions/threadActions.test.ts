@@ -101,6 +101,7 @@ describe("threadActions", () => {
     }));
     useDevTerminalStore.setState({
       isOpen: false,
+      source: "project",
       activeProjectId: null,
       activeWorktreePath: null,
       tabs: [],
@@ -1182,6 +1183,24 @@ describe("threadActions", () => {
       activeProjectId: null,
       activeWorktreePath: null,
     });
+  });
+
+  it("keeps the home terminal open when marking the last worktree thread done", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreePath,
+    });
+    useDevTerminalStore.getState().openWorktreePanel(project.id, worktreePath);
+    useDevTerminalStore.getState().openGlobalPanel();
+
+    toggleMarkThreadDone(thread.id);
+
+    expect(useDevTerminalStore.getState()).toMatchObject({ isOpen: true, source: "global" });
   });
 
   it("keeps worktree dev terminals open when marking one of multiple worktree threads done", () => {

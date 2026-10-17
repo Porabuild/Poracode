@@ -54,25 +54,23 @@ export const ImageCard = memo(function ImageCard({
       0,
     );
   };
-  // A `data:` source is already in hand, so it paints on the first frame; fading
-  // it would only add perceived latency. Anything fetched over the network gets
-  // the crossfade (and the blurred stand-in, when the host supplied one). An
-  // empty source is a pending/evicted host-held image: the reserved slot (and
-  // blurred stand-in) stays, but no `<img src="">` request is ever issued.
+  // Let the browser paint decoded images without waiting for React's load
+  // handler. In particular, reopening a thread can mount an already-cached
+  // image before its load event is delivered. Hiding it until that event adds
+  // a blank frame and a fresh fade even though the bytes are already available.
+  // An empty source keeps the reserved slot without issuing an <img src="">.
   const hasSource = source.src.length > 0;
-  const fadesIn = hasSource && !source.src.startsWith("data:");
+  const isInline = source.src.startsWith("data:");
   // Reset for a replacement resource before it paints, without remounting the
   // card or briefly treating the new URI as the previous image's loaded state.
   const [loadState, setLoadState] = useState({ src: source.src, loaded: false });
   if (loadState.src !== source.src) setLoadState({ src: source.src, loaded: false });
-  const loaded =
-    source.src.startsWith("data:") || (loadState.src === source.src && loadState.loaded);
-  const showPreview = !loaded && Boolean(source.preview) && (fadesIn || !hasSource);
+  const loaded = isInline || (loadState.src === source.src && loadState.loaded);
+  const showPreview = !loaded && Boolean(source.preview);
   // Reserve the final box up front so the transcript never reflows when a
   // fetched image lands. Inline `data:` images paint immediately and keep the
   // natural `w-auto` sizing.
-  const reservedSlot =
-    !hasSource || fadesIn ? reserveInlineImageSlot(source.width, source.height) : undefined;
+  const reservedSlot = isInline ? undefined : reserveInlineImageSlot(source.width, source.height);
 
   return (
     <span
@@ -90,8 +88,8 @@ export const ImageCard = memo(function ImageCard({
         {/* Blurred stand-in for a host-held image, painted in the slot the <img>
             has already reserved via its intrinsic width/height. Scaled past the
             edges so the blur has no visible border, and dropped from the tree
-            once the real image paints. Inline images are already decoded, so
-            they skip the fade entirely and never flash. */}
+            once the real image loads. The image paints above it as soon as the
+            browser decodes it, independently of React's load state. */}
         {showPreview ? (
           <span
             aria-hidden="true"
@@ -99,8 +97,11 @@ export const ImageCard = memo(function ImageCard({
             style={{ backgroundImage: `url("${source.preview!}")` }}
           />
         ) : null}
+        {/* A new URL needs its own image element: browsers can retain the old
+            bitmap while a replacement request loads. Keep the surrounding slot. */}
         {hasSource ? (
           <img
+            key={source.src}
             src={source.src}
             alt={imageAlt}
             draggable={false}
@@ -111,7 +112,7 @@ export const ImageCard = memo(function ImageCard({
               ? { width: source.width, height: source.height }
               : {})}
             {...(reservedSlot ? { style: reservedSlot } : {})}
-            className={`${chatInlineImageClass} relative${fadesIn ? ` transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}` : ""}${imageClassName ? ` ${imageClassName}` : ""}`}
+            className={`${chatInlineImageClass} relative${imageClassName ? ` ${imageClassName}` : ""}`}
           />
         ) : (
           <span

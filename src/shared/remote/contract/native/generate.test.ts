@@ -70,7 +70,9 @@ describe("remote v3 native binding generator", () => {
         // Optional context-reload facts also add one generated Swift chunk.
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
-        sourceHash: "sha256:33c1782bfbe4c445ef035751026ea13970fb4411617c91f5e96c2c8f31a386e7",
+        // Optional question-answer metadata adds three structural types and two Swift chunks.
+        // Source-host reviews add one route, nineteen procedures, and their native mirrors.
+        sourceHash: "sha256:ae1d833689d2417afca6428f0353615a82892bcd6649b9f383ef55290f0e737d",
         manifestHash: "sha256:dfe49d8693fa888dbea8ffc51860f0dcb161264101b077295661d30bb922b269",
         counts: {
           routes: 101,
@@ -81,7 +83,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 473,
-          structuralTypes: 1051,
+          structuralTypes: 1054,
           semanticValidators: 25,
           swiftFiles: 67,
           kotlinFiles: 58,

@@ -54,6 +54,7 @@ export function createGrokAdapter(): AgentAdapter {
     kind: grokDetectionSpec.kind,
     label: grokDetectionSpec.label,
     binary: grokDetectionSpec.binary,
+    supportsDeferredMcpAuthorization: true,
     skillSupport: {
       roots: [
         {

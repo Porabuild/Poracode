@@ -20,7 +20,7 @@ import {
 } from "./plugin/install";
 import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
 import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
-import { buildCodexMcp } from "../userMcp";
+import { buildCodexMcp } from "./mcpConfig";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
 
 const CODEX_GOALS_FEATURE_FLAG = "goals";

@@ -4,6 +4,18 @@ import { describe, expect, it } from "vitest";
 import { buildProjectDraftConfig } from "./draftConfig";
 
 describe("buildProjectDraftConfig", () => {
+  it("keeps Plan on the launched thread and remembers normal mode for the next draft", () => {
+    const config = { model: "test", mode: "plan" as const, effort: "high" };
+    expect(
+      buildProjectDraftConfig({ agentKind: "test", config, worktreeMode: false }),
+    ).toMatchObject({
+      model: "test",
+      mode: "agent",
+      effort: "high",
+    });
+    expect(config.mode).toBe("plan");
+  });
+
   it("preserves explicit empty permission fields so 'Default permissions' survives reload", () => {
     const built = buildProjectDraftConfig({
       agentKind: "codex",

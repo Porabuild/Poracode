@@ -3185,6 +3185,59 @@
           "__schema26": {
             "additionalProperties": true,
             "properties": {
+              "questions": {
+                "items": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "customAnswer": {
+                      "type": "string"
+                    },
+                    "header": {
+                      "type": "string"
+                    },
+                    "question": {
+                      "type": "string"
+                    },
+                    "selected": {
+                      "items": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "header",
+                    "question",
+                    "selected"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "__schema27": {
+            "additionalProperties": true,
+            "properties": {
               "contextStrategy": {
                 "enum": [
                   "thread-transcript",
@@ -3219,11 +3272,11 @@
             "type": "object",
             "x-poracode-unknownFields": "strip"
           },
-          "__schema27": {
+          "__schema28": {
             "const": true,
             "type": "boolean"
           },
-          "__schema28": {
+          "__schema29": {
             "additionalProperties": true,
             "properties": {
               "browserFocus": {
@@ -3544,7 +3597,7 @@
             "$ref": "#/$defs/__schema2"
           },
           "clientContext": {
-            "$ref": "#/$defs/__schema28"
+            "$ref": "#/$defs/__schema29"
           },
           "config": {
             "$ref": "#/$defs/__schema4"
@@ -3565,7 +3618,7 @@
             "$ref": "#/$defs/__schema14"
           },
           "mentionHandoff": {
-            "$ref": "#/$defs/__schema27"
+            "$ref": "#/$defs/__schema28"
           },
           "presentationMode": {
             "$ref": "#/$defs/__schema13"
@@ -3577,6 +3630,9 @@
             "$ref": "#/$defs/__schema9"
           },
           "providerSwitch": {
+            "$ref": "#/$defs/__schema27"
+          },
+          "questionAnswer": {
             "$ref": "#/$defs/__schema26"
           },
           "segments": {
@@ -27160,6 +27216,59 @@
           "__schema26": {
             "additionalProperties": true,
             "properties": {
+              "questions": {
+                "items": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "customAnswer": {
+                      "type": "string"
+                    },
+                    "header": {
+                      "type": "string"
+                    },
+                    "question": {
+                      "type": "string"
+                    },
+                    "selected": {
+                      "items": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "header",
+                    "question",
+                    "selected"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "questions"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "__schema27": {
+            "additionalProperties": true,
+            "properties": {
               "contextStrategy": {
                 "enum": [
                   "thread-transcript",
@@ -27194,11 +27303,11 @@
             "type": "object",
             "x-poracode-unknownFields": "strip"
           },
-          "__schema27": {
+          "__schema28": {
             "const": true,
             "type": "boolean"
           },
-          "__schema28": {
+          "__schema29": {
             "additionalProperties": true,
             "properties": {
               "browserFocus": {
@@ -27519,7 +27628,7 @@
             "$ref": "#/$defs/__schema2"
           },
           "clientContext": {
-            "$ref": "#/$defs/__schema28"
+            "$ref": "#/$defs/__schema29"
           },
           "config": {
             "$ref": "#/$defs/__schema4"
@@ -27540,7 +27649,7 @@
             "$ref": "#/$defs/__schema14"
           },
           "mentionHandoff": {
-            "$ref": "#/$defs/__schema27"
+            "$ref": "#/$defs/__schema28"
           },
           "presentationMode": {
             "$ref": "#/$defs/__schema13"
@@ -27552,6 +27661,9 @@
             "$ref": "#/$defs/__schema9"
           },
           "providerSwitch": {
+            "$ref": "#/$defs/__schema27"
+          },
+          "questionAnswer": {
             "$ref": "#/$defs/__schema26"
           },
           "segments": {
@@ -64202,6 +64314,59 @@
             "prompt": {
               "type": "string"
             },
+            "questionAnswer": {
+              "additionalProperties": true,
+              "properties": {
+                "questions": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "customAnswer": {
+                        "type": "string"
+                      },
+                      "header": {
+                        "type": "string"
+                      },
+                      "question": {
+                        "type": "string"
+                      },
+                      "selected": {
+                        "items": {
+                          "additionalProperties": true,
+                          "properties": {
+                            "description": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "label"
+                          ],
+                          "type": "object",
+                          "x-poracode-unknownFields": "strip"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "header",
+                      "question",
+                      "selected"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "questions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "segments": {
               "items": {
                 "oneOf": [
@@ -65167,6 +65332,59 @@
               },
               "required": [
                 "fromAgentKind"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "questionAnswer": {
+              "additionalProperties": true,
+              "properties": {
+                "questions": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "customAnswer": {
+                        "type": "string"
+                      },
+                      "header": {
+                        "type": "string"
+                      },
+                      "question": {
+                        "type": "string"
+                      },
+                      "selected": {
+                        "items": {
+                          "additionalProperties": true,
+                          "properties": {
+                            "description": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "label"
+                          ],
+                          "type": "object",
+                          "x-poracode-unknownFields": "strip"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "header",
+                      "question",
+                      "selected"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "questions"
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
@@ -66445,7 +66663,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:33c1782bfbe4c445ef035751026ea13970fb4411617c91f5e96c2c8f31a386e7",
+  "sourceHash": "sha256:ae1d833689d2417afca6428f0353615a82892bcd6649b9f383ef55290f0e737d",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [
