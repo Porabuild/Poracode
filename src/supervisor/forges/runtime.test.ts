@@ -10,7 +10,10 @@ vi.mock("../wsl/runtime", () => ({
 }));
 
 describe("source review runtime", () => {
-  const location = { kind: "windows" as const, path: process.cwd() };
+  const location = {
+    kind: process.platform === "win32" ? ("windows" as const) : ("posix" as const),
+    path: process.cwd(),
+  };
 
   it("feeds offline credential-helper input through stdin without placing it in argv", async () => {
     const runtime = new ForgeRuntime(() => undefined);
