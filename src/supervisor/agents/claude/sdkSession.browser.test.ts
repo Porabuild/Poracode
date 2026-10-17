@@ -4,14 +4,25 @@ import type {
   SDKMessage,
   SDKUserMessage,
   query,
+  resolveSettings,
 } from "@anthropic-ai/claude-agent-sdk";
-import type { ResolvedMcpServer, ThreadConfig } from "@/shared/contracts";
+import type { ResolvedMcpServer, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import type { CreateStructuredSessionInput } from "../base";
 import { ClaudeSdkSession } from "./sdkSession";
-import { createClaudeTestQuery, flushSdkMessages, resultMessage } from "./sdkSessionTestHarness";
+import {
+  assistantMessage,
+  createClaudeTestQuery,
+  flushSdkMessages,
+  resultMessage,
+} from "./sdkSessionTestHarness";
 
-const sdk = vi.hoisted(() => ({ query: vi.fn<typeof query>() }));
-vi.mock("@anthropic-ai/claude-agent-sdk", () => ({ query: sdk.query }));
+const sdk = vi.hoisted(() => ({
+  query: vi.fn<typeof query>(),
+  resolveSettings: vi
+    .fn<typeof resolveSettings>()
+    .mockResolvedValue({ effective: {}, provenance: {}, sources: [] }),
+}));
+vi.mock("@anthropic-ai/claude-agent-sdk", () => sdk);
 vi.mock("../binaryResolver", () => ({ resolveAgentBinaryPath: () => "/mock/claude" }));
 
 const config: ThreadConfig = { model: "sonnet" };
@@ -55,9 +66,74 @@ async function createSession(input: Partial<CreateStructuredSessionInput> = {}) 
 afterEach(async () => {
   for (const session of sessions.splice(0)) await session.dispose();
   vi.clearAllMocks();
+  sdk.resolveSettings.mockReset().mockResolvedValue({ effective: {}, provenance: {}, sources: [] });
 });
 
 describe("Claude SDK browser access", () => {
+  it.each(["environment", "native settings"])(
+    "retains initial MCP tools with ToolSearch disabled through %s",
+    async (source) => {
+      sdk.resolveSettings.mockResolvedValueOnce({
+        effective: source === "native settings" ? { env: { ENABLE_TOOL_SEARCH: "false" } } : {},
+        provenance: {},
+        sources: [],
+      });
+      const h = await createSession({
+        mcpServers: [chrome],
+        ...(source === "environment" ? { env: { ENABLE_TOOL_SEARCH: "false" } } : {}),
+      });
+      expect(h.queryInput.options?.mcpServers).toHaveProperty("chrome");
+      h.fake.output.write({
+        type: "system",
+        subtype: "init",
+        session_id: h.sessionId,
+      } as unknown as SDKMessage);
+      await flushSdkMessages();
+      expect(h.setMcpServers).not.toHaveBeenCalled();
+    },
+  );
+
+  it("streams a reply while initial MCP connection is still pending", async () => {
+    const h = await createSession({
+      mcpServers: [chrome],
+      resolveMcpServersForTurn: async () => [chrome],
+    });
+    const connected = Promise.withResolvers<McpSetServersResult>();
+    h.setMcpServers.mockReturnValueOnce(connected.promise);
+    const onRuntimeEvent = vi.fn<(event: RuntimeEvent) => void>();
+    h.session.setListener({
+      onUpdate: vi.fn<() => void>(),
+      onRuntimeEvent,
+      onClose: vi.fn<() => void>(),
+      onError: vi.fn<() => void>(),
+    });
+    expect(h.queryInput.options?.mcpServers).toBeUndefined();
+    const inputs = (h.queryInput.prompt as AsyncIterable<SDKUserMessage>)[Symbol.asyncIterator]();
+    await h.session.startTurn("Reply without tools", config);
+    await inputs.next();
+    expect(h.setMcpServers).not.toHaveBeenCalled();
+    h.fake.output.write({
+      type: "system",
+      subtype: "init",
+      session_id: h.sessionId,
+    } as unknown as SDKMessage);
+    await flushSdkMessages();
+    expect(h.setMcpServers).toHaveBeenCalledOnce();
+    h.fake.output.write(assistantMessage(h.sessionId, "fast-reply"));
+    h.fake.output.write(resultMessage(h.sessionId));
+    await flushSdkMessages();
+    expect(onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "content.delta", delta: "fast-reply" }),
+    );
+    expect(onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.completed" }),
+    );
+    await h.session.startTurn("Another reply without tools", config);
+    expect((await inputs.next()).value.message.content).toBe("Another reply without tools");
+    connected.resolve({ added: ["chrome"], removed: [], errors: {} });
+    await flushSdkMessages();
+  });
+
   it("does not apply MCP or sandbox controls after Stop during server resolution", async () => {
     const resolved = Promise.withResolvers<readonly ResolvedMcpServer[]>();
     const resolve = vi
