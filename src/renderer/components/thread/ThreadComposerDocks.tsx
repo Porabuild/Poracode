@@ -22,6 +22,7 @@ import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadPendingSteerStrip } from "./ThreadPendingSteerStrip";
 import { ThreadFollowUpQueue } from "./ThreadFollowUpQueue";
 import { ThreadRuntimeRequestPanel } from "./ThreadRuntimeRequestPanel";
+import { ThreadMessageReplyDocks } from "./ThreadMessageReplyPanel";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
@@ -41,6 +42,7 @@ type ThreadComposerDocksProps = {
   showTodoInComposer: boolean;
   authRequired: boolean;
   showCommandPanel: boolean;
+  showMessageReplies: boolean;
   // Dock-relevant data.
   threadId: string;
   projectLocation: ProjectLocation;
@@ -90,6 +92,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     showTodoInComposer,
     authRequired,
     showCommandPanel,
+    showMessageReplies,
     threadId,
     projectLocation,
     threadConfig,
@@ -191,6 +194,9 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
         queue={followUpQueue ?? null}
         onRestoreFocus={props.onRestoreComposerFocus}
       />
+      {showMessageReplies && !activeRuntimeRequest ? (
+        <ThreadMessageReplyDocks threadId={threadId} />
+      ) : null}
       {activeRuntimeRequest ? (
         <ThreadRuntimeRequestPanel
           key={activeRuntimeRequest.requestId}
