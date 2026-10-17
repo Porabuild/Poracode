@@ -22,6 +22,7 @@ const EXPECTED_BUILT_IN_ORDER = [
   "pi",
   "factory",
   "devin",
+  "deepseek",
 ] as const;
 
 const EXPECTED_SUBAGENT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)[number], string> =
@@ -43,6 +44,7 @@ const EXPECTED_SUBAGENT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)
     pi: "never",
     factory: "auto-high",
     devin: "bypass",
+    deepseek: "never",
   };
 
 const EXPECTED_DEFAULT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)[number], string> = {
@@ -63,6 +65,7 @@ const EXPECTED_DEFAULT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)[
   pi: "never",
   factory: "auto-high",
   devin: "smart",
+  deepseek: "never",
 };
 
 function detectionProviderKinds(): string[] {

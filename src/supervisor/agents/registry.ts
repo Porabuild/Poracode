@@ -23,6 +23,7 @@ import { createCommandCodeAdapter } from "./commandcode";
 import { createCopilotAdapter } from "./copilot";
 import { createCodexAdapter, createCodexProfileAdapter } from "./codex";
 import { createCursorAdapter, createCursorProfileAdapter } from "./cursor";
+import { createDeepSeekAdapter } from "./deepseek";
 import { createFactoryAdapter, createFactoryAcpRegistryAdapter } from "./factory";
 import { createGeminiAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
@@ -102,6 +103,7 @@ export function buildAgentRegistryEntries(
     builtIn(createPiAdapter()),
     builtIn(createFactoryAdapter()),
     builtIn(createDevinAdapter()),
+    builtIn(createDeepSeekAdapter()),
   ];
   const firstClassRegistryIds = new Set(
     builtIns.flatMap(({ adapter }) =>
