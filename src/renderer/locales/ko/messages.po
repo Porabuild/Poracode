@@ -1759,6 +1759,7 @@ msgstr "스레드 보관"
 msgid "Archive Thread"
 msgstr "아카이브 스레드"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "보관됨"
@@ -2508,6 +2509,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -7664,6 +7666,10 @@ msgstr "동기화에 포함"
 msgid "Includes the first attempt."
 msgstr "첫 번째 시도를 포함합니다."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "저장된 메시지 색인 생성 중…"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
 msgstr "정보"
@@ -8409,6 +8415,10 @@ msgstr "작업 불러오는 중"
 msgid "Loading marketplace…"
 msgstr "마켓플레이스 로드 중…"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "일치하는 메시지 불러오는 중…"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -9112,9 +9122,17 @@ msgstr "병합이 차단되었습니다."
 msgid "Message actions"
 msgstr "메시지 작업"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "메시지 검색을 사용할 수 없음"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "원격 에이전트에 메시지 보내기…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "메시지"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -13169,6 +13187,7 @@ msgid "Resume queued follow-ups"
 msgstr "대기 중인 후속 메시지 재개"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13742,6 +13761,10 @@ msgstr "저장된 자격 증명은 모든 기기에서 공유됩니다."
 msgid "Saved font"
 msgstr "저장된 글꼴"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "보관된 채팅을 포함한 저장된 메시지"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "저장된 비밀번호 작업"
@@ -14066,6 +14089,10 @@ msgstr "제목, 메시지, 폴더 검색"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "파일 검색 중…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "저장된 메시지 검색 중…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -14518,6 +14545,7 @@ msgstr "간략히 보기"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "{providerLabel}의 MCP 서버 표시"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -16056,6 +16084,14 @@ msgstr "목록을 읽을 수 없습니다."
 msgid "the macOS user"
 msgstr "macOS 사용자"
 
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "일치하는 대화를 열 수 없습니다."
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "일치하는 메시지를 더 이상 사용할 수 없습니다."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "MCP 서버 구성이 올바르지 않거나 예약된 이름을 사용합니다."
@@ -17079,6 +17115,10 @@ msgstr "유형"
 #: src/renderer/commands/CommandPalette.tsx
 #~ msgid "Type a command"
 #~ msgstr "명령을 입력하세요"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "메시지를 검색하려면 두 글자 이상 입력하세요"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"

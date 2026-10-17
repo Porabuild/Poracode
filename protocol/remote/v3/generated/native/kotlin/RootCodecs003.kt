@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EPortU2DForwardU2EResponse: RemoteRootCodec<RouteportU2DForwardResponse_04de8f3da1>
+    get() = RemoteRootCodec("route.port-forward.response", serializer<RouteportU2DForwardResponse_04de8f3da1>(), schema_04de8f3da1a2ece8)
+
+val RemoteRootCodecs.routeU2EPortU2DUnforwardU2ERequest: RemoteRootCodec<RouteportU2DEnterRequest_4067ad04bf>
+    get() = RemoteRootCodec("route.port-unforward.request", serializer<RouteportU2DEnterRequest_4067ad04bf>(), schema_4067ad04bfbe200c)
+
 val RemoteRootCodecs.routeU2EPortU2DUnforwardU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35>
     get() = RemoteRootCodec("route.port-unforward.response", serializer<RouteenvironmentU2DDeleteResponse_badd682f35>(), schema_badd682f3501e022)
 

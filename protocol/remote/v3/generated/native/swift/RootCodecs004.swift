@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2ERequestU2DResolveU2ERequest: RemoteRootCodec<RouterequestU2DResolveRequest_3df8195e90> = .init(id: "route.request-resolve.request", schema: RemoteSchemas.schema_3df8195e9076bb2b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2ERequestU2DResolveU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.request-resolve.response", schema: RemoteSchemas.schema_badd682f3501e022)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2ERuntimeU2DImageU2EPath: RemoteRootCodec<RouteruntimeU2DImagePath_815909fa96> = .init(id: "route.runtime-image.path", schema: RemoteSchemas.schema_815909fa96d68d7b)
 }
 

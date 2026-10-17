@@ -70,20 +70,20 @@ describe("remote v3 native binding generator", () => {
         // Optional context-reload facts also add one generated Swift chunk.
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
-        sourceHash: "sha256:21e62dec0869884edd34c38dfe35a0c4daf5281fd6f702f2f1d36c94bc64d668",
-        manifestHash: "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40",
+        sourceHash: "sha256:e97cc0c3dc7c884910ecc69fa1de6f1c9980314f4c4e19d9fc2bbb0b1b03cca1",
+        manifestHash: "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490",
         counts: {
-          routes: 100,
+          routes: 101,
           procedures: 130,
           voidProcedureResults: 50,
           jsonProcedureResults: 80,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 441,
-          structuralTypes: 1033,
+          schemaRoots: 443,
+          structuralTypes: 1039,
           semanticValidators: 22,
-          swiftFiles: 63,
+          swiftFiles: 65,
           kotlinFiles: 56,
           stateMachines: 5,
         },
@@ -323,7 +323,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(441);
+        expect(adapters).toHaveLength(443);
         expect(
           adapters
             .map((adapter) => adapter.id)

@@ -1759,6 +1759,7 @@ msgstr "Konuyu arşivle"
 msgid "Archive Thread"
 msgstr "İleti Dizisini Arşivle"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "Arşivlenenler"
@@ -2508,6 +2509,7 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -7664,6 +7666,10 @@ msgstr "Senkronizasyona ekle"
 msgid "Includes the first attempt."
 msgstr "İlk denemeyi içerir."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "Kaydedilmiş mesajlar dizine ekleniyor…"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
 msgstr "Bilgi"
@@ -8409,6 +8415,10 @@ msgstr "İşler yükleniyor"
 msgid "Loading marketplace…"
 msgstr "Marketplace yükleniyor…"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "Eşleşen mesaj yükleniyor…"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -9112,9 +9122,17 @@ msgstr "Birleştirme engellendi"
 msgid "Message actions"
 msgstr "Mesaj işlemleri"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "Mesaj araması kullanılamıyor"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "Uzak ajana mesaj gönder…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "Mesajlar"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -13169,6 +13187,7 @@ msgid "Resume queued follow-ups"
 msgstr "Kuyruktaki takip mesajlarını sürdür"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13742,6 +13761,10 @@ msgstr "Kaydedilen kimlik bilgileri tüm makineler arasında paylaşılır."
 msgid "Saved font"
 msgstr "Kaydedilen yazı tipi"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "Arşivlenmiş sohbetler dahil kaydedilmiş mesajlar"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "Kayıtlı parola işlemleri"
@@ -14066,6 +14089,10 @@ msgstr "Başlıklarda, mesajlarda ve klasörlerde ara"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "Dosyalar aranıyor…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "Kaydedilmiş mesajlarda aranıyor…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -14518,6 +14545,7 @@ msgstr "Daha az göster"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "{providerLabel} kaynağındaki MCP sunucularını göster"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -16056,6 +16084,14 @@ msgstr "Liste okunamadı."
 msgid "the macOS user"
 msgstr "macOS kullanıcısı"
 
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "Eşleşen konuşma açılamadı."
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "Eşleşen mesaj artık kullanılamıyor."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "MCP sunucusu yapılandırması geçersiz veya ayrılmış bir ad kullanıyor."
@@ -17079,6 +17115,10 @@ msgstr "Tür"
 #: src/renderer/commands/CommandPalette.tsx
 #~ msgid "Type a command"
 #~ msgstr "Bir komut yazın"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "Mesaj aramak için en az iki karakter yazın"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"

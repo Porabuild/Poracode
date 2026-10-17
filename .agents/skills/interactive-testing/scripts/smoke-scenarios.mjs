@@ -120,13 +120,14 @@ export const functionalAreas = [
   },
   {
     id: "everything-search",
-    title: "Unified search, ranking, keyboard navigation, and file discovery",
+    title: "Unified search, saved messages, keyboard navigation, and file discovery",
     patterns: [
       /commands\//,
       /EverythingSearch/,
       /everythingSearch/,
       /searchMatching/,
       /ProjectSearchIndex/,
+      /[Cc]onversationSearch/,
     ],
     automated: ["everything-search"],
     manual: [],

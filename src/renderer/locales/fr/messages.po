@@ -1759,6 +1759,7 @@ msgstr "Archiver le fil de discussion"
 msgid "Archive Thread"
 msgstr "Archiver le fil de discussion"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "Archivés"
@@ -2508,6 +2509,7 @@ msgstr "Cette sélection de modèle ne peut pas être utilisée dans cette inter
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -7664,6 +7666,10 @@ msgstr "Inclure dans la synchronisation"
 msgid "Includes the first attempt."
 msgstr "Inclut la première tentative."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "Indexation des messages enregistrés…"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
 msgstr "Informations"
@@ -8409,6 +8415,10 @@ msgstr "Chargement des tâches"
 msgid "Loading marketplace…"
 msgstr "Chargement de la place de marché…"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "Chargement du message trouvé…"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -9111,9 +9121,17 @@ msgstr "La fusion est bloquée"
 msgid "Message actions"
 msgstr "Actions du message"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "Recherche de messages indisponible"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "Message à l’agent distant…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "Messages"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -13168,6 +13186,7 @@ msgid "Resume queued follow-ups"
 msgstr "Reprendre les suivis en file d’attente"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13741,6 +13760,10 @@ msgstr "Les identifiants enregistrés sont partagés entre toutes les machines."
 msgid "Saved font"
 msgstr "Police enregistrée"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "Messages enregistrés, y compris les discussions archivées"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "Actions pour les mots de passe enregistrés"
@@ -14065,6 +14088,10 @@ msgstr "Rechercher dans les titres, messages et dossiers"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "Recherche de fichiers…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "Recherche dans les messages enregistrés…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -14517,6 +14544,7 @@ msgstr "Afficher moins"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "Afficher les serveurs MCP de {providerLabel}"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -16055,6 +16083,14 @@ msgstr "Impossible de lire la liste."
 msgid "the macOS user"
 msgstr "l’utilisateur macOS"
 
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "Impossible d’ouvrir la discussion trouvée."
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "Le message trouvé n’est plus disponible."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "La configuration du serveur MCP n’est pas valide ou utilise un nom réservé."
@@ -17078,6 +17114,10 @@ msgstr "Type"
 #: src/renderer/commands/CommandPalette.tsx
 #~ msgid "Type a command"
 #~ msgstr "Tapez une commande"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "Saisissez au moins deux caractères pour rechercher des messages"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"

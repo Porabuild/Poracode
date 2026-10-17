@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 5
-    const val sourceHash = "sha256:21e62dec0869884edd34c38dfe35a0c4daf5281fd6f702f2f1d36c94bc64d668"
-    const val manifestHash = "sha256:b3285b6161304d74622e21f8cde6ec040c8afe5474e070984246d4d17a5b1f40"
+    const val sourceHash = "sha256:e97cc0c3dc7c884910ecc69fa1de6f1c9980314f4c4e19d9fc2bbb0b1b03cca1"
+    const val manifestHash = "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -26,14 +26,15 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("browser-command", "POST", "/api/browser/command", "bearer", listOf("session:operate"), "json", "json", 200, "RoutebrowserU2DCommandRequest_80a9ff940d", "RoutebrowserU2DCommandResponse_1b7f16955d", listOf()),
         RemoteRouteDescriptor("browser-state", "GET", "/api/browser/state", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutebrowserU2DCommandResponse_1b7f16955d", listOf()),
         RemoteRouteDescriptor("catalog-membership", "POST", "/api/catalog/membership", "bearer", listOf("session:read"), "json", "json", 200, "RoutecatalogU2DMembershipRequest_2b8805d864", "RoutecatalogU2DMembershipResponse_afbf6761fa", listOf()),
-        RemoteRouteDescriptor("environment", "GET", "/.well-known/poracode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_7cc98e2428", listOf()),
+        RemoteRouteDescriptor("conversation-search", "GET", "/api/search/conversations", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteconversationU2DSearchResponse_ca8d08ed24", listOf(RemoteQueryParameterDescriptor("version", "string", false, false), RemoteQueryParameterDescriptor("query", "string", false, false), RemoteQueryParameterDescriptor("projectId", "string", true, false), RemoteQueryParameterDescriptor("includeArchived", "string", true, false), RemoteQueryParameterDescriptor("cursor", "string", true, false), RemoteQueryParameterDescriptor("limit", "int", true, false))),
+        RemoteRouteDescriptor("environment", "GET", "/.well-known/poracode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_1c6dc6a635", listOf()),
         RemoteRouteDescriptor("environment-adopt-legacy", "POST", "/api/environments/{environmentId}/adopt-legacy", "bearer", listOf("projects:manage", "session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DAdoptU2DLegacyRequest_399c72fc19", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-connect", "POST", "/api/environments/{environmentId}/connect", "bearer", listOf("session:operate", "ports:forward"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-create", "POST", "/api/environments", "bearer", listOf("projects:manage", "session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DCreateRequest_ccc27289c7", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-delete", "POST", "/api/environments/{environmentId}/delete", "bearer", listOf("projects:manage", "session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DDeleteRequest_939b432562", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("environment-disconnect", "POST", "/api/environments/{environmentId}/disconnect", "bearer", listOf("session:operate", "ports:forward"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-get", "GET", "/api/environments/{environmentId}", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
-        RemoteRouteDescriptor("environment-legacy", "GET", "/.well-known/lightcode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_7cc98e2428", listOf()),
+        RemoteRouteDescriptor("environment-legacy", "GET", "/.well-known/lightcode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_1c6dc6a635", listOf()),
         RemoteRouteDescriptor("environment-list", "GET", "/api/environments", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DListResponse_700ee4302b", listOf()),
         RemoteRouteDescriptor("environment-media-release", "POST", "/api/environments/{environmentId}/media-release", "bearer", listOf("session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("environment-media-renew", "POST", "/api/environments/{environmentId}/media-renew", "bearer", listOf("session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151", listOf()),

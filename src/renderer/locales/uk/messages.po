@@ -1759,6 +1759,7 @@ msgstr "Архівувати тред"
 msgid "Archive Thread"
 msgstr "Архівувати тред"
 
+#: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Archived"
 msgstr "В архіві"
@@ -2508,6 +2509,7 @@ msgstr "Цей вибір моделі не можна використовув�
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -7664,6 +7666,10 @@ msgstr "Додати до синхронізації"
 msgid "Includes the first attempt."
 msgstr "Ураховує першу спробу."
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Indexing saved messages…"
+msgstr "Індексування збережених повідомлень…"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Info"
 msgstr "Інформація"
@@ -8409,6 +8415,10 @@ msgstr "Завантаження завдань"
 msgid "Loading marketplace…"
 msgstr "Завантаження маркетплейсу…"
 
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "Loading matched message…"
+msgstr "Завантаження знайденого повідомлення…"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading media preview…"
@@ -9112,9 +9122,17 @@ msgstr "Злиття заблоковано"
 msgid "Message actions"
 msgstr "Дії з повідомленням"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Message search unavailable"
+msgstr "Пошук повідомлень недоступний"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Message the remote agent…"
 #~ msgstr "Повідомлення віддаленому агенту…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Messages"
+msgstr "Повідомлення"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Messages could not be loaded."
@@ -13169,6 +13187,7 @@ msgid "Resume queued follow-ups"
 msgstr "Відновити повідомлення з черги"
 
 #: src/renderer/bootstrap.ts
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -13742,6 +13761,10 @@ msgstr "Збережені облікові дані спільні для вс�
 msgid "Saved font"
 msgstr "Збережений шрифт"
 
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Saved messages, including archived chats"
+msgstr "Збережені повідомлення, зокрема архівні чати"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordRow.tsx
 msgid "Saved password actions"
 msgstr "Дії зі збереженим паролем"
@@ -14066,6 +14089,10 @@ msgstr "Шукати в заголовках, повідомленнях і па
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Searching files…"
 msgstr "Пошук файлів…"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Searching saved messages…"
+msgstr "Пошук у збережених повідомленнях…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "Searching..."
@@ -14518,6 +14545,7 @@ msgstr "Показати менше"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "Показати MCP-сервери з {providerLabel}"
 
+#: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -16056,6 +16084,14 @@ msgstr "Не вдалося прочитати список."
 msgid "the macOS user"
 msgstr "користувача macOS"
 
+#: src/renderer/commands/conversationSearchNavigation.ts
+msgid "The matched conversation could not be opened."
+msgstr "Не вдалося відкрити знайдену розмову."
+
+#: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
+msgid "The matched message is no longer available."
+msgstr "Знайдене повідомлення більше недоступне."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "Конфігурація сервера MCP недопустима або використовує зарезервовану назву."
@@ -17079,6 +17115,10 @@ msgstr "Тип"
 #: src/renderer/commands/CommandPalette.tsx
 #~ msgid "Type a command"
 #~ msgstr "Введіть команду"
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type at least two characters to search messages"
+msgstr "Введіть щонайменше два символи для пошуку повідомлень"
 
 #: src/mobile/views/BrowserView.tsx
 #~ msgid "Type into the page"
