@@ -24,6 +24,7 @@ import {
   RUNTIME_STREAM_HEAD_MAX_BLOCKS,
 } from "./runtimeStreamHeadSchema";
 import { appendRuntimeStreamHead, prepareRuntimeStreamHead } from "./runtimeStreamHeadStore";
+import { ensureConversationSearchGeneration } from "./conversationSearchSchema";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 const HEAD_TABLES = [
@@ -122,6 +123,7 @@ describe.skipIf(!sqliteAvailable)("runtime growing-head migration 53", () => {
     expect(
       sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
     ).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
+    ensureConversationSearchGeneration(sqlite);
     sqlite.close();
 
     initDatabase(path, { schemaMode: "validate" });
@@ -204,6 +206,7 @@ describe.skipIf(!sqliteAvailable)("runtime growing-head migration 53", () => {
       sqlite.prepare("SELECT streams FROM thread_runtime_items WHERE item_id = 'growing'").get(),
     ).toEqual({ streams: seed });
     expect(captureLegacyRuntimeStreamEvidence(sqlite)).toEqual(before);
+    ensureConversationSearchGeneration(sqlite);
     sqlite.close();
     initDatabase(path, { schemaMode: "validate" });
     expect(readHeads(getSqlite())).toEqual(expectedHeads);
@@ -226,9 +229,15 @@ describe.skipIf(!sqliteAvailable)("runtime growing-head migration 53", () => {
           `schema ${LATEST_SCHEMA_VERSION + 1} is newer than supported schema ${LATEST_SCHEMA_VERSION}`,
         ),
       );
-      expect(headRows(getSqlite())).toEqual(before);
+      const refused = new Database(path, {
+        ...(nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {}),
+        readonly: true,
+        fileMustExist: true,
+      });
+      handles.push(refused);
+      expect(headRows(refused)).toEqual(before);
       expect(
-        getSqlite().prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
+        refused.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
       ).toEqual({ value: String(LATEST_SCHEMA_VERSION + 1) });
     },
   );

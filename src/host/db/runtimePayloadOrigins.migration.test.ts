@@ -11,6 +11,7 @@ import {
 import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
 import { readRuntimePayloadOrigin } from "./runtimePayloadOrigins";
 import { assertRuntimePayloadOriginSchema } from "./runtimePayloadOriginsSchema";
+import { ensureConversationSearchGeneration } from "./conversationSearchSchema";
 import {
   captureSchema53PayloadOriginEvidence,
   createSchema53PayloadOriginDatabase,
@@ -66,6 +67,7 @@ describe.skipIf(!sqliteAvailable)("runtime payload origin migration 54", () => {
     expect(readRuntimePayloadOrigin(sqlite, "thread-1", "growing")).toBeUndefined();
     const afterMigration = captureSchema53PayloadOriginEvidence(sqlite);
     expect(afterMigration).toEqual(before);
+    ensureConversationSearchGeneration(sqlite);
     sqlite.close();
     initDatabase(path, { schemaMode: "validate" });
     const reopened = captureSchema53PayloadOriginEvidence(getSqlite());

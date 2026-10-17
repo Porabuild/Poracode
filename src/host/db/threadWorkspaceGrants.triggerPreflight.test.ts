@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { closeDatabase, initDatabase } from "./connection";
 import {
   assertRequiredDatabaseSchema,
   DATABASE_MIGRATIONS,
@@ -126,7 +126,13 @@ describe("workspace custody trigger preflight", () => {
       const before = evidence(sqlite);
       sqlite.close();
       expect(() => initDatabase(path, { schemaMode })).toThrow(/custody.*stale_journal_cleanup/);
-      expect(evidence(getSqlite())).toEqual(before);
+      const refused = new Database(path, {
+        ...(nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {}),
+        readonly: true,
+        fileMustExist: true,
+      });
+      handles.push(refused);
+      expect(evidence(refused)).toEqual(before);
     },
   );
 

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { isMessageReplyFormFallbackText } from "@/shared/messageReplyForm";
-import { INLINE_VISUAL_SEARCH_VERSION, inlineVisualSearchText } from "@/shared/inlineVisuals";
+import { inlineVisualSearchText } from "@/shared/inlineVisuals";
 import {
   CONVERSATION_SEARCH_EXCERPT_CHARS,
   CONVERSATION_SEARCH_LIMIT,
@@ -14,12 +14,8 @@ import { getSqlite } from "./connection";
 import { dbGetThreadRuntimeItemCommitted } from "./runtimeItemRead";
 import { RUNTIME_STREAM_ELISION_NOTICE_PREFIX } from "@/shared/runtimeStreamRetentionPolicy";
 import { RUNTIME_PAGE_HIDDEN_TYPES } from "./runtimeTimelineReads";
+import { CONVERSATION_SEARCH_INDEX_GENERATION } from "./conversationSearchSchema";
 
-// Disposable extraction generation, independent of canonical history/schema.
-// Any text policy/tokenizer or visual extraction change rebuilds old documents.
-// v3 omits generated reply-form fallback text hidden by the current timeline.
-export const CONVERSATION_SEARCH_INDEX_POLICY_VERSION = 3;
-export const CONVERSATION_SEARCH_INDEX_GENERATION = `${CONVERSATION_SEARCH_INDEX_POLICY_VERSION}.visual${INLINE_VISUAL_SEARCH_VERSION}`;
 export const SEARCH_INDEX_BATCH_ITEMS = 32;
 // Final-reply eligibility is read-time; every completed message is already indexed.
 const FINAL_REPLY_CONTROL_TYPES = [...RUNTIME_PAGE_HIDDEN_TYPES, "provider_handoff"];

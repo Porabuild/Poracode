@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { ensureConversationSearchGeneration } from "./conversationSearchSchema";
 import {
   assertRequiredDatabaseSchema,
   DATABASE_MIGRATIONS,
@@ -119,6 +120,7 @@ describe("workspace owner migration55 to 56", () => {
           .get(),
       ).toEqual({ revision: 0 });
       runDatabaseMigrations(sqlite, 55);
+      ensureConversationSearchGeneration(sqlite);
       sqlite.close();
       initDatabase(path, { schemaMode: "validate" });
       const current = dbReadThreadWorkspaceGrantOwner("thread-1");
@@ -196,6 +198,7 @@ describe("workspace owner migration55 to 56", () => {
           .all(),
       ).toEqual(grants);
       expect(version(sqlite)).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
+      ensureConversationSearchGeneration(sqlite);
       sqlite.close();
       initDatabase(path, { schemaMode: "validate" });
       const current = dbReadThreadWorkspaceGrantOwner("thread-1");
