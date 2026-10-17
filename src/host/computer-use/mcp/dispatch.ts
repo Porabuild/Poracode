@@ -69,12 +69,6 @@ export interface ToolContext {
    */
   onInputSettled?: (result: unknown) => void;
   setSessionActive?: (active: boolean) => void;
-  /**
-   * Whether the host is keeping the display awake for the active session.
-   * Queried after `setSessionActive(true)` so `enable` can tell the agent that
-   * the desktop will not idle-lock out from under it.
-   */
-  isDisplayKeptAwake?: () => boolean;
   threadId?: string;
 }
 
@@ -194,7 +188,7 @@ export async function dispatchTool(
     case "enable":
       if (!ctx.setSessionActive) throw new Error("computer_use.enable requires a thread context");
       ctx.setSessionActive(true);
-      return { enabled: true, ...(ctx.isDisplayKeptAwake?.() ? { keepAwake: true } : {}) };
+      return { enabled: true };
     case "disable":
       if (!ctx.setSessionActive) throw new Error("computer_use.disable requires a thread context");
       ctx.setSessionActive(false);

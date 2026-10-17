@@ -6,11 +6,11 @@ import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { aiLanguageOptions, localeOptions } from "@/renderer/i18n/locales";
 import { Button } from "@heroui/react";
-import { LightballTabs, Select, ToggleSwitch } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { isIosInstallBrowser, promptInstall, useCanInstall } from "@/renderer/pwa/install";
 import type { PreventSleep } from "@/shared/settings";
 import { SettingRow, SettingsPage } from "./SettingsForm";
-import { newThreadModeOptions, useLocalizedOptions } from "./settingsOptions";
+import { newThreadModeOptions, preventSleepOptions, useLocalizedOptions } from "./settingsOptions";
 import { SidebarShortcutsSelector } from "./SidebarShortcutsSelector";
 
 export function GeneralSettings() {
@@ -21,8 +21,6 @@ export function GeneralSettings() {
   const setGitTextLanguage = useSharedSettings((state) => state.setGitTextLanguage);
   const preventSleep = useSharedSettings((state) => state.preventSleep);
   const setPreventSleep = useSharedSettings((state) => state.setPreventSleep);
-  const computerUseKeepAwake = useSharedSettings((state) => state.computerUseKeepAwake);
-  const setComputerUseKeepAwake = useSharedSettings((state) => state.setComputerUseKeepAwake);
   const closeToTray = useSharedSettings((state) => state.closeToTray);
   const setCloseToTray = useSharedSettings((state) => state.setCloseToTray);
   const launchAtStartup = useSharedSettings((state) => state.launchAtStartup);
@@ -43,6 +41,7 @@ export function GeneralSettings() {
   const showIosInstallHelp = remote && isIosInstallBrowser();
 
   const newThreadOptions = useLocalizedOptions(newThreadModeOptions);
+  const sleepOptions = useLocalizedOptions(preventSleepOptions);
   const resolvedLocaleOptions = localeOptions.map((option) => ({
     id: option.id,
     label: typeof option.label === "string" ? option.label : t(option.label),
@@ -198,48 +197,34 @@ export function GeneralSettings() {
       {!remote && (
         <SettingRow
           anchorId="general.preventSleep"
-          title={t`Prevent sleep`}
+          title={t`Prevent system sleep`}
           description={
-            <Trans>
-              Choose when the system and display stay awake. This can delay automatic screen
-              locking.
-            </Trans>
+            preventSleep === "always" ? (
+              <Trans>
+                Keep the system awake whenever Poracode is running, even in the background. The
+                display can still turn off. Screen locking is unchanged.
+              </Trans>
+            ) : preventSleep === "while-remote-access" ? (
+              <Trans>
+                Keep the system awake while agents work or remote access is enabled. The display can
+                still turn off. Screen locking is unchanged.
+              </Trans>
+            ) : (
+              <Trans>
+                Keep the system awake while any agent is working, including Computer Use. The
+                display can still turn off. Screen locking is unchanged.
+              </Trans>
+            )
           }
         >
-          <LightballTabs
-            tabs={[
-              { id: "while-working", label: t`While working` },
-              { id: "while-remote-access", label: t`Remote access` },
-              { id: "always", label: t`Always` },
-            ]}
-            active={preventSleep}
-            onChange={(value: PreventSleep) => {
+          <Select
+            aria-label={t`Prevent system sleep`}
+            className="w-[220px] shrink-0"
+            options={sleepOptions}
+            value={preventSleep}
+            onChange={(value) => {
               startTransition(() => {
-                setPreventSleep(value);
-              });
-            }}
-            ariaLabel={t`Prevent sleep`}
-          />
-        </SettingRow>
-      )}
-
-      {!remote && (
-        <SettingRow
-          anchorId="general.computerUseKeepAwake"
-          title={t`Keep the Mac awake during Computer Use`}
-          description={
-            <Trans>
-              A locked screen stops all desktop control, so the display is kept on while a Computer
-              Use session is running. You can still lock the screen yourself.
-            </Trans>
-          }
-        >
-          <ToggleSwitch
-            aria-label={t`Keep the Mac awake during Computer Use`}
-            isSelected={computerUseKeepAwake}
-            onChange={(selected) => {
-              startTransition(() => {
-                setComputerUseKeepAwake(selected);
+                setPreventSleep(value as PreventSleep);
               });
             }}
           />

@@ -826,8 +826,8 @@ msgstr "고정된 작업 트리 소스에는 전체 커밋 해시가 필요합�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
-msgstr "화면이 잠기면 데스크톱 제어가 모두 중단되므로 컴퓨터 사용 세션이 실행되는 동안 디스플레이를 켜 둡니다. 직접 화면을 잠그는 것은 여전히 가능합니다."
+#~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+#~ msgstr "화면이 잠기면 데스크톱 제어가 모두 중단되므로 컴퓨터 사용 세션이 실행되는 동안 디스플레이를 켜 둡니다. 직접 화면을 잠그는 것은 여전히 가능합니다."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
@@ -1536,8 +1536,8 @@ msgid "Already used by {conflict}"
 msgstr "이미 {conflict}에서 사용 중"
 
 #. Notification filter: always notify
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Always"
 msgstr "항상"
 
@@ -2943,8 +2943,18 @@ msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
-msgstr "시스템과 디스플레이가 깨어 있는 상태를 유지할 시점을 선택하세요. 이로 인해 화면 자동 잠금이 지연될 수 있습니다."
+#~ msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+#~ msgstr "시스템과 디스플레이가 깨어 있는 상태를 유지할 시점을 선택하세요. 이로 인해 화면 자동 잠금이 지연될 수 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off."
+#~ msgstr "시스템을 절전 모드로 전환하지 않을 때를 선택하세요. 디스플레이는 계속 꺼질 수 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "시스템을 깨어 있게 유지할 시점을 선택하세요. 디스플레이는 계속 꺼질 수 있습니다. 화면 잠금 설정은 변경되지 않습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8110,8 +8120,21 @@ msgstr "시작 시 Poracode를 시스템 트레이에 둡니다."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the Mac awake during Computer Use"
-msgstr "컴퓨터 사용 중 Mac 절전 방지"
+#~ msgid "Keep the Mac awake during Computer Use"
+#~ msgstr "컴퓨터 사용 중 Mac 절전 방지"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+msgstr "백그라운드를 포함하여 Poracode가 실행 중인 동안 시스템을 깨어 있게 유지합니다. 디스플레이는 계속 꺼질 수 있습니다. 화면 잠금 동작은 변경되지 않습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+msgstr "에이전트가 작업 중이거나 원격 액세스가 활성화되어 있는 동안 시스템을 깨어 있게 유지합니다. 디스플레이는 계속 꺼질 수 있습니다. 화면 잠금 동작은 변경되지 않습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+msgstr "Computer Use를 포함하여 에이전트가 작업 중인 동안 시스템을 깨어 있게 유지합니다. 디스플레이는 계속 꺼질 수 있습니다. 화면 잠금 동작은 변경되지 않습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11799,8 +11822,8 @@ msgstr "스페이스 키를 눌러 순서 변경을 시작하세요. 방향키�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "절전 모드 방지"
+#~ msgid "Prevent sleep"
+#~ msgstr "절전 모드 방지"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11811,6 +11834,11 @@ msgstr "절전 모드 방지"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep while working"
 #~ msgstr "작업 중 수면 방지"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent system sleep"
+msgstr "시스템 절전 방지"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -12561,8 +12589,8 @@ msgid "Remote"
 msgstr "원격"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "원격 액세스"
+#~ msgid "Remote access"
+#~ msgstr "원격 액세스"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -18481,7 +18509,7 @@ msgstr "실행의 대화가 생성되는 위치입니다."
 msgid "Where the terminal panel appears."
 msgstr "터미널 패널이 나타나는 위치."
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "작업 중"
 
@@ -18600,6 +18628,10 @@ msgstr ".github/workflows에 추가된 워크플로가 여기에 표시됩니다
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "작업 중"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Working + remote access"
+msgstr "작업 중 + 원격 액세스"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

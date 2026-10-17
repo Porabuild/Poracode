@@ -826,8 +826,8 @@ msgstr "Una fuente de worktree inmovilizada requiere un hash de commit completo"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
-msgstr "Una pantalla bloqueada detiene todo el control del escritorio, por lo que la pantalla se mantiene encendida mientras se ejecuta una sesión de Uso del ordenador. Puedes bloquear la pantalla tú mismo en cualquier momento."
+#~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+#~ msgstr "Una pantalla bloqueada detiene todo el control del escritorio, por lo que la pantalla se mantiene encendida mientras se ejecuta una sesión de Uso del ordenador. Puedes bloquear la pantalla tú mismo en cualquier momento."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
@@ -1536,8 +1536,8 @@ msgid "Already used by {conflict}"
 msgstr "Ya lo usa {conflict}"
 
 #. Notification filter: always notify
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Always"
 msgstr "Siempre"
 
@@ -2943,8 +2943,18 @@ msgstr "Elige qué hace Poracode con las nuevas solicitudes de cambios: nada, co
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
-msgstr "Elige cuándo el sistema y la pantalla se mantienen activos. Esto puede retrasar el bloqueo automático de la pantalla."
+#~ msgid "Choose when the system and display stay awake. This can delay automatic screen locking."
+#~ msgstr "Elige cuándo el sistema y la pantalla se mantienen activos. Esto puede retrasar el bloqueo automático de la pantalla."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off."
+#~ msgstr "Elige cuándo el sistema se mantiene activo. La pantalla puede seguir apagándose."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Choose when the system stays awake. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Elige cuándo mantener el sistema activo. La pantalla puede seguir apagándose. El bloqueo de pantalla no cambia."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8110,8 +8120,21 @@ msgstr "Mantener Poracode en la bandeja del sistema cuando se inicie automática
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the Mac awake during Computer Use"
-msgstr "Mantener el Mac activo durante Uso del ordenador"
+#~ msgid "Keep the Mac awake during Computer Use"
+#~ msgstr "Mantener el Mac activo durante Uso del ordenador"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+msgstr "Mantener el sistema activo mientras Poracode esté en ejecución, incluso en segundo plano. La pantalla puede seguir apagándose. El bloqueo de pantalla no cambia."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+msgstr "Mantener el sistema activo mientras los agentes trabajan o el acceso remoto está activado. La pantalla puede seguir apagándose. El bloqueo de pantalla no cambia."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+msgstr "Mantener el sistema activo mientras cualquier agente trabaja, incluido Computer Use. La pantalla puede seguir apagándose. El bloqueo de pantalla no cambia."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11799,8 +11822,8 @@ msgstr "Pulsa Espacio para empezar a reordenar. Usa las flechas para mover, Espa
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Prevent sleep"
-msgstr "Evitar la suspensión"
+#~ msgid "Prevent sleep"
+#~ msgstr "Evitar la suspensión"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -11811,6 +11834,11 @@ msgstr "Evitar la suspensión"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep while working"
 #~ msgstr "Evitar la suspensión mientras se trabaja"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent system sleep"
+msgstr "Evitar la suspensión del sistema"
 
 #. placeholder {0}: att.name
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -12561,8 +12589,8 @@ msgid "Remote"
 msgstr "Remoto"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Remote access"
-msgstr "Acceso remoto"
+#~ msgid "Remote access"
+#~ msgstr "Acceso remoto"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -18481,7 +18509,7 @@ msgstr "Dónde se crea la conversación de la ejecución."
 msgid "Where the terminal panel appears."
 msgstr "Dónde aparece el panel del terminal."
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "Mientras se trabaja"
 
@@ -18600,6 +18628,10 @@ msgstr "Los workflows añadidos en .github/workflows aparecerán aquí."
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "Trabajando"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Working + remote access"
+msgstr "Trabajo + acceso remoto"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
