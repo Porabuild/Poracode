@@ -1,12 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { act, fireEvent } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
+import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { SidebarHeaderControls } from "./SidebarHeaderControls";
+
+const { capabilities } = vi.hoisted(() => ({ capabilities: { localBackend: false } }));
+
+vi.mock("@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu", () => ({
+  CreateProjectMenu: (props: { children: ReactNode }) => props.children,
+}));
 
 vi.mock("@/renderer/clientRuntime", () => ({
   isBrowserClientRuntime: () => true,
-  hasClientCapability: () => false,
+  hasClientCapability: (name: string) => name === "localBackend" && capabilities.localBackend,
   hasAnyClientBridge: () =>
     Boolean(
       (window as { poracode?: unknown }).poracode ??
@@ -17,6 +27,9 @@ vi.mock("@/renderer/clientRuntime", () => ({
 
 describe("SidebarHeaderControls", () => {
   beforeEach(() => {
+    capabilities.localBackend = false;
+    resetDevTerminalStore();
+    useGlobalTerminalStore.setState({ tabs: [], activeTabId: null });
     vi.stubGlobal(
       "matchMedia",
       vi.fn((query: string) => ({
@@ -68,5 +81,25 @@ describe("SidebarHeaderControls", () => {
     );
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("toggles a project-independent terminal from the desktop header", () => {
+    capabilities.localBackend = true;
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: false,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      })),
+    );
+    const { getByRole } = render(<SidebarHeaderControls />);
+    const button = getByRole("button", { name: "Terminal" });
+    fireEvent.click(button);
+    expect(button).toHaveAttribute("aria-pressed", "true");
+    expect(useGlobalTerminalStore.getState().activeTabId).toMatch(/^shell:/);
+    act(() => useDevTerminalStore.getState().closePanel());
+    expect(button).toHaveAttribute("aria-pressed", "false");
   });
 });

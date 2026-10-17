@@ -13,6 +13,7 @@ import {
   injectBrowserToMain,
 } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/browserWindowActions";
 import { DevTerminalPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel";
+import { GlobalTerminalPanel } from "@/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel";
 import {
   UnifiedRightPanel,
   type RightPanelTab,
@@ -134,6 +135,7 @@ export function ProjectAuxiliaryPanel(props: {
   const setGitOverlayOpen = usePanelStore((s) => s.setGitOverlayOpen);
   const setFileEditorOverlayMode = useFileEditorStore((s) => s.setOverlayMode);
   const terminalOpen = useDevTerminalStore((s) => s.isOpen);
+  const globalTerminal = useDevTerminalStore((s) => s.source === "global");
   const terminalProjectId = useDevTerminalStore((s) => s.activeProjectId);
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
   const terminalProject = projects.find((project) => project.id === terminalProjectId);
@@ -280,12 +282,13 @@ export function ProjectAuxiliaryPanel(props: {
 
   const gitScope = scopeFromGitContext(gitPanelContext);
   const filesScope = scopeFromFilesContext(resolvedFilesPanelContext);
-  const terminalScope: PanelProjectScope | null = terminalProjectId
-    ? {
-        projectId: terminalProjectId,
-        ...(terminalWorktreePath ? { worktreePath: terminalWorktreePath } : {}),
-      }
-    : null;
+  const terminalScope: PanelProjectScope | null =
+    terminalProjectId && !globalTerminal
+      ? {
+          projectId: terminalProjectId,
+          ...(terminalWorktreePath ? { worktreePath: terminalWorktreePath } : {}),
+        }
+      : null;
 
   function fallbackScope(): PanelProjectScope | null {
     const firstProject = projects[0];
@@ -317,6 +320,7 @@ export function ProjectAuxiliaryPanel(props: {
       case "ports":
         return t`Ports`;
       case "terminal": {
+        if (globalTerminal) return t`Terminal`;
         const terminalProjectName = projectNameForScope(terminalScope);
         return terminalProjectName
           ? formatProjectScopeLabel(terminalProjectName, terminalWorktreePath ?? undefined)
@@ -362,6 +366,11 @@ export function ProjectAuxiliaryPanel(props: {
   }
 
   function handleOpenTerminal() {
+    if (globalTerminal) {
+      useDevTerminalStore.getState().openGlobalPanel();
+      setRightPanelTab("terminal");
+      return;
+    }
     const scope = resolveNextProjectScope();
     if (!scope) return;
     showTerminalPanel(scope.projectId, scope.worktreePath);
@@ -411,7 +420,13 @@ export function ProjectAuxiliaryPanel(props: {
       }}
       {...(renderTerminalContent
         ? {
-            terminalContent: (
+            terminalContent: globalTerminal ? (
+              <GlobalTerminalPanel
+                visible={
+                  props.visible && (activeTab === "terminal" || rightPanelSplit?.tab === "terminal")
+                }
+              />
+            ) : (
               <DevTerminalPanel
                 hideHeader
                 {...(terminalProject?.remoteServerId
