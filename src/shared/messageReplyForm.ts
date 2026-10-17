@@ -10,3 +10,10 @@ export function messageReplyFormText(form: MessageReplyForm): string {
     )
     .join("\n\n");
 }
+
+export function isMessageReplyFormFallbackText(
+  form: MessageReplyForm | undefined,
+  text: string,
+): boolean {
+  return !!form && (!text.trim() || text.trim() === messageReplyFormText(form).trim());
+}

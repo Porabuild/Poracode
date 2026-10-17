@@ -11,6 +11,7 @@ import {
 } from "@/build/runtimePayloadProjectionSource.mjs";
 import * as asyncReads from "./asyncReads";
 import { elisionNotice } from "@/shared/runtimeStreamRetentionPolicy";
+import { messageReplyFormText } from "@/shared/messageReplyForm";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { dbDeleteThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
@@ -72,6 +73,52 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     } while (page.indexing);
     return page;
   };
+  const replyForm = {
+    questions: [
+      {
+        id: "format",
+        question: "Generatedquestionneedle choose a format",
+        options: [{ optionId: "compact", label: "Compact" }],
+      },
+    ],
+  };
+
+  it.each(["payload", "stream"])(
+    "excludes generated reply-form %s text while keeping ordinary user text",
+    async (source) => {
+      const text = messageReplyFormText(replyForm);
+      await dbReplaceThreadRuntimeItems("thread-1", [
+        {
+          ...message("generated", text),
+          payload: { content: [{ kind: "text", text }], replyForm },
+          streams: source === "stream" ? { assistant_text: text } : {},
+        },
+        message("user", text, "user_message"),
+      ]);
+      expect(
+        (await search("Generatedquestionneedle")).entries.map((entry) => entry.itemId),
+      ).toEqual(["user"]);
+    },
+  );
+
+  it.each([false, true])(
+    "keeps independent assistant prose with a reply form (authoritative: %s)",
+    async (authoritative) => {
+      const text = "Independentproseneedle remains visible next to the form.";
+      await dbReplaceThreadRuntimeItems("thread-1", [
+        {
+          ...message("independent", text),
+          payload: {
+            content: [{ kind: "text", text }],
+            replyForm,
+            ...(authoritative ? { displayAuthoritative: true } : {}),
+          },
+          streams: authoritative ? { assistant_text: messageReplyFormText(replyForm) } : {},
+        },
+      ]);
+      expect((await search("Independentproseneedle")).entries[0]?.itemId).toBe("independent");
+    },
+  );
 
   it("finds unopened user text and final answers, excluding tools, reasoning, nested messages and intermediate replies", async () => {
     await dbReplaceThreadRuntimeItems("thread-1", [
@@ -307,7 +354,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     await expect(search("other", { cursor: first.nextCursor })).rejects.toThrow("cursor");
   });
 
-  it.each(["1.visual1", "1.visual2"])(
+  it.each(["1.visual1", "1.visual2", "2.visual2", "3.visual1"])(
     "rebuilds older extraction generation %s without changing canonical history",
     async (generation) => {
       await dbReplaceThreadRuntimeItems("thread-1", [message("older", "preupgrade needle")]);
@@ -355,10 +402,47 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     for (const query of ["prefixneedle", "Publictitle", "suffixneedle"])
       expect((await search(query)).entries[0]?.itemId).toBe("native");
     expect(sqlite.prepare("SELECT generation FROM conversation_search_meta").get()).toEqual({
-      generation: "2.visual2",
+      generation: "3.visual2",
     });
     expect(sqlite.prepare("SELECT * FROM thread_runtime_items").all()).toEqual(before);
     expect(dbGetThreadRuntimeItemCommitted("thread-1", "native")).toEqual(committed);
+  });
+
+  it("rebuilds indexed 2.visual2 question fallbacks without rewriting canonical rows or streams", async () => {
+    const text = messageReplyFormText(replyForm);
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "generated",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: text },
+        payload: { content: [{ kind: "text", text }], replyForm },
+      },
+    ]);
+    const sqlite = getSqlite();
+    sqlite.prepare("UPDATE conversation_search_meta SET generation = '2.visual2'").run();
+    sqlite
+      .prepare(
+        "INSERT INTO conversation_search_documents(id, thread_id, item_id, text) SELECT rowid, thread_id, item_id, ? FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
+      )
+      .run(text, "thread-1", "generated");
+    sqlite.prepare("DELETE FROM conversation_search_pending").run();
+    expect(
+      sqlite
+        .prepare(
+          "SELECT COUNT(*) AS count FROM conversation_search_fts WHERE conversation_search_fts MATCH ?",
+        )
+        .get("Generatedquestionneedle"),
+    ).toEqual({ count: 1 });
+    const before = sqlite.prepare("SELECT * FROM thread_runtime_items").all();
+    const committed = dbGetThreadRuntimeItemCommitted("thread-1", "generated");
+    expect(committed?.streams.assistant_text).toBe(text);
+    expect((await search("Generatedquestionneedle")).entries).toEqual([]);
+    expect(sqlite.prepare("SELECT generation FROM conversation_search_meta").get()).toEqual({
+      generation: "3.visual2",
+    });
+    expect(sqlite.prepare("SELECT * FROM thread_runtime_items").all()).toEqual(before);
+    expect(dbGetThreadRuntimeItemCommitted("thread-1", "generated")).toEqual(committed);
   });
 
   it("extracts native text and rejects an old-generation cursor through the real read worker", async () => {
@@ -368,6 +452,13 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
         'needle prose\n~~~poracode-visual-v1 Publictitle\n{"body":"nativebodysecret"}\n~~~',
       ),
       message("second", "needle second", "user_message"),
+      {
+        ...message("generated", messageReplyFormText(replyForm)),
+        payload: {
+          content: [{ kind: "text", text: messageReplyFormText(replyForm) }],
+          replyForm,
+        },
+      },
     ]);
     mkdirSync(resolvePath("tmp"), { recursive: true });
     const artifacts = mkdtempSync(resolvePath("tmp/search-read-worker-"));
@@ -394,6 +485,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
         excerpt: expect.stringContaining("Publictitle"),
       });
       expect((await search("nativebodysecret")).entries).toEqual([]);
+      expect((await search("Generatedquestionneedle")).entries).toEqual([]);
       expect(reads).toHaveBeenCalledWith(
         "conversationSearchBatch",
         [],
@@ -405,18 +497,20 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
         q: string;
         id: number;
       };
-      cursor.q = createHash("sha256")
-        .update(JSON.stringify(["2.visual1", "needle", null, "true"]))
-        .digest("base64url");
-      const oldCursor = `cs1.${Buffer.from(JSON.stringify(cursor)).toString("base64url")}`;
-      await expect(search("needle", { cursor: oldCursor })).rejects.toThrow(
-        "does not match this query or index version",
-      );
-      expect(reads).toHaveBeenCalledWith(
-        "conversationSearch",
-        [expect.objectContaining({ cursor: oldCursor })],
-        expect.any(Function),
-      );
+      for (const generation of ["2.visual1", "2.visual2"]) {
+        cursor.q = createHash("sha256")
+          .update(JSON.stringify([generation, "needle", null, "true"]))
+          .digest("base64url");
+        const oldCursor = `cs1.${Buffer.from(JSON.stringify(cursor)).toString("base64url")}`;
+        await expect(search("needle", { cursor: oldCursor })).rejects.toThrow(
+          "does not match this query or index version",
+        );
+        expect(reads).toHaveBeenCalledWith(
+          "conversationSearch",
+          [expect.objectContaining({ cursor: oldCursor })],
+          expect.any(Function),
+        );
+      }
     } finally {
       await asyncReads.closeAsyncDatabaseReads();
       rmSync(artifacts, { recursive: true, force: true });
@@ -461,7 +555,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
     expect((await search("upgrade-search-needle")).entries[0]?.itemId).toBe("pre-search");
   });
 
-  it.each(["3.visual1", "2.visual3"])(
+  it.each(["4.visual1", "3.visual3", "2.visual3"])(
     "preserves all bytes of future index generation %s instead of rewriting it on downgrade",
     async (generation) => {
       await dbReplaceThreadRuntimeItems("thread-1", [message("future", "savedneedle")]);

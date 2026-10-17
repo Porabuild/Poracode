@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
+import type { MessageItemPayload } from "@/shared/contracts";
+import { isMessageReplyFormFallbackText } from "@/shared/messageReplyForm";
 import { INLINE_VISUAL_SEARCH_VERSION, inlineVisualSearchText } from "@/shared/inlineVisuals";
 import {
   CONVERSATION_SEARCH_EXCERPT_CHARS,
@@ -15,7 +17,8 @@ import { RUNTIME_PAGE_HIDDEN_TYPES } from "./runtimeTimelineReads";
 
 // Disposable extraction generation, independent of canonical history/schema.
 // Any text policy/tokenizer or visual extraction change rebuilds old documents.
-export const CONVERSATION_SEARCH_INDEX_POLICY_VERSION = 2;
+// v3 omits generated reply-form fallback text hidden by the current timeline.
+export const CONVERSATION_SEARCH_INDEX_POLICY_VERSION = 3;
 export const CONVERSATION_SEARCH_INDEX_GENERATION = `${CONVERSATION_SEARCH_INDEX_POLICY_VERSION}.visual${INLINE_VISUAL_SEARCH_VERSION}`;
 export const SEARCH_INDEX_BATCH_ITEMS = 32;
 // Final-reply eligibility is read-time; every completed message is already indexed.
@@ -48,6 +51,8 @@ export function readConversationSearchBatch(): SearchIndexDocument[] {
     if (item && !item.parentItemId && item.state === "completed") {
       if (item.type === "assistant_message") {
         let displayed = assistantDisplayText(item);
+        const form = (item.payload as MessageItemPayload | undefined)?.replyForm;
+        if (isMessageReplyFormFallbackText(form, displayed)) displayed = "";
         const gap = displayed.indexOf(RUNTIME_STREAM_ELISION_NOTICE_PREFIX);
         if (gap >= 0) displayed = displayed.slice(0, gap);
         else if (displayed === item.streams.assistant_text) {
