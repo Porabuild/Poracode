@@ -76,6 +76,7 @@ export const functionalAreas = [
     patterns: [
       /agents\/devin\//i,
       /agents\/commandcode\//i,
+      /agents\/deepseek\//i,
       /providers?\//i,
       /agents\/registry/i,
       /agentRegistry/i,
