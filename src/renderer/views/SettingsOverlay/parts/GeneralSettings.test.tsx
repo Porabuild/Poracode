@@ -15,6 +15,7 @@ const installMock = vi.hoisted(() => ({
 vi.mock("@/renderer/bridge", () => ({
   isRemoteSession: bridgeMock.isRemoteSession,
   isWindows: bridgeMock.isWindows,
+  isDevApp: () => false,
 }));
 vi.mock("@/renderer/pwa/install", () => ({
   useCanInstall: () => installMock.canInstall,
@@ -57,7 +58,7 @@ describe("GeneralSettings", () => {
     render(<GeneralSettings />);
 
     const trigger = screen.getByRole("button", { name: "Sidebar shortcuts" });
-    expect(trigger).toHaveTextContent("2 / 3");
+    expect(trigger).toHaveTextContent(/^2 \/ /);
 
     fireEvent.click(trigger);
 
@@ -67,11 +68,15 @@ describe("GeneralSettings", () => {
     expect(pullRequests).toHaveAttribute("aria-selected", "true");
     expect(githubActions).toHaveAttribute("aria-selected", "false");
     expect(schedules).toHaveAttribute("aria-selected", "true");
-    expect(screen.getAllByRole("button", { name: /Reorder/ })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: /Reorder/ }).length).toBeGreaterThan(3);
+    expect(screen.getByRole("option", { name: /^Profile/ })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
 
     fireEvent.click(githubActions);
     expect(useSharedSettings.getState().sidebarHiddenShortcuts).toEqual([]);
-    expect(trigger).toHaveTextContent("3 / 3");
+    expect(trigger).toHaveTextContent(/^3 \/ /);
   });
 
   it("persists the Windows startup preferences", () => {
@@ -87,6 +92,39 @@ describe("GeneralSettings", () => {
 
     expect(useSharedSettings.getState().launchAtStartup).toBe(false);
     expect(useSharedSettings.getState().startMinimized).toBe(false);
+  });
+
+  it("pins and reorders Settings pages by keyboard without enabling other pages", () => {
+    useSharedSettings.setState({
+      sidebarHiddenShortcuts: ["githubActions"],
+      sidebarShortcutOrder: [
+        "pullRequests",
+        "settings:agents:missing",
+        "githubActions",
+        "schedules",
+      ],
+    });
+    render(<GeneralSettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Sidebar shortcuts" }));
+    const profile = screen.getByRole("option", { name: /^Profile/ });
+    fireEvent.keyDown(profile, { key: "Enter" });
+    expect(profile).toHaveAttribute("aria-selected", "true");
+    profile.focus();
+    fireEvent.keyDown(profile, { key: "ArrowUp", altKey: true });
+    expect(profile).toHaveFocus();
+    expect(useSharedSettings.getState().sidebarShortcutOrder.slice(0, 5)).toEqual([
+      "pullRequests",
+      "settings:agents:missing",
+      "githubActions",
+      "settings:profile",
+      "schedules",
+    ]);
+    expect(screen.getByRole("option", { name: /^Appearance/ })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    fireEvent.keyDown(profile, { key: " " });
+    expect(profile).toHaveAttribute("aria-selected", "false");
   });
 
   it("hides Windows startup controls on other desktop platforms", () => {
@@ -108,7 +146,7 @@ describe("GeneralSettings", () => {
     expect(screen.queryByText("Launch at startup")).not.toBeInTheDocument();
     expect(screen.queryByText("Start minimized")).not.toBeInTheDocument();
     expect(screen.queryByText("Editor LSP")).not.toBeInTheDocument();
-    expect(screen.queryByText("Sidebar shortcuts")).not.toBeInTheDocument();
+    expect(screen.getByText("Sidebar shortcuts")).toBeInTheDocument();
     expect(screen.queryByText("Prevent sleep")).not.toBeInTheDocument();
   });
 

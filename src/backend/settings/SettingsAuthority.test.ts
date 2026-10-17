@@ -97,6 +97,52 @@ describe("SettingsAuthority", () => {
     );
   });
 
+  it.each([1, 2])(
+    "writes v3 shortcuts over a v%s document and restores them after reopening",
+    async (version) => {
+      await writeFile(
+        settingsPath,
+        JSON.stringify({
+          [SETTINGS_DOCUMENT_VERSION_KEY]: version,
+          sidebarShortcutOrder: ["schedules", "pullRequests", "githubActions"],
+          sidebarHiddenShortcuts: ["githubActions"],
+          futureSetting: { keep: true },
+        }),
+      );
+      const authority = await open();
+      const before = authority.snapshot();
+      const order: SettingsSubject = { kind: "field", field: "sidebarShortcutOrder" };
+      await expect(
+        authority.mutate(
+          request(before, [
+            set(before, order, [
+              "settings:profile",
+              "settings:agents:missing",
+              ...before.settings.sidebarShortcutOrder,
+            ]),
+          ]),
+          allow,
+        ),
+      ).resolves.toMatchObject({ status: "committed" });
+      expect(await disk()).toMatchObject({
+        [SETTINGS_DOCUMENT_VERSION_KEY]: 3,
+        futureSetting: { keep: true },
+      });
+      await authority.close();
+      const restored = await open();
+      expect(restored.readSettings()).toMatchObject({
+        sidebarShortcutOrder: [
+          "settings:profile",
+          "settings:agents:missing",
+          "schedules",
+          "pullRequests",
+          "githubActions",
+        ],
+        sidebarHiddenShortcuts: ["githubActions"],
+      });
+    },
+  );
+
   it("keeps simultaneous disjoint edits and rejects a stale competing edit without writing", async () => {
     const authority = await open();
     const a = authority.snapshot(),
@@ -404,7 +450,7 @@ describe("SettingsAuthority", () => {
   it.each([
     ["malformed JSON", '{"themeMode":'],
     ["invalid existing field", '{"themeMode":17}'],
-    ["future format", '{"$poracodeSettingsVersion":3,"themeMode":"dark"}'],
+    ["future format", '{"$poracodeSettingsVersion":4,"themeMode":"dark"}'],
     ["malformed format", '{"$poracodeSettingsVersion":"1"}'],
     ["nonobject", "[]"],
   ])("refuses %s without changing exact bytes", async (_name, contents) => {

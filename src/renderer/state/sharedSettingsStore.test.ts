@@ -236,6 +236,32 @@ describe("sharedSettingsStore", () => {
     ]);
   });
 
+  it("persists pin, hide, and reorder without enabling unselected settings pages", () => {
+    useSharedSettings.setState({ sidebarHiddenShortcuts: ["githubActions"] });
+    const state = useSharedSettings.getState();
+    state.setSidebarShortcutVisible("settings:profile", true);
+    expect(useSharedSettings.getState().sidebarShortcutOrder).toContain("settings:profile");
+    expect(useSharedSettings.getState().sidebarHiddenShortcuts).not.toContain("settings:profile");
+    state.setSidebarShortcutOrder(["settings:profile", "schedules", "settings:appearance"]);
+    expect(useSharedSettings.getState().sidebarHiddenShortcuts).toContain("settings:appearance");
+    state.setSidebarShortcutVisible("settings:profile", false);
+    expect(JSON.parse(localStorage.getItem("poracode-shared-settings") ?? "null")).toMatchObject({
+      sidebarShortcutOrder: [
+        "settings:profile",
+        "schedules",
+        "settings:appearance",
+        "pullRequests",
+        "githubActions",
+      ],
+      sidebarHiddenShortcuts: ["githubActions", "settings:appearance", "settings:profile"],
+    });
+    state.setSidebarShortcutVisible("settings:profile", true);
+    expect(useSharedSettings.getState().sidebarShortcutOrder[0]).toBe("settings:profile");
+    const before = useSharedSettings.getState();
+    state.setSidebarShortcutVisible("settings:profile", true);
+    expect(useSharedSettings.getState()).toBe(before);
+  });
+
   it("reorders thread docks and keeps every supported dock", () => {
     useSharedSettings.getState().setThreadDocksOrder(["backgroundTasks", "plan"]);
 

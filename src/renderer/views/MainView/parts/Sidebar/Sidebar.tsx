@@ -203,11 +203,9 @@ export function Sidebar() {
   const compactLayout = useCompactLayout();
   const effectiveListLayout = compactLayout ? "flat" : listLayout;
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
-  const settingsSection = usePanelStore((s) => s.settingsSection);
-  // Remote Access has its own sidebar entry, so the generic Settings button
-  // lights up for every other section.
+  const settingsSection = usePanelStore((s) => s.settingsSection ?? s.activeSettingsSection);
+  // Surfaced Settings destinations own their active state instead of the generic entry.
   const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
-  const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const searchOpen = useCommandPaletteStore((s) => s.isOpen);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOnScreen = useIsPanelTabVisible("browser");
@@ -243,6 +241,10 @@ export function Sidebar() {
     maxFadePx: 10,
   });
   const sidebarShortcuts = useSidebarShortcuts();
+  const otherSettingsActive =
+    settingsOpen &&
+    !remoteAccessSettingsActive &&
+    !sidebarShortcuts.some((shortcut) => shortcut.isActive);
 
   useEffect(() => {
     if (currentProjectId) {
@@ -339,7 +341,7 @@ export function Sidebar() {
           </div>
           <CollapsedThreadRail />
 
-          <div className="flex flex-col gap-1 border-t border-[var(--hairline)] pt-2 pb-2 pr-2">
+          <div className="flex max-h-[50vh] shrink-0 flex-col gap-1 overflow-y-auto border-t border-[var(--hairline)] pt-2 pb-2 pr-2 [&>*]:shrink-0">
             <ProviderUsageRail orientation="column" />
             <UpdateButtons iconOnly />
             <WhatsNewButton iconOnly />
@@ -350,6 +352,7 @@ export function Sidebar() {
                 icon={shortcut.icon}
                 label={shortcut.label}
                 isActive={shortcut.isActive}
+                isCurrentPage={shortcut.isActive}
                 onPress={shortcut.onPress}
               />
             ))}
@@ -361,7 +364,8 @@ export function Sidebar() {
               onPreload={prewarmSettings}
               onPress={openSettings}
             />
-            {showRemoteAccess ? (
+            {showRemoteAccess &&
+            !sidebarShortcuts.some((shortcut) => shortcut.id === "settings:remoteAccess") ? (
               <SidebarButton
                 iconOnly
                 icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}

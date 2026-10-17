@@ -185,15 +185,15 @@ export function GeneralSettings() {
         </SettingRow>
       )}
 
-      {!remote && (
-        <SettingRow
-          anchorId="general.sidebarShortcuts"
-          title={t`Sidebar shortcuts`}
-          description={<Trans>Choose which shortcuts appear in the sidebar footer.</Trans>}
-        >
-          <SidebarShortcutsSelector />
-        </SettingRow>
-      )}
+      <SettingRow
+        anchorId="general.sidebarShortcuts"
+        title={t`Sidebar shortcuts`}
+        description={
+          <Trans>Choose and order pages from Settings and other sidebar shortcuts.</Trans>
+        }
+      >
+        <SidebarShortcutsSelector />
+      </SettingRow>
 
       {!remote && (
         <SettingRow

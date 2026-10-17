@@ -69,6 +69,32 @@ describe("shared settings defaults", () => {
     ]);
   });
 
+  it("keeps opted-in settings shortcuts and unavailable providers without changing defaults", () => {
+    expect(normalizeSharedSettings({}).sidebarShortcutOrder).toEqual(
+      defaultSharedSettings.sidebarShortcutOrder,
+    );
+    expect(
+      normalizeSharedSettings({
+        sidebarShortcutOrder: [
+          "settings:profile",
+          "schedules",
+          "settings:agents:missing",
+          "settings:profile",
+        ],
+        sidebarHiddenShortcuts: ["settings:agents:missing"],
+      }),
+    ).toMatchObject({
+      sidebarShortcutOrder: [
+        "settings:profile",
+        "schedules",
+        "settings:agents:missing",
+        "pullRequests",
+        "githubActions",
+      ],
+      sidebarHiddenShortcuts: ["settings:agents:missing"],
+    });
+  });
+
   it("normalizes and reorders thread docks without moving hidden dock slots", () => {
     expect(normalizeThreadDocksOrder(["plan", "plan"])).toEqual([
       "plan",
