@@ -1,4 +1,4 @@
-import { isAbsolute, relative, sep } from "node:path";
+import { isAbsolute, relative, sep, toNamespacedPath } from "node:path";
 import { realpath } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadCursorSdk, type CursorSdkModule } from "./sdkLoader";
@@ -68,6 +68,7 @@ export interface RuntimeSdkModule extends CursorSdkModule {
   Agent: RuntimeAgentApi & CursorSdkModule["Agent"];
   Cursor: RuntimeCursorApi & CursorSdkModule["Cursor"];
   getDefaultSdkStateRoot?: (workspaceRef: string) => string;
+  configureCursorSdk?: (options: { local: { store: unknown } }) => void;
 }
 
 /**
@@ -78,6 +79,9 @@ export interface RuntimeSdkModule extends CursorSdkModule {
 export class CursorSdkWorkerRuntime {
   private readonly maxMode = new CursorSdkMaxModeCompatibility();
   private loadedSdk: RuntimeSdkModule | undefined;
+  private entrySpecifier: string | undefined;
+  private localStore: { dispose(): Promise<void> } | undefined;
+  private localStoreCwd: string | undefined;
   private discoveryKey: string | undefined;
   private sdkMetadata:
     | Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source" | "packageRoot">
@@ -114,7 +118,63 @@ export class CursorSdkWorkerRuntime {
     // and package-manager links). Scope the hook to that same package path.
     const canonicalSpecifier = pathToFileURL(await realpath(fileURLToPath(specifier))).href;
     this.maxMode.registerForImport(canonicalSpecifier);
+    this.entrySpecifier = canonicalSpecifier;
     return import(canonicalSpecifier);
+  }
+
+  async prepareLocalStore(cwd: string): Promise<void> {
+    const loaded = this.loadedSdk;
+    if (
+      process.platform !== "win32" ||
+      !this.entrySpecifier ||
+      !loaded?.getDefaultSdkStateRoot ||
+      !loaded.configureCursorSdk
+    )
+      return;
+    if (this.localStore) {
+      if (this.localStoreCwd === cwd) return;
+      await this.disposeLocalStore();
+    }
+
+    // SQLite does not add Windows' long-path prefix itself. The SDK's two
+    // SHA-256 directory names can push checkpoint store.db beyond MAX_PATH.
+    // Keep the SDK's existing root and layout so old sessions still resume.
+    let sqlite: {
+      SqliteLocalAgentStore?: {
+        open?: (options: { workspaceRef: string; stateRoot: string }) => Promise<{
+          dispose(): Promise<void>;
+        }>;
+      };
+    };
+    try {
+      sqlite = (await import(new URL("./sqlite.js", this.entrySpecifier).href)) as typeof sqlite;
+    } catch (error) {
+      if ((error as { code?: string })?.code === "ERR_MODULE_NOT_FOUND") return;
+      throw error;
+    }
+    if (typeof sqlite?.SqliteLocalAgentStore?.open !== "function") return;
+    const store = await sqlite.SqliteLocalAgentStore.open({
+      workspaceRef: cwd,
+      stateRoot: toNamespacedPath(loaded.getDefaultSdkStateRoot(cwd)),
+    });
+    try {
+      loaded.configureCursorSdk({ local: { store } });
+    } catch (error) {
+      await store.dispose();
+      throw error;
+    }
+    this.localStore = store;
+    this.localStoreCwd = cwd;
+  }
+
+  async disposeLocalStore(): Promise<void> {
+    const store = this.localStore;
+    this.localStore = undefined;
+    this.localStoreCwd = undefined;
+    if (store) {
+      this.loadedSdk!.configureCursorSdk!({ local: { store: null } });
+      await store.dispose();
+    }
   }
 
   async load(
