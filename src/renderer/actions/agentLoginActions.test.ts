@@ -594,7 +594,7 @@ describe("runAgentLoginCommand", () => {
   it("opens update commands with update-specific terminal state", () => {
     runAgentInstallCommand({
       label: "Update Cursor SDK",
-      command: "npm install -g '@cursor/sdk@^1.0.37'",
+      command: "npm install -g '@cursor/sdk@^1.0.38'",
       project: posixProject,
       purpose: "update",
     });
