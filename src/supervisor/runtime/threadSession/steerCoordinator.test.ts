@@ -230,6 +230,33 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     });
   });
 
+  it("keeps reply-form metadata on the canonical steer without sending it to the provider", async () => {
+    const harness = createHarness();
+    const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(async () => {});
+    harness.session.structuredSession!.steerTurn = steerTurn;
+    const questionAnswer = {
+      questions: [{ header: "", question: "Which scope?", selected: [{ label: "Focused" }] }],
+    };
+    await harness.coordinator.steerStructuredTurn(harness.session, {
+      prompt: "Which scope?\nFocused",
+      config: { model: "model-2" },
+      questionAnswer,
+    });
+    expect(harness.emitOptimisticUserMessage).toHaveBeenCalledWith(
+      harness.session.threadId,
+      "Which scope?\nFocused",
+      undefined,
+      undefined,
+      { includeTurn: false, questionAnswer },
+    );
+    expect(steerTurn).toHaveBeenCalledWith(
+      "Which scope?\nFocused",
+      { model: "model-2" },
+      undefined,
+      { userMessageItemId: "user-optimistic" },
+    );
+  });
+
   it("releases the direct barrier when native steer completes without a turn", async () => {
     const harness = createHarness();
     const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(async () => ({

@@ -699,6 +699,43 @@ describe("RemoteDesktopClient", () => {
     });
   });
 
+  it("preserves structured answer metadata in send and resumed-start request bodies", async () => {
+    const bodies: Record<string, unknown> = {};
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        bodies[new URL(String(url)).pathname] = JSON.parse(
+          typeof init?.body === "string" ? init.body : "{}",
+        );
+        return new Response(JSON.stringify({ ok: true, threadId: "thread-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+    const questionAnswer = {
+      questions: [{ header: "", question: "Which scope?", selected: [{ label: "Focused" }] }],
+    };
+    const input = {
+      threadId: "thread-1",
+      config: { model: "test-model" },
+      prompt: "Which scope?\nFocused",
+      questionAnswer,
+    };
+    await client.sendThreadInput(input);
+    await client.startThread({
+      ...input,
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+    });
+    expect(bodies["/api/threads/thread-1/send"]).toMatchObject({
+      prompt: input.prompt,
+      questionAnswer,
+    });
+    expect(bodies["/api/threads/start"]).toMatchObject({ prompt: input.prompt, questionAnswer });
+  });
+
   it("forwards launch metadata and one retained operation id for startNewThread", async () => {
     let requestUrl = "";
     let requestBody: unknown;

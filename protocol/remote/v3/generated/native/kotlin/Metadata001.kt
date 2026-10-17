@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 5
-    const val sourceHash = "sha256:e97cc0c3dc7c884910ecc69fa1de6f1c9980314f4c4e19d9fc2bbb0b1b03cca1"
+    const val sourceHash = "sha256:52c6d39a9b6315438f0c2e912e3c323a3fe81a03ed94ca5421aba2bd4ea39f82"
     const val manifestHash = "sha256:b39f2d13ae38008996ebf29d325c5b5c703dea7bbd9d0c933eaec9e059ed7490"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -113,8 +113,8 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("thread-runtime-gap", "GET", "/api/threads/{threadId}/runtime/gap", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutethreadU2DRuntimeU2DGapResponse_6da82c72b2", listOf(RemoteQueryParameterDescriptor("notices", "string", false, false))),
         RemoteRouteDescriptor("thread-runtime-gap-acknowledge", "POST", "/api/threads/{threadId}/runtime/gap/acknowledge", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DRuntimeU2DGapU2DAcknowledgeRequest_d4605651db", "RoutethreadU2DRuntimeU2DGapU2DAcknowledgeResponse_3224b26610", listOf(RemoteQueryParameterDescriptor("notices", "string", false, false))),
         RemoteRouteDescriptor("thread-runtime-truncate", "POST", "/api/threads/{threadId}/runtime/truncate", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DRuntimeU2DTruncateRequest_228757711c", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("thread-send", "POST", "/api/threads/{threadId}/send", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DSendRequest_9913d9e2d0", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("thread-start-existing", "POST", "/api/threads/start", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DStartU2DExistingRequest_61b5093084", "ProcedurecancelExtractContextRequest_09b78d9c1d", listOf()),
+        RemoteRouteDescriptor("thread-send", "POST", "/api/threads/{threadId}/send", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DSendRequest_e86709003d", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
+        RemoteRouteDescriptor("thread-start-existing", "POST", "/api/threads/start", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DStartU2DExistingRequest_e187f0f002", "ProcedurecancelExtractContextRequest_09b78d9c1d", listOf()),
         RemoteRouteDescriptor("thread-steer-clear", "POST", "/api/threads/{threadId}/steer/clear", "bearer", listOf("session:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-steer-set", "POST", "/api/threads/{threadId}/steer/set", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DSteerU2DSetRequest_ec438f4fd0", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-turns", "GET", "/api/threads/{threadId}/turns", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutethreadU2DTurnsResponse_1f8c0bbd10", listOf(RemoteQueryParameterDescriptor("reads", "string", true, false), RemoteQueryParameterDescriptor("notices", "string", true, false), RemoteQueryParameterDescriptor("cursor", "string", true, false), RemoteQueryParameterDescriptor("limit", "int", true, false), RemoteQueryParameterDescriptor("completedTurnsLimit", "int", true, false), RemoteQueryParameterDescriptor("maxBytes", "int", true, false), RemoteQueryParameterDescriptor("maxDecodeBytes", "int", true, false))),
@@ -137,7 +137,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("disconnectThreadVoice", "session:operate", "thread", "omitted", "ProceduredisconnectThreadVoiceRequest_2a150cae99", "RemoteUnit"),
         RemoteProcedureDescriptor("discoverExternalMcpServers", "session:read", "optionalProjectLocation", "json", "ProcedurediscoverExternalMcpServersRequest_26b6bf09cc", "ProcedurediscoverExternalMcpServersResult_f71a677b4d"),
         RemoteProcedureDescriptor("editQueuedThreadFollowUp", "session:operate", "thread", "omitted", "ProcedureeditQueuedThreadFollowUpRequest_50d5adf9e9", "RemoteUnit"),
-        RemoteProcedureDescriptor("ensureThreadRunning", "session:operate", "projectLocation", "json", "ProcedureensureThreadRunningRequest_4d961f4317", "ProcedurecancelExtractContextRequest_09b78d9c1d"),
+        RemoteProcedureDescriptor("ensureThreadRunning", "session:operate", "projectLocation", "json", "ProcedureensureThreadRunningRequest_330389cc81", "ProcedurecancelExtractContextRequest_09b78d9c1d"),
         RemoteProcedureDescriptor("extractContext", "session:operate", "thread", "json", "ProcedureextractContextRequest_963874114b", "ProcedureextractContextResult_2a2641f29a"),
         RemoteProcedureDescriptor("finalizeFileCheckpoint", "session:operate", "thread", "json", "ProcedurefinalizeFileCheckpointRequest_9cb900aa2d", "ProcedurefinalizeFileCheckpointResult_505ae61467"),
         RemoteProcedureDescriptor("generateCommitMessage", "session:operate", "projectLocation", "json", "ProceduregenerateCommitMessageRequest_56ee97530d", "ProceduregenerateCommitMessageResult_4caa9ebeea"),
@@ -243,7 +243,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("searchProjectTree", "session:read", "projectLocation", "json", "ProceduresearchProjectTreeRequest_956459f749", "ProceduresearchProjectTreeResult_ed3d977334"),
         RemoteProcedureDescriptor("setSkillEnabled", "session:operate", "optionalProjectLocation", "omitted", "ProceduresetSkillEnabledRequest_38462ff398", "RemoteUnit"),
         RemoteProcedureDescriptor("stageThreadInput", "session:operate", "thread", "omitted", "ProcedurestageThreadInputRequest_d4db039cba", "RemoteUnit"),
-        RemoteProcedureDescriptor("startThread", "session:operate", "projectLocation", "json", "ProcedureensureThreadRunningRequest_4d961f4317", "ProcedurecancelExtractContextRequest_09b78d9c1d"),
+        RemoteProcedureDescriptor("startThread", "session:operate", "projectLocation", "json", "ProcedureensureThreadRunningRequest_330389cc81", "ProcedurecancelExtractContextRequest_09b78d9c1d"),
         RemoteProcedureDescriptor("steerQueuedThreadFollowUp", "session:operate", "thread", "omitted", "ProcedurepauseThreadFollowUpsRequest_d42717fff2", "RemoteUnit"),
         RemoteProcedureDescriptor("subagentSubscribe", "session:read", "thread", "json", "ProceduresubagentSubscribeRequest_ff495aee3e", "ProceduresubagentSubscribeResult_499c208da1"),
         RemoteProcedureDescriptor("subagentUnsubscribe", "session:read", "thread", "omitted", "ProceduresubagentSubscribeRequest_ff495aee3e", "RemoteUnit"),

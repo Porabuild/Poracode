@@ -80,6 +80,7 @@ describe("createCodexProfileAdapter", () => {
     expect(adapter.kind).toBe("codex:work");
     expect(adapter.label).toBe("Codex Work");
     expect(adapter.binary).toBe("codex");
+    expect(adapter.supportsDeferredMcpAuthorization).toBe(true);
 
     expect(
       (await adapter.buildLaunchArgv(projectLocation, { model: "gpt-5.5" }, "hello")).env

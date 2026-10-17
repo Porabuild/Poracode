@@ -105,11 +105,15 @@ export interface ThreadSessionManagerOptions {
    */
   wslHostAccess?: WslHostAccessResolver;
   /**
-   * Optional: attaches stored OAuth `Authorization` headers to user-configured
-   * HTTP/SSE MCP servers just before a launch fans them out to the provider
-   * config builders. Tokens are refreshed by the supervisor's OAuth service.
+   * Optional: prepares shared OAuth for user-configured HTTP/SSE servers before
+   * provider config is built. Only providers qualified for deferred authorization
+   * receive a relay; otherwise credentials are ready before native connection.
    */
-  applyMcpServerAuthorization?(servers: McpServer[]): Promise<McpServer[]>;
+  applyMcpServerAuthorization?(
+    servers: McpServer[],
+    location: ProjectLocation,
+    options: { defer: boolean },
+  ): Promise<McpServer[]>;
   /** Skills and MCPs contributed by enabled Agent Plugins for one provider launch. */
   resolvePluginLaunchContributions?(
     projectLocation: ProjectLocation,

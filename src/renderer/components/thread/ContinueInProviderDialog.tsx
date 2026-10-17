@@ -19,6 +19,7 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { readBridge } from "@/renderer/bridge";
 import type { ComposerControl } from "./ThreadComposer";
 import { ThreadComposer } from "./ThreadComposer";
+import { isPlanModeControl } from "../providers/composerControlBuilders";
 import {
   appendProviderComposerControls,
   buildModelPickerControls,
@@ -1093,6 +1094,7 @@ export function ContinueInProviderDialog(props: {
                       }}
                       afterControls={
                         <ComposerAddMenu
+                          planControl={targetControls.find(isPlanModeControl)}
                           mcpServers={mcpMenuServers}
                           customMcpServers={mcpMenuCustomServers}
                           onManageMcpServers={() => {

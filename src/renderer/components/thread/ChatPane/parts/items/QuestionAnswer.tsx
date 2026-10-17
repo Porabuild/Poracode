@@ -16,7 +16,18 @@ interface QuestionAnswerProps {
 
 export function QuestionAnswer({ item, checkpointRevert }: QuestionAnswerProps) {
   const payload = getRuntimeItemPayload<QuestionAnswerItemPayload>(item, "question_answer");
-  const questions = payload?.questions ?? [];
+  return (
+    <QuestionAnswerCard questions={payload?.questions ?? []} checkpointRevert={checkpointRevert} />
+  );
+}
+
+export function QuestionAnswerCard({
+  questions,
+  checkpointRevert,
+}: {
+  questions: QuestionAnswerItemPayload["questions"];
+  checkpointRevert: CheckpointRevertRequest | null;
+}) {
   if (questions.length === 0) return null;
   return (
     <Surface variant="tertiary" className={chatPromptSurfaceClass}>
