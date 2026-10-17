@@ -6,6 +6,9 @@ import type {
 import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
 /**
+ * Version 5 requires Windows long-path handling for the SDK's SQLite stores.
+ * The prefix addresses the same files; the persisted SDK layout is unchanged.
+ *
  * Version 4 requires local Max Mode compatibility, native steering, and the
  * SDK-provided state root after its FIPS-safe store migration. Pre-upgrade
  * staged workers cannot honor long-context selections or the new operations.
@@ -23,7 +26,7 @@ import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSuppor
  * gets it re-staged from current source (the SSH runtime bundle re-installs
  * whenever the built worker bytes change).
  */
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 4;
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 5;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;

@@ -161,21 +161,27 @@ async function initialize(
   if (!params.resumeAgentId) {
     await sdkRuntime.prepareModelSelection(params.createOptions.model, params.apiKey);
   }
-  agentCwd = cwd;
-  agentApiKey = params.apiKey;
+  await sdkRuntime.prepareLocalStore(cwd);
   const options = {
     ...params.createOptions,
     ...(params.apiKey ? { apiKey: params.apiKey } : {}),
   };
-  const opened = await openCursorSdkAgent(loaded, options, params.resumeAgentId);
-  agent = opened.agent;
-  if (!agent || typeof agent.agentId !== "string" || !agent.agentId) {
-    agent = undefined;
-    throw new WorkerDiagnosticError(
-      "module_api_incompatible",
-      "The installed Cursor SDK returned an invalid agent handle.",
-    );
+  let opened: Awaited<ReturnType<typeof openCursorSdkAgent>>;
+  try {
+    opened = await openCursorSdkAgent(loaded, options, params.resumeAgentId);
+    if (!opened.agent || typeof opened.agent.agentId !== "string" || !opened.agent.agentId) {
+      throw new WorkerDiagnosticError(
+        "module_api_incompatible",
+        "The installed Cursor SDK returned an invalid agent handle.",
+      );
+    }
+  } catch (error) {
+    await sdkRuntime.disposeLocalStore();
+    throw error;
   }
+  agent = opened.agent;
+  agentCwd = cwd;
+  agentApiKey = params.apiKey;
   agentModel = agent.model ?? params.createOptions.model;
   return {
     agentId: agent.agentId,
@@ -374,6 +380,7 @@ async function disposeRuntime(): Promise<void> {
   if (currentAgent) {
     await disposeCursorSdkAgent(currentAgent);
   }
+  await sdkRuntime.disposeLocalStore();
 }
 
 function requireAgent(): RuntimeAgent {

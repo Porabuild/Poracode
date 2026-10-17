@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { toNamespacedPath } from "node:path";
 
 /**
  * Minimal read-only SQLite access for usage collectors that source data from a
@@ -43,12 +44,13 @@ export async function withReadonlyDb<T>(
   dbPath: string,
   fn: (db: SqliteDatabase) => T,
 ): Promise<T | undefined> {
-  if (!existsSync(dbPath)) return undefined;
+  const resolvedPath = toNamespacedPath(dbPath);
+  if (!existsSync(resolvedPath)) return undefined;
   const Ctor = await loadSqliteCtor();
   if (!Ctor) return undefined;
   let db: SqliteDatabase | undefined;
   try {
-    db = new Ctor(dbPath, { readonly: true, fileMustExist: true });
+    db = new Ctor(resolvedPath, { readonly: true, fileMustExist: true });
     return fn(db);
   } catch (error) {
     console.warn(`[sqlite] failed to read from ${dbPath}:`, error);
