@@ -1,8 +1,9 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project } from "@/shared/contracts";
+import type { Project, ProjectDraftConfig } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
+import { makeDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -51,6 +52,8 @@ describe("ProjectSwitchMenu", () => {
     useAppStore.setState({
       projects: [homeProject, workProject, sideHustleProject, unfiledProject],
       view: { kind: "draft", projectId: "a" },
+      draftContents: {},
+      draftContentDiscardRequests: {},
     });
   });
 
@@ -97,6 +100,157 @@ describe("ProjectSwitchMenu", () => {
     expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("w1");
     expect(useWorkspaceStore.getState().lastProjectIdByWorkspace).toEqual({ w1: "c" });
   });
+
+  it.each([false, true])(
+    "moves the typed prompt and model to the selected project (pane: %s)",
+    async (inPane) => {
+      const sourceConfig: ProjectDraftConfig = {
+        agentKind: "codex",
+        model: "gpt-5.4-mini",
+        effort: "high",
+        contextSize: "",
+        fast: false,
+        thinking: false,
+        selectionBinding: {
+          version: 1,
+          kind: "family-member",
+          owner: { agentKind: "codex", presentationMode: "gui" },
+          model: "gpt-5.4-mini",
+          inertValues: { contextSize: "", fast: false },
+        },
+        approvalPolicy: "never",
+        sandboxMode: "danger-full-access",
+        worktreeMode: true,
+      };
+      const targetConfig: ProjectDraftConfig = {
+        agentKind: "codex",
+        model: "gpt-5.4",
+        approvalPolicy: "on-request",
+        sandboxMode: "read-only",
+        worktreeMode: false,
+      };
+      const content = {
+        segments: [{ kind: "text" as const, content: "  Fix this bug\nwithout losing my draft  " }],
+        attachments: [{ id: "image", path: "C:\\image.png", name: "image.png", isImage: true }],
+      };
+      const paneId = makeDraftPaneId("a");
+      useAppStore.setState({
+        projects: [
+          { ...workProject, lastDraftConfig: sourceConfig },
+          {
+            ...unfiledProject,
+            lastDraftConfig: targetConfig,
+          },
+        ],
+        draftContents: { a: content },
+        ...(inPane ? { view: { kind: "thread" as const, panes: [paneId] } } : {}),
+      });
+      render(
+        <ProjectSwitchMenu
+          currentProjectId="a"
+          variant="compact"
+          {...(inPane ? { paneId } : {})}
+        />,
+      );
+      const menu = await openMenu();
+      fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Gamma" }));
+
+      await waitFor(() => {
+        const view = useAppStore.getState().view;
+        expect(view.kind).toBe(inPane ? "thread" : "draft");
+        expect(
+          view.kind === "thread"
+            ? view.panes.map(parseDraftProjectId)
+            : view.kind === "draft"
+              ? [view.projectId]
+              : [],
+        ).toEqual(["c"]);
+      });
+      expect(useAppStore.getState().draftContents).toEqual({ c: content });
+      expect(
+        useAppStore.getState().projects.find((row) => row.id === "c")?.lastDraftConfig,
+      ).toEqual({
+        ...sourceConfig,
+        approvalPolicy: targetConfig.approvalPolicy,
+        sandboxMode: targetConfig.sandboxMode,
+        worktreeMode: false,
+      });
+    },
+  );
+
+  it("replaces the target's complete model selection, including absent fields", async () => {
+    useAppStore.setState({
+      projects: [
+        { ...workProject, lastDraftConfig: { agentKind: "claude", model: "sonnet" } },
+        {
+          ...unfiledProject,
+          lastDraftConfig: {
+            agentKind: "codex",
+            model: "gpt-5.4-mini",
+            effort: "high",
+            contextSize: "1m",
+            fast: true,
+            thinking: true,
+            selectionBinding: {
+              version: 1,
+              kind: "family-member",
+              owner: { agentKind: "codex", presentationMode: "gui" },
+              model: "gpt-5.4-mini",
+              inertValues: { fast: true },
+            },
+            worktreeMode: false,
+          },
+        },
+      ],
+      draftContents: {
+        a: { segments: [{ kind: "text", content: "Keep this prompt" }], attachments: [] },
+      },
+    });
+    render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+    const menu = await openMenu();
+    fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Gamma" }));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "c" });
+    });
+    expect(useAppStore.getState().projects.find((row) => row.id === "c")?.lastDraftConfig).toEqual({
+      agentKind: "claude",
+      model: "sonnet",
+      worktreeMode: false,
+    });
+  });
+
+  it.each(["", " \n "])(
+    "keeps the target project's draft and model when the prompt is empty (%j)",
+    async (prompt) => {
+      const targetConfig: ProjectDraftConfig = { agentKind: "claude", model: "sonnet" };
+      const targetContent = {
+        segments: [{ kind: "text" as const, content: "Existing target draft" }],
+        attachments: [],
+      };
+      useAppStore.setState({
+        projects: [
+          { ...workProject, lastDraftConfig: { agentKind: "codex", model: "gpt-5.4-mini" } },
+          { ...unfiledProject, lastDraftConfig: targetConfig },
+        ],
+        draftContents: {
+          a: { segments: [{ kind: "text", content: prompt }], attachments: [] },
+          c: targetContent,
+        },
+      });
+      render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+      const menu = await openMenu();
+      fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Gamma" }));
+
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "c" });
+      });
+      expect(useAppStore.getState().draftContents).toEqual({ c: targetContent });
+      expect(
+        useAppStore.getState().projects.find((row) => row.id === "c")?.lastDraftConfig,
+      ).toEqual(targetConfig);
+    },
+  );
 
   it("names the hosting machine on a mirrored project, in the trigger and the menu", async () => {
     const mirrored = {
