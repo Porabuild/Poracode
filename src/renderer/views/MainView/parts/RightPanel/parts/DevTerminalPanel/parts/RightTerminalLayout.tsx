@@ -3,7 +3,7 @@ import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { TerminalSize } from "@/shared/contracts";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
-import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { useDevTerminalStore, type TerminalTab } from "@/renderer/state/devTerminalStore";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
 import {
   panelHeaderIconButtonClass,
@@ -11,22 +11,24 @@ import {
 } from "@/renderer/components/layout/sidebarChrome";
 import { TerminalSurfaces } from "./TerminalSurfaces";
 
-export function RightTerminalLayout(props: {
-  tabs: DevTerminalTab[];
-  projectTabs: DevTerminalTab[];
+export function RightTerminalLayout<T extends TerminalTab>(props: {
+  tabs: T[];
+  projectTabs: T[];
   activeScopeLabel: string | undefined;
   selectedTabId: string;
-  activeTab: DevTerminalTab | undefined;
+  activeTab: T | undefined;
   focusRequestId: number;
   markTabActive: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
   fadeStyle: { opacity: number; transition: string };
   emptyState: React.ReactNode;
   hideHeader: boolean | undefined;
-  handleCloseTab: (tab: DevTerminalTab) => void;
+  handleCloseTab: (tab: T) => void;
   handleSelectionChange: (key: string | number) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
+  onTerminalExited?: (terminalId: string, exitCode: number | null) => void;
   watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -44,7 +46,9 @@ export function RightTerminalLayout(props: {
     handleCloseTab,
     handleSelectionChange,
     onTerminalResize,
+    onTerminalExited,
     watchTerminal,
+    visible = true,
   } = props;
   const runningTabs = useDevTerminalStore((state) => state.runningTabs);
 
@@ -137,8 +141,10 @@ export function RightTerminalLayout(props: {
           focusRequestId={focusRequestId}
           markTabActive={markTabActive}
           updateTabTitle={updateTabTitle}
+          visible={visible}
           {...(watchTerminal ? { watchTerminal } : {})}
           {...(onTerminalResize ? { onTerminalResize } : {})}
+          {...(onTerminalExited ? { onTerminalExited } : {})}
         />
         {emptyState}
       </div>

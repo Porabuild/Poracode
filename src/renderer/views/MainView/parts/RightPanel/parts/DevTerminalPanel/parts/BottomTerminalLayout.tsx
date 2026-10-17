@@ -3,7 +3,7 @@ import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { TerminalSize } from "@/shared/contracts";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
-import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { useDevTerminalStore, type TerminalTab } from "@/renderer/state/devTerminalStore";
 import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
 import {
@@ -17,26 +17,26 @@ import {
   useBottomTerminalSidebarResize,
 } from "./useBottomTerminalSidebarResize";
 
-export function BottomTerminalLayout(props: {
-  tabs: DevTerminalTab[];
-  projectTabs: DevTerminalTab[];
+export function BottomTerminalLayout<T extends TerminalTab>(props: {
+  tabs: T[];
+  projectTabs: T[];
   activeScopeLabel: string | undefined;
   selectedTabId: string;
-  activeTab: DevTerminalTab | undefined;
+  activeTab: T | undefined;
   focusRequestId: number;
   markTabActive: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
   fadeStyle: { opacity: number; transition: string };
   emptyState: React.ReactNode;
-  handleCloseTab: (tab: DevTerminalTab) => void;
-  handleCloseSplit: (tab: DevTerminalTab) => void;
+  handleCloseTab: (tab: T) => void;
+  handleCloseSplit: (tab: T) => void;
   handleSelectionChange: (key: string | number) => void;
-  getTabContextItems: (
-    tab: DevTerminalTab,
-  ) => { id: string; label: string; icon: React.ReactNode }[];
-  handleTabContextAction: (tab: DevTerminalTab, key: string) => void;
+  getTabContextItems: (tab: T) => { id: string; label: string; icon: React.ReactNode }[];
+  handleTabContextAction: (tab: T, key: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
+  onTerminalExited?: (terminalId: string, exitCode: number | null) => void;
   watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -56,7 +56,9 @@ export function BottomTerminalLayout(props: {
     getTabContextItems,
     handleTabContextAction,
     onTerminalResize,
+    onTerminalExited,
     watchTerminal,
+    visible = true,
   } = props;
   const { sidebarRef, sidebarWidth, handleResizeStart, handleResizeKeyDown } =
     useBottomTerminalSidebarResize();
@@ -64,7 +66,7 @@ export function BottomTerminalLayout(props: {
 
   // Build flat entries: primary tabs + their split children. Once a tab's main
   // shell exits, its split fills the tab and its one row shows the split.
-  type TabRow = { id: string; tab: DevTerminalTab; isSplit: boolean };
+  type TabRow = { id: string; tab: T; isSplit: boolean };
   const tabRows: TabRow[] = [];
   for (const tab of projectTabs) {
     tabRows.push({ id: tab.id, tab, isSplit: false });
@@ -195,8 +197,10 @@ export function BottomTerminalLayout(props: {
           focusRequestId={focusRequestId}
           markTabActive={markTabActive}
           updateTabTitle={updateTabTitle}
+          visible={visible}
           {...(watchTerminal ? { watchTerminal } : {})}
           {...(onTerminalResize ? { onTerminalResize } : {})}
+          {...(onTerminalExited ? { onTerminalExited } : {})}
         />
         {emptyState}
       </div>

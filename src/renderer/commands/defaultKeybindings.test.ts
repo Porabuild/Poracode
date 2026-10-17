@@ -7,6 +7,7 @@ import {
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { bindingForPlatform, canonicalizeKeybinding, type PlatformName } from "./keybindingMatcher";
@@ -359,6 +360,20 @@ describe("command execution context", () => {
     void command?.run(undefined, { target: origin });
 
     expect(useDevTerminalStore.getState().activeTabId).toBe("one");
+  });
+
+  it("cycles project-independent terminal tabs without changing project tabs", () => {
+    document.body.innerHTML = `<section data-global-terminal><div class="xterm"><button id="origin">Terminal</button></div></section>`;
+    useGlobalTerminalStore.setState({ tabs: [], activeTabId: null });
+    const first = useGlobalTerminalStore.getState().addTab();
+    useGlobalTerminalStore.getState().addTab();
+    useDevTerminalStore.setState({ activeTabId: "project-shell" });
+
+    const command = buildCommandRegistry().find((item) => item.id === "tab.previous");
+    void command?.run(undefined, { target: document.getElementById("origin") });
+
+    expect(useGlobalTerminalStore.getState().activeTabId).toBe(first.id);
+    expect(useDevTerminalStore.getState().activeTabId).toBe("project-shell");
   });
 
   it("focuses the address bar in the originating browser instance", () => {

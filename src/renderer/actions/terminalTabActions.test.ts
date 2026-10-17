@@ -1,10 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const bridge = vi.hoisted(() => ({
+  closeThread: vi
+    .fn<(payload: { threadId: string }) => Promise<void>>()
+    .mockResolvedValue(undefined),
+}));
+
+vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
 vi.mock("./panelActions", () => ({ closeAllPanels: vi.fn<() => void>() }));
 
 import { closeAllPanels } from "./panelActions";
 import { closeExitedShell, removeTerminalTab } from "./terminalTabActions";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
@@ -35,9 +43,11 @@ function tabById(id: string) {
 describe("closeExitedShell", () => {
   beforeEach(() => {
     resetDevTerminalStore();
+    useGlobalTerminalStore.setState({ tabs: [], activeTabId: null });
     resetPanelStore();
     useSharedSettings.setState({ terminalPosition: "bottom" });
     vi.mocked(closeAllPanels).mockClear();
+    bridge.closeThread.mockClear();
   });
 
   it("removes a shell tab whose shell exited and keeps the panel open for the others", () => {
@@ -59,6 +69,60 @@ describe("closeExitedShell", () => {
     expect(useDevTerminalStore.getState().tabs).toEqual([]);
     expect(useDevTerminalStore.getState().isOpen).toBe(false);
     expect(closeAllPanels).not.toHaveBeenCalled();
+  });
+
+  it("keeps the global terminal open when the last saved project shell exits", () => {
+    const tab = openProjectTab();
+    useDevTerminalStore.getState().openGlobalPanel();
+
+    closeExitedShell(tab.id);
+
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      source: "global",
+      tabs: [],
+    });
+    expect(closeAllPanels).not.toHaveBeenCalled();
+  });
+
+  it("ignores stale project visibility hints while the global terminal is active", () => {
+    const tab = openProjectTab();
+    useDevTerminalStore.getState().openGlobalPanel();
+    expect(removeTerminalTab(tab, { panelShowsTab: true })).toBe(false);
+    expect(useDevTerminalStore.getState().isOpen).toBe(true);
+  });
+
+  it("removes a background global tab without a mounted surface or closing the project panel", () => {
+    const projectTab = openProjectTab();
+    const globalTab = useGlobalTerminalStore.getState().addTab();
+
+    closeExitedShell(globalTab.id);
+
+    expect(useGlobalTerminalStore.getState()).toMatchObject({ tabs: [], activeTabId: null });
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      isOpen: true,
+      source: "project",
+      activeTabId: projectTab.id,
+      tabs: [projectTab],
+    });
+    expect(closeAllPanels).not.toHaveBeenCalled();
+    expect(bridge.closeThread).toHaveBeenCalledExactlyOnceWith({ threadId: globalTab.id });
+  });
+
+  it("closes the global panel only after its last shell exits", () => {
+    const first = useGlobalTerminalStore.getState().addTab();
+    const second = useGlobalTerminalStore.getState().addTab();
+    useDevTerminalStore.getState().openGlobalPanel();
+
+    closeExitedShell(first.id);
+    expect(useGlobalTerminalStore.getState().tabs).toEqual([second]);
+    expect(useDevTerminalStore.getState().isOpen).toBe(true);
+    closeExitedShell(second.id);
+    expect(useGlobalTerminalStore.getState().tabs).toEqual([]);
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(bridge.closeThread).toHaveBeenCalledTimes(2);
+    closeExitedShell(second.id);
+    expect(bridge.closeThread).toHaveBeenCalledTimes(2);
   });
 
   it("closes the right panel when the last tab exits in right mode", () => {

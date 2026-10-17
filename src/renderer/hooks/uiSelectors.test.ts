@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { dockPanelTab } from "@/renderer/actions/panelActions";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -9,6 +9,7 @@ import type { AgentStatus, BackgroundTask, Thread } from "@/shared/contracts";
 import {
   selectThreadIsWaitingForBackground,
   useIsProjectGitPanelActive,
+  useIsProjectTerminalActive,
   useIsWorktreeFilesPanelActive,
   useIsWorktreeGitPanelActive,
   useIsWorktreeTerminalActive,
@@ -28,7 +29,12 @@ beforeEach(() => {
     filesPanelContext: null,
     usagePanelOpen: true,
   });
-  useDevTerminalStore.setState({ isOpen: false, activeProjectId: null, activeWorktreePath: null });
+  useDevTerminalStore.setState({
+    isOpen: false,
+    source: "project",
+    activeProjectId: null,
+    activeWorktreePath: null,
+  });
   useAgentStatusesStore.setState({ agentStatuses: [], wslAgentStatuses: [] });
 });
 
@@ -146,6 +152,28 @@ describe("sidebar panel-active selectors", () => {
     dockPanelTab("terminal", { zone: "bottom-panel", placement: "left" });
     expect(usePanelStore.getState().bottomPanelDocks).toEqual(EMPTY_BOTTOM_PANEL_DOCKS);
   });
+
+  it.each([null, worktreePath])(
+    "does not highlight the saved terminal scope while the global terminal is active (%s)",
+    (activeWorktreePath) => {
+      useDevTerminalStore.setState({
+        isOpen: true,
+        activeProjectId: "project-a",
+        activeWorktreePath,
+      });
+      const { result } = renderHook(() => ({
+        project: useIsProjectTerminalActive("project-a"),
+        worktree: useIsWorktreeTerminalActive(worktreePath),
+      }));
+      expect(result.current).toEqual({
+        project: activeWorktreePath === null,
+        worktree: activeWorktreePath !== null,
+      });
+
+      act(() => useDevTerminalStore.getState().openGlobalPanel());
+      expect(result.current).toEqual({ project: false, worktree: false });
+    },
+  );
 });
 
 describe("thread agent statuses", () => {

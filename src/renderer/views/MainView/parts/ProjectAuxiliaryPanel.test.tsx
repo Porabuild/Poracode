@@ -16,6 +16,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
+import { GlobalTerminalPanel } from "@/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel";
 import { usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
 
 vi.mock("@/renderer/analytics/useProductViewTracking", () => ({
@@ -37,6 +38,8 @@ interface CapturedRightPanelProps {
   docksContent?: ReactElement;
   docksHeaderActions?: ReactElement;
   notesContent?: ReactElement<{ projectId: string }>;
+  terminalContent?: ReactElement<{ visible?: boolean }>;
+  onClose: () => void;
   onBackSubagent?: () => void;
   onCloseSubagent?: () => void;
 }
@@ -153,7 +156,7 @@ describe("ProjectAuxiliaryPanel", () => {
       runtimeItemsByIdByThread: {},
       runtimeStructuralVersionByThread: {},
     });
-    useDevTerminalStore.setState({ isOpen: false, tabs: [] });
+    useDevTerminalStore.setState({ isOpen: false, source: "project", tabs: [] });
     useSharedSettings.setState({ threadDocksPlacement: "composer", terminalPosition: "right" });
     usePanelStore.setState({
       gitReviewContext: {
@@ -181,6 +184,32 @@ describe("ProjectAuxiliaryPanel", () => {
     applySideChatPanel(null);
     resetClientRuntimeForTest();
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+  });
+
+  it("uses the normal right terminal slot for a global shell without a project", () => {
+    useAppStore.setState({ view: { kind: "home" }, focusedPaneId: null });
+    usePanelStore.setState({ gitReviewContext: null, rightPanelTab: "terminal" });
+    useDevTerminalStore.getState().openGlobalPanel();
+    const { result } = renderHook(() => usePanelVisibility());
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    expect(result.current.rightPanelOpen).toBe(true);
+    expect(unifiedRightPanelProps.current).toMatchObject({
+      activeTab: "terminal",
+      projectName: "Terminal",
+    });
+    expect(unifiedRightPanelProps.current?.terminalContent?.type).toBe(GlobalTerminalPanel);
+    expect(unifiedRightPanelProps.current?.terminalContent?.props.visible).toBe(true);
+    expect(useAppStore.getState().projects).toEqual([]);
+    expect(useDevTerminalStore.getState().tabs).toEqual([]);
+
+    act(() => unifiedRightPanelProps.current?.onClose());
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(result.current.rightPanelOpen).toBe(false);
   });
 
   it("preserves a git badge target when the locked panel opens", async () => {
