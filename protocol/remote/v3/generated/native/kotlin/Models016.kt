@@ -6,6 +6,26 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DInstaller_540ab9236f(
+    @SerialName("posix") val posix: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c,
+    @SerialName("windows") val windows: RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("posix", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("windows", "RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DPreferPackageManagerOnWindowsU2DItem_4721d11b49 {
+    @SerialName("npm-global") NPMU2DGLOBAL,
+    @SerialName("pnpm-global") PNPMU2DGLOBAL,
+    @SerialName("bun-global") BUNU2DGLOBAL,
+}
+
+@Serializable
 data class RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdate_892eceb2ac(
     @SerialName("brew") val brew: RemoteField<String> = RemoteField.Missing,
     @SerialName("builtIn") val builtIn: RemoteField<RouteagentU2DStatusesResponseU2DWindowsU2DItemU2DUpdateU2DBuiltIn_685dee710c> = RemoteField.Missing,
@@ -427,24 +447,4 @@ data class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2
             RemoteFieldDescriptor("unread", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResult_66ee2eb4ed = RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DResultU2DOptionU2D1_ae4a760581?
-
-@Serializable
-enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DStatus_2151c8edcf {
-    @SerialName("running") RUNNING,
-    @SerialName("waiting-for-approval") WAITINGU2DFORU2DAPPROVAL,
-    @SerialName("succeeded") SUCCEEDED,
-    @SerialName("failed") FAILED,
-    @SerialName("cancelled") CANCELLED,
-    @SerialName("interrupted") INTERRUPTED,
-    @SerialName("skipped") SKIPPED,
-}
-
-@Serializable
-enum class RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DTrigger_56296b74a9 {
-    @SerialName("manual") MANUAL,
-    @SerialName("scheduled") SCHEDULED,
-    @SerialName("retry") RETRY,
 }

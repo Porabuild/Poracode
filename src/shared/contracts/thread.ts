@@ -21,7 +21,7 @@ import {
   builtInMcpDisabledToolsSchema,
   mcpServerListSchema,
 } from "./mcpServer";
-import { goalControlActionSchema } from "./runtimeEvent";
+import { goalControlActionSchema, questionAnswerItemPayloadSchema } from "./runtimeEvent";
 import { turnClientContextSchema } from "./turnClientContext";
 
 /** How thread status/attention is derived for terminal agents (supervisor → renderer). */
@@ -264,6 +264,8 @@ export const startThreadPayloadSchema = z
      * the duplicate. Only set for GUI threads with a fresh prompt.
      */
     userMessageItemId: z.string().min(1).optional(),
+    /** Optional display metadata; older hosts/clients retain the ordinary prompt. */
+    questionAnswer: questionAnswerItemPayloadSchema.optional(),
     /**
      * Set when this launch continues an existing thread under a different
      * provider. See {@link providerSwitchSchema}.
@@ -331,6 +333,8 @@ export const sendThreadInputPortableSchema = z.object({
   config: threadConfigSchema,
   /** See {@link startThreadPayloadSchema.userMessageItemId}. */
   userMessageItemId: z.string().min(1).optional(),
+  /** See {@link startThreadPayloadSchema.questionAnswer}. */
+  questionAnswer: questionAnswerItemPayloadSchema.optional(),
   /** Per-turn client context. See {@link turnClientContextSchema}. */
   clientContext: turnClientContextSchema.optional(),
 });

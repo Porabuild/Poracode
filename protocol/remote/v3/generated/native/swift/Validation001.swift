@@ -265,6 +265,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_0cd9513af81aeee1 = RemoteSchema(type: "array", items: RemoteSchemas.schema_58a226c992f64fc4, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_0d39188d7ce690df = RemoteSchema(type: "object", required: Set(["conclusion", "name", "state"]), properties: ["completedAt": RemoteSchemas.schema_bf0b727f7b1c6d07, "conclusion": RemoteSchemas.schema_bf0b727f7b1c6d07, "name": RemoteSchemas.schema_bf0b727f7b1c6d07, "startedAt": RemoteSchemas.schema_bf0b727f7b1c6d07, "state": RemoteSchemas.schema_bf0b727f7b1c6d07, "url": RemoteSchemas.schema_bf0b727f7b1c6d07, "workflowName": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -442,8 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_1709690cf0edf961 = RemoteSchema(type: "object", required: Set(["type"]), properties: ["id": RemoteSchemas.schema_36fea325bf1aca70, "sentAt": RemoteSchemas.schema_80c415b6e27c6ebd, "type": RemoteSchemas.schema_fe79d48b8af45e7d], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_174f77d24d01fc57 = RemoteSchema(type: "array", items: RemoteSchemas.schema_7324613e41acced2, unknownPolicy: .strip)
 }

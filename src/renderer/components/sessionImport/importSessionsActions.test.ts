@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ImportableSession, Project } from "@/shared/contracts";
+import type { AgentStatus, ImportableSession, Project } from "@/shared/contracts";
 import { shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { importSessions } from "./importSessionsActions";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { importSessions, resolveImportModel } from "./importSessionsActions";
 
 const importSessionTranscript = vi.hoisted(() =>
   vi.fn<(payload: unknown) => Promise<{ messageCount: number }>>(),
@@ -41,6 +43,54 @@ afterEach(() => {
   useAppStore.setState({ threads: [], projects: [], view: { kind: "home" } });
   importSessionTranscript.mockReset();
   toastDanger.mockReset();
+});
+
+function codexStatus(models: readonly { id: string; label: string }[]): AgentStatus {
+  return { kind: "codex", capabilities: { models } } as AgentStatus;
+}
+
+describe("resolveImportModel", () => {
+  afterEach(() => {
+    useAgentStatusesStore.setState({ agentStatuses: [] });
+    useSharedSettings.setState({ providerConfigs: {} });
+  });
+
+  it("fails closed when the catalog is empty and the session has no model", () => {
+    useAppStore.setState({ projects: [project] });
+    useAgentStatusesStore.setState({ agentStatuses: [codexStatus([])] });
+    useSharedSettings.setState({
+      providerConfigs: {
+        codex: { model: "gpt-5.4", mode: "agent", approvalPolicy: "on-request", sandboxMode: "" },
+      },
+    });
+    const { model: _model, ...withoutModel } = session;
+
+    expect(resolveImportModel({ ...withoutModel, agentKind: "codex" }, project.id)).toBe("");
+  });
+
+  it("keeps the session model when the catalog is empty", () => {
+    useAppStore.setState({ projects: [project] });
+    useAgentStatusesStore.setState({ agentStatuses: [codexStatus([])] });
+
+    expect(
+      resolveImportModel({ ...session, agentKind: "codex", model: "gpt-5.4" }, project.id),
+    ).toBe("gpt-5.4");
+  });
+
+  it("uses a saved model only when the catalog offers it", () => {
+    useAppStore.setState({ projects: [project] });
+    useAgentStatusesStore.setState({
+      agentStatuses: [codexStatus([{ id: "gpt-5.4", label: "5.4" }])],
+    });
+    useSharedSettings.setState({
+      providerConfigs: {
+        codex: { model: "gpt-5.4", mode: "agent", approvalPolicy: "on-request", sandboxMode: "" },
+      },
+    });
+    const { model: _model, ...withoutModel } = session;
+
+    expect(resolveImportModel({ ...withoutModel, agentKind: "codex" }, project.id)).toBe("gpt-5.4");
+  });
 });
 
 describe("importSessions", () => {

@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { McpServer } from "@/shared/contracts";
 import { decryptSecret, encryptSecret } from "@/shared/secretStorage";
 import { McpOAuthService } from "./McpOAuthService";
@@ -31,6 +31,8 @@ async function startFakeAuthServer(options: {
   failRefresh?: "invalid_grant" | "unauthorized";
   /** Reject the authorization_code grant with an OAuth error body. */
   failCodeExchange?: boolean;
+  refreshGate?: Promise<void>;
+  codeExchangeGate?: Promise<void>;
 }): Promise<FakeAuthServer> {
   const tokenRequests: URLSearchParams[] = [];
   const registerRequests: string[] = [];
@@ -77,9 +79,11 @@ async function startFakeAuthServer(options: {
     if (req.method === "POST" && url.pathname === "/token") {
       let body = "";
       req.on("data", (chunk: Buffer) => (body += chunk.toString("utf8")));
-      req.on("end", () => {
+      const respond = async () => {
         const params = new URLSearchParams(body);
         tokenRequests.push(params);
+        if (params.get("grant_type") === "refresh_token") await options.refreshGate;
+        if (params.get("grant_type") === "authorization_code") await options.codeExchangeGate;
         if (params.get("grant_type") === "refresh_token" && options.failRefresh) {
           if (options.failRefresh === "unauthorized") {
             res.writeHead(401, {
@@ -117,6 +121,9 @@ async function startFakeAuthServer(options: {
             expires_in: options.expiresIn,
           }),
         );
+      };
+      req.on("end", () => {
+        void respond().catch(() => res.destroy());
       });
       return;
     }
@@ -230,6 +237,43 @@ describe("McpOAuthService", () => {
     ).toBe("Bearer at-1");
   });
 
+  it("does not resurrect a cancelled sign-in over its replacement after PKCE generation", async () => {
+    const hashStarted = Promise.withResolvers<void>();
+    const hashGate = Promise.withResolvers<void>();
+    const codeGate = Promise.withResolvers<void>();
+    const originalDigest = crypto.subtle.digest.bind(crypto.subtle);
+    const digest = vi.spyOn(crypto.subtle, "digest").mockImplementationOnce(async (...args) => {
+      hashStarted.resolve();
+      await hashGate.promise;
+      return originalDigest(...args);
+    });
+    try {
+      const fake = await startFakeAuthServer({
+        expiresIn: 3600,
+        codeExchangeGate: codeGate.promise,
+      });
+      const service = makeService();
+      const server = httpServer(fake.url);
+      const first = service.begin({ server });
+      await hashStarted.promise;
+      const replacement = await service.begin({ server });
+      if (replacement.status !== "redirect") throw new Error("expected replacement redirect");
+      hashGate.resolve();
+      expect(await first).toMatchObject({ status: "error" });
+      const waiting = service.wait({ flowId: replacement.flowId });
+      await completeBrowserLeg(replacement.authorizationUrl);
+      await vi.waitFor(() => expect(fake.tokenRequests).toHaveLength(1));
+      service.clear({ url: `${fake.url}/mcp` });
+      codeGate.resolve();
+      expect(await waiting).toMatchObject({ status: "error" });
+      expect(service.status().authenticatedUrls).toEqual([]);
+    } finally {
+      hashGate.resolve();
+      codeGate.resolve();
+      digest.mockRestore();
+    }
+  });
+
   it("refreshes expired tokens when applying authorization", async () => {
     const fake = await startFakeAuthServer({ expiresIn: 1 });
     const service = makeService();
@@ -294,6 +338,99 @@ describe("McpOAuthService", () => {
     expect(savedClient.issuer).toBe(fake.url);
   });
 
+  it("coalesces simultaneous refreshes of pre-upgrade credentials", async () => {
+    const fake = await startFakeAuthServer({ expiresIn: 3600 });
+    const dir = tempDir();
+    seedV1Store(dir, `${fake.url}/mcp`, {
+      access_token: "old",
+      token_type: "Bearer",
+      refresh_token: "rt-1",
+      expires_in: 3600,
+    });
+    const service = makeServiceAt(dir);
+    const results = await Promise.all(
+      Array.from({ length: 4 }, () => service.applyAuthorizationToServer(httpServer(fake.url))),
+    );
+    expect(fake.tokenRequests).toHaveLength(1);
+    for (const server of results)
+      expect(server.transport).toMatchObject({ headers: { Authorization: "Bearer at-2" } });
+  });
+
+  it("bounds a stalled refresh without discarding refreshable credentials", async () => {
+    const gate = Promise.withResolvers<void>();
+    const fake = await startFakeAuthServer({ expiresIn: 3600, refreshGate: gate.promise });
+    const dir = tempDir();
+    seedV1Store(dir, `${fake.url}/mcp`, {
+      access_token: "old",
+      token_type: "Bearer",
+      refresh_token: "rt-1",
+      expires_in: 3600,
+    });
+    const service = new McpOAuthService({ baseDir: dir, refreshTimeoutMs: 200 });
+    cleanups.push(() => service.dispose());
+    const server = httpServer(fake.url);
+    const pending = service.applyAuthorizationToServer(server);
+    await vi.waitFor(() => expect(fake.tokenRequests).toHaveLength(1));
+    expect(await pending).toBe(server);
+    expect(service.status().authenticatedUrls).toEqual([`${fake.url}/mcp`]);
+    gate.resolve();
+  });
+
+  it("joins a refresh already awaiting its grant instead of using issuer-stamped expired tokens", async () => {
+    const gate = Promise.withResolvers<void>();
+    const fake = await startFakeAuthServer({ expiresIn: 3600, refreshGate: gate.promise });
+    const dir = tempDir();
+    seedV1Store(dir, `${fake.url}/mcp`, {
+      access_token: "old",
+      token_type: "Bearer",
+      refresh_token: "rt-1",
+      expires_in: 3600,
+    });
+    const service = makeServiceAt(dir);
+    const first = service.applyAuthorizationToServer(httpServer(fake.url));
+    await vi.waitFor(() => expect(fake.tokenRequests).toHaveLength(1));
+    const second = service.applyAuthorizationToServer(httpServer(fake.url));
+    gate.resolve();
+    for (const server of await Promise.all([first, second])) {
+      expect(server.transport).toMatchObject({ headers: { Authorization: "Bearer at-2" } });
+    }
+    expect(fake.tokenRequests).toHaveLength(1);
+  });
+
+  it.each(["clear", "dispose"] as const)(
+    "cancels an in-flight refresh on %s without restoring credentials",
+    async (action) => {
+      const gate = Promise.withResolvers<void>();
+      const fake = await startFakeAuthServer({ expiresIn: 3600, refreshGate: gate.promise });
+      const dir = tempDir();
+      const url = `${fake.url}/mcp`;
+      seedV1Store(dir, url, {
+        access_token: "old",
+        token_type: "Bearer",
+        refresh_token: "rt-1",
+        expires_in: 3600,
+      });
+      const service = makeServiceAt(dir);
+      const server = httpServer(fake.url);
+      const pending = service.applyAuthorizationToServer(server);
+      await vi.waitFor(() => expect(fake.tokenRequests).toHaveLength(1));
+      const original = (
+        JSON.parse(readFileSync(join(dir, "mcp-oauth.json"), "utf8")) as {
+          servers: Record<string, unknown>;
+        }
+      ).servers[url];
+      if (action === "clear") service.clear({ url });
+      else service.dispose();
+      expect(await pending).toBe(server);
+      gate.resolve();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const persisted = JSON.parse(readFileSync(join(dir, "mcp-oauth.json"), "utf8")) as {
+        servers: Record<string, unknown>;
+      };
+      expect(persisted.servers[url]).toEqual(action === "clear" ? undefined : original);
+    },
+  );
+
   it("drops stored tokens when the refresh grant is rejected", async () => {
     const fake = await startFakeAuthServer({ expiresIn: 3600, failRefresh: "invalid_grant" });
     const dir = tempDir();
@@ -337,6 +474,10 @@ describe("McpOAuthService", () => {
     expect(await service.applyAuthorizationToServer(server)).toBe(server);
     expect(service.status().authenticatedUrls).toEqual([url]);
     expect(fake.registerRequests).toHaveLength(0);
+    // Issuer stamping is a metadata upgrade, not a successful refresh. A
+    // second connection must not receive the old expired token as "fresh".
+    expect(await service.applyAuthorizationToServer(server)).toBe(server);
+    expect(fake.tokenRequests).toHaveLength(2);
   });
 
   it("reports a rejected authorization-code exchange through wait()", async () => {

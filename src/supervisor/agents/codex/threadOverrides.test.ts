@@ -33,6 +33,7 @@ describe("buildCodexThreadOverrides", () => {
         url: "http://127.0.0.1:9000/mcp?thread=local-thread",
         bearer_token_env_var: codexMcpTokenEnvVar(browser),
         tool_timeout_sec: 30,
+        startup_timeout_sec: 30,
       },
     });
     expect(JSON.stringify(overrides.config)).not.toContain("secret-token");

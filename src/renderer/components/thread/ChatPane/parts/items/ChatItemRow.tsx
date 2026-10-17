@@ -17,7 +17,7 @@ import { QuestionAnswer } from "./QuestionAnswer";
 import { Reasoning } from "./Reasoning";
 import { SubAgentToolCall } from "./SubAgentToolCall";
 import { ToolCallGroup } from "./ToolCallGroup";
-import { UserMessage } from "./UserMessage";
+import { MessageReplyAnswer } from "./MessageReplyAnswer";
 import { WebSearchItem } from "./WebSearchItem";
 import { isDelegatedAgentTool } from "./toolDisplay";
 
@@ -109,7 +109,9 @@ function renderItem(
 ) {
   switch (item.type) {
     case "user_message":
-      return <UserMessage threadId={threadId} item={item} checkpointRevert={checkpointRevert} />;
+      return (
+        <MessageReplyAnswer threadId={threadId} item={item} checkpointRevert={checkpointRevert} />
+      );
     case "question_answer":
       return <QuestionAnswer item={item} checkpointRevert={checkpointRevert} />;
     case "assistant_message":

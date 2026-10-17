@@ -1261,6 +1261,7 @@ export function ThreadDraftComposerArea(props: {
   return (
     <>
       <ThreadComposer
+        attachmentDropScope={props.presentationMode === "gui" ? "panel" : "composer"}
         autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus -- caller controls whether this surface should take focus on mount
         compact={props.compact ?? false}
         variant="draft"

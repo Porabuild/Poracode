@@ -535,6 +535,63 @@ describe("ThreadComposerSection", () => {
     return { ...result, onSubmitInput };
   }
 
+  it.each([false, true])(
+    "keeps async questions actionable alongside ordinary messages (compact: %s)",
+    async (compact) => {
+      if (compact)
+        vi.stubGlobal(
+          "matchMedia",
+          vi.fn((query: string) => ({
+            media: query,
+            matches: query === "(max-width: 767px)",
+            onchange: null,
+            addEventListener: () => undefined,
+            removeEventListener: () => undefined,
+            addListener: () => undefined,
+            removeListener: () => undefined,
+            dispatchEvent: () => true,
+          })),
+        );
+      const question = {
+        id: "async-question",
+        type: "assistant_message" as const,
+        state: "completed" as const,
+        streams: {},
+        payload: {
+          content: [],
+          replyForm: {
+            questions: [
+              {
+                id: "scope",
+                question: "Which scope?",
+                options: [{ optionId: "focused", label: "Focused" }],
+              },
+            ],
+          },
+        },
+      };
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [guiThread.id]: [question.id] },
+        runtimeItemsByIdByThread: { [guiThread.id]: { [question.id]: question } },
+      });
+      const { container, onSubmitInput } = renderComposer();
+      expect(screen.getByRole("listbox", { name: "Which scope?" })).toBeInTheDocument();
+      expect(
+        screen
+          .getByText("Which scope?")
+          .closest(compact ? ".m-thread-action-docks" : '[data-testid="thread-composer"]'),
+      ).not.toBeNull();
+      const editor = container.querySelector<HTMLElement>('[contenteditable="true"]')!;
+      typeComposerText(editor, "Continue checking the build.");
+      fireEvent.click(screen.getByRole("button", { name: "send" }));
+      await waitFor(() =>
+        expect(onSubmitInput).toHaveBeenCalledWith("Continue checking the build.", [
+          { kind: "text", content: "Continue checking the build." },
+        ]),
+      );
+    },
+  );
+
   describe.each([
     ["a stored session", { ...guiThread, status: "inactive", canResumeWithConfig: false }],
     ["configuration only", { ...guiThread, status: "inactive", sessionRef: undefined }],

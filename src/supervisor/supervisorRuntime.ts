@@ -101,6 +101,7 @@ import { resolveWslHelpersDir } from "./wsl/wslDeploy";
 import { resolveWslHostAccess } from "./wsl/hostAccess";
 import { disposeWslStagingService } from "./wsl/staging";
 import { McpOAuthService } from "./mcp/McpOAuthService";
+import { McpOAuthRelay } from "./mcp/McpOAuthRelay";
 import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
@@ -182,6 +183,7 @@ export class SupervisorRuntime {
   readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
   readonly externalMcpDiscoveryService = new ExternalMcpDiscoveryService();
   readonly mcpOAuthService: McpOAuthService;
+  private readonly mcpOAuthRelay: McpOAuthRelay;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
   readonly sessionImportService: SessionImportService;
@@ -230,6 +232,9 @@ export class SupervisorRuntime {
     const baseDir = poracodeBaseDirFromEnv() ?? join(homedir(), ".poracode");
     this.baseDir = baseDir;
     this.mcpOAuthService = new McpOAuthService({ baseDir });
+    this.mcpOAuthRelay = new McpOAuthRelay(this.mcpOAuthService, {
+      resolveHostAccess: (distro) => resolveWslHostAccess(distro),
+    });
     this.mcpProbeService = new McpProbeService({
       applyAuthorization: (server) => this.mcpOAuthService.applyAuthorizationToServer(server),
     });
@@ -523,7 +528,10 @@ export class SupervisorRuntime {
       wslHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
       },
-      applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
+      applyMcpServerAuthorization: (servers, location, { defer }) =>
+        defer
+          ? this.mcpOAuthRelay.prepare(servers, location)
+          : this.mcpOAuthService.applyAuthorization(servers),
       prepareMcpToolFilters,
       resolvePluginLaunchContributions: async (projectLocation, agentKind, selection) => {
         const adapter = this.adapters.get(agentKind);
@@ -1167,6 +1175,7 @@ export class SupervisorRuntime {
     await joinRuntimeShutdown([
       () => this.disposeNativeRuntime(),
       () => retireMacKeychainCommands(),
+      () => this.mcpOAuthRelay.dispose(),
       async () => {
         this.disposeWindowsPowerShellPreference();
         this.disposeWslCredentialProjectScope();
