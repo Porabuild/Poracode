@@ -23,6 +23,7 @@ function runtimeFixture(disposeNativeRuntime: () => Promise<void>) {
     usageService: { stop: dispose },
     mcpProbeService: { dispose },
     mcpOAuthService: { dispose },
+    mcpOAuthRelay: { dispose: async () => {} },
     lspManager: { dispose },
     threadSessionManager: { dispose: closeThreads },
     subagentRunManager: { retryRetirements: async () => {} },

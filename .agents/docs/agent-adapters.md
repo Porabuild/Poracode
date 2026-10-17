@@ -66,6 +66,10 @@ Existing extension points built on the same pattern:
   supervisor owns thread and plugin enablement, launch-time disables and tool
   restrictions; external servers keep their launch snapshot. Providers own
   applying the resolved set to their native runtime.
+- `supportsDeferredMcpAuthorization` opts into refreshing shared OAuth on MCP
+  connection rather than before launch. Qualify the provider's startup budget
+  and tool availability after delayed connection before enabling it; providers
+  without it retain eager authorization and their native connection deadlines.
 - Message payloads declare `turnIndependent: true` when a conversation stream
   publishes messages outside an agent turn. The renderer persists and renders
   them without reopening the agent's work timer. Providers own this

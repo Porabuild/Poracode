@@ -550,7 +550,11 @@ export class SpawnPipeline {
     );
     let mcpServers = resolveEnabledMcpServers([...userMcpServers, ...pluginMcpServers]);
     if (this.ctx.options.applyMcpServerAuthorization) {
-      mcpServers = await this.ctx.options.applyMcpServerAuthorization(mcpServers);
+      mcpServers = await this.ctx.options.applyMcpServerAuthorization(
+        mcpServers,
+        executionLocation,
+        { defer: adapter.supportsDeferredMcpAuthorization === true },
+      );
     }
     if (this.ctx.options.prepareMcpToolFilters) {
       mcpServers = await this.ctx.options.prepareMcpToolFilters(

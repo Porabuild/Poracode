@@ -140,6 +140,121 @@ function scopedPayload(): StartThreadRuntimeInput {
   };
 }
 
+describe.each(["gui", "terminal"] as const)(
+  "MCP authorization for %s providers",
+  (presentation) => {
+    it.each([
+      ["default", undefined],
+      ["disabled", false],
+      ["enabled", true],
+    ] as const)(
+      "uses the %s deferred-auth capability and preserves skill preparation",
+      async (_label, defer) => {
+        const session = handle();
+        const provider: AgentAdapter = {
+          ...adapter("fixture", session),
+          ...(defer !== undefined ? { supportsDeferredMcpAuthorization: defer } : {}),
+        };
+        provider.capabilities.presentationModes = ["gui", "terminal"];
+        provider.capabilities.mcpScope = { gui: "launch", terminal: "launch" };
+        if (presentation === "terminal") {
+          provider.createStructuredSession = vi.fn<
+            NonNullable<AgentAdapter["createStructuredSession"]>
+          >(async () => undefined);
+          provider.buildLaunchArgv = vi.fn<AgentAdapter["buildLaunchArgv"]>(() => ({
+            binary: "fixture",
+            args: [],
+          }));
+          vi.mocked(spawn).mockImplementationOnce(() => ({
+            pid: 123,
+            cols: 80,
+            rows: 24,
+            process: "fixture",
+            handleFlowControl: false,
+            kill: vi.fn<() => void>(),
+            write: vi.fn<() => void>(),
+            resize: vi.fn<() => void>(),
+            clear: vi.fn<() => void>(),
+            pause: vi.fn<() => void>(),
+            resume: vi.fn<() => void>(),
+            onData: () => ({ dispose() {} }),
+            onExit: () => ({ dispose() {} }),
+          }));
+        }
+        const preparation = Promise.withResolvers<void>();
+        const prepareSkills = vi.fn<
+          NonNullable<ThreadSessionManagerOptions["prepareSkillsForLaunch"]>
+        >(async () => preparation.promise);
+        const authorize = vi.fn<
+          NonNullable<ThreadSessionManagerOptions["applyMcpServerAuthorization"]>
+        >(async (servers) =>
+          servers.map((server) => ({
+            ...server,
+            transport: {
+              type: "http",
+              url: "http://127.0.0.1:12345/authorized/mcp",
+              headers: { Authorization: "Bearer local-capability" },
+            },
+          })),
+        );
+        const manager = managerFor([provider], {
+          prepareSkillsForLaunch: prepareSkills,
+          applyMcpServerAuthorization: authorize,
+        });
+        const input = {
+          ...payload(),
+          presentationMode: presentation,
+          mcpServers: [
+            {
+              id: "external",
+              name: "external",
+              description: "",
+              enabled: true,
+              timeoutMs: 30_000,
+              transport: { type: "http" as const, url: "https://upstream.test/mcp", headers: {} },
+            },
+          ],
+        };
+        const executionLocation = { kind: "posix", path: "/effective-workspace" } as const;
+        resolveLocation.mockResolvedValue(executionLocation);
+        const start = manager.startThread(input);
+        await vi.waitFor(() =>
+          expect(prepareSkills).toHaveBeenCalledWith(executionLocation, provider.kind),
+        );
+        expect(authorize).not.toHaveBeenCalled();
+        expect(provider.createStructuredSession).not.toHaveBeenCalled();
+        expect(spawn).not.toHaveBeenCalled();
+        preparation.resolve();
+        await start;
+        expect(authorize).toHaveBeenCalledWith(input.mcpServers, executionLocation, {
+          defer: defer === true,
+        });
+        const translated = expect.arrayContaining([
+          expect.objectContaining({
+            id: "external",
+            transport: expect.objectContaining({
+              url: "http://127.0.0.1:12345/authorized/mcp",
+              headers: { Authorization: "Bearer local-capability" },
+            }),
+          }),
+        ]);
+        const delivered =
+          presentation === "gui"
+            ? vi.mocked(provider.createStructuredSession!).mock.calls[0]?.[0].mcpServers
+            : vi.mocked(provider.buildLaunchArgv).mock.calls[0]?.[4]?.mcpServers;
+        expect(delivered).toEqual(translated);
+        expect(provider.createStructuredSession).toHaveBeenCalledWith(
+          expect.objectContaining({ presentationMode: presentation }),
+        );
+        expect(session.activate).toHaveBeenCalledTimes(presentation === "gui" ? 1 : 0);
+        expect(session.openThread).toHaveBeenCalledTimes(presentation === "gui" ? 1 : 0);
+        expect(provider.buildLaunchArgv).toHaveBeenCalledTimes(presentation === "terminal" ? 1 : 0);
+        expect(spawn).toHaveBeenCalledTimes(presentation === "terminal" ? 1 : 0);
+      },
+    );
+  },
+);
+
 describe("approved workspace runtime launch carrier", () => {
   it.each(["new", "load", "resume"])(
     "carries detached roots through %s open and preserves legacy reopen ownership",
